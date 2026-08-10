@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build: Shared",
+      "type": "npm",
+      "script": "build:shared",
+      "problemMatcher": ["$tsc"],
+      "presentation": { "group": "dbdesigner", "panel": "shared", "reveal": "silent" }
+    },
+    {
+      "label": "Watch: Shared",
+      "type": "npm",
+      "script": "watch:shared",
+      "isBackground": true,
+      "problemMatcher": ["$tsc-watch"],
+      "dependsOn": ["Build: Shared"],
+      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Dev: Server",
+      "type": "npm",
+      "script": "dev:server",
+      "isBackground": true,
+      "problemMatcher": [],
+      "dependsOn": ["Build: Shared"],
+      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Dev: Client",
+      "type": "npm",
+      "script": "dev:client",
+      "isBackground": true,
+      "problemMatcher": [],
+      "dependsOn": ["Build: Shared"],
+      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "Dev: All",
+      "dependsOn": ["Watch: Shared", "Dev: Server", "Dev: Client"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    }
+  ]
+}

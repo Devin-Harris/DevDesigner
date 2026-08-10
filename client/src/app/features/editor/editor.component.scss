@@ -1,0 +1,61 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.editor {
+  display: flex;
+  height: 100%;
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--dbd-canvas-bg);
+  touch-action: none;
+  user-select: none;
+}
+
+.world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.grid {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.grid-line {
+  stroke: var(--dbd-grid-line);
+}
+
+.marquee {
+  position: absolute;
+  border: 1px solid var(--dbd-primary);
+  background: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  &.muted {
+    color: var(--dbd-text-muted);
+  }
+
+  &.hint {
+    color: var(--dbd-text-muted);
+    font-size: 14px;
+  }
+}

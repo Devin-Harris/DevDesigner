@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    // TS 6 deprecates the classic 'node' resolution, but NestJS + TypeORM are
+    // most reliable with it (node16/nodenext trips over some export maps).
+    // Silence the deprecation; revisit when moving to TS 7 (not usable with
+    // Angular 22 anyway, which pins TS >=6.0 <6.1).
+    "ignoreDeprecations": "6.0",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,89 @@
+<div class="panel">
+  <div class="panel-head">
+    <span class="panel-title">Relationship</span>
+    <button
+      mat-icon-button
+      (click)="remove()"
+      [disabled]="!store.canEdit()"
+      matTooltip="Delete relationship"
+      aria-label="Delete relationship"
+    >
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+    <mat-label>Source column</mat-label>
+    <mat-select
+      [ngModel]="relationship().sourceColumnId"
+      (selectionChange)="setSource($event.value)"
+      [disabled]="!store.canEdit()"
+    >
+      @for (t of store.tables(); track t.id) {
+        <mat-optgroup [label]="t.name">
+          @for (c of t.columns; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-optgroup>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="arrow"><mat-icon>arrow_downward</mat-icon></div>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+    <mat-label>Target column</mat-label>
+    <mat-select
+      [ngModel]="relationship().targetColumnId"
+      (selectionChange)="setTarget($event.value)"
+      [disabled]="!store.canEdit()"
+    >
+      @for (t of store.tables(); track t.id) {
+        <mat-optgroup [label]="t.name">
+          @for (c of t.columns; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-optgroup>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full spaced">
+    <mat-label>Type</mat-label>
+    <mat-select
+      [ngModel]="relationship().type"
+      (selectionChange)="setType($event.value)"
+      [disabled]="!store.canEdit()"
+    >
+      @for (t of types; track t) {
+        <mat-option [value]="t">{{ typeLabels[t] }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full spaced">
+    <mat-label>On delete</mat-label>
+    <mat-select
+      [ngModel]="relationship().onDelete ?? ''"
+      (selectionChange)="setOnDelete($event.value)"
+      [disabled]="!store.canEdit()"
+    >
+      @for (action of actions; track action) {
+        <mat-option [value]="action">{{ action || 'Default' }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full spaced">
+    <mat-label>On update</mat-label>
+    <mat-select
+      [ngModel]="relationship().onUpdate ?? ''"
+      (selectionChange)="setOnUpdate($event.value)"
+      [disabled]="!store.canEdit()"
+    >
+      @for (action of actions; track action) {
+        <mat-option [value]="action">{{ action || 'Default' }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>

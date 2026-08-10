@@ -1,0 +1,97 @@
+<div class="editor">
+  <div
+    #canvas
+    class="canvas"
+    (pointerdown)="onCanvasPointerDown($event)"
+    (dblclick)="onCanvasDblClick($event)"
+    (wheel)="onWheel($event)"
+  >
+    <div class="world" [style.transform]="worldTransform()">
+      <svg class="grid" width="1" height="1">
+        <defs>
+          <pattern id="dbd-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path class="grid-line" d="M 24 0 L 0 0 0 24" fill="none" stroke-width="1" />
+          </pattern>
+        </defs>
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dbd-grid)" />
+      </svg>
+
+      @for (table of store.tables(); track table.id) {
+        <app-table-node
+          [table]="table"
+          [selected]="store.selectedTableIds().includes(table.id)"
+          [editable]="store.canEdit()"
+          (nodePointerDown)="onNodePointerDown($event, table)"
+          (handleDown)="onHandleDown($event)"
+          (handleUp)="onHandleUp($event)"
+        ></app-table-node>
+      }
+
+      <!-- Connectors render above nodes so markers and drag handles are never clipped. -->
+      <app-canvas-connectors
+        [connectors]="displayConnectors()"
+        [tempLinkPath]="tempLink()"
+        [svgOffset]="svgOffset"
+        [dragging]="dragging()"
+        (selectConnector)="onConnectorSelect($event)"
+        (endpointDown)="onEndpointDown($event)"
+        (waypointDown)="onWaypointDown($event)"
+        (waypointRemove)="onWaypointRemove($event)"
+        (segmentAddDown)="onSegmentAddDown($event)"
+      ></app-canvas-connectors>
+    </div>
+
+    @if (marqueeRect(); as m) {
+      <div
+        class="marquee"
+        [style.left.px]="m.left"
+        [style.top.px]="m.top"
+        [style.width.px]="m.width"
+        [style.height.px]="m.height"
+      ></div>
+    }
+
+    @if (selectedRelInline(); as info) {
+      <app-relationship-toolbar
+        [style.left.px]="info.x"
+        [style.top.px]="info.y"
+        [type]="info.rel.type"
+        [canEdit]="store.canEdit()"
+        (pointerdown)="$event.stopPropagation()"
+        (setType)="onSetRelType($event)"
+        (deleteRelationship)="onDeleteRel()"
+      ></app-relationship-toolbar>
+    }
+
+    <app-canvas-toolbar
+      (pointerdown)="$event.stopPropagation()"
+      [zoomLabel]="zoomLabel()"
+      [saveLabel]="saveLabel()"
+      [canAdd]="store.canEdit() && !!store.projectId()"
+      [gridSnap]="gridSnap()"
+      [canAlign]="store.canEdit() && store.selectedTableIds().length >= 2"
+      (addTable)="addTableCentered()"
+      (zoomIn)="zoomIn()"
+      (zoomOut)="zoomOut()"
+      (resetView)="resetView()"
+      (toggleGrid)="toggleGrid()"
+      (align)="onAlign($event)"
+    ></app-canvas-toolbar>
+
+    @if (store.loading()) {
+      <div class="overlay">
+        <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+      </div>
+    } @else if (store.error()) {
+      <div class="overlay muted">{{ store.error() }}</div>
+    } @else if (store.tables().length === 0) {
+      <div class="overlay hint">Double-click anywhere (or press Table) to add your first table.</div>
+    }
+  </div>
+
+  @if (store.selectedTable(); as table) {
+    <app-inspector [table]="table"></app-inspector>
+  } @else if (store.selectedRelationship(); as relationship) {
+    <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
+  }
+</div>

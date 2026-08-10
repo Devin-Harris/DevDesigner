@@ -1,0 +1,87 @@
+<svg
+  class="layer"
+  [class.dragging]="dragging()"
+  [style.left.px]="-svgOffset()"
+  [style.top.px]="-svgOffset()"
+  width="10000"
+  height="10000"
+>
+  <defs>
+    <!-- "one": a single perpendicular bar just before the entity. -->
+    <marker
+      id="dbd-one"
+      markerWidth="20"
+      markerHeight="18"
+      refX="17"
+      refY="9"
+      orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"
+    >
+      <path class="marker-line" d="M11 3 L11 15" fill="none" />
+    </marker>
+    <!-- "many": crow's foot that fans out at the entity and converges toward the line. -->
+    <marker
+      id="dbd-many"
+      markerWidth="20"
+      markerHeight="18"
+      refX="17"
+      refY="9"
+      orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"
+    >
+      <path class="marker-line" d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" />
+    </marker>
+  </defs>
+
+  <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
+    @for (c of connectors(); track c.id) {
+      <path class="hit" [attr.d]="c.d" (pointerdown)="onHit(c.id, $event)"></path>
+      <path
+        class="edge"
+        [class.selected]="c.selected"
+        [attr.d]="c.d"
+        [attr.marker-start]="c.markerStart"
+        [attr.marker-end]="c.markerEnd"
+      ></path>
+      @if (c.selected) {
+        @for (mid of c.segmentMidpoints; track $index) {
+          <circle
+            class="wp-add"
+            [attr.cx]="mid.x"
+            [attr.cy]="mid.y"
+            r="4"
+            (pointerdown)="onSegmentAdd(c.id, $index, $event)"
+          ></circle>
+        }
+        @for (wp of c.waypoints; track $index) {
+          <circle
+            class="waypoint"
+            [attr.cx]="wp.x"
+            [attr.cy]="wp.y"
+            r="6"
+            (pointerdown)="onWaypoint(c.id, $index, $event)"
+            (dblclick)="onWaypointDbl(c.id, $index, $event)"
+          ></circle>
+        }
+        <circle
+          class="endpoint"
+          [attr.cx]="c.ax"
+          [attr.cy]="c.ay"
+          r="6"
+          (pointerdown)="onEndpoint(c.id, 'source', $event)"
+        ></circle>
+        <circle
+          class="endpoint"
+          [attr.cx]="c.bx"
+          [attr.cy]="c.by"
+          r="6"
+          (pointerdown)="onEndpoint(c.id, 'target', $event)"
+        ></circle>
+      }
+    }
+
+    @if (tempLinkPath(); as path) {
+      <path class="temp" [attr.d]="path"></path>
+    }
+  </g>
+</svg>

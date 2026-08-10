@@ -1,0 +1,77 @@
+<div class="toolbar">
+  <button
+    mat-flat-button
+    color="primary"
+    class="add-btn"
+    (click)="addTable.emit()"
+    [disabled]="!canAdd()"
+    matTooltip="Add table (or double-click the canvas)"
+  >
+    <mat-icon>add</mat-icon>
+    Table
+  </button>
+
+  <div class="group">
+    <button
+      mat-icon-button
+      [class.on]="gridSnap()"
+      (click)="toggleGrid.emit()"
+      matTooltip="Snap to grid"
+      aria-label="Snap to grid"
+    >
+      <mat-icon>grid_4x4</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      [matMenuTriggerFor]="alignMenu"
+      [disabled]="!canAlign()"
+      matTooltip="Align selected"
+      aria-label="Align selected"
+    >
+      <mat-icon>align_horizontal_left</mat-icon>
+    </button>
+    <mat-menu #alignMenu="matMenu">
+      <button mat-menu-item (click)="align.emit('left')">
+        <mat-icon>align_horizontal_left</mat-icon><span>Align left</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('hcenter')">
+        <mat-icon>align_horizontal_center</mat-icon><span>Align center (x)</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('right')">
+        <mat-icon>align_horizontal_right</mat-icon><span>Align right</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('top')">
+        <mat-icon>align_vertical_top</mat-icon><span>Align top</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('vcenter')">
+        <mat-icon>align_vertical_center</mat-icon><span>Align middle (y)</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('bottom')">
+        <mat-icon>align_vertical_bottom</mat-icon><span>Align bottom</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('dist-h')">
+        <mat-icon>horizontal_distribute</mat-icon><span>Distribute horizontally</span>
+      </button>
+      <button mat-menu-item (click)="align.emit('dist-v')">
+        <mat-icon>vertical_distribute</mat-icon><span>Distribute vertically</span>
+      </button>
+    </mat-menu>
+  </div>
+
+  <div class="group">
+    <button mat-icon-button (click)="zoomOut.emit()" matTooltip="Zoom out">
+      <mat-icon>remove</mat-icon>
+    </button>
+    <span class="zoom-label">{{ zoomLabel() }}</span>
+    <button mat-icon-button (click)="zoomIn.emit()" matTooltip="Zoom in">
+      <mat-icon>add</mat-icon>
+    </button>
+    <button mat-icon-button (click)="resetView.emit()" matTooltip="Reset view">
+      <mat-icon>center_focus_strong</mat-icon>
+    </button>
+  </div>
+</div>
+
+@if (saveLabel()) {
+  <div class="save-label">{{ saveLabel() }}</div>
+}

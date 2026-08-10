@@ -1,0 +1,187 @@
+<header
+  class="node-head"
+  [class.colored]="!!table().color"
+  [style.background]="table().color || null"
+  [style.height.px]="headerH"
+>
+  <button
+    class="icon-btn"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="addColumn()"
+    [disabled]="!editable()"
+    title="Add column"
+    aria-label="Add column"
+  >
+    <mat-icon>add</mat-icon>
+  </button>
+
+  <button
+    class="icon-btn"
+    [matMenuTriggerFor]="colorMenu"
+    (pointerdown)="$event.stopPropagation()"
+    [disabled]="!editable()"
+    title="Header color"
+    aria-label="Header color"
+  >
+    <span class="color-dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+  </button>
+  <mat-menu #colorMenu="matMenu">
+    <div class="color-grid" (click)="$event.stopPropagation()">
+      @for (c of headerColors; track c) {
+        <button class="swatch" [style.background]="c" (click)="setColor(c)" [attr.aria-label]="c"></button>
+      }
+      <button class="swatch none" (click)="setColor('')" title="No color" aria-label="No color"></button>
+    </div>
+  </mat-menu>
+
+  @if (editingName()) {
+    <input
+      class="edit title-edit"
+      appAutofocus
+      [value]="table().name"
+      (pointerdown)="$event.stopPropagation()"
+      (keydown.enter)="commitName($event)"
+      (keydown.escape)="cancelInline()"
+      (blur)="commitName($event)"
+      maxlength="120"
+    />
+  } @else {
+    <span class="title" (dblclick)="startEditName($event)" title="Double-click to rename">
+      {{ table().name }}
+    </span>
+  }
+
+  <button
+    class="icon-btn"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="deleteTable()"
+    [disabled]="!editable()"
+    title="Delete table"
+    aria-label="Delete table"
+  >
+    <mat-icon>delete</mat-icon>
+  </button>
+</header>
+
+@if (table().columns.length === 0) {
+  <div class="empty">No columns yet — use +</div>
+} @else {
+  @for (column of table().columns; track column.id) {
+    <div class="row" [style.height.px]="rowH">
+      <span
+        class="handle left"
+        title="Drag to connect"
+        (pointerdown)="onHandleDown($event, column.id)"
+        (pointerup)="onHandleUp($event, column.id)"
+      ></span>
+
+      @if (editingColumnId() === column.id) {
+        <input
+          class="edit"
+          appAutofocus
+          [value]="column.name"
+          (pointerdown)="$event.stopPropagation()"
+          (keydown.enter)="commitColumn(column, $event)"
+          (keydown.escape)="cancelInline()"
+          (blur)="commitColumn(column, $event)"
+          maxlength="120"
+        />
+      } @else {
+        <span
+          class="col-name"
+          (dblclick)="startEditColumn($event, column)"
+          title="Double-click to rename"
+        >
+          {{ column.name }}
+        </span>
+      }
+
+      <div class="chips">
+        <button
+          class="chip pk"
+          [class.on]="column.isPrimaryKey"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="togglePk(column)"
+          title="Primary key"
+        >
+          PK
+        </button>
+        <button
+          class="chip nn"
+          [class.on]="!column.isNullable"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="toggleNotNull(column)"
+          title="Not null"
+        >
+          NN
+        </button>
+        <button
+          class="chip uq"
+          [class.on]="column.isUnique"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="toggleUnique(column)"
+          title="Unique"
+        >
+          UQ
+        </button>
+        <button
+          class="chip ai"
+          [class.on]="column.isAutoIncrement"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="toggleAuto(column)"
+          title="Auto increment"
+        >
+          AI
+        </button>
+      </div>
+
+      <button
+        class="type"
+        [matMenuTriggerFor]="typeMenu"
+        (pointerdown)="$event.stopPropagation()"
+        title="Change type"
+      >
+        <span class="type-name">{{ column.dataType.name }}</span>
+        @if (column.dataType.name === 'VARCHAR' && column.dataType.length) {
+          <span class="type-len">({{ column.dataType.length }})</span>
+        }
+        <mat-icon class="chev">arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #typeMenu="matMenu">
+        @for (name of dataTypeNames; track name) {
+          <button mat-menu-item (click)="setType(column, name)">{{ name }}</button>
+        }
+      </mat-menu>
+
+      @if (column.dataType.name === 'VARCHAR') {
+        <input
+          class="len"
+          type="number"
+          min="1"
+          [value]="column.dataType.length ?? ''"
+          (pointerdown)="$event.stopPropagation()"
+          (change)="setLength(column, $event)"
+          title="Length"
+        />
+      }
+
+      <button
+        class="icon-btn tiny"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="deleteColumn(column)"
+        [disabled]="!editable()"
+        title="Delete column"
+        aria-label="Delete column"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <span
+        class="handle right"
+        title="Drag to connect"
+        (pointerdown)="onHandleDown($event, column.id)"
+        (pointerup)="onHandleUp($event, column.id)"
+      ></span>
+    </div>
+  }
+}

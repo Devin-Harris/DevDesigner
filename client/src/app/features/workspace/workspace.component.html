@@ -1,0 +1,40 @@
+<div class="ws">
+  <aside class="sidebar" [class.collapsed]="collapsed()">
+    @if (collapsed()) {
+      <div class="rail">
+        <button mat-icon-button (click)="toggleSidebar()" matTooltip="Expand projects" aria-label="Expand projects">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <mat-icon class="rail-icon">table_chart</mat-icon>
+      </div>
+    } @else {
+      <div class="side-head">
+        <span class="side-title">Projects</span>
+        <button mat-icon-button (click)="toggleSidebar()" matTooltip="Collapse projects" aria-label="Collapse projects">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+      </div>
+      <app-project-list></app-project-list>
+    }
+  </aside>
+
+  <section class="content">
+    <div class="content-head">
+      <span class="content-title">{{ selectedProject()?.name ?? 'DBDesigner' }}</span>
+    </div>
+    <div class="content-body">
+      @if (selectedProject(); as project) {
+        <app-editor [projectId]="project.id"></app-editor>
+      } @else {
+        <div class="empty">
+          <mat-icon class="empty-icon">schema</mat-icon>
+          @if (store.projects().length === 0 && !store.loading()) {
+            <p>No project yet. Add one from the list to get started.</p>
+          } @else {
+            <p>Select a project to open its canvas.</p>
+          }
+        </div>
+      }
+    </div>
+  </section>
+</div>

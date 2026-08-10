@@ -1,0 +1,34 @@
+{
+  "name": "dbdesigner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interactive database schema diagramming app (Angular + NestJS + shared TS package).",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w shared",
+    "watch:shared": "npm run watch -w shared",
+    "dev:server": "npm run start:dev -w server",
+    "dev:client": "npm start -w client",
+    "dev": "npm run build:shared && concurrently -n shared,server,client -c gray,blue,green \"npm run watch:shared\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:windows": "npm run build:shared && node scripts/dev.mjs",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
+    "test": "npm run test -w shared && npm run test -w server",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

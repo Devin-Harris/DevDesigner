@@ -1,0 +1,1 @@
+# HTTP interceptors: attach Authorization (JWT) and X-Share-Token headers.

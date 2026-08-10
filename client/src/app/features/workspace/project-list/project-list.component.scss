@@ -1,0 +1,99 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.muted {
+  color: var(--dbd-text-muted);
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--dbd-space-2);
+  padding: var(--dbd-space-2) var(--dbd-space-3);
+}
+
+.search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--dbd-space-2);
+  padding: 0 var(--dbd-space-2);
+  height: 34px;
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius);
+  background: var(--dbd-surface-2);
+  color: var(--dbd-text-muted);
+
+  &:focus-within {
+    border-color: var(--dbd-primary);
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--dbd-text);
+    font: inherit;
+    font-size: 13px;
+  }
+}
+
+.add {
+  flex: 0 0 auto;
+}
+
+.list {
+  flex: 1;
+  overflow: auto;
+
+  // Square off Material's rounded nav-list items so they line up with the
+  // rectangular search/inputs. Scoped to this component's list.
+  ::ng-deep .mat-mdc-list-item {
+    border-radius: 0;
+    --mdc-list-list-item-container-shape: 0;
+  }
+
+  ::ng-deep .mdc-list-item--activated,
+  ::ng-deep .mat-mdc-list-item.mdc-list-item--activated {
+    border-left: 3px solid var(--dbd-primary);
+  }
+}
+
+.rename {
+  width: 100%;
+  border: 1px solid var(--dbd-primary);
+  border-radius: var(--dbd-radius-sm);
+  padding: 4px 8px;
+  font: inherit;
+  color: var(--dbd-text);
+  background: var(--dbd-surface);
+  outline: none;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: var(--dbd-space-6);
+}
+
+.state {
+  padding: var(--dbd-space-4);
+  text-align: center;
+}
+
+.footer {
+  padding: var(--dbd-space-3) var(--dbd-space-4);
+  border-top: 1px solid var(--dbd-border);
+}

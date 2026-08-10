@@ -1,0 +1,86 @@
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+// While dragging, disable all connector interactivity so the pointerup drops on
+// the underlying table/column connect handles (fixes endpoint re-pointing).
+.layer.dragging path,
+.layer.dragging circle {
+  pointer-events: none;
+}
+
+.marker-line {
+  stroke: var(--dbd-connector);
+  stroke-width: 1.5;
+}
+
+.hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--dbd-connector);
+  stroke-width: 1.75;
+  pointer-events: none;
+  transition: stroke 0.12s ease;
+
+  &.selected {
+    stroke: var(--dbd-connector-selected);
+    stroke-width: 2.5;
+  }
+}
+
+.endpoint {
+  fill: var(--dbd-surface);
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: grab;
+
+  &:hover {
+    fill: var(--dbd-primary-weak);
+  }
+}
+
+.waypoint {
+  fill: var(--dbd-connector-selected);
+  stroke: var(--dbd-surface);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.wp-add {
+  fill: var(--dbd-surface);
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 2;
+  opacity: 0.5;
+  pointer-events: all;
+  cursor: copy;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.temp {
+  fill: none;
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}

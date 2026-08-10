@@ -1,0 +1,165 @@
+// Global styles. Kept small: the Angular Material theme (light + dark), a set of
+// design tokens as CSS custom properties (components consume and can locally
+// override them), and the few Material tweaks we actually want. Component-level
+// styling lives in each component's .scss.
+
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$dbd-light: mat.define-theme(
+  (
+    color: (
+      theme-type: light,
+      primary: mat.$blue-palette,
+      tertiary: mat.$cyan-palette,
+    ),
+    typography: (
+      brand-family: 'Inter, Roboto, system-ui, sans-serif',
+      plain-family: 'Inter, Roboto, system-ui, sans-serif',
+    ),
+    density: (
+      scale: -1,
+    ),
+  )
+);
+
+$dbd-dark: mat.define-theme(
+  (
+    color: (
+      theme-type: dark,
+      primary: mat.$blue-palette,
+      tertiary: mat.$cyan-palette,
+    ),
+  )
+);
+
+html {
+  @include mat.all-component-themes($dbd-light);
+  color-scheme: light;
+
+  // spacing
+  --dbd-space-1: 4px;
+  --dbd-space-2: 8px;
+  --dbd-space-3: 12px;
+  --dbd-space-4: 16px;
+  --dbd-space-6: 24px;
+
+  // radius
+  --dbd-radius-sm: 6px;
+  --dbd-radius: 10px;
+  --dbd-radius-lg: 14px;
+
+  // elevation
+  --dbd-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --dbd-shadow-2: 0 4px 14px rgba(16, 24, 40, 0.12);
+  --dbd-shadow-3: 0 12px 28px rgba(16, 24, 40, 0.18);
+
+  // surfaces & lines
+  --dbd-surface: #ffffff;
+  --dbd-surface-2: #f6f8fb;
+  --dbd-border: #e6e9ef;
+  --dbd-border-strong: #d3d8e0;
+
+  // text
+  --dbd-text: #131720;
+  --dbd-text-muted: #667085;
+
+  // brand / status
+  --dbd-primary: #2f6bff;
+  --dbd-primary-weak: #eaf1ff;
+  --dbd-danger: #e5484d;
+  --dbd-success: #12b76a;
+
+  // canvas & diagram
+  --dbd-canvas-bg: #f2f5f9;
+  --dbd-grid-line: rgba(16, 24, 40, 0.05);
+  --dbd-node-surface: #ffffff;
+  --dbd-node-header: #f6f8fb;
+  --dbd-node-border: #e6e9ef;
+  --dbd-node-row-border: #f0f2f6;
+  --dbd-connector: #9aa4b2;
+  --dbd-connector-selected: var(--dbd-primary);
+  --dbd-handle: var(--dbd-connector);
+  --dbd-handle-hover: var(--dbd-primary);
+  --dbd-chip-bg: #eef1f6;
+  --dbd-chip-active: #e0ebff;
+}
+
+html.dark {
+  @include mat.all-component-colors($dbd-dark);
+  color-scheme: dark;
+
+  --dbd-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --dbd-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --dbd-shadow-3: 0 14px 32px rgba(0, 0, 0, 0.6);
+
+  --dbd-surface: #10151c;
+  --dbd-surface-2: #161d26;
+  --dbd-border: #232d39;
+  --dbd-border-strong: #33404f;
+
+  --dbd-text: #e7ebf1;
+  --dbd-text-muted: #9aa4b2;
+
+  --dbd-primary: #5b9dff;
+  --dbd-primary-weak: #172438;
+  --dbd-danger: #ff6b60;
+  --dbd-success: #3ddc97;
+
+  --dbd-canvas-bg: #0b0f15;
+  --dbd-grid-line: rgba(255, 255, 255, 0.05);
+  --dbd-node-surface: #141b24;
+  --dbd-node-header: #1a222d;
+  --dbd-node-border: #263140;
+  --dbd-node-row-border: #1f2731;
+  --dbd-connector: #7f8ea3;
+  --dbd-connector-selected: var(--dbd-primary);
+  --dbd-handle: var(--dbd-connector);
+  --dbd-handle-hover: var(--dbd-primary);
+  --dbd-chip-bg: #1e2733;
+  --dbd-chip-active: #1b2b46;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+// ---- A few simplifying Material tweaks (expressed via variables) ----
+
+// Flatter menu / dialog surfaces with our radius.
+.mat-mdc-menu-panel {
+  border-radius: var(--dbd-radius) !important;
+  border: 1px solid var(--dbd-border);
+}
+.mat-mdc-dialog-surface {
+  border-radius: var(--dbd-radius-lg) !important;
+}
+
+// Minimal, tasteful scrollbars.
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dbd-border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--dbd-border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*:not(mat-icon) {
+  font-family: 'SFMono-Regular', ui-monospace, monospace;
+}

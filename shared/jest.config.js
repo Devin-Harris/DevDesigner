@@ -1,0 +1,7 @@
+/** Jest config for the shared package. Tests target the SQL generator and validation. */
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/*.spec.ts'],
+};

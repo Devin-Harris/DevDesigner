@@ -1,0 +1,18 @@
+<div class="shell">
+  <mat-toolbar class="topbar">
+    <mat-icon class="brand-icon">schema</mat-icon>
+    <span class="brand">DBDesigner</span>
+    <span class="spacer"></span>
+    <button
+      mat-icon-button
+      (click)="theme.toggle()"
+      [matTooltip]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+      aria-label="Toggle theme"
+    >
+      <mat-icon>{{ theme.dark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
+  </mat-toolbar>
+  <div class="body">
+    <router-outlet />
+  </div>
+</div>

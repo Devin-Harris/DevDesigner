@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  width: 320px;
+  height: 100%;
+  border-left: 1px solid var(--dbd-border);
+  background: var(--dbd-surface);
+  overflow: auto;
+}
+
+.panel {
+  padding: var(--dbd-space-3);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--dbd-space-2);
+  margin-bottom: var(--dbd-space-2);
+}
+
+.panel-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.full {
+  width: 100%;
+}
+
+.spaced {
+  margin-top: var(--dbd-space-2);
+}
+
+.arrow {
+  text-align: center;
+  color: var(--dbd-text-muted);
+  margin: 2px 0;
+}

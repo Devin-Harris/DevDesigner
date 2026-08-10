@@ -1,0 +1,40 @@
+<button
+  type="button"
+  class="seg"
+  [class.active]="type() === 'ONE_TO_ONE'"
+  [disabled]="!canEdit()"
+  (click)="setType.emit('ONE_TO_ONE')"
+>
+  1:1
+</button>
+<button
+  type="button"
+  class="seg"
+  [class.active]="type() === 'ONE_TO_MANY'"
+  [disabled]="!canEdit()"
+  (click)="setType.emit('ONE_TO_MANY')"
+>
+  1:N
+</button>
+<button
+  type="button"
+  class="seg"
+  [class.active]="type() === 'MANY_TO_MANY'"
+  [disabled]="!canEdit()"
+  (click)="setType.emit('MANY_TO_MANY')"
+>
+  N:M
+</button>
+
+<span class="divider"></span>
+
+<button
+  type="button"
+  class="del"
+  [disabled]="!canEdit()"
+  (click)="deleteRelationship.emit()"
+  matTooltip="Delete relationship"
+  aria-label="Delete relationship"
+>
+  <mat-icon>close</mat-icon>
+</button>
