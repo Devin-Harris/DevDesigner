@@ -80,6 +80,8 @@
   color: var(--dbd-text);
   background: var(--dbd-surface);
   outline: none;
+  box-sizing: border-box;
+  margin-bottom: 0.5em;
 }
 
 .center {
@@ -96,4 +98,21 @@
 .footer {
   padding: var(--dbd-space-3) var(--dbd-space-4);
   border-top: 1px solid var(--dbd-border);
+}
+
+a[mat-list-item] {
+  ::ng-deep {
+    &:has(input.rename) {
+      .mdc-list-item__primary-text {
+        overflow: unset;
+      }
+    }
+  }
+
+  button {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import type { Connector } from '../canvas-geometry';
+import type { Connector } from '../canvas/models/connector.model';
 
 export type Endpoint = 'source' | 'target';
 
@@ -9,23 +9,18 @@ export interface EndpointDownEvent {
   event: PointerEvent;
 }
 
-export interface WaypointDownEvent {
-  relationshipId: string;
-  index: number;
-  event: PointerEvent;
-}
-
-export interface SegmentAddEvent {
+export interface SegmentDownEvent {
   relationshipId: string;
   segmentIndex: number;
   event: PointerEvent;
 }
 
 /**
- * SVG layer that draws relationship connectors with crow's-foot markers, the
- * draggable endpoint handles for the selected connector, and the temporary
- * link line while drawing/re-pointing. Purely presentational: it emits intent
- * and the editor mutates the store.
+ * SVG layer that draws relationship connectors (orthogonal, crow's-foot markers)
+ * and, for the selected connector, its endpoint handles and per-segment drag
+ * handles. Purely presentational: it emits intent, the editor mutates the store.
+ * While a drag is in progress the whole layer is click-through so the drop lands
+ * on the underlying table/column handles.
  */
 @Component({
   selector: 'app-canvas-connectors',
@@ -38,15 +33,12 @@ export class CanvasConnectorsComponent {
   readonly connectors = input.required<Connector[]>();
   readonly tempLinkPath = input<string | null>(null);
   readonly svgOffset = input.required<number>();
-  /** While true (a drag is in progress) the layer ignores pointer events so the
-   * drop lands on the underlying table/column handles. */
   readonly dragging = input<boolean>(false);
 
   readonly selectConnector = output<{ id: string; event: PointerEvent }>();
   readonly endpointDown = output<EndpointDownEvent>();
-  readonly waypointDown = output<WaypointDownEvent>();
-  readonly waypointRemove = output<{ relationshipId: string; index: number }>();
-  readonly segmentAddDown = output<SegmentAddEvent>();
+  readonly segmentDown = output<SegmentDownEvent>();
+  readonly resetRoute = output<string>();
 
   protected onHit(id: string, event: PointerEvent): void {
     event.stopPropagation();
@@ -59,20 +51,9 @@ export class CanvasConnectorsComponent {
     this.endpointDown.emit({ relationshipId, which, event });
   }
 
-  protected onWaypoint(relationshipId: string, index: number, event: PointerEvent): void {
+  protected onSegment(relationshipId: string, segmentIndex: number, event: PointerEvent): void {
     event.stopPropagation();
     event.preventDefault();
-    this.waypointDown.emit({ relationshipId, index, event });
-  }
-
-  protected onWaypointDbl(relationshipId: string, index: number, event: Event): void {
-    event.stopPropagation();
-    this.waypointRemove.emit({ relationshipId, index });
-  }
-
-  protected onSegmentAdd(relationshipId: string, segmentIndex: number, event: PointerEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-    this.segmentAddDown.emit({ relationshipId, segmentIndex, event });
+    this.segmentDown.emit({ relationshipId, segmentIndex, event });
   }
 }

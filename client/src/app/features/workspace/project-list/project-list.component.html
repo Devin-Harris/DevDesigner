@@ -3,7 +3,13 @@
     <mat-icon>search</mat-icon>
     <input [value]="store.search()" (input)="onSearch($event)" placeholder="Search projects" />
   </div>
-  <button mat-icon-button class="add" (click)="addProject()" matTooltip="New project" aria-label="New project">
+  <button
+    mat-icon-button
+    class="add"
+    (click)="addProject()"
+    matTooltip="New project"
+    aria-label="New project"
+  >
     <mat-icon>add</mat-icon>
   </button>
 </div>
@@ -25,48 +31,50 @@
   } @else {
     <mat-nav-list>
       @for (project of store.visibleProjects(); track project.id) {
-        <mat-list-item [activated]="project.id === store.selectedId()" (click)="select(project)">
-          @if (editingId() === project.id) {
-            <input
-              class="rename"
-              appAutofocus
-              [ngModel]="editName()"
-              (ngModelChange)="editName.set($event)"
-              (click)="$event.stopPropagation()"
-              (keydown.enter)="commitRename(project)"
-              (keydown.escape)="cancelRename()"
-              (blur)="commitRename(project)"
-              maxlength="120"
-            />
-          } @else {
-            <span matListItemTitle>{{ project.name }}</span>
-            <span matListItemLine class="muted">{{ project.updatedAt | date: 'mediumDate' }}</span>
-            <button
-              matListItemMeta
-              mat-icon-button
-              [matMenuTriggerFor]="menu"
-              (click)="$event.stopPropagation()"
-              aria-label="Project actions"
-            >
-              <mat-icon>more_vert</mat-icon>
+        <a mat-list-item [activated]="project.id === store.selectedId()" (click)="select(project)">
+          <span matListItemTitle (dblclick)="startRename(project)">
+            @if (editingId() === project.id) {
+              <input
+                class="rename"
+                appAutofocus
+                [ngModel]="editName()"
+                (ngModelChange)="editName.set($event)"
+                (click)="$event.stopPropagation()"
+                (keydown.enter)="commitRename(project)"
+                (keydown.escape)="cancelRename()"
+                (blur)="commitRename(project)"
+                maxlength="120"
+              />
+            } @else {
+              <span>{{ project.name }}</span>
+            }
+          </span>
+          <span matListItemLine class="muted">{{ project.updatedAt | date: 'mediumDate' }}</span>
+          <button
+            matListItemMeta
+            mat-icon-button
+            [matMenuTriggerFor]="menu"
+            (click)="$event.stopPropagation()"
+            aria-label="Project actions"
+          >
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item (click)="startRename(project)">
+              <mat-icon>edit</mat-icon><span>Rename</span>
             </button>
-            <mat-menu #menu="matMenu">
-              <button mat-menu-item (click)="startRename(project)">
-                <mat-icon>edit</mat-icon><span>Rename</span>
-              </button>
-              <button mat-menu-item (click)="duplicate(project)">
-                <mat-icon>content_copy</mat-icon><span>Duplicate</span>
-              </button>
-              <button mat-menu-item (click)="toggleArchive(project)">
-                <mat-icon>{{ project.archived ? 'unarchive' : 'archive' }}</mat-icon>
-                <span>{{ project.archived ? 'Unarchive' : 'Archive' }}</span>
-              </button>
-              <button mat-menu-item (click)="remove(project)">
-                <mat-icon>delete</mat-icon><span>Delete</span>
-              </button>
-            </mat-menu>
-          }
-        </mat-list-item>
+            <button mat-menu-item (click)="duplicate(project)">
+              <mat-icon>content_copy</mat-icon><span>Duplicate</span>
+            </button>
+            <button mat-menu-item (click)="toggleArchive(project)">
+              <mat-icon>{{ project.archived ? 'unarchive' : 'archive' }}</mat-icon>
+              <span>{{ project.archived ? 'Unarchive' : 'Archive' }}</span>
+            </button>
+            <button mat-menu-item (click)="remove(project)">
+              <mat-icon>delete</mat-icon><span>Delete</span>
+            </button>
+          </mat-menu>
+        </a>
       }
     </mat-nav-list>
   }

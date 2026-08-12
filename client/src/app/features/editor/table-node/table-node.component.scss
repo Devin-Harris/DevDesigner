@@ -282,6 +282,7 @@
 }
 
 .handle {
+  opacity: 0;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -291,7 +292,9 @@
   background: var(--dbd-handle);
   border: 2px solid var(--dbd-node-surface);
   cursor: crosshair;
-  transition: background 0.1s ease;
+  transition:
+    background 0.1s ease,
+    opacity 0.12s ease;
 
   &.left {
     left: -6px;
@@ -302,6 +305,14 @@
   }
 
   &:hover {
+    opacity: 1;
     background: var(--dbd-handle-hover);
+    transform: translateY(-50%) scale(1.25);
   }
+}
+
+// Reveal all connection points when hovering or selecting the table (Miro-style).
+:host(:hover) .handle,
+:host(.selected) .handle {
+  opacity: 1;
 }

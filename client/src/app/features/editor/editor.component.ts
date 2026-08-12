@@ -13,25 +13,21 @@ import {
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { RelationshipModel, RelationshipType, TableModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../stores/project.store';
+import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
+import type { Point, Side } from './canvas/models/geometry.model';
 import {
-  MAX_ZOOM,
-  MIN_ZOOM,
-  NODE_WIDTH,
-  SVG_OFFSET,
-  type Side,
   buildColumnLocations,
   columnAnchor,
-  computeConnectors,
-  elbowPath,
   nodeHeight,
   snapToGrid,
-} from './canvas-geometry';
+} from './canvas/helpers/node-metrics.helper';
+import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
+import { elbowPath } from './canvas/helpers/svg-path.helper';
 import { CanvasToolbarComponent, type AlignAction } from './canvas-toolbar/canvas-toolbar.component';
 import {
   CanvasConnectorsComponent,
   type EndpointDownEvent,
-  type SegmentAddEvent,
-  type WaypointDownEvent,
+  type SegmentDownEvent,
 } from './canvas-connectors/canvas-connectors.component';
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
@@ -50,6 +46,16 @@ interface Rect {
   minY: number;
   maxX: number;
   maxY: number;
+}
+
+const GRID_SNAP_KEY = 'dbd-grid-snap';
+
+function readStoredGrid(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(GRID_SNAP_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -83,7 +89,7 @@ export class EditorComponent {
   readonly projectId = input.required<string>();
   private readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
 
-  protected readonly gridSnap = signal(false);
+  protected readonly gridSnap = signal(readStoredGrid());
 
   protected readonly worldTransform = computed(() => {
     const v = this.store.viewport();
@@ -137,8 +143,8 @@ export class EditorComponent {
         ay: relink.which === 'source' ? cursor.y : c.ay,
         bx: relink.which === 'target' ? cursor.x : c.bx,
         by: relink.which === 'target' ? cursor.y : c.by,
-        waypoints: [],
-        segmentMidpoints: [],
+        routePoints: [fixed, cursor],
+        segments: [],
       };
     });
   });
@@ -165,12 +171,18 @@ export class EditorComponent {
   private readonly relinkState = signal<RelinkState | null>(null);
   private readonly linkCursor = signal<{ x: number; y: number } | null>(null);
 
-  // Relationship waypoint being dragged
-  private readonly activeWaypoint = signal<{ relationshipId: string; index: number } | null>(null);
+  // Relationship segment being dragged (Miro-style perpendicular slide)
+  private readonly activeSegment = signal<{
+    relationshipId: string;
+    segIndex: number;
+    a: Point;
+    b: Point;
+    route: Point[];
+  } | null>(null);
 
-  /** True while any connector drag (link / re-point / waypoint) is in progress. */
+  /** True while any connector drag (link / re-point / segment) is in progress. */
   protected readonly dragging = computed(
-    () => !!(this.linkSourceColumnId() || this.relinkState() || this.activeWaypoint()),
+    () => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment()),
   );
 
   /** Dashed preview only for drawing a brand-new relationship (re-point moves the line itself). */
@@ -187,7 +199,8 @@ export class EditorComponent {
     const center = loc.table.x + NODE_WIDTH / 2;
     const side: Side = cursor.x >= center ? 'right' : 'left';
     const a = columnAnchor(loc.table, loc.index, side);
-    return `M ${a.x} ${a.y} L ${cursor.x} ${cursor.y}`;
+    // Orthogonal elbow, never a diagonal, to match the finished connectors.
+    return elbowPath(a, cursor);
   });
 
   // Marquee (screen coords relative to the canvas)
@@ -221,12 +234,30 @@ export class EditorComponent {
   private startViewportY = 0;
   private dragTableId: string | null = null;
   private multiDragStart = new Map<string, { x: number; y: number }>();
+  // Manual routes touching the dragged tables. `both` true when both endpoints
+  // move together (rigid translate). Otherwise only one end moves: the waypoint
+  // nearest that anchor follows it vertically (so the closest vertical run
+  // shrinks) while its x is absorbed by the horizontal run. `sourceMoved` picks
+  // which end (first vs last waypoint) is the one being dragged.
+  private waypointDragStart = new Map<
+    string,
+    { wp: Point[]; both: boolean; sourceMoved: boolean }
+  >();
 
   constructor() {
     effect(() => {
       const id = this.projectId();
       if (id) {
         void this.store.load(id);
+      }
+    });
+    // Persist the grid-snap toggle across refreshes.
+    effect(() => {
+      const on = this.gridSnap();
+      try {
+        globalThis.localStorage?.setItem(GRID_SNAP_KEY, on ? '1' : '0');
+      } catch {
+        // ignore storage errors
       }
     });
   }
@@ -303,6 +334,23 @@ export class EditorComponent {
         .filter((t) => this.store.selectedTableIds().includes(t.id))
         .map((t) => [t.id, { x: t.x, y: t.y }]),
     );
+
+    const moved = new Set(this.store.selectedTableIds());
+    const locs = this.columnLocations();
+    this.waypointDragStart = new Map();
+    for (const rel of this.store.relationships()) {
+      const st = locs.get(rel.sourceColumnId)?.table.id;
+      const tt = locs.get(rel.targetColumnId)?.table.id;
+      const srcMoved = !!st && moved.has(st);
+      const tgtMoved = !!tt && moved.has(tt);
+      if (srcMoved || tgtMoved) {
+        this.waypointDragStart.set(rel.id, {
+          wp: (rel.waypoints ?? []).map((w) => ({ ...w })),
+          both: srcMoved && tgtMoved,
+          sourceMoved: srcMoved,
+        });
+      }
+    }
   }
 
   protected onConnectorSelect(payload: { id: string; event: PointerEvent }): void {
@@ -364,49 +412,42 @@ export class EditorComponent {
     this.linkCursor.set(null);
   }
 
-  // --- relationship waypoints (manual line routing) ---
+  // --- relationship segment dragging (Miro-style manual routing) ---
 
-  protected onWaypointDown(payload: WaypointDownEvent): void {
+  protected onSegmentDown(payload: SegmentDownEvent): void {
     if (!this.store.canEdit()) {
       return;
     }
-    this.activeWaypoint.set({ relationshipId: payload.relationshipId, index: payload.index });
-  }
-
-  protected onSegmentAddDown(payload: SegmentAddEvent): void {
-    if (!this.store.canEdit()) {
+    const connector = this.connectors().find((c) => c.id === payload.relationshipId);
+    if (!connector) {
       return;
     }
-    const rel = this.store.relationships().find((r) => r.id === payload.relationshipId);
-    const current = rel?.waypoints ? [...rel.waypoints] : [];
-    const world = this.toWorld(payload.event.clientX, payload.event.clientY);
-    current.splice(payload.segmentIndex, 0, world);
-    this.store.setWaypoints(payload.relationshipId, current);
-    this.activeWaypoint.set({ relationshipId: payload.relationshipId, index: payload.segmentIndex });
+    this.activeSegment.set({
+      relationshipId: payload.relationshipId,
+      segIndex: payload.segmentIndex,
+      a: { x: connector.ax, y: connector.ay },
+      b: { x: connector.bx, y: connector.by },
+      route: connector.routePoints,
+    });
   }
 
-  protected onWaypointRemove(payload: { relationshipId: string; index: number }): void {
-    if (!this.store.canEdit()) {
-      return;
+  protected onResetRoute(relationshipId: string): void {
+    if (this.store.canEdit()) {
+      this.store.setWaypoints(relationshipId, []);
     }
-    const rel = this.store.relationships().find((r) => r.id === payload.relationshipId);
-    const current = rel?.waypoints ? [...rel.waypoints] : [];
-    current.splice(payload.index, 1);
-    this.store.setWaypoints(payload.relationshipId, current);
   }
 
-  private moveActiveWaypoint(clientX: number, clientY: number): void {
-    const active = this.activeWaypoint();
+  private moveActiveSegment(clientX: number, clientY: number): void {
+    const active = this.activeSegment();
     if (!active) {
       return;
     }
-    const rel = this.store.relationships().find((r) => r.id === active.relationshipId);
-    const current = rel?.waypoints ? [...rel.waypoints] : [];
-    if (active.index < 0 || active.index >= current.length) {
-      return;
-    }
-    current[active.index] = this.toWorld(clientX, clientY);
-    this.store.setWaypoints(active.relationshipId, current);
+    // Connector routing never snaps to the grid, even in snap mode: column
+    // anchors sit at row centers (off grid), so grid-snapped waypoints would not
+    // line up with them and the line would jump around as tables move.
+    const cursor = this.toWorld(clientX, clientY);
+    const waypoints = segmentDrag(active.a, active.b, active.route, active.segIndex, cursor);
+    this.store.setWaypoints(active.relationshipId, waypoints);
   }
 
   // --- global pointer + keyboard ---
@@ -417,8 +458,8 @@ export class EditorComponent {
       this.linkCursor.set(this.toWorld(event.clientX, event.clientY));
       return;
     }
-    if (this.activeWaypoint()) {
-      this.moveActiveWaypoint(event.clientX, event.clientY);
+    if (this.activeSegment()) {
+      this.moveActiveSegment(event.clientX, event.clientY);
       return;
     }
     if (this.mode === 'pan') {
@@ -436,6 +477,31 @@ export class EditorComponent {
         const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
         this.store.moveTable(id, nx, ny);
       }
+      // Keep manual routes attached as their tables move. Both endpoints moving
+      // together: translate the whole route rigidly. A single endpoint moving:
+      // the waypoint nearest that anchor follows it in y (its horizontal run
+      // stays parallel, the vertical run to it shrinks or grows); its x is
+      // absorbed by the horizontal run, and every other waypoint stays put.
+      for (const [relId, start] of this.waypointDragStart) {
+        if (!start.wp.length) {
+          continue;
+        }
+        if (start.both) {
+          this.store.setWaypoints(
+            relId,
+            start.wp.map((w) => ({ x: Math.round(w.x + dx), y: Math.round(w.y + dy) })),
+          );
+          continue;
+        }
+        const near = start.sourceMoved ? 0 : start.wp.length - 1;
+        this.store.setWaypoints(
+          relId,
+          start.wp.map((w, i) => ({
+            x: Math.round(w.x),
+            y: Math.round(i === near ? w.y + dy : w.y),
+          })),
+        );
+      }
     } else if (this.mode === 'marquee') {
       this.marqueeCurrent.set(this.screenPoint(event.clientX, event.clientY));
     }
@@ -449,9 +515,10 @@ export class EditorComponent {
     this.mode = 'idle';
     this.dragTableId = null;
     this.multiDragStart.clear();
+    this.waypointDragStart.clear();
     this.marqueeStart.set(null);
     this.marqueeCurrent.set(null);
-    this.activeWaypoint.set(null);
+    this.activeSegment.set(null);
     this.clearLinking();
   }
 

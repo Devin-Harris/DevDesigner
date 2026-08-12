@@ -16,6 +16,19 @@
         <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dbd-grid)" />
       </svg>
 
+      <!-- Connectors render behind nodes so lines are hidden where they pass a
+           table; anchors sit just outside nodes so markers/handles stay visible. -->
+      <app-canvas-connectors
+        [connectors]="displayConnectors()"
+        [tempLinkPath]="tempLink()"
+        [svgOffset]="svgOffset"
+        [dragging]="dragging()"
+        (selectConnector)="onConnectorSelect($event)"
+        (endpointDown)="onEndpointDown($event)"
+        (segmentDown)="onSegmentDown($event)"
+        (resetRoute)="onResetRoute($event)"
+      ></app-canvas-connectors>
+
       @for (table of store.tables(); track table.id) {
         <app-table-node
           [table]="table"
@@ -26,19 +39,6 @@
           (handleUp)="onHandleUp($event)"
         ></app-table-node>
       }
-
-      <!-- Connectors render above nodes so markers and drag handles are never clipped. -->
-      <app-canvas-connectors
-        [connectors]="displayConnectors()"
-        [tempLinkPath]="tempLink()"
-        [svgOffset]="svgOffset"
-        [dragging]="dragging()"
-        (selectConnector)="onConnectorSelect($event)"
-        (endpointDown)="onEndpointDown($event)"
-        (waypointDown)="onWaypointDown($event)"
-        (waypointRemove)="onWaypointRemove($event)"
-        (segmentAddDown)="onSegmentAddDown($event)"
-      ></app-canvas-connectors>
     </div>
 
     @if (marqueeRect(); as m) {

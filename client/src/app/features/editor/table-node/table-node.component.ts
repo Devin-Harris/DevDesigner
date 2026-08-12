@@ -9,7 +9,7 @@ import {
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { ProjectStore } from '../../../stores/project.store';
-import { HEADER_H, NODE_WIDTH, ROW_H } from '../canvas-geometry';
+import { HEADER_H, NODE_WIDTH, ROW_H } from '../canvas/constants/canvas.constants';
 
 export interface HandleEvent {
   event: PointerEvent;
