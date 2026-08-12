@@ -5,9 +5,23 @@
 
 // Table node metrics. Connector anchors are derived from these, so the numbers
 // must match the rendered header/row heights exactly.
+// NODE_WIDTH is the default and minimum width; a node grows past it to fit long
+// column/table names (see tableWidth), up to the MAX_NAME_CHARS cap.
 export const NODE_WIDTH = 280;
 export const HEADER_H = 40;
 export const ROW_H = 34;
+
+// Dynamic-width estimation. A node widens so its longest name shows in full, up
+// to a name of MAX_NAME_CHARS; longer names ellipsize. The reserved widths below
+// approximate the non-name controls in a row / header, kept a touch generous so
+// names are never clipped early. The renderer and the geometry share tableWidth,
+// so connector anchors always line up with the rendered edge regardless.
+export const MAX_NAME_CHARS = 50;
+export const NAME_CHAR_W = 8;
+export const HEADER_CHAR_W = 8.5;
+export const ROW_FIXED_W = 220;
+export const VARCHAR_FIXED_W = 50;
+export const HEADER_FIXED_W = 92;
 
 // Viewport / world.
 export const SVG_OFFSET = 5000;

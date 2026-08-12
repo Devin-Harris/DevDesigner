@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import {
@@ -9,7 +17,8 @@ import {
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { ProjectStore } from '../../../stores/project.store';
-import { HEADER_H, NODE_WIDTH, ROW_H } from '../canvas/constants/canvas.constants';
+import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
+import { tableWidth } from '../canvas/helpers/node-metrics.helper';
 
 export interface HandleEvent {
   event: PointerEvent;
@@ -32,7 +41,7 @@ export interface HandleEvent {
   host: {
     '[style.left.px]': 'table().x',
     '[style.top.px]': 'table().y',
-    '[style.width.px]': 'nodeWidth',
+    '[style.width.px]': 'nodeWidth()',
     '[class.selected]': 'selected()',
     '(pointerdown)': 'nodePointerDown.emit($event)',
     '(dblclick)': '$event.stopPropagation()',
@@ -49,7 +58,8 @@ export class TableNodeComponent {
   readonly handleDown = output<HandleEvent>();
   readonly handleUp = output<HandleEvent>();
 
-  protected readonly nodeWidth = NODE_WIDTH;
+  /** Width grows to fit the widest name, matching the connector geometry. */
+  protected readonly nodeWidth = computed(() => tableWidth(this.table()));
   protected readonly headerH = HEADER_H;
   protected readonly rowH = ROW_H;
   protected readonly dataTypeNames = DATA_TYPE_NAMES;

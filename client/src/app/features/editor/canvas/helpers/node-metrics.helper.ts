@@ -2,11 +2,44 @@ import type { TableModel } from '@dbdesigner/shared';
 import {
   ANCHOR_GAP,
   GRID_SIZE,
+  HEADER_CHAR_W,
+  HEADER_FIXED_W,
   HEADER_H,
+  MAX_NAME_CHARS,
+  NAME_CHAR_W,
   NODE_WIDTH,
+  ROW_FIXED_W,
   ROW_H,
+  VARCHAR_FIXED_W,
 } from '../constants/canvas.constants';
 import type { Box, ColumnLocation, Point, Side } from '../models/geometry.model';
+
+// Memoize by table reference: the store hands the same object to the renderer
+// and every connector in a render pass, so this collapses repeated work and is
+// invalidated automatically when an edit produces a new table object.
+const widthCache = new WeakMap<TableModel, number>();
+
+/**
+ * Rendered width of a table node. Grows past NODE_WIDTH so the longest column or
+ * table name shows in full, capped at MAX_NAME_CHARS (longer names ellipsize).
+ * Pure and shared by the renderer and the connector geometry so anchors always
+ * align with the drawn edge.
+ */
+export function tableWidth(table: TableModel): number {
+  const cached = widthCache.get(table);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const chars = (name: string): number => Math.min(name.length, MAX_NAME_CHARS);
+  let need = HEADER_FIXED_W + chars(table.name) * HEADER_CHAR_W;
+  for (const column of table.columns) {
+    const fixed = ROW_FIXED_W + (column.dataType.name === 'VARCHAR' ? VARCHAR_FIXED_W : 0);
+    need = Math.max(need, fixed + chars(column.name) * NAME_CHAR_W);
+  }
+  const width = Math.max(NODE_WIDTH, Math.ceil(need));
+  widthCache.set(table, width);
+  return width;
+}
 
 /** Rendered height of a node (header + rows), for hit-testing and alignment. */
 export function nodeHeight(columnCount: number): number {
@@ -26,7 +59,7 @@ export function sideDir(side: Side): 1 | -1 {
 /** World-space anchor just outside a table's column row, on the given side. */
 export function columnAnchor(table: TableModel, index: number, side: Side): Point {
   return {
-    x: side === 'right' ? table.x + NODE_WIDTH + ANCHOR_GAP : table.x - ANCHOR_GAP,
+    x: side === 'right' ? table.x + tableWidth(table) + ANCHOR_GAP : table.x - ANCHOR_GAP,
     y: table.y + HEADER_H + index * ROW_H + ROW_H / 2,
   };
 }
@@ -36,7 +69,7 @@ export function tableBox(table: TableModel): Box {
   return {
     x0: table.x,
     y0: table.y,
-    x1: table.x + NODE_WIDTH,
+    x1: table.x + tableWidth(table),
     y1: table.y + nodeHeight(table.columns.length),
   };
 }

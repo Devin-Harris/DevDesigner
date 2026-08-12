@@ -20,6 +20,7 @@ import {
   columnAnchor,
   nodeHeight,
   snapToGrid,
+  tableWidth,
 } from './canvas/helpers/node-metrics.helper';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
@@ -196,7 +197,7 @@ export class EditorComponent {
     if (!loc) {
       return null;
     }
-    const center = loc.table.x + NODE_WIDTH / 2;
+    const center = loc.table.x + tableWidth(loc.table) / 2;
     const side: Side = cursor.x >= center ? 'right' : 'left';
     const a = columnAnchor(loc.table, loc.index, side);
     // Orthogonal elbow, never a diagonal, to match the finished connectors.
@@ -561,7 +562,7 @@ export class EditorComponent {
 
   private boxIntersects(table: TableModel, rect: Rect): boolean {
     const left = table.x;
-    const right = table.x + NODE_WIDTH;
+    const right = table.x + tableWidth(table);
     const top = table.y;
     const bottom = table.y + nodeHeight(table.columns.length);
     return left <= rect.maxX && right >= rect.minX && top <= rect.maxY && bottom >= rect.minY;
@@ -688,7 +689,7 @@ export class EditorComponent {
     }
     const height = (t: TableModel) => nodeHeight(t.columns.length);
     const minX = Math.min(...selected.map((t) => t.x));
-    const maxRight = Math.max(...selected.map((t) => t.x + NODE_WIDTH));
+    const maxRight = Math.max(...selected.map((t) => t.x + tableWidth(t)));
     const minY = Math.min(...selected.map((t) => t.y));
     const maxBottom = Math.max(...selected.map((t) => t.y + height(t)));
 
@@ -700,11 +701,11 @@ export class EditorComponent {
         selected.forEach((t) => move(t, minX, t.y));
         break;
       case 'right':
-        selected.forEach((t) => move(t, maxRight - NODE_WIDTH, t.y));
+        selected.forEach((t) => move(t, maxRight - tableWidth(t), t.y));
         break;
       case 'hcenter': {
         const center = (minX + maxRight) / 2;
-        selected.forEach((t) => move(t, center - NODE_WIDTH / 2, t.y));
+        selected.forEach((t) => move(t, center - tableWidth(t) / 2, t.y));
         break;
       }
       case 'top':

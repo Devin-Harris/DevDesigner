@@ -1,5 +1,5 @@
 import type { RelationshipModel, TableModel } from '@dbdesigner/shared';
-import { NODE_WIDTH, OBSTACLE_GAP, OBSTACLE_SEARCH_MARGIN } from '../constants/canvas.constants';
+import { OBSTACLE_GAP, OBSTACLE_SEARCH_MARGIN } from '../constants/canvas.constants';
 import type { Box, Point, Side } from '../models/geometry.model';
 import type { Connector, RouteSegment } from '../models/connector.model';
 import {
@@ -7,6 +7,7 @@ import {
   columnAnchor,
   sideDir,
   tableBox,
+  tableWidth,
 } from './node-metrics.helper';
 import {
   bendCount,
@@ -84,8 +85,8 @@ function autoRoute(
   tBox: Box,
   obstacles: readonly Box[],
 ): Resolved {
-  const sCenter = source.x + NODE_WIDTH / 2;
-  const tCenter = target.x + NODE_WIDTH / 2;
+  const sCenter = source.x + tableWidth(source) / 2;
+  const tCenter = target.x + tableWidth(target) / 2;
   const srcNear: Side = tCenter >= sCenter ? 'right' : 'left';
   const tgtNear: Side = sCenter >= tCenter ? 'right' : 'left';
 
@@ -172,8 +173,8 @@ function resolveConnector(
   if (usable.length) {
     const first = usable[0];
     const last = usable[usable.length - 1];
-    const ss: Side = first.x >= source.x + NODE_WIDTH / 2 ? 'right' : 'left';
-    const ts: Side = last.x >= target.x + NODE_WIDTH / 2 ? 'right' : 'left';
+    const ss: Side = first.x >= source.x + tableWidth(source) / 2 ? 'right' : 'left';
+    const ts: Side = last.x >= target.x + tableWidth(target) / 2 ? 'right' : 'left';
     const a = columnAnchor(source, sIndex, ss);
     const b = columnAnchor(target, tIndex, ts);
     const route = routeThroughWaypoints(a, b, sideDir(ss), sideDir(ts), usable, obstaclesWithEnds);
