@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import type { RelationshipModel } from '@dbdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
 import { AccessService } from '../access/access.service';
+import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { RelationshipEntity } from './relationship.entity';
 import { toRelationshipModel } from './relationship.mapper';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
@@ -28,6 +29,7 @@ export class RelationshipsService {
     @InjectRepository(ColumnEntity)
     private readonly columns: Repository<ColumnEntity>,
     private readonly access: AccessService,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   async getModelsForProject(projectId: string): Promise<RelationshipModel[]> {
@@ -39,8 +41,10 @@ export class RelationshipsService {
     projectId: string,
     dto: CreateRelationshipDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<RelationshipModel> {
-    await this.access.assertCanWrite(projectId, userId);
+    await this.access.assertCanWrite(projectId, userId, shareToken);
     if (dto.sourceColumnId === dto.targetColumnId) {
       throw new BadRequestException('A column cannot relate to itself.');
     }
@@ -58,15 +62,19 @@ export class RelationshipsService {
       onUpdate: dto.onUpdate ?? null,
     });
     const saved = await this.relationships.save(relationship);
-    return toRelationshipModel(saved);
+    const model = toRelationshipModel(saved);
+    this.realtime.emit(projectId, clientId, { kind: 'relationship.created', relationship: model });
+    return model;
   }
 
   async update(
     id: string,
     dto: UpdateRelationshipDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<RelationshipModel> {
-    await this.access.assertCanWriteRelationship(id, userId);
+    const projectId = await this.access.assertCanWriteRelationship(id, userId, shareToken);
     const relationship = await this.findOrThrow(id);
 
     // Re-pointing an endpoint: validate the new column(s) and reject self/duplicate.
@@ -100,15 +108,23 @@ export class RelationshipsService {
       relationship.waypointsJson = dto.waypoints.length ? JSON.stringify(dto.waypoints) : null;
     }
     const saved = await this.relationships.save(relationship);
-    return toRelationshipModel(saved);
+    const model = toRelationshipModel(saved);
+    this.realtime.emit(projectId, clientId, { kind: 'relationship.updated', relationship: model });
+    return model;
   }
 
-  async remove(id: string, userId: string | null): Promise<void> {
-    await this.access.assertCanWriteRelationship(id, userId);
+  async remove(
+    id: string,
+    userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
+  ): Promise<void> {
+    const projectId = await this.access.assertCanWriteRelationship(id, userId, shareToken);
     const result = await this.relationships.delete({ id });
     if (!result.affected) {
       throw new NotFoundException(`Relationship ${id} not found.`);
     }
+    this.realtime.emit(projectId, clientId, { kind: 'relationship.deleted', relationshipId: id });
   }
 
   /** Reject an edge that already exists between the same column pair (either direction). */

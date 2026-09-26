@@ -6,6 +6,7 @@ import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
+import { ShareLink } from '../sharing/share-link.entity';
 
 /**
  * Access-resolution and policy layer (BUILD_INSTRUCTIONS.md sections 6 and 7).
@@ -17,8 +18,9 @@ import { RelationshipEntity } from '../relationships/relationship.entity';
  *  - A project with no owner (ownerId null) is anonymous and open to everyone.
  *    This preserves the account-free workflow the app shipped with.
  *  - A project with an owner is private: only that owner has access.
- *  - Share-token access (EDIT / VIEW) is added in Phase 5; today the only
- *    resolvable level is OWNER, and everything else is rejected with 403.
+ *  - A valid, non-revoked, non-expired share token for the project grants the
+ *    link's level (EDIT or VIEW) to any caller, account or not (section 6).
+ *  - Otherwise: 403.
  */
 @Injectable()
 export class AccessService {
@@ -31,10 +33,16 @@ export class AccessService {
     private readonly columns: Repository<ColumnEntity>,
     @InjectRepository(RelationshipEntity)
     private readonly relationships: Repository<RelationshipEntity>,
+    @InjectRepository(ShareLink)
+    private readonly shareLinks: Repository<ShareLink>,
   ) {}
 
   /** Resolve the caller's effective access to a project, or throw 403/404. */
-  async resolveProjectAccess(projectId: string, userId: string | null): Promise<AccessLevel> {
+  async resolveProjectAccess(
+    projectId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<AccessLevel> {
     const project = await this.projects.findOne({
       where: { id: projectId },
       select: { id: true, ownerId: true },
@@ -48,17 +56,49 @@ export class AccessService {
     if (userId && project.ownerId === userId) {
       return 'OWNER';
     }
+    if (shareToken) {
+      const level = await this.resolveShareToken(projectId, shareToken);
+      if (level) {
+        return level;
+      }
+    }
     throw new ForbiddenException('You do not have access to this project.');
   }
 
-  /** Assert the caller may read the project (any resolvable level). */
-  async assertCanRead(projectId: string, userId: string | null): Promise<AccessLevel> {
-    return this.resolveProjectAccess(projectId, userId);
+  /**
+   * Resolve a share token to the level it grants for a project, or null when the
+   * token is unknown, for a different project, revoked, or expired.
+   */
+  async resolveShareToken(
+    projectId: string,
+    token: string,
+  ): Promise<'EDIT' | 'VIEW' | null> {
+    const link = await this.shareLinks.findOne({ where: { token } });
+    if (!link || link.projectId !== projectId || link.revokedAt !== null) {
+      return null;
+    }
+    if (link.expiresAt !== null && link.expiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+    return link.accessLevel;
   }
 
-  /** Assert the caller may write to the project (EDIT or OWNER; OWNER only today). */
-  async assertCanWrite(projectId: string, userId: string | null): Promise<AccessLevel> {
-    const level = await this.resolveProjectAccess(projectId, userId);
+  /** Assert the caller may read the project (any resolvable level). */
+  async assertCanRead(
+    projectId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<AccessLevel> {
+    return this.resolveProjectAccess(projectId, userId, shareToken);
+  }
+
+  /** Assert the caller may write to the project (EDIT or OWNER). */
+  async assertCanWrite(
+    projectId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<AccessLevel> {
+    const level = await this.resolveProjectAccess(projectId, userId, shareToken);
     if (level === 'VIEW') {
       throw new ForbiddenException('This link is read-only.');
     }
@@ -66,8 +106,12 @@ export class AccessService {
   }
 
   /** Assert the caller owns the project (rename, duplicate, delete, sharing). */
-  async assertOwner(projectId: string, userId: string | null): Promise<void> {
-    const level = await this.resolveProjectAccess(projectId, userId);
+  async assertOwner(
+    projectId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<void> {
+    const level = await this.resolveProjectAccess(projectId, userId, shareToken);
     if (level !== 'OWNER') {
       throw new ForbiddenException('Only the project owner can perform this action.');
     }
@@ -75,16 +119,37 @@ export class AccessService {
 
   // --- Ancestry-aware helpers: resolve a child to its project, then authorize. ---
 
-  async assertCanWriteTable(tableId: string, userId: string | null): Promise<void> {
-    await this.assertCanWrite(await this.projectIdForTable(tableId), userId);
+  /** Authorize a table write and return its owning project id (for broadcasts). */
+  async assertCanWriteTable(
+    tableId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<string> {
+    const projectId = await this.projectIdForTable(tableId);
+    await this.assertCanWrite(projectId, userId, shareToken);
+    return projectId;
   }
 
-  async assertCanWriteColumn(columnId: string, userId: string | null): Promise<void> {
-    await this.assertCanWrite(await this.projectIdForColumn(columnId), userId);
+  /** Authorize a column write and return its owning project id (for broadcasts). */
+  async assertCanWriteColumn(
+    columnId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<string> {
+    const projectId = await this.projectIdForColumn(columnId);
+    await this.assertCanWrite(projectId, userId, shareToken);
+    return projectId;
   }
 
-  async assertCanWriteRelationship(relationshipId: string, userId: string | null): Promise<void> {
-    await this.assertCanWrite(await this.projectIdForRelationship(relationshipId), userId);
+  /** Authorize a relationship write and return its owning project id (for broadcasts). */
+  async assertCanWriteRelationship(
+    relationshipId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<string> {
+    const projectId = await this.projectIdForRelationship(relationshipId);
+    await this.assertCanWrite(projectId, userId, shareToken);
+    return projectId;
   }
 
   private async projectIdForTable(tableId: string): Promise<string> {

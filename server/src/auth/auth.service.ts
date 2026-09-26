@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import type { CurrentUserResponse } from '@dbdesigner/shared';
 import { User } from './user.entity';
-import type { JwtPayload } from './auth.types';
+import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -69,6 +69,24 @@ export class AuthService {
     return user ? toResponse(user) : null;
   }
 
+  /**
+   * Verify the session from a raw Cookie header and return the caller, or null
+   * when anonymous / invalid. Shared by the HTTP guard and the realtime gateway
+   * so both resolve the owner identically (no DB hit: straight from the token).
+   */
+  verifySession(cookieHeader: string | undefined): AuthUser | null {
+    const token = readCookie(cookieHeader, AUTH_COOKIE);
+    if (!token) {
+      return null;
+    }
+    try {
+      const payload = this.jwt.verify<JwtPayload>(token);
+      return { id: payload.sub, email: payload.email ?? null };
+    } catch {
+      return null;
+    }
+  }
+
   private sign(user: User): string {
     const payload: JwtPayload = { sub: user.id, email: user.email };
     return this.jwt.sign(payload);
@@ -77,6 +95,23 @@ export class AuthService {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/** Parse a single cookie value out of a raw Cookie header (no cookie-parser dep). */
+function readCookie(header: string | undefined, name: string): string | null {
+  if (!header) {
+    return null;
+  }
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) {
+      continue;
+    }
+    if (part.slice(0, eq).trim() === name) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+  return null;
 }
 
 function toResponse(user: User): CurrentUserResponse {

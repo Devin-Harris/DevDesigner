@@ -23,8 +23,9 @@ async function bootstrap(): Promise<void> {
   const corsOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:4200');
   app.enableCors({
     origin: corsOrigin.split(',').map((o) => o.trim()),
-    // Share tokens travel in this header for anonymous link-based access.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token'],
+    // Share tokens travel in X-Share-Token for anonymous link-based access;
+    // X-Client-Id tags each write so its realtime broadcast can skip the origin tab.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id'],
     credentials: true,
   });
 

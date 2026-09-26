@@ -19,6 +19,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
+import { ShareToken } from '../common/request.decorators';
 
 /**
  * Granular project routes (BUILD_INSTRUCTIONS.md section 5). Controllers only
@@ -49,8 +50,9 @@ export class ProjectsController {
   get(
     @Param('projectId') projectId: string,
     @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
   ): Promise<ProjectGraphResponse> {
-    return this.projects.getGraph(projectId, userId);
+    return this.projects.getGraph(projectId, userId, shareToken);
   }
 
   @Patch(':projectId')
@@ -68,8 +70,9 @@ export class ProjectsController {
     @Param('projectId') projectId: string,
     @Body() dto: UpdateViewportDto,
     @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
   ): Promise<void> {
-    return this.projects.updateViewport(projectId, dto, userId);
+    return this.projects.updateViewport(projectId, dto, userId, shareToken);
   }
 
   @Post(':projectId/duplicate')

@@ -39,6 +39,49 @@
           (handleUp)="onHandleUp($event)"
         ></app-table-node>
       }
+
+      <!-- Selection highlights: a colored ring around tables another participant
+           currently has selected (what they are editing). -->
+      @for (ring of remoteTableHighlights(); track ring.id) {
+        <div
+          class="remote-ring"
+          [style.left.px]="ring.x"
+          [style.top.px]="ring.y"
+          [style.width.px]="ring.width"
+          [style.height.px]="ring.height"
+          [style.border-color]="ring.color"
+        ></div>
+      }
+    </div>
+
+    <!-- Live cursors of other participants (screen coords, above the canvas). -->
+    @for (cursor of remoteCursors(); track cursor.id) {
+      <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
+        <mat-icon class="remote-cursor-icon" [style.color]="cursor.color">navigation</mat-icon>
+        <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
+      </div>
+    }
+
+    <!-- Presence + sharing bar (top right). -->
+    <div class="presence-bar" (pointerdown)="$event.stopPropagation()">
+      @if (realtime.participants().length > 0) {
+        <div class="avatars">
+          @for (p of realtime.participants(); track p.id) {
+            <span
+              class="avatar"
+              [style.background]="p.color"
+              [matTooltip]="p.name + (p.id === realtime.selfId() ? ' (you)' : '')"
+              >{{ p.name.charAt(0).toUpperCase() }}</span
+            >
+          }
+        </div>
+      }
+      @if (store.accessMode() === 'OWNER' && store.projectId()) {
+        <button mat-flat-button color="primary" (click)="openShare()">
+          <mat-icon>share</mat-icon>
+          Share
+        </button>
+      }
     </div>
 
     @if (marqueeRect(); as m) {

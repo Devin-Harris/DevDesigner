@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   HostListener,
   computed,
@@ -10,13 +11,18 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import type { RelationshipModel, RelationshipType, TableModel } from '@dbdesigner/shared';
 import { generateSql } from '@dbdesigner/shared';
 import { ProjectStore } from '../../stores/project.store';
+import { RealtimeService } from '../../core/services/realtime.service';
 import { ExportDialogComponent } from './export/export-dialog.component';
+import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { buildDiagramSvg } from './export/diagram-svg.helper';
 import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
@@ -78,7 +84,10 @@ function readStoredGrid(): boolean {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MatButtonModule,
+    MatIconModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     CanvasConnectorsComponent,
     CanvasToolbarComponent,
     InspectorComponent,
@@ -91,12 +100,49 @@ function readStoredGrid(): boolean {
 })
 export class EditorComponent {
   protected readonly store = inject(ProjectStore);
+  protected readonly realtime = inject(RealtimeService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly svgOffset = SVG_OFFSET;
 
-  readonly projectId = input.required<string>();
+  /** Owner/anonymous mode passes a project id; shared mode passes a token instead. */
+  readonly projectId = input<string | null>(null);
+  readonly shareToken = input<string | null>(null);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
+
+  /** Other participants' cursors projected to screen coordinates for rendering. */
+  protected readonly remoteCursors = computed(() => {
+    const v = this.store.viewport();
+    return this.realtime.remoteCursors().map((c) => ({
+      id: c.participantId,
+      name: c.name,
+      color: c.color,
+      left: c.x * v.zoom + v.x,
+      top: c.y * v.zoom + v.y,
+    }));
+  });
+
+  /** Highlight rings (world coords) for tables another participant has selected. */
+  protected readonly remoteTableHighlights = computed(() => {
+    const highlights = this.realtime.tableHighlights();
+    const rings: { id: string; x: number; y: number; width: number; height: number; color: string }[] =
+      [];
+    for (const table of this.store.tables()) {
+      const colors = highlights[table.id];
+      if (colors?.length) {
+        rings.push({
+          id: table.id,
+          x: table.x,
+          y: table.y,
+          width: tableWidth(table),
+          height: nodeHeight(table.columns.length),
+          color: colors[0],
+        });
+      }
+    }
+    return rings;
+  });
 
   protected readonly gridSnap = signal(readStoredGrid());
 
@@ -253,13 +299,33 @@ export class EditorComponent {
     { wp: Point[]; both: boolean; sourceMoved: boolean }
   >();
 
+  private lastCursorSent = 0;
+
   constructor() {
+    // Load the project: from a share token (anonymous) or a project id (owner).
     effect(() => {
+      const token = this.shareToken();
       const id = this.projectId();
-      if (id) {
+      if (token) {
+        void this.store.loadShared(token);
+      } else if (id) {
         void this.store.load(id);
       }
     });
+    // Join / re-join the realtime room whenever the loaded project changes.
+    effect(() => {
+      const id = this.store.projectId();
+      if (id) {
+        this.realtime.connect(id);
+      }
+    });
+    // Broadcast this participant's selection so others see what is being edited.
+    effect(() => {
+      const tableIds = this.store.selectedTableIds();
+      const relationshipIds = this.store.selectedRelationshipIds();
+      this.realtime.sendSelection(tableIds, relationshipIds);
+    });
+    this.destroyRef.onDestroy(() => this.realtime.disconnect());
     // Persist the grid-snap toggle across refreshes.
     effect(() => {
       const on = this.gridSnap();
@@ -269,6 +335,33 @@ export class EditorComponent {
         // ignore storage errors
       }
     });
+  }
+
+  /** Open the owner share dialog (create/list/revoke VIEW/EDIT links). */
+  protected openShare(): void {
+    const projectId = this.store.projectId();
+    if (!projectId || this.store.accessMode() !== 'OWNER') {
+      return;
+    }
+    this.dialog.open(ShareDialogComponent, {
+      width: '560px',
+      maxWidth: '92vw',
+      data: { projectId },
+    });
+  }
+
+  /** Send our cursor position (world coords) to the room, throttled to ~25fps. */
+  private broadcastCursor(event: PointerEvent): void {
+    if (!this.realtime.connected()) {
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastCursorSent < 40) {
+      return;
+    }
+    this.lastCursorSent = now;
+    const world = this.toWorld(event.clientX, event.clientY);
+    this.realtime.sendCursor(world.x, world.y);
   }
 
   private canvasRect(): DOMRect {
@@ -463,6 +556,7 @@ export class EditorComponent {
 
   @HostListener('window:pointermove', ['$event'])
   protected onPointerMove(event: PointerEvent): void {
+    this.broadcastCursor(event);
     if (this.linkSourceColumnId() || this.relinkState()) {
       this.linkCursor.set(this.toWorld(event.clientX, event.clientY));
       return;

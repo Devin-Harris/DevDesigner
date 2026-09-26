@@ -58,8 +58,12 @@ export class ProjectsService {
   }
 
   /** Full project graph for initial load. Authorized against the caller's access. */
-  async getGraph(id: string, userId: string | null): Promise<ProjectGraphResponse> {
-    const accessLevel = await this.access.assertCanRead(id, userId);
+  async getGraph(
+    id: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<ProjectGraphResponse> {
+    const accessLevel = await this.access.assertCanRead(id, userId, shareToken);
     const project = await this.findOrThrow(id);
     const [tables, relationships] = await Promise.all([
       this.tables.getModelsForProject(id),
@@ -86,8 +90,9 @@ export class ProjectsService {
     id: string,
     dto: UpdateViewportDto,
     userId: string | null,
+    shareToken: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(id, userId);
+    await this.access.assertCanWrite(id, userId, shareToken);
     const result = await this.projects.update(
       { id },
       { viewportX: dto.viewportX, viewportY: dto.viewportY, zoom: dto.zoom },

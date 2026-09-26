@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import type { ColumnModel } from '@dbdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
 import { AccessService } from '../access/access.service';
+import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ColumnEntity } from './column.entity';
 import { fromDataType, toColumnModel } from './column.mapper';
 import { CreateColumnDto } from './dto/create-column.dto';
@@ -13,7 +14,8 @@ import { ReorderColumnsDto } from './dto/reorder-columns.dto';
 /**
  * Business logic for columns. New columns append to the end of their table;
  * reorder persists the new order in one small call. Deleting a column also
- * removes any relationships referencing it (cascade added with Phase 3).
+ * removes any relationships referencing it (cascade via FK). Every mutation
+ * broadcasts the persisted change to the project's realtime room.
  */
 @Injectable()
 export class ColumnsService {
@@ -23,14 +25,17 @@ export class ColumnsService {
     @InjectRepository(TableEntity)
     private readonly tables: Repository<TableEntity>,
     private readonly access: AccessService,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   async create(
     tableId: string,
     dto: CreateColumnDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<ColumnModel> {
-    await this.access.assertCanWriteTable(tableId, userId);
+    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.tables.findOne({ where: { id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);
@@ -48,15 +53,19 @@ export class ColumnsService {
       orderIndex: count,
     });
     const saved = await this.columns.save(column);
-    return toColumnModel(saved);
+    const model = toColumnModel(saved);
+    this.realtime.emit(projectId, clientId, { kind: 'column.created', tableId, column: model });
+    return model;
   }
 
   async update(
     columnId: string,
     dto: UpdateColumnDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<ColumnModel> {
-    await this.access.assertCanWriteColumn(columnId, userId);
+    const projectId = await this.access.assertCanWriteColumn(columnId, userId, shareToken);
     const column = await this.findOrThrow(columnId);
     if (dto.name !== undefined) {
       column.name = dto.name;
@@ -86,15 +95,23 @@ export class ColumnsService {
       column.note = dto.note;
     }
     const saved = await this.columns.save(column);
-    return toColumnModel(saved);
+    const model = toColumnModel(saved);
+    this.realtime.emit(projectId, clientId, {
+      kind: 'column.updated',
+      tableId: column.tableId,
+      column: model,
+    });
+    return model;
   }
 
   async reorder(
     tableId: string,
     dto: ReorderColumnsDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWriteTable(tableId, userId);
+    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const columns = await this.columns.find({ where: { tableId } });
     const byId = new Map(columns.map((c) => [c.id, c]));
     const updates: ColumnEntity[] = [];
@@ -108,14 +125,27 @@ export class ColumnsService {
     if (updates.length) {
       await this.columns.save(updates);
     }
+    this.realtime.emit(projectId, clientId, {
+      kind: 'column.reordered',
+      tableId,
+      orderedColumnIds: dto.orderedColumnIds,
+    });
   }
 
-  async remove(columnId: string, userId: string | null): Promise<void> {
-    await this.access.assertCanWriteColumn(columnId, userId);
+  async remove(
+    columnId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
+  ): Promise<void> {
+    const projectId = await this.access.assertCanWriteColumn(columnId, userId, shareToken);
+    const column = await this.findOrThrow(columnId);
+    const tableId = column.tableId;
     const result = await this.columns.delete({ id: columnId });
     if (!result.affected) {
       throw new NotFoundException(`Column ${columnId} not found.`);
     }
+    this.realtime.emit(projectId, clientId, { kind: 'column.deleted', tableId, columnId });
   }
 
   /** Unused today but handy: fetch models for a set of tables in one query. */

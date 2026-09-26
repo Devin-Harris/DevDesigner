@@ -1,4 +1,9 @@
-.placeholder {
-  padding: var(--dbd-space-6);
+:host {
+  display: block;
+  height: 100%;
+}
+
+.invalid {
+  padding: 24px;
   color: var(--dbd-text-muted);
 }

@@ -4,3 +4,4 @@ export * from './models';
 export * from './dto';
 export * from './sql';
 export * from './validation';
+export * from './realtime';

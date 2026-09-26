@@ -1,1 +1,5 @@
-<p class="placeholder">Shared view placeholder (Phase 5).</p>
+@if (token) {
+  <app-editor [shareToken]="token"></app-editor>
+} @else {
+  <div class="invalid">This share link is invalid.</div>
+}

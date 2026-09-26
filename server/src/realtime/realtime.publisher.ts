@@ -1,0 +1,24 @@
+import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  PROJECT_MUTATION_EVENT,
+  type MutationEvent,
+  type SchemaMutation,
+} from '@dbdesigner/shared';
+
+/**
+ * Thin façade feature services use to broadcast a persisted schema change to a
+ * project's realtime room. Services stay decoupled from the gateway: they emit on
+ * the in-process event bus, the gateway subscribes and fans out to sockets. The
+ * change has already been authorized and persisted via REST, so this is purely
+ * the notification path (server-authoritative sync, see the plan Part 2).
+ */
+@Injectable()
+export class RealtimePublisher {
+  constructor(private readonly emitter: EventEmitter2) {}
+
+  emit(projectId: string, originClientId: string | null, mutation: SchemaMutation): void {
+    const event: MutationEvent = { projectId, originClientId, mutation };
+    this.emitter.emit(PROJECT_MUTATION_EVENT, event);
+  }
+}

@@ -1,0 +1,55 @@
+<h2 mat-dialog-title>Share diagram</h2>
+
+<mat-dialog-content>
+  <p class="hint">
+    Anyone with a link can open this diagram without an account. Edit links let them
+    change the schema; view links are read-only.
+  </p>
+
+  <div class="create-row">
+    <mat-button-toggle-group
+      [value]="newLevel()"
+      (change)="setLevel($event.value)"
+      aria-label="Link access level"
+    >
+      <mat-button-toggle value="EDIT">Can edit</mat-button-toggle>
+      <mat-button-toggle value="VIEW">Can view</mat-button-toggle>
+    </mat-button-toggle-group>
+    <button mat-flat-button color="primary" [disabled]="creating()" (click)="create()">
+      <mat-icon>add_link</mat-icon>
+      Create link
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="state">
+      <mat-progress-spinner mode="indeterminate" diameter="28"></mat-progress-spinner>
+    </div>
+  } @else if (items().length === 0) {
+    <div class="state muted">No active links yet.</div>
+  } @else {
+    <ul class="links">
+      @for (link of items(); track link.id) {
+        <li class="link">
+          <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
+          <span class="url" [title]="link.url">{{ link.url }}</span>
+          <button mat-icon-button matTooltip="Copy link" (click)="copy(link)" aria-label="Copy link">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            matTooltip="Revoke link"
+            (click)="revoke(link)"
+            aria-label="Revoke link"
+          >
+            <mat-icon>link_off</mat-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Done</button>
+</mat-dialog-actions>

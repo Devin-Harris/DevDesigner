@@ -13,6 +13,7 @@ import { RelationshipsService } from './relationships.service';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
+import { ClientId, ShareToken } from '../common/request.decorators';
 
 /** Granular relationship routes (BUILD_INSTRUCTIONS.md section 5). */
 @Controller()
@@ -24,8 +25,10 @@ export class RelationshipsController {
     @Param('projectId') projectId: string,
     @Body() dto: CreateRelationshipDto,
     @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
   ): Promise<RelationshipModel> {
-    return this.relationships.create(projectId, dto, userId);
+    return this.relationships.create(projectId, dto, userId, shareToken, clientId);
   }
 
   @Patch('relationships/:relationshipId')
@@ -33,8 +36,10 @@ export class RelationshipsController {
     @Param('relationshipId') relationshipId: string,
     @Body() dto: UpdateRelationshipDto,
     @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
   ): Promise<RelationshipModel> {
-    return this.relationships.update(relationshipId, dto, userId);
+    return this.relationships.update(relationshipId, dto, userId, shareToken, clientId);
   }
 
   @Delete('relationships/:relationshipId')
@@ -42,7 +47,9 @@ export class RelationshipsController {
   remove(
     @Param('relationshipId') relationshipId: string,
     @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.relationships.remove(relationshipId, userId);
+    return this.relationships.remove(relationshipId, userId, shareToken, clientId);
   }
 }

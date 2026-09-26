@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import type { TableModel } from '@dbdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
+import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from './table.entity';
 import { toTableModel } from './table.mapper';
 import { CreateTableDto } from './dto/create-table.dto';
@@ -12,8 +13,9 @@ import { UpdatePositionDto } from './dto/update-position.dto';
 
 /**
  * Business logic for table nodes. Data access via the injected repositories.
- * Access checks move into the policy layer once auth/sharing land; child routes
- * carry the parent id so ancestry resolution stays cheap (section 7).
+ * Every mutation authorizes through the policy layer first, then broadcasts the
+ * persisted change to the project's realtime room (server-authoritative sync).
+ * Child routes carry the parent id so ancestry resolution stays cheap (section 7).
  */
 @Injectable()
 export class TablesService {
@@ -23,6 +25,7 @@ export class TablesService {
     @InjectRepository(Project)
     private readonly projects: Repository<Project>,
     private readonly access: AccessService,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   /** All tables (with columns) for a project, as shared TableModels. */
@@ -39,8 +42,10 @@ export class TablesService {
     projectId: string,
     dto: CreateTableDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<TableModel> {
-    await this.access.assertCanWrite(projectId, userId);
+    await this.access.assertCanWrite(projectId, userId, shareToken);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -53,15 +58,19 @@ export class TablesService {
       color: dto.color ?? null,
     });
     const saved = await this.tables.save(table);
-    return toTableModel({ ...saved, columns: [] });
+    const model = toTableModel({ ...saved, columns: [] });
+    this.realtime.emit(projectId, clientId, { kind: 'table.created', table: model });
+    return model;
   }
 
   async update(
     tableId: string,
     dto: UpdateTableDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<TableModel> {
-    await this.access.assertCanWriteTable(tableId, userId);
+    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.findOrThrow(tableId);
     if (dto.name !== undefined) {
       table.name = dto.name;
@@ -73,28 +82,44 @@ export class TablesService {
       table.note = dto.note;
     }
     await this.tables.save(table);
-    return this.getModel(tableId);
+    const model = await this.getModel(tableId);
+    this.realtime.emit(projectId, clientId, { kind: 'table.updated', table: model });
+    return model;
   }
 
   async updatePosition(
     tableId: string,
     dto: UpdatePositionDto,
     userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWriteTable(tableId, userId);
+    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const result = await this.tables.update({ id: tableId }, { x: dto.x, y: dto.y });
     if (!result.affected) {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
+    this.realtime.emit(projectId, clientId, {
+      kind: 'table.moved',
+      tableId,
+      x: dto.x,
+      y: dto.y,
+    });
   }
 
-  async remove(tableId: string, userId: string | null): Promise<void> {
-    await this.access.assertCanWriteTable(tableId, userId);
+  async remove(
+    tableId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
+  ): Promise<void> {
+    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     // Columns (and any relationships referencing them) cascade via FK.
     const result = await this.tables.delete({ id: tableId });
     if (!result.affected) {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
+    this.realtime.emit(projectId, clientId, { kind: 'table.deleted', tableId });
   }
 
   private async getModel(tableId: string): Promise<TableModel> {

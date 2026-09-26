@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AccessModule } from './access/access.module';
@@ -11,6 +12,7 @@ import { RelationshipsModule } from './relationships/relationships.module';
 import { NotesModule } from './notes/notes.module';
 import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -20,6 +22,7 @@ import { ExportModule } from './export/export.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    EventEmitterModule.forRoot(),
     DatabaseModule,
     AccessModule,
     HealthModule,
@@ -31,6 +34,7 @@ import { ExportModule } from './export/export.module';
     NotesModule,
     SharingModule,
     ExportModule,
+    RealtimeModule,
   ],
 })
 export class AppModule {}

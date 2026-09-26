@@ -59,3 +59,76 @@
     font-size: 14px;
   }
 }
+
+// A ring around a table another participant currently has selected.
+.remote-ring {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 8px;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 3;
+  opacity: 0.85;
+}
+
+// Another participant's live cursor.
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 6;
+  transform: translate(-2px, -2px);
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.remote-cursor-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+.remote-cursor-label {
+  margin-top: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+// Presence avatars + Share button, pinned top right of the canvas.
+.presence-bar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 5;
+}
+
+.avatars {
+  display: flex;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid var(--dbd-canvas-bg);
+  margin-left: -8px;
+
+  &:first-child {
+    margin-left: 0;
+  }
+}

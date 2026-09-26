@@ -7,6 +7,7 @@ import type {
   RelationshipModel,
   RelationshipType,
   SchemaModel,
+  SchemaMutation,
   TableModel,
   UpdateColumnDto,
   UpdateRelationshipDto,
@@ -19,6 +20,8 @@ import { ColumnsService } from '../core/services/columns.service';
 import { ProjectsService } from '../core/services/projects.service';
 import { RelationshipsService } from '../core/services/relationships.service';
 import { TablesService } from '../core/services/tables.service';
+import { ShareLinksService } from '../core/services/share-links.service';
+import { ShareSessionService } from '../core/services/share-session.service';
 
 /**
  * Editor store: the single source of truth for the loaded project's schema,
@@ -33,6 +36,8 @@ interface EditorState {
   projectId: string | null;
   schema: SchemaModel | null;
   accessMode: AccessLevel;
+  /** True when the project was opened via a /shared/:token link (anonymous mode). */
+  shared: boolean;
   selectedTableIds: string[];
   selectedRelationshipIds: string[];
   loading: boolean;
@@ -58,6 +63,7 @@ const initialState: EditorState = {
   projectId: null,
   schema: null,
   accessMode: 'VIEW',
+  shared: false,
   selectedTableIds: [],
   selectedRelationshipIds: [],
   loading: false,
@@ -111,6 +117,8 @@ export const ProjectStore = signalStore(
       tablesApi = inject(TablesService),
       columnsApi = inject(ColumnsService),
       relationshipsApi = inject(RelationshipsService),
+      shareLinksApi = inject(ShareLinksService),
+      shareSession = inject(ShareSessionService),
     ) => {
       const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -156,10 +164,13 @@ export const ProjectStore = signalStore(
 
       return {
         async load(projectId: string): Promise<void> {
+          // Owner/anonymous-open load: never carry a share token from a prior visit.
+          shareSession.setToken(null);
           patchState(store, {
             loading: true,
             error: null,
             projectId,
+            shared: false,
             selectedTableIds: [],
             selectedRelationshipIds: [],
           });
@@ -172,6 +183,124 @@ export const ProjectStore = signalStore(
             });
           } catch (err) {
             patchState(store, { loading: false, error: messageOf(err), schema: null });
+          }
+        },
+
+        /** Open a project from a /shared/:token link (no account). */
+        async loadShared(token: string): Promise<void> {
+          shareSession.setToken(token);
+          patchState(store, {
+            loading: true,
+            error: null,
+            shared: true,
+            projectId: null,
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+          });
+          try {
+            const graph = await firstValueFrom(shareLinksApi.getShared(token));
+            patchState(store, {
+              projectId: graph.project.id,
+              schema: graph.schema,
+              accessMode: graph.accessLevel,
+              loading: false,
+            });
+          } catch (err) {
+            patchState(store, { loading: false, error: messageOf(err), schema: null });
+          }
+        },
+
+        /**
+         * Apply a schema change broadcast from another participant. Patches local
+         * state only (the change is already persisted server-side) and never calls
+         * an endpoint. Cascades that the DB performs (deleting a table removes its
+         * columns and dependent relationships) are mirrored here.
+         */
+        applyRemote(mutation: SchemaMutation): void {
+          switch (mutation.kind) {
+            case 'table.created':
+              setSchema((s) =>
+                s.tables.some((t) => t.id === mutation.table.id)
+                  ? s
+                  : { ...s, tables: [...s.tables, mutation.table] },
+              );
+              break;
+            case 'table.updated':
+              mapTable(mutation.table.id, () => mutation.table);
+              break;
+            case 'table.moved':
+              mapTable(mutation.tableId, (t) => ({ ...t, x: mutation.x, y: mutation.y }));
+              break;
+            case 'table.deleted':
+              setSchema((s) => {
+                const removed = s.tables.find((t) => t.id === mutation.tableId);
+                const columnIds = new Set((removed?.columns ?? []).map((c) => c.id));
+                return {
+                  ...s,
+                  tables: s.tables.filter((t) => t.id !== mutation.tableId),
+                  relationships: s.relationships.filter(
+                    (r) => !columnIds.has(r.sourceColumnId) && !columnIds.has(r.targetColumnId),
+                  ),
+                };
+              });
+              break;
+            case 'column.created':
+              mapTable(mutation.tableId, (t) =>
+                t.columns.some((c) => c.id === mutation.column.id)
+                  ? t
+                  : { ...t, columns: [...t.columns, mutation.column] },
+              );
+              break;
+            case 'column.updated':
+              mapTable(mutation.tableId, (t) => ({
+                ...t,
+                columns: t.columns.map((c) => (c.id === mutation.column.id ? mutation.column : c)),
+              }));
+              break;
+            case 'column.deleted':
+              setSchema((s) => ({
+                ...s,
+                tables: s.tables.map((t) =>
+                  t.id === mutation.tableId
+                    ? { ...t, columns: t.columns.filter((c) => c.id !== mutation.columnId) }
+                    : t,
+                ),
+                relationships: s.relationships.filter(
+                  (r) =>
+                    r.sourceColumnId !== mutation.columnId && r.targetColumnId !== mutation.columnId,
+                ),
+              }));
+              break;
+            case 'column.reordered':
+              mapTable(mutation.tableId, (t) => {
+                const byId = new Map(t.columns.map((c) => [c.id, c]));
+                const columns = mutation.orderedColumnIds
+                  .map((id) => byId.get(id))
+                  .filter((c): c is ColumnModel => Boolean(c));
+                return { ...t, columns };
+              });
+              break;
+            case 'relationship.created':
+              setSchema((s) =>
+                s.relationships.some((r) => r.id === mutation.relationship.id)
+                  ? s
+                  : { ...s, relationships: [...s.relationships, mutation.relationship] },
+              );
+              break;
+            case 'relationship.updated':
+              setSchema((s) => ({
+                ...s,
+                relationships: s.relationships.map((r) =>
+                  r.id === mutation.relationship.id ? mutation.relationship : r,
+                ),
+              }));
+              break;
+            case 'relationship.deleted':
+              setSchema((s) => ({
+                ...s,
+                relationships: s.relationships.filter((r) => r.id !== mutation.relationshipId),
+              }));
+              break;
           }
         },
 
