@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import type {
   ProjectGraphResponse,
   ProjectSummary,
@@ -8,6 +8,7 @@ import type {
 } from '@dbdesigner/shared';
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
+import { AccessService } from '../access/access.service';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -29,28 +30,36 @@ export class ProjectsService {
     private readonly projects: Repository<Project>,
     private readonly tables: TablesService,
     private readonly relationships: RelationshipsService,
+    private readonly access: AccessService,
   ) {}
 
-  async list(archived = false): Promise<ProjectSummary[]> {
+  /**
+   * List projects for the dashboard. An authenticated caller sees only the
+   * projects they own; an anonymous caller sees the account-free (ownerless)
+   * projects, preserving the app's original no-login workflow.
+   */
+  async list(userId: string | null, archived = false): Promise<ProjectSummary[]> {
     const rows = await this.projects.find({
-      where: { archived },
+      where: { archived, ownerId: userId ?? IsNull() },
       order: { updatedAt: 'DESC' },
     });
     return rows.map((row) => this.toSummary(row));
   }
 
-  async create(dto: CreateProjectDto): Promise<ProjectSummary> {
+  async create(dto: CreateProjectDto, userId: string | null): Promise<ProjectSummary> {
     const project = this.projects.create({
       name: dto.name,
       description: dto.description ?? null,
-      ownerId: null,
+      // Owned by the creator when signed in; ownerless (open) when anonymous.
+      ownerId: userId,
     });
     const saved = await this.projects.save(project);
     return this.toSummary(saved);
   }
 
-  /** Full project graph for initial load. Relationships and notes land in later phases. */
-  async getGraph(id: string): Promise<ProjectGraphResponse> {
+  /** Full project graph for initial load. Authorized against the caller's access. */
+  async getGraph(id: string, userId: string | null): Promise<ProjectGraphResponse> {
+    const accessLevel = await this.access.assertCanRead(id, userId);
     const project = await this.findOrThrow(id);
     const [tables, relationships] = await Promise.all([
       this.tables.getModelsForProject(id),
@@ -69,11 +78,16 @@ export class ProjectsService {
     return {
       project: this.toSummary(project),
       schema,
-      accessLevel: 'OWNER',
+      accessLevel,
     };
   }
 
-  async updateViewport(id: string, dto: UpdateViewportDto): Promise<void> {
+  async updateViewport(
+    id: string,
+    dto: UpdateViewportDto,
+    userId: string | null,
+  ): Promise<void> {
+    await this.access.assertCanWrite(id, userId);
     const result = await this.projects.update(
       { id },
       { viewportX: dto.viewportX, viewportY: dto.viewportY, zoom: dto.zoom },
@@ -83,7 +97,12 @@ export class ProjectsService {
     }
   }
 
-  async update(id: string, dto: UpdateProjectDto): Promise<ProjectSummary> {
+  async update(
+    id: string,
+    dto: UpdateProjectDto,
+    userId: string | null,
+  ): Promise<ProjectSummary> {
+    await this.access.assertOwner(id, userId);
     const project = await this.findOrThrow(id);
     if (dto.name !== undefined) {
       project.name = dto.name;
@@ -98,7 +117,8 @@ export class ProjectsService {
     return this.toSummary(saved);
   }
 
-  async duplicate(id: string): Promise<ProjectSummary> {
+  async duplicate(id: string, userId: string | null): Promise<ProjectSummary> {
+    await this.access.assertOwner(id, userId);
     const source = await this.findOrThrow(id);
     const copy = this.projects.create({
       name: `${source.name} (copy)`,
@@ -115,7 +135,8 @@ export class ProjectsService {
     return this.toSummary(saved);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId: string | null): Promise<void> {
+    await this.access.assertOwner(id, userId);
     const result = await this.projects.delete({ id });
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);

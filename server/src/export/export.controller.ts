@@ -1,5 +1,6 @@
 import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import { ExportService } from './export.service';
+import { CurrentUserId } from '../auth/current-user.decorator';
 
 /**
  * Export routes (BUILD_INSTRUCTIONS.md section 5). The controller only parses
@@ -15,8 +16,9 @@ export class ExportController {
   @Header('Content-Type', 'text/plain; charset=utf-8')
   exportSql(
     @Param('projectId') projectId: string,
+    @CurrentUserId() userId: string | null,
     @Query('dialect') dialect?: string,
   ): Promise<string> {
-    return this.exporter.exportSql(projectId, dialect);
+    return this.exporter.exportSql(projectId, userId, dialect);
   }
 }

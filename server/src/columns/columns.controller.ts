@@ -13,6 +13,7 @@ import { ColumnsService } from './columns.service';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ReorderColumnsDto } from './dto/reorder-columns.dto';
+import { CurrentUserId } from '../auth/current-user.decorator';
 
 /**
  * Granular column routes (BUILD_INSTRUCTIONS.md section 5). Create and reorder
@@ -27,8 +28,9 @@ export class ColumnsController {
   create(
     @Param('tableId') tableId: string,
     @Body() dto: CreateColumnDto,
+    @CurrentUserId() userId: string | null,
   ): Promise<ColumnModel> {
-    return this.columns.create(tableId, dto);
+    return this.columns.create(tableId, dto, userId);
   }
 
   @Patch('tables/:tableId/columns/reorder')
@@ -36,21 +38,26 @@ export class ColumnsController {
   reorder(
     @Param('tableId') tableId: string,
     @Body() dto: ReorderColumnsDto,
+    @CurrentUserId() userId: string | null,
   ): Promise<void> {
-    return this.columns.reorder(tableId, dto);
+    return this.columns.reorder(tableId, dto, userId);
   }
 
   @Patch('columns/:columnId')
   update(
     @Param('columnId') columnId: string,
     @Body() dto: UpdateColumnDto,
+    @CurrentUserId() userId: string | null,
   ): Promise<ColumnModel> {
-    return this.columns.update(columnId, dto);
+    return this.columns.update(columnId, dto, userId);
   }
 
   @Delete('columns/:columnId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('columnId') columnId: string): Promise<void> {
-    return this.columns.remove(columnId);
+  remove(
+    @Param('columnId') columnId: string,
+    @CurrentUserId() userId: string | null,
+  ): Promise<void> {
+    return this.columns.remove(columnId, userId);
   }
 }

@@ -1,11 +1,35 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from './user.entity';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { OptionalAuthGuard } from './optional-auth.guard';
 
 /**
  * Owner authentication (BUILD_INSTRUCTIONS.md sections 5 and 6).
  *
- * Contains: User entity, register/login (email + password, JWT), GET /auth/me,
- * and stubbed OAuth routes (GET /auth/oauth/:provider[/callback]) implemented in
- * Phase 8. Sharing stays anonymous regardless of owner auth.
+ * Registers the User repository, configures the JWT signer/verifier from env,
+ * and installs OptionalAuthGuard globally (APP_GUARD) so every request carries
+ * the resolved caller (or null) without any route being forced to log in.
+ * Sharing stays anonymous regardless of owner auth.
  */
-@Module({})
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET', 'change-me-in-production'),
+        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') },
+      }),
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, { provide: APP_GUARD, useClass: OptionalAuthGuard }],
+  exports: [AuthService],
+})
 export class AuthModule {}

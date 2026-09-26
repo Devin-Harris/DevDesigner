@@ -17,14 +17,19 @@ const SUPPORTED_DIALECTS: readonly SqlDialect[] = ['mysql'];
 export class ExportService {
   constructor(private readonly projects: ProjectsService) {}
 
-  async exportSql(projectId: string, dialectInput?: string): Promise<string> {
+  async exportSql(
+    projectId: string,
+    userId: string | null,
+    dialectInput?: string,
+  ): Promise<string> {
     const dialect = (dialectInput ?? 'mysql').toLowerCase() as SqlDialect;
     if (!SUPPORTED_DIALECTS.includes(dialect)) {
       throw new BadRequestException(
         `Unsupported SQL dialect "${dialectInput}". Supported: ${SUPPORTED_DIALECTS.join(', ')}.`,
       );
     }
-    const { schema } = await this.projects.getGraph(projectId);
+    // getGraph authorizes the read against the caller's access to the project.
+    const { schema } = await this.projects.getGraph(projectId, userId);
     return generateSql(schema, { dialect });
   }
 }

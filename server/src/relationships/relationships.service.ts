@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { RelationshipModel } from '@dbdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
+import { AccessService } from '../access/access.service';
 import { RelationshipEntity } from './relationship.entity';
 import { toRelationshipModel } from './relationship.mapper';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
@@ -26,6 +27,7 @@ export class RelationshipsService {
     private readonly relationships: Repository<RelationshipEntity>,
     @InjectRepository(ColumnEntity)
     private readonly columns: Repository<ColumnEntity>,
+    private readonly access: AccessService,
   ) {}
 
   async getModelsForProject(projectId: string): Promise<RelationshipModel[]> {
@@ -33,7 +35,12 @@ export class RelationshipsService {
     return rows.map(toRelationshipModel);
   }
 
-  async create(projectId: string, dto: CreateRelationshipDto): Promise<RelationshipModel> {
+  async create(
+    projectId: string,
+    dto: CreateRelationshipDto,
+    userId: string | null,
+  ): Promise<RelationshipModel> {
+    await this.access.assertCanWrite(projectId, userId);
     if (dto.sourceColumnId === dto.targetColumnId) {
       throw new BadRequestException('A column cannot relate to itself.');
     }
@@ -54,7 +61,12 @@ export class RelationshipsService {
     return toRelationshipModel(saved);
   }
 
-  async update(id: string, dto: UpdateRelationshipDto): Promise<RelationshipModel> {
+  async update(
+    id: string,
+    dto: UpdateRelationshipDto,
+    userId: string | null,
+  ): Promise<RelationshipModel> {
+    await this.access.assertCanWriteRelationship(id, userId);
     const relationship = await this.findOrThrow(id);
 
     // Re-pointing an endpoint: validate the new column(s) and reject self/duplicate.
@@ -91,7 +103,8 @@ export class RelationshipsService {
     return toRelationshipModel(saved);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId: string | null): Promise<void> {
+    await this.access.assertCanWriteRelationship(id, userId);
     const result = await this.relationships.delete({ id });
     if (!result.affected) {
       throw new NotFoundException(`Relationship ${id} not found.`);

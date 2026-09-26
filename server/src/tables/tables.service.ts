@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { TableModel } from '@dbdesigner/shared';
 import { Project } from '../projects/project.entity';
+import { AccessService } from '../access/access.service';
 import { TableEntity } from './table.entity';
 import { toTableModel } from './table.mapper';
 import { CreateTableDto } from './dto/create-table.dto';
@@ -21,6 +22,7 @@ export class TablesService {
     private readonly tables: Repository<TableEntity>,
     @InjectRepository(Project)
     private readonly projects: Repository<Project>,
+    private readonly access: AccessService,
   ) {}
 
   /** All tables (with columns) for a project, as shared TableModels. */
@@ -33,7 +35,12 @@ export class TablesService {
     return rows.map(toTableModel);
   }
 
-  async create(projectId: string, dto: CreateTableDto): Promise<TableModel> {
+  async create(
+    projectId: string,
+    dto: CreateTableDto,
+    userId: string | null,
+  ): Promise<TableModel> {
+    await this.access.assertCanWrite(projectId, userId);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -49,7 +56,12 @@ export class TablesService {
     return toTableModel({ ...saved, columns: [] });
   }
 
-  async update(tableId: string, dto: UpdateTableDto): Promise<TableModel> {
+  async update(
+    tableId: string,
+    dto: UpdateTableDto,
+    userId: string | null,
+  ): Promise<TableModel> {
+    await this.access.assertCanWriteTable(tableId, userId);
     const table = await this.findOrThrow(tableId);
     if (dto.name !== undefined) {
       table.name = dto.name;
@@ -64,14 +76,20 @@ export class TablesService {
     return this.getModel(tableId);
   }
 
-  async updatePosition(tableId: string, dto: UpdatePositionDto): Promise<void> {
+  async updatePosition(
+    tableId: string,
+    dto: UpdatePositionDto,
+    userId: string | null,
+  ): Promise<void> {
+    await this.access.assertCanWriteTable(tableId, userId);
     const result = await this.tables.update({ id: tableId }, { x: dto.x, y: dto.y });
     if (!result.affected) {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
   }
 
-  async remove(tableId: string): Promise<void> {
+  async remove(tableId: string, userId: string | null): Promise<void> {
+    await this.access.assertCanWriteTable(tableId, userId);
     // Columns (and any relationships referencing them) cascade via FK.
     const result = await this.tables.delete({ id: tableId });
     if (!result.affected) {

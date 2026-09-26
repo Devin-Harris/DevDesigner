@@ -1,0 +1,68 @@
+<h2 mat-dialog-title>{{ title() }}</h2>
+
+<mat-dialog-content>
+  <div style="display: flex; flex-direction: column; padding-top: 8px">
+    @if (isRegister()) {
+      <mat-form-field appearance="outline">
+        <mat-label>Display name (optional)</mat-label>
+        <input
+          matInput
+          type="text"
+          autocomplete="name"
+          [value]="displayName()"
+          (input)="setValue(displayName, $event)"
+        />
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Email</mat-label>
+      <input
+        matInput
+        type="email"
+        autocomplete="email"
+        [value]="email()"
+        (input)="setValue(email, $event)"
+        (keyup.enter)="submit()"
+      />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Password</mat-label>
+      <input
+        matInput
+        type="password"
+        [autocomplete]="isRegister() ? 'new-password' : 'current-password'"
+        [value]="password()"
+        (input)="setValue(password, $event)"
+        (keyup.enter)="submit()"
+      />
+      @if (isRegister()) {
+        <mat-hint>At least 8 characters.</mat-hint>
+      }
+    </mat-form-field>
+
+    @if (error()) {
+      <p style="color: var(--dbd-danger); margin: 4px 0 0">{{ error() }}</p>
+    }
+
+    <button
+      mat-button
+      type="button"
+      (click)="toggleMode()"
+      style="align-self: flex-start; margin-top: 4px"
+    >
+      {{ isRegister() ? 'Have an account? Sign in' : 'Need an account? Create one' }}
+    </button>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button color="primary" [disabled]="!canSubmit()" (click)="submit()">
+    @if (busy()) {
+      <mat-progress-spinner mode="indeterminate" diameter="18"></mat-progress-spinner>
+    }
+    {{ submitLabel() }}
+  </button>
+</mat-dialog-actions>

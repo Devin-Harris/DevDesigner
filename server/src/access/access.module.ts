@@ -1,18 +1,27 @@
 import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Project } from '../projects/project.entity';
+import { TableEntity } from '../tables/table.entity';
+import { ColumnEntity } from '../columns/column.entity';
+import { RelationshipEntity } from '../relationships/relationship.entity';
+import { AccessService } from './access.service';
 
 /**
  * Access-resolution and policy layer (BUILD_INSTRUCTIONS.md sections 6 and 7).
  *
- * Home of:
- *  - the access-resolution guard (resolves OWNER / EDIT / VIEW from a JWT/session
- *    or an X-Share-Token header and attaches it to the request),
- *  - an ancestry-aware authorization helper that, given any entity id, resolves
- *    its owning project and the caller's effective access in one query path,
- *  - reusable policy checks invoked by services before any mutation.
+ * Provides AccessService, which resolves the caller's effective access to a
+ * project (directly or by walking a child entity's ancestry) and authorizes
+ * reads and writes before services mutate anything.
  *
- * Marked @Global so every feature module can inject the policy service without
- * re-importing. Providers are added as Phase 1 lands.
+ * Marked @Global so every feature module can inject AccessService without
+ * re-importing. Registers the entities it needs to resolve ancestry.
  */
 @Global()
-@Module({})
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Project, TableEntity, ColumnEntity, RelationshipEntity]),
+  ],
+  providers: [AccessService],
+  exports: [AccessService],
+})
 export class AccessModule {}

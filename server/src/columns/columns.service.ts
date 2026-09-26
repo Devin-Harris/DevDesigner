@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import type { ColumnModel } from '@dbdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
+import { AccessService } from '../access/access.service';
 import { ColumnEntity } from './column.entity';
 import { fromDataType, toColumnModel } from './column.mapper';
 import { CreateColumnDto } from './dto/create-column.dto';
@@ -21,9 +22,15 @@ export class ColumnsService {
     private readonly columns: Repository<ColumnEntity>,
     @InjectRepository(TableEntity)
     private readonly tables: Repository<TableEntity>,
+    private readonly access: AccessService,
   ) {}
 
-  async create(tableId: string, dto: CreateColumnDto): Promise<ColumnModel> {
+  async create(
+    tableId: string,
+    dto: CreateColumnDto,
+    userId: string | null,
+  ): Promise<ColumnModel> {
+    await this.access.assertCanWriteTable(tableId, userId);
     const table = await this.tables.findOne({ where: { id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);
@@ -44,7 +51,12 @@ export class ColumnsService {
     return toColumnModel(saved);
   }
 
-  async update(columnId: string, dto: UpdateColumnDto): Promise<ColumnModel> {
+  async update(
+    columnId: string,
+    dto: UpdateColumnDto,
+    userId: string | null,
+  ): Promise<ColumnModel> {
+    await this.access.assertCanWriteColumn(columnId, userId);
     const column = await this.findOrThrow(columnId);
     if (dto.name !== undefined) {
       column.name = dto.name;
@@ -77,7 +89,12 @@ export class ColumnsService {
     return toColumnModel(saved);
   }
 
-  async reorder(tableId: string, dto: ReorderColumnsDto): Promise<void> {
+  async reorder(
+    tableId: string,
+    dto: ReorderColumnsDto,
+    userId: string | null,
+  ): Promise<void> {
+    await this.access.assertCanWriteTable(tableId, userId);
     const columns = await this.columns.find({ where: { tableId } });
     const byId = new Map(columns.map((c) => [c.id, c]));
     const updates: ColumnEntity[] = [];
@@ -93,7 +110,8 @@ export class ColumnsService {
     }
   }
 
-  async remove(columnId: string): Promise<void> {
+  async remove(columnId: string, userId: string | null): Promise<void> {
+    await this.access.assertCanWriteColumn(columnId, userId);
     const result = await this.columns.delete({ id: columnId });
     if (!result.affected) {
       throw new NotFoundException(`Column ${columnId} not found.`);
