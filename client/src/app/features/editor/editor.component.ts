@@ -10,9 +10,15 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import type { RelationshipModel, RelationshipType, TableModel } from '@dbdesigner/shared';
+import { generateSql } from '@dbdesigner/shared';
 import { ProjectStore } from '../../stores/project.store';
+import { ExportDialogComponent } from './export/export-dialog.component';
+import { buildDiagramSvg } from './export/diagram-svg.helper';
+import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import type { Point, Side } from './canvas/models/geometry.model';
 import {
@@ -85,6 +91,8 @@ function readStoredGrid(): boolean {
 })
 export class EditorComponent {
   protected readonly store = inject(ProjectStore);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly svgOffset = SVG_OFFSET;
 
   readonly projectId = input.required<string>();
@@ -651,6 +659,74 @@ export class EditorComponent {
 
   protected toggleGrid(): void {
     this.gridSnap.update((v) => !v);
+  }
+
+  /**
+   * Tables + relationships to export. If any tables are selected (marquee or
+   * multi-select), export just those and only the relationships whose endpoints
+   * both fall inside the selection; otherwise export the whole diagram.
+   */
+  private exportScope(): {
+    tables: TableModel[];
+    relationships: RelationshipModel[];
+    selectionOnly: boolean;
+  } {
+    const selectedIds = new Set(this.store.selectedTableIds());
+    const selectionOnly = selectedIds.size > 0;
+    const tables = selectionOnly
+      ? this.store.tables().filter((t) => selectedIds.has(t.id))
+      : this.store.tables();
+
+    const columnIds = new Set<string>();
+    for (const table of tables) {
+      for (const column of table.columns) {
+        columnIds.add(column.id);
+      }
+    }
+    const relationships = this.store
+      .relationships()
+      .filter((r) => columnIds.has(r.sourceColumnId) && columnIds.has(r.targetColumnId));
+
+    return { tables, relationships, selectionOnly };
+  }
+
+  private exportBaseName(selectionOnly: boolean): string {
+    return selectionOnly ? 'diagram-selection' : 'diagram';
+  }
+
+  /** Open the SQL export dialog for the current scope (selection or whole diagram). */
+  protected openSqlExport(): void {
+    const { tables, relationships, selectionOnly } = this.exportScope();
+    const sql = generateSql(
+      { tables, relationships, notes: [], viewport: this.store.viewport() },
+      { dialect: 'mysql' },
+    );
+    this.dialog.open(ExportDialogComponent, {
+      width: '720px',
+      maxWidth: '92vw',
+      data: { sql, baseName: this.exportBaseName(selectionOnly), selectionOnly },
+    });
+  }
+
+  /** Export the current scope as an image, matching the live theme and layout. */
+  protected async onExportImage(format: ImageFormat): Promise<void> {
+    const { tables, relationships, selectionOnly } = this.exportScope();
+    if (tables.length === 0) {
+      this.snackBar.open('Nothing to export yet. Add a table first.', undefined, {
+        duration: 2500,
+      });
+      return;
+    }
+    try {
+      const diagram = buildDiagramSvg(tables, relationships);
+      await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
+    } catch (err) {
+      this.snackBar.open(
+        `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        { duration: 4000 },
+      );
+    }
   }
 
   private applyZoom(factor: number, centerX: number, centerY: number): void {

@@ -70,12 +70,15 @@
       [canAdd]="store.canEdit() && !!store.projectId()"
       [gridSnap]="gridSnap()"
       [canAlign]="store.canEdit() && store.selectedTableIds().length >= 2"
+      [canExport]="!!store.projectId()"
       (addTable)="addTableCentered()"
       (zoomIn)="zoomIn()"
       (zoomOut)="zoomOut()"
       (resetView)="resetView()"
       (toggleGrid)="toggleGrid()"
       (align)="onAlign($event)"
+      (exportSql)="openSqlExport()"
+      (exportImage)="onExportImage($event)"
     ></app-canvas-toolbar>
 
     @if (store.loading()) {

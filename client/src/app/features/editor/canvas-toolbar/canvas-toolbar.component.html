@@ -59,6 +59,32 @@
   </div>
 
   <div class="group">
+    <button
+      mat-icon-button
+      [disabled]="!canExport()"
+      [matMenuTriggerFor]="exportMenu"
+      matTooltip="Export"
+      aria-label="Export"
+    >
+      <mat-icon>ios_share</mat-icon>
+    </button>
+    <mat-menu #exportMenu="matMenu">
+      <button mat-menu-item (click)="exportSql.emit()">
+        <mat-icon>data_object</mat-icon><span>SQL...</span>
+      </button>
+      <button mat-menu-item (click)="exportImage.emit('png')">
+        <mat-icon>photo</mat-icon><span>Image (PNG)</span>
+      </button>
+      <button mat-menu-item (click)="exportImage.emit('svg')">
+        <mat-icon>image</mat-icon><span>Image (SVG)</span>
+      </button>
+      <button mat-menu-item (click)="exportImage.emit('pdf')">
+        <mat-icon>picture_as_pdf</mat-icon><span>Image (PDF)</span>
+      </button>
+    </mat-menu>
+  </div>
+
+  <div class="group">
     <button mat-icon-button (click)="zoomOut.emit()" matTooltip="Zoom out">
       <mat-icon>remove</mat-icon>
     </button>

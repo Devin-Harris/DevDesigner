@@ -14,6 +14,9 @@ export type AlignAction =
   | 'dist-h'
   | 'dist-v';
 
+/** Image export formats offered in the export menu. */
+export type ExportImageFormat = 'svg' | 'png' | 'pdf';
+
 /** Floating canvas toolbar: add table, zoom, grid-snap, alignment, save status. */
 @Component({
   selector: 'app-canvas-toolbar',
@@ -29,6 +32,7 @@ export class CanvasToolbarComponent {
   readonly canAdd = input<boolean>(false);
   readonly gridSnap = input<boolean>(false);
   readonly canAlign = input<boolean>(false);
+  readonly canExport = input<boolean>(false);
 
   readonly addTable = output<void>();
   readonly zoomIn = output<void>();
@@ -36,4 +40,6 @@ export class CanvasToolbarComponent {
   readonly resetView = output<void>();
   readonly toggleGrid = output<void>();
   readonly align = output<AlignAction>();
+  readonly exportSql = output<void>();
+  readonly exportImage = output<ExportImageFormat>();
 }

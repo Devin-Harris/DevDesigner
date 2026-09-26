@@ -1,11 +1,20 @@
 import { Module } from '@nestjs/common';
+import { ProjectsModule } from '../projects/projects.module';
+import { ExportController } from './export.controller';
+import { ExportService } from './export.service';
 
 /**
- * Export: generates SQL via the shared pure generator (@dbdesigner/shared/sql) and returns it as text for the selected dialect.
+ * Export: generates SQL via the shared pure generator (@dbdesigner/shared/sql)
+ * and returns it as text for the selected dialect.
  *
  * Layers (section 7): ExportController (routing + DTO validation only) ->
- * ExportService (business logic, rules, calls the policy layer first) ->
- * TypeORM repository (data access). Entity and granular DTOs live in this folder.
+ * ExportService (business logic, reuses ProjectsService for schema assembly and
+ * will call the policy layer once auth/sharing land). Imports ProjectsModule so
+ * graph-assembly is not duplicated.
  */
-@Module({})
+@Module({
+  imports: [ProjectsModule],
+  controllers: [ExportController],
+  providers: [ExportService],
+})
 export class ExportModule {}
