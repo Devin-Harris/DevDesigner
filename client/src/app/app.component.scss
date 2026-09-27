@@ -15,17 +15,77 @@
   z-index: 2;
 }
 
-.brand-icon {
-  color: var(--dbd-primary);
+// Accent-filled logo tile (design system wordmark lockup).
+.brand-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--dbd-primary);
+  color: #fff;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
 }
 
 .brand {
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  font-family: var(--dbd-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
 }
 
 .spacer {
   flex: 1;
+}
+
+// Breadcrumb: open project name + type-switch chip.
+.crumb-sep {
+  margin: 0 4px;
+  color: var(--dbd-text-muted);
+  opacity: 0.6;
+}
+
+.crumb-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  margin-left: 8px;
+  padding: 0 3px 0 9px;
+  border-radius: 7px;
+  border: 1px solid var(--dbd-border-strong);
+  background: var(--dbd-surface-2);
+  color: var(--dbd-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--dbd-primary);
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--dbd-text-muted);
+  }
 }
 
 .body {

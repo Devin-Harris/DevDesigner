@@ -4,7 +4,7 @@
 
 .toolbar {
   position: absolute;
-  top: var(--dbd-space-3);
+  bottom: var(--dbd-space-3);
   left: var(--dbd-space-3);
   display: flex;
   align-items: center;
@@ -14,6 +14,8 @@
   border: 1px solid var(--dbd-border);
   border-radius: var(--dbd-radius);
   box-shadow: var(--dbd-shadow-2);
+  max-width: calc(100vw - 2 * var(--dbd-space-3));
+  flex-wrap: wrap;
 }
 
 .add-btn {

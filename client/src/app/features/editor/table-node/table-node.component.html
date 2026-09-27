@@ -1,22 +1,11 @@
 <header
   class="node-head"
   [class.colored]="!!table().color"
-  [style.background]="table().color || null"
+  [style.--tbl-color]="table().color || null"
   [style.height.px]="headerH"
 >
   <button
-    class="icon-btn"
-    (pointerdown)="$event.stopPropagation()"
-    (click)="addColumn()"
-    [disabled]="!editable()"
-    title="Add column"
-    aria-label="Add column"
-  >
-    <mat-icon>add</mat-icon>
-  </button>
-
-  <button
-    class="icon-btn"
+    class="icon-btn color"
     [matMenuTriggerFor]="colorMenu"
     (pointerdown)="$event.stopPropagation()"
     [disabled]="!editable()"
@@ -51,8 +40,21 @@
     </span>
   }
 
+  <span class="count" title="Columns">{{ table().columns.length }}</span>
+
   <button
-    class="icon-btn"
+    class="icon-btn head-act"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="addColumn()"
+    [disabled]="!editable()"
+    title="Add column"
+    aria-label="Add column"
+  >
+    <mat-icon>add</mat-icon>
+  </button>
+
+  <button
+    class="icon-btn head-act"
     (pointerdown)="$event.stopPropagation()"
     (click)="deleteTable()"
     [disabled]="!editable()"
@@ -74,6 +76,14 @@
         (pointerdown)="onHandleDown($event, column.id)"
         (pointerup)="onHandleUp($event, column.id)"
       ></span>
+
+      @if (column.isPrimaryKey) {
+        <mat-icon class="keyglyph pk" title="Primary key">key</mat-icon>
+      } @else if (fkColumnIds().has(column.id)) {
+        <mat-icon class="keyglyph fk" title="Foreign key">link</mat-icon>
+      } @else {
+        <span class="keyslot"></span>
+      }
 
       @if (editingColumnId() === column.id) {
         <input

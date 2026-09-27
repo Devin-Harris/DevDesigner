@@ -4,15 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { ProjectSummary } from '@dbdesigner/shared';
+import { PROJECT_TYPES, type ProjectSummary, type ProjectType } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
-import { ProjectsStore } from '../../../stores/projects.store';
+import { ProjectsStore, type ProjectTypeFilter } from '../../../stores/projects.store';
 import {
   ConfirmDialogComponent,
   type ConfirmDialogData,
@@ -33,7 +32,6 @@ import {
     AutofocusDirective,
     MatButtonModule,
     MatIconModule,
-    MatListModule,
     MatMenuModule,
     MatProgressSpinnerModule,
     MatSlideToggleModule,
@@ -51,6 +49,42 @@ export class ProjectListComponent {
   protected readonly editingId = signal<string | null>(null);
   protected readonly editName = signal('');
 
+  /** Type filter chips: All plus one per project type. */
+  protected readonly typeFilters: readonly ProjectTypeFilter[] = ['ALL', ...PROJECT_TYPES];
+
+  /** Human label for a project type (or the All filter). */
+  protected typeLabel(type: ProjectTypeFilter): string {
+    switch (type) {
+      case 'ALL':
+        return 'All';
+      case 'FLOW':
+        return 'Flow';
+      case 'SCRATCH':
+        return 'Scratch';
+      default:
+        return 'ERD';
+    }
+  }
+
+  /** Card thumbnail accents — a stable, tasteful color per project (hashed from id). */
+  private static readonly ACCENTS = [
+    '#6f8bff',
+    '#34d0c0',
+    '#f0b45e',
+    '#e06b8b',
+    '#8b7bff',
+    '#7ac98a',
+  ];
+
+  /** Deterministic accent for a project's thumbnail, so a card keeps its color. */
+  protected accent(id: string): string {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return ProjectListComponent.ACCENTS[hash % ProjectListComponent.ACCENTS.length];
+  }
+
   protected onSearch(event: Event): void {
     this.store.setSearch((event.target as HTMLInputElement).value);
   }
@@ -62,7 +96,11 @@ export class ProjectListComponent {
   /** Create a project and immediately open its name for inline editing. */
   protected async addProject(): Promise<void> {
     try {
-      const created = await this.store.create({ name: 'Untitled' });
+      // New projects inherit the active type filter (so filtering to Flow and
+      // pressing New makes a Flow project); 'ALL' falls back to the ERD default.
+      const filter = this.store.typeFilter();
+      const type: ProjectType | undefined = filter === 'ALL' ? undefined : filter;
+      const created = await this.store.create({ name: 'Untitled', type });
       this.store.select(created.id);
       this.startRename(created);
     } catch (err) {

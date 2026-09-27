@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { ProjectType } from '@dbdesigner/shared';
 
 /**
  * A diagram project. Canvas viewport state lives here (viewportX/Y/zoom) rather
@@ -32,6 +33,11 @@ export class Project {
 
   @Column({ type: 'boolean', default: false })
   archived!: boolean;
+
+  // Organizational diagram kind (ERD / FLOW / SCRATCH). Stored as varchar since
+  // SQLite has no enum; typed against the shared ProjectType union in code.
+  @Column({ type: 'varchar', default: 'ERD' })
+  type!: ProjectType;
 
   // Canvas viewport (persisted via PATCH /projects/:id/viewport in Phase 2).
   @Column({ type: 'float', default: 0 })

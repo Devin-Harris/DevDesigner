@@ -1,7 +1,15 @@
-import type { ColumnModel, RelationshipModel, TableModel } from '@dbdesigner/shared';
+import type {
+  CanvasElementModel,
+  ColumnModel,
+  RelationshipModel,
+  TableModel,
+} from '@dbdesigner/shared';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
 import { nodeHeight, tableBox, tableWidth } from '../canvas/helpers/node-metrics.helper';
 import { computeConnectors } from '../canvas/helpers/connectors.helper';
+import { buildShapeViews } from '../canvas/helpers/shape-render.helper';
+import { elementBox } from '../canvas/helpers/element-geometry.helper';
+import type { ShapeView, TextBlockView } from '../canvas/models/shape-view.model';
 
 /**
  * Build a standalone vector SVG of the diagram that mirrors the on-screen canvas
@@ -301,6 +309,71 @@ function markerDefs(theme: Theme): string {
   </marker>`;
 }
 
+/** Render one drawing element (shape/arrow/freehand/text) as SVG. */
+function renderShape(view: ShapeView): string {
+  const dash = view.dash ? ` stroke-dasharray="${view.dash}"` : '';
+  const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${view.opacity}">`;
+  const stroke = `stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash}`;
+  const body: string[] = [];
+  if (view.rect) {
+    body.push(
+      `<rect x="${view.rect.x}" y="${view.rect.y}" width="${view.rect.width}" height="${view.rect.height}" ` +
+        `rx="${view.rect.rx}" fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} />`,
+    );
+  } else if (view.ellipse) {
+    body.push(
+      `<ellipse cx="${view.ellipse.cx}" cy="${view.ellipse.cy}" rx="${view.ellipse.rx}" ry="${view.ellipse.ry}" ` +
+        `fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} />`,
+    );
+  } else if (view.polygon) {
+    body.push(
+      `<polygon points="${view.polygon}" fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} stroke-linejoin="round" />`,
+    );
+  } else if (view.freehand && view.path) {
+    body.push(`<path d="${view.path}" fill="${view.fill}" stroke="none" />`);
+  } else if (view.path) {
+    const ms = view.markerStart !== 'none' ? ` marker-start="url(#dbd-ah-${view.markerStart})"` : '';
+    const me = view.markerEnd !== 'none' ? ` marker-end="url(#dbd-ah-${view.markerEnd})"` : '';
+    body.push(
+      `<path d="${view.path}" fill="none" ${stroke} stroke-linecap="round" stroke-linejoin="round"${ms}${me} />`,
+    );
+  } else if (view.text) {
+    body.push(renderTextBlock(view.text));
+  }
+  if (view.label) {
+    body.push(renderTextBlock(view.label));
+  }
+  return `${open}${body.join('')}</g>`;
+}
+
+/** Render a laid-out text block (text element content or a shape label). */
+function renderTextBlock(t: TextBlockView): string {
+  const tspans = t.lines
+    .map((l) => `<tspan x="${l.x}" y="${l.y}">${esc(l.text)}</tspan>`)
+    .join('');
+  return (
+    `<text fill="${t.color}" font-size="${t.fontSize}" font-family="${esc(t.fontFamily)}" ` +
+    `font-weight="${t.fontWeight}" text-anchor="${t.anchor}">${tspans}</text>`
+  );
+}
+
+/** Arrowhead markers for exported lines/arrows (colored with the theme text color). */
+function arrowheadDef(theme: Theme): string {
+  const c = theme.text;
+  return `<marker id="dbd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+    <path d="M1 1 L9 5 L1 9" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </marker>
+  <marker id="dbd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+    <path d="M1 1 L10 5 L1 9 Z" fill="${c}" stroke="${c}" stroke-linejoin="round" />
+  </marker>
+  <marker id="dbd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="5" cy="5" r="3.2" fill="${c}" />
+  </marker>
+  <marker id="dbd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+    <path d="M4 1 L4 11" stroke="${c}" stroke-width="1.6" stroke-linecap="round" />
+  </marker>`;
+}
+
 export interface DiagramSvg {
   svg: string;
   width: number;
@@ -318,10 +391,12 @@ export interface DiagramSvg {
 export function buildDiagramSvg(
   tables: readonly TableModel[],
   relationships: readonly RelationshipModel[],
+  elements: readonly CanvasElementModel[] = [],
 ): DiagramSvg {
   const { theme, dispose } = readTheme();
   try {
     const connectors = computeConnectors(tables, relationships, new Set<string>());
+    const shapeViews = buildShapeViews(elements, tables, new Set<string>());
 
     let minX = Infinity;
     let minY = Infinity;
@@ -343,6 +418,11 @@ export function buildDiagramSvg(
       for (const point of connector.routePoints) {
         extend(point.x, point.y);
       }
+    }
+    for (const element of elements) {
+      const box = elementBox(element);
+      extend(box.x0, box.y0);
+      extend(box.x1, box.y1);
     }
 
     if (!Number.isFinite(minX)) {
@@ -366,6 +446,8 @@ export function buildDiagramSvg(
       .join('\n');
 
     const nodes = tables.map((t) => renderTable(t, theme)).join('\n');
+    // Elements render above connectors and below table nodes, matching the canvas.
+    const shapes = shapeViews.map(renderShape).join('\n');
 
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs>
@@ -373,11 +455,13 @@ export function buildDiagramSvg(
     <path d="M 24 0 L 0 0 0 24" fill="none" stroke="${theme.gridLine}" stroke-width="1" />
   </pattern>
   ${markerDefs(theme)}
+  ${arrowheadDef(theme)}
 </defs>
 <rect x="0" y="0" width="${width}" height="${height}" fill="${theme.canvasBg}" />
 <rect x="0" y="0" width="${width}" height="${height}" fill="url(#dbd-export-grid)" />
 <g transform="translate(${shiftX}, ${shiftY})">
 ${edges}
+${shapes}
 ${nodes}
 </g>
 </svg>`;

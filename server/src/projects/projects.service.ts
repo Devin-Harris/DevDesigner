@@ -8,6 +8,7 @@ import type {
 } from '@dbdesigner/shared';
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
+import { ElementsService } from '../elements/elements.service';
 import { AccessService } from '../access/access.service';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -30,6 +31,7 @@ export class ProjectsService {
     private readonly projects: Repository<Project>,
     private readonly tables: TablesService,
     private readonly relationships: RelationshipsService,
+    private readonly elements: ElementsService,
     private readonly access: AccessService,
   ) {}
 
@@ -50,6 +52,7 @@ export class ProjectsService {
     const project = this.projects.create({
       name: dto.name,
       description: dto.description ?? null,
+      type: dto.type ?? 'ERD',
       // Owned by the creator when signed in; ownerless (open) when anonymous.
       ownerId: userId,
     });
@@ -65,14 +68,16 @@ export class ProjectsService {
   ): Promise<ProjectGraphResponse> {
     const accessLevel = await this.access.assertCanRead(id, userId, shareToken);
     const project = await this.findOrThrow(id);
-    const [tables, relationships] = await Promise.all([
+    const [tables, relationships, elements] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
+      this.elements.getModelsForProject(id),
     ]);
     const schema: SchemaModel = {
       tables,
       relationships,
       notes: [],
+      elements,
       viewport: {
         x: project.viewportX,
         y: project.viewportY,
@@ -118,6 +123,9 @@ export class ProjectsService {
     if (dto.archived !== undefined) {
       project.archived = dto.archived;
     }
+    if (dto.type !== undefined) {
+      project.type = dto.type;
+    }
     const saved = await this.projects.save(project);
     return this.toSummary(saved);
   }
@@ -128,6 +136,7 @@ export class ProjectsService {
     const copy = this.projects.create({
       name: `${source.name} (copy)`,
       description: source.description,
+      type: source.type,
       ownerId: source.ownerId,
       archived: false,
       viewportX: source.viewportX,
@@ -162,6 +171,7 @@ export class ProjectsService {
       name: project.name,
       description: project.description,
       archived: project.archived,
+      type: project.type,
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };

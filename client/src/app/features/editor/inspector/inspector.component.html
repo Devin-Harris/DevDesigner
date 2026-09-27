@@ -1,6 +1,10 @@
 <div class="panel">
   <div class="panel-head">
-    <span class="panel-title">Table</span>
+    <span class="dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+    <div class="head-text">
+      <div class="eyebrow">Table</div>
+      <div class="tname">{{ table().name }}</div>
+    </div>
     <button
       mat-icon-button
       (click)="deleteTable()"
@@ -23,7 +27,7 @@
     />
   </mat-form-field>
 
-  <div class="field-label">Color</div>
+  <div class="field-label">Header color</div>
   <div class="swatches">
     @for (swatch of swatches; track swatch) {
       <button

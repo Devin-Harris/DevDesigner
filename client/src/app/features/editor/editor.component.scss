@@ -42,6 +42,52 @@
   z-index: 4;
 }
 
+// Inline editor for a text element, positioned over the element in screen space.
+.text-editor {
+  position: absolute;
+  z-index: 7;
+  min-width: 40px;
+  min-height: 1.4em;
+  margin: 0;
+  padding: 0;
+  border: 1px dashed var(--dbd-primary);
+  background: color-mix(in srgb, var(--dbd-surface) 88%, transparent);
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.25;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  white-space: pre;
+  transform-origin: 0 0;
+
+  &.centered {
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+}
+
+// Floating inspector: sits over the canvas, clears the top bar/share button and
+// bottom toolbar, and never pushes the canvas.
+.side-panel {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  bottom: 16px;
+  width: 320px;
+  max-height: calc(100% - 80px);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  z-index: 5;
+}
+
+.side-panel app-inspector,
+.side-panel app-relationship-inspector {
+  height: 100%;
+  border-left: none;
+  border-radius: 10px;
+}
+
 .overlay {
   position: absolute;
   inset: 0;

@@ -96,6 +96,27 @@
       <mat-icon>center_focus_strong</mat-icon>
     </button>
   </div>
+
+  <div class="group">
+    <button
+      mat-icon-button
+      (click)="undo.emit()"
+      [disabled]="!canUndo()"
+      matTooltip="Undo (Ctrl+Z)"
+      aria-label="Undo"
+    >
+      <mat-icon>undo</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      (click)="redo.emit()"
+      [disabled]="!canRedo()"
+      matTooltip="Redo (Ctrl+Shift+Z)"
+      aria-label="Redo"
+    >
+      <mat-icon>redo</mat-icon>
+    </button>
+  </div>
 </div>
 
 @if (saveLabel()) {

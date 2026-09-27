@@ -11,9 +11,13 @@ import { catchError, firstValueFrom, of, pipe, switchMap, tap } from 'rxjs';
 import type {
   CreateProjectDto,
   ProjectSummary,
+  ProjectType,
   UpdateProjectDto,
 } from '@dbdesigner/shared';
 import { ProjectsService } from '../core/services/projects.service';
+
+/** Workspace type filter: a single project type, or all of them. */
+export type ProjectTypeFilter = ProjectType | 'ALL';
 
 /**
  * Workspace state: the project list plus the current selection, search term, and archived
@@ -27,6 +31,7 @@ interface ProjectsState {
   error: string | null;
   search: string;
   showArchived: boolean;
+  typeFilter: ProjectTypeFilter;
   selectedId: string | null;
 }
 
@@ -36,6 +41,7 @@ const initialState: ProjectsState = {
   error: null,
   search: '',
   showArchived: false,
+  typeFilter: 'ALL',
   selectedId: null,
 };
 
@@ -49,18 +55,34 @@ function errorMessage(err: unknown): string {
 export const ProjectsStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed(({ projects, search }) => ({
-    /** Projects filtered by the current search term (name or description). */
+  withComputed(({ projects, search, typeFilter, selectedId }) => ({
+    /** Projects filtered by the current type filter and search term. */
     visibleProjects: computed(() => {
       const term = search().trim().toLowerCase();
-      if (!term) {
-        return projects();
-      }
-      return projects().filter(
-        (p) =>
+      const type = typeFilter();
+      return projects().filter((p) => {
+        if (type !== 'ALL' && p.type !== type) {
+          return false;
+        }
+        if (!term) {
+          return true;
+        }
+        return (
           p.name.toLowerCase().includes(term) ||
-          (p.description ?? '').toLowerCase().includes(term),
-      );
+          (p.description ?? '').toLowerCase().includes(term)
+        );
+      });
+    }),
+    /** The currently open/selected project, for the top-bar breadcrumb. */
+    selected: computed(() => projects().find((p) => p.id === selectedId()) ?? null),
+    /** Count per type for the filter chips (over all loaded projects). */
+    typeCounts: computed(() => {
+      const counts = { ALL: 0, ERD: 0, FLOW: 0, SCRATCH: 0 } as Record<ProjectTypeFilter, number>;
+      for (const p of projects()) {
+        counts.ALL++;
+        counts[p.type]++;
+      }
+      return counts;
     }),
   })),
   withMethods((store, service = inject(ProjectsService)) => ({
@@ -85,8 +107,20 @@ export const ProjectsStore = signalStore(
       patchState(store, { search });
     },
 
+    setTypeFilter(typeFilter: ProjectTypeFilter): void {
+      patchState(store, { typeFilter });
+    },
+
     select(selectedId: string | null): void {
       patchState(store, { selectedId });
+    },
+
+    /** Change a project's organizational type (breadcrumb chip / card tag). */
+    async setType(id: string, type: ProjectType): Promise<void> {
+      const updated = await firstValueFrom(service.update(id, { type }));
+      patchState(store, {
+        projects: store.projects().map((p) => (p.id === id ? updated : p)),
+      });
     },
 
     toggleArchived(): void {

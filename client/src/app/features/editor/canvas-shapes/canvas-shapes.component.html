@@ -1,0 +1,241 @@
+<svg
+  class="layer"
+  [class.passive]="dragging() || !interactive()"
+  [style.left.px]="-svgOffset()"
+  [style.top.px]="-svgOffset()"
+  width="10000"
+  height="10000"
+>
+  <defs>
+    <!-- Arrowheads inherit the line's stroke color via context-stroke. -->
+    <marker id="dbd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5"
+      orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="context-stroke" stroke-width="1.5"
+        stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+    <marker id="dbd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5"
+      orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M1 1 L10 5 L1 9 Z" fill="context-stroke" stroke="context-stroke"
+        stroke-linejoin="round" />
+    </marker>
+    <marker id="dbd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5"
+      orient="auto" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="3.2" fill="context-stroke" />
+    </marker>
+    <marker id="dbd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6"
+      orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M4 1 L4 11" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" />
+    </marker>
+  </defs>
+
+  <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
+    @if (bindHighlight(); as h) {
+      <rect
+        class="bind-highlight"
+        [attr.x]="h.x - 4"
+        [attr.y]="h.y - 4"
+        [attr.width]="h.width + 8"
+        [attr.height]="h.height + 8"
+        rx="8"
+      ></rect>
+    }
+    @for (s of shapes(); track s.id) {
+      <g [attr.transform]="s.transform" [style.opacity]="s.opacity">
+        <!-- Invisible hit target so the element is grabbable over its whole box. -->
+        @if (s.rect) {
+          <rect
+            class="hit"
+            [attr.x]="s.rect.x"
+            [attr.y]="s.rect.y"
+            [attr.width]="s.rect.width"
+            [attr.height]="s.rect.height"
+            (pointerdown)="onBody(s.id, $event)"
+          ></rect>
+          <rect
+            [attr.x]="s.rect.x"
+            [attr.y]="s.rect.y"
+            [attr.width]="s.rect.width"
+            [attr.height]="s.rect.height"
+            [attr.rx]="s.rect.rx"
+            [attr.fill]="s.fill"
+            [attr.fill-opacity]="s.fillOpacity"
+            [attr.stroke]="s.stroke"
+            [attr.stroke-width]="s.strokeWidth"
+            [attr.stroke-dasharray]="s.dash"
+          ></rect>
+        }
+        @if (s.ellipse) {
+          <ellipse
+            class="hit"
+            [attr.cx]="s.ellipse.cx"
+            [attr.cy]="s.ellipse.cy"
+            [attr.rx]="s.ellipse.rx"
+            [attr.ry]="s.ellipse.ry"
+            (pointerdown)="onBody(s.id, $event)"
+          ></ellipse>
+          <ellipse
+            [attr.cx]="s.ellipse.cx"
+            [attr.cy]="s.ellipse.cy"
+            [attr.rx]="s.ellipse.rx"
+            [attr.ry]="s.ellipse.ry"
+            [attr.fill]="s.fill"
+            [attr.fill-opacity]="s.fillOpacity"
+            [attr.stroke]="s.stroke"
+            [attr.stroke-width]="s.strokeWidth"
+            [attr.stroke-dasharray]="s.dash"
+          ></ellipse>
+        }
+        @if (s.polygon) {
+          <polygon
+            class="hit"
+            [attr.points]="s.polygon"
+            (pointerdown)="onBody(s.id, $event)"
+          ></polygon>
+          <polygon
+            [attr.points]="s.polygon"
+            [attr.fill]="s.fill"
+            [attr.fill-opacity]="s.fillOpacity"
+            [attr.stroke]="s.stroke"
+            [attr.stroke-width]="s.strokeWidth"
+            [attr.stroke-dasharray]="s.dash"
+            stroke-linejoin="round"
+          ></polygon>
+        }
+        @if (s.path) {
+          <path
+            class="hit-stroke"
+            [attr.d]="s.path"
+            (pointerdown)="onBody(s.id, $event)"
+          ></path>
+          @if (s.freehand) {
+            <path [attr.d]="s.path" [attr.fill]="s.fill" stroke="none"></path>
+          } @else {
+            <path
+              [attr.d]="s.path"
+              fill="none"
+              [attr.stroke]="s.stroke"
+              [attr.stroke-width]="s.strokeWidth"
+              [attr.stroke-dasharray]="s.dash"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              [attr.marker-end]="markerUrl(s.markerEnd)"
+              [attr.marker-start]="markerUrl(s.markerStart)"
+            ></path>
+          }
+        }
+        @if (s.text; as t) {
+          <rect
+            class="hit"
+            [attr.x]="s.bbox.x"
+            [attr.y]="s.bbox.y"
+            [attr.width]="s.bbox.width"
+            [attr.height]="s.bbox.height"
+            (pointerdown)="onBody(s.id, $event)"
+          ></rect>
+          <text
+            [attr.fill]="t.color"
+            [attr.font-size]="t.fontSize"
+            [attr.font-family]="t.fontFamily"
+            [attr.font-weight]="t.fontWeight"
+            [attr.text-anchor]="t.anchor"
+          >
+            @for (line of t.lines; track $index) {
+              <tspan [attr.x]="line.x" [attr.y]="line.y">{{ line.text }}</tspan>
+            }
+          </text>
+        }
+        @if (s.label; as l) {
+          <text
+            class="label"
+            [attr.fill]="l.color"
+            [attr.font-size]="l.fontSize"
+            [attr.font-family]="l.fontFamily"
+            [attr.font-weight]="l.fontWeight"
+            [attr.text-anchor]="l.anchor"
+          >
+            @for (line of l.lines; track $index) {
+              <tspan [attr.x]="line.x" [attr.y]="line.y">{{ line.text }}</tspan>
+            }
+          </text>
+        }
+      </g>
+
+      @if (s.selected) {
+        <g [attr.transform]="s.transform" class="selection">
+          @if (s.ends) {
+            <!-- Line/arrow: draggable endpoint handles. -->
+            <circle
+              class="endpoint"
+              [attr.cx]="s.ends.start.x"
+              [attr.cy]="s.ends.start.y"
+              r="6"
+              (pointerdown)="onEndpoint(s.id, 'start', $event)"
+            ></circle>
+            <circle
+              class="endpoint"
+              [attr.cx]="s.ends.end.x"
+              [attr.cy]="s.ends.end.y"
+              r="6"
+              (pointerdown)="onEndpoint(s.id, 'end', $event)"
+            ></circle>
+          } @else {
+            <!-- Shape/text: bounding box, corner resize handles, rotate handle. -->
+            <rect
+              class="sel-box"
+              [attr.x]="s.bbox.x"
+              [attr.y]="s.bbox.y"
+              [attr.width]="s.bbox.width"
+              [attr.height]="s.bbox.height"
+            ></rect>
+            <line
+              class="rotate-stem"
+              [attr.x1]="s.bbox.x + s.bbox.width / 2"
+              [attr.y1]="s.bbox.y"
+              [attr.x2]="s.bbox.x + s.bbox.width / 2"
+              [attr.y2]="s.bbox.y - 24"
+            ></line>
+            <circle
+              class="rotate"
+              [attr.cx]="s.bbox.x + s.bbox.width / 2"
+              [attr.cy]="s.bbox.y - 24"
+              r="6"
+              (pointerdown)="onRotate(s.id, $event)"
+            ></circle>
+            <rect
+              class="handle"
+              [attr.x]="s.bbox.x - 5"
+              [attr.y]="s.bbox.y - 5"
+              width="10"
+              height="10"
+              (pointerdown)="onResize(s.id, 'nw', $event)"
+            ></rect>
+            <rect
+              class="handle"
+              [attr.x]="s.bbox.x + s.bbox.width - 5"
+              [attr.y]="s.bbox.y - 5"
+              width="10"
+              height="10"
+              (pointerdown)="onResize(s.id, 'ne', $event)"
+            ></rect>
+            <rect
+              class="handle"
+              [attr.x]="s.bbox.x - 5"
+              [attr.y]="s.bbox.y + s.bbox.height - 5"
+              width="10"
+              height="10"
+              (pointerdown)="onResize(s.id, 'sw', $event)"
+            ></rect>
+            <rect
+              class="handle"
+              [attr.x]="s.bbox.x + s.bbox.width - 5"
+              [attr.y]="s.bbox.y + s.bbox.height - 5"
+              width="10"
+              height="10"
+              (pointerdown)="onResize(s.id, 'se', $event)"
+            ></rect>
+          }
+        </g>
+      }
+    }
+  </g>
+</svg>

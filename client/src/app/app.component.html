@@ -1,7 +1,31 @@
 <div class="shell">
   <mat-toolbar class="topbar">
-    <mat-icon class="brand-icon">schema</mat-icon>
+    <span class="brand-tile"><mat-icon>schema</mat-icon></span>
     <span class="brand">DBDesigner</span>
+
+    @if (projects.selected(); as project) {
+      <span class="crumb-sep">/</span>
+      <span class="crumb-name">{{ project.name }}</span>
+      <button
+        class="type-chip"
+        [matMenuTriggerFor]="typeMenu"
+        matTooltip="Change diagram type"
+        aria-label="Change diagram type"
+      >
+        <span class="type-dot" [style.background]="typeColor(project.type)"></span>
+        {{ typeLabel(project.type) }}
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #typeMenu="matMenu">
+        @for (t of projectTypes; track t) {
+          <button mat-menu-item (click)="projects.setType(project.id, t)">
+            <span class="type-dot" [style.background]="typeColor(t)"></span>
+            <span>{{ typeLabel(t) }}</span>
+          </button>
+        }
+      </mat-menu>
+    }
+
     <span class="spacer"></span>
 
     @if (auth.currentUser(); as user) {

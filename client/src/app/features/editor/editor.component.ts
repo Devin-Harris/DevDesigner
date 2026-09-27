@@ -17,16 +17,43 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { RelationshipModel, RelationshipType, TableModel } from '@dbdesigner/shared';
+import type {
+  CanvasElementModel,
+  CreateElementDto,
+  ElementType,
+  RelationshipModel,
+  RelationshipType,
+  TableModel,
+} from '@dbdesigner/shared';
 import { generateSql } from '@dbdesigner/shared';
-import { ProjectStore } from '../../stores/project.store';
 import { RealtimeService } from '../../core/services/realtime.service';
-import { ExportDialogComponent } from './export/export-dialog.component';
-import { ShareDialogComponent } from './share-dialog/share-dialog.component';
-import { buildDiagramSvg } from './export/diagram-svg.helper';
-import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
+import { ProjectStore } from '../../stores/project.store';
+import { AutofocusDirective } from './autofocus.directive';
+import {
+  CanvasConnectorsComponent,
+  type EndpointDownEvent,
+  type SegmentDownEvent,
+} from './canvas-connectors/canvas-connectors.component';
+import {
+  CanvasShapesComponent,
+  type ResizeDownEvent,
+  type ResizeHandle,
+  type ShapeEndpointEvent,
+  type ShapePointerEvent,
+} from './canvas-shapes/canvas-shapes.component';
+import {
+  type AlignAction,
+} from './canvas-toolbar/canvas-toolbar.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
-import type { Point, Side } from './canvas/models/geometry.model';
+import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
+import {
+  absolutePoints,
+  elementBox,
+  elementIntersectsRect,
+  hitTestElement,
+  tableBox,
+  toRelative,
+} from './canvas/helpers/element-geometry.helper';
 import {
   buildColumnLocations,
   columnAnchor,
@@ -34,20 +61,48 @@ import {
   snapToGrid,
   tableWidth,
 } from './canvas/helpers/node-metrics.helper';
-import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
+import { buildShapeViews, fontStack } from './canvas/helpers/shape-render.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
-import { CanvasToolbarComponent, type AlignAction } from './canvas-toolbar/canvas-toolbar.component';
-import {
-  CanvasConnectorsComponent,
-  type EndpointDownEvent,
-  type SegmentDownEvent,
-} from './canvas-connectors/canvas-connectors.component';
+import type { Box, Point, Side } from './canvas/models/geometry.model';
+import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
+import { buildDiagramSvg } from './export/diagram-svg.helper';
+import { ExportDialogComponent } from './export/export-dialog.component';
+import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
+import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
+import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
 
-type DragMode = 'idle' | 'pan' | 'node' | 'marquee';
+type DragMode =
+  | 'idle'
+  | 'pan'
+  | 'node'
+  | 'marquee'
+  | 'draw'
+  | 'element'
+  | 'element-resize'
+  | 'element-rotate'
+  | 'arrow-endpoint';
+
+/** Default styling applied to a newly drawn element. */
+const DEFAULT_ELEMENT_STROKE = '#2f3a45';
+const DEFAULT_FONT_SIZE = 20;
+
+interface ElementGesture {
+  id: string;
+  /** Starting geometry of the element(s) at gesture start (for delta math). */
+  start: { x: number; y: number; width: number; height: number; angle: number };
+  /** The element's full state at gesture start (for undo history). */
+  snapshot: CanvasElementModel;
+  /** Additional selected elements moved together (id -> start x/y), move only. */
+  others?: Map<string, { x: number; y: number }>;
+  handle?: ResizeHandle;
+  which?: 'start' | 'end';
+  /** Original points (absolute) for an endpoint drag. */
+  points?: { x: number; y: number }[];
+}
 
 interface RelinkState {
   relationshipId: string;
@@ -89,11 +144,14 @@ function readStoredGrid(): boolean {
     MatProgressSpinnerModule,
     MatTooltipModule,
     CanvasConnectorsComponent,
-    CanvasToolbarComponent,
+    CanvasShapesComponent,
+    ShapeToolbarComponent,
     InspectorComponent,
+    ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
     RelationshipToolbarComponent,
     TableNodeComponent,
+    AutofocusDirective,
   ],
   templateUrl: './editor.component.html',
   styleUrl: './editor.component.scss',
@@ -126,8 +184,14 @@ export class EditorComponent {
   /** Highlight rings (world coords) for tables another participant has selected. */
   protected readonly remoteTableHighlights = computed(() => {
     const highlights = this.realtime.tableHighlights();
-    const rings: { id: string; x: number; y: number; width: number; height: number; color: string }[] =
-      [];
+    const rings: {
+      id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color: string;
+    }[] = [];
     for (const table of this.store.tables()) {
       const colors = highlights[table.id];
       if (colors?.length) {
@@ -173,6 +237,133 @@ export class EditorComponent {
       new Set(this.store.selectedRelationshipIds()),
     ),
   );
+
+  // --- drawing tools / canvas elements ---
+
+  /** The active tool. 'select' is the pointer mode; others draw that element. */
+  protected readonly activeTool = signal<EditorTool>('select');
+
+  /** The element currently being drawn (local only until committed on pointer-up). */
+  private readonly draft = signal<CanvasElementModel | null>(null);
+  private elementGesture: ElementGesture | null = null;
+
+  /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
+  protected readonly bindHighlight = signal<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  /** True while an element gesture is in progress, so the floating toolbar hides. */
+  private readonly gestureActive = signal(false);
+
+  /** Placement + representative element for the floating context toolbar. */
+  protected readonly elementToolbar = computed(() => {
+    // Shown whenever element(s) are selected and no gesture/text-edit is active,
+    // even while a draw tool stays active (drawing a shape selects it).
+    if (this.editingTextId() || this.gestureActive()) {
+      return null;
+    }
+    const ids = this.store.selectedElementIds();
+    if (!ids.length) {
+      return null;
+    }
+    const idSet = new Set(ids);
+    const els = this.store.elements().filter((e) => idSet.has(e.id));
+    if (!els.length) {
+      return null;
+    }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    for (const e of els) {
+      const b = elementBox(e);
+      minX = Math.min(minX, b.x0);
+      minY = Math.min(minY, b.y0);
+      maxX = Math.max(maxX, b.x1);
+    }
+    const v = this.store.viewport();
+    return {
+      left: ((minX + maxX) / 2) * v.zoom + v.x,
+      top: Math.max(minY * v.zoom + v.y - 52, 8),
+      element: els[0],
+    };
+  });
+
+  /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
+  protected readonly shapeViews = computed(() => {
+    const draft = this.draft();
+    const elements = draft ? [...this.store.elements(), draft] : this.store.elements();
+    return buildShapeViews(elements, this.store.tables(), new Set(this.store.selectedElementIds()));
+  });
+
+  /** The shapes layer is interactive only in select mode (drawing passes through it). */
+  protected readonly shapesInteractive = computed(
+    () => this.activeTool() === 'select' && this.store.canEdit(),
+  );
+
+  /** Id of the text element being edited inline (a DOM textarea overlays it). */
+  protected readonly editingTextId = signal<string | null>(null);
+
+  /** Screen-space placement + value for the inline text editor overlay. */
+  protected readonly textEditor = computed(() => {
+    const id = this.editingTextId();
+    if (!id) {
+      return null;
+    }
+    const el = this.store.elements().find((e) => e.id === id);
+    const editable =
+      el &&
+      (el.type === 'text' ||
+        el.type === 'rectangle' ||
+        el.type === 'ellipse' ||
+        el.type === 'diamond');
+    if (!el || !editable) {
+      return null;
+    }
+    const v = this.store.viewport();
+    const isLabel = el.type !== 'text';
+    return {
+      id,
+      // A shape label centers over the shape; a text element sits at its top-left.
+      left: (isLabel ? el.x + el.width / 2 : el.x) * v.zoom + v.x,
+      top: (isLabel ? el.y + el.height / 2 : el.y) * v.zoom + v.y,
+      fontSize: (el.fontSize ?? (isLabel ? 16 : DEFAULT_FONT_SIZE)) * v.zoom,
+      fontFamily: fontStack(el.fontFamily),
+      value: el.text ?? '',
+      color: el.strokeColor,
+      center: isLabel,
+    };
+  });
+
+  /** Measure a multi-line text block in world units for the given font. */
+  private measureText(
+    text: string,
+    fontSize: number,
+    fontFamilyKey: string | undefined,
+  ): { width: number; height: number } {
+    const lines = text.split('\n');
+    const ctx = EditorComponent.measureCtx;
+    let width = 0;
+    if (ctx) {
+      ctx.font = `${fontSize}px ${fontStack(fontFamilyKey)}`;
+      for (const line of lines) {
+        width = Math.max(width, ctx.measureText(line).width);
+      }
+    } else {
+      width = Math.max(...lines.map((l) => l.length)) * fontSize * 0.55;
+    }
+    // Pad a little so script/handwriting fonts (whose canvas metrics under-measure
+    // the SVG render) never overflow the element's box.
+    return {
+      width: Math.ceil(width + fontSize * 0.6),
+      height: Math.ceil(lines.length * fontSize * 1.25),
+    };
+  }
+
+  private static readonly measureCtx: CanvasRenderingContext2D | null =
+    typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
 
   /**
    * Connectors as rendered. While re-pointing an endpoint, the affected line's
@@ -379,7 +570,11 @@ export class EditorComponent {
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
-  private static additive(event: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): boolean {
+  private static additive(event: {
+    ctrlKey: boolean;
+    metaKey: boolean;
+    shiftKey: boolean;
+  }): boolean {
     return event.ctrlKey || event.metaKey || event.shiftKey;
   }
 
@@ -399,6 +594,17 @@ export class EditorComponent {
     if (event.button !== 0) {
       return;
     }
+    const tool = this.activeTool();
+    if (tool !== 'select' && this.store.canEdit() && this.store.projectId()) {
+      event.preventDefault();
+      if (tool === 'table') {
+        this.addTableAt(event.clientX, event.clientY);
+        this.activeTool.set('select');
+        return;
+      }
+      this.beginDraw(tool, event);
+      return;
+    }
     this.marqueeAdditive = EditorComponent.additive(event);
     if (!this.marqueeAdditive) {
       this.store.clearSelection();
@@ -407,6 +613,518 @@ export class EditorComponent {
     this.marqueeStart.set(p);
     this.marqueeCurrent.set(p);
     this.mode = 'marquee';
+  }
+
+  // --- drawing new elements ---
+
+  /** Default stroke color for new elements: the theme's text color, so it reads on either theme. */
+  private defaultStroke(): string {
+    try {
+      const c = getComputedStyle(this.canvasRef().nativeElement)
+        .getPropertyValue('--dbd-text')
+        .trim();
+      return c || DEFAULT_ELEMENT_STROKE;
+    } catch {
+      return DEFAULT_ELEMENT_STROKE;
+    }
+  }
+
+  /** Add an ERD table centered near the given screen point. */
+  private addTableAt(clientX: number, clientY: number): void {
+    const world = this.toWorld(clientX, clientY);
+    let x = Math.round(world.x - NODE_WIDTH / 2);
+    let y = Math.round(world.y - 12);
+    if (this.gridSnap()) {
+      x = snapToGrid(x);
+      y = snapToGrid(y);
+    }
+    void this.store.addTable(x, y);
+  }
+
+  /** Start drawing an element of the active tool at the pointer. */
+  private beginDraw(tool: Exclude<EditorTool, 'select' | 'table'>, event: PointerEvent): void {
+    const world = this.toWorld(event.clientX, event.clientY);
+    const x = this.gridSnap() ? snapToGrid(world.x) : world.x;
+    const y = this.gridSnap() ? snapToGrid(world.y) : world.y;
+    const type = tool as ElementType;
+    const style = this.store.elementStyle();
+    const draft: CanvasElementModel = {
+      id: `draft-${Date.now()}`,
+      type,
+      x,
+      y,
+      width: 0,
+      height: 0,
+      angle: 0,
+      strokeColor: style.strokeColor ?? this.defaultStroke(),
+      backgroundColor: style.backgroundColor,
+      fillStyle: style.fillStyle,
+      strokeWidth: style.strokeWidth,
+      strokeStyle: style.strokeStyle,
+      opacity: style.opacity,
+      zIndex: this.store.elements().length,
+      startArrowhead: style.startArrowhead,
+      endArrowhead: style.endArrowhead,
+      ...(type === 'line' || type === 'arrow'
+        ? {
+            points: [
+              { x: 0, y: 0 },
+              { x: 0, y: 0 },
+            ],
+          }
+        : {}),
+      ...(type === 'freedraw' ? { points: [{ x: 0, y: 0 }] } : {}),
+      ...(type === 'text'
+        ? {
+            text: '',
+            fontSize: style.fontSize,
+            fontFamily: style.fontFamily,
+            textAlign: 'left' as const,
+            width: 4,
+            height: style.fontSize,
+          }
+        : {}),
+    };
+    this.draft.set(draft);
+    this.startClientX = event.clientX;
+    this.startClientY = event.clientY;
+    if (type === 'text') {
+      // Text is placed on click; commit immediately and open the inline editor.
+      void this.commitDraft(true);
+      this.mode = 'idle';
+      return;
+    }
+    this.mode = 'draw';
+    this.gestureActive.set(true);
+  }
+
+  private updateDraw(clientX: number, clientY: number): void {
+    const draft = this.draft();
+    if (!draft) {
+      return;
+    }
+    const world = this.toWorld(clientX, clientY);
+    const snap = this.gridSnap();
+    if (draft.type === 'freedraw') {
+      const pt = toRelative(draft, world);
+      this.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
+      return;
+    }
+    if (draft.type === 'line' || draft.type === 'arrow') {
+      const end = {
+        x: (snap ? snapToGrid(world.x) : world.x) - draft.x,
+        y: (snap ? snapToGrid(world.y) : world.y) - draft.y,
+      };
+      this.draft.set({ ...draft, points: [{ x: 0, y: 0 }, end] });
+      // Highlight the shape/table the free end would bind to.
+      this.bindHighlight.set(this.bindingTargetAt(world, draft.id)?.box ?? null);
+      return;
+    }
+    // Rectangle / ellipse / diamond: grow the box from the anchor corner.
+    const ex = snap ? snapToGrid(world.x) : world.x;
+    const ey = snap ? snapToGrid(world.y) : world.y;
+    this.draft.set({
+      ...draft,
+      x: Math.min(draft.x, ex),
+      y: Math.min(draft.y, ey),
+      width: Math.abs(ex - draft.x),
+      height: Math.abs(ey - draft.y),
+    });
+  }
+
+  /**
+   * Persist the draft as a real element. Tiny click-only shapes get a sensible
+   * default size so a single click still produces a visible element.
+   */
+  private async commitDraft(selectAfter: boolean): Promise<void> {
+    const draft = this.draft();
+    this.draft.set(null);
+    if (!draft) {
+      return;
+    }
+    const dto = this.draftToDto(draft);
+    // Auto-bind an arrow/line whose endpoint was drawn on top of a shape or table,
+    // so it behaves as a flowchart connector and re-routes when the target moves.
+    if ((draft.type === 'arrow' || draft.type === 'line') && draft.points?.length) {
+      const pts = absolutePoints(draft);
+      const start = this.bindingTargetAt(pts[0], draft.id);
+      const end = this.bindingTargetAt(pts[pts.length - 1], draft.id);
+      if (start) {
+        dto.startBinding = start.binding;
+      }
+      if (end) {
+        dto.endBinding = end.binding;
+      }
+    }
+    // Freehand strokes keep the pen active (draw several in a row) and are not
+    // selected, so no bounds/toolbar pop up between strokes. Shapes and text
+    // revert to the select tool; the shape is selected for immediate styling and
+    // text jumps into its inline editor.
+    const isPen = draft.type === 'freedraw';
+    const created = await this.store.addElement(dto, !isPen);
+    if (!isPen) {
+      this.activeTool.set('select');
+      if (created && selectAfter && created.type === 'text') {
+        this.editingTextId.set(created.id);
+      }
+    }
+  }
+
+  private draftToDto(draft: CanvasElementModel): CreateElementDto {
+    let { x, y, width, height, points } = draft;
+    if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
+      if (width < 4 && height < 4) {
+        width = 120;
+        height = 80;
+      }
+    }
+    return {
+      type: draft.type,
+      x,
+      y,
+      width,
+      height,
+      angle: 0,
+      strokeColor: draft.strokeColor,
+      backgroundColor: draft.backgroundColor,
+      fillStyle: draft.fillStyle,
+      strokeWidth: draft.strokeWidth,
+      strokeStyle: draft.strokeStyle,
+      opacity: draft.opacity,
+      zIndex: draft.zIndex,
+      points,
+      text: draft.text,
+      fontSize: draft.fontSize,
+      fontFamily: draft.fontFamily,
+      textAlign: draft.textAlign,
+    };
+  }
+
+  // --- canvas element pointer (select / move / resize / rotate / endpoint) ---
+
+  protected onElementPointerDown(payload: ShapePointerEvent): void {
+    const el = this.store.elements().find((e) => e.id === payload.id);
+    if (!el) {
+      return;
+    }
+    if (EditorComponent.additive(payload.event)) {
+      this.store.selectElement(el.id, true);
+      return;
+    }
+    if (!this.store.selectedElementIds().includes(el.id)) {
+      this.store.selectElement(el.id, false);
+    }
+    if (!this.store.canEdit()) {
+      return;
+    }
+    this.mode = 'element';
+    this.gestureActive.set(true);
+    this.startClientX = payload.event.clientX;
+    this.startClientY = payload.event.clientY;
+    const others = new Map<string, { x: number; y: number }>();
+    for (const id of this.store.selectedElementIds()) {
+      const e = this.store.elements().find((x) => x.id === id);
+      if (e) {
+        others.set(id, { x: e.x, y: e.y });
+      }
+    }
+    this.elementGesture = {
+      id: el.id,
+      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      snapshot: el,
+      others,
+    };
+  }
+
+  protected onElementResizeDown(payload: ResizeDownEvent): void {
+    const el = this.store.elements().find((e) => e.id === payload.id);
+    if (!el || !this.store.canEdit()) {
+      return;
+    }
+    this.mode = 'element-resize';
+    this.gestureActive.set(true);
+    this.startClientX = payload.event.clientX;
+    this.startClientY = payload.event.clientY;
+    this.elementGesture = {
+      id: el.id,
+      handle: payload.handle,
+      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      snapshot: el,
+    };
+  }
+
+  protected onElementRotateDown(payload: ShapePointerEvent): void {
+    const el = this.store.elements().find((e) => e.id === payload.id);
+    if (!el || !this.store.canEdit()) {
+      return;
+    }
+    this.mode = 'element-rotate';
+    this.gestureActive.set(true);
+    this.elementGesture = {
+      id: el.id,
+      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      snapshot: el,
+    };
+  }
+
+  protected onElementEndpointDown(payload: ShapeEndpointEvent): void {
+    const el = this.store.elements().find((e) => e.id === payload.id);
+    if (!el || !this.store.canEdit()) {
+      return;
+    }
+    this.mode = 'arrow-endpoint';
+    this.gestureActive.set(true);
+    this.elementGesture = {
+      id: el.id,
+      which: payload.which,
+      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      snapshot: el,
+      points: absolutePoints(el),
+    };
+  }
+
+  /** After a move drag, record the net displacement of each element for undo. */
+  private recordMoveGesture(): void {
+    const g = this.elementGesture;
+    if (!g?.others) {
+      return;
+    }
+    const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] =
+      [];
+    for (const [id, from] of g.others) {
+      const el = this.store.elements().find((e) => e.id === id);
+      if (el && (el.x !== from.x || el.y !== from.y)) {
+        moves.push({ id, from, to: { x: el.x, y: el.y } });
+      }
+    }
+    this.store.recordElementMove(moves);
+  }
+
+  private moveElements(clientX: number, clientY: number): void {
+    const g = this.elementGesture;
+    if (!g?.others) {
+      return;
+    }
+    const zoom = this.store.viewport().zoom;
+    const dx = (clientX - this.startClientX) / zoom;
+    const dy = (clientY - this.startClientY) / zoom;
+    const snap = this.gridSnap();
+    for (const [id, start] of g.others) {
+      const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
+      const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
+      this.store.moveElement(id, nx, ny);
+    }
+  }
+
+  /**
+   * Resize a shape by a corner handle. Shift keeps proportions, Alt resizes about
+   * the center, and grid snap (when on) snaps the dimensions.
+   */
+  private resizeElement(ev: PointerEvent): void {
+    const g = this.elementGesture;
+    if (!g?.handle) {
+      return;
+    }
+    const s = g.start;
+    const zoom = this.store.viewport().zoom;
+    const dx = (ev.clientX - this.startClientX) / zoom;
+    const dy = (ev.clientY - this.startClientY) / zoom;
+    const left = g.handle === 'nw' || g.handle === 'sw';
+    const top = g.handle === 'nw' || g.handle === 'ne';
+    const cx = s.x + s.width / 2;
+    const cy = s.y + s.height / 2;
+    const factor = ev.altKey ? 2 : 1;
+
+    let width = Math.max(8, s.width + (left ? -dx : dx) * factor);
+    let height = Math.max(8, s.height + (top ? -dy : dy) * factor);
+    if (ev.shiftKey && s.width > 0 && s.height > 0) {
+      const scale = Math.max(width / s.width, height / s.height);
+      width = s.width * scale;
+      height = s.height * scale;
+    }
+    if (this.gridSnap()) {
+      width = Math.max(8, snapToGrid(width));
+      height = Math.max(8, snapToGrid(height));
+    }
+
+    let x: number;
+    let y: number;
+    if (ev.altKey) {
+      x = cx - width / 2;
+      y = cy - height / 2;
+    } else {
+      x = left ? s.x + s.width - width : s.x;
+      y = top ? s.y + s.height - height : s.y;
+    }
+    this.store.patchElementLocal(g.id, { x, y, width, height });
+  }
+
+  private rotateElement(ev: PointerEvent): void {
+    const g = this.elementGesture;
+    if (!g) {
+      return;
+    }
+    const cx = g.start.x + g.start.width / 2;
+    const cy = g.start.y + g.start.height / 2;
+    const world = this.toWorld(ev.clientX, ev.clientY);
+    // Handle sits above the top edge, so offset by +90deg to make "up" = 0.
+    let angle = Math.atan2(world.y - cy, world.x - cx) + Math.PI / 2;
+    if (ev.shiftKey) {
+      const step = Math.PI / 12; // snap to 15 degrees
+      angle = Math.round(angle / step) * step;
+    }
+    this.store.patchElementLocal(g.id, { angle });
+  }
+
+  /** Drag a line/arrow endpoint, binding to a table/element under the cursor. */
+  private moveEndpoint(clientX: number, clientY: number): void {
+    const g = this.elementGesture;
+    if (!g?.points || !g.which) {
+      return;
+    }
+    const el = this.store.elements().find((e) => e.id === g.id);
+    if (!el) {
+      return;
+    }
+    const world = this.toWorld(clientX, clientY);
+    const target = this.bindingTargetAt(world, g.id);
+    this.bindHighlight.set(target?.box ?? null);
+    const binding = target?.binding ?? null;
+    const pts = g.points.map((p) => ({ ...p }));
+    const idx = g.which === 'start' ? 0 : pts.length - 1;
+    pts[idx] = world;
+    // Points are stored relative to the element origin (its first point).
+    const origin = pts[0];
+    const relative = pts.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
+    this.store.patchElementLocal(g.id, {
+      x: origin.x,
+      y: origin.y,
+      points: relative,
+      ...(g.which === 'start' ? { startBinding: binding } : { endBinding: binding }),
+    });
+  }
+
+  /** The table or element under a world point that a bound endpoint can attach to. */
+  private bindingTargetAt(
+    world: { x: number; y: number },
+    excludeElementId: string,
+  ): {
+    binding: { targetKind: 'element' | 'table'; targetId: string };
+    box: { x: number; y: number; width: number; height: number };
+  } | null {
+    const toRect = (b: Box) => ({ x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 });
+    for (const table of this.store.tables()) {
+      const box = tableBox(table);
+      if (this.pointInBox(world, box)) {
+        return { binding: { targetKind: 'table', targetId: table.id }, box: toRect(box) };
+      }
+    }
+    // Topmost element first (elements render in ascending zIndex order).
+    const elements = [...this.store.elements()].reverse();
+    for (const el of elements) {
+      if (el.id === excludeElementId || el.type === 'line' || el.type === 'arrow') {
+        continue;
+      }
+      const box = elementBox(el);
+      if (this.pointInBox(world, box)) {
+        return { binding: { targetKind: 'element', targetId: el.id }, box: toRect(box) };
+      }
+    }
+    return null;
+  }
+
+  private pointInBox(p: { x: number; y: number }, box: Box): boolean {
+    return p.x >= box.x0 && p.x <= box.x1 && p.y >= box.y0 && p.y <= box.y1;
+  }
+
+  /** Persist the element geometry changed by the just-finished gesture (with undo). */
+  private commitElementGesture(): void {
+    const g = this.elementGesture;
+    if (!g) {
+      return;
+    }
+    const el = this.store.elements().find((e) => e.id === g.id);
+    if (!el) {
+      return;
+    }
+    const snap = g.snapshot;
+    if (this.mode === 'element-resize') {
+      void this.store.commitElementGeometry(
+        g.id,
+        { x: snap.x, y: snap.y, width: snap.width, height: snap.height },
+        { x: el.x, y: el.y, width: el.width, height: el.height },
+      );
+    } else if (this.mode === 'element-rotate') {
+      void this.store.commitElementGeometry(g.id, { angle: snap.angle }, { angle: el.angle });
+    } else if (this.mode === 'arrow-endpoint') {
+      void this.store.commitElementGeometry(
+        g.id,
+        {
+          x: snap.x,
+          y: snap.y,
+          points: snap.points,
+          startBinding: snap.startBinding ?? null,
+          endBinding: snap.endBinding ?? null,
+        },
+        {
+          x: el.x,
+          y: el.y,
+          points: el.points,
+          startBinding: el.startBinding ?? null,
+          endBinding: el.endBinding ?? null,
+        },
+      );
+    }
+  }
+
+  // --- inline text editing ---
+
+  protected onTextInput(value: string): void {
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!id || !el) {
+      return;
+    }
+    if (el.type !== 'text') {
+      // Shape label: just update text; the shape box does not resize.
+      this.store.patchElementLocal(id, { text: value });
+      return;
+    }
+    // Live-fit the text element box to its content so the outline tracks it.
+    const size = this.measureText(value, el.fontSize ?? DEFAULT_FONT_SIZE, el.fontFamily);
+    this.store.patchElementLocal(id, {
+      text: value,
+      width: Math.max(size.width, 8),
+      height: size.height,
+    });
+  }
+
+  protected commitTextEdit(): void {
+    const id = this.editingTextId();
+    this.editingTextId.set(null);
+    if (!id) {
+      return;
+    }
+    const el = this.store.elements().find((e) => e.id === id);
+    if (!el) {
+      return;
+    }
+    const text = el.text ?? '';
+    if (el.type !== 'text') {
+      // Shape label: store the (possibly empty) label without resizing the shape.
+      void this.store.updateElement(id, { text });
+      return;
+    }
+    if (text.trim() === '') {
+      void this.store.deleteElement(id);
+      return;
+    }
+    const size = this.measureText(text, el.fontSize ?? DEFAULT_FONT_SIZE, el.fontFamily);
+    void this.store.updateElement(id, {
+      text,
+      width: Math.max(size.width, 8),
+      height: size.height,
+    });
   }
 
   // --- node pointer (select / drag) ---
@@ -565,6 +1283,26 @@ export class EditorComponent {
       this.moveActiveSegment(event.clientX, event.clientY);
       return;
     }
+    if (this.mode === 'draw') {
+      this.updateDraw(event.clientX, event.clientY);
+      return;
+    }
+    if (this.mode === 'element') {
+      this.moveElements(event.clientX, event.clientY);
+      return;
+    }
+    if (this.mode === 'element-resize') {
+      this.resizeElement(event);
+      return;
+    }
+    if (this.mode === 'element-rotate') {
+      this.rotateElement(event);
+      return;
+    }
+    if (this.mode === 'arrow-endpoint') {
+      this.moveEndpoint(event.clientX, event.clientY);
+      return;
+    }
     if (this.mode === 'pan') {
       const dx = event.clientX - this.startClientX;
       const dy = event.clientY - this.startClientY;
@@ -614,9 +1352,22 @@ export class EditorComponent {
   protected onPointerUp(): void {
     if (this.mode === 'marquee') {
       this.commitMarquee();
+    } else if (this.mode === 'draw') {
+      void this.commitDraft(false);
+    } else if (this.mode === 'element') {
+      this.recordMoveGesture();
+    } else if (
+      this.mode === 'element-resize' ||
+      this.mode === 'element-rotate' ||
+      this.mode === 'arrow-endpoint'
+    ) {
+      this.commitElementGesture();
     }
     this.mode = 'idle';
     this.dragTableId = null;
+    this.elementGesture = null;
+    this.gestureActive.set(false);
+    this.bindHighlight.set(null);
     this.multiDragStart.clear();
     this.waypointDragStart.clear();
     this.marqueeStart.set(null);
@@ -650,15 +1401,23 @@ export class EditorComponent {
       .filter((t) => this.boxIntersects(t, rect))
       .map((t) => t.id);
     const relIds = this.connectors()
-      .filter((con) => con.mx >= rect.minX && con.mx <= rect.maxX && con.my >= rect.minY && con.my <= rect.maxY)
+      .filter(
+        (con) =>
+          con.mx >= rect.minX && con.mx <= rect.maxX && con.my >= rect.minY && con.my <= rect.maxY,
+      )
       .map((con) => con.id);
+    const elementIds = this.store
+      .elements()
+      .filter((e) => elementIntersectsRect(e, rect))
+      .map((e) => e.id);
 
     if (this.marqueeAdditive) {
       const nextTables = new Set([...this.store.selectedTableIds(), ...tableIds]);
       const nextRels = new Set([...this.store.selectedRelationshipIds(), ...relIds]);
-      this.store.setSelection([...nextTables], [...nextRels]);
+      const nextEls = new Set([...this.store.selectedElementIds(), ...elementIds]);
+      this.store.setSelection([...nextTables], [...nextRels], [...nextEls]);
     } else {
-      this.store.setSelection(tableIds, relIds);
+      this.store.setSelection(tableIds, relIds, elementIds);
     }
   }
 
@@ -684,15 +1443,62 @@ export class EditorComponent {
       event.preventDefault();
       return;
     }
+    if (event.key === 'Escape') {
+      this.activeTool.set('select');
+      return;
+    }
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod && event.key.toLowerCase() === 'z') {
+      if (this.store.canEdit()) {
+        event.preventDefault();
+        if (event.shiftKey) {
+          this.store.redoElement();
+        } else {
+          this.store.undoElement();
+        }
+      }
+      return;
+    }
+    if (mod && event.key.toLowerCase() === 'y') {
+      if (this.store.canEdit()) {
+        event.preventDefault();
+        this.store.redoElement();
+      }
+      return;
+    }
+    const tool = mod ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
+    if (tool && this.store.canEdit()) {
+      this.activeTool.set(tool);
+      return;
+    }
     if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
       const relIds = [...this.store.selectedRelationshipIds()];
       const tableIds = [...this.store.selectedTableIds()];
-      if (relIds.length || tableIds.length) {
+      const elementIds = [...this.store.selectedElementIds()];
+      if (relIds.length || tableIds.length || elementIds.length) {
         event.preventDefault();
         relIds.forEach((id) => void this.store.deleteRelationship(id));
         tableIds.forEach((id) => void this.store.deleteTable(id));
+        elementIds.forEach((id) => void this.store.deleteElement(id));
       }
     }
+  }
+
+  /** Single-key tool shortcuts (Excalidraw-style). */
+  private static readonly TOOL_SHORTCUTS: Record<string, EditorTool> = {
+    v: 'select',
+    e: 'table',
+    r: 'rectangle',
+    o: 'ellipse',
+    d: 'diamond',
+    a: 'arrow',
+    l: 'line',
+    t: 'text',
+    p: 'freedraw',
+  };
+
+  protected onToolChange(tool: EditorTool): void {
+    this.activeTool.set(tool);
   }
 
   @HostListener('window:keyup', ['$event'])
@@ -709,13 +1515,48 @@ export class EditorComponent {
       return;
     }
     const world = this.toWorld(event.clientX, event.clientY);
-    let x = Math.round(world.x - NODE_WIDTH / 2);
-    let y = Math.round(world.y - 12);
-    if (this.gridSnap()) {
-      x = snapToGrid(x);
-      y = snapToGrid(y);
+    // Double-clicking a text element edits it; double-clicking a shape edits its
+    // centered label; double-clicking empty canvas creates a text block.
+    const hit = [...this.store.elements()].reverse().find((e) => hitTestElement(e, world));
+    if (hit) {
+      if (
+        hit.type === 'text' ||
+        hit.type === 'rectangle' ||
+        hit.type === 'ellipse' ||
+        hit.type === 'diamond'
+      ) {
+        this.store.selectElement(hit.id);
+        this.editingTextId.set(hit.id);
+      }
+      return;
     }
-    void this.store.addTable(x, y);
+    this.createTextAt(world);
+  }
+
+  /** Create an empty text block at a world point and open its inline editor. */
+  private createTextAt(world: { x: number; y: number }): void {
+    const style = this.store.elementStyle();
+    const draft: CanvasElementModel = {
+      id: `draft-${Date.now()}`,
+      type: 'text',
+      x: Math.round(world.x),
+      y: Math.round(world.y),
+      width: 4,
+      height: style.fontSize,
+      angle: 0,
+      strokeColor: style.strokeColor ?? this.defaultStroke(),
+      fillStyle: style.fillStyle,
+      strokeWidth: style.strokeWidth,
+      strokeStyle: style.strokeStyle,
+      opacity: style.opacity,
+      zIndex: this.store.elements().length,
+      text: '',
+      fontSize: style.fontSize,
+      fontFamily: style.fontFamily,
+      textAlign: 'left',
+    };
+    this.draft.set(draft);
+    void this.commitDraft(true);
   }
 
   protected onWheel(event: WheelEvent): void {
@@ -763,13 +1604,18 @@ export class EditorComponent {
   private exportScope(): {
     tables: TableModel[];
     relationships: RelationshipModel[];
+    elements: CanvasElementModel[];
     selectionOnly: boolean;
   } {
-    const selectedIds = new Set(this.store.selectedTableIds());
-    const selectionOnly = selectedIds.size > 0;
+    const selectedTableIds = new Set(this.store.selectedTableIds());
+    const selectedElementIds = new Set(this.store.selectedElementIds());
+    const selectionOnly = selectedTableIds.size > 0 || selectedElementIds.size > 0;
     const tables = selectionOnly
-      ? this.store.tables().filter((t) => selectedIds.has(t.id))
+      ? this.store.tables().filter((t) => selectedTableIds.has(t.id))
       : this.store.tables();
+    const elements = selectionOnly
+      ? this.store.elements().filter((e) => selectedElementIds.has(e.id))
+      : this.store.elements();
 
     const columnIds = new Set<string>();
     for (const table of tables) {
@@ -781,7 +1627,7 @@ export class EditorComponent {
       .relationships()
       .filter((r) => columnIds.has(r.sourceColumnId) && columnIds.has(r.targetColumnId));
 
-    return { tables, relationships, selectionOnly };
+    return { tables, relationships, elements, selectionOnly };
   }
 
   private exportBaseName(selectionOnly: boolean): string {
@@ -792,7 +1638,8 @@ export class EditorComponent {
   protected openSqlExport(): void {
     const { tables, relationships, selectionOnly } = this.exportScope();
     const sql = generateSql(
-      { tables, relationships, notes: [], viewport: this.store.viewport() },
+      // Elements are decorative and are ignored by the SQL generator.
+      { tables, relationships, notes: [], elements: [], viewport: this.store.viewport() },
       { dialect: 'mysql' },
     );
     this.dialog.open(ExportDialogComponent, {
@@ -804,15 +1651,15 @@ export class EditorComponent {
 
   /** Export the current scope as an image, matching the live theme and layout. */
   protected async onExportImage(format: ImageFormat): Promise<void> {
-    const { tables, relationships, selectionOnly } = this.exportScope();
-    if (tables.length === 0) {
-      this.snackBar.open('Nothing to export yet. Add a table first.', undefined, {
+    const { tables, relationships, elements, selectionOnly } = this.exportScope();
+    if (tables.length === 0 && elements.length === 0) {
+      this.snackBar.open('Nothing to export yet. Add a table or shape first.', undefined, {
         duration: 2500,
       });
       return;
     }
     try {
-      const diagram = buildDiagramSvg(tables, relationships);
+      const diagram = buildDiagramSvg(tables, relationships, elements);
       await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
     } catch (err) {
       this.snackBar.open(
@@ -853,7 +1700,9 @@ export class EditorComponent {
     if (!this.store.canEdit()) {
       return;
     }
-    const selected = this.store.tables().filter((t) => this.store.selectedTableIds().includes(t.id));
+    const selected = this.store
+      .tables()
+      .filter((t) => this.store.selectedTableIds().includes(t.id));
     if (selected.length < 2) {
       return;
     }

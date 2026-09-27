@@ -53,6 +53,8 @@ export class TableNodeComponent {
   readonly table = input.required<TableModel>();
   readonly selected = input<boolean>(false);
   readonly editable = input<boolean>(false);
+  /** Column ids that are relationship endpoints; a non-PK one renders an FK glyph. */
+  readonly fkColumnIds = input<ReadonlySet<string>>(new Set<string>());
 
   readonly nodePointerDown = output<PointerEvent>();
   readonly handleDown = output<HandleEvent>();

@@ -6,6 +6,7 @@ import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
+import { ElementEntity } from '../elements/element.entity';
 import { ShareLink } from '../sharing/share-link.entity';
 
 /**
@@ -33,6 +34,8 @@ export class AccessService {
     private readonly columns: Repository<ColumnEntity>,
     @InjectRepository(RelationshipEntity)
     private readonly relationships: Repository<RelationshipEntity>,
+    @InjectRepository(ElementEntity)
+    private readonly elements: Repository<ElementEntity>,
     @InjectRepository(ShareLink)
     private readonly shareLinks: Repository<ShareLink>,
   ) {}
@@ -152,6 +155,17 @@ export class AccessService {
     return projectId;
   }
 
+  /** Authorize an element write and return its owning project id (for broadcasts). */
+  async assertCanWriteElement(
+    elementId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<string> {
+    const projectId = await this.projectIdForElement(elementId);
+    await this.assertCanWrite(projectId, userId, shareToken);
+    return projectId;
+  }
+
   private async projectIdForTable(tableId: string): Promise<string> {
     const table = await this.tables.findOne({
       where: { id: tableId },
@@ -183,5 +197,16 @@ export class AccessService {
       throw new NotFoundException(`Relationship ${relationshipId} not found.`);
     }
     return relationship.projectId;
+  }
+
+  private async projectIdForElement(elementId: string): Promise<string> {
+    const element = await this.elements.findOne({
+      where: { id: elementId },
+      select: { id: true, projectId: true },
+    });
+    if (!element) {
+      throw new NotFoundException(`Element ${elementId} not found.`);
+    }
+    return element.projectId;
   }
 }

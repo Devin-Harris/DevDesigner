@@ -1,0 +1,89 @@
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+// While drawing or dragging, the whole layer is click-through so the gesture
+// lands on the canvas (start a new element) or the underlying target.
+.layer.passive * {
+  pointer-events: none !important;
+}
+
+.label {
+  pointer-events: none;
+  user-select: none;
+}
+
+// Highlight around a shape/table an arrow endpoint will bind to while dragging.
+.bind-highlight {
+  fill: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
+  stroke: var(--dbd-primary);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: move;
+}
+
+.hit-stroke {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: move;
+}
+
+.selection {
+  pointer-events: none;
+}
+
+.sel-box {
+  fill: none;
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.rotate-stem {
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.handle,
+.endpoint,
+.rotate {
+  fill: var(--dbd-surface);
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 2;
+  pointer-events: all;
+
+  &:hover {
+    fill: var(--dbd-primary-weak);
+  }
+}
+
+.handle {
+  cursor: nwse-resize;
+}
+
+.endpoint {
+  cursor: grab;
+}
+
+.rotate {
+  cursor: grab;
+}

@@ -29,11 +29,26 @@
         (resetRoute)="onResetRoute($event)"
       ></app-canvas-connectors>
 
+      <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
+           connectors and below table nodes so the ERD stays prominent. -->
+      <app-canvas-shapes
+        [shapes]="shapeViews()"
+        [svgOffset]="svgOffset"
+        [dragging]="dragging()"
+        [interactive]="shapesInteractive()"
+        [bindHighlight]="bindHighlight()"
+        (elementPointerDown)="onElementPointerDown($event)"
+        (resizeDown)="onElementResizeDown($event)"
+        (rotateDown)="onElementRotateDown($event)"
+        (endpointDown)="onElementEndpointDown($event)"
+      ></app-canvas-shapes>
+
       @for (table of store.tables(); track table.id) {
         <app-table-node
           [table]="table"
           [selected]="store.selectedTableIds().includes(table.id)"
           [editable]="store.canEdit()"
+          [fkColumnIds]="store.foreignKeyColumnIds()"
           (nodePointerDown)="onNodePointerDown($event, table)"
           (handleDown)="onHandleDown($event)"
           (handleUp)="onHandleUp($event)"
@@ -64,7 +79,7 @@
 
     <!-- Presence + sharing bar (top right). -->
     <div class="presence-bar" (pointerdown)="$event.stopPropagation()">
-      @if (realtime.participants().length > 0) {
+      @if (realtime.participants().length > 1) {
         <div class="avatars">
           @for (p of realtime.participants(); track p.id) {
             <span
@@ -83,6 +98,55 @@
         </button>
       }
     </div>
+
+    <app-shape-toolbar
+      (pointerdown)="$event.stopPropagation()"
+      [tool]="activeTool()"
+      [disabled]="!store.canEdit() || !store.projectId()"
+      [zoomLabel]="zoomLabel()"
+      [saveLabel]="saveLabel()"
+      [gridSnap]="gridSnap()"
+      [canAlign]="store.canEdit() && store.selectedTableIds().length >= 2"
+      [canExport]="!!store.projectId()"
+      [canUndo]="store.canUndo()"
+      [canRedo]="store.canRedo()"
+      (toolChange)="onToolChange($event)"
+      (undo)="store.undoElement()"
+      (redo)="store.redoElement()"
+      (zoomIn)="zoomIn()"
+      (zoomOut)="zoomOut()"
+      (resetView)="resetView()"
+      (toggleGrid)="toggleGrid()"
+      (align)="onAlign($event)"
+      (exportSql)="openSqlExport()"
+      (exportImage)="onExportImage($event)"
+    ></app-shape-toolbar>
+
+    @if (textEditor(); as t) {
+      <textarea
+        appAutofocus
+        class="text-editor"
+        [class.centered]="t.center"
+        [style.left.px]="t.left"
+        [style.top.px]="t.top"
+        [style.font-size.px]="t.fontSize"
+        [style.font-family]="t.fontFamily"
+        [style.color]="t.color"
+        [value]="t.value"
+        (pointerdown)="$event.stopPropagation()"
+        (input)="onTextInput($any($event.target).value)"
+        (blur)="commitTextEdit()"
+      ></textarea>
+    }
+
+    @if (elementToolbar(); as et) {
+      <app-element-floating-toolbar
+        [style.left.px]="et.left"
+        [style.top.px]="et.top"
+        [element]="et.element"
+        (pointerdown)="$event.stopPropagation()"
+      ></app-element-floating-toolbar>
+    }
 
     @if (marqueeRect(); as m) {
       <div
@@ -106,38 +170,28 @@
       ></app-relationship-toolbar>
     }
 
-    <app-canvas-toolbar
-      (pointerdown)="$event.stopPropagation()"
-      [zoomLabel]="zoomLabel()"
-      [saveLabel]="saveLabel()"
-      [canAdd]="store.canEdit() && !!store.projectId()"
-      [gridSnap]="gridSnap()"
-      [canAlign]="store.canEdit() && store.selectedTableIds().length >= 2"
-      [canExport]="!!store.projectId()"
-      (addTable)="addTableCentered()"
-      (zoomIn)="zoomIn()"
-      (zoomOut)="zoomOut()"
-      (resetView)="resetView()"
-      (toggleGrid)="toggleGrid()"
-      (align)="onAlign($event)"
-      (exportSql)="openSqlExport()"
-      (exportImage)="onExportImage($event)"
-    ></app-canvas-toolbar>
-
     @if (store.loading()) {
       <div class="overlay">
         <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
       </div>
     } @else if (store.error()) {
       <div class="overlay muted">{{ store.error() }}</div>
-    } @else if (store.tables().length === 0) {
-      <div class="overlay hint">Double-click anywhere (or press Table) to add your first table.</div>
+    } @else if (store.tables().length === 0 && store.elements().length === 0) {
+      <div class="overlay hint">
+        Use the Table tool to add a table, or double-click the canvas to add text.
+      </div>
+    }
+
+    <!-- Inspectors float over the canvas (they do not push it, and clear the top
+         bar and share button). -->
+    @if (store.selectedTable(); as table) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()">
+        <app-inspector [table]="table"></app-inspector>
+      </div>
+    } @else if (store.selectedRelationship(); as relationship) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()">
+        <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
+      </div>
     }
   </div>
-
-  @if (store.selectedTable(); as table) {
-    <app-inspector [table]="table"></app-inspector>
-  } @else if (store.selectedRelationship(); as relationship) {
-    <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
-  }
 </div>

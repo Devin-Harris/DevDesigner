@@ -1,8 +1,10 @@
 import { computed, inject } from '@angular/core';
 import type {
   AccessLevel,
+  CanvasElementModel,
   ColumnModel,
   CreateColumnDto,
+  CreateElementDto,
   PointModel,
   RelationshipModel,
   RelationshipType,
@@ -10,6 +12,7 @@ import type {
   SchemaMutation,
   TableModel,
   UpdateColumnDto,
+  UpdateElementDto,
   UpdateRelationshipDto,
   UpdateTableDto,
   ViewportModel,
@@ -17,6 +20,7 @@ import type {
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { ColumnsService } from '../core/services/columns.service';
+import { ElementsService } from '../core/services/elements.service';
 import { ProjectsService } from '../core/services/projects.service';
 import { RelationshipsService } from '../core/services/relationships.service';
 import { TablesService } from '../core/services/tables.service';
@@ -40,9 +44,35 @@ interface EditorState {
   shared: boolean;
   selectedTableIds: string[];
   selectedRelationshipIds: string[];
+  selectedElementIds: string[];
   loading: boolean;
   error: string | null;
   saveStatus: SaveStatus;
+  /** Depth of the element undo/redo stacks, for toolbar button enablement. */
+  undoDepth: number;
+  redoDepth: number;
+  /** Style applied to newly drawn elements; updated as the user restyles (session-sticky). */
+  elementStyle: ElementStyleState;
+}
+
+/** Sticky drawing style carried across new elements in a session. */
+interface ElementStyleState {
+  strokeColor?: string;
+  backgroundColor?: string;
+  fillStyle: CanvasElementModel['fillStyle'];
+  strokeWidth: number;
+  strokeStyle: CanvasElementModel['strokeStyle'];
+  opacity: number;
+  fontFamily: string;
+  fontSize: number;
+  startArrowhead?: CanvasElementModel['startArrowhead'];
+  endArrowhead?: CanvasElementModel['endArrowhead'];
+}
+
+/** A reversible element operation: closures that reuse the granular store methods. */
+interface HistoryEntry {
+  undo: () => void | Promise<void>;
+  redo: () => void | Promise<void>;
 }
 
 const DEFAULT_VIEWPORT: ViewportModel = { x: 0, y: 0, zoom: 1 };
@@ -66,16 +96,76 @@ const initialState: EditorState = {
   shared: false,
   selectedTableIds: [],
   selectedRelationshipIds: [],
+  selectedElementIds: [],
   loading: false,
   error: null,
   saveStatus: 'idle',
+  undoDepth: 0,
+  redoDepth: 0,
+  elementStyle: {
+    fillStyle: 'none',
+    strokeWidth: 2,
+    strokeStyle: 'solid',
+    opacity: 100,
+    fontFamily: 'hand',
+    fontSize: 20,
+  },
 };
+
+/** Build a create DTO from an existing element (for undo/redo re-creation). */
+function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
+  return {
+    type: e.type,
+    x: e.x,
+    y: e.y,
+    width: e.width,
+    height: e.height,
+    angle: e.angle,
+    strokeColor: e.strokeColor,
+    backgroundColor: e.backgroundColor,
+    fillStyle: e.fillStyle,
+    strokeWidth: e.strokeWidth,
+    strokeStyle: e.strokeStyle,
+    opacity: e.opacity,
+    zIndex: e.zIndex,
+    points: e.points,
+    text: e.text,
+    fontSize: e.fontSize,
+    fontFamily: e.fontFamily,
+    textAlign: e.textAlign,
+    startBinding: e.startBinding,
+    endBinding: e.endBinding,
+  };
+}
 
 function messageOf(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
     return String((err as { message: unknown }).message);
   }
   return 'Something went wrong.';
+}
+
+/**
+ * Drop any line/arrow bindings that point at a now-deleted target (a table or
+ * element), so a bound endpoint reverts to its stored point instead of dangling.
+ * Mirrors the server-side integrity rule so remote peers converge identically.
+ */
+function clearBindingsTo(
+  elements: readonly CanvasElementModel[],
+  targetId: string,
+): CanvasElementModel[] {
+  return elements.map((e) => {
+    const startHit = e.startBinding?.targetId === targetId;
+    const endHit = e.endBinding?.targetId === targetId;
+    if (!startHit && !endHit) {
+      return e;
+    }
+    return {
+      ...e,
+      startBinding: startHit ? undefined : e.startBinding,
+      endBinding: endHit ? undefined : e.endBinding,
+    };
+  });
 }
 
 /** Generate a unique default table name like table_1, table_2, ... */
@@ -93,9 +183,32 @@ function uniqueTableName(tables: readonly TableModel[]): string {
 export const ProjectStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed(({ schema, selectedTableIds, selectedRelationshipIds, accessMode }) => ({
+  withComputed(
+    ({
+      schema,
+      selectedTableIds,
+      selectedRelationshipIds,
+      selectedElementIds,
+      accessMode,
+      undoDepth,
+      redoDepth,
+    }) => ({
     tables: computed(() => schema()?.tables ?? []),
     relationships: computed(() => schema()?.relationships ?? []),
+    /**
+     * Column ids that participate in any relationship. A non-PK column in this
+     * set is a foreign key (the table node shows it a link glyph); a PK in it is
+     * still shown as a key. Kept as a Set for O(1) per-row lookup.
+     */
+    foreignKeyColumnIds: computed(() => {
+      const ids = new Set<string>();
+      for (const r of schema()?.relationships ?? []) {
+        ids.add(r.sourceColumnId);
+        ids.add(r.targetColumnId);
+      }
+      return ids as ReadonlySet<string>;
+    }),
+    elements: computed(() => schema()?.elements ?? []),
     viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
     /** The single selected table (only when exactly one is selected), for the inspector. */
     selectedTable: computed(() => {
@@ -108,8 +221,18 @@ export const ProjectStore = signalStore(
         ? (schema()?.relationships.find((r) => r.id === ids[0]) ?? null)
         : null;
     }),
+    /** The single selected element (only when exactly one is selected), for the inspector. */
+    selectedElement: computed(() => {
+      const ids = selectedElementIds();
+      return ids.length === 1
+        ? (schema()?.elements.find((e) => e.id === ids[0]) ?? null)
+        : null;
+    }),
     canEdit: computed(() => accessMode() !== 'VIEW'),
-  })),
+    canUndo: computed(() => undoDepth() > 0),
+    canRedo: computed(() => redoDepth() > 0),
+    }),
+  ),
   withMethods(
     (
       store,
@@ -117,10 +240,40 @@ export const ProjectStore = signalStore(
       tablesApi = inject(TablesService),
       columnsApi = inject(ColumnsService),
       relationshipsApi = inject(RelationshipsService),
+      elementsApi = inject(ElementsService),
       shareLinksApi = inject(ShareLinksService),
       shareSession = inject(ShareSessionService),
     ) => {
       const timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+      // Element undo/redo. Entries reuse the granular element methods so an undo is
+      // itself a persisted, broadcast mutation (collaboration-safe). Remote edits
+      // and the undo/redo application itself never push new entries.
+      const undoStack: HistoryEntry[] = [];
+      const redoStack: HistoryEntry[] = [];
+      let applyingHistory = false;
+
+      function syncHistoryDepth(): void {
+        patchState(store, { undoDepth: undoStack.length, redoDepth: redoStack.length });
+      }
+
+      function pushHistory(entry: HistoryEntry): void {
+        if (applyingHistory) {
+          return;
+        }
+        undoStack.push(entry);
+        redoStack.length = 0;
+        syncHistoryDepth();
+      }
+
+      async function runHistory(action: () => void | Promise<void>): Promise<void> {
+        applyingHistory = true;
+        try {
+          await action();
+        } finally {
+          applyingHistory = false;
+        }
+      }
 
       function setSchema(updater: (schema: SchemaModel) => SchemaModel): void {
         const current = store.schema();
@@ -134,6 +287,63 @@ export const ProjectStore = signalStore(
           ...s,
           tables: s.tables.map((t) => (t.id === tableId ? fn(t) : t)),
         }));
+      }
+
+      function mapElement(
+        elementId: string,
+        fn: (element: CanvasElementModel) => CanvasElementModel,
+      ): void {
+        setSchema((s) => ({
+          ...s,
+          elements: s.elements.map((e) => (e.id === elementId ? fn(e) : e)),
+        }));
+      }
+
+      // Raw element operations (persist + local update, no history). Both the
+      // public methods and the undo/redo closures build on these.
+      async function createElementRaw(dto: CreateElementDto): Promise<CanvasElementModel | null> {
+        const projectId = store.projectId();
+        if (!projectId) {
+          return null;
+        }
+        const created = await runSave(() => firstValueFrom(elementsApi.create(projectId, dto)));
+        setSchema((s) => ({ ...s, elements: [...s.elements, created] }));
+        return created;
+      }
+
+      async function updateElementRaw(elementId: string, patch: UpdateElementDto): Promise<void> {
+        const updated = await runSave(() => firstValueFrom(elementsApi.update(elementId, patch)));
+        mapElement(elementId, () => updated);
+      }
+
+      async function deleteElementRaw(elementId: string): Promise<void> {
+        await runSave(() => firstValueFrom(elementsApi.remove(elementId)));
+        setSchema((s) => ({
+          ...s,
+          elements: clearBindingsTo(
+            s.elements.filter((e) => e.id !== elementId),
+            elementId,
+          ),
+        }));
+        patchState(store, {
+          selectedElementIds: store.selectedElementIds().filter((id) => id !== elementId),
+        });
+      }
+
+      /** Capture the current values of the keys a patch will change (for undo). */
+      function captureBefore(
+        element: CanvasElementModel,
+        patch: UpdateElementDto,
+      ): UpdateElementDto {
+        const before: Record<string, unknown> = {};
+        for (const key of Object.keys(patch)) {
+          if (key === 'startBinding' || key === 'endBinding') {
+            before[key] = element[key] ?? null;
+          } else {
+            before[key] = (element as unknown as Record<string, unknown>)[key];
+          }
+        }
+        return before as UpdateElementDto;
       }
 
       async function runSave<T>(action: () => Promise<T>): Promise<T> {
@@ -241,6 +451,8 @@ export const ProjectStore = signalStore(
                   relationships: s.relationships.filter(
                     (r) => !columnIds.has(r.sourceColumnId) && !columnIds.has(r.targetColumnId),
                   ),
+                  // A bound arrow attached to this table reverts to its stored point.
+                  elements: clearBindingsTo(s.elements, mutation.tableId),
                 };
               });
               break;
@@ -301,6 +513,48 @@ export const ProjectStore = signalStore(
                 relationships: s.relationships.filter((r) => r.id !== mutation.relationshipId),
               }));
               break;
+            case 'element.created':
+              setSchema((s) =>
+                s.elements.some((e) => e.id === mutation.element.id)
+                  ? s
+                  : { ...s, elements: [...s.elements, mutation.element] },
+              );
+              break;
+            case 'element.updated':
+              mapElement(mutation.element.id, () => mutation.element);
+              break;
+            case 'element.moved':
+              mapElement(mutation.elementId, (e) => ({
+                ...e,
+                ...(mutation.x !== undefined ? { x: mutation.x } : {}),
+                ...(mutation.y !== undefined ? { y: mutation.y } : {}),
+                ...(mutation.points !== undefined ? { points: mutation.points } : {}),
+              }));
+              break;
+            case 'element.deleted':
+              setSchema((s) => ({
+                ...s,
+                elements: clearBindingsTo(
+                  s.elements.filter((e) => e.id !== mutation.elementId),
+                  mutation.elementId,
+                ),
+              }));
+              break;
+            case 'element.reordered':
+              setSchema((s) => {
+                const byId = new Map(s.elements.map((e) => [e.id, e]));
+                const ordered = mutation.orderedElementIds
+                  .map((id, index) => {
+                    const el = byId.get(id);
+                    return el ? { ...el, zIndex: index } : undefined;
+                  })
+                  .filter((e): e is CanvasElementModel => Boolean(e));
+                // Keep any elements not named in the order (defensive) at the end.
+                const named = new Set(mutation.orderedElementIds);
+                const rest = s.elements.filter((e) => !named.has(e.id));
+                return { ...s, elements: [...ordered, ...rest] };
+              });
+              break;
           }
         },
 
@@ -331,15 +585,42 @@ export const ProjectStore = signalStore(
           });
         },
 
-        setSelection(tableIds: string[], relationshipIds: string[]): void {
+        /** Select a single element. additive (ctrl/shift) toggles it in the set. */
+        selectElement(elementId: string, additive = false): void {
+          if (!additive) {
+            patchState(store, {
+              selectedElementIds: [elementId],
+              selectedTableIds: [],
+              selectedRelationshipIds: [],
+            });
+            return;
+          }
+          const current = store.selectedElementIds();
+          patchState(store, {
+            selectedElementIds: current.includes(elementId)
+              ? current.filter((id) => id !== elementId)
+              : [...current, elementId],
+          });
+        },
+
+        setSelection(
+          tableIds: string[],
+          relationshipIds: string[],
+          elementIds: string[] = [],
+        ): void {
           patchState(store, {
             selectedTableIds: tableIds,
             selectedRelationshipIds: relationshipIds,
+            selectedElementIds: elementIds,
           });
         },
 
         clearSelection(): void {
-          patchState(store, { selectedTableIds: [], selectedRelationshipIds: [] });
+          patchState(store, {
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
         },
 
         async addTable(x: number, y: number): Promise<void> {
@@ -481,6 +762,192 @@ export const ProjectStore = signalStore(
           }));
           patchState(store, {
             selectedRelationshipIds: store.selectedRelationshipIds().filter((rid) => rid !== id),
+          });
+        },
+
+        // --- Canvas elements (excalidraw-style drawing layer) ---
+
+        /** Update the sticky style applied to subsequently drawn elements. */
+        setElementStyle(patch: Partial<ElementStyleState>): void {
+          patchState(store, { elementStyle: { ...store.elementStyle(), ...patch } });
+        },
+
+        /** Create an element and persist it. Selects it unless `select` is false. */
+        async addElement(
+          dto: CreateElementDto,
+          select = true,
+        ): Promise<CanvasElementModel | null> {
+          const created = await createElementRaw(dto);
+          if (!created) {
+            return null;
+          }
+          if (select) {
+            patchState(store, {
+              selectedElementIds: [created.id],
+              selectedTableIds: [],
+              selectedRelationshipIds: [],
+            });
+          }
+          // Undo removes it; redo re-creates from the creation snapshot (new id).
+          const ref = { id: created.id };
+          pushHistory({
+            undo: () => deleteElementRaw(ref.id),
+            redo: async () => {
+              const again = await createElementRaw(elementToCreateDto(created));
+              if (again) {
+                ref.id = again.id;
+              }
+            },
+          });
+          return created;
+        },
+
+        async updateElement(elementId: string, patch: UpdateElementDto): Promise<void> {
+          const current = store.schema()?.elements.find((e) => e.id === elementId);
+          const before = current ? captureBefore(current, patch) : null;
+          await updateElementRaw(elementId, patch);
+          if (before) {
+            pushHistory({
+              undo: () => updateElementRaw(elementId, before),
+              redo: () => updateElementRaw(elementId, patch),
+            });
+          }
+        },
+
+        /**
+         * Persist a geometry change made live (resize/rotate/endpoint) and record it
+         * for undo. The element already holds `after` locally; `before` is its state
+         * at gesture start.
+         */
+        async commitElementGeometry(
+          elementId: string,
+          before: UpdateElementDto,
+          after: UpdateElementDto,
+        ): Promise<void> {
+          await updateElementRaw(elementId, after);
+          pushHistory({
+            undo: () => updateElementRaw(elementId, before),
+            redo: () => updateElementRaw(elementId, after),
+          });
+        },
+
+        /** Record a completed drag (already persisted) so it can be undone. */
+        recordElementMove(moves: { id: string; from: PointModel; to: PointModel }[]): void {
+          if (!moves.length) {
+            return;
+          }
+          pushHistory({
+            undo: () =>
+              Promise.all(
+                moves.map((m) => updateElementRaw(m.id, { x: m.from.x, y: m.from.y })),
+              ).then(() => undefined),
+            redo: () =>
+              Promise.all(
+                moves.map((m) => updateElementRaw(m.id, { x: m.to.x, y: m.to.y })),
+              ).then(() => undefined),
+          });
+        },
+
+        /** Undo the most recent element operation (no-op when the stack is empty). */
+        undoElement(): void {
+          const entry = undoStack.pop();
+          if (!entry) {
+            return;
+          }
+          redoStack.push(entry);
+          syncHistoryDepth();
+          void runHistory(() => entry.undo());
+        },
+
+        redoElement(): void {
+          const entry = redoStack.pop();
+          if (!entry) {
+            return;
+          }
+          undoStack.push(entry);
+          syncHistoryDepth();
+          void runHistory(() => entry.redo());
+        },
+
+        /**
+         * Optimistic local-only merge, no persistence. Used for live feedback during
+         * a resize/rotate/endpoint gesture; the editor persists once on pointer-up.
+         */
+        patchElementLocal(
+          elementId: string,
+          patch: Partial<Omit<CanvasElementModel, 'startBinding' | 'endBinding'>> & {
+            startBinding?: CanvasElementModel['startBinding'] | null;
+            endBinding?: CanvasElementModel['endBinding'] | null;
+          },
+        ): void {
+          mapElement(elementId, (e) => {
+            const { startBinding, endBinding, ...rest } = patch;
+            const next: CanvasElementModel = { ...e, ...rest };
+            // A binding key present in the patch sets it; null clears it.
+            if ('startBinding' in patch) {
+              next.startBinding = startBinding ?? undefined;
+            }
+            if ('endBinding' in patch) {
+              next.endBinding = endBinding ?? undefined;
+            }
+            return next;
+          });
+        },
+
+        /** Optimistic local move; the position PATCH is debounced per element. */
+        moveElement(elementId: string, x: number, y: number): void {
+          mapElement(elementId, (e) => ({ ...e, x, y }));
+          debounce(`pos:elem:${elementId}`, () => {
+            void runSave(() => firstValueFrom(elementsApi.updatePosition(elementId, { x, y })));
+          });
+        },
+
+        /** Optimistic local reshape (vertices); the position PATCH is debounced. */
+        setElementPoints(elementId: string, points: PointModel[]): void {
+          mapElement(elementId, (e) => ({ ...e, points }));
+          debounce(`pts:elem:${elementId}`, () => {
+            void runSave(() => firstValueFrom(elementsApi.updatePosition(elementId, { points })));
+          });
+        },
+
+        async deleteElement(elementId: string): Promise<void> {
+          const snapshot = store.schema()?.elements.find((e) => e.id === elementId);
+          await deleteElementRaw(elementId);
+          if (snapshot) {
+            // Undo re-creates it (new id); redo deletes the re-created element.
+            const ref = { id: elementId };
+            pushHistory({
+              undo: async () => {
+                const again = await createElementRaw(elementToCreateDto(snapshot));
+                if (again) {
+                  ref.id = again.id;
+                }
+              },
+              redo: () => deleteElementRaw(ref.id),
+            });
+          }
+        },
+
+        /** Reorder element stacking optimistically; persist the new order (debounced). */
+        reorderElements(orderedElementIds: string[]): void {
+          setSchema((s) => {
+            const byId = new Map(s.elements.map((e) => [e.id, e]));
+            const ordered = orderedElementIds
+              .map((id, index) => {
+                const el = byId.get(id);
+                return el ? { ...el, zIndex: index } : undefined;
+              })
+              .filter((e): e is CanvasElementModel => Boolean(e));
+            const named = new Set(orderedElementIds);
+            const rest = s.elements.filter((e) => !named.has(e.id));
+            return { ...s, elements: [...ordered, ...rest] };
+          });
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          debounce('elements:reorder', () => {
+            void runSave(() => firstValueFrom(elementsApi.reorder(projectId, { orderedElementIds })));
           });
         },
       };

@@ -1,5 +1,9 @@
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { UpdateProjectDto as IUpdateProjectDto } from '@dbdesigner/shared';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  PROJECT_TYPES,
+  type UpdateProjectDto as IUpdateProjectDto,
+  type ProjectType,
+} from '@dbdesigner/shared';
 
 /** Body for PATCH /projects/:id. All fields optional; only what changed is sent. */
 export class UpdateProjectDto implements IUpdateProjectDto {
@@ -16,4 +20,8 @@ export class UpdateProjectDto implements IUpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   archived?: boolean;
+
+  @IsOptional()
+  @IsIn(PROJECT_TYPES)
+  type?: ProjectType;
 }

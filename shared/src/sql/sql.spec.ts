@@ -31,6 +31,7 @@ function schema(partial: Partial<SchemaModel>): SchemaModel {
     tables: [],
     relationships: [],
     notes: [],
+    elements: [],
     viewport: { x: 0, y: 0, zoom: 1 },
     ...partial,
   };

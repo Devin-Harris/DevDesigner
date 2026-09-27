@@ -35,29 +35,14 @@
   padding: 0 var(--dbd-space-2);
   font-weight: 600;
   background: var(--dbd-node-header);
+  border-bottom: 1px solid var(--dbd-node-border);
   border-top-left-radius: var(--dbd-radius-lg);
   border-top-right-radius: var(--dbd-radius-lg);
 
+  // A tint of the table's color (Graphite/Paper style) instead of a saturated
+  // fill, so header text stays legible and the color reads as a category cue.
   &.colored {
-    color: #fff;
-    border-bottom: none;
-
-    .icon-btn {
-      color: rgba(255, 255, 255, 0.9);
-
-      &:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.18);
-        color: #fff;
-      }
-    }
-
-    .color-dot {
-      border-color: rgba(255, 255, 255, 0.7);
-    }
-  }
-
-  &:not(.colored) {
-    border-bottom: 1px solid var(--dbd-node-border);
+    background: color-mix(in srgb, var(--tbl-color) 16%, var(--dbd-node-surface));
   }
 }
 
@@ -67,14 +52,29 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: center;
+  text-align: left;
   cursor: text;
+  font-family: var(--dbd-mono);
+  font-size: 13px;
+}
+
+// Column-count chip in the header (schema size at a glance).
+.count {
+  flex: 0 0 auto;
+  font-family: var(--dbd-mono);
+  font-size: 10px;
+  color: var(--dbd-text-muted);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-node-border);
+  border-radius: var(--dbd-radius-sm);
+  padding: 1px 6px;
 }
 
 .edit {
   flex: 1;
   min-width: 0;
   font: inherit;
+  font-family: var(--dbd-mono);
   color: var(--dbd-text);
   background: var(--dbd-surface);
   border: 1px solid var(--dbd-primary);
@@ -85,7 +85,7 @@
 
 .title-edit {
   font-weight: 600;
-  text-align: center;
+  text-align: left;
 }
 
 .color-dot {
@@ -190,6 +190,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: text;
+  font-family: var(--dbd-mono);
+  font-size: 12.5px;
+}
+
+// PK / FK glyphs shown at rest (progressive disclosure: the toggle chips only
+// appear on hover/select).
+.keyslot {
+  flex: 0 0 auto;
+  width: 14px;
+}
+
+.keyglyph {
+  flex: 0 0 auto;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+
+  &.pk {
+    color: var(--dbd-amber);
+  }
+
+  &.fk {
+    color: var(--dbd-teal);
+  }
 }
 
 .chips {
@@ -198,9 +222,47 @@
   gap: 3px;
 }
 
+// At rest a table reads like clean schema: the flag chips and the per-row delete
+// are hidden until the table is hovered or selected.
+.chips,
+.row .icon-btn.tiny {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+:host(:hover) .chips,
+:host(.selected) .chips,
+:host(:hover) .row .icon-btn.tiny,
+:host(.selected) .row .icon-btn.tiny {
+  opacity: 1;
+}
+
+// Header add/delete actions collapse entirely at rest (so the count sits at the
+// right edge and the header reads as just: color dot · name · count), then
+// expand on hover/select.
+.head-act {
+  opacity: 0;
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  overflow: hidden;
+  transition:
+    opacity 0.12s ease,
+    max-width 0.12s ease;
+}
+
+:host(:hover) .head-act,
+:host(.selected) .head-act {
+  opacity: 1;
+  max-width: 26px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
 .chip {
   border: none;
   cursor: pointer;
+  font-family: var(--dbd-mono);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
@@ -224,34 +286,32 @@
   }
 
   &.pk.on {
-    background: #f5a623;
-    color: #3a2a00;
-  }
-
-  &.uq.on {
-    background: #2f6bff;
-    color: #fff;
+    background: color-mix(in srgb, var(--dbd-amber) 22%, transparent);
+    color: var(--dbd-amber);
   }
 }
 
+// At rest the type reads as plain muted mono text, right-set (schema reads
+// clean). The dropdown affordance — border, surface fill and chevron — only
+// appears on hover/select, matching the design's "editable in place" model.
 .type {
   display: inline-flex;
   align-items: center;
   gap: 0;
-  border: 1px solid var(--dbd-border);
+  border: 1px solid transparent;
   border-radius: var(--dbd-radius-sm);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  background: transparent;
+  color: var(--dbd-text-muted);
   font: inherit;
+  font-family: var(--dbd-mono);
   font-size: 11px;
   cursor: pointer;
   padding: 2px 2px 2px 7px;
   white-space: nowrap;
-  max-width: 96px;
-
-  &:hover {
-    border-color: var(--dbd-border-strong);
-  }
+  max-width: 108px;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 
   .type-name {
     overflow: hidden;
@@ -266,12 +326,28 @@
     font-size: 18px;
     width: 18px;
     height: 18px;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+}
+
+:host(:hover) .type,
+:host(.selected) .type {
+  border-color: var(--dbd-border);
+  background: var(--dbd-surface);
+
+  &:hover {
+    border-color: var(--dbd-border-strong);
+  }
+
+  .chev {
     opacity: 0.6;
   }
 }
 
 .len {
   width: 44px;
+  font-family: var(--dbd-mono);
   font-size: 11px;
   color: var(--dbd-text);
   background: var(--dbd-surface);

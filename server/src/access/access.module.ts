@@ -4,6 +4,7 @@ import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
+import { ElementEntity } from '../elements/element.entity';
 import { ShareLink } from '../sharing/share-link.entity';
 import { AccessService } from './access.service';
 
@@ -20,7 +21,14 @@ import { AccessService } from './access.service';
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project, TableEntity, ColumnEntity, RelationshipEntity, ShareLink]),
+    TypeOrmModule.forFeature([
+      Project,
+      TableEntity,
+      ColumnEntity,
+      RelationshipEntity,
+      ElementEntity,
+      ShareLink,
+    ]),
   ],
   providers: [AccessService],
   exports: [AccessService],

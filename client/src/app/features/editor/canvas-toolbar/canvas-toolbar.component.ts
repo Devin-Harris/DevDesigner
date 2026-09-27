@@ -33,6 +33,8 @@ export class CanvasToolbarComponent {
   readonly gridSnap = input<boolean>(false);
   readonly canAlign = input<boolean>(false);
   readonly canExport = input<boolean>(false);
+  readonly canUndo = input<boolean>(false);
+  readonly canRedo = input<boolean>(false);
 
   readonly addTable = output<void>();
   readonly zoomIn = output<void>();
@@ -42,4 +44,6 @@ export class CanvasToolbarComponent {
   readonly align = output<AlignAction>();
   readonly exportSql = output<void>();
   readonly exportImage = output<ExportImageFormat>();
+  readonly undo = output<void>();
+  readonly redo = output<void>();
 }

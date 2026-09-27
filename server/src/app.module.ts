@@ -9,6 +9,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { TablesModule } from './tables/tables.module';
 import { ColumnsModule } from './columns/columns.module';
 import { RelationshipsModule } from './relationships/relationships.module';
+import { ElementsModule } from './elements/elements.module';
 import { NotesModule } from './notes/notes.module';
 import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
@@ -31,6 +32,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     TablesModule,
     ColumnsModule,
     RelationshipsModule,
+    ElementsModule,
     NotesModule,
     SharingModule,
     ExportModule,

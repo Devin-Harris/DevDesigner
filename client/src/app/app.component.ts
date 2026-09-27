@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { PROJECT_TYPES, type ProjectType } from '@dbdesigner/shared';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { ProjectsStore } from './stores/projects.store';
@@ -31,7 +32,34 @@ export class AppComponent {
   protected readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthService);
   private readonly dialog = inject(MatDialog);
-  private readonly projects = inject(ProjectsStore);
+  protected readonly projects = inject(ProjectsStore);
+
+  /** Project types offered by the breadcrumb type-switch menu. */
+  protected readonly projectTypes = PROJECT_TYPES;
+
+  /** Human label for a project type. */
+  protected typeLabel(type: ProjectType): string {
+    switch (type) {
+      case 'FLOW':
+        return 'Flow';
+      case 'SCRATCH':
+        return 'Scratch';
+      default:
+        return 'ERD';
+    }
+  }
+
+  /** Token color for a type dot (inline so it also paints in the menu overlay). */
+  protected typeColor(type: ProjectType): string {
+    switch (type) {
+      case 'FLOW':
+        return 'var(--dbd-teal)';
+      case 'SCRATCH':
+        return 'var(--dbd-text-muted)';
+      default:
+        return 'var(--dbd-primary)';
+    }
+  }
 
   constructor() {
     // Hydrate the session from the cookie so the toolbar reflects who is signed in.

@@ -6,6 +6,7 @@ import type { ShareLink } from '../sharing/share-link.entity';
 import type { TableEntity } from '../tables/table.entity';
 import type { ColumnEntity } from '../columns/column.entity';
 import type { RelationshipEntity } from '../relationships/relationship.entity';
+import type { ElementEntity } from '../elements/element.entity';
 
 /**
  * Unit tests for the access-resolution layer (BUILD_INSTRUCTIONS.md sections 6/7).
@@ -24,6 +25,7 @@ describe('AccessService', () => {
       {} as unknown as Repository<TableEntity>,
       {} as unknown as Repository<ColumnEntity>,
       {} as unknown as Repository<RelationshipEntity>,
+      {} as unknown as Repository<ElementEntity>,
       shareLinks as unknown as Repository<ShareLink>,
     );
   });

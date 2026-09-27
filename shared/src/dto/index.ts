@@ -5,8 +5,19 @@
 // These are intentionally granular: each write DTO scopes to the smallest
 // coherent entity. Fields are fleshed out per phase during implementation.
 
-import type { AccessLevel, RelationshipType, ShareAccessLevel } from '../enums';
-import type { DataType, PointModel, SchemaModel } from '../models';
+import type {
+  AccessLevel,
+  ArrowheadType,
+  ElementType,
+  FillStyle,
+  ProjectType,
+  RelationshipType,
+  ShareAccessLevel,
+  StrokeStyle,
+  TextAlign,
+  VerticalAlign,
+} from '../enums';
+import type { DataType, ElementBinding, PointModel, SchemaModel } from '../models';
 
 // --- Auth ---
 export interface RegisterDto {
@@ -31,11 +42,13 @@ export interface CurrentUserResponse {
 export interface CreateProjectDto {
   name: string;
   description?: string;
+  type?: ProjectType;
 }
 export interface UpdateProjectDto {
   name?: string;
   description?: string;
   archived?: boolean;
+  type?: ProjectType;
 }
 export interface UpdateViewportDto {
   viewportX: number;
@@ -47,6 +60,7 @@ export interface ProjectSummary {
   name: string;
   description: string | null;
   archived: boolean;
+  type: ProjectType;
   createdAt: string;
   updatedAt: string;
 }
@@ -133,6 +147,68 @@ export interface UpdateNoteDto {
   height?: number;
   content?: string;
   color?: string;
+}
+
+// --- Canvas elements (excalidraw-style drawing layer) ---
+export interface CreateElementDto {
+  type: ElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  strokeColor: string;
+  backgroundColor?: string;
+  fillStyle: FillStyle;
+  strokeWidth: number;
+  strokeStyle: StrokeStyle;
+  opacity: number;
+  zIndex?: number;
+  points?: PointModel[];
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  textAlign?: TextAlign;
+  verticalAlign?: VerticalAlign;
+  startBinding?: ElementBinding | null;
+  endBinding?: ElementBinding | null;
+  startArrowhead?: ArrowheadType;
+  endArrowhead?: ArrowheadType;
+}
+/** Style/content/geometry edits to a single element. */
+export interface UpdateElementDto {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  angle?: number;
+  strokeColor?: string;
+  backgroundColor?: string;
+  fillStyle?: FillStyle;
+  strokeWidth?: number;
+  strokeStyle?: StrokeStyle;
+  opacity?: number;
+  zIndex?: number;
+  points?: PointModel[];
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  textAlign?: TextAlign;
+  verticalAlign?: VerticalAlign;
+  /** null clears a binding (endpoint reverts to its stored point). */
+  startBinding?: ElementBinding | null;
+  endBinding?: ElementBinding | null;
+  startArrowhead?: ArrowheadType;
+  endArrowhead?: ArrowheadType;
+}
+/** High-frequency drag/reshape autosave (position and/or vertices only). */
+export interface UpdateElementPositionDto {
+  x?: number;
+  y?: number;
+  points?: PointModel[];
+}
+export interface ReorderElementsDto {
+  orderedElementIds: string[];
 }
 
 // --- Sharing ---

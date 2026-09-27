@@ -5,7 +5,13 @@
 // no socket.io, Angular, or Nest imports here, only the shapes on the wire.
 
 import type { AccessLevel } from '../enums';
-import type { ColumnModel, RelationshipModel, TableModel } from '../models';
+import type {
+  CanvasElementModel,
+  ColumnModel,
+  PointModel,
+  RelationshipModel,
+  TableModel,
+} from '../models';
 
 /** Socket.io namespace the realtime gateway is mounted on. */
 export const REALTIME_NAMESPACE = '/realtime';
@@ -64,7 +70,12 @@ export type SchemaMutation =
   | { kind: 'column.reordered'; tableId: string; orderedColumnIds: string[] }
   | { kind: 'relationship.created'; relationship: RelationshipModel }
   | { kind: 'relationship.updated'; relationship: RelationshipModel }
-  | { kind: 'relationship.deleted'; relationshipId: string };
+  | { kind: 'relationship.deleted'; relationshipId: string }
+  | { kind: 'element.created'; element: CanvasElementModel }
+  | { kind: 'element.updated'; element: CanvasElementModel }
+  | { kind: 'element.moved'; elementId: string; x?: number; y?: number; points?: PointModel[] }
+  | { kind: 'element.deleted'; elementId: string }
+  | { kind: 'element.reordered'; orderedElementIds: string[] };
 
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {
