@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsNumber,
   IsOptional,
@@ -79,6 +80,10 @@ export class UpdateElementDto implements IUpdateElementDto {
   zIndex?: number;
 
   @IsOptional()
+  @IsNumber()
+  cornerRadius?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PointDto)
@@ -97,6 +102,14 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsString()
   @MaxLength(120)
   fontFamily?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  bold?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  italic?: boolean;
 
   @IsOptional()
   @IsIn([...TEXT_ALIGNS])

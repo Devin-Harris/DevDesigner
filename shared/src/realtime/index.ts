@@ -8,6 +8,7 @@ import type { AccessLevel } from '../enums';
 import type {
   CanvasElementModel,
   ColumnModel,
+  IndexModel,
   PointModel,
   RelationshipModel,
   TableModel,
@@ -68,6 +69,10 @@ export type SchemaMutation =
   | { kind: 'column.updated'; tableId: string; column: ColumnModel }
   | { kind: 'column.deleted'; tableId: string; columnId: string }
   | { kind: 'column.reordered'; tableId: string; orderedColumnIds: string[] }
+  | { kind: 'index.created'; tableId: string; index: IndexModel }
+  | { kind: 'index.updated'; tableId: string; index: IndexModel }
+  | { kind: 'index.deleted'; tableId: string; indexId: string }
+  | { kind: 'index.reordered'; tableId: string; orderedIndexIds: string[] }
   | { kind: 'relationship.created'; relationship: RelationshipModel }
   | { kind: 'relationship.updated'; relationship: RelationshipModel }
   | { kind: 'relationship.deleted'; relationshipId: string }

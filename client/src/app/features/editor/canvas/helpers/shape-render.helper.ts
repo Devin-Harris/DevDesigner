@@ -15,7 +15,7 @@ import {
   tableBox,
 } from './element-geometry.helper';
 import { freehandFillPath, polylinePath } from './freedraw-path.helper';
-import { routeOrthogonal } from './routing.helper';
+import { ANCHOR_GAP } from '../constants/canvas.constants';
 
 /** Map a stored font-family key to a concrete CSS font stack (see index.html). */
 export const FONT_STACKS: Record<string, string> = {
@@ -26,6 +26,76 @@ export const FONT_STACKS: Record<string, string> = {
 
 export function fontStack(key: string | undefined): string {
   return FONT_STACKS[key ?? 'normal'] ?? FONT_STACKS['normal'];
+}
+
+/** Live theme colors used by the contrast guard (resolved CSS values). */
+export interface ThemeColors {
+  /** The canvas background a shape sits on (`--dbd-canvas-bg`). */
+  canvasBg: string;
+  /** The theme's foreground/text color to fall back to (`--dbd-text`). */
+  text: string;
+}
+
+function parseColor(color: string): [number, number, number] | null {
+  const s = color.trim();
+  if (s.startsWith('#')) {
+    let h = s.slice(1);
+    if (h.length === 3) {
+      h = h
+        .split('')
+        .map((x) => x + x)
+        .join('');
+    }
+    if (h.length < 6) {
+      return null;
+    }
+    return [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+  }
+  const m = s.match(/rgba?\(([^)]+)\)/i);
+  if (m) {
+    const parts = m[1].split(/[,/\s]+/).map((p) => parseFloat(p));
+    if (parts.length >= 3 && parts.slice(0, 3).every((n) => !Number.isNaN(n))) {
+      return [parts[0], parts[1], parts[2]];
+    }
+  }
+  return null;
+}
+
+function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const lin = [r, g, b].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+/** WCAG-style contrast ratio between two parsed colors (1 = identical). */
+const CONTRAST_FLOOR = 1.5;
+
+/**
+ * Keep a drawn color visible against the current canvas background: if the color
+ * sits too close to the background (would nearly disappear), fall back to the
+ * theme's text color. A pure render transform — the stored color is unchanged,
+ * so toggling the theme re-evaluates automatically. Applies to explicitly chosen
+ * colors too (per the design decision).
+ */
+export function contrastSafe(color: string, theme: ThemeColors | undefined): string {
+  if (!theme) {
+    return color;
+  }
+  const c = parseColor(color);
+  const bg = parseColor(theme.canvasBg);
+  if (!c || !bg) {
+    return color;
+  }
+  const lc = relativeLuminance(c);
+  const lb = relativeLuminance(bg);
+  const ratio = (Math.max(lc, lb) + 0.05) / (Math.min(lc, lb) + 0.05);
+  return ratio < CONTRAST_FLOOR ? theme.text : color;
 }
 
 /** Text stroke-width maps to font weight (so the width control affects text). */
@@ -82,6 +152,7 @@ function layoutTextBlock(
     fontSize: number;
     fontFamilyKey: string | undefined;
     fontWeight: number;
+    italic?: boolean;
     color: string;
     align: TextAlign;
     vAlign: VerticalAlign;
@@ -90,7 +161,8 @@ function layoutTextBlock(
   },
 ): TextBlockView {
   const stack = fontStack(opts.fontFamilyKey);
-  const cssFont = `${opts.fontWeight} ${opts.fontSize}px ${stack}`;
+  const style = opts.italic ? 'italic ' : '';
+  const cssFont = `${style}${opts.fontWeight} ${opts.fontSize}px ${stack}`;
   const maxWidth = Math.max(8, box.width - opts.padding * 2);
   const paragraphs = text.split('\n');
   const lines: string[] = [];
@@ -132,6 +204,7 @@ function layoutTextBlock(
     fontSize: opts.fontSize,
     fontFamily: stack,
     fontWeight: opts.fontWeight,
+    fontStyle: opts.italic ? 'italic' : 'normal',
     color: opts.color,
     anchor,
   };
@@ -149,15 +222,20 @@ function dashArray(element: CanvasElementModel): string | null {
   }
 }
 
-function fillOf(element: CanvasElementModel): { fill: string; fillOpacity: number } {
+function fillOf(element: CanvasElementModel): {
+  fill: string;
+  fillOpacity: number;
+  hatch?: { id: string; color: string };
+} {
   if (element.fillStyle === 'none' || !element.backgroundColor) {
     return { fill: 'none', fillOpacity: 1 };
   }
-  // Hachure is approximated as a lighter solid fill (no cross-hatching yet).
-  return {
-    fill: element.backgroundColor,
-    fillOpacity: element.fillStyle === 'hachure' ? 0.35 : 1,
-  };
+  // Hachure = real diagonal-line hatching via a per-element SVG <pattern>.
+  if (element.fillStyle === 'hachure') {
+    const id = `hatch-${element.id}`;
+    return { fill: `url(#${id})`, fillOpacity: 1, hatch: { id, color: element.backgroundColor } };
+  }
+  return { fill: element.backgroundColor, fillOpacity: 1 };
 }
 
 function rotation(element: CanvasElementModel, center: Point): string | null {
@@ -187,10 +265,10 @@ function resolveEnds(
   const endBox = element.endBinding ? targetBox(element.endBinding) : null;
   const resolved = pts.map((p) => ({ ...p }));
   if (startBox) {
-    resolved[0] = boundaryPoint(startBox, pts[1] ?? end);
+    resolved[0] = boundaryPoint(startBox, pts[1] ?? end, ANCHOR_GAP);
   }
   if (endBox) {
-    resolved[resolved.length - 1] = boundaryPoint(endBox, pts[pts.length - 2] ?? start);
+    resolved[resolved.length - 1] = boundaryPoint(endBox, pts[pts.length - 2] ?? start, ANCHOR_GAP);
   }
   return resolved;
 }
@@ -200,15 +278,20 @@ function boxToBbox(box: Box): ShapeView['bbox'] {
 }
 
 /** A shape's optional centered text label (rectangle/ellipse/diamond). */
-function shapeLabel(element: CanvasElementModel, box: ShapeView['bbox']): TextBlockView | undefined {
+function shapeLabel(
+  element: CanvasElementModel,
+  box: ShapeView['bbox'],
+  theme: ThemeColors | undefined,
+): TextBlockView | undefined {
   if (!element.text) {
     return undefined;
   }
   return layoutTextBlock(element.text, box, {
     fontSize: element.fontSize ?? 16,
     fontFamilyKey: element.fontFamily,
-    fontWeight: fontWeightFor(element.strokeWidth),
-    color: element.strokeColor,
+    fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+    italic: element.italic,
+    color: contrastSafe(element.strokeColor, theme),
     align: element.textAlign ?? 'center',
     vAlign: element.verticalAlign ?? 'middle',
     padding: 8,
@@ -216,22 +299,16 @@ function shapeLabel(element: CanvasElementModel, box: ShapeView['bbox']): TextBl
   });
 }
 
-/** Anchor a bound endpoint to the midpoint of the box side facing the other end. */
-function sideAnchor(box: Box, towardRight: boolean): { point: Point; dir: number } {
-  const cy = (box.y0 + box.y1) / 2;
-  return { point: { x: towardRight ? box.x1 : box.x0, y: cy }, dir: towardRight ? 1 : -1 };
-}
-
 /**
- * Route a both-ends-bound line/arrow orthogonally around obstacles (the ERD
- * connector router), so it traverses around shapes instead of crossing them.
+ * Connect two bound boxes with a STRAIGHT line: each end anchors to the exact
+ * point on its box boundary along the center-to-center ray (not snapped to a few
+ * fixed side midpoints), pushed `ANCHOR_GAP` outward so the line and its marker
+ * stay clear of the shape. A direct segment — no orthogonal/elbow routing.
  */
-function routeBoundConnector(sBox: Box, tBox: Box, obstacles: readonly Box[]): Point[] {
-  const sc = (sBox.x0 + sBox.x1) / 2;
-  const tc = (tBox.x0 + tBox.x1) / 2;
-  const src = sideAnchor(sBox, tc >= sc);
-  const tgt = sideAnchor(tBox, sc > tc);
-  return routeOrthogonal(src.point, tgt.point, src.dir, tgt.dir, [...obstacles, sBox, tBox]);
+function routeBoundConnector(sBox: Box, tBox: Box): Point[] {
+  const sc: Point = { x: (sBox.x0 + sBox.x1) / 2, y: (sBox.y0 + sBox.y1) / 2 };
+  const tc: Point = { x: (tBox.x0 + tBox.x1) / 2, y: (tBox.y0 + tBox.y1) / 2 };
+  return [boundaryPoint(sBox, tc, ANCHOR_GAP), boundaryPoint(tBox, sc, ANCHOR_GAP)];
 }
 
 /**
@@ -243,6 +320,7 @@ export function buildShapeViews(
   elements: readonly CanvasElementModel[],
   tables: readonly TableModel[],
   selectedIds: ReadonlySet<string>,
+  theme?: ThemeColors,
 ): ShapeView[] {
   const tableById = new Map(tables.map((t) => [t.id, t]));
   const elementById = new Map(elements.map((e) => [e.id, e]));
@@ -255,36 +333,27 @@ export function buildShapeViews(
     return e ? elementBox(e) : null;
   };
 
-  // Obstacle boxes for routing: all tables and box-shaped elements, keyed by id.
-  const obstacleById = new Map<string, Box>();
-  for (const t of tables) {
-    obstacleById.set(`table:${t.id}`, tableBox(t));
-  }
-  for (const e of elements) {
-    if (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond' || e.type === 'text') {
-      obstacleById.set(`elem:${e.id}`, elementBox(e));
-    }
-  }
-
   return elements.map((element) => {
     const box = elementBox(element);
     const center = elementCenter(element);
-    const { fill, fillOpacity } = fillOf(element);
+    const stroke = contrastSafe(element.strokeColor, theme);
+    const { fill, fillOpacity, hatch } = fillOf(element);
     const base: ShapeView = {
       id: element.id,
       type: element.type,
       selected: selectedIds.has(element.id),
       opacity: element.opacity / 100,
-      stroke: element.strokeColor,
+      stroke,
       strokeWidth: element.strokeWidth,
       dash: dashArray(element),
       fill,
       fillOpacity,
+      hatch,
       transform: rotation(element, center),
       freehand: false,
       markerStart: 'none',
       markerEnd: 'none',
-      markerColor: element.strokeColor,
+      markerColor: stroke,
       bbox: boxToBbox(box),
     };
 
@@ -295,9 +364,11 @@ export function buildShapeViews(
           y: element.y,
           width: element.width,
           height: element.height,
-          rx: Math.min(12, Math.min(element.width, element.height) * 0.15),
+          rx:
+            element.cornerRadius ??
+            Math.min(12, Math.min(element.width, element.height) * 0.15),
         };
-        base.label = shapeLabel(element, base.bbox);
+        base.label = shapeLabel(element, base.bbox, theme);
         break;
       case 'ellipse':
         base.ellipse = {
@@ -306,7 +377,7 @@ export function buildShapeViews(
           rx: element.width / 2,
           ry: element.height / 2,
         };
-        base.label = shapeLabel(element, base.bbox);
+        base.label = shapeLabel(element, base.bbox, theme);
         break;
       case 'diamond': {
         const midX = element.x + element.width / 2;
@@ -317,13 +388,13 @@ export function buildShapeViews(
           `${midX},${element.y + element.height}`,
           `${element.x},${midY}`,
         ].join(' ');
-        base.label = shapeLabel(element, base.bbox);
+        base.label = shapeLabel(element, base.bbox, theme);
         break;
       }
       case 'freedraw':
         base.path = freehandFillPath(absolutePoints(element), element.strokeWidth);
         base.freehand = true;
-        base.fill = element.strokeColor;
+        base.fill = stroke;
         break;
       case 'line':
       case 'arrow': {
@@ -331,10 +402,8 @@ export function buildShapeViews(
         const tBox = element.endBinding ? targetBox(element.endBinding) : null;
         let ends: Point[];
         if (sBox && tBox) {
-          // Both ends bound: route orthogonally around every other shape/table.
-          const exclude = new Set<Box>([sBox, tBox]);
-          const obstacles = [...obstacleById.values()].filter((b) => !exclude.has(b));
-          ends = routeBoundConnector(sBox, tBox, obstacles);
+          // Both ends bound: a straight line between the two shape boundaries.
+          ends = routeBoundConnector(sBox, tBox);
         } else {
           ends = resolveEnds(element, targetBox);
         }
@@ -364,8 +433,9 @@ export function buildShapeViews(
         base.text = layoutTextBlock(element.text ?? '', base.bbox, {
           fontSize: element.fontSize ?? DEFAULT_FONT_SIZE,
           fontFamilyKey: element.fontFamily,
-          fontWeight: fontWeightFor(element.strokeWidth),
-          color: element.strokeColor,
+          fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+          italic: element.italic,
+          color: stroke,
           align: element.textAlign ?? 'left',
           vAlign: element.verticalAlign ?? 'top',
           padding: 2,

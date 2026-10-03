@@ -1,21 +1,80 @@
 :host {
   display: block;
-  width: 320px;
+  width: 100%;
   height: 100%;
-  border-left: 1px solid var(--dbd-border);
   background: var(--dbd-surface);
   overflow: auto;
 }
 
 .panel {
+  padding: var(--dbd-space-3) var(--dbd-space-4) var(--dbd-space-4);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  padding: 3px;
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+}
+
+.tab {
+  flex: 1;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  color: var(--dbd-text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: calc(var(--dbd-radius-sm) - 2px);
+  cursor: pointer;
+
+  &:hover:not(.on) {
+    color: var(--dbd-text);
+  }
+  &.on {
+    background: var(--dbd-surface);
+    color: var(--dbd-text);
+    box-shadow: var(--dbd-shadow-1);
+  }
+}
+
+.empty-hint {
+  padding: var(--dbd-space-3) 0;
+  font-size: 12px;
+  color: var(--dbd-text-muted);
+}
+
+.idx-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dbd-space-2) var(--dbd-space-3);
+  margin: var(--dbd-space-1) 0;
+}
+
+.sql {
+  margin: 0;
   padding: var(--dbd-space-3);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+  font-family: var(--dbd-font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--dbd-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
 }
 
 .panel-head {
   display: flex;
   align-items: center;
   gap: var(--dbd-space-2);
-  margin-bottom: var(--dbd-space-3);
+  margin-bottom: var(--dbd-space-2);
 }
 
 .dot {
@@ -30,12 +89,18 @@
   min-width: 0;
 }
 
-.eyebrow {
+.eyebrow,
+.panel-title,
+.field-label {
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
   color: var(--dbd-text-muted);
+}
+
+.field-label {
+  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
 }
 
 .tname {
@@ -47,6 +112,50 @@
   white-space: nowrap;
 }
 
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--dbd-text-muted);
+  border-radius: var(--dbd-radius-sm);
+  cursor: pointer;
+  --dbd-icon-size: 17px;
+
+  &:hover:not(:disabled) {
+    background: var(--dbd-surface-2);
+  }
+  &.del:hover:not(:disabled) {
+    color: var(--dbd-danger);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.note {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  font-family: var(--dbd-font);
+  font-size: 13px;
+  color: var(--dbd-text);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+  padding: 8px 10px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--dbd-primary);
+  }
+}
+
 .section-head {
   display: flex;
   align-items: center;
@@ -56,44 +165,63 @@
 
 .panel-title {
   flex: 1;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  color: var(--dbd-text-muted);
 }
 
-.full {
-  width: 100%;
-}
-
-.field-label {
-  font-size: 9.5px;
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dbd-border-strong);
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  border-radius: var(--dbd-radius-sm);
+  font: inherit;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  color: var(--dbd-text-muted);
-  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  cursor: pointer;
+  --dbd-icon-size: 16px;
+
+  &:hover:not(:disabled) {
+    background: var(--dbd-surface-2);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 }
 
 .swatches {
   display: flex;
   gap: var(--dbd-space-2);
   flex-wrap: wrap;
-  margin-bottom: var(--dbd-space-2);
 }
 
 .swatch {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--dbd-radius-sm);
   border: 1px solid var(--dbd-border-strong);
   cursor: pointer;
 
+  &.none {
+    background-image: linear-gradient(
+      45deg,
+      transparent 45%,
+      var(--dbd-danger) 45%,
+      var(--dbd-danger) 55%,
+      transparent 55%
+    );
+  }
   &.active {
     box-shadow:
       0 0 0 2px var(--dbd-surface),
       0 0 0 3.5px var(--dbd-primary);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 }
 
@@ -108,6 +236,9 @@
   border-radius: var(--dbd-radius);
   padding: var(--dbd-space-2);
   background: var(--dbd-surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dbd-space-2);
 }
 
 .cdk-drag-preview .col-card,
@@ -118,25 +249,81 @@
 .col-row {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-1);
+  gap: var(--dbd-space-2);
 }
 
 .grow {
   flex: 1;
+  min-width: 0;
 }
 
 .len {
-  width: 96px;
+  width: 84px;
+  flex: 0 0 auto;
 }
 
 .drag {
   cursor: move;
   opacity: 0.5;
+  --dbd-icon-size: 18px;
+  color: var(--dbd-text-muted);
 }
 
 .col-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dbd-space-2);
-  margin-top: var(--dbd-space-1);
+  gap: var(--dbd-space-2) var(--dbd-space-3);
+}
+
+// Compact constraint toggles (PK / NN / UQ / AI), matching the table node glyph
+// chips — denser and more on-brand than labeled checkboxes.
+.flag-chips {
+  display: flex;
+  gap: var(--dbd-space-1);
+}
+
+.flag {
+  flex: 1;
+  padding: 4px 0;
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+  background: var(--dbd-surface);
+  color: var(--dbd-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+
+  &:hover:not(:disabled) {
+    color: var(--dbd-text);
+    border-color: var(--dbd-border-strong);
+  }
+
+  &.on {
+    color: #fff;
+    border-color: transparent;
+  }
+  &.pk.on {
+    background: var(--dbd-amber, #f5a623);
+    color: #1a1205;
+  }
+  &.nn.on {
+    background: var(--dbd-primary);
+  }
+  &.uq.on {
+    background: #7c5cff;
+  }
+  &.ai.on {
+    background: #12b76a;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 }

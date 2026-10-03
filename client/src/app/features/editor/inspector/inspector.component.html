@@ -5,27 +5,18 @@
       <div class="eyebrow">Table</div>
       <div class="tname">{{ table().name }}</div>
     </div>
-    <button
-      mat-icon-button
-      (click)="deleteTable()"
-      [disabled]="!store.canEdit()"
-      matTooltip="Delete table"
-      aria-label="Delete table"
-    >
-      <mat-icon>delete</mat-icon>
+    <button class="icon-btn del" (click)="deleteTable()" [disabled]="!store.canEdit()" title="Delete table">
+      <dbd-icon name="delete" />
     </button>
   </div>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-    <mat-label>Name</mat-label>
-    <input
-      matInput
-      [ngModel]="table().name"
-      (change)="renameTable($event)"
-      [disabled]="!store.canEdit()"
-      maxlength="120"
-    />
-  </mat-form-field>
+  <div class="field-label">Name</div>
+  <dbd-input
+    [ngModel]="table().name"
+    (commit)="renameTable($event)"
+    [maxlength]="120"
+    [disabled]="!store.canEdit()"
+  />
 
   <div class="field-label">Header color</div>
   <div class="swatches">
@@ -33,116 +24,139 @@
       <button
         type="button"
         class="swatch"
+        [class.none]="swatch === ''"
         [class.active]="(table().color || '') === swatch"
-        [style.background]="swatch || '#ffffff'"
+        [style.background]="swatch || 'transparent'"
         [disabled]="!store.canEdit()"
         (click)="setColor(swatch)"
-        [attr.aria-label]="'Set color ' + (swatch || 'none')"
       ></button>
     }
   </div>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-    <mat-label>Note</mat-label>
-    <textarea
-      matInput
-      rows="2"
-      [ngModel]="table().note ?? ''"
-      (change)="setNote($event)"
-      [disabled]="!store.canEdit()"
-      maxlength="2000"
-    ></textarea>
-  </mat-form-field>
+  <div class="field-label">Note</div>
+  <textarea
+    class="note"
+    rows="2"
+    [value]="table().note ?? ''"
+    (change)="setNote($any($event.target).value)"
+    [disabled]="!store.canEdit()"
+    maxlength="2000"
+  ></textarea>
 
-  <div class="section-head">
-    <span class="panel-title">Columns</span>
-    <button mat-stroked-button (click)="addColumn()" [disabled]="!store.canEdit()">
-      <mat-icon>add</mat-icon>
-      Add
-    </button>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" [class.on]="tab() === 'columns'" (click)="tab.set('columns')">Columns</button>
+    <button class="tab" role="tab" [class.on]="tab() === 'indexes'" (click)="tab.set('indexes')">Indexes</button>
+    <button class="tab" role="tab" [class.on]="tab() === 'sql'" (click)="tab.set('sql')">SQL</button>
   </div>
 
-  <div cdkDropList (cdkDropListDropped)="onReorder($event)" class="col-list">
-    @for (column of table().columns; track column.id) {
-      <div cdkDrag [cdkDragDisabled]="!store.canEdit()" class="col-card">
-        <div class="col-row">
-          <mat-icon cdkDragHandle class="drag">drag_indicator</mat-icon>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-            <input
-              matInput
-              placeholder="name"
-              [ngModel]="column.name"
-              (change)="renameColumn(column, $event)"
-              [disabled]="!store.canEdit()"
-              maxlength="120"
-            />
-          </mat-form-field>
-          <button
-            mat-icon-button
-            (click)="deleteColumn(column)"
-            [disabled]="!store.canEdit()"
-            matTooltip="Delete column"
-            aria-label="Delete column"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
+  @switch (tab()) {
+    @case ('columns') {
+      <div class="section-head">
+        <span class="panel-title">Columns</span>
+        <button class="add-btn" (click)="addColumn()" [disabled]="!store.canEdit()">
+          <dbd-icon name="add" />Add
+        </button>
+      </div>
 
-        <div class="col-row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
-            <mat-label>Type</mat-label>
-            <mat-select
-              [ngModel]="column.dataType.name"
-              (selectionChange)="setType(column, $event.value)"
-              [disabled]="!store.canEdit()"
-            >
-              @for (name of dataTypeNames; track name) {
-                <mat-option [value]="name">{{ name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          @if (column.dataType.name === 'VARCHAR') {
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="len">
-              <mat-label>Length</mat-label>
-              <input
-                matInput
-                type="number"
-                min="1"
-                [ngModel]="column.dataType.length ?? null"
-                (change)="setLength(column, $event)"
+      <div cdkDropList (cdkDropListDropped)="onReorder($event)" class="col-list">
+        @for (column of table().columns; track column.id) {
+          <div cdkDrag [cdkDragDisabled]="!store.canEdit()" class="col-card">
+            <div class="col-row">
+              <dbd-icon cdkDragHandle name="drag_indicator" class="drag" />
+              <dbd-input
+                class="grow"
+                [ngModel]="column.name"
+                (commit)="renameColumn(column, $event)"
+                [maxlength]="120"
                 [disabled]="!store.canEdit()"
               />
-            </mat-form-field>
-          }
-        </div>
+              <button class="icon-btn del" (click)="deleteColumn(column)" [disabled]="!store.canEdit()" title="Delete column">
+                <dbd-icon name="close" />
+              </button>
+            </div>
 
-        <div class="col-flags">
-          <mat-checkbox
-            [checked]="column.isPrimaryKey"
-            (change)="setFlag(column, 'isPrimaryKey', $event.checked)"
-            [disabled]="!store.canEdit()"
-            >PK</mat-checkbox
-          >
-          <mat-checkbox
-            [checked]="!column.isNullable"
-            (change)="setNotNull(column, $event.checked)"
-            [disabled]="!store.canEdit()"
-            >Not null</mat-checkbox
-          >
-          <mat-checkbox
-            [checked]="column.isUnique"
-            (change)="setFlag(column, 'isUnique', $event.checked)"
-            [disabled]="!store.canEdit()"
-            >Unique</mat-checkbox
-          >
-          <mat-checkbox
-            [checked]="column.isAutoIncrement"
-            (change)="setFlag(column, 'isAutoIncrement', $event.checked)"
-            [disabled]="!store.canEdit()"
-            >Auto inc</mat-checkbox
-          >
-        </div>
+            <div class="col-row">
+              <dbd-select
+                class="grow"
+                [options]="typeOptions"
+                [ngModel]="column.dataType.name"
+                (ngModelChange)="setType(column, $event)"
+                [disabled]="!store.canEdit()"
+              />
+              @if (column.dataType.name === 'VARCHAR') {
+                <dbd-input
+                  class="len"
+                  type="number"
+                  [min]="1"
+                  [ngModel]="column.dataType.length ?? null"
+                  (commit)="setLength(column, $event)"
+                  [disabled]="!store.canEdit()"
+                />
+              }
+            </div>
+
+            <div class="flag-chips">
+              <button class="flag pk" [class.on]="column.isPrimaryKey" [disabled]="!store.canEdit()" (click)="setFlag(column, 'isPrimaryKey', !column.isPrimaryKey)" title="Primary key">PK</button>
+              <button class="flag nn" [class.on]="!column.isNullable" [disabled]="!store.canEdit()" (click)="setNotNull(column, column.isNullable)" title="Not null">NN</button>
+              <button class="flag uq" [class.on]="column.isUnique" [disabled]="!store.canEdit()" (click)="setFlag(column, 'isUnique', !column.isUnique)" title="Unique">UQ</button>
+              <button class="flag ai" [class.on]="column.isAutoIncrement" [disabled]="!store.canEdit()" (click)="setFlag(column, 'isAutoIncrement', !column.isAutoIncrement)" title="Auto increment">AI</button>
+            </div>
+          </div>
+        }
       </div>
     }
-  </div>
+
+    @case ('indexes') {
+      <div class="section-head">
+        <span class="panel-title">Indexes</span>
+        <button class="add-btn" (click)="addIndex()" [disabled]="!store.canEdit() || table().columns.length === 0">
+          <dbd-icon name="add" />Add
+        </button>
+      </div>
+
+      @if ((table().indexes ?? []).length === 0) {
+        <div class="empty-hint">No indexes yet. Add one to index a column or set of columns.</div>
+      } @else {
+        <div class="col-list">
+          @for (index of table().indexes ?? []; track index.id) {
+            <div class="col-card">
+              <div class="col-row">
+                <dbd-input
+                  class="grow"
+                  [ngModel]="index.name"
+                  (commit)="renameIndex(index, $event)"
+                  [maxlength]="120"
+                  [disabled]="!store.canEdit()"
+                />
+                <button class="icon-btn del" (click)="deleteIndex(index)" [disabled]="!store.canEdit()" title="Delete index">
+                  <dbd-icon name="close" />
+                </button>
+              </div>
+
+              <div class="idx-cols">
+                @for (column of table().columns; track column.id) {
+                  <dbd-checkbox
+                    [ngModel]="indexHasColumn(index, column.id)"
+                    (ngModelChange)="toggleIndexColumn(index, column.id, $event)"
+                    [disabled]="!store.canEdit()"
+                  >{{ column.name }}</dbd-checkbox>
+                }
+              </div>
+
+              <div class="col-flags">
+                <dbd-checkbox [ngModel]="index.isUnique" (ngModelChange)="setIndexUnique(index, $event)" [disabled]="!store.canEdit()">Unique</dbd-checkbox>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    @case ('sql') {
+      <div class="section-head">
+        <span class="panel-title">SQL (MySQL)</span>
+      </div>
+      <pre class="sql">{{ tableSql() }}</pre>
+    }
+  }
 </div>

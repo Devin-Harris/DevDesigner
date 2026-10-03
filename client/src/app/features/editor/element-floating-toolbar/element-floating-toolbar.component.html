@@ -1,160 +1,191 @@
 <div class="bar">
   <!-- Stroke color -->
-  <button mat-icon-button [matMenuTriggerFor]="strokeMenu" matTooltip="Stroke color"
-    [disabled]="!store.canEdit()">
+  <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
     <span class="swatch ring" [style.background]="element().strokeColor"></span>
   </button>
-  <mat-menu #strokeMenu="matMenu" class="picker-menu">
-    <div class="swatches" (click)="$event.stopPropagation()">
+  <ng-template #strokeMenu let-close>
+    <div class="picker">
       @for (c of strokeColors; track c) {
-        <button class="swatch-btn" [style.background]="c" (click)="setStroke(c)"></button>
+        <button class="swatch-btn" [class.active]="c === element().strokeColor" [style.background]="c" (click)="setStroke(c); close()"></button>
       }
       <label class="swatch-btn custom">
-        <mat-icon>colorize</mat-icon>
+        <dbd-icon name="colorize" />
         <input type="color" [value]="element().strokeColor" (change)="setStroke($any($event.target).value)" />
       </label>
     </div>
-  </mat-menu>
+  </ng-template>
 
   @if (hasFill()) {
-    <button mat-icon-button [matMenuTriggerFor]="fillMenu" matTooltip="Fill color"
-      [disabled]="!store.canEdit()">
-      <span class="swatch" [class.none]="element().fillStyle === 'none'"
-        [style.background]="element().fillStyle === 'none' ? 'transparent' : (element().backgroundColor || '#ffffff')"></span>
+    <button class="tb" [dbdPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill color" [disabled]="!store.canEdit()">
+      <span
+        class="swatch"
+        [class.none]="element().fillStyle === 'none'"
+        [style.background]="element().fillStyle === 'none' ? 'transparent' : (element().backgroundColor || '#ffffff')"
+      ></span>
     </button>
-    <mat-menu #fillMenu="matMenu" class="picker-menu">
-      <div class="swatches" (click)="$event.stopPropagation()">
+    <ng-template #fillMenu let-close>
+      <div class="picker">
         @for (c of fillColors; track c) {
-          <button class="swatch-btn" [class.none]="c === 'transparent'" [style.background]="c"
-            (click)="setFill(c)"></button>
+          <button
+            class="swatch-btn"
+            [class.none]="c === 'transparent'"
+            [class.active]="c === 'transparent' ? element().fillStyle === 'none' : (element().fillStyle !== 'none' && c === element().backgroundColor)"
+            [style.background]="c"
+            (click)="setFill(c); close()"
+          ></button>
         }
         <label class="swatch-btn custom">
-          <mat-icon>colorize</mat-icon>
-          <input type="color" [value]="element().backgroundColor || '#ffffff'"
-            (change)="setFill($any($event.target).value)" />
+          <dbd-icon name="colorize" />
+          <input type="color" [value]="element().backgroundColor || '#ffffff'" (change)="setFill($any($event.target).value)" />
         </label>
       </div>
-    </mat-menu>
+    </ng-template>
   }
 
   <span class="sep"></span>
 
   <!-- Stroke width -->
-  <button mat-icon-button [matMenuTriggerFor]="widthMenu" matTooltip="Stroke width"
-    [disabled]="!store.canEdit()">
-    <mat-icon>line_weight</mat-icon>
+  <button class="tb" [dbdPopoverTrigger]="widthMenu" placement="below-start" matTooltip="Stroke width" [disabled]="!store.canEdit()">
+    <dbd-icon name="line_weight" />
   </button>
-  <mat-menu #widthMenu="matMenu">
-    @for (w of strokeWidths; track w.value) {
-      <button mat-menu-item (click)="setWidth(w.value)">
-        <span class="wline" [style.height.px]="w.value + 1"></span><span>{{ w.label }}</span>
-      </button>
-    }
-  </mat-menu>
+  <ng-template #widthMenu let-close>
+    <div class="dbd-menu">
+      @for (w of strokeWidths; track w.value) {
+        <button class="dbd-menu-item" [class.on]="w.value === element().strokeWidth" (click)="setWidth(w.value); close()">
+          <span class="wline" [style.height.px]="w.value + 1"></span>{{ w.label }}
+        </button>
+      }
+    </div>
+  </ng-template>
 
   <!-- Stroke style -->
   @if (!isText()) {
-    <button mat-icon-button [matMenuTriggerFor]="styleMenu" matTooltip="Stroke style"
-      [disabled]="!store.canEdit()">
-      <mat-icon>timeline</mat-icon>
+    <button class="tb" [dbdPopoverTrigger]="styleMenu" placement="below-start" matTooltip="Stroke style" [disabled]="!store.canEdit()">
+      <dbd-icon name="timeline" />
     </button>
-    <mat-menu #styleMenu="matMenu">
-      @for (s of strokeStyleIcons; track s.value) {
-        <button mat-menu-item (click)="setStyle(s.value)">
-          <mat-icon>{{ s.icon }}</mat-icon><span>{{ s.value }}</span>
-        </button>
-      }
-    </mat-menu>
+    <ng-template #styleMenu let-close>
+      <div class="dbd-menu">
+        @for (s of strokeStyleIcons; track s.value) {
+          <button class="dbd-menu-item" [class.on]="s.value === element().strokeStyle" (click)="setStyle(s.value); close()">
+            <span class="wline" [class.dashed]="s.value === 'dashed'" [class.dotted]="s.value === 'dotted'"></span>{{ s.value }}
+          </button>
+        }
+      </div>
+    </ng-template>
   }
 
-  <!-- Text / label: font + size + alignment -->
+  <!-- Corner radius (rectangles only) -->
+  @if (isRect()) {
+    <button class="tb" [dbdPopoverTrigger]="radiusMenu" placement="below-start" matTooltip="Corner radius" [disabled]="!store.canEdit()">
+      <dbd-icon name="rounded_corner" />
+    </button>
+    <ng-template #radiusMenu>
+      <div class="picker col">
+        <div class="head-row">
+          <span class="head-label">Radius</span>
+          <input type="range" min="0" max="48" step="2" [value]="element().cornerRadius ?? 12" (input)="setCornerRadius(+$any($event.target).value)" />
+        </div>
+      </div>
+    </ng-template>
+  }
+
+  <!-- Text / label: font + size + bold/italic + alignment -->
   @if (canHaveText()) {
-    <button mat-icon-button [matMenuTriggerFor]="fontMenu" matTooltip="Font"
-      [disabled]="!store.canEdit()">
-      <mat-icon>font_download</mat-icon>
+    <button class="tb wide" [dbdPopoverTrigger]="fontMenu" placement="below-start" matTooltip="Font" [disabled]="!store.canEdit()">
+      <dbd-icon name="font_download" />
     </button>
-    <mat-menu #fontMenu="matMenu">
-      @for (f of fonts; track f.value) {
-        <button mat-menu-item (click)="setFont(f.value)">{{ f.label }}</button>
-      }
-    </mat-menu>
-    <button mat-icon-button [matMenuTriggerFor]="sizeMenu" matTooltip="Font size"
-      [disabled]="!store.canEdit()">
-      <mat-icon>format_size</mat-icon>
-    </button>
-    <mat-menu #sizeMenu="matMenu">
-      @for (s of fontSizes; track s) {
-        <button mat-menu-item (click)="setFontSize(s)">{{ s }} px</button>
-      }
-    </mat-menu>
-    <button mat-icon-button [matMenuTriggerFor]="alignMenu" matTooltip="Text alignment"
-      [disabled]="!store.canEdit()">
-      <mat-icon>format_align_center</mat-icon>
-    </button>
-    <mat-menu #alignMenu="matMenu">
-      <div class="head-row" (click)="$event.stopPropagation()">
-        <span class="head-label">Horiz.</span>
-        <button mat-icon-button matTooltip="Left" (click)="setTextAlign('left')"><mat-icon>format_align_left</mat-icon></button>
-        <button mat-icon-button matTooltip="Center" (click)="setTextAlign('center')"><mat-icon>format_align_center</mat-icon></button>
-        <button mat-icon-button matTooltip="Right" (click)="setTextAlign('right')"><mat-icon>format_align_right</mat-icon></button>
+    <ng-template #fontMenu let-close>
+      <div class="dbd-menu">
+        @for (f of fonts; track f.value) {
+          <button class="dbd-menu-item" [class.on]="f.value === element().fontFamily" (click)="setFont(f.value); close()">{{ f.label }}</button>
+        }
       </div>
-      <div class="head-row" (click)="$event.stopPropagation()">
-        <span class="head-label">Vert.</span>
-        <button mat-icon-button matTooltip="Top" (click)="setVerticalAlign('top')"><mat-icon>vertical_align_top</mat-icon></button>
-        <button mat-icon-button matTooltip="Middle" (click)="setVerticalAlign('middle')"><mat-icon>vertical_align_center</mat-icon></button>
-        <button mat-icon-button matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><mat-icon>vertical_align_bottom</mat-icon></button>
+    </ng-template>
+
+    <button class="tb" [dbdPopoverTrigger]="sizeMenu" placement="below-start" matTooltip="Font size" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_size" />
+    </button>
+    <ng-template #sizeMenu let-close>
+      <div class="dbd-menu">
+        @for (s of fontSizes; track s) {
+          <button class="dbd-menu-item" [class.on]="s === element().fontSize" (click)="setFontSize(s); close()">{{ s }} px</button>
+        }
       </div>
-    </mat-menu>
+    </ng-template>
+
+    <button class="tb" [class.on]="element().bold" (click)="toggleBold()" matTooltip="Bold" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_bold" />
+    </button>
+    <button class="tb" [class.on]="element().italic" (click)="toggleItalic()" matTooltip="Italic" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_italic" />
+    </button>
+
+    <button class="tb" [dbdPopoverTrigger]="alignMenu" placement="below-start" matTooltip="Text alignment" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_align_center" />
+    </button>
+    <ng-template #alignMenu>
+      <div class="picker col">
+        <div class="head-row">
+          <span class="head-label">Horiz.</span>
+          <button class="tb sm" [class.on]="element().textAlign === 'left'" matTooltip="Left" (click)="setTextAlign('left')"><dbd-icon name="format_align_left" /></button>
+          <button class="tb sm" [class.on]="element().textAlign === 'center'" matTooltip="Center" (click)="setTextAlign('center')"><dbd-icon name="format_align_center" /></button>
+          <button class="tb sm" [class.on]="element().textAlign === 'right'" matTooltip="Right" (click)="setTextAlign('right')"><dbd-icon name="format_align_right" /></button>
+        </div>
+        <div class="head-row">
+          <span class="head-label">Vert.</span>
+          <button class="tb sm" [class.on]="element().verticalAlign === 'top'" matTooltip="Top" (click)="setVerticalAlign('top')"><dbd-icon name="vertical_align_top" /></button>
+          <button class="tb sm" [class.on]="element().verticalAlign === 'middle'" matTooltip="Middle" (click)="setVerticalAlign('middle')"><dbd-icon name="vertical_align_center" /></button>
+          <button class="tb sm" [class.on]="element().verticalAlign === 'bottom'" matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><dbd-icon name="vertical_align_bottom" /></button>
+        </div>
+      </div>
+    </ng-template>
   }
 
   <!-- Arrow/line: arrowheads -->
   @if (isLine()) {
-    <button mat-icon-button [matMenuTriggerFor]="headMenu" matTooltip="Arrowheads"
-      [disabled]="!store.canEdit()">
-      <mat-icon>swap_horiz</mat-icon>
+    <button class="tb" [dbdPopoverTrigger]="headMenu" placement="below-start" matTooltip="Arrowheads" [disabled]="!store.canEdit()">
+      <dbd-icon name="swap_horiz" />
     </button>
-    <mat-menu #headMenu="matMenu">
-      <div class="head-row" (click)="$event.stopPropagation()">
-        <span class="head-label">Start</span>
-        @for (a of arrowheads; track a.value) {
-          <button mat-icon-button [matTooltip]="a.label" (click)="setStartHead(a.value)">
-            <mat-icon>{{ a.icon }}</mat-icon>
-          </button>
-        }
+    <ng-template #headMenu>
+      <div class="picker col">
+        <div class="head-row">
+          <span class="head-label">Start</span>
+          @for (a of arrowheads; track a.value) {
+            <button class="tb sm" [class.on]="a.value === (element().startArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setStartHead(a.value)"><dbd-icon [name]="a.icon" /></button>
+          }
+        </div>
+        <div class="head-row">
+          <span class="head-label">End</span>
+          @for (a of arrowheads; track a.value) {
+            <button class="tb sm" [class.on]="a.value === (element().endArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setEndHead(a.value)"><dbd-icon [name]="a.icon" /></button>
+          }
+        </div>
+        <div class="head-row">
+          <span class="head-label">Swap</span>
+          <button class="tb sm" matTooltip="Reverse arrowheads" (click)="reverseArrowheads()"><dbd-icon name="swap_horiz" /></button>
+        </div>
       </div>
-      <div class="head-row" (click)="$event.stopPropagation()">
-        <span class="head-label">End</span>
-        @for (a of arrowheads; track a.value) {
-          <button mat-icon-button [matTooltip]="a.label" (click)="setEndHead(a.value)">
-            <mat-icon>{{ a.icon }}</mat-icon>
-          </button>
-        }
-      </div>
-    </mat-menu>
+    </ng-template>
   }
 
   <span class="sep"></span>
 
   <!-- Layer + opacity + delete -->
-  <button mat-icon-button [matMenuTriggerFor]="moreMenu" matTooltip="More"
-    [disabled]="!store.canEdit()">
-    <mat-icon>more_vert</mat-icon>
+  <button class="tb" [dbdPopoverTrigger]="moreMenu" placement="below-end" matTooltip="More" [disabled]="!store.canEdit()">
+    <dbd-icon name="more_vert" />
   </button>
-  <mat-menu #moreMenu="matMenu">
-    <button mat-menu-item (click)="bringToFront()">
-      <mat-icon>flip_to_front</mat-icon><span>Bring to front</span>
-    </button>
-    <button mat-menu-item (click)="sendToBack()">
-      <mat-icon>flip_to_back</mat-icon><span>Send to back</span>
-    </button>
-    <div class="opacity-row" (click)="$event.stopPropagation()">
-      <mat-icon>opacity</mat-icon>
-      <input type="range" min="10" max="100" step="10" [value]="element().opacity"
-        (input)="setOpacity(+$any($event.target).value)" />
+  <ng-template #moreMenu let-close>
+    <div class="dbd-menu">
+      <button class="dbd-menu-item" (click)="bringToFront(); close()"><dbd-icon name="flip_to_front" />Bring to front</button>
+      <button class="dbd-menu-item" (click)="sendToBack(); close()"><dbd-icon name="flip_to_back" />Send to back</button>
+      <div class="opacity-row">
+        <dbd-icon name="opacity" />
+        <input type="range" min="10" max="100" step="10" [value]="element().opacity" (input)="setOpacity(+$any($event.target).value)" />
+      </div>
     </div>
-  </mat-menu>
+  </ng-template>
 
-  <button mat-icon-button matTooltip="Delete" (click)="remove()" [disabled]="!store.canEdit()">
-    <mat-icon>delete</mat-icon>
+  <button class="tb del" matTooltip="Delete" (click)="remove()" [disabled]="!store.canEdit()">
+    <dbd-icon name="delete" />
   </button>
 </div>

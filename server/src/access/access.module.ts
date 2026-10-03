@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
+import { IndexEntity } from '../indexes/index.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
 import { ElementEntity } from '../elements/element.entity';
 import { ShareLink } from '../sharing/share-link.entity';
@@ -25,6 +26,7 @@ import { AccessService } from './access.service';
       Project,
       TableEntity,
       ColumnEntity,
+      IndexEntity,
       RelationshipEntity,
       ElementEntity,
       ShareLink,

@@ -46,7 +46,7 @@
   margin: 0 2px;
 }
 
-.del {
+.ico-act {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,16 +55,20 @@
   cursor: pointer;
   color: var(--dbd-text-muted);
   border-radius: 999px;
-  padding: 3px;
+  padding: 5px;
+  --dbd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dbd-text);
     background: var(--dbd-surface-2);
   }
 
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &.del:hover:not(:disabled) {
+    color: var(--dbd-danger);
   }
 }

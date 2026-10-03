@@ -13,6 +13,7 @@ export interface TextBlockView {
   fontSize: number;
   fontFamily: string;
   fontWeight: number;
+  fontStyle: 'normal' | 'italic';
   color: string;
   anchor: 'start' | 'middle' | 'end';
 }
@@ -35,6 +36,8 @@ export interface ShapeView {
   dash: string | null;
   fill: string;
   fillOpacity: number;
+  /** When set, a per-element diagonal-hatch <pattern> to emit and fill with. */
+  hatch?: { id: string; color: string };
   /** Rotation applied around the element's center, or null when angle is 0. */
   transform: string | null;
 

@@ -5,6 +5,7 @@ import type { Project } from '../projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
 import type { TableEntity } from '../tables/table.entity';
 import type { ColumnEntity } from '../columns/column.entity';
+import type { IndexEntity } from '../indexes/index.entity';
 import type { RelationshipEntity } from '../relationships/relationship.entity';
 import type { ElementEntity } from '../elements/element.entity';
 
@@ -24,6 +25,7 @@ describe('AccessService', () => {
       projects as unknown as Repository<Project>,
       {} as unknown as Repository<TableEntity>,
       {} as unknown as Repository<ColumnEntity>,
+      {} as unknown as Repository<IndexEntity>,
       {} as unknown as Repository<RelationshipEntity>,
       {} as unknown as Repository<ElementEntity>,
       shareLinks as unknown as Repository<ShareLink>,

@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import {
   type ArrowheadType,
   type CanvasElementModel,
@@ -51,7 +50,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
   selector: 'app-element-floating-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
   templateUrl: './element-floating-toolbar.component.html',
   styleUrl: './element-floating-toolbar.component.scss',
 })
@@ -80,6 +79,8 @@ export class ElementFloatingToolbarComponent {
   protected readonly hasFill = computed(
     () => !this.isText() && !this.isLine() && this.element().type !== 'freedraw',
   );
+  /** Corner radius applies to rectangles only. */
+  protected readonly isRect = computed(() => this.element().type === 'rectangle');
 
   /** Style keys that are remembered for subsequently drawn elements. */
   private static readonly STYLE_KEYS = [
@@ -89,8 +90,11 @@ export class ElementFloatingToolbarComponent {
     'strokeWidth',
     'strokeStyle',
     'opacity',
+    'cornerRadius',
     'fontFamily',
     'fontSize',
+    'bold',
+    'italic',
     'startArrowhead',
     'endArrowhead',
   ] as const;
@@ -145,6 +149,18 @@ export class ElementFloatingToolbarComponent {
     this.patchAll({ fontSize: size });
   }
 
+  protected toggleBold(): void {
+    this.patchAll({ bold: !this.element().bold });
+  }
+
+  protected toggleItalic(): void {
+    this.patchAll({ italic: !this.element().italic });
+  }
+
+  protected setCornerRadius(value: number): void {
+    this.patchAll({ cornerRadius: value });
+  }
+
   protected setTextAlign(align: TextAlign): void {
     this.patchAll({ textAlign: align });
   }
@@ -159,6 +175,14 @@ export class ElementFloatingToolbarComponent {
 
   protected setEndHead(type: ArrowheadType): void {
     this.patchAll({ endArrowhead: type });
+  }
+
+  /** Swap the start and end arrowheads so the line points the other way. */
+  protected reverseArrowheads(): void {
+    this.patchAll({
+      startArrowhead: this.element().endArrowhead ?? 'none',
+      endArrowhead: this.element().startArrowhead ?? 'none',
+    });
   }
 
   protected setOpacity(value: number): void {

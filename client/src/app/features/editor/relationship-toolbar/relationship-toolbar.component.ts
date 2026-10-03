@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { RelationshipType } from '@dbdesigner/shared';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 /**
  * Small on-canvas control that floats at a selected connector's midpoint. Lets
@@ -12,7 +12,7 @@ import type { RelationshipType } from '@dbdesigner/shared';
   selector: 'app-relationship-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIconModule, MatTooltipModule],
+  imports: [MatTooltipModule, IconComponent],
   templateUrl: './relationship-toolbar.component.html',
   styleUrl: './relationship-toolbar.component.scss',
 })
@@ -21,5 +21,6 @@ export class RelationshipToolbarComponent {
   readonly canEdit = input<boolean>(true);
 
   readonly setType = output<RelationshipType>();
+  readonly resetRoute = output<void>();
   readonly deleteRelationship = output<void>();
 }

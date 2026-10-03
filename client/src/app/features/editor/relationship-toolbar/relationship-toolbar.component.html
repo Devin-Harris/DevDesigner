@@ -30,11 +30,22 @@
 
 <button
   type="button"
-  class="del"
+  class="ico-act"
+  [disabled]="!canEdit()"
+  (click)="resetRoute.emit()"
+  matTooltip="Reset route"
+  aria-label="Reset route"
+>
+  <dbd-icon name="timeline" />
+</button>
+
+<button
+  type="button"
+  class="ico-act del"
   [disabled]="!canEdit()"
   (click)="deleteRelationship.emit()"
   matTooltip="Delete relationship"
   aria-label="Delete relationship"
 >
-  <mat-icon>close</mat-icon>
+  <dbd-icon name="delete" />
 </button>

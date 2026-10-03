@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Project } from '../projects/project.entity';
 import { ColumnEntity } from '../columns/column.entity';
+import { IndexEntity } from '../indexes/index.entity';
 
 /**
  * A table node on the canvas (BUILD_INSTRUCTIONS.md section 4.1). Position lives
@@ -45,4 +46,7 @@ export class TableEntity {
 
   @OneToMany(() => ColumnEntity, (column) => column.table)
   columns!: ColumnEntity[];
+
+  @OneToMany(() => IndexEntity, (index) => index.table)
+  indexes!: IndexEntity[];
 }

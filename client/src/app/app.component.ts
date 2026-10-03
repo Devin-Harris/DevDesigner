@@ -1,30 +1,30 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PROJECT_TYPES, type ProjectType } from '@dbdesigner/shared';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
+import { EditorActionsService } from './core/services/editor-actions.service';
+import { RealtimeService } from './core/services/realtime.service';
 import { ProjectsStore } from './stores/projects.store';
+import { ProjectStore } from './stores/project.store';
 import { AuthDialogComponent } from './features/auth/auth-dialog.component';
+import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
+import { IconComponent } from './shared/ui/icon/icon.component';
+import { PopoverTriggerDirective } from './shared/ui/popover/popover-trigger.directive';
+import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-actions';
 
-/** Application shell: top toolbar (brand, account, theme toggle) plus the routed view. */
+/**
+ * Application shell: a single unified top bar (brand, breadcrumb → projects
+ * overlay, and — while an editor is mounted — undo/redo, Export, Share and
+ * presence avatars, plus account + theme) over the routed view.
+ */
 @Component({
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    RouterOutlet,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatToolbarModule,
-    MatTooltipModule,
-  ],
+  imports: [RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, PopoverTriggerDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -33,37 +33,34 @@ export class AppComponent {
   protected readonly auth = inject(AuthService);
   private readonly dialog = inject(MatDialog);
   protected readonly projects = inject(ProjectsStore);
-
-  /** Project types offered by the breadcrumb type-switch menu. */
-  protected readonly projectTypes = PROJECT_TYPES;
-
-  /** Human label for a project type. */
-  protected typeLabel(type: ProjectType): string {
-    switch (type) {
-      case 'FLOW':
-        return 'Flow';
-      case 'SCRATCH':
-        return 'Scratch';
-      default:
-        return 'ERD';
-    }
-  }
-
-  /** Token color for a type dot (inline so it also paints in the menu overlay). */
-  protected typeColor(type: ProjectType): string {
-    switch (type) {
-      case 'FLOW':
-        return 'var(--dbd-teal)';
-      case 'SCRATCH':
-        return 'var(--dbd-text-muted)';
-      default:
-        return 'var(--dbd-primary)';
-    }
-  }
+  protected readonly editorStore = inject(ProjectStore);
+  protected readonly editorActions = inject(EditorActionsService);
+  protected readonly realtime = inject(RealtimeService);
+  private readonly overlay = inject(ProjectsOverlayService);
 
   constructor() {
-    // Hydrate the session from the cookie so the toolbar reflects who is signed in.
     void this.auth.loadMe();
+  }
+
+  protected openProjects(): void {
+    this.overlay.open();
+  }
+
+  // ---- editor actions bridged to the top bar ----
+  protected undo(): void {
+    this.editorStore.undoElement();
+  }
+  protected redo(): void {
+    this.editorStore.redoElement();
+  }
+  protected exportSql(): void {
+    this.editorActions.exportSql();
+  }
+  protected exportImage(format: ExportImageFormat): void {
+    this.editorActions.exportImage(format);
+  }
+  protected share(): void {
+    this.editorActions.share();
   }
 
   protected openAuth(): void {
@@ -80,10 +77,6 @@ export class AppComponent {
     this.refreshForIdentity();
   }
 
-  /**
-   * After an identity change, drop the current selection (it may belong to the
-   * previous identity) and reload the owner-scoped project list.
-   */
   private refreshForIdentity(): void {
     this.projects.select(null);
     this.projects.loadProjects();

@@ -70,6 +70,10 @@ export class ElementEntity {
   @Column({ type: 'integer', default: 0 })
   zIndex!: number;
 
+  // Rectangle corner radius override (px); null = auto.
+  @Column({ type: 'float', nullable: true })
+  cornerRadius!: number | null;
+
   // JSON-encoded PointModel[] for line/arrow/freedraw vertices, relative to x/y.
   @Column({ type: 'text', nullable: true })
   pointsJson!: string | null;
@@ -82,6 +86,12 @@ export class ElementEntity {
 
   @Column({ type: 'varchar', nullable: true })
   fontFamily!: string | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  bold!: boolean | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  italic!: boolean | null;
 
   @Column({ type: 'varchar', nullable: true })
   textAlign!: TextAlign | null;

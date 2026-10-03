@@ -1,25 +1,26 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   DATA_TYPE_NAMES,
+  generateSql,
   type ColumnModel,
+  type IndexModel,
   type TableModel,
   type UpdateColumnDto,
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { InputComponent } from '../../../shared/ui/input/input.component';
+import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
+import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+
+type InspectorTab = 'columns' | 'indexes' | 'sql';
 
 /**
  * Optional side panel for the selected table. Everything here is also editable
- * inline on the canvas; the panel adds drag-to-reorder columns and color/note
- * editing for when they are handy.
+ * inline on the canvas; the panel adds drag-to-reorder columns, header color and
+ * note editing. Built from the bespoke form primitives (no Angular Material).
  */
 @Component({
   selector: 'app-inspector',
@@ -28,39 +29,58 @@ import { ProjectStore } from '../../../stores/project.store';
   imports: [
     FormsModule,
     DragDropModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTooltipModule,
+    IconComponent,
+    InputComponent,
+    CheckboxComponent,
+    SelectComponent,
   ],
   templateUrl: './inspector.component.html',
   styleUrl: './inspector.component.scss',
 })
 export class InspectorComponent {
   protected readonly store = inject(ProjectStore);
-  protected readonly dataTypeNames = DATA_TYPE_NAMES;
-  protected readonly swatches = ['', '#fee4e2', '#fce7f6', '#dcfae6', '#d1e9ff', '#fef7c3'];
+  protected readonly typeOptions: SelectOption[] = DATA_TYPE_NAMES.map((n) => ({ value: n, label: n }));
+  // Saturated category tints (shared look with the table node + floating toolbar).
+  protected readonly swatches = ['', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 
   readonly table = input.required<TableModel>();
 
-  protected renameTable(event: Event): void {
-    const name = (event.target as HTMLInputElement).value.trim();
-    if (name) {
-      void this.store.updateTable(this.table().id, { name });
+  protected readonly tab = signal<InspectorTab>('columns');
+
+  /** Generated MySQL for this table alone (plus its internal relationships). */
+  protected readonly tableSql = computed(() => {
+    const table = this.table();
+    const relationships = this.store.relationships().filter((rel) => {
+      const ids = new Set(table.columns.map((c) => c.id));
+      return ids.has(rel.sourceColumnId) && ids.has(rel.targetColumnId);
+    });
+    try {
+      return generateSql(
+        {
+          tables: [table],
+          relationships,
+          notes: [],
+          elements: [],
+          viewport: this.store.viewport(),
+        },
+        { dialect: 'mysql' },
+      );
+    } catch {
+      return '-- Could not generate SQL for this table.';
     }
+  });
+
+  protected renameTable(name: string | number): void {
+    const trimmed = String(name).trim();
+    if (trimmed) void this.store.updateTable(this.table().id, { name: trimmed });
   }
 
   protected setColor(color: string): void {
     void this.store.updateTable(this.table().id, { color });
   }
 
-  protected setNote(event: Event): void {
-    void this.store.updateTable(this.table().id, {
-      note: (event.target as HTMLTextAreaElement).value,
-    });
+  protected setNote(note: string): void {
+    void this.store.updateTable(this.table().id, { note });
   }
 
   protected deleteTable(): void {
@@ -78,11 +98,9 @@ export class InspectorComponent {
     void this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
   }
 
-  protected renameColumn(column: ColumnModel, event: Event): void {
-    const name = (event.target as HTMLInputElement).value.trim();
-    if (name) {
-      void this.store.updateColumn(this.table().id, column.id, { name });
-    }
+  protected renameColumn(column: ColumnModel, name: string | number): void {
+    const trimmed = String(name).trim();
+    if (trimmed) void this.store.updateColumn(this.table().id, column.id, { name: trimmed });
   }
 
   protected setType(column: ColumnModel, name: string): void {
@@ -90,8 +108,8 @@ export class InspectorComponent {
     void this.store.updateColumn(this.table().id, column.id, { dataType: { name, length } });
   }
 
-  protected setLength(column: ColumnModel, event: Event): void {
-    const raw = Number((event.target as HTMLInputElement).value);
+  protected setLength(column: ColumnModel, value: string | number): void {
+    const raw = Number(value);
     const length = Number.isFinite(raw) && raw > 0 ? raw : undefined;
     void this.store.updateColumn(this.table().id, column.id, {
       dataType: { name: column.dataType.name, length },
@@ -120,5 +138,47 @@ export class InspectorComponent {
     const ids = this.table().columns.map((c) => c.id);
     moveItemInArray(ids, event.previousIndex, event.currentIndex);
     this.store.reorderColumns(this.table().id, ids);
+  }
+
+  // --- Indexes ---
+
+  protected addIndex(): void {
+    const names = new Set((this.table().indexes ?? []).map((i) => i.name));
+    let n = (this.table().indexes ?? []).length + 1;
+    let name = `idx_${this.table().name}_${n}`;
+    while (names.has(name)) {
+      n += 1;
+      name = `idx_${this.table().name}_${n}`;
+    }
+    const firstColumn = this.table().columns[0];
+    void this.store.addIndex(this.table().id, {
+      name,
+      columnIds: firstColumn ? [firstColumn.id] : [],
+      isUnique: false,
+    });
+  }
+
+  protected renameIndex(index: IndexModel, name: string | number): void {
+    const trimmed = String(name).trim();
+    if (trimmed) void this.store.updateIndex(this.table().id, index.id, { name: trimmed });
+  }
+
+  protected setIndexUnique(index: IndexModel, isUnique: boolean): void {
+    void this.store.updateIndex(this.table().id, index.id, { isUnique });
+  }
+
+  protected indexHasColumn(index: IndexModel, columnId: string): boolean {
+    return index.columnIds.includes(columnId);
+  }
+
+  protected toggleIndexColumn(index: IndexModel, columnId: string, on: boolean): void {
+    const columnIds = on
+      ? [...index.columnIds, columnId]
+      : index.columnIds.filter((id) => id !== columnId);
+    void this.store.updateIndex(this.table().id, index.id, { columnIds });
+  }
+
+  protected deleteIndex(index: IndexModel): void {
+    void this.store.deleteIndex(this.table().id, index.id);
   }
 }

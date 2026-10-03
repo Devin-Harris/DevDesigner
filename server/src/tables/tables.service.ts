@@ -32,7 +32,7 @@ export class TablesService {
   async getModelsForProject(projectId: string): Promise<TableModel[]> {
     const rows = await this.tables.find({
       where: { projectId },
-      relations: { columns: true },
+      relations: { columns: true, indexes: true },
       order: { name: 'ASC' },
     });
     return rows.map(toTableModel);
@@ -58,7 +58,7 @@ export class TablesService {
       color: dto.color ?? null,
     });
     const saved = await this.tables.save(table);
-    const model = toTableModel({ ...saved, columns: [] });
+    const model = toTableModel({ ...saved, columns: [], indexes: [] });
     this.realtime.emit(projectId, clientId, { kind: 'table.created', table: model });
     return model;
   }
@@ -125,7 +125,7 @@ export class TablesService {
   private async getModel(tableId: string): Promise<TableModel> {
     const table = await this.tables.findOne({
       where: { id: tableId },
-      relations: { columns: true },
+      relations: { columns: true, indexes: true },
     });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);

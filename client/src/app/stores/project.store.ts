@@ -5,6 +5,8 @@ import type {
   ColumnModel,
   CreateColumnDto,
   CreateElementDto,
+  CreateIndexDto,
+  IndexModel,
   PointModel,
   RelationshipModel,
   RelationshipType,
@@ -13,6 +15,7 @@ import type {
   TableModel,
   UpdateColumnDto,
   UpdateElementDto,
+  UpdateIndexDto,
   UpdateRelationshipDto,
   UpdateTableDto,
   ViewportModel,
@@ -20,6 +23,7 @@ import type {
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { ColumnsService } from '../core/services/columns.service';
+import { IndexesService } from '../core/services/indexes.service';
 import { ElementsService } from '../core/services/elements.service';
 import { ProjectsService } from '../core/services/projects.service';
 import { RelationshipsService } from '../core/services/relationships.service';
@@ -65,6 +69,7 @@ interface ElementStyleState {
   opacity: number;
   fontFamily: string;
   fontSize: number;
+  cornerRadius?: number;
   startArrowhead?: CanvasElementModel['startArrowhead'];
   endArrowhead?: CanvasElementModel['endArrowhead'];
 }
@@ -239,6 +244,7 @@ export const ProjectStore = signalStore(
       projectsApi = inject(ProjectsService),
       tablesApi = inject(TablesService),
       columnsApi = inject(ColumnsService),
+      indexesApi = inject(IndexesService),
       relationshipsApi = inject(RelationshipsService),
       elementsApi = inject(ElementsService),
       shareLinksApi = inject(ShareLinksService),
@@ -492,6 +498,37 @@ export const ProjectStore = signalStore(
                 return { ...t, columns };
               });
               break;
+            case 'index.created':
+              mapTable(mutation.tableId, (t) => {
+                const existing = t.indexes ?? [];
+                return existing.some((i) => i.id === mutation.index.id)
+                  ? t
+                  : { ...t, indexes: [...existing, mutation.index] };
+              });
+              break;
+            case 'index.updated':
+              mapTable(mutation.tableId, (t) => ({
+                ...t,
+                indexes: (t.indexes ?? []).map((i) =>
+                  i.id === mutation.index.id ? mutation.index : i,
+                ),
+              }));
+              break;
+            case 'index.deleted':
+              mapTable(mutation.tableId, (t) => ({
+                ...t,
+                indexes: (t.indexes ?? []).filter((i) => i.id !== mutation.indexId),
+              }));
+              break;
+            case 'index.reordered':
+              mapTable(mutation.tableId, (t) => {
+                const byId = new Map((t.indexes ?? []).map((i) => [i.id, i]));
+                const indexes = mutation.orderedIndexIds
+                  .map((id) => byId.get(id))
+                  .filter((i): i is IndexModel => Boolean(i));
+                return { ...t, indexes };
+              });
+              break;
             case 'relationship.created':
               setSchema((s) =>
                 s.relationships.some((r) => r.id === mutation.relationship.id)
@@ -658,6 +695,42 @@ export const ProjectStore = signalStore(
           });
         },
 
+        /** Duplicate a table (offset copy) with all its columns; selects the copy. */
+        async duplicateTable(tableId: string): Promise<void> {
+          const projectId = store.projectId();
+          const source = store.tables().find((t) => t.id === tableId);
+          if (!projectId || !source) {
+            return;
+          }
+          const name = `${source.name}_copy`.slice(0, 120);
+          const created = await runSave(() =>
+            firstValueFrom(
+              tablesApi.create(projectId, {
+                name,
+                x: source.x + 40,
+                y: source.y + 40,
+                color: source.color ?? undefined,
+              }),
+            ),
+          );
+          let copy = created;
+          for (const col of source.columns) {
+            const newCol = await firstValueFrom(
+              columnsApi.create(created.id, {
+                name: col.name,
+                dataType: col.dataType,
+                isPrimaryKey: col.isPrimaryKey,
+                isNullable: col.isNullable,
+                isUnique: col.isUnique,
+                isAutoIncrement: col.isAutoIncrement,
+              }),
+            );
+            copy = { ...copy, columns: [...copy.columns, newCol] };
+          }
+          setSchema((s) => ({ ...s, tables: [...s.tables, copy] }));
+          patchState(store, { selectedTableIds: [created.id], selectedRelationshipIds: [] });
+        },
+
         async addColumn(tableId: string, dto: CreateColumnDto): Promise<void> {
           const created = await runSave(() => firstValueFrom(columnsApi.create(tableId, dto)));
           mapTable(tableId, (t) => ({ ...t, columns: [...t.columns, created] }));
@@ -695,6 +768,31 @@ export const ProjectStore = signalStore(
           debounce(`reorder:${tableId}`, () => {
             void runSave(() => firstValueFrom(columnsApi.reorder(tableId, { orderedColumnIds })));
           });
+        },
+
+        async addIndex(tableId: string, dto: CreateIndexDto): Promise<void> {
+          const created = await runSave(() => firstValueFrom(indexesApi.create(tableId, dto)));
+          mapTable(tableId, (t) => ({ ...t, indexes: [...(t.indexes ?? []), created] }));
+        },
+
+        async updateIndex(
+          tableId: string,
+          indexId: string,
+          patch: UpdateIndexDto,
+        ): Promise<void> {
+          const updated = await runSave(() => firstValueFrom(indexesApi.update(indexId, patch)));
+          mapTable(tableId, (t) => ({
+            ...t,
+            indexes: (t.indexes ?? []).map((i) => (i.id === indexId ? updated : i)),
+          }));
+        },
+
+        async deleteIndex(tableId: string, indexId: string): Promise<void> {
+          await runSave(() => firstValueFrom(indexesApi.remove(indexId)));
+          mapTable(tableId, (t) => ({
+            ...t,
+            indexes: (t.indexes ?? []).filter((i) => i.id !== indexId),
+          }));
         },
 
         /** Optimistic local viewport; the viewport PATCH is debounced. */

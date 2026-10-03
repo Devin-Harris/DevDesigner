@@ -1,60 +1,91 @@
 <div class="shell">
   <mat-toolbar class="topbar">
-    <span class="brand-tile"><mat-icon>schema</mat-icon></span>
+    <span class="brand-tile"><dbd-icon name="schema" /></span>
     <span class="brand">DBDesigner</span>
 
     @if (projects.selected(); as project) {
       <span class="crumb-sep">/</span>
-      <span class="crumb-name">{{ project.name }}</span>
-      <button
-        class="type-chip"
-        [matMenuTriggerFor]="typeMenu"
-        matTooltip="Change diagram type"
-        aria-label="Change diagram type"
-      >
-        <span class="type-dot" [style.background]="typeColor(project.type)"></span>
-        {{ typeLabel(project.type) }}
-        <mat-icon>arrow_drop_down</mat-icon>
+      <button class="crumb-name" (click)="openProjects()" matTooltip="Browse projects">
+        {{ project.name }}
       </button>
-      <mat-menu #typeMenu="matMenu">
-        @for (t of projectTypes; track t) {
-          <button mat-menu-item (click)="projects.setType(project.id, t)">
-            <span class="type-dot" [style.background]="typeColor(t)"></span>
-            <span>{{ typeLabel(t) }}</span>
-          </button>
-        }
-      </mat-menu>
     }
 
     <span class="spacer"></span>
 
-    @if (auth.currentUser(); as user) {
-      <button mat-button [matMenuTriggerFor]="accountMenu" aria-label="Account">
-        <mat-icon>account_circle</mat-icon>
-        {{ auth.displayLabel() }}
-      </button>
-      <mat-menu #accountMenu="matMenu">
-        @if (user.email) {
-          <div style="padding: 8px 16px; color: var(--dbd-text-muted)">{{ user.email }}</div>
-        }
-        <button mat-menu-item (click)="signOut()">
-          <mat-icon>logout</mat-icon><span>Sign out</span>
+    @if (editorActions.active()) {
+      <div class="nav-actions">
+        <button class="nav-icon" (click)="undo()" [disabled]="!editorStore.canUndo()" matTooltip="Undo (Ctrl+Z)" aria-label="Undo">
+          <dbd-icon name="undo" />
         </button>
-      </mat-menu>
+        <button class="nav-icon" (click)="redo()" [disabled]="!editorStore.canRedo()" matTooltip="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+          <dbd-icon name="redo" />
+        </button>
+
+        <span class="v-sep"></span>
+
+        <button class="nav-btn" [dbdPopoverTrigger]="exportMenu" placement="below-end">
+          <dbd-icon name="ios_share" />
+          Export
+        </button>
+        <ng-template #exportMenu let-close>
+          <div class="dbd-menu">
+            <button class="dbd-menu-item" (click)="exportSql(); close()"><dbd-icon name="data_object" />SQL…</button>
+            <button class="dbd-menu-item" (click)="exportImage('png'); close()"><dbd-icon name="photo" />Image (PNG)</button>
+            <button class="dbd-menu-item" (click)="exportImage('svg'); close()"><dbd-icon name="image" />Image (SVG)</button>
+            <button class="dbd-menu-item" (click)="exportImage('pdf'); close()"><dbd-icon name="picture_as_pdf" />Image (PDF)</button>
+          </div>
+        </ng-template>
+
+        @if (editorStore.accessMode() === 'OWNER') {
+          <button class="nav-btn primary" (click)="share()">
+            <dbd-icon name="share" />
+            Share
+          </button>
+        }
+
+        @if (realtime.participants().length > 1) {
+          <div class="avatars">
+            @for (p of realtime.participants(); track p.id) {
+              <span
+                class="avatar"
+                [style.background]="p.color"
+                [matTooltip]="p.name + (p.id === realtime.selfId() ? ' (you)' : '')"
+                >{{ p.name.charAt(0).toUpperCase() }}</span
+              >
+            }
+          </div>
+        }
+
+        <span class="v-sep"></span>
+      </div>
+    }
+
+    @if (auth.currentUser(); as user) {
+      <button class="nav-icon" [dbdPopoverTrigger]="accountMenu" placement="below-end" matTooltip="Account" aria-label="Account">
+        <dbd-icon name="account_circle" />
+      </button>
+      <ng-template #accountMenu let-close>
+        <div class="dbd-menu">
+          @if (user.email) {
+            <div class="menu-email">{{ user.email }}</div>
+          }
+          <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
+        </div>
+      </ng-template>
     } @else {
-      <button mat-stroked-button (click)="openAuth()">
-        <mat-icon>login</mat-icon>
+      <button class="nav-btn" (click)="openAuth()">
+        <dbd-icon name="login" />
         Sign in
       </button>
     }
 
     <button
-      mat-icon-button
+      class="nav-icon"
       (click)="theme.toggle()"
       [matTooltip]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
       aria-label="Toggle theme"
     >
-      <mat-icon>{{ theme.dark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      <dbd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
     </button>
   </mat-toolbar>
   <div class="body">

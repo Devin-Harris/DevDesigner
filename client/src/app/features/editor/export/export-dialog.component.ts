@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { downloadText } from './image-export.helper';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 export interface ExportDialogData {
   sql: string;
@@ -24,14 +21,9 @@ export interface ExportDialogData {
   selector: 'app-export-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    MatDialogModule,
-    MatButtonModule,
-    MatIconModule,
-    MatFormFieldModule,
-    MatInputModule,
-  ],
+  imports: [MatDialogModule, IconComponent],
   templateUrl: './export-dialog.component.html',
+  styleUrl: './export-dialog.component.scss',
 })
 export class ExportDialogComponent {
   private readonly snackBar = inject(MatSnackBar);

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { A11yModule } from '@angular/cdk/a11y';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 
 export interface ConfirmDialogData {
@@ -13,8 +13,9 @@ export interface ConfirmDialogData {
   selector: 'app-confirm-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, A11yModule],
   templateUrl: './confirm-dialog.component.html',
+  styleUrl: './confirm-dialog.component.scss',
 })
 export class ConfirmDialogComponent {
   protected readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);

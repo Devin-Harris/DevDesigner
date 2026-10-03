@@ -11,10 +11,9 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type {
@@ -27,6 +26,8 @@ import type {
 } from '@dbdesigner/shared';
 import { generateSql } from '@dbdesigner/shared';
 import { RealtimeService } from '../../core/services/realtime.service';
+import { EditorActionsService } from '../../core/services/editor-actions.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
 import {
@@ -41,9 +42,7 @@ import {
   type ShapeEndpointEvent,
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
-import {
-  type AlignAction,
-} from './canvas-toolbar/canvas-toolbar.component';
+import { type AlignAction } from './canvas/models/toolbar-actions';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
 import {
@@ -70,6 +69,8 @@ import { ExportDialogComponent } from './export/export-dialog.component';
 import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
+import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
+import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
 import { ShareDialogComponent } from './share-dialog/share-dialog.component';
@@ -139,9 +140,8 @@ function readStoredGrid(): boolean {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    MatButtonModule,
-    MatIconModule,
     MatProgressSpinnerModule,
+    IconComponent,
     MatTooltipModule,
     CanvasConnectorsComponent,
     CanvasShapesComponent,
@@ -149,7 +149,9 @@ function readStoredGrid(): boolean {
     InspectorComponent,
     ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
+    ElementInspectorComponent,
     RelationshipToolbarComponent,
+    TableToolbarComponent,
     TableNodeComponent,
     AutofocusDirective,
   ],
@@ -162,6 +164,8 @@ export class EditorComponent {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly editorActions = inject(EditorActionsService);
+  private readonly theme = inject(ThemeService);
   protected readonly svgOffset = SVG_OFFSET;
 
   /** Owner/anonymous mode passes a project id; shared mode passes a token instead. */
@@ -243,6 +247,28 @@ export class EditorComponent {
   /** The active tool. 'select' is the pointer mode; others draw that element. */
   protected readonly activeTool = signal<EditorTool>('select');
 
+  /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
+  protected readonly panning = signal(false);
+
+  /**
+   * Canvas cursor driven by the active tool and pan state: a crosshair for the
+   * drawing tools (Excalidraw-style), grab/grabbing for the hand/pan tool, and
+   * the default pointer for select.
+   */
+  protected readonly canvasCursor = computed(() => {
+    if (this.panning()) {
+      return 'grabbing';
+    }
+    const tool = this.activeTool();
+    if (tool === 'hand') {
+      return 'grab';
+    }
+    if (tool === 'select') {
+      return 'default';
+    }
+    return 'crosshair';
+  });
+
   /** The element currently being drawn (local only until committed on pointer-up). */
   private readonly draft = signal<CanvasElementModel | null>(null);
   private elementGesture: ElementGesture | null = null;
@@ -291,12 +317,48 @@ export class EditorComponent {
     };
   });
 
+  /** Placement + table for the floating table action bar (single table selected). */
+  protected readonly tableToolbar = computed(() => {
+    if (this.gestureActive()) {
+      return null;
+    }
+    const table = this.store.selectedTable();
+    if (!table) {
+      return null;
+    }
+    const v = this.store.viewport();
+    return {
+      left: (table.x + tableWidth(table) / 2) * v.zoom + v.x,
+      top: Math.max(table.y * v.zoom + v.y - 52, 8),
+      table,
+    };
+  });
+
   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
   protected readonly shapeViews = computed(() => {
     const draft = this.draft();
     const elements = draft ? [...this.store.elements(), draft] : this.store.elements();
-    return buildShapeViews(elements, this.store.tables(), new Set(this.store.selectedElementIds()));
+    // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
+    this.theme.dark();
+    return buildShapeViews(
+      elements,
+      this.store.tables(),
+      new Set(this.store.selectedElementIds()),
+      this.themeColors(),
+    );
   });
+
+  /** Resolved canvas background + text color for the render-time contrast guard. */
+  private themeColors(): { canvasBg: string; text: string } | undefined {
+    try {
+      const styles = getComputedStyle(this.canvasRef().nativeElement);
+      const canvasBg = styles.getPropertyValue('--dbd-canvas-bg').trim();
+      const text = styles.getPropertyValue('--dbd-text').trim();
+      return canvasBg && text ? { canvasBg, text } : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /** The shapes layer is interactive only in select mode (drawing passes through it). */
   protected readonly shapesInteractive = computed(
@@ -517,6 +579,13 @@ export class EditorComponent {
       this.realtime.sendSelection(tableIds, relationshipIds);
     });
     this.destroyRef.onDestroy(() => this.realtime.disconnect());
+    // Expose Export/Share to the global top bar while this editor is mounted.
+    this.editorActions.register({
+      share: () => this.openShare(),
+      exportSql: () => this.openSqlExport(),
+      exportImage: (format) => void this.onExportImage(format),
+    });
+    this.destroyRef.onDestroy(() => this.editorActions.clear());
     // Persist the grid-snap toggle across refreshes.
     effect(() => {
       const on = this.gridSnap();
@@ -581,9 +650,13 @@ export class EditorComponent {
   // --- canvas pointer (pan / marquee) ---
 
   protected onCanvasPointerDown(event: PointerEvent): void {
-    if (event.button === 1 || (event.button === 0 && this.spaceDown)) {
+    if (
+      event.button === 1 ||
+      (event.button === 0 && (this.spaceDown || this.activeTool() === 'hand'))
+    ) {
       event.preventDefault();
       this.mode = 'pan';
+      this.panning.set(true);
       this.startClientX = event.clientX;
       this.startClientY = event.clientY;
       const v = this.store.viewport();
@@ -595,7 +668,7 @@ export class EditorComponent {
       return;
     }
     const tool = this.activeTool();
-    if (tool !== 'select' && this.store.canEdit() && this.store.projectId()) {
+    if (tool !== 'select' && tool !== 'hand' && this.store.canEdit() && this.store.projectId()) {
       event.preventDefault();
       if (tool === 'table') {
         this.addTableAt(event.clientX, event.clientY);
@@ -663,6 +736,7 @@ export class EditorComponent {
       strokeStyle: style.strokeStyle,
       opacity: style.opacity,
       zIndex: this.store.elements().length,
+      cornerRadius: style.cornerRadius,
       startArrowhead: style.startArrowhead,
       endArrowhead: style.endArrowhead,
       ...(type === 'line' || type === 'arrow'
@@ -771,7 +845,8 @@ export class EditorComponent {
   }
 
   private draftToDto(draft: CanvasElementModel): CreateElementDto {
-    let { x, y, width, height, points } = draft;
+    const { x, y, points } = draft;
+    let { width, height } = draft;
     if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
       if (width < 4 && height < 4) {
         width = 120;
@@ -792,11 +867,14 @@ export class EditorComponent {
       strokeStyle: draft.strokeStyle,
       opacity: draft.opacity,
       zIndex: draft.zIndex,
+      cornerRadius: draft.cornerRadius,
       points,
       text: draft.text,
       fontSize: draft.fontSize,
       fontFamily: draft.fontFamily,
       textAlign: draft.textAlign,
+      startArrowhead: draft.startArrowhead,
+      endArrowhead: draft.endArrowhead,
     };
   }
 
@@ -1364,6 +1442,7 @@ export class EditorComponent {
       this.commitElementGesture();
     }
     this.mode = 'idle';
+    this.panning.set(false);
     this.dragTableId = null;
     this.elementGesture = null;
     this.gestureActive.set(false);
@@ -1487,6 +1566,7 @@ export class EditorComponent {
   /** Single-key tool shortcuts (Excalidraw-style). */
   private static readonly TOOL_SHORTCUTS: Record<string, EditorTool> = {
     v: 'select',
+    h: 'hand',
     e: 'table',
     r: 'rectangle',
     o: 'ellipse',

@@ -1,0 +1,149 @@
+<div class="overlay-panel">
+  @if (view() === 'projects') {
+    <header class="panel-head">
+      <h2 class="title">Projects</h2>
+      <div class="head-actions">
+        <button class="btn primary" (click)="addProject()">
+          <dbd-icon name="add" />
+          New
+        </button>
+        <button class="icon-btn" (click)="close()" aria-label="Close"><dbd-icon name="close" /></button>
+      </div>
+    </header>
+
+    <div class="search-row">
+      <dbd-icon name="search" class="search-ico" />
+      <dbd-input
+        class="search-input"
+        placeholder="Search projects…"
+        [ngModel]="store.search()"
+        (ngModelChange)="setSearch($event)"
+      />
+    </div>
+
+    <div class="cards-scroll">
+      @if (store.loading()) {
+        <div class="state">Loading…</div>
+      } @else if (store.error()) {
+        <div class="state">
+          <p>{{ store.error() }}</p>
+          <button class="btn" (click)="store.loadProjects()">Retry</button>
+        </div>
+      } @else if (store.visibleProjects().length === 0) {
+        <div class="state">
+          {{ store.showArchived() ? 'No archived projects.' : 'No projects yet — create one or start from a template.' }}
+        </div>
+      } @else {
+        <div class="cards">
+          @for (project of store.visibleProjects(); track project.id) {
+            <div class="card" [class.sel]="project.id === store.selectedId()" (click)="select(project)">
+              <div class="thumb" [style.--a]="accent(project.id)">
+                <svg viewBox="0 0 92 60" aria-hidden="true">
+                  <line x1="34" y1="22" x2="56" y2="38" stroke="var(--dbd-connector)" stroke-width="1.4" />
+                  <rect x="9" y="13" width="26" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                  <rect x="9" y="13" width="26" height="6" rx="3" fill="var(--a)" />
+                  <rect x="52" y="30" width="30" height="22" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                  <rect x="52" y="30" width="30" height="6" rx="3" fill="var(--a)" />
+                </svg>
+              </div>
+
+              <div class="meta">
+                <div class="name-row" (dblclick)="startRename(project); $event.stopPropagation()">
+                  @if (editingId() === project.id) {
+                    <input
+                      class="rename"
+                      appAutofocus
+                      [ngModel]="editName()"
+                      (ngModelChange)="editName.set($event)"
+                      (click)="$event.stopPropagation()"
+                      (keydown.enter)="commitRename(project)"
+                      (keydown.escape)="cancelRename()"
+                      (blur)="commitRename(project)"
+                      maxlength="120"
+                    />
+                  } @else {
+                    <span class="name">{{ project.name }}</span>
+                  }
+                  @if (project.archived) {
+                    <span class="badge">Archived</span>
+                  }
+                </div>
+                <div class="sub">{{ edited(project.updatedAt) }}</div>
+              </div>
+
+              <button
+                class="icon-btn more"
+                [dbdPopoverTrigger]="cardMenu"
+                placement="below-end"
+                (click)="$event.stopPropagation()"
+                aria-label="Project actions"
+              >
+                <dbd-icon name="more_vert" />
+              </button>
+              <ng-template #cardMenu let-close>
+                <div class="dbd-menu">
+                  <button class="dbd-menu-item" (click)="startRename(project); close()">
+                    <dbd-icon name="edit" />Rename
+                  </button>
+                  <button class="dbd-menu-item" (click)="duplicate(project); close()">
+                    <dbd-icon name="content_copy" />Duplicate
+                  </button>
+                  <button class="dbd-menu-item" (click)="toggleArchive(project); close()">
+                    <dbd-icon [name]="project.archived ? 'unarchive' : 'archive'" />
+                    {{ project.archived ? 'Unarchive' : 'Archive' }}
+                  </button>
+                  <div class="dbd-menu-sep"></div>
+                  <button class="dbd-menu-item danger" (click)="remove(project); close()">
+                    <dbd-icon name="delete" />Delete
+                  </button>
+                </div>
+              </ng-template>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <footer class="panel-foot">
+      <button class="btn ghost" (click)="view.set('templates')">
+        <dbd-icon name="template" />
+        Templates
+      </button>
+      <dbd-toggle [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
+        Show archived
+      </dbd-toggle>
+    </footer>
+  } @else {
+    <header class="panel-head">
+      <button class="icon-btn" (click)="view.set('projects')" aria-label="Back"><dbd-icon name="chevron_left" /></button>
+      <h2 class="title">Templates</h2>
+      <div class="head-actions">
+        <button class="icon-btn" (click)="close()" aria-label="Close"><dbd-icon name="close" /></button>
+      </div>
+    </header>
+
+    <div class="cards-scroll">
+      <div class="cards templates">
+        @for (t of templateDefs; track t.id) {
+          <button class="tcard" [disabled]="busy()" (click)="useTemplate(t)">
+            <div class="thumb" [style.--a]="t.accent">
+              <svg viewBox="0 0 92 60" aria-hidden="true">
+                <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dbd-connector)" stroke-width="1.4" />
+                <rect x="9" y="11" width="26" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                <rect x="9" y="11" width="26" height="6" rx="3" fill="var(--a)" />
+                <rect x="52" y="30" width="30" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                <rect x="52" y="30" width="30" height="6" rx="3" fill="var(--a)" />
+              </svg>
+            </div>
+            <div class="meta">
+              <div class="name-row">
+                <span class="name">{{ t.name }}</span>
+              </div>
+              <div class="sub">{{ t.description }}</div>
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

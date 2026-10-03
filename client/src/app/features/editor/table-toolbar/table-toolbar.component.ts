@@ -1,0 +1,94 @@
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import type { TableModel } from '@dbdesigner/shared';
+import { ProjectStore } from '../../../stores/project.store';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+
+const HEADER_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+
+/**
+ * Floating action bar shown above the selected table (mirrors the shape/connector
+ * toolbars): add column, header color, note, duplicate, delete. Writes straight to
+ * the store; the parent positions the host via left/top style bindings.
+ */
+@Component({
+  selector: 'app-table-toolbar',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
+  template: `
+    <div class="bar">
+      <button class="add" (click)="addColumn()" [disabled]="!store.canEdit()">
+        <dbd-icon name="add" />Column
+      </button>
+
+      <span class="sep"></span>
+
+      <button class="tb" [dbdPopoverTrigger]="colorMenu" placement="below-start" matTooltip="Header color" [disabled]="!store.canEdit()">
+        <span class="dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+      </button>
+      <ng-template #colorMenu let-close>
+        <div class="color-grid">
+          @for (c of colors; track c) {
+            <button class="swatch" [style.background]="c" (click)="setColor(c); close()"></button>
+          }
+          <button class="swatch none" (click)="setColor(''); close()" title="No color"></button>
+        </div>
+      </ng-template>
+
+      <button class="tb" [dbdPopoverTrigger]="noteMenu" placement="below-start" matTooltip="Note" [disabled]="!store.canEdit()">
+        <dbd-icon name="edit_note" />
+      </button>
+      <ng-template #noteMenu>
+        <div class="note-pop">
+          <textarea class="note" rows="3" placeholder="Add a note…" [value]="table().note ?? ''" (change)="setNote($any($event.target).value)"></textarea>
+        </div>
+      </ng-template>
+
+      <button class="tb" (click)="duplicate()" matTooltip="Duplicate table" [disabled]="!store.canEdit()">
+        <dbd-icon name="content_copy" />
+      </button>
+
+      <span class="sep"></span>
+
+      <button class="tb del" (click)="remove()" matTooltip="Delete table" [disabled]="!store.canEdit()">
+        <dbd-icon name="delete" />
+      </button>
+    </div>
+  `,
+  styleUrl: './table-toolbar.component.scss',
+})
+export class TableToolbarComponent {
+  protected readonly store = inject(ProjectStore);
+  protected readonly colors = HEADER_COLORS;
+  readonly table = input.required<TableModel>();
+
+  protected addColumn(): void {
+    if (!this.store.canEdit()) return;
+    const names = new Set(this.table().columns.map((c) => c.name));
+    let i = this.table().columns.length + 1;
+    let name = `column_${i}`;
+    while (names.has(name)) {
+      i += 1;
+      name = `column_${i}`;
+    }
+    void this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+  }
+
+  protected setColor(color: string): void {
+    void this.store.updateTable(this.table().id, { color });
+  }
+
+  protected setNote(note: string): void {
+    void this.store.updateTable(this.table().id, { note });
+  }
+
+  protected duplicate(): void {
+    void this.store.duplicateTable(this.table().id);
+  }
+
+  protected remove(): void {
+    void this.store.deleteTable(this.table().id);
+  }
+}

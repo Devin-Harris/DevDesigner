@@ -70,11 +70,10 @@
 // bottom toolbar, and never pushes the canvas.
 .side-panel {
   position: absolute;
-  top: 64px;
-  right: 12px;
+  top: 16px;
+  right: 16px;
   bottom: 16px;
-  width: 320px;
-  max-height: calc(100% - 80px);
+  width: 300px;
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
   overflow: hidden;
@@ -82,7 +81,10 @@
 }
 
 .side-panel app-inspector,
-.side-panel app-relationship-inspector {
+.side-panel app-relationship-inspector,
+.side-panel app-element-inspector {
+  display: block;
+  width: 100%;
   height: 100%;
   border-left: none;
   border-radius: 10px;
@@ -129,9 +131,7 @@
 }
 
 .remote-cursor-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
+  --dbd-icon-size: 18px;
   transform: rotate(-90deg);
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }

@@ -45,10 +45,11 @@ html {
   --dbd-space-4: 16px;
   --dbd-space-6: 24px;
 
-  // radius
+  // radius (design scale: 6 · 10 · 14 · 20)
   --dbd-radius-sm: 6px;
   --dbd-radius: 10px;
   --dbd-radius-lg: 14px;
+  --dbd-radius-xl: 20px;
 
   // elevation
   --dbd-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
@@ -70,6 +71,7 @@ html {
   // text
   --dbd-text: #23262c;
   --dbd-text-muted: #767b86;
+  --dbd-faint: #a6a9b0;
 
   // brand / status
   --dbd-primary: #3b5bdb;
@@ -112,6 +114,7 @@ html.dark {
 
   --dbd-text: #e7ecf3;
   --dbd-text-muted: #8b95a4;
+  --dbd-faint: #5a6472;
 
   --dbd-primary: #6f8bff;
   --dbd-primary-weak: #1b2540;
@@ -144,8 +147,88 @@ body {
   background: var(--dbd-surface);
   color: var(--dbd-text);
   font-family: var(--dbd-font);
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+// Enforce the design type system over Material's Roboto scale. Headings and the
+// wordmark use Space Grotesk (display); everything else uses IBM Plex Sans.
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--dbd-display);
+  font-weight: 600;
+}
+button,
+input,
+select,
+textarea {
+  font-family: var(--dbd-font);
+}
+
+// ---- Bespoke popover / menu (CDK Overlay) ----
+// Rendered in the overlay container, so these are global (not component-scoped).
+.dbd-overlay-backdrop {
+  background: transparent;
+}
+.dbd-menu {
+  min-width: 168px;
+  padding: 5px;
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius);
+  box-shadow: var(--dbd-shadow-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(60vh, 420px);
+  overflow: auto;
+}
+.dbd-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--dbd-text);
+  font: inherit;
+  font-family: var(--dbd-font);
+  font-size: 13px;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: var(--dbd-radius-sm);
+  cursor: pointer;
+
+  dbd-icon {
+    --dbd-icon-size: 17px;
+    color: var(--dbd-text-muted);
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--dbd-surface-2);
+  }
+  &.on {
+    color: var(--dbd-primary);
+    background: var(--dbd-primary-weak);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  &.danger {
+    color: var(--dbd-danger);
+    dbd-icon {
+      color: var(--dbd-danger);
+    }
+  }
+}
+.dbd-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--dbd-border);
 }
 
 // ---- A few simplifying Material tweaks (expressed via variables) ----
@@ -155,8 +238,28 @@ body {
   border-radius: var(--dbd-radius) !important;
   border: 1px solid var(--dbd-border);
 }
+.mat-mdc-dialog-container {
+  --mat-dialog-container-color: var(--dbd-surface);
+  --mdc-dialog-container-color: var(--dbd-surface);
+  --mat-dialog-subhead-color: var(--dbd-text);
+  --mat-dialog-supporting-text-color: var(--dbd-text);
+}
 .mat-mdc-dialog-surface {
   border-radius: var(--dbd-radius-lg) !important;
+  color: var(--dbd-text) !important;
+  border: 1px solid var(--dbd-border-strong);
+  padding: var(--dbd-space-4) !important;
+  box-shadow: var(--dbd-shadow-3);
+}
+
+// The projects browser overlay owns its own padding/scroll and rounds to xl.
+.dbd-projects-dialog .mat-mdc-dialog-surface {
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: var(--dbd-radius-xl) !important;
+}
+.dbd-projects-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  padding: 0 !important;
 }
 
 // Minimal, tasteful scrollbars.

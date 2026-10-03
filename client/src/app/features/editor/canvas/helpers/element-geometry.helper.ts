@@ -102,10 +102,12 @@ export function elementIntersectsRect(
 }
 
 /**
- * The point on a box's boundary along the ray from its center toward `toward`.
- * Used to anchor a bound arrow to the edge of the shape/table it connects to.
+ * The point on a box's boundary along the ray from its center toward `toward`,
+ * pushed `gap` pixels further out along that ray. Used to anchor a bound arrow
+ * just outside the edge of the shape/table it connects to (so the marker and a
+ * small gap stay clear of the shape, matching the ERD connectors).
  */
-export function boundaryPoint(box: Box, toward: Point): Point {
+export function boundaryPoint(box: Box, toward: Point, gap = 0): Point {
   const cx = (box.x0 + box.x1) / 2;
   const cy = (box.y0 + box.y1) / 2;
   const dx = toward.x - cx;
@@ -117,7 +119,13 @@ export function boundaryPoint(box: Box, toward: Point): Point {
   const halfH = (box.y1 - box.y0) / 2;
   // Scale the ray so it just reaches the nearest box edge.
   const scale = 1 / Math.max(Math.abs(dx) / (halfW || 1), Math.abs(dy) / (halfH || 1));
-  return { x: cx + dx * scale, y: cy + dy * scale };
+  const ex = cx + dx * scale;
+  const ey = cy + dy * scale;
+  if (gap > 0) {
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: ex + (dx / len) * gap, y: ey + (dy / len) * gap };
+  }
+  return { x: ex, y: ey };
 }
 
 /** Convert an absolute world point to a point relative to an element's origin. */

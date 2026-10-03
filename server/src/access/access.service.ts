@@ -5,6 +5,7 @@ import type { AccessLevel } from '@dbdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
+import { IndexEntity } from '../indexes/index.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
 import { ElementEntity } from '../elements/element.entity';
 import { ShareLink } from '../sharing/share-link.entity';
@@ -32,6 +33,8 @@ export class AccessService {
     private readonly tables: Repository<TableEntity>,
     @InjectRepository(ColumnEntity)
     private readonly columns: Repository<ColumnEntity>,
+    @InjectRepository(IndexEntity)
+    private readonly indexes: Repository<IndexEntity>,
     @InjectRepository(RelationshipEntity)
     private readonly relationships: Repository<RelationshipEntity>,
     @InjectRepository(ElementEntity)
@@ -144,6 +147,17 @@ export class AccessService {
     return projectId;
   }
 
+  /** Authorize an index write and return its owning project id (for broadcasts). */
+  async assertCanWriteIndex(
+    indexId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<string> {
+    const projectId = await this.projectIdForIndex(indexId);
+    await this.assertCanWrite(projectId, userId, shareToken);
+    return projectId;
+  }
+
   /** Authorize a relationship write and return its owning project id (for broadcasts). */
   async assertCanWriteRelationship(
     relationshipId: string,
@@ -186,6 +200,17 @@ export class AccessService {
       throw new NotFoundException(`Column ${columnId} not found.`);
     }
     return this.projectIdForTable(column.tableId);
+  }
+
+  private async projectIdForIndex(indexId: string): Promise<string> {
+    const index = await this.indexes.findOne({
+      where: { id: indexId },
+      select: { id: true, tableId: true },
+    });
+    if (!index) {
+      throw new NotFoundException(`Index ${indexId} not found.`);
+    }
+    return this.projectIdForTable(index.tableId);
   }
 
   private async projectIdForRelationship(relationshipId: string): Promise<string> {

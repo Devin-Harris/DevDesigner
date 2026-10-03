@@ -7,12 +7,13 @@
 .topbar {
   flex: 0 0 auto;
   gap: var(--dbd-space-2);
-  height: 52px;
+  height: 54px;
+  padding: 0 var(--dbd-space-3);
   background: var(--dbd-surface);
   color: var(--dbd-text);
   border-bottom: 1px solid var(--dbd-border);
   box-shadow: none;
-  z-index: 2;
+  z-index: 6;
 }
 
 // Accent-filled logo tile (design system wordmark lockup).
@@ -25,12 +26,7 @@
   border-radius: 8px;
   background: var(--dbd-primary);
   color: #fff;
-
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-  }
+  --dbd-icon-size: 18px;
 }
 
 .brand {
@@ -44,20 +40,30 @@
   flex: 1;
 }
 
-// Breadcrumb: open project name + type-switch chip.
 .crumb-sep {
-  margin: 0 4px;
+  margin: 0 2px;
   color: var(--dbd-text-muted);
   opacity: 0.6;
 }
 
 .crumb-name {
-  max-width: 240px;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border: none;
+  background: transparent;
+  color: var(--dbd-text);
+  font: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--dbd-radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--dbd-surface-2);
+  }
 }
 
 .type-chip {
@@ -65,13 +71,12 @@
   align-items: center;
   gap: 5px;
   height: 26px;
-  margin-left: 8px;
-  padding: 0 3px 0 9px;
+  padding: 0 6px 0 9px;
   border-radius: 7px;
   border: 1px solid var(--dbd-border-strong);
   background: var(--dbd-surface-2);
   color: var(--dbd-text);
-  font-family: inherit;
+  font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -80,12 +85,111 @@
     border-color: var(--dbd-primary);
   }
 
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+  .chip-chev {
+    --dbd-icon-size: 16px;
     color: var(--dbd-text-muted);
   }
+}
+
+// ---- right-side editor actions ----
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.v-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--dbd-border);
+}
+
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--dbd-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dbd-text-muted);
+  cursor: pointer;
+  --dbd-icon-size: 19px;
+
+  &:hover:not(:disabled) {
+    background: var(--dbd-surface-2);
+    color: var(--dbd-text);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--dbd-radius);
+  border: 1px solid var(--dbd-border-strong);
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  --dbd-icon-size: 17px;
+
+  &:hover {
+    background: var(--dbd-surface-2);
+  }
+
+  &.primary {
+    background: var(--dbd-primary);
+    border-color: var(--dbd-primary);
+    color: #fff;
+  }
+  &.primary:hover {
+    background: color-mix(in srgb, var(--dbd-primary) 88%, #000);
+  }
+}
+
+.avatars {
+  display: flex;
+  margin: 0 2px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid var(--dbd-surface);
+  margin-left: -8px;
+
+  &:first-child {
+    margin-left: 0;
+  }
+}
+
+.menu-email {
+  padding: 6px 10px 8px;
+  font-size: 12px;
+  color: var(--dbd-text-muted);
+  border-bottom: 1px solid var(--dbd-border);
+  margin-bottom: 4px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .body {

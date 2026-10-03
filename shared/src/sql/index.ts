@@ -205,6 +205,32 @@ function renderCreateTable(
   return `CREATE TABLE ${quoteIdent(table.name)} (\n${lines.join(',\n')}\n);`;
 }
 
+/**
+ * Render a table's secondary indexes as standalone CREATE INDEX / CREATE UNIQUE
+ * INDEX statements. Indexes covering no (still-present) column are skipped.
+ */
+function renderCreateIndexes(table: TableModel): string[] {
+  if (!table.indexes?.length) {
+    return [];
+  }
+  const columnById = new Map(table.columns.map((c) => [c.id, c]));
+  const statements: string[] = [];
+  for (const index of [...table.indexes].sort((a, b) => a.name.localeCompare(b.name))) {
+    const cols = index.columnIds
+      .map((id) => columnById.get(id))
+      .filter((c): c is ColumnModel => Boolean(c));
+    if (!cols.length) {
+      continue;
+    }
+    const unique = index.isUnique ? 'UNIQUE ' : '';
+    const colList = cols.map((c) => quoteIdent(c.name)).join(', ');
+    statements.push(
+      `CREATE ${unique}INDEX ${quoteIdent(index.name)} ON ${quoteIdent(table.name)} (${colList});`,
+    );
+  }
+  return statements;
+}
+
 /** Render a deferred foreign key as a standalone ALTER TABLE statement. */
 function renderAlterTableForeignKey(
   fk: ForeignKey,
@@ -475,6 +501,7 @@ export function generateMySQL(schema: SchemaModel): string {
       a.name.localeCompare(b.name),
     );
     statements.push(renderCreateTable(table, inline, locate, tablesById));
+    statements.push(...renderCreateIndexes(table));
   }
 
   if (deferred.length) {

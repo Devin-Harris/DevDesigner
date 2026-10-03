@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import type { ShareAccessLevel, ShareLinkResponse } from '@dbdesigner/shared';
 import { ShareLinksService } from '../../../core/services/share-links.service';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/segmented/segmented.component';
 
 export interface ShareDialogData {
   projectId: string;
@@ -25,12 +25,12 @@ export interface ShareDialogData {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     MatDialogModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatIconModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    IconComponent,
+    SegmentedComponent,
   ],
   templateUrl: './share-dialog.component.html',
   styleUrl: './share-dialog.component.scss',
@@ -44,13 +44,17 @@ export class ShareDialogComponent {
   protected readonly loading = signal(true);
   protected readonly creating = signal(false);
   protected readonly newLevel = signal<ShareAccessLevel>('EDIT');
+  protected readonly levelOptions: SegmentedOption[] = [
+    { value: 'EDIT', label: 'Can edit' },
+    { value: 'VIEW', label: 'Can view' },
+  ];
 
   constructor() {
     void this.refresh();
   }
 
-  protected setLevel(level: ShareAccessLevel): void {
-    this.newLevel.set(level);
+  protected setLevel(level: string): void {
+    this.newLevel.set(level as ShareAccessLevel);
   }
 
   private async refresh(): Promise<void> {

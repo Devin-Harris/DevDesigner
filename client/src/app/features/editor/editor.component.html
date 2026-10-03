@@ -2,6 +2,7 @@
   <div
     #canvas
     class="canvas"
+    [style.cursor]="canvasCursor()"
     (pointerdown)="onCanvasPointerDown($event)"
     (dblclick)="onCanvasDblClick($event)"
     (wheel)="onWheel($event)"
@@ -36,6 +37,7 @@
         [svgOffset]="svgOffset"
         [dragging]="dragging()"
         [interactive]="shapesInteractive()"
+        [editingId]="editingTextId()"
         [bindHighlight]="bindHighlight()"
         (elementPointerDown)="onElementPointerDown($event)"
         (resizeDown)="onElementResizeDown($event)"
@@ -72,32 +74,10 @@
     <!-- Live cursors of other participants (screen coords, above the canvas). -->
     @for (cursor of remoteCursors(); track cursor.id) {
       <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
-        <mat-icon class="remote-cursor-icon" [style.color]="cursor.color">navigation</mat-icon>
+        <dbd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
         <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
       </div>
     }
-
-    <!-- Presence + sharing bar (top right). -->
-    <div class="presence-bar" (pointerdown)="$event.stopPropagation()">
-      @if (realtime.participants().length > 1) {
-        <div class="avatars">
-          @for (p of realtime.participants(); track p.id) {
-            <span
-              class="avatar"
-              [style.background]="p.color"
-              [matTooltip]="p.name + (p.id === realtime.selfId() ? ' (you)' : '')"
-              >{{ p.name.charAt(0).toUpperCase() }}</span
-            >
-          }
-        </div>
-      }
-      @if (store.accessMode() === 'OWNER' && store.projectId()) {
-        <button mat-flat-button color="primary" (click)="openShare()">
-          <mat-icon>share</mat-icon>
-          Share
-        </button>
-      }
-    </div>
 
     <app-shape-toolbar
       (pointerdown)="$event.stopPropagation()"
@@ -145,6 +125,7 @@
         [style.top.px]="et.top"
         [element]="et.element"
         (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
       ></app-element-floating-toolbar>
     }
 
@@ -158,6 +139,16 @@
       ></div>
     }
 
+    @if (tableToolbar(); as tt) {
+      <app-table-toolbar
+        [style.left.px]="tt.left"
+        [style.top.px]="tt.top"
+        [table]="tt.table"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      ></app-table-toolbar>
+    }
+
     @if (selectedRelInline(); as info) {
       <app-relationship-toolbar
         [style.left.px]="info.x"
@@ -166,6 +157,7 @@
         [canEdit]="store.canEdit()"
         (pointerdown)="$event.stopPropagation()"
         (setType)="onSetRelType($event)"
+        (resetRoute)="onResetRoute(info.rel.id)"
         (deleteRelationship)="onDeleteRel()"
       ></app-relationship-toolbar>
     }
@@ -185,12 +177,16 @@
     <!-- Inspectors float over the canvas (they do not push it, and clear the top
          bar and share button). -->
     @if (store.selectedTable(); as table) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()">
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-inspector [table]="table"></app-inspector>
       </div>
     } @else if (store.selectedRelationship(); as relationship) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()">
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
+      </div>
+    } @else if (store.selectedElement(); as element) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+        <app-element-inspector [element]="element"></app-element-inspector>
       </div>
     }
   </div>

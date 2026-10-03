@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TablesModule } from './tables/tables.module';
 import { ColumnsModule } from './columns/columns.module';
+import { IndexesModule } from './indexes/indexes.module';
 import { RelationshipsModule } from './relationships/relationships.module';
 import { ElementsModule } from './elements/elements.module';
 import { NotesModule } from './notes/notes.module';
@@ -31,6 +32,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     ProjectsModule,
     TablesModule,
     ColumnsModule,
+    IndexesModule,
     RelationshipsModule,
     ElementsModule,
     NotesModule,

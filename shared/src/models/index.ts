@@ -38,10 +38,21 @@ export interface ColumnModel {
   note?: string;
 }
 
+/** A named index on a table, over one or more of its columns. */
+export interface IndexModel {
+  id: string;
+  name: string;
+  /** Ids of the table's columns the index covers, in order. */
+  columnIds: string[];
+  isUnique: boolean;
+}
+
 export interface TableModel {
   id: string;
   name: string;
   columns: ColumnModel[];
+  /** Named indexes over this table's columns (optional; omitted when empty). */
+  indexes?: IndexModel[];
   x: number;
   y: number;
   color?: string;
@@ -107,12 +118,17 @@ export interface CanvasElementModel {
   opacity: number;
   /** Stacking order within the element layer. */
   zIndex: number;
+  /** Corner radius (px) for rectangles. Undefined = auto (min(12, 15% of side)). */
+  cornerRadius?: number;
   /** Vertices for line/arrow/freedraw, relative to `x`/`y`. */
   points?: PointModel[];
   /** Text content for a text element, or a label on a shape. */
   text?: string;
   fontSize?: number;
   fontFamily?: string;
+  /** Text weight/style toggles for a text element or shape label. */
+  bold?: boolean;
+  italic?: boolean;
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   /** Line/arrow only: bound endpoints that re-route as their target moves. */

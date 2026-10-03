@@ -1,0 +1,112 @@
+<div class="panel">
+  <div class="panel-head">
+    <div class="head-text">
+      <div class="eyebrow">{{ isLine() ? 'Line' : 'Shape' }} & line styling</div>
+      <div class="kname">{{ kindLabel() }}</div>
+    </div>
+    <button class="icon-btn del" (click)="remove()" [disabled]="!store.canEdit()" title="Delete">
+      <dbd-icon name="delete" />
+    </button>
+  </div>
+
+  <!-- Stroke -->
+  <div class="field-label">Stroke</div>
+  <div class="swatches">
+    @for (c of strokeColors; track c) {
+      <button
+        class="swatch"
+        [class.active]="element().strokeColor === c"
+        [style.background]="c"
+        [disabled]="!store.canEdit()"
+        (click)="setStroke(c)"
+      ></button>
+    }
+  </div>
+
+  <!-- Width + Style -->
+  <div class="two-col">
+    <div>
+      <div class="field-label">Width</div>
+      <div class="seg-row">
+        @for (w of widths; track w) {
+          <button class="seg" [class.on]="element().strokeWidth === w" [disabled]="!store.canEdit()" (click)="setWidth(w)">
+            <span class="wline" [style.height.px]="w"></span>
+          </button>
+        }
+      </div>
+    </div>
+    @if (!isText()) {
+      <div>
+        <div class="field-label">Style</div>
+        <div class="seg-row">
+          @for (s of styles; track s) {
+            <button class="seg" [class.on]="element().strokeStyle === s" [disabled]="!store.canEdit()" (click)="setStyle(s)">
+              <span class="wline" [class.dashed]="s === 'dashed'" [class.dotted]="s === 'dotted'"></span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Fill -->
+  @if (hasFill()) {
+    <div class="field-label">Fill</div>
+    <div class="swatches">
+      @for (c of fillColors; track c) {
+        <button
+          class="swatch"
+          [class.none]="c === 'transparent'"
+          [class.active]="c !== 'transparent' && element().fillStyle !== 'none' && element().backgroundColor === c"
+          [style.background]="c === 'transparent' ? 'transparent' : c"
+          [disabled]="!store.canEdit()"
+          (click)="setFill(c)"
+        ></button>
+      }
+      <button
+        class="hatch-btn"
+        [class.on]="element().fillStyle === 'hachure'"
+        [disabled]="!store.canEdit() || element().fillStyle === 'none'"
+        (click)="setFillStyle('hachure')"
+        title="Hatch fill"
+      >
+        hatch
+      </button>
+    </div>
+  }
+
+  <!-- Corner radius -->
+  @if (isRect()) {
+    <div class="field-label">Corner radius</div>
+    <div class="slider-row">
+      <input type="range" min="0" max="48" step="2" [value]="element().cornerRadius ?? 12" [disabled]="!store.canEdit()" (input)="setCornerRadius(+$any($event.target).value)" />
+      <span class="val">{{ element().cornerRadius ?? 12 }}px</span>
+    </div>
+  }
+
+  <!-- Text -->
+  @if (canHaveText()) {
+    <div class="field-label">Text</div>
+    <div class="seg-row wrap">
+      @for (f of fonts; track f.value) {
+        <button class="seg text" [class.on]="(element().fontFamily ?? 'normal') === f.value" [disabled]="!store.canEdit()" (click)="setFont(f.value)">{{ f.label }}</button>
+      }
+      <button class="seg" [class.on]="element().bold" [disabled]="!store.canEdit()" (click)="toggleBold()"><dbd-icon name="format_bold" /></button>
+      <button class="seg" [class.on]="element().italic" [disabled]="!store.canEdit()" (click)="toggleItalic()"><dbd-icon name="format_italic" /></button>
+    </div>
+  }
+
+  <!-- Opacity -->
+  <div class="field-label">Opacity</div>
+  <div class="slider-row">
+    <input type="range" min="10" max="100" step="10" [value]="element().opacity" [disabled]="!store.canEdit()" (input)="setOpacity(+$any($event.target).value)" />
+    <span class="val">{{ element().opacity }}%</span>
+  </div>
+
+  <!-- Arrange -->
+  <div class="field-label">Arrange</div>
+  <div class="arrange">
+    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="bringToFront()"><dbd-icon name="flip_to_front" />Front</button>
+    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="sendToBack()"><dbd-icon name="flip_to_back" />Back</button>
+  </div>
+</div>

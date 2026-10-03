@@ -112,6 +112,21 @@ export interface ReorderColumnsDto {
   orderedColumnIds: string[];
 }
 
+// --- Indexes ---
+export interface CreateIndexDto {
+  name: string;
+  columnIds: string[];
+  isUnique?: boolean;
+}
+export interface UpdateIndexDto {
+  name?: string;
+  columnIds?: string[];
+  isUnique?: boolean;
+}
+export interface ReorderIndexesDto {
+  orderedIndexIds: string[];
+}
+
 // --- Relationships ---
 export interface CreateRelationshipDto {
   sourceColumnId: string;
@@ -164,10 +179,13 @@ export interface CreateElementDto {
   strokeStyle: StrokeStyle;
   opacity: number;
   zIndex?: number;
+  cornerRadius?: number;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
   fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   startBinding?: ElementBinding | null;
@@ -189,10 +207,13 @@ export interface UpdateElementDto {
   strokeStyle?: StrokeStyle;
   opacity?: number;
   zIndex?: number;
+  cornerRadius?: number;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
   fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   /** null clears a binding (endpoint reverts to its stored point). */

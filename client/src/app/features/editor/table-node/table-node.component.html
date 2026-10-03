@@ -6,7 +6,8 @@
 >
   <button
     class="icon-btn color"
-    [matMenuTriggerFor]="colorMenu"
+    [dbdPopoverTrigger]="colorMenu"
+    placement="below-start"
     (pointerdown)="$event.stopPropagation()"
     [disabled]="!editable()"
     title="Header color"
@@ -14,14 +15,14 @@
   >
     <span class="color-dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
   </button>
-  <mat-menu #colorMenu="matMenu">
-    <div class="color-grid" (click)="$event.stopPropagation()">
+  <ng-template #colorMenu let-close>
+    <div class="color-grid">
       @for (c of headerColors; track c) {
-        <button class="swatch" [style.background]="c" (click)="setColor(c)" [attr.aria-label]="c"></button>
+        <button class="swatch" [style.background]="c" (click)="setColor(c); close()" [attr.aria-label]="c"></button>
       }
-      <button class="swatch none" (click)="setColor('')" title="No color" aria-label="No color"></button>
+      <button class="swatch none" (click)="setColor(''); close()" title="No color" aria-label="No color"></button>
     </div>
-  </mat-menu>
+  </ng-template>
 
   @if (editingName()) {
     <input
@@ -41,28 +42,6 @@
   }
 
   <span class="count" title="Columns">{{ table().columns.length }}</span>
-
-  <button
-    class="icon-btn head-act"
-    (pointerdown)="$event.stopPropagation()"
-    (click)="addColumn()"
-    [disabled]="!editable()"
-    title="Add column"
-    aria-label="Add column"
-  >
-    <mat-icon>add</mat-icon>
-  </button>
-
-  <button
-    class="icon-btn head-act"
-    (pointerdown)="$event.stopPropagation()"
-    (click)="deleteTable()"
-    [disabled]="!editable()"
-    title="Delete table"
-    aria-label="Delete table"
-  >
-    <mat-icon>delete</mat-icon>
-  </button>
 </header>
 
 @if (table().columns.length === 0) {
@@ -78,9 +57,9 @@
       ></span>
 
       @if (column.isPrimaryKey) {
-        <mat-icon class="keyglyph pk" title="Primary key">key</mat-icon>
+        <dbd-icon name="key" class="keyglyph pk" title="Primary key" />
       } @else if (fkColumnIds().has(column.id)) {
-        <mat-icon class="keyglyph fk" title="Foreign key">link</mat-icon>
+        <dbd-icon name="link" class="keyglyph fk" title="Foreign key" />
       } @else {
         <span class="keyslot"></span>
       }
@@ -107,47 +86,16 @@
       }
 
       <div class="chips">
-        <button
-          class="chip pk"
-          [class.on]="column.isPrimaryKey"
-          (pointerdown)="$event.stopPropagation()"
-          (click)="togglePk(column)"
-          title="Primary key"
-        >
-          PK
-        </button>
-        <button
-          class="chip nn"
-          [class.on]="!column.isNullable"
-          (pointerdown)="$event.stopPropagation()"
-          (click)="toggleNotNull(column)"
-          title="Not null"
-        >
-          NN
-        </button>
-        <button
-          class="chip uq"
-          [class.on]="column.isUnique"
-          (pointerdown)="$event.stopPropagation()"
-          (click)="toggleUnique(column)"
-          title="Unique"
-        >
-          UQ
-        </button>
-        <button
-          class="chip ai"
-          [class.on]="column.isAutoIncrement"
-          (pointerdown)="$event.stopPropagation()"
-          (click)="toggleAuto(column)"
-          title="Auto increment"
-        >
-          AI
-        </button>
+        <button class="chip pk" [class.on]="column.isPrimaryKey" (pointerdown)="$event.stopPropagation()" (click)="togglePk(column)" title="Primary key">PK</button>
+        <button class="chip nn" [class.on]="!column.isNullable" (pointerdown)="$event.stopPropagation()" (click)="toggleNotNull(column)" title="Not null">NN</button>
+        <button class="chip uq" [class.on]="column.isUnique" (pointerdown)="$event.stopPropagation()" (click)="toggleUnique(column)" title="Unique">UQ</button>
+        <button class="chip ai" [class.on]="column.isAutoIncrement" (pointerdown)="$event.stopPropagation()" (click)="toggleAuto(column)" title="Auto increment">AI</button>
       </div>
 
       <button
         class="type"
-        [matMenuTriggerFor]="typeMenu"
+        [dbdPopoverTrigger]="typeMenu"
+        placement="below-end"
         (pointerdown)="$event.stopPropagation()"
         title="Change type"
       >
@@ -155,13 +103,15 @@
         @if (column.dataType.name === 'VARCHAR' && column.dataType.length) {
           <span class="type-len">({{ column.dataType.length }})</span>
         }
-        <mat-icon class="chev">arrow_drop_down</mat-icon>
+        <dbd-icon name="arrow_drop_down" class="chev" />
       </button>
-      <mat-menu #typeMenu="matMenu">
-        @for (name of dataTypeNames; track name) {
-          <button mat-menu-item (click)="setType(column, name)">{{ name }}</button>
-        }
-      </mat-menu>
+      <ng-template #typeMenu let-close>
+        <div class="dbd-menu type-menu">
+          @for (name of dataTypeNames; track name) {
+            <button class="dbd-menu-item" [class.on]="name === column.dataType.name" (click)="setType(column, name); close()">{{ name }}</button>
+          }
+        </div>
+      </ng-template>
 
       @if (column.dataType.name === 'VARCHAR') {
         <input
@@ -183,7 +133,7 @@
         title="Delete column"
         aria-label="Delete column"
       >
-        <mat-icon>close</mat-icon>
+        <dbd-icon name="close" />
       </button>
 
       <span

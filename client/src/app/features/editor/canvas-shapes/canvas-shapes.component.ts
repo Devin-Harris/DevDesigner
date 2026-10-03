@@ -39,6 +39,8 @@ export class CanvasShapesComponent {
   readonly svgOffset = input.required<number>();
   readonly dragging = input<boolean>(false);
   readonly interactive = input<boolean>(true);
+  /** Id of the text element being edited inline, so its SVG text + selection box are hidden (the textarea owns it). */
+  readonly editingId = input<string | null>(null);
 
   /** World-space bounding box of a shape/table being hovered as a binding target. */
   readonly bindHighlight = input<{ x: number; y: number; width: number; height: number } | null>(

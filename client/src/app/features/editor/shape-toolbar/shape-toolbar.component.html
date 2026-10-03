@@ -15,6 +15,20 @@
     </svg>
   </button>
 
+  <button
+    class="dock-btn"
+    [class.on]="tool() === 'hand'"
+    [disabled]="disabled()"
+    (click)="onChange('hand')"
+    matTooltip="Hand / pan (H)"
+    matTooltipPosition="right"
+    aria-label="Hand"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 11V5.5a1.5 1.5 0 013 0V11m0-.5V4.5a1.5 1.5 0 013 0V11m0-.5V6a1.5 1.5 0 013 0v7.5a6.5 6.5 0 01-6.5 6.5H13a6 6 0 01-4.7-2.3L5 14.5a1.6 1.6 0 012.5-2L8 13V5.5a1.5 1.5 0 013 0" />
+    </svg>
+  </button>
+
   <div class="dock-sep"></div>
 
   <button
@@ -36,7 +50,9 @@
     class="dock-btn shape"
     [class.on]="isShape()"
     [disabled]="disabled()"
-    [matMenuTriggerFor]="shapeMenu"
+    [dbdPopoverTrigger]="shapeMenu"
+    placement="right-start"
+    (click)="onChange(lastShape())"
     matTooltip="Shape"
     matTooltipPosition="right"
     aria-label="Shape"
@@ -54,17 +70,25 @@
     }
     <span class="caret"></span>
   </button>
-  <mat-menu #shapeMenu="matMenu" xPosition="after">
-    <button mat-menu-item (click)="onChange('rectangle')">
-      <mat-icon>crop_square</mat-icon><span>Rectangle</span>
-    </button>
-    <button mat-menu-item (click)="onChange('ellipse')">
-      <mat-icon>circle</mat-icon><span>Ellipse</span>
-    </button>
-    <button mat-menu-item (click)="onChange('diamond')">
-      <mat-icon>diamond</mat-icon><span>Diamond</span>
-    </button>
-  </mat-menu>
+  <ng-template #shapeMenu let-close>
+    <div class="shape-flyout">
+      <button class="flyout-btn" [class.on]="tool() === 'rectangle' && rectRadius() === 0" (click)="pickRectangle(0); close()" title="Rectangle">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="0" /></svg>
+      </button>
+      <button class="flyout-btn" [class.on]="tool() === 'rectangle' && rectRadius() > 0" (click)="pickRectangle(12); close()" title="Rounded rectangle">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="5.5" /></svg>
+      </button>
+      <button class="flyout-btn" [class.on]="tool() === 'ellipse'" (click)="onChange('ellipse'); close()" title="Ellipse">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
+      </button>
+      <button class="flyout-btn" [class.on]="tool() === 'diamond'" (click)="onChange('diamond'); close()" title="Diamond">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
+      </button>
+      <button class="flyout-btn" [class.on]="tool() === 'line'" (click)="onChange('line'); close()" title="Line">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5" /></svg>
+      </button>
+    </div>
+  </ng-template>
 
   <button
     class="dock-btn"
@@ -123,92 +147,36 @@
   </button>
 </div>
 
-<!-- Bottom-left status / zoom bar -->
+<!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->
 <div class="statusbar">
-  <button mat-icon-button (click)="undo.emit()" [disabled]="!canUndo()" matTooltip="Undo (Ctrl+Z)">
-    <mat-icon>undo</mat-icon>
-  </button>
-  <button
-    mat-icon-button
-    (click)="redo.emit()"
-    [disabled]="!canRedo()"
-    matTooltip="Redo (Ctrl+Shift+Z)"
-  >
-    <mat-icon>redo</mat-icon>
-  </button>
-
-  <span class="sep"></span>
-
-  <button mat-icon-button (click)="zoomOut.emit()" matTooltip="Zoom out">
-    <mat-icon>remove</mat-icon>
-  </button>
+  <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out"><dbd-icon name="remove" /></button>
   <button class="zoom-label" (click)="resetView.emit()" matTooltip="Reset view">{{ zoomLabel() }}</button>
-  <button mat-icon-button (click)="zoomIn.emit()" matTooltip="Zoom in">
-    <mat-icon>add</mat-icon>
-  </button>
+  <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dbd-icon name="add" /></button>
 
   <span class="sep"></span>
 
-  <button mat-icon-button [class.on]="gridSnap()" (click)="toggleGrid.emit()" matTooltip="Snap to grid">
-    <mat-icon>grid_4x4</mat-icon>
+  <button class="sbtn" (click)="resetView.emit()" matTooltip="Fit / reset view">
+    <dbd-icon name="center_focus_strong" />
   </button>
-  <button
-    mat-icon-button
-    [matMenuTriggerFor]="alignMenu"
-    [disabled]="!canAlign()"
-    matTooltip="Align selected"
-  >
-    <mat-icon>align_horizontal_left</mat-icon>
+  <button class="sbtn" [class.on]="gridSnap()" (click)="toggleGrid.emit()" matTooltip="Snap to grid">
+    <dbd-icon name="grid_4x4" />
   </button>
-  <mat-menu #alignMenu="matMenu">
-    <button mat-menu-item (click)="align.emit('left')">
-      <mat-icon>align_horizontal_left</mat-icon><span>Align left</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('hcenter')">
-      <mat-icon>align_horizontal_center</mat-icon><span>Align center (x)</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('right')">
-      <mat-icon>align_horizontal_right</mat-icon><span>Align right</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('top')">
-      <mat-icon>align_vertical_top</mat-icon><span>Align top</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('vcenter')">
-      <mat-icon>align_vertical_center</mat-icon><span>Align middle (y)</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('bottom')">
-      <mat-icon>align_vertical_bottom</mat-icon><span>Align bottom</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('dist-h')">
-      <mat-icon>horizontal_distribute</mat-icon><span>Distribute horizontally</span>
-    </button>
-    <button mat-menu-item (click)="align.emit('dist-v')">
-      <mat-icon>vertical_distribute</mat-icon><span>Distribute vertically</span>
-    </button>
-  </mat-menu>
-
-  <button
-    mat-icon-button
-    [disabled]="!canExport()"
-    [matMenuTriggerFor]="exportMenu"
-    matTooltip="Export"
-  >
-    <mat-icon>ios_share</mat-icon>
+  <button class="sbtn" [dbdPopoverTrigger]="alignMenu" placement="above-start" [disabled]="!canAlign()" matTooltip="Align selected">
+    <dbd-icon name="align_horizontal_left" />
   </button>
-  <mat-menu #exportMenu="matMenu">
-    <button mat-menu-item (click)="exportSql.emit()">
-      <mat-icon>data_object</mat-icon><span>SQL...</span>
-    </button>
-    <button mat-menu-item (click)="exportImage.emit('png')">
-      <mat-icon>photo</mat-icon><span>Image (PNG)</span>
-    </button>
-    <button mat-menu-item (click)="exportImage.emit('svg')">
-      <mat-icon>image</mat-icon><span>Image (SVG)</span>
-    </button>
-    <button mat-menu-item (click)="exportImage.emit('pdf')">
-      <mat-icon>picture_as_pdf</mat-icon><span>Image (PDF)</span>
-    </button>
-  </mat-menu>
+  <ng-template #alignMenu let-close>
+    <div class="dbd-menu">
+      <button class="dbd-menu-item" (click)="align.emit('left'); close()"><dbd-icon name="align_horizontal_left" />Align left</button>
+      <button class="dbd-menu-item" (click)="align.emit('hcenter'); close()"><dbd-icon name="align_horizontal_center" />Align center (x)</button>
+      <button class="dbd-menu-item" (click)="align.emit('right'); close()"><dbd-icon name="align_horizontal_right" />Align right</button>
+      <button class="dbd-menu-item" (click)="align.emit('top'); close()"><dbd-icon name="align_vertical_top" />Align top</button>
+      <button class="dbd-menu-item" (click)="align.emit('vcenter'); close()"><dbd-icon name="align_vertical_center" />Align middle (y)</button>
+      <button class="dbd-menu-item" (click)="align.emit('bottom'); close()"><dbd-icon name="align_vertical_bottom" />Align bottom</button>
+      <div class="dbd-menu-sep"></div>
+      <button class="dbd-menu-item" (click)="align.emit('dist-h'); close()"><dbd-icon name="horizontal_distribute" />Distribute horizontally</button>
+      <button class="dbd-menu-item" (click)="align.emit('dist-v'); close()"><dbd-icon name="vertical_distribute" />Distribute vertically</button>
+    </div>
+  </ng-template>
 
   @if (saveLabel()) {
     <span class="save-label">{{ saveLabel() }}</span>

@@ -1,31 +1,14 @@
-<h2 mat-dialog-title>Export SQL</h2>
+<h2 mat-dialog-title class="dlg-title">Export SQL</h2>
 
-<mat-dialog-content>
+<mat-dialog-content class="dlg-body">
   @if (data.selectionOnly) {
-    <p style="margin: 0 0 8px">Showing DDL for the selected tables only.</p>
+    <p class="hint">Showing DDL for the selected tables only.</p>
   }
-  <!-- Inline monospace is the one property Material has no token for; everything
-       else in this dialog is styled through Material components. -->
-  <mat-form-field appearance="outline" style="width: 100%">
-    <mat-label>MySQL DDL</mat-label>
-    <textarea
-      matInput
-      readonly
-      rows="18"
-      style="font-family: 'SFMono-Regular', ui-monospace, monospace; white-space: pre; overflow-wrap: normal"
-      >{{ data.sql }}</textarea
-    >
-  </mat-form-field>
+  <textarea class="sql" readonly rows="18">{{ data.sql }}</textarea>
 </mat-dialog-content>
 
-<mat-dialog-actions align="end">
-  <button mat-button mat-dialog-close>Close</button>
-  <button mat-stroked-button (click)="copy()">
-    <mat-icon>content_copy</mat-icon>
-    Copy
-  </button>
-  <button mat-flat-button color="primary" (click)="download()">
-    <mat-icon>download</mat-icon>
-    Download .sql
-  </button>
+<mat-dialog-actions class="dlg-actions">
+  <button class="btn" mat-dialog-close>Close</button>
+  <button class="btn" (click)="copy()"><dbd-icon name="content_copy" />Copy</button>
+  <button class="btn primary" (click)="download()"><dbd-icon name="download" />Download .sql</button>
 </mat-dialog-actions>

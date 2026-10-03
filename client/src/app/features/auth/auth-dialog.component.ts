@@ -6,12 +6,11 @@ import {
   signal,
   type WritableSignal,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/services/auth.service';
+import { InputComponent } from '../../shared/ui/input/input.component';
 
 type Mode = 'login' | 'register';
 
@@ -25,14 +24,9 @@ type Mode = 'login' | 'register';
   selector: 'app-auth-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
-  ],
+  imports: [FormsModule, MatDialogModule, MatProgressSpinnerModule, InputComponent],
   templateUrl: './auth-dialog.component.html',
+  styleUrl: './auth-dialog.component.scss',
 })
 export class AuthDialogComponent {
   private readonly auth = inject(AuthService);
@@ -60,8 +54,8 @@ export class AuthDialogComponent {
     return emailOk && passOk && !this.busy();
   });
 
-  protected setValue(signalRef: WritableSignal<string>, event: Event): void {
-    signalRef.set((event.target as HTMLInputElement).value);
+  protected set(signalRef: WritableSignal<string>, value: string | number): void {
+    signalRef.set(String(value));
   }
 
   protected toggleMode(): void {

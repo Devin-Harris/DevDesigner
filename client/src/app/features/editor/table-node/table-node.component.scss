@@ -39,10 +39,12 @@
   border-top-left-radius: var(--dbd-radius-lg);
   border-top-right-radius: var(--dbd-radius-lg);
 
-  // A tint of the table's color (Graphite/Paper style) instead of a saturated
-  // fill, so header text stays legible and the color reads as a category cue.
+  // A stronger tint of the table's color (category cue) with a saturated accent
+  // bar on the leading edge, so the color clearly pops while header text stays
+  // legible against the tinted surface.
   &.colored {
-    background: color-mix(in srgb, var(--tbl-color) 16%, var(--dbd-node-surface));
+    background: color-mix(in srgb, var(--tbl-color) 30%, var(--dbd-node-surface));
+    box-shadow: inset 3px 0 0 0 var(--tbl-color);
   }
 }
 
@@ -96,11 +98,16 @@
   border: 2px solid var(--dbd-border-strong);
 }
 
+// Color picker popover surface (no longer inside a Material menu panel).
 .color-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--dbd-space-2);
-  padding: var(--dbd-space-2);
+  padding: var(--dbd-space-3);
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius);
+  box-shadow: var(--dbd-shadow-3);
 }
 
 .swatch {
@@ -144,16 +151,12 @@
     cursor: default;
   }
 
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+  dbd-icon {
+    --dbd-icon-size: 18px;
   }
 
-  &.tiny mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
+  &.tiny dbd-icon {
+    --dbd-icon-size: 15px;
   }
 }
 
@@ -203,9 +206,7 @@
 
 .keyglyph {
   flex: 0 0 auto;
-  font-size: 14px;
-  width: 14px;
-  height: 14px;
+  --dbd-icon-size: 14px;
 
   &.pk {
     color: var(--dbd-amber);
@@ -323,9 +324,7 @@
   }
 
   .chev {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+    --dbd-icon-size: 16px;
     opacity: 0;
     transition: opacity 0.12s ease;
   }

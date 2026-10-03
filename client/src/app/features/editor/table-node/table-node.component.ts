@@ -7,8 +7,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import {
   DATA_TYPE_NAMES,
   type ColumnModel,
@@ -16,6 +14,8 @@ import {
   type UpdateColumnDto,
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import { ProjectStore } from '../../../stores/project.store';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
 import { tableWidth } from '../canvas/helpers/node-metrics.helper';
@@ -35,7 +35,7 @@ export interface HandleEvent {
   selector: 'app-table-node',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AutofocusDirective, MatIconModule, MatMenuModule],
+  imports: [AutofocusDirective, IconComponent, PopoverTriggerDirective],
   templateUrl: './table-node.component.html',
   styleUrl: './table-node.component.scss',
   host: {

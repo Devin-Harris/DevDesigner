@@ -26,6 +26,15 @@
       orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M4 1 L4 11" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" />
     </marker>
+    <!-- Per-element diagonal hatch fills (fillStyle: 'hachure'). -->
+    @for (s of shapes(); track s.id) {
+      @if (s.hatch; as h) {
+        <pattern [attr.id]="h.id" width="7" height="7" patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="7" [attr.stroke]="h.color" stroke-width="1.3" />
+        </pattern>
+      }
+    }
   </defs>
 
   <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
@@ -133,10 +142,12 @@
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
           <text
+            [attr.visibility]="s.id === editingId() ? 'hidden' : null"
             [attr.fill]="t.color"
             [attr.font-size]="t.fontSize"
             [attr.font-family]="t.fontFamily"
             [attr.font-weight]="t.fontWeight"
+            [attr.font-style]="t.fontStyle"
             [attr.text-anchor]="t.anchor"
           >
             @for (line of t.lines; track $index) {
@@ -151,6 +162,7 @@
             [attr.font-size]="l.fontSize"
             [attr.font-family]="l.fontFamily"
             [attr.font-weight]="l.fontWeight"
+            [attr.font-style]="l.fontStyle"
             [attr.text-anchor]="l.anchor"
           >
             @for (line of l.lines; track $index) {
@@ -160,7 +172,7 @@
         }
       </g>
 
-      @if (s.selected) {
+      @if (s.selected && s.id !== editingId()) {
         <g [attr.transform]="s.transform" class="selection">
           @if (s.ends) {
             <!-- Line/arrow: draggable endpoint handles. -->
