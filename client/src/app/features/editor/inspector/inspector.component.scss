@@ -89,18 +89,26 @@
   min-width: 0;
 }
 
-.eyebrow,
-.panel-title,
-.field-label {
-  font-size: 9.5px;
+// Mock "calm panel" section labels: normal-case, 11px, muted (not tiny caps).
+.eyebrow {
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--dbd-text-muted);
 }
 
+.panel-title,
 .field-label {
-  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--dbd-text-muted);
+}
+
+.field-label {
+  margin: var(--dbd-space-3) 0 7px;
 }
 
 .tname {
@@ -199,9 +207,9 @@
 }
 
 .swatch {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--dbd-radius-sm);
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   border: 1px solid var(--dbd-border-strong);
   cursor: pointer;
 

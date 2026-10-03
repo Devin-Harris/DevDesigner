@@ -42,27 +42,35 @@
   z-index: 4;
 }
 
-// Inline editor for a text element, positioned over the element in screen space.
+// Inline editor for a text element / shape label, overlaying the element exactly.
+// Sized + styled to match the rendered glyphs (width/height/font/align are bound
+// inline), so the editor IS the visible text — no overlay surface, no second copy
+// behind it. The underlying SVG text/label is hidden while editing.
 .text-editor {
   position: absolute;
   z-index: 7;
-  min-width: 40px;
-  min-height: 1.4em;
+  box-sizing: border-box;
+  min-width: 8px;
+  min-height: 1em;
   margin: 0;
-  padding: 0;
   border: 1px dashed var(--dbd-primary);
-  background: color-mix(in srgb, var(--dbd-surface) 88%, transparent);
+  background: transparent;
   outline: none;
   resize: none;
   overflow: hidden;
   line-height: 1.25;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  // Text elements never wrap (auto-sized to content); `.wrap` (shape labels)
+  // wraps to the box width like the rendered label.
   white-space: pre;
-  transform-origin: 0 0;
+  transform-origin: center center;
+
+  &.wrap {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
   &.centered {
     transform: translate(-50%, -50%);
-    text-align: center;
   }
 }
 

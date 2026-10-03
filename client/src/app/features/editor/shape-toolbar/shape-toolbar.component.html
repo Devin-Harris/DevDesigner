@@ -25,7 +25,9 @@
     aria-label="Hand"
   >
     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 11V5.5a1.5 1.5 0 013 0V11m0-.5V4.5a1.5 1.5 0 013 0V11m0-.5V6a1.5 1.5 0 013 0v7.5a6.5 6.5 0 01-6.5 6.5H13a6 6 0 01-4.7-2.3L5 14.5a1.6 1.6 0 012.5-2L8 13V5.5a1.5 1.5 0 013 0" />
+      <path
+        d="M8 11V5.5a1.5 1.5 0 013 0V11m0-.5V4.5a1.5 1.5 0 013 0V11m0-.5V6a1.5 1.5 0 013 0v7.5a6.5 6.5 0 01-6.5 6.5H13a6 6 0 01-4.7-2.3L5 14.5a1.6 1.6 0 012.5-2L8 13V5.5a1.5 1.5 0 013 0"
+      />
     </svg>
   </button>
 
@@ -59,33 +61,53 @@
   >
     @switch (shapeIcon()) {
       @case ('circle') {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /></svg>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" />
+        </svg>
       }
       @case ('diamond') {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3l9 9-9 9-9-9 9-9z" />
+        </svg>
       }
       @default {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2.5" /></svg>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="14" rx="2.5" />
+        </svg>
       }
     }
     <span class="caret"></span>
   </button>
   <ng-template #shapeMenu let-close>
     <div class="shape-flyout">
-      <button class="flyout-btn" [class.on]="tool() === 'rectangle' && rectRadius() === 0" (click)="pickRectangle(0); close()" title="Rectangle">
-        <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="0" /></svg>
+      <button
+        class="flyout-btn"
+        [class.on]="tool() === 'rectangle'"
+        (click)="pickRectangle(0); close()"
+        matTooltip="Rectangle (R)"
+        matTooltipPosition="above"
+      >
+        <svg class="ico" viewBox="0 0 24 24">
+          <rect x="4" y="5" width="16" height="14" rx="2.5" />
+        </svg>
       </button>
-      <button class="flyout-btn" [class.on]="tool() === 'rectangle' && rectRadius() > 0" (click)="pickRectangle(12); close()" title="Rounded rectangle">
-        <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="5.5" /></svg>
-      </button>
-      <button class="flyout-btn" [class.on]="tool() === 'ellipse'" (click)="onChange('ellipse'); close()" title="Ellipse">
+      <button
+        class="flyout-btn"
+        [class.on]="tool() === 'ellipse'"
+        (click)="onChange('ellipse'); close()"
+        matTooltip="Ellipse (O)"
+        matTooltipPosition="above"
+      >
         <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
       </button>
-      <button class="flyout-btn" [class.on]="tool() === 'diamond'" (click)="onChange('diamond'); close()" title="Diamond">
+      <button
+        class="flyout-btn"
+        [class.on]="tool() === 'diamond'"
+        (click)="onChange('diamond'); close()"
+        matTooltip="Diamond (D)"
+        matTooltipPosition="above"
+      >
         <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
-      </button>
-      <button class="flyout-btn" [class.on]="tool() === 'line'" (click)="onChange('line'); close()" title="Line">
-        <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5" /></svg>
       </button>
     </div>
   </ng-template>
@@ -149,8 +171,12 @@
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->
 <div class="statusbar">
-  <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out"><dbd-icon name="remove" /></button>
-  <button class="zoom-label" (click)="resetView.emit()" matTooltip="Reset view">{{ zoomLabel() }}</button>
+  <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out">
+    <dbd-icon name="remove" />
+  </button>
+  <button class="zoom-label" (click)="resetView.emit()" matTooltip="Reset view">
+    {{ zoomLabel() }}
+  </button>
   <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dbd-icon name="add" /></button>
 
   <span class="sep"></span>
@@ -158,23 +184,50 @@
   <button class="sbtn" (click)="resetView.emit()" matTooltip="Fit / reset view">
     <dbd-icon name="center_focus_strong" />
   </button>
-  <button class="sbtn" [class.on]="gridSnap()" (click)="toggleGrid.emit()" matTooltip="Snap to grid">
+  <button
+    class="sbtn"
+    [class.on]="gridSnap()"
+    (click)="toggleGrid.emit()"
+    matTooltip="Snap to grid"
+  >
     <dbd-icon name="grid_4x4" />
   </button>
-  <button class="sbtn" [dbdPopoverTrigger]="alignMenu" placement="above-start" [disabled]="!canAlign()" matTooltip="Align selected">
+  <button
+    class="sbtn"
+    [dbdPopoverTrigger]="alignMenu"
+    placement="above-start"
+    [disabled]="!canAlign()"
+    matTooltip="Align selected"
+  >
     <dbd-icon name="align_horizontal_left" />
   </button>
   <ng-template #alignMenu let-close>
     <div class="dbd-menu">
-      <button class="dbd-menu-item" (click)="align.emit('left'); close()"><dbd-icon name="align_horizontal_left" />Align left</button>
-      <button class="dbd-menu-item" (click)="align.emit('hcenter'); close()"><dbd-icon name="align_horizontal_center" />Align center (x)</button>
-      <button class="dbd-menu-item" (click)="align.emit('right'); close()"><dbd-icon name="align_horizontal_right" />Align right</button>
-      <button class="dbd-menu-item" (click)="align.emit('top'); close()"><dbd-icon name="align_vertical_top" />Align top</button>
-      <button class="dbd-menu-item" (click)="align.emit('vcenter'); close()"><dbd-icon name="align_vertical_center" />Align middle (y)</button>
-      <button class="dbd-menu-item" (click)="align.emit('bottom'); close()"><dbd-icon name="align_vertical_bottom" />Align bottom</button>
+      <button class="dbd-menu-item" (click)="align.emit('left'); close()">
+        <dbd-icon name="align_horizontal_left" />Align left
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('hcenter'); close()">
+        <dbd-icon name="align_horizontal_center" />Align center (x)
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('right'); close()">
+        <dbd-icon name="align_horizontal_right" />Align right
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('top'); close()">
+        <dbd-icon name="align_vertical_top" />Align top
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('vcenter'); close()">
+        <dbd-icon name="align_vertical_center" />Align middle (y)
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('bottom'); close()">
+        <dbd-icon name="align_vertical_bottom" />Align bottom
+      </button>
       <div class="dbd-menu-sep"></div>
-      <button class="dbd-menu-item" (click)="align.emit('dist-h'); close()"><dbd-icon name="horizontal_distribute" />Distribute horizontally</button>
-      <button class="dbd-menu-item" (click)="align.emit('dist-v'); close()"><dbd-icon name="vertical_distribute" />Distribute vertically</button>
+      <button class="dbd-menu-item" (click)="align.emit('dist-h'); close()">
+        <dbd-icon name="horizontal_distribute" />Distribute horizontally
+      </button>
+      <button class="dbd-menu-item" (click)="align.emit('dist-v'); close()">
+        <dbd-icon name="vertical_distribute" />Distribute vertically
+      </button>
     </div>
   </ng-template>
 

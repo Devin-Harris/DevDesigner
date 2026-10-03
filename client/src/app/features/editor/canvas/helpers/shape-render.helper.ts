@@ -429,9 +429,14 @@ export function buildShapeViews(
         }
         break;
       }
-      case 'text':
+      case 'text': {
+        // Text wraps to its box width. While typing (auto mode) the box is kept
+        // as wide as the content, so wrapping is a no-op; once the box has been
+        // resized narrower, the text reflows to fit. Either way the selection box
+        // is then fit to the wrapped content height so text never spills out.
+        const tFontSize = element.fontSize ?? DEFAULT_FONT_SIZE;
         base.text = layoutTextBlock(element.text ?? '', base.bbox, {
-          fontSize: element.fontSize ?? DEFAULT_FONT_SIZE,
+          fontSize: tFontSize,
           fontFamilyKey: element.fontFamily,
           fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
           italic: element.italic,
@@ -441,7 +446,10 @@ export function buildShapeViews(
           padding: 2,
           wrap: true,
         });
+        const contentH = base.text.lines.length * tFontSize * LINE_HEIGHT + 4;
+        base.bbox = { ...base.bbox, height: contentH };
         break;
+      }
     }
     return base;
   });

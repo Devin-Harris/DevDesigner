@@ -9,8 +9,9 @@ import type {
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
-const STROKE_COLORS = ['#e7ecf3', '#e03131', '#2f9e44', '#1971c2', '#6f8bff', '#f0b45e', '#9b8bff'];
-const FILL_COLORS = ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#d0bfff', '#ffec99'];
+// Saturated palette shared with the table header tints (no muted pastels).
+const STROKE_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+const FILL_COLORS = ['transparent', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 
 /**
  * The "shape & line styling" side panel — the design's calm, full-width companion

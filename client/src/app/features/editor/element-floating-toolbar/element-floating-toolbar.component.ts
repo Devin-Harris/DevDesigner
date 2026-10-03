@@ -14,8 +14,9 @@ import {
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 
-const STROKE_COLORS = ['#1e1e1e', '#e03131', '#2f9e44', '#1971c2', '#f08c00', '#e6e6e6'];
-const FILL_COLORS = ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99', '#e9d8fd'];
+// Saturated palette shared with the table header tints (no muted pastels).
+const STROKE_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+const FILL_COLORS = ['transparent', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 const STROKE_WIDTHS: { value: number; label: string }[] = [
   { value: 1, label: 'Thin' },
   { value: 2, label: 'Bold' },

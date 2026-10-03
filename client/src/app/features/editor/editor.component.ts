@@ -60,7 +60,7 @@ import {
   snapToGrid,
   tableWidth,
 } from './canvas/helpers/node-metrics.helper';
-import { buildShapeViews, fontStack } from './canvas/helpers/shape-render.helper';
+import { buildShapeViews, fontStack, fontWeightFor } from './canvas/helpers/shape-render.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
@@ -385,47 +385,136 @@ export class EditorComponent {
       return null;
     }
     const v = this.store.viewport();
+    const z = v.zoom;
     const isLabel = el.type !== 'text';
+    // A text element that has been resized keeps its fixed width and wraps.
+    const wrapped = !isLabel && this.resizedTextIds.has(id);
+    const fontSize = el.fontSize ?? (isLabel ? 16 : DEFAULT_FONT_SIZE);
+    const text = el.text ?? '';
+    // Height of the text content itself (so a label's editor can be centered in
+    // its shape); a text element's own box is already fit to its content.
+    const contentHeight = Math.max(1, text.split('\n').length) * fontSize * 1.25;
+    // The editor overlays the text exactly, sized and styled to match the
+    // rendered glyphs so it reads as true WYSIWYG — no overlay surface and no
+    // second copy of the text behind it. A shape label centers over its shape; a
+    // text element sits at its own top-left (auto-sized, or fixed-width + wrap).
     return {
       id,
-      // A shape label centers over the shape; a text element sits at its top-left.
-      left: (isLabel ? el.x + el.width / 2 : el.x) * v.zoom + v.x,
-      top: (isLabel ? el.y + el.height / 2 : el.y) * v.zoom + v.y,
-      fontSize: (el.fontSize ?? (isLabel ? 16 : DEFAULT_FONT_SIZE)) * v.zoom,
+      left: (isLabel ? el.x + el.width / 2 : el.x) * z + v.x,
+      top: (isLabel ? el.y + el.height / 2 : el.y) * z + v.y,
+      width: Math.max(el.width, 8) * z,
+      height: (isLabel ? contentHeight : Math.max(el.height, fontSize)) * z,
+      fontSize: fontSize * z,
       fontFamily: fontStack(el.fontFamily),
-      value: el.text ?? '',
+      fontWeight: el.bold ? 800 : fontWeightFor(el.strokeWidth),
+      italic: !!el.italic,
+      value: text,
       color: el.strokeColor,
+      align: isLabel ? 'center' : (el.textAlign ?? 'left'),
+      wrap: isLabel || wrapped,
       center: isLabel,
+      padding: (isLabel ? 8 : 2) * z,
     };
   });
 
-  /** Measure a multi-line text block in world units for the given font. */
+  /**
+   * Measure a multi-line text block in world units using a hidden DOM element in
+   * the ACTUAL rendered web font (canvas `measureText` falls back to a narrower
+   * font for script faces like Kalam and under-measures, so the box came out too
+   * small and the text spilled out). Includes the 2px layout padding on each side
+   * so the glyphs never touch the box edge.
+   */
   private measureText(
     text: string,
     fontSize: number,
     fontFamilyKey: string | undefined,
+    fontWeight = 400,
+    italic = false,
+    wrapWidth?: number,
   ): { width: number; height: number } {
-    const lines = text.split('\n');
-    const ctx = EditorComponent.measureCtx;
-    let width = 0;
-    if (ctx) {
-      ctx.font = `${fontSize}px ${fontStack(fontFamilyKey)}`;
-      for (const line of lines) {
-        width = Math.max(width, ctx.measureText(line).width);
-      }
-    } else {
-      width = Math.max(...lines.map((l) => l.length)) * fontSize * 0.55;
+    const el = EditorComponent.measureEl;
+    if (!el) {
+      const lines = text.split('\n');
+      const width = Math.max(1, ...lines.map((l) => l.length)) * fontSize * 0.6;
+      return { width: Math.ceil(width) + 6, height: Math.ceil(lines.length * fontSize * 1.25) };
     }
-    // Pad a little so script/handwriting fonts (whose canvas metrics under-measure
-    // the SVG render) never overflow the element's box.
+    el.style.fontFamily = fontStack(fontFamilyKey);
+    el.style.fontSize = `${fontSize}px`;
+    el.style.fontWeight = String(fontWeight);
+    el.style.fontStyle = italic ? 'italic' : 'normal';
+    // wrapWidth set => measure the WRAPPED height at that content width; else the
+    // natural single-line width (auto-size).
+    if (wrapWidth != null) {
+      el.style.whiteSpace = 'pre-wrap';
+      el.style.wordBreak = 'break-word';
+      el.style.width = `${Math.max(1, wrapWidth)}px`;
+    } else {
+      el.style.whiteSpace = 'pre';
+      el.style.wordBreak = 'normal';
+      el.style.width = 'auto';
+    }
+    el.textContent = text.length ? text : ' ';
+    const rect = el.getBoundingClientRect();
     return {
-      width: Math.ceil(width + fontSize * 0.6),
-      height: Math.ceil(lines.length * fontSize * 1.25),
+      width: Math.ceil(rect.width) + 6, // +4 for the 2px layout padding, +2 slack
+      height: Math.ceil(rect.height) + 4,
     };
   }
 
-  private static readonly measureCtx: CanvasRenderingContext2D | null =
-    typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  /** Hidden element used to measure text in the real web font (1x, outside the zoom). */
+  private static readonly measureEl: HTMLDivElement | null = (() => {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    const el = document.createElement('div');
+    Object.assign(el.style, {
+      position: 'absolute',
+      left: '-9999px',
+      top: '-9999px',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      whiteSpace: 'pre',
+      lineHeight: '1.25',
+      padding: '0',
+      margin: '0',
+      border: '0',
+      boxSizing: 'content-box',
+    } as Partial<CSSStyleDeclaration>);
+    el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+    return el;
+  })();
+
+  /**
+   * Text element ids whose box has been manually resized: they keep a fixed width
+   * and WRAP their text, instead of auto-growing to fit. Seeded on edit-start from
+   * geometry (text wider than its box) so it survives reloads. In-memory only.
+   */
+  private readonly resizedTextIds = new Set<string>();
+
+  /** Whether a text element is in fixed-width (wrap) mode rather than auto-size. */
+  private isWrappedText(id: string): boolean {
+    return this.resizedTextIds.has(id);
+  }
+
+  /**
+   * Seed the fixed-width/wrap flag for an existing committed text from geometry:
+   * if its settled box is narrower than the natural single-line text, it was
+   * resized. Called at edit-start only (never on a freshly-created box, whose
+   * initial width would wrongly read as "narrower than the text").
+   */
+  private seedWrapFlag(el: CanvasElementModel): void {
+    const natural = this.measureText(
+      el.text ?? '',
+      el.fontSize ?? DEFAULT_FONT_SIZE,
+      el.fontFamily,
+      el.bold ? 800 : fontWeightFor(el.strokeWidth),
+      el.italic,
+    );
+    if (natural.width > el.width + 2) {
+      this.resizedTextIds.add(el.id);
+    }
+  }
 
   /**
    * Connectors as rendered. While re-pointing an endpoint, the affected line's
@@ -1034,6 +1123,25 @@ export class EditorComponent {
       x = left ? s.x + s.width - width : s.x;
       y = top ? s.y + s.height - height : s.y;
     }
+
+    // Resizing a TEXT element fixes its width and makes it wrap: the horizontal
+    // drag sets the width, the height auto-fits the wrapped text (top-anchored),
+    // and the element is flagged so it keeps wrapping instead of auto-growing.
+    const el = this.store.elements().find((e) => e.id === g.id);
+    if (el?.type === 'text') {
+      this.resizedTextIds.add(g.id);
+      const fitted = this.measureText(
+        el.text ?? '',
+        el.fontSize ?? DEFAULT_FONT_SIZE,
+        el.fontFamily,
+        el.bold ? 800 : fontWeightFor(el.strokeWidth),
+        el.italic,
+        width - 4,
+      );
+      this.store.patchElementLocal(g.id, { x, y: s.y, width, height: fitted.height });
+      return;
+    }
+
     this.store.patchElementLocal(g.id, { x, y, width, height });
   }
 
@@ -1168,13 +1276,25 @@ export class EditorComponent {
       this.store.patchElementLocal(id, { text: value });
       return;
     }
-    // Live-fit the text element box to its content so the outline tracks it.
-    const size = this.measureText(value, el.fontSize ?? DEFAULT_FONT_SIZE, el.fontFamily);
-    this.store.patchElementLocal(id, {
-      text: value,
-      width: Math.max(size.width, 8),
-      height: size.height,
-    });
+    // Auto-size (grow) while typing; once resized, keep the width and wrap.
+    const size = this.fitTextSize(el, value);
+    this.store.patchElementLocal(id, { text: value, width: size.width, height: size.height });
+  }
+
+  /**
+   * The box a text element should take for `value`: auto-sized to the content in
+   * auto mode, or the current (resized) width with the text wrapped to it.
+   */
+  private fitTextSize(el: CanvasElementModel, value: string): { width: number; height: number } {
+    const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
+    const weight = el.bold ? 800 : fontWeightFor(el.strokeWidth);
+    if (this.isWrappedText(el.id)) {
+      const width = Math.max(16, el.width);
+      const size = this.measureText(value, fontSize, el.fontFamily, weight, el.italic, width - 4);
+      return { width, height: size.height };
+    }
+    const size = this.measureText(value, fontSize, el.fontFamily, weight, el.italic);
+    return { width: Math.max(size.width, 8), height: size.height };
   }
 
   protected commitTextEdit(): void {
@@ -1197,12 +1317,8 @@ export class EditorComponent {
       void this.store.deleteElement(id);
       return;
     }
-    const size = this.measureText(text, el.fontSize ?? DEFAULT_FONT_SIZE, el.fontFamily);
-    void this.store.updateElement(id, {
-      text,
-      width: Math.max(size.width, 8),
-      height: size.height,
-    });
+    const size = this.fitTextSize(el, text);
+    void this.store.updateElement(id, { text, width: size.width, height: size.height });
   }
 
   // --- node pointer (select / drag) ---
@@ -1606,6 +1722,10 @@ export class EditorComponent {
         hit.type === 'diamond'
       ) {
         this.store.selectElement(hit.id);
+        // Seed the fixed-width/wrap flag from geometry before the editor opens.
+        if (hit.type === 'text') {
+          this.seedWrapFlag(hit);
+        }
         this.editingTextId.set(hit.id);
       }
       return;
