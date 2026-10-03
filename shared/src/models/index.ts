@@ -145,6 +145,49 @@ export interface ViewportModel {
   zoom: number;
 }
 
+/** A named vertical participant in a sequence diagram. */
+export interface LifelineModel {
+  id: string;
+  /** Display label in the header box. */
+  label: string;
+  /** Header box fill color (hex). */
+  color?: string;
+  /** World-space X center of this lifeline. */
+  x: number;
+  /** Header box width in px. */
+  width: number;
+  /** Sort order among lifelines (ascending = left to right). */
+  order: number;
+}
+
+/** A horizontal message arrow between two lifelines in a sequence diagram. */
+export interface SequenceMessageModel {
+  id: string;
+  fromLifelineId: string;
+  toLifelineId: string;
+  /** Optional label shown at the midpoint of the arrow. */
+  label?: string;
+  /** World-space Y of this message row. */
+  y: number;
+  /** solid = synchronous call; dashed = return / async response. */
+  style: 'solid' | 'dashed';
+  /** Which end gets the arrowhead. */
+  direction: 'forward' | 'reverse';
+  arrowhead: 'arrow' | 'open' | 'none';
+}
+
+/** Diagram-level layout settings for the sequence layer. */
+export interface SequenceConfigModel {
+  /** Horizontal gap between lifeline centers (px, default 180). */
+  lifelineSpacing: number;
+  /** Vertical gap between consecutive message rows (px, default 60). */
+  rowSpacing: number;
+  /** Height of each lifeline header box (px, default 48). */
+  headerHeight: number;
+  /** World-space Y where lifeline spines begin (header top = originY - headerHeight). Set when the first lifeline is placed. */
+  originY?: number;
+}
+
 /**
  * Read/assembly shape for a whole project (e.g. initial load or export).
  * This is NOT what individual write endpoints accept; writes are granular.
@@ -155,5 +198,11 @@ export interface SchemaModel {
   notes: NoteModel[];
   /** Free-form drawing elements (shapes, arrows, freehand strokes, text). */
   elements: CanvasElementModel[];
+  /** Sequence diagram lifeline columns. */
+  lifelines: LifelineModel[];
+  /** Sequence diagram message rows. */
+  sequenceMessages: SequenceMessageModel[];
+  /** Sequence diagram layout configuration. */
+  sequenceConfig: SequenceConfigModel;
   viewport: ViewportModel;
 }

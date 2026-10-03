@@ -9,6 +9,8 @@ import type {
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
 import { ElementsService } from '../elements/elements.service';
+import { LifelinesService } from '../lifelines/lifelines.service';
+import { SequenceMessagesService } from '../sequence-messages/sequence-messages.service';
 import { AccessService } from '../access/access.service';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -32,6 +34,8 @@ export class ProjectsService {
     private readonly tables: TablesService,
     private readonly relationships: RelationshipsService,
     private readonly elements: ElementsService,
+    private readonly lifelines: LifelinesService,
+    private readonly sequenceMessages: SequenceMessagesService,
     private readonly access: AccessService,
   ) {}
 
@@ -68,16 +72,21 @@ export class ProjectsService {
   ): Promise<ProjectGraphResponse> {
     const accessLevel = await this.access.assertCanRead(id, userId, shareToken);
     const project = await this.findOrThrow(id);
-    const [tables, relationships, elements] = await Promise.all([
+    const [tables, relationships, elements, lifelines, sequenceMessages] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
       this.elements.getModelsForProject(id),
+      this.lifelines.getModelsForProject(id),
+      this.sequenceMessages.getModelsForProject(id),
     ]);
     const schema: SchemaModel = {
       tables,
       relationships,
       notes: [],
       elements,
+      lifelines,
+      sequenceMessages,
+      sequenceConfig: { lifelineSpacing: 180, rowSpacing: 60, headerHeight: 48 },
       viewport: {
         x: project.viewportX,
         y: project.viewportY,

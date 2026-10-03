@@ -1,0 +1,142 @@
+<svg
+  class="sequence-svg"
+  [style.left.px]="-svgOffset()"
+  [style.top.px]="-svgOffset()"
+  width="10000"
+  height="10000"
+  overflow="visible"
+>
+  <defs>
+    <!-- Filled triangle arrowhead for forward messages -->
+    <marker id="dbd-seq-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" class="seq-arrowhead" />
+    </marker>
+    <!-- Open chevron arrowhead -->
+    <marker id="dbd-seq-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" class="seq-arrowhead-open" />
+    </marker>
+    <!-- Reversed markers for reverse-direction messages -->
+    <marker id="dbd-seq-arrow-rev" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto">
+      <polygon points="10 0, 0 3.5, 10 7" class="seq-arrowhead" />
+    </marker>
+    <marker id="dbd-seq-open-rev" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto">
+      <polyline points="10 0, 0 3.5, 10 7" class="seq-arrowhead-open" />
+    </marker>
+  </defs>
+
+  <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
+
+    <!-- Lifeline spines (drawn first so headers paint over the top) -->
+    @for (ll of lifelines(); track trackById($index, ll)) {
+      <line
+        class="seq-spine"
+        [class.selected]="ll.selected"
+        [attr.x1]="ll.spineX"
+        [attr.y1]="ll.spineY1"
+        [attr.x2]="ll.spineX"
+        [attr.y2]="ll.spineY2"
+      />
+      <!-- Wide invisible hit zone for the spine (for message tool click) -->
+      @if (interactive()) {
+        <line
+          class="seq-spine-hit"
+          [attr.x1]="ll.spineX"
+          [attr.y1]="ll.spineY1"
+          [attr.x2]="ll.spineX"
+          [attr.y2]="ll.spineY2"
+          (pointerdown)="onSpineClick(ll.id, $event, svgOffset())"
+        />
+      }
+    }
+
+    <!-- Message arrows -->
+    @for (msg of messages(); track trackById($index, msg)) {
+      <!-- Hit zone -->
+      @if (interactive()) {
+        <line
+          class="seq-msg-hit"
+          [attr.x1]="msg.x1"
+          [attr.y1]="msg.y"
+          [attr.x2]="msg.x2"
+          [attr.y2]="msg.y"
+          (pointerdown)="onMessageDown(msg.id, $event)"
+          (click)="onMessageClick(msg.id, $event)"
+        />
+      }
+      <!-- Visible arrow line -->
+      <line
+        class="seq-msg"
+        [class.selected]="msg.selected"
+        [attr.x1]="msg.x1"
+        [attr.y1]="msg.y"
+        [attr.x2]="msg.x2"
+        [attr.y2]="msg.y"
+        [attr.stroke-dasharray]="msg.strokeDasharray === 'none' ? null : msg.strokeDasharray"
+        [attr.marker-end]="markerEnd(msg)"
+        [attr.marker-start]="markerStart(msg)"
+      />
+      <!-- Message label -->
+      @if (msg.label) {
+        <text
+          class="seq-msg-label"
+          [attr.x]="msg.labelX"
+          [attr.y]="msg.y - 6"
+          text-anchor="middle"
+        >{{ msg.label }}</text>
+      }
+    }
+
+    <!-- Lifeline header boxes (on top of spines) -->
+    @for (ll of lifelines(); track trackById($index, ll)) {
+      <g
+        class="seq-lifeline"
+        [class.selected]="ll.selected"
+        [class.draggable]="interactive()"
+        (pointerdown)="onLifelineDown(ll.id, $event)"
+        (click)="onLifelineClick(ll.id, $event)"
+      >
+        <!-- Header box shadow/background -->
+        <rect
+          class="seq-header-bg"
+          [attr.x]="ll.headerX"
+          [attr.y]="ll.headerY"
+          [attr.width]="ll.headerWidth"
+          [attr.height]="ll.headerHeight"
+          rx="6"
+          ry="6"
+        />
+        <!-- Colored fill band -->
+        <rect
+          class="seq-header-fill"
+          [attr.x]="ll.headerX"
+          [attr.y]="ll.headerY"
+          [attr.width]="ll.headerWidth"
+          [attr.height]="ll.headerHeight"
+          [attr.fill]="ll.color"
+          rx="6"
+          ry="6"
+        />
+        <!-- Label -->
+        <text
+          class="seq-header-label"
+          [attr.x]="ll.headerX + ll.headerWidth / 2"
+          [attr.y]="ll.headerY + ll.headerHeight / 2 + 5"
+          text-anchor="middle"
+        >{{ ll.label }}</text>
+        <!-- Selection ring -->
+        @if (ll.selected) {
+          <rect
+            class="seq-header-selection"
+            [attr.x]="ll.headerX - 2"
+            [attr.y]="ll.headerY - 2"
+            [attr.width]="ll.headerWidth + 4"
+            [attr.height]="ll.headerHeight + 4"
+            rx="7"
+            ry="7"
+          />
+        }
+      </g>
+    }
+
+  </g>
+</svg>

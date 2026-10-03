@@ -42,6 +42,12 @@ import {
   type ShapeEndpointEvent,
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
+import {
+  CanvasSequenceComponent,
+  type LifelinePointerEvent,
+  type SpineClickEvent,
+} from './canvas-sequence/canvas-sequence.component';
+import { buildLifelineViews, buildMessageViews } from './canvas/helpers/sequence-render.helper';
 import { type AlignAction } from './canvas/models/toolbar-actions';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
@@ -70,6 +76,8 @@ import { exportDiagramImage, type ImageFormat } from './export/image-export.help
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
 import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
+import { LifelineInspectorComponent } from './lifeline-inspector/lifeline-inspector.component';
+import { MessageInspectorComponent } from './message-inspector/message-inspector.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
@@ -85,7 +93,9 @@ type DragMode =
   | 'element'
   | 'element-resize'
   | 'element-rotate'
-  | 'arrow-endpoint';
+  | 'arrow-endpoint'
+  | 'lifeline-drag'
+  | 'draw-message';
 
 /** Default styling applied to a newly drawn element. */
 const DEFAULT_ELEMENT_STROKE = '#2f3a45';
@@ -145,11 +155,14 @@ function readStoredGrid(): boolean {
     MatTooltipModule,
     CanvasConnectorsComponent,
     CanvasShapesComponent,
+    CanvasSequenceComponent,
     ShapeToolbarComponent,
     InspectorComponent,
     ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
     ElementInspectorComponent,
+    LifelineInspectorComponent,
+    MessageInspectorComponent,
     RelationshipToolbarComponent,
     TableToolbarComponent,
     TableNodeComponent,
@@ -363,6 +376,29 @@ export class EditorComponent {
   /** The shapes layer is interactive only in select mode (drawing passes through it). */
   protected readonly shapesInteractive = computed(
     () => this.activeTool() === 'select' && this.store.canEdit(),
+  );
+
+  /** Sequence layer is interactive in select mode and when drawing a message. */
+  protected readonly sequenceInteractive = computed(
+    () =>
+      (this.activeTool() === 'select' || this.activeTool() === 'message') && this.store.canEdit(),
+  );
+
+  protected readonly lifelineViews = computed(() =>
+    buildLifelineViews(
+      this.store.lifelines(),
+      this.store.sequenceConfig(),
+      this.store.sequenceMessages(),
+      this.store.selectedLifelineIds(),
+    ),
+  );
+
+  protected readonly messageViews = computed(() =>
+    buildMessageViews(
+      this.store.sequenceMessages(),
+      this.store.lifelines(),
+      this.store.selectedMessageIds(),
+    ),
   );
 
   /** Id of the text element being edited inline (a DOM textarea overlays it). */
@@ -641,6 +677,12 @@ export class EditorComponent {
     { wp: Point[]; both: boolean; sourceMoved: boolean }
   >();
 
+  private dragLifelineId: string | null = null;
+  private dragLifelineStartX = 0;
+  private drawMessageFromLifelineId: string | null = null;
+  private drawMessageWorldY = 0;
+  private drawMessageCurrentWorldX = 0;
+
   private lastCursorSent = 0;
 
   constructor() {
@@ -762,6 +804,21 @@ export class EditorComponent {
       if (tool === 'table') {
         this.addTableAt(event.clientX, event.clientY);
         this.activeTool.set('select');
+        return;
+      }
+      if (tool === 'lifeline') {
+        const world = this.toWorld(event.clientX, event.clientY);
+        const x = this.gridSnap() ? snapToGrid(Math.round(world.x)) : Math.round(world.x);
+        const cfg = this.store.sequenceConfig();
+        if (cfg.originY == null) {
+          this.store.setSequenceOriginY(Math.round(world.y) + cfg.headerHeight);
+        }
+        void this.store.addLifeline({ label: 'Lifeline', x, width: 120, order: this.store.lifelines().length });
+        this.activeTool.set('select');
+        return;
+      }
+      if (tool === 'message') {
+        // Message drawing begins on a spine click (handled by onSequenceSpineClick).
         return;
       }
       this.beginDraw(tool, event);
@@ -1426,6 +1483,95 @@ export class EditorComponent {
     this.linkCursor.set(null);
   }
 
+  // --- sequence diagram interactions ---
+
+  protected onSequenceLifelineDown(payload: LifelinePointerEvent): void {
+    if (payload.event.button !== 0 || !this.store.canEdit()) return;
+    if (EditorComponent.additive(payload.event)) {
+      this.store.selectLifeline(payload.id, true);
+      return;
+    }
+    this.store.selectLifeline(payload.id, false);
+    const ll = this.store.lifelines().find((l) => l.id === payload.id);
+    if (!ll) return;
+    this.dragLifelineId = payload.id;
+    this.dragLifelineStartX = ll.x;
+    this.startClientX = payload.event.clientX;
+    this.mode = 'lifeline-drag';
+  }
+
+  protected onSequenceSelectLifeline(payload: LifelinePointerEvent): void {
+    if (this.mode !== 'lifeline-drag') {
+      this.store.selectLifeline(payload.id, EditorComponent.additive(payload.event));
+    }
+  }
+
+  protected onSequenceSelectMessage(payload: LifelinePointerEvent): void {
+    this.store.selectMessage(payload.id, EditorComponent.additive(payload.event));
+  }
+
+  protected onSequenceMessageDown(payload: LifelinePointerEvent): void {
+    if (payload.event.button !== 0 || !this.store.canEdit()) return;
+    this.store.selectMessage(payload.id, EditorComponent.additive(payload.event));
+  }
+
+  protected onSequenceSpineClick(ev: SpineClickEvent): void {
+    if (!this.store.canEdit()) return;
+    if (this.activeTool() === 'message') {
+      // Begin drawing a message from this spine.
+      this.drawMessageFromLifelineId = ev.lifelineId;
+      this.drawMessageWorldY = ev.worldY;
+      this.drawMessageCurrentWorldX = this.store.lifelines().find((l) => l.id === ev.lifelineId)?.x ?? 0;
+      this.startClientX = ev.event.clientX;
+      this.mode = 'draw-message';
+      return;
+    }
+    // In select mode: clicking the spine selects the lifeline.
+    if (this.activeTool() === 'select') {
+      this.store.selectLifeline(ev.lifelineId, EditorComponent.additive(ev.event));
+    }
+  }
+
+  private commitMessageDraw(): void {
+    const fromId = this.drawMessageFromLifelineId;
+    if (!fromId) return;
+    const worldX = this.drawMessageCurrentWorldX;
+    // Find the nearest lifeline to the release point.
+    const lifelines = this.store.lifelines();
+    let toId: string | null = null;
+    let minDist = Infinity;
+    for (const ll of lifelines) {
+      if (ll.id === fromId) continue;
+      const d = Math.abs(ll.x - worldX);
+      if (d < minDist) {
+        minDist = d;
+        toId = ll.id;
+      }
+    }
+    if (toId && minDist < 100) {
+      void this.store.addSequenceMessage({
+        fromLifelineId: fromId,
+        toLifelineId: toId,
+        y: this.drawMessageWorldY,
+        style: 'solid',
+        direction: 'forward',
+        arrowhead: 'arrow',
+      });
+    }
+    this.drawMessageFromLifelineId = null;
+    this.activeTool.set('select');
+  }
+
+  private commitLifelineDrag(): void {
+    const id = this.dragLifelineId;
+    if (!id) return;
+    // Check if this lifeline crossed another and needs reordering.
+    const lifelines = this.store.lifelines().slice().sort((a, b) => a.x - b.x);
+    const ordered = lifelines.map((l) => l.id);
+    this.store.reorderLifelines(ordered);
+    this.dragLifelineId = null;
+  }
+
   // --- relationship segment dragging (Miro-style manual routing) ---
 
   protected onSegmentDown(payload: SegmentDownEvent): void {
@@ -1497,6 +1643,20 @@ export class EditorComponent {
       this.moveEndpoint(event.clientX, event.clientY);
       return;
     }
+    if (this.mode === 'lifeline-drag' && this.dragLifelineId) {
+      const zoom = this.store.viewport().zoom;
+      const dx = (event.clientX - this.startClientX) / zoom;
+      const x = this.gridSnap()
+        ? snapToGrid(Math.round(this.dragLifelineStartX + dx))
+        : Math.round(this.dragLifelineStartX + dx);
+      this.store.moveLifeline(this.dragLifelineId, x);
+      return;
+    }
+    if (this.mode === 'draw-message') {
+      const world = this.toWorld(event.clientX, event.clientY);
+      this.drawMessageCurrentWorldX = world.x;
+      return;
+    }
     if (this.mode === 'pan') {
       const dx = event.clientX - this.startClientX;
       const dy = event.clientY - this.startClientY;
@@ -1556,6 +1716,10 @@ export class EditorComponent {
       this.mode === 'arrow-endpoint'
     ) {
       this.commitElementGesture();
+    } else if (this.mode === 'lifeline-drag') {
+      this.commitLifelineDrag();
+    } else if (this.mode === 'draw-message') {
+      this.commitMessageDraw();
     }
     this.mode = 'idle';
     this.panning.set(false);
@@ -1670,11 +1834,15 @@ export class EditorComponent {
       const relIds = [...this.store.selectedRelationshipIds()];
       const tableIds = [...this.store.selectedTableIds()];
       const elementIds = [...this.store.selectedElementIds()];
-      if (relIds.length || tableIds.length || elementIds.length) {
+      const lifelineIds = [...this.store.selectedLifelineIds()];
+      const messageIds = [...this.store.selectedMessageIds()];
+      if (relIds.length || tableIds.length || elementIds.length || lifelineIds.length || messageIds.length) {
         event.preventDefault();
         relIds.forEach((id) => void this.store.deleteRelationship(id));
         tableIds.forEach((id) => void this.store.deleteTable(id));
         elementIds.forEach((id) => void this.store.deleteElement(id));
+        lifelineIds.forEach((id) => void this.store.deleteLifeline(id));
+        messageIds.forEach((id) => void this.store.deleteSequenceMessage(id));
       }
     }
   }
@@ -1691,6 +1859,8 @@ export class EditorComponent {
     l: 'line',
     t: 'text',
     p: 'freedraw',
+    f: 'lifeline',
+    m: 'message',
   };
 
   protected onToolChange(tool: EditorTool): void {
@@ -1839,7 +2009,7 @@ export class EditorComponent {
     const { tables, relationships, selectionOnly } = this.exportScope();
     const sql = generateSql(
       // Elements are decorative and are ignored by the SQL generator.
-      { tables, relationships, notes: [], elements: [], viewport: this.store.viewport() },
+      { tables, relationships, notes: [], elements: [], viewport: this.store.viewport(), lifelines: [], sequenceMessages: [], sequenceConfig: { lifelineSpacing: 180, rowSpacing: 60, headerHeight: 48 } },
       { dialect: 'mysql' },
     );
     this.dialog.open(ExportDialogComponent, {

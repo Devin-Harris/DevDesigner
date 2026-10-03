@@ -8,7 +8,7 @@ import type { AlignAction, ExportImageFormat } from '../canvas/models/toolbar-ac
 /** Default corner radius (px) applied when the rounded-rectangle variant is picked. */
 const ROUNDED_RADIUS = 12;
 
-/** The active canvas tool: 'select', the 'hand' pan tool, the ERD 'table', plus one per drawable element kind. */
+/** The active canvas tool: 'select', the 'hand' pan tool, the ERD 'table', plus one per drawable element kind, plus sequence diagram tools. */
 export type EditorTool =
   | 'select'
   | 'hand'
@@ -19,7 +19,9 @@ export type EditorTool =
   | 'arrow'
   | 'line'
   | 'text'
-  | 'freedraw';
+  | 'freedraw'
+  | 'lifeline'
+  | 'message';
 
 /** Shape tools grouped behind the dock's Shape flyout. */
 const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];

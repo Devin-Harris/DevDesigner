@@ -1,0 +1,46 @@
+<div class="panel">
+  <div class="panel-head">
+    <div class="head-text">
+      <div class="eyebrow">Sequence diagram</div>
+      <div class="kname">Lifeline</div>
+    </div>
+    <button class="icon-btn del" (click)="onDelete()" [disabled]="!store.canEdit()" title="Delete">
+      <dbd-icon name="delete" />
+    </button>
+  </div>
+
+  <div class="field-label">Label</div>
+  <input
+    class="text-input"
+    type="text"
+    [value]="lifeline().label"
+    [disabled]="!store.canEdit()"
+    (change)="onLabelChange($any($event.target).value)"
+  />
+
+  <div class="field-label">Color</div>
+  <div class="swatches">
+    @for (c of colors; track c) {
+      <button
+        class="swatch"
+        [class.active]="lifeline().color === c"
+        [style.background]="c"
+        [disabled]="!store.canEdit()"
+        (click)="onColorPick(c)"
+      ></button>
+    }
+  </div>
+
+  <div class="field-label">Width</div>
+  <input
+    class="range-input"
+    type="range"
+    min="80"
+    max="240"
+    step="8"
+    [value]="lifeline().width"
+    [disabled]="!store.canEdit()"
+    (input)="onWidthChange(+$any($event.target).value)"
+  />
+  <div class="range-val">{{ lifeline().width }}px</div>
+</div>

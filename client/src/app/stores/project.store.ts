@@ -6,17 +6,24 @@ import type {
   CreateColumnDto,
   CreateElementDto,
   CreateIndexDto,
+  CreateLifelineDto,
+  CreateSequenceMessageDto,
   IndexModel,
+  LifelineModel,
   PointModel,
   RelationshipModel,
   RelationshipType,
   SchemaModel,
   SchemaMutation,
+  SequenceConfigModel,
+  SequenceMessageModel,
   TableModel,
   UpdateColumnDto,
   UpdateElementDto,
   UpdateIndexDto,
+  UpdateLifelineDto,
   UpdateRelationshipDto,
+  UpdateSequenceMessageDto,
   UpdateTableDto,
   ViewportModel,
 } from '@dbdesigner/shared';
@@ -30,6 +37,8 @@ import { RelationshipsService } from '../core/services/relationships.service';
 import { TablesService } from '../core/services/tables.service';
 import { ShareLinksService } from '../core/services/share-links.service';
 import { ShareSessionService } from '../core/services/share-session.service';
+import { LifelinesService } from '../core/services/lifelines.service';
+import { SequenceMessagesService } from '../core/services/sequence-messages.service';
 
 /**
  * Editor store: the single source of truth for the loaded project's schema,
@@ -49,6 +58,8 @@ interface EditorState {
   selectedTableIds: string[];
   selectedRelationshipIds: string[];
   selectedElementIds: string[];
+  selectedLifelineIds: string[];
+  selectedMessageIds: string[];
   loading: boolean;
   error: string | null;
   saveStatus: SaveStatus;
@@ -102,6 +113,8 @@ const initialState: EditorState = {
   selectedTableIds: [],
   selectedRelationshipIds: [],
   selectedElementIds: [],
+  selectedLifelineIds: [],
+  selectedMessageIds: [],
   loading: false,
   error: null,
   saveStatus: 'idle',
@@ -194,12 +207,17 @@ export const ProjectStore = signalStore(
       selectedTableIds,
       selectedRelationshipIds,
       selectedElementIds,
+      selectedLifelineIds,
+      selectedMessageIds,
       accessMode,
       undoDepth,
       redoDepth,
     }) => ({
     tables: computed(() => schema()?.tables ?? []),
     relationships: computed(() => schema()?.relationships ?? []),
+    lifelines: computed(() => [...(schema()?.lifelines ?? [])].sort((a, b) => a.order - b.order)),
+    sequenceMessages: computed(() => [...(schema()?.sequenceMessages ?? [])].sort((a, b) => a.y - b.y)),
+    sequenceConfig: computed(() => schema()?.sequenceConfig ?? { lifelineSpacing: 180, rowSpacing: 60, headerHeight: 48 }),
     /**
      * Column ids that participate in any relationship. A non-PK column in this
      * set is a foreign key (the table node shows it a link glyph); a PK in it is
@@ -233,6 +251,18 @@ export const ProjectStore = signalStore(
         ? (schema()?.elements.find((e) => e.id === ids[0]) ?? null)
         : null;
     }),
+    selectedLifeline: computed(() => {
+      const ids = selectedLifelineIds();
+      return ids.length === 1
+        ? (schema()?.lifelines.find((l) => l.id === ids[0]) ?? null)
+        : null;
+    }),
+    selectedMessage: computed(() => {
+      const ids = selectedMessageIds();
+      return ids.length === 1
+        ? (schema()?.sequenceMessages.find((m) => m.id === ids[0]) ?? null)
+        : null;
+    }),
     canEdit: computed(() => accessMode() !== 'VIEW'),
     canUndo: computed(() => undoDepth() > 0),
     canRedo: computed(() => redoDepth() > 0),
@@ -249,6 +279,8 @@ export const ProjectStore = signalStore(
       elementsApi = inject(ElementsService),
       shareLinksApi = inject(ShareLinksService),
       shareSession = inject(ShareSessionService),
+      lifelinesApi = inject(LifelinesService),
+      sequenceMessagesApi = inject(SequenceMessagesService),
     ) => {
       const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -389,6 +421,8 @@ export const ProjectStore = signalStore(
             shared: false,
             selectedTableIds: [],
             selectedRelationshipIds: [],
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
           });
           try {
             const graph = await firstValueFrom(projectsApi.getGraph(projectId));
@@ -412,6 +446,8 @@ export const ProjectStore = signalStore(
             projectId: null,
             selectedTableIds: [],
             selectedRelationshipIds: [],
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
           });
           try {
             const graph = await firstValueFrom(shareLinksApi.getShared(token));
@@ -592,6 +628,83 @@ export const ProjectStore = signalStore(
                 return { ...s, elements: [...ordered, ...rest] };
               });
               break;
+            case 'lifeline.created':
+              setSchema((s) =>
+                s.lifelines.some((l) => l.id === mutation.lifeline.id)
+                  ? s
+                  : { ...s, lifelines: [...s.lifelines, mutation.lifeline] },
+              );
+              break;
+            case 'lifeline.updated':
+              setSchema((s) => ({
+                ...s,
+                lifelines: s.lifelines.map((l) =>
+                  l.id === mutation.lifeline.id ? mutation.lifeline : l,
+                ),
+              }));
+              break;
+            case 'lifeline.moved':
+              setSchema((s) => ({
+                ...s,
+                lifelines: s.lifelines.map((l) =>
+                  l.id === mutation.lifelineId ? { ...l, x: mutation.x } : l,
+                ),
+              }));
+              break;
+            case 'lifeline.deleted':
+              setSchema((s) => ({
+                ...s,
+                lifelines: s.lifelines.filter((l) => l.id !== mutation.lifelineId),
+                sequenceMessages: s.sequenceMessages.filter(
+                  (m) =>
+                    m.fromLifelineId !== mutation.lifelineId &&
+                    m.toLifelineId !== mutation.lifelineId,
+                ),
+              }));
+              break;
+            case 'lifeline.reordered':
+              setSchema((s) => {
+                const byId = new Map(s.lifelines.map((l) => [l.id, l]));
+                const ordered = mutation.orderedLifelineIds
+                  .map((id, index) => {
+                    const ll = byId.get(id);
+                    return ll ? { ...ll, order: index } : undefined;
+                  })
+                  .filter((l): l is LifelineModel => Boolean(l));
+                const named = new Set(mutation.orderedLifelineIds);
+                const rest = s.lifelines.filter((l) => !named.has(l.id));
+                return { ...s, lifelines: [...ordered, ...rest] };
+              });
+              break;
+            case 'sequenceMessage.created':
+              setSchema((s) =>
+                s.sequenceMessages.some((m) => m.id === mutation.message.id)
+                  ? s
+                  : { ...s, sequenceMessages: [...s.sequenceMessages, mutation.message] },
+              );
+              break;
+            case 'sequenceMessage.updated':
+              setSchema((s) => ({
+                ...s,
+                sequenceMessages: s.sequenceMessages.map((m) =>
+                  m.id === mutation.message.id ? mutation.message : m,
+                ),
+              }));
+              break;
+            case 'sequenceMessage.moved':
+              setSchema((s) => ({
+                ...s,
+                sequenceMessages: s.sequenceMessages.map((m) =>
+                  m.id === mutation.messageId ? { ...m, y: mutation.y } : m,
+                ),
+              }));
+              break;
+            case 'sequenceMessage.deleted':
+              setSchema((s) => ({
+                ...s,
+                sequenceMessages: s.sequenceMessages.filter((m) => m.id !== mutation.messageId),
+              }));
+              break;
           }
         },
 
@@ -657,6 +770,46 @@ export const ProjectStore = signalStore(
             selectedTableIds: [],
             selectedRelationshipIds: [],
             selectedElementIds: [],
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+          });
+        },
+
+        selectLifeline(lifelineId: string, additive = false): void {
+          if (!additive) {
+            patchState(store, {
+              selectedLifelineIds: [lifelineId],
+              selectedMessageIds: [],
+              selectedTableIds: [],
+              selectedRelationshipIds: [],
+              selectedElementIds: [],
+            });
+            return;
+          }
+          const current = store.selectedLifelineIds();
+          patchState(store, {
+            selectedLifelineIds: current.includes(lifelineId)
+              ? current.filter((id) => id !== lifelineId)
+              : [...current, lifelineId],
+          });
+        },
+
+        selectMessage(messageId: string, additive = false): void {
+          if (!additive) {
+            patchState(store, {
+              selectedMessageIds: [messageId],
+              selectedLifelineIds: [],
+              selectedTableIds: [],
+              selectedRelationshipIds: [],
+              selectedElementIds: [],
+            });
+            return;
+          }
+          const current = store.selectedMessageIds();
+          patchState(store, {
+            selectedMessageIds: current.includes(messageId)
+              ? current.filter((id) => id !== messageId)
+              : [...current, messageId],
           });
         },
 
@@ -1024,6 +1177,137 @@ export const ProjectStore = signalStore(
               redo: () => deleteElementRaw(ref.id),
             });
           }
+        },
+
+        // --- Sequence diagram lifelines ---
+
+        async addLifeline(dto: CreateLifelineDto): Promise<LifelineModel | null> {
+          const projectId = store.projectId();
+          if (!projectId) return null;
+          const created = await runSave(() => firstValueFrom(lifelinesApi.create(projectId, dto)));
+          setSchema((s) => ({ ...s, lifelines: [...s.lifelines, created] }));
+          patchState(store, {
+            selectedLifelineIds: [created.id],
+            selectedMessageIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+          return created;
+        },
+
+        async updateLifeline(lifelineId: string, patch: UpdateLifelineDto): Promise<void> {
+          const updated = await runSave(() => firstValueFrom(lifelinesApi.update(lifelineId, patch)));
+          setSchema((s) => ({
+            ...s,
+            lifelines: s.lifelines.map((l) => (l.id === lifelineId ? updated : l)),
+          }));
+        },
+
+        moveLifeline(lifelineId: string, x: number): void {
+          setSchema((s) => ({
+            ...s,
+            lifelines: s.lifelines.map((l) => (l.id === lifelineId ? { ...l, x } : l)),
+          }));
+          debounce(`pos:ll:${lifelineId}`, () => {
+            void runSave(() => firstValueFrom(lifelinesApi.updatePosition(lifelineId, { x })));
+          });
+        },
+
+        reorderLifelines(orderedLifelineIds: string[]): void {
+          setSchema((s) => {
+            const byId = new Map(s.lifelines.map((l) => [l.id, l]));
+            const ordered = orderedLifelineIds
+              .map((id, index) => {
+                const ll = byId.get(id);
+                return ll ? { ...ll, order: index } : undefined;
+              })
+              .filter((l): l is LifelineModel => Boolean(l));
+            const named = new Set(orderedLifelineIds);
+            const rest = s.lifelines.filter((l) => !named.has(l.id));
+            return { ...s, lifelines: [...ordered, ...rest] };
+          });
+          const projectId = store.projectId();
+          if (!projectId) return;
+          debounce('lifelines:reorder', () => {
+            void runSave(() =>
+              firstValueFrom(lifelinesApi.reorder(projectId, { orderedLifelineIds })),
+            );
+          });
+        },
+
+        async deleteLifeline(lifelineId: string): Promise<void> {
+          await runSave(() => firstValueFrom(lifelinesApi.remove(lifelineId)));
+          setSchema((s) => ({
+            ...s,
+            lifelines: s.lifelines.filter((l) => l.id !== lifelineId),
+            sequenceMessages: s.sequenceMessages.filter(
+              (m) => m.fromLifelineId !== lifelineId && m.toLifelineId !== lifelineId,
+            ),
+          }));
+          patchState(store, {
+            selectedLifelineIds: store.selectedLifelineIds().filter((id) => id !== lifelineId),
+          });
+        },
+
+        // --- Sequence diagram messages ---
+
+        async addSequenceMessage(dto: CreateSequenceMessageDto): Promise<SequenceMessageModel | null> {
+          const projectId = store.projectId();
+          if (!projectId) return null;
+          const created = await runSave(() =>
+            firstValueFrom(sequenceMessagesApi.create(projectId, dto)),
+          );
+          setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, created] }));
+          patchState(store, {
+            selectedMessageIds: [created.id],
+            selectedLifelineIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+          return created;
+        },
+
+        async updateSequenceMessage(messageId: string, patch: UpdateSequenceMessageDto): Promise<void> {
+          const updated = await runSave(() =>
+            firstValueFrom(sequenceMessagesApi.update(messageId, patch)),
+          );
+          setSchema((s) => ({
+            ...s,
+            sequenceMessages: s.sequenceMessages.map((m) => (m.id === messageId ? updated : m)),
+          }));
+        },
+
+        moveSequenceMessage(messageId: string, y: number): void {
+          setSchema((s) => ({
+            ...s,
+            sequenceMessages: s.sequenceMessages.map((m) => (m.id === messageId ? { ...m, y } : m)),
+          }));
+          debounce(`pos:msg:${messageId}`, () => {
+            void runSave(() =>
+              firstValueFrom(sequenceMessagesApi.updatePosition(messageId, { y })),
+            );
+          });
+        },
+
+        async deleteSequenceMessage(messageId: string): Promise<void> {
+          await runSave(() => firstValueFrom(sequenceMessagesApi.remove(messageId)));
+          setSchema((s) => ({
+            ...s,
+            sequenceMessages: s.sequenceMessages.filter((m) => m.id !== messageId),
+          }));
+          patchState(store, {
+            selectedMessageIds: store.selectedMessageIds().filter((id) => id !== messageId),
+          });
+        },
+
+        /** Set the world-Y origin for the sequence diagram (local only — no API call). */
+        setSequenceOriginY(y: number): void {
+          setSchema((s) => ({
+            ...s,
+            sequenceConfig: { ...s.sequenceConfig, originY: y },
+          }));
         },
 
         /** Reorder element stacking optimistically; persist the new order (debounced). */

@@ -62,6 +62,9 @@ export class InspectorComponent {
           notes: [],
           elements: [],
           viewport: this.store.viewport(),
+          lifelines: [],
+          sequenceMessages: [],
+          sequenceConfig: { lifelineSpacing: 180, rowSpacing: 60, headerHeight: 48 },
         },
         { dialect: 'mysql' },
       );

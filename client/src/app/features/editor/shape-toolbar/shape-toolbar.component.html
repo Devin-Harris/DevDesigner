@@ -167,6 +167,38 @@
       <path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6" />
     </svg>
   </button>
+
+  <div class="dock-sep"></div>
+
+  <!-- Sequence diagram tools -->
+  <button
+    class="dock-btn"
+    [class.on]="tool() === 'lifeline'"
+    [disabled]="disabled()"
+    (click)="onChange('lifeline')"
+    matTooltip="Lifeline (F)"
+    matTooltipPosition="right"
+    aria-label="Lifeline"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="6" y="3" width="12" height="7" rx="2" />
+      <path d="M12 10v11" stroke-dasharray="3 3" />
+    </svg>
+  </button>
+
+  <button
+    class="dock-btn"
+    [class.on]="tool() === 'message'"
+    [disabled]="disabled()"
+    (click)="onChange('message')"
+    matTooltip="Message (M)"
+    matTooltipPosition="right"
+    aria-label="Message"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 12h16M14 7l6 5-6 5" />
+    </svg>
+  </button>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->

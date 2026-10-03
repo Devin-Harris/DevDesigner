@@ -45,6 +45,19 @@
         (endpointDown)="onElementEndpointDown($event)"
       ></app-canvas-shapes>
 
+      <!-- Sequence diagram layer: lifeline headers, spines, and message arrows. -->
+      <app-canvas-sequence
+        [lifelines]="lifelineViews()"
+        [messages]="messageViews()"
+        [svgOffset]="svgOffset"
+        [interactive]="sequenceInteractive()"
+        (lifelinePointerDown)="onSequenceLifelineDown($event)"
+        (messagePointerDown)="onSequenceMessageDown($event)"
+        (spineClick)="onSequenceSpineClick($event)"
+        (selectLifeline)="onSequenceSelectLifeline($event)"
+        (selectMessage)="onSequenceSelectMessage($event)"
+      ></app-canvas-sequence>
+
       @for (table of store.tables(); track table.id) {
         <app-table-node
           [table]="table"
@@ -194,6 +207,14 @@
     } @else if (store.selectedElement(); as element) {
       <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-element-inspector [element]="element"></app-element-inspector>
+      </div>
+    } @else if (store.selectedLifeline(); as lifeline) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+        <app-lifeline-inspector [lifeline]="lifeline"></app-lifeline-inspector>
+      </div>
+    } @else if (store.selectedMessage(); as message) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+        <app-message-inspector [message]="message"></app-message-inspector>
       </div>
     }
   </div>

@@ -1,0 +1,100 @@
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sequence-svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.seq-spine {
+  stroke: var(--dbd-seq-spine-color, #94a3b8);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+
+  &.selected {
+    stroke: var(--dbd-accent, #2f6bff);
+  }
+}
+
+.seq-spine-hit {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: crosshair;
+}
+
+.seq-msg {
+  stroke: var(--dbd-seq-msg-color, #334155);
+  stroke-width: 1.5;
+  fill: none;
+  pointer-events: none;
+
+  &.selected {
+    stroke: var(--dbd-accent, #2f6bff);
+    stroke-width: 2;
+  }
+}
+
+.seq-msg-hit {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.seq-msg-label {
+  font-size: 12px;
+  fill: var(--dbd-seq-label-color, #475569);
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.seq-arrowhead {
+  fill: var(--dbd-seq-msg-color, #334155);
+}
+
+.seq-arrowhead-open {
+  stroke: var(--dbd-seq-msg-color, #334155);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.seq-lifeline {
+  cursor: grab;
+  pointer-events: all;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.seq-header-bg {
+  fill: var(--dbd-surface, #ffffff);
+  stroke: var(--dbd-border, #e2e8f0);
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.seq-header-fill {
+  opacity: 0.9;
+}
+
+.seq-header-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: #ffffff;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.seq-header-selection {
+  fill: none;
+  stroke: var(--dbd-accent, #2f6bff);
+  stroke-width: 2;
+  pointer-events: none;
+}
