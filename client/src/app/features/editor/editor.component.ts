@@ -88,7 +88,9 @@ type DragMode =
   | 'element'
   | 'element-resize'
   | 'element-rotate'
-  | 'arrow-endpoint';
+  | 'arrow-endpoint'
+  /** Alt-drag: waiting for the copies to be created before the drag can start. */
+  | 'duplicating';
 
 /** Default styling applied to a newly drawn element. */
 const DEFAULT_ELEMENT_STROKE = '#2f3a45';
@@ -676,6 +678,15 @@ export class EditorComponent {
   private startViewportX = 0;
   private startViewportY = 0;
   private dragTableId: string | null = null;
+  /** World-space point a shape draw started from (the corner, or the center with Alt). */
+  private drawAnchor = { x: 0, y: 0 };
+  private lastDrawPointer = { x: 0, y: 0 };
+  /** In-app clipboard for copy/paste of tables and canvas elements. */
+  private clipboard: { tables: TableModel[]; elements: CanvasElementModel[] } | null = null;
+  private pasteCount = 0;
+  /** True once the current drag has switched to dragging Alt-made copies. */
+  private dragCopied = false;
+  private lastPointer: PointerEvent | null = null;
   private multiDragStart = new Map<string, { x: number; y: number }>();
   // Manual routes touching the dragged tables. `both` true when both endpoints
   // move together (rigid translate). Otherwise only one end moves: the waypoint
@@ -922,6 +933,8 @@ export class EditorComponent {
         : {}),
     };
     this.draft.set(draft);
+    this.drawAnchor = { x, y };
+    this.lastDrawPointer = { x: event.clientX, y: event.clientY };
     this.startClientX = event.clientX;
     this.startClientY = event.clientY;
     if (type === 'text') {
@@ -934,11 +947,12 @@ export class EditorComponent {
     this.gestureActive.set(true);
   }
 
-  private updateDraw(clientX: number, clientY: number): void {
+  private updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
     const draft = this.draft();
     if (!draft) {
       return;
     }
+    this.lastDrawPointer = { x: clientX, y: clientY };
     const world = this.toWorld(clientX, clientY);
     const snap = this.gridSnap();
     if (draft.type === 'freedraw') {
@@ -956,15 +970,34 @@ export class EditorComponent {
       this.bindHighlight.set(this.bindingTargetAt(world, draft.id)?.box ?? null);
       return;
     }
-    // Rectangle / ellipse / diamond: grow the box from the anchor corner.
+    // Rectangle / ellipse / diamond: grow the box from the anchor. Shift forces a
+    // square (circle for an ellipse); Alt makes the anchor the center.
     const ex = snap ? snapToGrid(world.x) : world.x;
     const ey = snap ? snapToGrid(world.y) : world.y;
+    const { x: ax, y: ay } = this.drawAnchor;
+    let dx = ex - ax;
+    let dy = ey - ay;
+    if (shift) {
+      const size = Math.max(Math.abs(dx), Math.abs(dy));
+      dx = (dx < 0 ? -1 : 1) * size;
+      dy = (dy < 0 ? -1 : 1) * size;
+    }
+    if (alt) {
+      this.draft.set({
+        ...draft,
+        x: ax - Math.abs(dx),
+        y: ay - Math.abs(dy),
+        width: Math.abs(dx) * 2,
+        height: Math.abs(dy) * 2,
+      });
+      return;
+    }
     this.draft.set({
       ...draft,
-      x: Math.min(draft.x, ex),
-      y: Math.min(draft.y, ey),
-      width: Math.abs(ex - draft.x),
-      height: Math.abs(ey - draft.y),
+      x: Math.min(ax, ax + dx),
+      y: Math.min(ay, ay + dy),
+      width: Math.abs(dx),
+      height: Math.abs(dy),
     });
   }
 
@@ -1057,10 +1090,20 @@ export class EditorComponent {
     if (!this.store.canEdit()) {
       return;
     }
-    this.mode = 'element';
-    this.gestureActive.set(true);
     this.startClientX = payload.event.clientX;
     this.startClientY = payload.event.clientY;
+    this.gestureActive.set(true);
+    this.dragCopied = false;
+    this.beginElementDrag(el);
+    if (payload.event.altKey) {
+      void this.duplicateAndDrag();
+    }
+  }
+
+  /** Start moving the current element selection, grabbed by `el`. */
+  private beginElementDrag(el: CanvasElementModel): void {
+    this.mode = 'element';
+    this.gestureActive.set(true);
     const others = new Map<string, { x: number; y: number }>();
     for (const id of this.store.selectedElementIds()) {
       const e = this.store.elements().find((x) => x.id === id);
@@ -1411,10 +1454,90 @@ export class EditorComponent {
     if (!this.store.canEdit()) {
       return;
     }
-    this.mode = 'node';
-    this.dragTableId = table.id;
     this.startClientX = event.clientX;
     this.startClientY = event.clientY;
+    this.dragCopied = false;
+    this.beginNodeDrag(table.id);
+    if (event.altKey) {
+      void this.duplicateAndDrag();
+    }
+  }
+
+  /**
+   * Switch an in-progress move (element or table drag) into a duplicate-drag: put
+   * the originals back where the drag began, clone the selection in place, and
+   * carry on dragging the copies from the same pointer origin. Works when Alt is
+   * held at pointer-down or pressed part-way through the drag.
+   */
+  private async duplicateAndDrag(): Promise<void> {
+    const kind = this.mode;
+    if (this.dragCopied || (kind !== 'element' && kind !== 'node') || !this.store.canEdit()) {
+      return;
+    }
+    this.dragCopied = true;
+    const grabbedElement = this.elementGesture?.id ?? null;
+    const grabbedTable = this.dragTableId;
+    if (kind === 'element') {
+      for (const [id, start] of this.elementGesture?.others ?? []) {
+        this.store.moveElement(id, start.x, start.y);
+      }
+    } else {
+      for (const [id, start] of this.multiDragStart) {
+        this.store.moveTable(id, start.x, start.y);
+      }
+      for (const [relId, start] of this.waypointDragStart) {
+        this.store.setWaypoints(relId, start.wp);
+      }
+    }
+    this.mode = 'duplicating';
+    let resume: (() => void) | null = null;
+    let created: string[] = [];
+    if (kind === 'element') {
+      const sources = this.store
+        .elements()
+        .filter((e) => this.store.selectedElementIds().includes(e.id));
+      const copies = await this.store.duplicateElements(sources, 0, 0);
+      created = [...copies.values()].map((c) => c.id);
+      const grabbed = (grabbedElement && copies.get(grabbedElement)) || [...copies.values()][0];
+      if (grabbed) {
+        resume = () => this.beginElementDrag(grabbed);
+      }
+    } else {
+      const sources = this.store
+        .tables()
+        .filter((t) => this.store.selectedTableIds().includes(t.id));
+      const ids = new Map<string, string>();
+      for (const src of sources) {
+        const id = await this.store.duplicateTable(src.id, 0, 0, false, false);
+        if (id) {
+          ids.set(src.id, id);
+        }
+      }
+      created = [...ids.values()];
+      this.store.setSelection(created, [], []);
+      const grabbed = (grabbedTable && ids.get(grabbedTable)) || created[0];
+      if (grabbed) {
+        resume = () => this.beginNodeDrag(grabbed);
+      }
+    }
+    if (this.mode !== 'duplicating' || !resume) {
+      // Released before the copies existed (or nothing was copied).
+      if (this.mode === 'duplicating') {
+        this.mode = 'idle';
+        this.gestureActive.set(false);
+      }
+      return;
+    }
+    resume();
+    if (this.lastPointer) {
+      this.onPointerMove(this.lastPointer);
+    }
+  }
+
+  /** Start moving the current table selection, grabbed by `tableId`. */
+  private beginNodeDrag(tableId: string): void {
+    this.mode = 'node';
+    this.dragTableId = tableId;
     this.multiDragStart = new Map(
       this.store
         .tables()
@@ -1541,6 +1664,10 @@ export class EditorComponent {
 
   @HostListener('window:pointermove', ['$event'])
   protected onPointerMove(event: PointerEvent): void {
+    this.lastPointer = event;
+    if (this.mode === 'duplicating') {
+      return; // copies are still being created; the drag resumes from lastPointer
+    }
     this.broadcastCursor(event);
     if (this.linkSourceColumnId() || this.relinkState()) {
       this.linkCursor.set(this.toWorld(event.clientX, event.clientY));
@@ -1551,7 +1678,7 @@ export class EditorComponent {
       return;
     }
     if (this.mode === 'draw') {
-      this.updateDraw(event.clientX, event.clientY);
+      this.updateDraw(event.clientX, event.clientY, event.shiftKey, event.altKey);
       return;
     }
     if (this.mode === 'element') {
@@ -1734,6 +1861,33 @@ export class EditorComponent {
       }
       return;
     }
+    if (mod && event.key.toLowerCase() === 'c') {
+      this.copySelection();
+      return;
+    }
+    if (mod && event.key.toLowerCase() === 'v') {
+      if (this.clipboard && this.store.canEdit()) {
+        event.preventDefault();
+        void this.pasteClipboard();
+      }
+      return;
+    }
+    // Shift/Alt pressed or released mid-draw re-applies the constraint immediately.
+    if (event.key === 'Alt' && (this.mode === 'element' || this.mode === 'node')) {
+      event.preventDefault();
+      void this.duplicateAndDrag();
+      return;
+    }
+    if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
+      event.preventDefault(); // keep Alt from focusing the browser menu
+      this.updateDraw(
+        this.lastDrawPointer.x,
+        this.lastDrawPointer.y,
+        event.key === 'Shift' ? true : event.shiftKey,
+        event.key === 'Alt' ? true : event.altKey,
+      );
+      return;
+    }
     const tool = mod ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
     if (tool && this.store.canEdit()) {
       this.activeTool.set(tool);
@@ -1792,6 +1946,53 @@ export class EditorComponent {
     if (event.key === ' ') {
       this.spaceDown = false;
     }
+    if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
+      this.updateDraw(
+        this.lastDrawPointer.x,
+        this.lastDrawPointer.y,
+        event.key === 'Shift' ? false : event.shiftKey,
+        event.key === 'Alt' ? false : event.altKey,
+      );
+    }
+  }
+
+  // --- copy / paste ---
+
+  /** Snapshot the selected tables and elements into the in-app clipboard. */
+  private copySelection(): void {
+    const tableIds = this.store.selectedTableIds();
+    const elementIds = this.store.selectedElementIds();
+    const tables = this.store.tables().filter((t) => tableIds.includes(t.id));
+    const elements = this.store.elements().filter((e) => elementIds.includes(e.id));
+    if (!tables.length && !elements.length) {
+      return;
+    }
+    this.clipboard = { tables, elements };
+    this.pasteCount = 0;
+  }
+
+  /** Paste the clipboard, each successive paste stepping further from the original. */
+  private async pasteClipboard(): Promise<void> {
+    const clip = this.clipboard;
+    if (!clip) {
+      return;
+    }
+    this.pasteCount++;
+    const offset = 24 * this.pasteCount;
+    const tableIds: string[] = [];
+    for (const t of clip.tables) {
+      const id = await this.store.duplicateTable(t.id, offset, offset, false);
+      if (id) {
+        tableIds.push(id);
+      }
+    }
+    // Element copies select themselves; fold the table copies into that selection.
+    const copies = await this.store.duplicateElements(clip.elements, offset, offset);
+    this.store.setSelection(
+      tableIds,
+      [],
+      [...copies.values()].map((c) => c.id),
+    );
   }
 
   // --- toolbar: add / zoom / grid / align ---
@@ -2001,60 +2202,98 @@ export class EditorComponent {
     if (!this.store.canEdit()) {
       return;
     }
-    const selected = this.store
-      .tables()
-      .filter((t) => this.store.selectedTableIds().includes(t.id));
-    if (selected.length < 2) {
+    // Tables and canvas elements (text, shapes, lines...) align together by their
+    // bounding boxes. `place` moves the item so its box's top-left is (x, y).
+    interface Item {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      place: (x: number, y: number) => void;
+    }
+    const items: Item[] = [];
+    const tableIds = this.store.selectedTableIds();
+    for (const t of this.store.tables()) {
+      if (tableIds.includes(t.id)) {
+        items.push({
+          x: t.x,
+          y: t.y,
+          w: tableWidth(t),
+          h: nodeHeight(t.columns.length),
+          place: (x, y) => this.store.moveTable(t.id, Math.round(x), Math.round(y)),
+        });
+      }
+    }
+    const elementIds = this.store.selectedElementIds();
+    const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] =
+      [];
+    for (const e of this.store.elements()) {
+      if (elementIds.includes(e.id)) {
+        const b = elementBox(e);
+        items.push({
+          x: b.x0,
+          y: b.y0,
+          w: b.x1 - b.x0,
+          h: b.y1 - b.y0,
+          place: (x, y) => {
+            const nx = Math.round(e.x + (x - b.x0));
+            const ny = Math.round(e.y + (y - b.y0));
+            if (nx !== e.x || ny !== e.y) {
+              moves.push({ id: e.id, from: { x: e.x, y: e.y }, to: { x: nx, y: ny } });
+              this.store.moveElement(e.id, nx, ny);
+            }
+          },
+        });
+      }
+    }
+    if (items.length < 2) {
       return;
     }
-    const height = (t: TableModel) => nodeHeight(t.columns.length);
-    const minX = Math.min(...selected.map((t) => t.x));
-    const maxRight = Math.max(...selected.map((t) => t.x + tableWidth(t)));
-    const minY = Math.min(...selected.map((t) => t.y));
-    const maxBottom = Math.max(...selected.map((t) => t.y + height(t)));
-
-    const move = (t: TableModel, x: number, y: number) =>
-      this.store.moveTable(t.id, Math.round(x), Math.round(y));
+    const minX = Math.min(...items.map((i) => i.x));
+    const maxRight = Math.max(...items.map((i) => i.x + i.w));
+    const minY = Math.min(...items.map((i) => i.y));
+    const maxBottom = Math.max(...items.map((i) => i.y + i.h));
 
     switch (action) {
       case 'left':
-        selected.forEach((t) => move(t, minX, t.y));
+        items.forEach((i) => i.place(minX, i.y));
         break;
       case 'right':
-        selected.forEach((t) => move(t, maxRight - tableWidth(t), t.y));
+        items.forEach((i) => i.place(maxRight - i.w, i.y));
         break;
       case 'hcenter': {
         const center = (minX + maxRight) / 2;
-        selected.forEach((t) => move(t, center - tableWidth(t) / 2, t.y));
+        items.forEach((i) => i.place(center - i.w / 2, i.y));
         break;
       }
       case 'top':
-        selected.forEach((t) => move(t, t.x, minY));
+        items.forEach((i) => i.place(i.x, minY));
         break;
       case 'bottom':
-        selected.forEach((t) => move(t, t.x, maxBottom - height(t)));
+        items.forEach((i) => i.place(i.x, maxBottom - i.h));
         break;
       case 'vcenter': {
         const center = (minY + maxBottom) / 2;
-        selected.forEach((t) => move(t, t.x, center - height(t) / 2));
+        items.forEach((i) => i.place(i.x, center - i.h / 2));
         break;
       }
       case 'dist-h': {
-        const sorted = [...selected].sort((p, q) => p.x - q.x);
+        const sorted = [...items].sort((p, q) => p.x - q.x);
         const first = sorted[0].x;
         const last = sorted[sorted.length - 1].x;
         const step = (last - first) / (sorted.length - 1);
-        sorted.forEach((t, i) => move(t, first + step * i, t.y));
+        sorted.forEach((i, n) => i.place(first + step * n, i.y));
         break;
       }
       case 'dist-v': {
-        const sorted = [...selected].sort((p, q) => p.y - q.y);
+        const sorted = [...items].sort((p, q) => p.y - q.y);
         const first = sorted[0].y;
         const last = sorted[sorted.length - 1].y;
         const step = (last - first) / (sorted.length - 1);
-        sorted.forEach((t, i) => move(t, t.x, first + step * i));
+        sorted.forEach((i, n) => i.place(i.x, first + step * n));
         break;
       }
     }
+    this.store.recordElementMove(moves);
   }
 }

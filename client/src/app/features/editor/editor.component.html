@@ -89,7 +89,7 @@
       [zoomLabel]="zoomLabel()"
       [saveLabel]="saveLabel()"
       [gridSnap]="gridSnap()"
-      [canAlign]="store.canEdit() && store.selectedTableIds().length >= 2"
+      [canAlign]="store.canEdit() && store.selectedTableIds().length + store.selectedElementIds().length >= 2"
       [canExport]="!!store.projectId()"
       [canUndo]="store.canUndo()"
       [canRedo]="store.canRedo()"

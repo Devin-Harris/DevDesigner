@@ -152,13 +152,19 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     strokeStyle: e.strokeStyle,
     opacity: e.opacity,
     zIndex: e.zIndex,
+    cornerRadius: e.cornerRadius,
     points: e.points,
     text: e.text,
     fontSize: e.fontSize,
     fontFamily: e.fontFamily,
+    bold: e.bold,
+    italic: e.italic,
     textAlign: e.textAlign,
+    verticalAlign: e.verticalAlign,
     startBinding: e.startBinding,
     endBinding: e.endBinding,
+    startArrowhead: e.startArrowhead,
+    endArrowhead: e.endArrowhead,
   };
 }
 
@@ -1028,6 +1034,141 @@ export const ProjectStore = signalStore(
           });
         },
 
+        /**
+         * Clone a whole sequence diagram (config, participants, messages) offset by
+         * (dx, dy) and select the copy. Returns the new diagram id.
+         */
+        async duplicateSequence(diagramId: string, dx = 0, dy = 0): Promise<string | null> {
+          const projectId = store.projectId();
+          const src = store.sequenceDiagrams().find((d) => d.id === diagramId);
+          if (!projectId || !src) {
+            return null;
+          }
+          const diagram = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createDiagram(projectId, {
+                originY: src.originY + dy,
+                lifelineSpacing: src.lifelineSpacing,
+                rowSpacing: src.rowSpacing,
+                headerHeight: src.headerHeight,
+              }),
+            ),
+          );
+          setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, diagram] }));
+          patchState(store, {
+            selectedDiagramId: diagram.id,
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+          const idMap = new Map<string, string>();
+          const lifelines = store
+            .lifelines()
+            .filter((l) => l.diagramId === diagramId)
+            .sort((a, b) => a.order - b.order);
+          for (const l of lifelines) {
+            const copy = await runSave(() =>
+              firstValueFrom(
+                sequenceApi.createLifeline(projectId, {
+                  diagramId: diagram.id,
+                  label: l.label,
+                  color: l.color,
+                  x: l.x + dx,
+                  width: l.width,
+                  order: l.order,
+                }),
+              ),
+            );
+            idMap.set(l.id, copy.id);
+            setSchema((s) => ({ ...s, lifelines: [...s.lifelines, copy] }));
+          }
+          const messages = store.sequenceMessages().filter((m) => m.diagramId === diagramId);
+          for (const m of messages) {
+            const from = idMap.get(m.fromLifelineId);
+            const to = idMap.get(m.toLifelineId);
+            if (!from || !to) {
+              continue;
+            }
+            const copy = await runSave(() =>
+              firstValueFrom(
+                sequenceApi.createMessage(projectId, {
+                  diagramId: diagram.id,
+                  fromLifelineId: from,
+                  toLifelineId: to,
+                  label: m.label,
+                  y: m.y + dy,
+                  style: m.style,
+                  direction: m.direction,
+                  arrowhead: m.arrowhead,
+                }),
+              ),
+            );
+            setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, copy] }));
+          }
+          return diagram.id;
+        },
+
+        /** Clone one participant column (same diagram, label and color) and select it. */
+        async duplicateLifeline(lifelineId: string, dx = 0): Promise<string | null> {
+          const projectId = store.projectId();
+          const src = store.lifelines().find((l) => l.id === lifelineId);
+          if (!projectId || !src) {
+            return null;
+          }
+          const order = store.lifelines().filter((l) => l.diagramId === src.diagramId).length;
+          const copy = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createLifeline(projectId, {
+                diagramId: src.diagramId,
+                label: src.label,
+                color: src.color,
+                x: src.x + dx,
+                width: src.width,
+                order,
+              }),
+            ),
+          );
+          setSchema((s) => ({ ...s, lifelines: [...s.lifelines, copy] }));
+          patchState(store, {
+            selectedLifelineIds: [copy.id],
+            selectedMessageIds: [],
+            selectedDiagramId: null,
+          });
+          return copy.id;
+        },
+
+        /** Clone one message (same endpoints, style and row) and select it. */
+        async duplicateMessage(messageId: string, dy = 0): Promise<string | null> {
+          const projectId = store.projectId();
+          const src = store.sequenceMessages().find((m) => m.id === messageId);
+          if (!projectId || !src) {
+            return null;
+          }
+          const copy = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createMessage(projectId, {
+                diagramId: src.diagramId,
+                fromLifelineId: src.fromLifelineId,
+                toLifelineId: src.toLifelineId,
+                label: src.label,
+                y: src.y + dy,
+                style: src.style,
+                direction: src.direction,
+                arrowhead: src.arrowhead,
+              }),
+            ),
+          );
+          setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, copy] }));
+          patchState(store, {
+            selectedMessageIds: [copy.id],
+            selectedLifelineIds: [],
+            selectedDiagramId: null,
+          });
+          return copy.id;
+        },
+
         /** Delete one sequence diagram and all its participants + messages. */
         async deleteSequence(diagramId: string): Promise<void> {
           const projectId = store.projectId();
@@ -1208,39 +1349,60 @@ export const ProjectStore = signalStore(
         },
 
         /** Duplicate a table (offset copy) with all its columns; selects the copy. */
-        async duplicateTable(tableId: string): Promise<void> {
+        async duplicateTable(
+          tableId: string,
+          dx = 40,
+          dy = 40,
+          select = true,
+          waitForColumns = true,
+        ): Promise<string | null> {
           const projectId = store.projectId();
           const source = store.tables().find((t) => t.id === tableId);
           if (!projectId || !source) {
-            return;
+            return null;
           }
           const name = `${source.name}_copy`.slice(0, 120);
           const created = await runSave(() =>
             firstValueFrom(
               tablesApi.create(projectId, {
                 name,
-                x: source.x + 40,
-                y: source.y + 40,
+                x: source.x + dx,
+                y: source.y + dy,
                 color: source.color ?? undefined,
               }),
             ),
           );
-          let copy = created;
-          for (const col of source.columns) {
-            const newCol = await firstValueFrom(
-              columnsApi.create(created.id, {
-                name: col.name,
-                dataType: col.dataType,
-                isPrimaryKey: col.isPrimaryKey,
-                isNullable: col.isNullable,
-                isUnique: col.isUnique,
-                isAutoIncrement: col.isAutoIncrement,
-              }),
-            );
-            copy = { ...copy, columns: [...copy.columns, newCol] };
+          // Show the copy as soon as the table exists; columns stream in after, so
+          // an Alt-drag can grab it immediately instead of waiting on N round trips.
+          setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
+          if (select) {
+            patchState(store, {
+              selectedTableIds: [created.id],
+              selectedRelationshipIds: [],
+              selectedElementIds: [],
+            });
           }
-          setSchema((s) => ({ ...s, tables: [...s.tables, copy] }));
-          patchState(store, { selectedTableIds: [created.id], selectedRelationshipIds: [] });
+          const fillColumns = (async () => {
+            for (const col of source.columns) {
+              const newCol = await firstValueFrom(
+                columnsApi.create(created.id, {
+                  name: col.name,
+                  dataType: col.dataType,
+                  isPrimaryKey: col.isPrimaryKey,
+                  isNullable: col.isNullable,
+                  isUnique: col.isUnique,
+                  isAutoIncrement: col.isAutoIncrement,
+                }),
+              );
+              mapTable(created.id, (t) => ({ ...t, columns: [...t.columns, newCol] }));
+            }
+          })();
+          if (waitForColumns) {
+            await fillColumns;
+          } else {
+            void fillColumns;
+          }
+          return created.id;
         },
 
         async addColumn(tableId: string, dto: CreateColumnDto): Promise<void> {
@@ -1410,6 +1572,72 @@ export const ProjectStore = signalStore(
             },
           });
           return created;
+        },
+
+        /**
+         * Clone elements (copy/paste, Alt-drag) offset by (dx, dy) and select the
+         * copies. Bindings to elements that were also cloned are remapped to their
+         * copies; bindings to anything else are dropped so a copied arrow keeps its
+         * own geometry. One undo step removes every copy.
+         */
+        async duplicateElements(
+          sources: CanvasElementModel[],
+          dx: number,
+          dy: number,
+        ): Promise<Map<string, CanvasElementModel>> {
+          if (!sources.length) {
+            return new Map();
+          }
+          const ordered = [...sources].sort((a, b) => a.zIndex - b.zIndex);
+          const idMap = new Map<string, string>();
+          const copiesBySource = new Map<string, CanvasElementModel>();
+          const created: CanvasElementModel[] = [];
+          const baseZ = store.elements().length;
+          for (const src of ordered) {
+            const dto = elementToCreateDto(src);
+            const remap = (b: CanvasElementModel['startBinding']) =>
+              b && b.targetKind === 'element' && idMap.has(b.targetId)
+                ? { ...b, targetId: idMap.get(b.targetId)! }
+                : null;
+            const copy = await createElementRaw({
+              ...dto,
+              x: src.x + dx,
+              y: src.y + dy,
+              zIndex: baseZ + created.length,
+              startBinding: remap(src.startBinding),
+              endBinding: remap(src.endBinding),
+            });
+            if (copy) {
+              idMap.set(src.id, copy.id);
+              copiesBySource.set(src.id, copy);
+              created.push(copy);
+            }
+          }
+          if (!created.length) {
+            return copiesBySource;
+          }
+          patchState(store, {
+            selectedElementIds: created.map((c) => c.id),
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+          });
+          const refs = created.map((c) => ({ id: c.id, snapshot: c }));
+          pushHistory({
+            undo: async () => {
+              for (const r of refs) {
+                await deleteElementRaw(r.id);
+              }
+            },
+            redo: async () => {
+              for (const r of refs) {
+                const again = await createElementRaw(elementToCreateDto(r.snapshot));
+                if (again) {
+                  r.id = again.id;
+                }
+              }
+            },
+          });
+          return copiesBySource;
         },
 
         async updateElement(elementId: string, patch: UpdateElementDto): Promise<void> {

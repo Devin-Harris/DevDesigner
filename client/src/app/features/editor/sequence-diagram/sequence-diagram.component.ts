@@ -50,6 +50,7 @@ type Drag =
   | { kind: 'msg'; id: string; startClientY: number; startY: number }
   | {
       kind: 'diagram';
+      diagramId: string;
       startX: number;
       startY: number;
       startXs: Map<string, number>;
@@ -295,6 +296,10 @@ export class SequenceDiagramComponent {
   protected readonly editValue = signal('');
 
   private drag: Drag | null = null;
+  /** Alt-drag duplication state: set once the drag has switched to a copy. */
+  private dragCopied = false;
+  private duplicating = false;
+  private lastPointer: PointerEvent | null = null;
 
   constructor() {
     // The message toolbar's pencil requests an inline label edit; open it here
@@ -330,11 +335,16 @@ export class SequenceDiagramComponent {
    * robust to touch/synthetic pointers where setPointerCapture can fail.
    */
   private startDrag(): void {
+    this.dragCopied = false;
+    this.duplicating = false;
+    this.lastPointer = null;
+    window.addEventListener('keydown', this.onKey);
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
   }
   private endDrag(): void {
+    window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
     window.removeEventListener('pointercancel', this.onUp);
@@ -357,12 +367,14 @@ export class SequenceDiagramComponent {
     this.startDrag();
     this.drag = {
       kind: 'diagram',
+      diagramId: this.diagram().id,
       startX: event.clientX,
       startY: event.clientY,
       startXs: new Map(this.lls().map((l) => [l.id, l.x])),
       startOriginY: this.originY(),
       startRows: this.startRowsMap(),
     };
+    if (event.altKey) void this.duplicateDrag();
   }
 
   // ----- Bounding box: resize from any side/corner (Shift locks, Alt centers) -----
@@ -404,6 +416,7 @@ export class SequenceDiagramComponent {
     if (!this.canEdit() || this.editingLifelineId() === l.id) return;
     this.startDrag();
     this.drag = { kind: 'll', id: l.id, start: event.clientX, startVal: l.x };
+    if (event.altKey) void this.duplicateDrag();
   }
 
   // ----- Connect drag: start anywhere on a spine -----
@@ -418,9 +431,70 @@ export class SequenceDiagramComponent {
     this.tempTo.set({ x: l.x, y: startY });
   }
 
-  protected onMove = (event: PointerEvent): void => {
+  /** Pressing Alt mid-drag switches from moving the original to dragging a copy. */
+  private onKey = (event: KeyboardEvent): void => {
+    if (event.key === 'Alt') {
+      event.preventDefault(); // keep Alt from focusing the browser menu
+      void this.duplicateDrag();
+    }
+  };
+
+  /**
+   * Leave the original where the drag began and continue the drag on a fresh copy
+   * (diagram, participant or message). The copy is positioned from the same drag
+   * origin, so it jumps to the cursor.
+   */
+  private async duplicateDrag(): Promise<void> {
     const d = this.drag;
-    if (!d) return;
+    if (!d || this.dragCopied || this.duplicating || !this.canEdit()) return;
+    if (d.kind !== 'diagram' && d.kind !== 'll' && d.kind !== 'msg') return;
+    this.duplicating = true;
+    let next: Drag | null = null;
+    if (d.kind === 'diagram') {
+      // Put the original back (it only moved locally), then clone it in place.
+      this.store.shiftSequence(d.diagramId, d.startXs, 0, d.startOriginY, 0, d.startRows);
+      const id = await this.store.duplicateSequence(d.diagramId, 0, 0);
+      const copy = this.store.sequenceDiagrams().find((x) => x.id === id);
+      if (id && copy) {
+        const base = copy.originY + copy.headerHeight;
+        const startRows = new Map<string, number>();
+        for (const m of this.store.sequenceMessages().filter((x) => x.diagramId === id)) {
+          startRows.set(m.id, Math.max(1, Math.round((m.y - base) / copy.rowSpacing)));
+        }
+        next = {
+          ...d,
+          diagramId: id,
+          startXs: new Map(
+            this.store
+              .lifelines()
+              .filter((l) => l.diagramId === id)
+              .map((l) => [l.id, l.x]),
+          ),
+          startOriginY: copy.originY,
+          startRows,
+        };
+      }
+    } else if (d.kind === 'll') {
+      this.store.moveLifeline(d.id, d.startVal);
+      const id = await this.store.duplicateLifeline(d.id, 0);
+      if (id) next = { ...d, id };
+    } else {
+      this.store.moveMessage(d.id, d.startY);
+      const id = await this.store.duplicateMessage(d.id, 0);
+      if (id) next = { ...d, id };
+    }
+    this.duplicating = false;
+    if (this.drag !== d) return; // released while the copy was being created
+    if (!next) return;
+    this.dragCopied = true;
+    this.drag = next;
+    if (this.lastPointer) this.onMove(this.lastPointer);
+  };
+
+  protected onMove = (event: PointerEvent): void => {
+    this.lastPointer = event;
+    const d = this.drag;
+    if (!d || this.duplicating) return;
     if (d.kind === 'll') {
       this.store.moveLifeline(d.id, d.startVal + (event.clientX - d.start) / this.zoom());
     } else if (d.kind === 'msg') {
@@ -448,7 +522,7 @@ export class SequenceDiagramComponent {
       dx = snap(refX + dx) - refX;
       dy = snap(d.startOriginY + dy) - d.startOriginY;
     }
-    this.store.shiftSequence(this.diagram().id, d.startXs, dx, d.startOriginY, dy, d.startRows);
+    this.store.shiftSequence(d.diagramId, d.startXs, dx, d.startOriginY, dy, d.startRows);
   }
 
   /** Compute new spread + vertical size for a resize drag (Shift locks, Alt centers). */
@@ -502,6 +576,11 @@ export class SequenceDiagramComponent {
   protected onUp = (event: PointerEvent): void => {
     this.endDrag();
     const d = this.drag;
+    if (this.duplicating) {
+      // Released before the copy existed: leave the original put and the copy in place.
+      this.drag = null;
+      return;
+    }
     if (d?.kind === 'connect') {
       const fn = this.toWorld();
       const w = fn ? fn(event.clientX, event.clientY) : this.tempTo();
@@ -535,17 +614,21 @@ export class SequenceDiagramComponent {
       } else {
         this.applyResize(d, event);
       }
-      for (const l of this.lls()) {
+      const id = d.kind === 'diagram' ? d.diagramId : this.diagram().id;
+      for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
         this.store.moveLifeline(l.id, l.x);
       }
       // Messages moved with the diagram — persist their new rows too.
-      for (const m of this.msgs()) {
+      for (const m of this.store.sequenceMessages().filter((x) => x.diagramId === id)) {
         this.store.moveMessage(m.id, m.y);
       }
-      void this.store.updateSequenceConfig(this.diagram().id, {
-        rowSpacing: this.rowSpacing(),
-        originY: this.originY(),
-      });
+      const cfg = this.store.sequenceDiagrams().find((x) => x.id === id);
+      if (cfg) {
+        void this.store.updateSequenceConfig(id, {
+          rowSpacing: cfg.rowSpacing,
+          originY: cfg.originY,
+        });
+      }
     }
     this.drag = null;
   }
@@ -584,6 +667,7 @@ export class SequenceDiagramComponent {
     if (!this.canEdit() || this.editingMessageId() === m.id) return;
     this.startDrag();
     this.drag = { kind: 'msg', id: m.id, startClientY: event.clientY, startY: m.y };
+    if (event.altKey) void this.duplicateDrag();
   }
 
   // ----- Endpoint reattach: drag a message's end onto another participant -----
