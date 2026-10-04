@@ -550,6 +550,32 @@ export class SequenceDiagramComponent {
       newH = d.contentH * scale;
     }
 
+    // Grid snap: land the dragged edge(s) on the grid (skipped when Shift locks
+    // proportions, since snapping each axis would break the ratio).
+    const snap = this.snap();
+    if (snap && !event.shiftKey) {
+      const minH = d.headerH + MIN_ROW * d.nRows;
+      if (horiz) {
+        if (event.altKey) {
+          newW = Math.max(20, 2 * Math.abs(snap(d.centerX + newW / 2) - d.centerX));
+        } else if (isRight) {
+          newW = Math.max(20, snap(d.left + newW) - d.left);
+        } else {
+          newW = Math.max(20, d.right - snap(d.right - newW));
+        }
+      }
+      if (isTop || isBottom) {
+        if (event.altKey) {
+          newH = Math.max(minH, 2 * Math.abs(snap(d.centerY + newH / 2) - d.centerY));
+        } else if (isBottom) {
+          newH = Math.max(minH, snap(d.top + newH) - d.top);
+        } else {
+          const bottom = d.top + d.contentH;
+          newH = Math.max(minH, bottom - snap(bottom - newH));
+        }
+      }
+    }
+
     const scaleX = horiz ? newW / spanX : 1;
     const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
     const rowSpacing = d.nRows > 0 ? Math.max(MIN_ROW, (newH - d.headerH) / d.nRows) : d.startRowSpacing;
