@@ -1,0 +1,213 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--dbd-surface);
+  overflow: auto;
+}
+
+.panel {
+  padding: var(--dbd-space-3) var(--dbd-space-4) var(--dbd-space-4);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--dbd-space-2);
+  margin-bottom: var(--dbd-space-3);
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--dbd-text-muted);
+}
+
+.tname {
+  font-family: var(--dbd-mono);
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dbd-text-muted);
+  margin: var(--dbd-space-3) 0 7px;
+}
+
+.sep {
+  height: 1px;
+  background: var(--dbd-border);
+  margin: var(--dbd-space-4) 0 var(--dbd-space-3);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--dbd-text-muted);
+  border-radius: var(--dbd-radius-sm);
+  cursor: pointer;
+  --dbd-icon-size: 18px;
+
+  &:hover:not(:disabled) {
+    background: var(--dbd-surface-2);
+    color: var(--dbd-danger);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.swatches {
+  display: flex;
+  gap: var(--dbd-space-2);
+  flex-wrap: wrap;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--dbd-border-strong);
+  cursor: pointer;
+
+  &.none {
+    background-image: linear-gradient(
+      45deg,
+      transparent 45%,
+      var(--dbd-danger) 45%,
+      var(--dbd-danger) 55%,
+      transparent 55%
+    );
+  }
+  &.active {
+    outline: 2px solid var(--dbd-primary);
+    outline-offset: 1px;
+  }
+}
+
+.flag-chips {
+  display: flex;
+  gap: var(--dbd-space-1);
+}
+
+.flag {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+  background: var(--dbd-surface);
+  color: var(--dbd-text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--dbd-text);
+    border-color: var(--dbd-border-strong);
+  }
+  &.on {
+    background: var(--dbd-primary-weak);
+    border-color: color-mix(in srgb, var(--dbd-primary) 45%, transparent);
+    color: var(--dbd-primary);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px dashed var(--dbd-border-strong);
+  border-radius: var(--dbd-radius);
+  background: transparent;
+  color: var(--dbd-text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  --dbd-icon-size: 16px;
+
+  &:hover:not(:disabled) {
+    color: var(--dbd-primary);
+    border-color: var(--dbd-primary);
+  }
+  &.full {
+    width: 100%;
+    margin-top: var(--dbd-space-3);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// Range sliders for the diagram's layout spacing (matches the mock).
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 6px 0 12px;
+  border-radius: 999px;
+  background: var(--dbd-surface-2);
+  outline: none;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--dbd-primary);
+    border: 2px solid var(--dbd-surface);
+    box-shadow: var(--dbd-shadow-1);
+    cursor: pointer;
+  }
+
+  &::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--dbd-primary);
+    border: 2px solid var(--dbd-surface);
+    cursor: pointer;
+  }
+}

@@ -49,6 +49,22 @@
   </button>
 
   <button
+    class="dock-btn"
+    [class.on]="tool() === 'sequence'"
+    [disabled]="disabled()"
+    (click)="onChange('sequence')"
+    matTooltip="Sequence (Q)"
+    matTooltipPosition="right"
+    aria-label="Sequence diagram"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3.5" width="5.5" height="3.5" rx="1" />
+      <rect x="14.5" y="3.5" width="5.5" height="3.5" rx="1" />
+      <path d="M6.75 7v13.5M17.25 7v13.5M6.75 12h9M15.75 12l-2.5-2M15.75 12l-2.5 2" />
+    </svg>
+  </button>
+
+  <button
     class="dock-btn shape"
     [class.on]="isShape()"
     [disabled]="disabled()"

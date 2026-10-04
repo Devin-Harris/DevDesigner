@@ -1,0 +1,3 @@
+@for (d of store.sequenceDiagrams(); track d.id) {
+  <app-sequence-diagram [diagramId]="d.id" [toWorld]="toWorld()" [snap]="snap()" />
+}

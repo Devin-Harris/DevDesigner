@@ -13,6 +13,7 @@ export type EditorTool =
   | 'select'
   | 'hand'
   | 'table'
+  | 'sequence'
   | 'rectangle'
   | 'ellipse'
   | 'diamond'

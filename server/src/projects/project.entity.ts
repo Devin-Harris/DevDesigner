@@ -49,6 +49,19 @@ export class Project {
   @Column({ type: 'float', default: 1 })
   zoom!: number;
 
+  // Sequence-diagram layout config (one row per project; see SequenceConfigModel).
+  @Column({ type: 'float', default: 160 })
+  seqLifelineSpacing!: number;
+
+  @Column({ type: 'float', default: 48 })
+  seqRowSpacing!: number;
+
+  @Column({ type: 'float', default: 42 })
+  seqHeaderHeight!: number;
+
+  @Column({ type: 'float', nullable: true })
+  seqOriginY!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

@@ -1,0 +1,130 @@
+<div class="panel">
+  @if (lifeline(); as l) {
+    <div class="panel-head">
+      <span class="dot" [style.background]="l.color || 'var(--dbd-connector)'"></span>
+      <div class="head-text">
+        <div class="eyebrow">Participant</div>
+        <div class="tname">{{ l.label }}</div>
+      </div>
+      <button class="icon-btn" (click)="deleteLifeline()" [disabled]="!store.canEdit()" title="Delete participant">
+        <dbd-icon name="delete" />
+      </button>
+    </div>
+
+    <div class="field-label">Label</div>
+    <dbd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
+
+    <div class="field-label">Header color</div>
+    <div class="swatches">
+      @for (s of swatches; track s) {
+        <button
+          type="button"
+          class="swatch"
+          [class.none]="s === ''"
+          [class.active]="(l.color || '') === s"
+          [style.background]="s || 'var(--dbd-surface-2)'"
+          [disabled]="!store.canEdit()"
+          (click)="setColor(s)"
+        ></button>
+      }
+    </div>
+
+    <div class="field-label">Width</div>
+    <dbd-input type="number" [min]="60" [ngModel]="l.width" (commit)="setWidth($event)" [disabled]="!store.canEdit()" />
+
+    <div class="sep"></div>
+    <div class="eyebrow">Layout &amp; spacing</div>
+
+    <div class="field-label">Participant spacing</div>
+    <dbd-input type="number" [min]="40" [ngModel]="config().lifelineSpacing" (commit)="setSpacing('lifelineSpacing', $event)" [disabled]="!store.canEdit()" />
+    <div class="field-label">Row spacing</div>
+    <dbd-input type="number" [min]="20" [ngModel]="config().rowSpacing" (commit)="setSpacing('rowSpacing', $event)" [disabled]="!store.canEdit()" />
+    <div class="field-label">Header height</div>
+    <dbd-input type="number" [min]="28" [ngModel]="config().headerHeight" (commit)="setSpacing('headerHeight', $event)" [disabled]="!store.canEdit()" />
+
+    <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
+      <dbd-icon name="add" />Add participant
+    </button>
+  } @else if (message(); as m) {
+    <div class="panel-head">
+      <span class="dot" style="background: var(--dbd-primary)"></span>
+      <div class="head-text">
+        <div class="eyebrow">Message</div>
+        <div class="tname">{{ m.label || '(no label)' }}</div>
+      </div>
+      <button class="icon-btn" (click)="deleteMessage()" [disabled]="!store.canEdit()" title="Delete message">
+        <dbd-icon name="delete" />
+      </button>
+    </div>
+
+    <div class="field-label">Label</div>
+    <dbd-input [ngModel]="m.label ?? ''" (commit)="setMsgLabel($event)" [maxlength]="200" [disabled]="!store.canEdit()" />
+
+    <div class="field-label">From</div>
+    <dbd-select [options]="lifelineOptions()" [ngModel]="m.fromLifelineId" (ngModelChange)="setFrom($event)" [disabled]="!store.canEdit()" />
+    <div class="field-label">To</div>
+    <dbd-select [options]="lifelineOptions()" [ngModel]="m.toLifelineId" (ngModelChange)="setTo($event)" [disabled]="!store.canEdit()" />
+
+    <div class="field-label">Style</div>
+    <div class="flag-chips">
+      <button class="flag" [class.on]="m.style === 'solid'" [disabled]="!store.canEdit()" (click)="setStyle('solid')">Sync</button>
+      <button class="flag" [class.on]="m.style === 'dashed'" [disabled]="!store.canEdit()" (click)="setStyle('dashed')">Return</button>
+      <button class="flag" [class.on]="m.style === 'break'" [disabled]="!store.canEdit()" (click)="setStyle('break')">Break</button>
+    </div>
+
+    @if (m.style !== 'break') {
+      <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
+        <dbd-icon name="swap_horiz" />Flip direction
+      </button>
+    }
+  } @else if (diagram()) {
+    <div class="panel-head">
+      <span class="dot" style="background: var(--dbd-primary)"></span>
+      <div class="head-text">
+        <div class="eyebrow">Sequence diagram</div>
+        <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
+      </div>
+    </div>
+
+    <div class="eyebrow">Layout &amp; spacing</div>
+    <div class="field-label">Participant spacing · {{ config().lifelineSpacing | number: '1.0-0' }}px</div>
+    <input
+      type="range"
+      class="slider"
+      min="60"
+      max="320"
+      step="1"
+      [value]="config().lifelineSpacing"
+      [disabled]="!store.canEdit()"
+      (change)="setSpacing('lifelineSpacing', $any($event.target).value)"
+    />
+    <div class="field-label">Row spacing · {{ config().rowSpacing | number: '1.0-0' }}px</div>
+    <input
+      type="range"
+      class="slider"
+      min="24"
+      max="160"
+      step="1"
+      [value]="config().rowSpacing"
+      [disabled]="!store.canEdit()"
+      (change)="setSpacing('rowSpacing', $any($event.target).value)"
+    />
+    <div class="field-label">Header height · {{ config().headerHeight | number: '1.0-0' }}px</div>
+    <input
+      type="range"
+      class="slider"
+      min="28"
+      max="80"
+      step="1"
+      [value]="config().headerHeight"
+      [disabled]="!store.canEdit()"
+      (change)="setSpacing('headerHeight', $any($event.target).value)"
+    />
+
+    <div class="field-label">Add participant</div>
+    <div class="flag-chips">
+      <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('left')">◂ Left</button>
+      <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('right')">Right ▸</button>
+    </div>
+  }
+</div>

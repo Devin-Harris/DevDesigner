@@ -9,6 +9,7 @@ import type {
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
 import { ElementsService } from '../elements/elements.service';
+import { SequenceService } from '../sequence/sequence.service';
 import { AccessService } from '../access/access.service';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -32,6 +33,7 @@ export class ProjectsService {
     private readonly tables: TablesService,
     private readonly relationships: RelationshipsService,
     private readonly elements: ElementsService,
+    private readonly sequence: SequenceService,
     private readonly access: AccessService,
   ) {}
 
@@ -68,16 +70,20 @@ export class ProjectsService {
   ): Promise<ProjectGraphResponse> {
     const accessLevel = await this.access.assertCanRead(id, userId, shareToken);
     const project = await this.findOrThrow(id);
-    const [tables, relationships, elements] = await Promise.all([
+    const [tables, relationships, elements, sequence] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
       this.elements.getModelsForProject(id),
+      this.sequence.getSchemaForProject(id),
     ]);
     const schema: SchemaModel = {
       tables,
       relationships,
       notes: [],
       elements,
+      sequenceDiagrams: sequence.sequenceDiagrams,
+      lifelines: sequence.lifelines,
+      sequenceMessages: sequence.sequenceMessages,
       viewport: {
         x: project.viewportX,
         y: project.viewportY,

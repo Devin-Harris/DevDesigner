@@ -1,0 +1,66 @@
+@if (message(); as m) {
+  <button
+    type="button"
+    class="seg"
+    [class.active]="m.style === 'solid'"
+    [disabled]="!canEdit()"
+    (click)="setStyle('solid')"
+  >
+    Sync
+  </button>
+  <button
+    type="button"
+    class="seg"
+    [class.active]="m.style === 'dashed'"
+    [disabled]="!canEdit()"
+    (click)="setStyle('dashed')"
+  >
+    Return
+  </button>
+  <button
+    type="button"
+    class="seg"
+    [class.active]="m.style === 'break'"
+    [disabled]="!canEdit()"
+    (click)="setStyle('break')"
+  >
+    Break
+  </button>
+
+  <span class="divider"></span>
+
+  @if (m.style !== 'break') {
+    <button
+      type="button"
+      class="ico-act"
+      [disabled]="!canEdit()"
+      (click)="flip()"
+      title="Flip direction"
+      aria-label="Flip direction"
+    >
+      <dbd-icon name="swap_horiz" />
+    </button>
+  }
+
+  <button
+    type="button"
+    class="ico-act"
+    [disabled]="!canEdit()"
+    (click)="edit()"
+    title="Edit label"
+    aria-label="Edit label"
+  >
+    <dbd-icon name="edit" />
+  </button>
+
+  <button
+    type="button"
+    class="ico-act del"
+    [disabled]="!canEdit()"
+    (click)="remove()"
+    title="Delete message"
+    aria-label="Delete message"
+  >
+    <dbd-icon name="delete" />
+  </button>
+}

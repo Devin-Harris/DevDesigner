@@ -9,8 +9,11 @@ import type {
   CanvasElementModel,
   ColumnModel,
   IndexModel,
+  LifelineModel,
   PointModel,
   RelationshipModel,
+  SequenceDiagramModel,
+  SequenceMessageModel,
   TableModel,
 } from '../models';
 
@@ -80,7 +83,18 @@ export type SchemaMutation =
   | { kind: 'element.updated'; element: CanvasElementModel }
   | { kind: 'element.moved'; elementId: string; x?: number; y?: number; points?: PointModel[] }
   | { kind: 'element.deleted'; elementId: string }
-  | { kind: 'element.reordered'; orderedElementIds: string[] };
+  | { kind: 'element.reordered'; orderedElementIds: string[] }
+  | { kind: 'sequenceDiagram.created'; diagram: SequenceDiagramModel }
+  | { kind: 'sequenceDiagram.updated'; diagram: SequenceDiagramModel }
+  | { kind: 'sequenceDiagram.deleted'; diagramId: string }
+  | { kind: 'lifeline.created'; lifeline: LifelineModel }
+  | { kind: 'lifeline.updated'; lifeline: LifelineModel }
+  | { kind: 'lifeline.moved'; lifelineId: string; x: number }
+  | { kind: 'lifeline.deleted'; lifelineId: string }
+  | { kind: 'message.created'; message: SequenceMessageModel }
+  | { kind: 'message.updated'; message: SequenceMessageModel }
+  | { kind: 'message.moved'; messageId: string; y: number }
+  | { kind: 'message.deleted'; messageId: string };
 
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {

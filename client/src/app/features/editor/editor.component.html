@@ -57,6 +57,9 @@
         ></app-table-node>
       }
 
+      <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
+      <app-canvas-sequence [toWorld]="toWorldPoint" [snap]="snapWorld"></app-canvas-sequence>
+
       <!-- Selection highlights: a colored ring around tables another participant
            currently has selected (what they are editing). -->
       @for (ring of remoteTableHighlights(); track ring.id) {
@@ -156,6 +159,15 @@
       ></app-table-toolbar>
     }
 
+    @if (sequenceMessageToolbar(); as mt) {
+      <app-sequence-message-toolbar
+        [style.left.px]="mt.left"
+        [style.top.px]="mt.top"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      ></app-sequence-message-toolbar>
+    }
+
     @if (selectedRelInline(); as info) {
       <app-relationship-toolbar
         [style.left.px]="info.x"
@@ -175,9 +187,13 @@
       </div>
     } @else if (store.error()) {
       <div class="overlay muted">{{ store.error() }}</div>
-    } @else if (store.tables().length === 0 && store.elements().length === 0) {
+    } @else if (
+      store.tables().length === 0 &&
+      store.elements().length === 0 &&
+      store.lifelines().length === 0
+    ) {
       <div class="overlay hint">
-        Use the Table tool to add a table, or double-click the canvas to add text.
+        Use the Table or Sequence tool to start, or double-click the canvas to add text.
       </div>
     }
 
@@ -194,6 +210,10 @@
     } @else if (store.selectedElement(); as element) {
       <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-element-inspector [element]="element"></app-element-inspector>
+      </div>
+    } @else if (store.selectedLifeline() || store.selectedMessage() || store.sequenceSelected()) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+        <app-sequence-inspector></app-sequence-inspector>
       </div>
     }
   </div>

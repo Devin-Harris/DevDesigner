@@ -232,6 +232,61 @@ export interface ReorderElementsDto {
   orderedElementIds: string[];
 }
 
+// --- Sequence diagrams (groups) ---
+export interface CreateSequenceDiagramDto {
+  originY: number;
+  lifelineSpacing?: number;
+  rowSpacing?: number;
+  headerHeight?: number;
+}
+export interface UpdateSequenceDiagramDto {
+  lifelineSpacing?: number;
+  rowSpacing?: number;
+  headerHeight?: number;
+  originY?: number;
+}
+
+// --- Lifelines (sequence diagram participant columns) ---
+export interface CreateLifelineDto {
+  diagramId: string;
+  label: string;
+  color?: string;
+  x: number;
+  width?: number;
+  order?: number;
+}
+export interface UpdateLifelineDto {
+  label?: string;
+  color?: string;
+  width?: number;
+}
+export interface UpdateLifelinePositionDto {
+  x: number;
+}
+
+// --- Sequence messages (rows between lifelines) ---
+export interface CreateSequenceMessageDto {
+  diagramId: string;
+  fromLifelineId: string;
+  toLifelineId: string;
+  label?: string;
+  y: number;
+  style?: 'solid' | 'dashed' | 'break';
+  direction?: 'forward' | 'reverse';
+  arrowhead?: 'arrow' | 'open' | 'none';
+}
+export interface UpdateSequenceMessageDto {
+  fromLifelineId?: string;
+  toLifelineId?: string;
+  label?: string;
+  style?: 'solid' | 'dashed' | 'break';
+  direction?: 'forward' | 'reverse';
+  arrowhead?: 'arrow' | 'open' | 'none';
+}
+export interface UpdateSequenceMessagePositionDto {
+  y: number;
+}
+
 // --- Sharing ---
 export interface CreateShareLinkDto {
   accessLevel: ShareAccessLevel;

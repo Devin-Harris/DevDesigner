@@ -6,17 +6,25 @@ import type {
   CreateColumnDto,
   CreateElementDto,
   CreateIndexDto,
+  CreateLifelineDto,
+  CreateSequenceMessageDto,
   IndexModel,
+  LifelineModel,
   PointModel,
   RelationshipModel,
   RelationshipType,
   SchemaModel,
   SchemaMutation,
+  SequenceDiagramModel,
+  SequenceMessageModel,
   TableModel,
   UpdateColumnDto,
   UpdateElementDto,
   UpdateIndexDto,
+  UpdateLifelineDto,
   UpdateRelationshipDto,
+  UpdateSequenceDiagramDto,
+  UpdateSequenceMessageDto,
   UpdateTableDto,
   ViewportModel,
 } from '@dbdesigner/shared';
@@ -28,6 +36,7 @@ import { ElementsService } from '../core/services/elements.service';
 import { ProjectsService } from '../core/services/projects.service';
 import { RelationshipsService } from '../core/services/relationships.service';
 import { TablesService } from '../core/services/tables.service';
+import { SequenceService } from '../core/services/sequence.service';
 import { ShareLinksService } from '../core/services/share-links.service';
 import { ShareSessionService } from '../core/services/share-session.service';
 
@@ -49,6 +58,12 @@ interface EditorState {
   selectedTableIds: string[];
   selectedRelationshipIds: string[];
   selectedElementIds: string[];
+  selectedLifelineIds: string[];
+  selectedMessageIds: string[];
+  /** The sequence diagram whose bounding box is selected (null = none). */
+  selectedDiagramId: string | null;
+  /** Transient: a message whose inline label editor should open (toolbar pencil). */
+  pendingMessageEditId: string | null;
   loading: boolean;
   error: string | null;
   saveStatus: SaveStatus;
@@ -102,6 +117,10 @@ const initialState: EditorState = {
   selectedTableIds: [],
   selectedRelationshipIds: [],
   selectedElementIds: [],
+  selectedLifelineIds: [],
+  selectedMessageIds: [],
+  selectedDiagramId: null,
+  pendingMessageEditId: null,
   loading: false,
   error: null,
   saveStatus: 'idle',
@@ -194,6 +213,9 @@ export const ProjectStore = signalStore(
       selectedTableIds,
       selectedRelationshipIds,
       selectedElementIds,
+      selectedLifelineIds,
+      selectedMessageIds,
+      selectedDiagramId,
       accessMode,
       undoDepth,
       redoDepth,
@@ -233,6 +255,27 @@ export const ProjectStore = signalStore(
         ? (schema()?.elements.find((e) => e.id === ids[0]) ?? null)
         : null;
     }),
+    // ---- Sequence diagrams ----
+    sequenceDiagrams: computed(() => schema()?.sequenceDiagrams ?? []),
+    lifelines: computed(() => schema()?.lifelines ?? []),
+    sequenceMessages: computed(() => schema()?.sequenceMessages ?? []),
+    selectedLifeline: computed(() => {
+      const ids = selectedLifelineIds();
+      return ids.length === 1 ? (schema()?.lifelines.find((l) => l.id === ids[0]) ?? null) : null;
+    }),
+    selectedMessage: computed(() => {
+      const ids = selectedMessageIds();
+      return ids.length === 1
+        ? (schema()?.sequenceMessages.find((m) => m.id === ids[0]) ?? null)
+        : null;
+    }),
+    /** The selected diagram (its bounding box), for the inspector. */
+    selectedDiagram: computed(() => {
+      const id = selectedDiagramId();
+      return id ? (schema()?.sequenceDiagrams.find((d) => d.id === id) ?? null) : null;
+    }),
+    /** True when any sequence diagram's box is selected. */
+    sequenceSelected: computed(() => selectedDiagramId() != null),
     canEdit: computed(() => accessMode() !== 'VIEW'),
     canUndo: computed(() => undoDepth() > 0),
     canRedo: computed(() => redoDepth() > 0),
@@ -247,6 +290,7 @@ export const ProjectStore = signalStore(
       indexesApi = inject(IndexesService),
       relationshipsApi = inject(RelationshipsService),
       elementsApi = inject(ElementsService),
+      sequenceApi = inject(SequenceService),
       shareLinksApi = inject(ShareLinksService),
       shareSession = inject(ShareSessionService),
     ) => {
@@ -292,6 +336,30 @@ export const ProjectStore = signalStore(
         setSchema((s) => ({
           ...s,
           tables: s.tables.map((t) => (t.id === tableId ? fn(t) : t)),
+        }));
+      }
+
+      function mapLifeline(id: string, fn: (l: LifelineModel) => LifelineModel): void {
+        setSchema((s) => ({
+          ...s,
+          lifelines: s.lifelines.map((l) => (l.id === id ? fn(l) : l)),
+        }));
+      }
+
+      function mapMessage(id: string, fn: (m: SequenceMessageModel) => SequenceMessageModel): void {
+        setSchema((s) => ({
+          ...s,
+          sequenceMessages: s.sequenceMessages.map((m) => (m.id === id ? fn(m) : m)),
+        }));
+      }
+
+      function mapDiagram(
+        id: string,
+        fn: (d: SequenceDiagramModel) => SequenceDiagramModel,
+      ): void {
+        setSchema((s) => ({
+          ...s,
+          sequenceDiagrams: s.sequenceDiagrams.map((d) => (d.id === id ? fn(d) : d)),
         }));
       }
 
@@ -592,6 +660,69 @@ export const ProjectStore = signalStore(
                 return { ...s, elements: [...ordered, ...rest] };
               });
               break;
+            case 'sequenceDiagram.created':
+              setSchema((s) =>
+                s.sequenceDiagrams.some((d) => d.id === mutation.diagram.id)
+                  ? s
+                  : { ...s, sequenceDiagrams: [...s.sequenceDiagrams, mutation.diagram] },
+              );
+              break;
+            case 'sequenceDiagram.updated':
+              mapDiagram(mutation.diagram.id, () => mutation.diagram);
+              break;
+            case 'sequenceDiagram.deleted':
+              setSchema((s) => ({
+                ...s,
+                sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== mutation.diagramId),
+                lifelines: s.lifelines.filter((l) => l.diagramId !== mutation.diagramId),
+                sequenceMessages: s.sequenceMessages.filter(
+                  (m) => m.diagramId !== mutation.diagramId,
+                ),
+              }));
+              break;
+            case 'lifeline.created':
+              setSchema((s) =>
+                s.lifelines.some((l) => l.id === mutation.lifeline.id)
+                  ? s
+                  : { ...s, lifelines: [...s.lifelines, mutation.lifeline] },
+              );
+              break;
+            case 'lifeline.updated':
+              mapLifeline(mutation.lifeline.id, () => mutation.lifeline);
+              break;
+            case 'lifeline.moved':
+              mapLifeline(mutation.lifelineId, (l) => ({ ...l, x: mutation.x }));
+              break;
+            case 'lifeline.deleted':
+              setSchema((s) => ({
+                ...s,
+                lifelines: s.lifelines.filter((l) => l.id !== mutation.lifelineId),
+                sequenceMessages: s.sequenceMessages.filter(
+                  (m) =>
+                    m.fromLifelineId !== mutation.lifelineId &&
+                    m.toLifelineId !== mutation.lifelineId,
+                ),
+              }));
+              break;
+            case 'message.created':
+              setSchema((s) =>
+                s.sequenceMessages.some((m) => m.id === mutation.message.id)
+                  ? s
+                  : { ...s, sequenceMessages: [...s.sequenceMessages, mutation.message] },
+              );
+              break;
+            case 'message.updated':
+              mapMessage(mutation.message.id, () => mutation.message);
+              break;
+            case 'message.moved':
+              mapMessage(mutation.messageId, (m) => ({ ...m, y: mutation.y }));
+              break;
+            case 'message.deleted':
+              setSchema((s) => ({
+                ...s,
+                sequenceMessages: s.sequenceMessages.filter((m) => m.id !== mutation.messageId),
+              }));
+              break;
           }
         },
 
@@ -657,6 +788,387 @@ export const ProjectStore = signalStore(
             selectedTableIds: [],
             selectedRelationshipIds: [],
             selectedElementIds: [],
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+            selectedDiagramId: null,
+          });
+        },
+
+        // ================= Sequence diagrams =================
+
+        /** Select one sequence diagram (its bounding box). */
+        selectSequence(diagramId: string): void {
+          patchState(store, {
+            selectedDiagramId: diagramId,
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        selectLifeline(lifelineId: string): void {
+          patchState(store, {
+            selectedLifelineIds: [lifelineId],
+            selectedMessageIds: [],
+            selectedDiagramId: null,
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        selectMessage(messageId: string): void {
+          patchState(store, {
+            selectedMessageIds: [messageId],
+            selectedLifelineIds: [],
+            selectedDiagramId: null,
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        /** Ask the canvas to open a message's inline label editor (toolbar pencil). */
+        requestMessageEdit(messageId: string): void {
+          patchState(store, { pendingMessageEditId: messageId });
+        },
+        clearMessageEditRequest(): void {
+          patchState(store, { pendingMessageEditId: null });
+        },
+
+        /** Drop a NEW sequence diagram at (x, y): its own group + two participants + a message. */
+        async addSequenceStarter(x: number, y: number): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const diagram = await runSave(() =>
+            firstValueFrom(sequenceApi.createDiagram(projectId, { originY: y })),
+          );
+          setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, diagram] }));
+          const spacing = diagram.lifelineSpacing;
+          const a = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createLifeline(projectId, {
+                diagramId: diagram.id,
+                label: 'Participant 1',
+                x,
+                width: 120,
+                order: 0,
+                color: TABLE_PALETTE[0],
+              }),
+            ),
+          );
+          const b = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createLifeline(projectId, {
+                diagramId: diagram.id,
+                label: 'Participant 2',
+                x: x + spacing,
+                width: 120,
+                order: 1,
+                color: TABLE_PALETTE[1],
+              }),
+            ),
+          );
+          // Seed one message so the diagram reads as a sequence immediately.
+          const m = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createMessage(projectId, {
+                diagramId: diagram.id,
+                fromLifelineId: a.id,
+                toLifelineId: b.id,
+                y: y + diagram.headerHeight + diagram.rowSpacing,
+                style: 'solid',
+                direction: 'forward',
+                arrowhead: 'arrow',
+              }),
+            ),
+          );
+          setSchema((s) => ({
+            ...s,
+            lifelines: [...s.lifelines, a, b],
+            sequenceMessages: [...s.sequenceMessages, m],
+          }));
+          patchState(store, {
+            selectedDiagramId: diagram.id,
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        /** Add a participant column to a diagram, on the given side of its spread. */
+        async addLifeline(diagramId: string, side: 'left' | 'right' = 'right'): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const diagram = store.sequenceDiagrams().find((d) => d.id === diagramId);
+          const lls = store.lifelines().filter((l) => l.diagramId === diagramId);
+          const spacing = diagram?.lifelineSpacing ?? 160;
+          const order = lls.length;
+          let x = 0;
+          if (lls.length) {
+            x =
+              side === 'left'
+                ? Math.min(...lls.map((l) => l.x)) - spacing
+                : Math.max(...lls.map((l) => l.x)) + spacing;
+          }
+          const created = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createLifeline(projectId, {
+                diagramId,
+                label: `Participant ${order + 1}`,
+                x,
+                width: 120,
+                order,
+                color: TABLE_PALETTE[order % TABLE_PALETTE.length],
+              }),
+            ),
+          );
+          setSchema((s) => ({ ...s, lifelines: [...s.lifelines, created] }));
+          patchState(store, {
+            selectedLifelineIds: [created.id],
+            selectedMessageIds: [],
+            selectedDiagramId: null,
+          });
+        },
+
+        async updateLifeline(lifelineId: string, patch: UpdateLifelineDto): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const updated = await runSave(() =>
+            firstValueFrom(sequenceApi.updateLifeline(projectId, lifelineId, patch)),
+          );
+          mapLifeline(lifelineId, () => updated);
+        },
+
+        /** Optimistic horizontal move; the position PATCH is debounced per lifeline. */
+        moveLifeline(lifelineId: string, x: number): void {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          mapLifeline(lifelineId, (l) => ({ ...l, x }));
+          debounce(`llpos:${lifelineId}`, () => {
+            void runSave(() => firstValueFrom(sequenceApi.moveLifeline(projectId, lifelineId, { x })));
+          });
+        },
+
+        async deleteLifeline(lifelineId: string): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          await runSave(() => firstValueFrom(sequenceApi.deleteLifeline(projectId, lifelineId)));
+          setSchema((s) => ({
+            ...s,
+            lifelines: s.lifelines.filter((l) => l.id !== lifelineId),
+            sequenceMessages: s.sequenceMessages.filter(
+              (m) => m.fromLifelineId !== lifelineId && m.toLifelineId !== lifelineId,
+            ),
+          }));
+          patchState(store, {
+            selectedLifelineIds: store.selectedLifelineIds().filter((id) => id !== lifelineId),
+          });
+        },
+
+        /**
+         * Create a message between two lifelines. `atY` is the world-y where the
+         * connection was drawn; it snaps to the nearest row of the grid. Multiple
+         * messages may share a row (simultaneous messages). Without `atY` it goes
+         * on the row after the lowest existing one.
+         */
+        async addMessage(
+          diagramId: string,
+          fromLifelineId: string,
+          toLifelineId: string,
+          atY?: number,
+        ): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const diagram = store.sequenceDiagrams().find((d) => d.id === diagramId);
+          if (!diagram) {
+            return;
+          }
+          const base = diagram.originY + diagram.headerHeight;
+          const gap = diagram.rowSpacing;
+          const rowOf = (y: number) => Math.max(1, Math.round((y - base) / gap));
+          const msgs = store.sequenceMessages().filter((m) => m.diagramId === diagramId);
+          const row =
+            atY != null ? rowOf(atY) : (msgs.length ? Math.max(...msgs.map((m) => rowOf(m.y))) + 1 : 1);
+          const y = base + gap * row;
+          const created = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createMessage(projectId, {
+                diagramId,
+                fromLifelineId,
+                toLifelineId,
+                y,
+                style: 'solid',
+                direction: 'forward',
+                arrowhead: 'arrow',
+              }),
+            ),
+          );
+          setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, created] }));
+          patchState(store, {
+            selectedMessageIds: [created.id],
+            selectedLifelineIds: [],
+            selectedDiagramId: null,
+          });
+        },
+
+        /** Delete one sequence diagram and all its participants + messages. */
+        async deleteSequence(diagramId: string): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          await runSave(() => firstValueFrom(sequenceApi.deleteDiagram(projectId, diagramId)));
+          setSchema((s) => ({
+            ...s,
+            sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== diagramId),
+            lifelines: s.lifelines.filter((l) => l.diagramId !== diagramId),
+            sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== diagramId),
+          }));
+          patchState(store, {
+            selectedDiagramId:
+              store.selectedDiagramId() === diagramId ? null : store.selectedDiagramId(),
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+          });
+        },
+
+        async updateMessage(messageId: string, patch: UpdateSequenceMessageDto): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const updated = await runSave(() =>
+            firstValueFrom(sequenceApi.updateMessage(projectId, messageId, patch)),
+          );
+          mapMessage(messageId, () => updated);
+        },
+
+        /** Optimistic vertical move; the position PATCH is debounced per message. */
+        moveMessage(messageId: string, y: number): void {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          mapMessage(messageId, (m) => ({ ...m, y }));
+          debounce(`msgpos:${messageId}`, () => {
+            void runSave(() => firstValueFrom(sequenceApi.moveMessage(projectId, messageId, { y })));
+          });
+        },
+
+        async deleteMessage(messageId: string): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          await runSave(() => firstValueFrom(sequenceApi.deleteMessage(projectId, messageId)));
+          setSchema((s) => ({
+            ...s,
+            sequenceMessages: s.sequenceMessages.filter((m) => m.id !== messageId),
+          }));
+          patchState(store, {
+            selectedMessageIds: store.selectedMessageIds().filter((id) => id !== messageId),
+          });
+        },
+
+        /** Update one diagram's layout config (spacing / origin), persisted. */
+        async updateSequenceConfig(
+          diagramId: string,
+          patch: UpdateSequenceDiagramDto,
+        ): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          const updated = await runSave(() =>
+            firstValueFrom(sequenceApi.updateDiagram(projectId, diagramId, patch)),
+          );
+          mapDiagram(diagramId, () => updated);
+        },
+
+        /**
+         * Live (local-only) shift of one diagram: every lifeline's x plus the row
+         * origin, and every message moves with it (kept on its row via `startRows`),
+         * so the diagram translates as a whole. Persist on drag end.
+         */
+        shiftSequence(
+          diagramId: string,
+          startXs: ReadonlyMap<string, number>,
+          dx: number,
+          startOriginY: number,
+          dy: number,
+          startRows: ReadonlyMap<string, number>,
+        ): void {
+          setSchema((s) => {
+            const d = s.sequenceDiagrams.find((x) => x.id === diagramId);
+            const base = startOriginY + dy + (d?.headerHeight ?? 42);
+            const gap = d?.rowSpacing ?? 48;
+            return {
+              ...s,
+              lifelines: s.lifelines.map((l) =>
+                l.diagramId === diagramId ? { ...l, x: (startXs.get(l.id) ?? l.x) + dx } : l,
+              ),
+              sequenceMessages: s.sequenceMessages.map((m) =>
+                m.diagramId === diagramId && startRows.has(m.id)
+                  ? { ...m, y: base + gap * (startRows.get(m.id) ?? 1) }
+                  : m,
+              ),
+              sequenceDiagrams: s.sequenceDiagrams.map((x) =>
+                x.id === diagramId ? { ...x, originY: startOriginY + dy } : x,
+              ),
+            };
+          });
+        },
+
+        /**
+         * Live (local-only) resize of one diagram: each lifeline's x is scaled
+         * around `anchorX` by `scaleX`, the vertical size is set via `rowSpacing` +
+         * `originY`, and messages are re-spaced to keep their rows. Persist on end.
+         */
+        resizeSequenceTo(
+          diagramId: string,
+          startXs: ReadonlyMap<string, number>,
+          anchorX: number,
+          scaleX: number,
+          rowSpacing: number,
+          originY: number,
+          startRows: ReadonlyMap<string, number>,
+        ): void {
+          setSchema((s) => {
+            const d = s.sequenceDiagrams.find((x) => x.id === diagramId);
+            const base = originY + (d?.headerHeight ?? 42);
+            return {
+              ...s,
+              lifelines: s.lifelines.map((l) =>
+                l.diagramId === diagramId
+                  ? { ...l, x: anchorX + ((startXs.get(l.id) ?? l.x) - anchorX) * scaleX }
+                  : l,
+              ),
+              sequenceMessages: s.sequenceMessages.map((m) =>
+                m.diagramId === diagramId && startRows.has(m.id)
+                  ? { ...m, y: base + rowSpacing * (startRows.get(m.id) ?? 1) }
+                  : m,
+              ),
+              sequenceDiagrams: s.sequenceDiagrams.map((x) =>
+                x.id === diagramId ? { ...x, rowSpacing, originY } : x,
+              ),
+            };
           });
         },
 

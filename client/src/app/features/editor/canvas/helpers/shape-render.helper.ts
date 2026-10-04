@@ -299,6 +299,35 @@ function shapeLabel(
   });
 }
 
+/** A line/arrow's optional label, centered just above the segment's midpoint. */
+function arrowLabel(
+  element: CanvasElementModel,
+  start: Point,
+  end: Point,
+  theme: ThemeColors | undefined,
+): TextBlockView | undefined {
+  if (!element.text) {
+    return undefined;
+  }
+  const fontSize = element.fontSize ?? 14;
+  const lineH = fontSize * LINE_HEIGHT;
+  const midX = (start.x + end.x) / 2;
+  const midY = (start.y + end.y) / 2;
+  // Ride above the line so the glyphs clear the stroke.
+  const box = { x: midX - 120, y: midY - fontSize - lineH / 2, width: 240, height: lineH };
+  return layoutTextBlock(element.text, box, {
+    fontSize,
+    fontFamilyKey: element.fontFamily,
+    fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+    italic: element.italic,
+    color: contrastSafe(element.strokeColor, theme),
+    align: 'center',
+    vAlign: 'middle',
+    padding: 0,
+    wrap: false,
+  });
+}
+
 /**
  * Connect two bound boxes with a STRAIGHT line: each end anchors to the exact
  * point on its box boundary along the center-to-center ray (not snapped to a few
@@ -415,6 +444,7 @@ export function buildShapeViews(
         base.markerEnd = element.endArrowhead ?? defaultEnd;
         if (ends.length >= 2) {
           base.ends = { start: ends[0], end: ends[ends.length - 1] };
+          base.label = arrowLabel(element, ends[0], ends[ends.length - 1], theme);
         }
         // Recompute bbox from resolved ends so the selection box tracks bindings.
         if (ends.length) {

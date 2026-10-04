@@ -145,6 +145,57 @@ export interface ViewportModel {
   zoom: number;
 }
 
+/** A named vertical participant (column) in a sequence diagram. */
+export interface LifelineModel {
+  id: string;
+  /** The sequence diagram this participant belongs to. */
+  diagramId: string;
+  /** Display label in the header box. */
+  label: string;
+  /** Header box fill color (hex). */
+  color?: string;
+  /** World-space X center of this lifeline's spine. */
+  x: number;
+  /** Header box width in px. */
+  width: number;
+  /** Creation order (ties broken left-to-right by x). */
+  order: number;
+}
+
+/** A horizontal message (row) between two lifelines in a sequence diagram. */
+export interface SequenceMessageModel {
+  id: string;
+  /** The sequence diagram this message belongs to. */
+  diagramId: string;
+  fromLifelineId: string;
+  toLifelineId: string;
+  /** Optional label shown above the arrow (or on its own for a break). */
+  label?: string;
+  /** World-space Y of this message row (messages render sorted by y). */
+  y: number;
+  /** solid = synchronous call; dashed = return/async; break = a label-only divider, no arrow. */
+  style: 'solid' | 'dashed' | 'break';
+  /** Which end carries the arrowhead. */
+  direction: 'forward' | 'reverse';
+  arrowhead: 'arrow' | 'open' | 'none';
+}
+
+/**
+ * One sequence diagram on the canvas: a group of lifelines + messages with its
+ * own origin and spacing. A project may hold several, each positioned separately.
+ */
+export interface SequenceDiagramModel {
+  id: string;
+  /** Default horizontal gap between new lifeline centers (px). */
+  lifelineSpacing: number;
+  /** Default vertical gap between consecutive message rows (px). */
+  rowSpacing: number;
+  /** Height of each lifeline header box (px). */
+  headerHeight: number;
+  /** World-space Y where this diagram's lifeline spines begin. */
+  originY: number;
+}
+
 /**
  * Read/assembly shape for a whole project (e.g. initial load or export).
  * This is NOT what individual write endpoints accept; writes are granular.
@@ -155,5 +206,11 @@ export interface SchemaModel {
   notes: NoteModel[];
   /** Free-form drawing elements (shapes, arrows, freehand strokes, text). */
   elements: CanvasElementModel[];
+  /** Sequence diagrams (groups), each with its own origin + spacing. */
+  sequenceDiagrams: SequenceDiagramModel[];
+  /** Sequence diagram participant columns (each tagged with its diagramId). */
+  lifelines: LifelineModel[];
+  /** Sequence diagram message rows (each tagged with its diagramId). */
+  sequenceMessages: SequenceMessageModel[];
   viewport: ViewportModel;
 }

@@ -1,0 +1,11 @@
+// The parent only hosts per-diagram children; each child is a zero-size overlay
+// positioned in world coordinates. Keep this wrapper out of the pointer path.
+:host {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}

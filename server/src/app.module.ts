@@ -11,6 +11,7 @@ import { ColumnsModule } from './columns/columns.module';
 import { IndexesModule } from './indexes/indexes.module';
 import { RelationshipsModule } from './relationships/relationships.module';
 import { ElementsModule } from './elements/elements.module';
+import { SequenceModule } from './sequence/sequence.module';
 import { NotesModule } from './notes/notes.module';
 import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
@@ -35,6 +36,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     IndexesModule,
     RelationshipsModule,
     ElementsModule,
+    SequenceModule,
     NotesModule,
     SharingModule,
     ExportModule,

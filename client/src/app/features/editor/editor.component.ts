@@ -70,6 +70,9 @@ import { exportDiagramImage, type ImageFormat } from './export/image-export.help
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
 import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
+import { SequenceInspectorComponent } from './sequence-inspector/sequence-inspector.component';
+import { SequenceMessageToolbarComponent } from './sequence-message-toolbar/sequence-message-toolbar.component';
+import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
@@ -147,6 +150,9 @@ function readStoredGrid(): boolean {
     CanvasShapesComponent,
     ShapeToolbarComponent,
     InspectorComponent,
+    SequenceInspectorComponent,
+    SequenceMessageToolbarComponent,
+    CanvasSequenceComponent,
     ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
     ElementInspectorComponent,
@@ -303,16 +309,24 @@ export class EditorComponent {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
+    let maxY = -Infinity;
     for (const e of els) {
       const b = elementBox(e);
       minX = Math.min(minX, b.x0);
       minY = Math.min(minY, b.y0);
       maxX = Math.max(maxX, b.x1);
+      maxY = Math.max(maxY, b.y1);
     }
     const v = this.store.viewport();
+    // Clear the rotate handle (sits ~24px above the top edge) so the bar never
+    // covers it; when there is no room above, flip the bar below the selection.
+    const ROTATE_CLEAR = 24;
+    const BAR = 52;
+    const above = (minY * v.zoom + v.y) - ROTATE_CLEAR * v.zoom - BAR;
+    const below = maxY * v.zoom + v.y + 16;
     return {
       left: ((minX + maxX) / 2) * v.zoom + v.x,
-      top: Math.max(minY * v.zoom + v.y - 52, 8),
+      top: above >= 8 ? above : below,
       element: els[0],
     };
   });
@@ -332,6 +346,36 @@ export class EditorComponent {
       top: Math.max(table.y * v.zoom + v.y - 52, 8),
       table,
     };
+  });
+
+  /** Placement for the floating contextual bar over the selected sequence message. */
+  protected readonly sequenceMessageToolbar = computed(() => {
+    const m = this.store.selectedMessage();
+    if (!m) {
+      return null;
+    }
+    const d = this.store.sequenceDiagrams().find((x) => x.id === m.diagramId);
+    if (!d) {
+      return null;
+    }
+    const lls = this.store.lifelines();
+    const base = d.originY + d.headerHeight;
+    const row = Math.max(1, Math.round((m.y - base) / d.rowSpacing));
+    const y = base + d.rowSpacing * row;
+    let midX: number;
+    const from = lls.find((l) => l.id === m.fromLifelineId);
+    const to = lls.find((l) => l.id === m.toLifelineId);
+    if (m.style === 'break' || !from || !to) {
+      const own = lls.filter((l) => l.diagramId === m.diagramId);
+      if (!own.length) return null;
+      const minX = Math.min(...own.map((l) => l.x));
+      const maxX = Math.max(...own.map((l) => l.x));
+      midX = (minX + maxX) / 2;
+    } else {
+      midX = (from.x + to.x) / 2;
+    }
+    const v = this.store.viewport();
+    return { left: midX * v.zoom + v.x, top: y * v.zoom + v.y };
   });
 
   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
@@ -380,7 +424,9 @@ export class EditorComponent {
       (el.type === 'text' ||
         el.type === 'rectangle' ||
         el.type === 'ellipse' ||
-        el.type === 'diamond');
+        el.type === 'diamond' ||
+        el.type === 'arrow' ||
+        el.type === 'line');
     if (!el || !editable) {
       return null;
     }
@@ -723,6 +769,13 @@ export class EditorComponent {
     return { x: (clientX - rect.left - v.x) / v.zoom, y: (clientY - rect.top - v.y) / v.zoom };
   }
 
+  /** Public screen→world mapping for the sequence layer's drag-connect. */
+  protected readonly toWorldPoint = (clientX: number, clientY: number): { x: number; y: number } =>
+    this.toWorld(clientX, clientY);
+
+  /** Snap a world coordinate to the grid when grid-snap is enabled, else pass through. */
+  protected readonly snapWorld = (n: number): number => (this.gridSnap() ? snapToGrid(n) : n);
+
   private screenPoint(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this.canvasRect();
     return { x: clientX - rect.left, y: clientY - rect.top };
@@ -761,6 +814,11 @@ export class EditorComponent {
       event.preventDefault();
       if (tool === 'table') {
         this.addTableAt(event.clientX, event.clientY);
+        this.activeTool.set('select');
+        return;
+      }
+      if (tool === 'sequence') {
+        this.addSequenceAt(event.clientX, event.clientY);
         this.activeTool.set('select');
         return;
       }
@@ -803,8 +861,23 @@ export class EditorComponent {
     void this.store.addTable(x, y);
   }
 
+  /** Drop a starter sequence diagram (header origin + two participants) at the pointer. */
+  private addSequenceAt(clientX: number, clientY: number): void {
+    const world = this.toWorld(clientX, clientY);
+    let x = Math.round(world.x);
+    let y = Math.round(world.y);
+    if (this.gridSnap()) {
+      x = snapToGrid(x);
+      y = snapToGrid(y);
+    }
+    void this.store.addSequenceStarter(x, y);
+  }
+
   /** Start drawing an element of the active tool at the pointer. */
-  private beginDraw(tool: Exclude<EditorTool, 'select' | 'table'>, event: PointerEvent): void {
+  private beginDraw(
+    tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence'>,
+    event: PointerEvent,
+  ): void {
     const world = this.toWorld(event.clientX, event.clientY);
     const x = this.gridSnap() ? snapToGrid(world.x) : world.x;
     const y = this.gridSnap() ? snapToGrid(world.y) : world.y;
@@ -1670,11 +1743,28 @@ export class EditorComponent {
       const relIds = [...this.store.selectedRelationshipIds()];
       const tableIds = [...this.store.selectedTableIds()];
       const elementIds = [...this.store.selectedElementIds()];
-      if (relIds.length || tableIds.length || elementIds.length) {
+      const lifelineIds = [...this.store.selectedLifelineIds()];
+      const messageIds = [...this.store.selectedMessageIds()];
+      const diagramId = this.store.selectedDiagramId();
+      if (
+        relIds.length ||
+        tableIds.length ||
+        elementIds.length ||
+        lifelineIds.length ||
+        messageIds.length ||
+        diagramId
+      ) {
         event.preventDefault();
         relIds.forEach((id) => void this.store.deleteRelationship(id));
         tableIds.forEach((id) => void this.store.deleteTable(id));
         elementIds.forEach((id) => void this.store.deleteElement(id));
+        messageIds.forEach((id) => void this.store.deleteMessage(id));
+        if (diagramId) {
+          // Selecting the diagram box deletes that whole diagram.
+          void this.store.deleteSequence(diagramId);
+        } else {
+          lifelineIds.forEach((id) => void this.store.deleteLifeline(id));
+        }
       }
     }
   }
@@ -1719,7 +1809,9 @@ export class EditorComponent {
         hit.type === 'text' ||
         hit.type === 'rectangle' ||
         hit.type === 'ellipse' ||
-        hit.type === 'diamond'
+        hit.type === 'diamond' ||
+        hit.type === 'arrow' ||
+        hit.type === 'line'
       ) {
         this.store.selectElement(hit.id);
         // Seed the fixed-width/wrap flag from geometry before the editor opens.
@@ -1839,7 +1931,16 @@ export class EditorComponent {
     const { tables, relationships, selectionOnly } = this.exportScope();
     const sql = generateSql(
       // Elements are decorative and are ignored by the SQL generator.
-      { tables, relationships, notes: [], elements: [], viewport: this.store.viewport() },
+      {
+        tables,
+        relationships,
+        notes: [],
+        elements: [],
+        sequenceDiagrams: [],
+        lifelines: [],
+        sequenceMessages: [],
+        viewport: this.store.viewport(),
+      },
       { dialect: 'mysql' },
     );
     this.dialog.open(ExportDialogComponent, {
