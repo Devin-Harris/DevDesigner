@@ -1,0 +1,52 @@
+@if (lifeline(); as l) {
+  <button
+    type="button"
+    class="ico-act"
+    [dbdPopoverTrigger]="colorMenu"
+    placement="below-start"
+    [disabled]="!canEdit()"
+    title="Header color"
+    aria-label="Header color"
+  >
+    <span class="color-dot" [style.background]="l.color || 'var(--dbd-handle)'"></span>
+  </button>
+  <ng-template #colorMenu let-close>
+    <div class="color-grid">
+      @for (s of swatches; track s) {
+        <button
+          type="button"
+          class="swatch"
+          [class.none]="s === ''"
+          [class.active]="(l.color || '') === s"
+          [style.background]="s || 'var(--dbd-surface-2)'"
+          (click)="setColor(s); close()"
+          [attr.aria-label]="s || 'No color'"
+        ></button>
+      }
+    </div>
+  </ng-template>
+
+  <span class="divider"></span>
+
+  <button
+    type="button"
+    class="ico-act"
+    [disabled]="!canEdit()"
+    (click)="edit()"
+    title="Rename participant"
+    aria-label="Rename participant"
+  >
+    <dbd-icon name="edit" />
+  </button>
+
+  <button
+    type="button"
+    class="ico-act del"
+    [disabled]="!canEdit()"
+    (click)="remove()"
+    title="Delete participant"
+    aria-label="Delete participant"
+  >
+    <dbd-icon name="delete" />
+  </button>
+}

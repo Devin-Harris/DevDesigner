@@ -72,6 +72,7 @@ import { RelationshipInspectorComponent } from './relationship-inspector/relatio
 import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
 import { SequenceInspectorComponent } from './sequence-inspector/sequence-inspector.component';
 import { SequenceMessageToolbarComponent } from './sequence-message-toolbar/sequence-message-toolbar.component';
+import { SequenceParticipantToolbarComponent } from './sequence-participant-toolbar/sequence-participant-toolbar.component';
 import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
@@ -154,6 +155,7 @@ function readStoredGrid(): boolean {
     InspectorComponent,
     SequenceInspectorComponent,
     SequenceMessageToolbarComponent,
+    SequenceParticipantToolbarComponent,
     CanvasSequenceComponent,
     ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
@@ -378,6 +380,20 @@ export class EditorComponent {
     }
     const v = this.store.viewport();
     return { left: midX * v.zoom + v.x, top: y * v.zoom + v.y };
+  });
+
+  /** Placement for the floating participant (lifeline) toolbar, above its header. */
+  protected readonly sequenceParticipantToolbar = computed(() => {
+    const l = this.store.selectedLifeline();
+    if (!l) {
+      return null;
+    }
+    const d = this.store.sequenceDiagrams().find((x) => x.id === l.diagramId);
+    if (!d) {
+      return null;
+    }
+    const v = this.store.viewport();
+    return { left: l.x * v.zoom + v.x, top: d.originY * v.zoom + v.y };
   });
 
   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */

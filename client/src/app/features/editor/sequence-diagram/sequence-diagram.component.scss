@@ -18,7 +18,7 @@
   box-sizing: border-box;
   border-radius: 16px;
   border: 1.5px solid var(--dbd-border);
-  background: color-mix(in srgb, var(--dbd-surface) 35%, transparent);
+  background: var(--dbd-surface);
   cursor: move;
   pointer-events: auto;
   touch-action: none;

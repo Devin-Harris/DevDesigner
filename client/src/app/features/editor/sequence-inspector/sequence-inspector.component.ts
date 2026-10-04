@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { SequenceMessageModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
@@ -17,7 +16,7 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
   selector: 'app-sequence-inspector',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, FormsModule, IconComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, IconComponent, InputComponent, SelectComponent],
   templateUrl: './sequence-inspector.component.html',
   styleUrl: './sequence-inspector.component.scss',
 })
@@ -35,10 +34,6 @@ export class SequenceInspectorComponent {
       ? (this.store.sequenceDiagrams().find((d) => d.id === diagramId) ?? null)
       : null;
   });
-  protected readonly config = computed(
-    () =>
-      this.activeDiagram() ?? { lifelineSpacing: 160, rowSpacing: 48, headerHeight: 42, originY: 0 },
-  );
   /** The whole diagram box is selected (no single lifeline/message). */
   protected readonly diagram = computed(() => this.store.selectedDiagram());
   protected readonly participantCount = computed(
@@ -76,11 +71,6 @@ export class SequenceInspectorComponent {
     const l = this.lifeline();
     if (l) void this.store.updateLifeline(l.id, { color });
   }
-  protected setWidth(value: string | number): void {
-    const l = this.lifeline();
-    const width = Number(value);
-    if (l && Number.isFinite(width) && width > 0) void this.store.updateLifeline(l.id, { width });
-  }
   protected deleteLifeline(): void {
     const l = this.lifeline();
     if (l) void this.store.deleteLifeline(l.id);
@@ -88,13 +78,6 @@ export class SequenceInspectorComponent {
   protected addParticipant(side: 'left' | 'right' = 'right'): void {
     const d = this.activeDiagram();
     if (d) void this.store.addLifeline(d.id, side);
-  }
-
-  // ---- Config ----
-  protected setSpacing(key: 'lifelineSpacing' | 'rowSpacing' | 'headerHeight', value: string | number): void {
-    const d = this.activeDiagram();
-    const n = Number(value);
-    if (d && Number.isFinite(n) && n > 0) void this.store.updateSequenceConfig(d.id, { [key]: n });
   }
 
   // ---- Message ----

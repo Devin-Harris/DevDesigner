@@ -315,6 +315,18 @@ export class SequenceDiagramComponent {
         this.store.clearMessageEditRequest();
       }
     });
+    // Same for the participant toolbar's pencil (a lifeline inline rename).
+    effect(() => {
+      const id = this.store.pendingLifelineEditId();
+      if (!id) return;
+      const l = this.lls().find((x) => x.id === id);
+      if (l) {
+        this.editValue.set(l.label);
+        this.editingMessageId.set(null);
+        this.editingLifelineId.set(id);
+        this.store.clearLifelineEditRequest();
+      }
+    });
   }
 
   protected headerLeft(l: LifelineModel): number {

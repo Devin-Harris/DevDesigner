@@ -168,6 +168,15 @@
       ></app-sequence-message-toolbar>
     }
 
+    @if (sequenceParticipantToolbar(); as pt) {
+      <app-sequence-participant-toolbar
+        [style.left.px]="pt.left"
+        [style.top.px]="pt.top"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      ></app-sequence-participant-toolbar>
+    }
+
     @if (selectedRelInline(); as info) {
       <app-relationship-toolbar
         [style.left.px]="info.x"

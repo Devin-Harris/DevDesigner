@@ -64,6 +64,8 @@ interface EditorState {
   selectedDiagramId: string | null;
   /** Transient: a message whose inline label editor should open (toolbar pencil). */
   pendingMessageEditId: string | null;
+  /** Transient: a lifeline whose inline label editor should open (toolbar pencil). */
+  pendingLifelineEditId: string | null;
   loading: boolean;
   error: string | null;
   saveStatus: SaveStatus;
@@ -121,6 +123,7 @@ const initialState: EditorState = {
   selectedMessageIds: [],
   selectedDiagramId: null,
   pendingMessageEditId: null,
+  pendingLifelineEditId: null,
   loading: false,
   error: null,
   saveStatus: 'idle',
@@ -842,6 +845,14 @@ export const ProjectStore = signalStore(
         },
         clearMessageEditRequest(): void {
           patchState(store, { pendingMessageEditId: null });
+        },
+
+        /** Ask the canvas to open a lifeline's inline label editor (toolbar pencil). */
+        requestLifelineEdit(lifelineId: string): void {
+          patchState(store, { pendingLifelineEditId: lifelineId });
+        },
+        clearLifelineEditRequest(): void {
+          patchState(store, { pendingLifelineEditId: null });
         },
 
         /** Drop a NEW sequence diagram at (x, y): its own group + two participants + a message. */

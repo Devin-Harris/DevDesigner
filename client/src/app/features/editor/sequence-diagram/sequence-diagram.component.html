@@ -177,11 +177,11 @@
     }
   }
 
-  <!-- Add-participant buttons just outside both bounds (circular +). -->
+  <!-- Add-participant buttons on the left/right bounds (editor-only; never exported). -->
   @if (canEdit() && box(); as b) {
     <button
       class="add-ll-btn"
-      [style.left.px]="b.left - 20"
+      [style.left.px]="b.left"
       [style.top.px]="b.cy"
       (pointerdown)="$event.stopPropagation()"
       (click)="addParticipant($event, 'left')"
@@ -192,7 +192,7 @@
     </button>
     <button
       class="add-ll-btn"
-      [style.left.px]="b.right + 20"
+      [style.left.px]="b.right"
       [style.top.px]="b.cy"
       (pointerdown)="$event.stopPropagation()"
       (click)="addParticipant($event, 'right')"
