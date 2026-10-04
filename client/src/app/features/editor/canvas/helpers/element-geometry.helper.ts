@@ -78,12 +78,12 @@ function distanceToSegment(p: Point, a: Point, b: Point): number {
 export function hitTestElement(
   element: CanvasElementModel,
   p: Point,
-  tolerance = 6,
+  tolerance = 3,
 ): boolean {
   if (isPathElement(element.type)) {
     const pts = absolutePoints(element);
     for (let i = 0; i < pts.length - 1; i += 1) {
-      if (distanceToSegment(p, pts[i], pts[i + 1]) <= tolerance + element.strokeWidth) {
+      if (distanceToSegment(p, pts[i], pts[i + 1]) <= tolerance + element.strokeWidth / 2) {
         return true;
       }
     }
@@ -92,11 +92,68 @@ export function hitTestElement(
   return boxContains(elementBox(element), p, tolerance);
 }
 
-/** True when the element's box lies within (intersects) the given world rect. */
+/** True when segment a-b passes through the rect (Liang-Barsky clip). */
+function segmentIntersectsRect(
+  a: Point,
+  b: Point,
+  rect: { minX: number; minY: number; maxX: number; maxY: number },
+): boolean {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const edges: [number, number][] = [
+    [-dx, a.x - rect.minX],
+    [dx, rect.maxX - a.x],
+    [-dy, a.y - rect.minY],
+    [dy, rect.maxY - a.y],
+  ];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return false;
+    } else {
+      const r = q / p;
+      if (p < 0) {
+        if (r > t1) return false;
+        t0 = Math.max(t0, r);
+      } else {
+        if (r < t0) return false;
+        t1 = Math.min(t1, r);
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * True when the element lies within (intersects) the given world rect. Strokes
+ * (line/arrow/freedraw) test their actual path, not their bounding box, so a
+ * click in the empty space beside a diagonal line doesn't select it.
+ */
 export function elementIntersectsRect(
   element: CanvasElementModel,
   rect: { minX: number; minY: number; maxX: number; maxY: number },
 ): boolean {
+  if (isPathElement(element.type)) {
+    const pad = element.strokeWidth / 2 + 3;
+    const padded = {
+      minX: rect.minX - pad,
+      minY: rect.minY - pad,
+      maxX: rect.maxX + pad,
+      maxY: rect.maxY + pad,
+    };
+    const pts = absolutePoints(element);
+    if (pts.length === 1) {
+      const p = pts[0];
+      return p.x >= padded.minX && p.x <= padded.maxX && p.y >= padded.minY && p.y <= padded.maxY;
+    }
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      if (segmentIntersectsRect(pts[i], pts[i + 1], padded)) {
+        return true;
+      }
+    }
+    return false;
+  }
   const b = elementBox(element);
   return b.x0 <= rect.maxX && b.x1 >= rect.minX && b.y0 <= rect.maxY && b.y1 >= rect.minY;
 }

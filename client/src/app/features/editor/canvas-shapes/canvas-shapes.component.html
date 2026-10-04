@@ -114,6 +114,7 @@
           <path
             class="hit-stroke"
             [attr.d]="s.path"
+            [style.stroke-width.px]="s.strokeWidth + 6"
             (pointerdown)="onBody(s.id, $event)"
           ></path>
           @if (s.freehand) {
