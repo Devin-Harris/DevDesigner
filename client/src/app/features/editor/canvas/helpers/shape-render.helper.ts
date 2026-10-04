@@ -10,6 +10,7 @@ import type { ShapeView, TextBlockView, TextLineView } from '../models/shape-vie
 import {
   absolutePoints,
   boundaryPoint,
+  type RotatedBox,
   elementBox,
   elementCenter,
   tableBox,
@@ -253,7 +254,7 @@ function rotation(element: CanvasElementModel, center: Point): string | null {
  */
 function resolveEnds(
   element: CanvasElementModel,
-  targetBox: (binding: ElementBinding) => Box | null,
+  targetBox: (binding: ElementBinding) => RotatedBox | null,
 ): Point[] {
   const pts = absolutePoints(element);
   if (pts.length < 2) {
@@ -334,7 +335,7 @@ function arrowLabel(
  * fixed side midpoints), pushed `ANCHOR_GAP` outward so the line and its marker
  * stay clear of the shape. A direct segment — no orthogonal/elbow routing.
  */
-function routeBoundConnector(sBox: Box, tBox: Box): Point[] {
+function routeBoundConnector(sBox: RotatedBox, tBox: RotatedBox): Point[] {
   const sc: Point = { x: (sBox.x0 + sBox.x1) / 2, y: (sBox.y0 + sBox.y1) / 2 };
   const tc: Point = { x: (tBox.x0 + tBox.x1) / 2, y: (tBox.y0 + tBox.y1) / 2 };
   return [boundaryPoint(sBox, tc, ANCHOR_GAP), boundaryPoint(tBox, sc, ANCHOR_GAP)];
@@ -353,13 +354,13 @@ export function buildShapeViews(
 ): ShapeView[] {
   const tableById = new Map(tables.map((t) => [t.id, t]));
   const elementById = new Map(elements.map((e) => [e.id, e]));
-  const targetBox = (binding: ElementBinding): Box | null => {
+  const targetBox = (binding: ElementBinding): RotatedBox | null => {
     if (binding.targetKind === 'table') {
       const t = tableById.get(binding.targetId);
       return t ? tableBox(t) : null;
     }
     const e = elementById.get(binding.targetId);
-    return e ? elementBox(e) : null;
+    return e ? { ...elementBox(e), angle: e.angle } : null;
   };
 
   return elements.map((element) => {

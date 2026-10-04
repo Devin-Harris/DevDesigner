@@ -164,7 +164,28 @@ export function elementIntersectsRect(
  * just outside the edge of the shape/table it connects to (so the marker and a
  * small gap stay clear of the shape, matching the ERD connectors).
  */
-export function boundaryPoint(box: Box, toward: Point, gap = 0): Point {
+export function boundaryPoint(box: RotatedBox, toward: Point, gap = 0): Point {
+  const angle = box.angle ?? 0;
+  if (!angle) {
+    return boundaryPointAxisAligned(box, toward, gap);
+  }
+  // Work in the shape's own (unrotated) frame, then rotate the result back.
+  const cx = (box.x0 + box.x1) / 2;
+  const cy = (box.y0 + box.y1) / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rx = toward.x - cx;
+  const ry = toward.y - cy;
+  const local = boundaryPointAxisAligned(box, { x: cx + rx * cos + ry * sin, y: cy - rx * sin + ry * cos }, gap);
+  const lx = local.x - cx;
+  const ly = local.y - cy;
+  return { x: cx + lx * cos - ly * sin, y: cy + lx * sin + ly * cos };
+}
+
+/** A box plus the rotation (radians, about its center) of the shape it bounds. */
+export type RotatedBox = Box & { angle?: number };
+
+function boundaryPointAxisAligned(box: Box, toward: Point, gap: number): Point {
   const cx = (box.x0 + box.x1) / 2;
   const cy = (box.y0 + box.y1) / 2;
   const dx = toward.x - cx;
