@@ -77,7 +77,7 @@ export class SequenceInspectorComponent {
   }
   protected addParticipant(side: 'left' | 'right' = 'right'): void {
     const d = this.activeDiagram();
-    if (d) void this.store.addLifeline(d.id, side);
+    if (d) void this.store.addLifeline(d.id, side === 'left' ? 0 : Infinity);
   }
 
   // ---- Message ----

@@ -1,7 +1,10 @@
 import type {
   CanvasElementModel,
   ColumnModel,
+  LifelineModel,
   RelationshipModel,
+  SequenceDiagramModel,
+  SequenceMessageModel,
   TableModel,
 } from '@dbdesigner/shared';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
@@ -22,7 +25,7 @@ import type { ShapeView, TextBlockView } from '../canvas/models/shape-view.model
 
 const PADDING = 48;
 const RADIUS = 14; // --dbd-radius-lg
-const FONT = "'SFMono-Regular', ui-monospace, 'Cascadia Mono', Menlo, monospace";
+const FONT = "'IBM Plex Mono', 'SFMono-Regular', ui-monospace, 'Cascadia Mono', Menlo, monospace";
 
 // Approximate monospace advance widths, used only for placing/truncating text.
 const CW_13 = 7.8;
@@ -44,6 +47,8 @@ interface Theme {
   border: string;
   chipBg: string;
   chipActive: string;
+  surface: string;
+  borderStrong: string;
 }
 
 // Light-theme fallback (matches styles.scss :root) for environments without a
@@ -62,6 +67,8 @@ const FALLBACK_THEME: Theme = {
   border: '#e6e9ef',
   chipBg: '#eef1f6',
   chipActive: '#e0ebff',
+  surface: '#ffffff',
+  borderStrong: '#d0d5dd',
 };
 
 // Fixed chip colors that are hard-coded in table-node.component.scss (they do
@@ -118,6 +125,8 @@ function readTheme(): { theme: Theme; dispose: () => void } {
     border: resolve('var(--dbd-border)', FALLBACK_THEME.border),
     chipBg: resolve('var(--dbd-chip-bg)', FALLBACK_THEME.chipBg),
     chipActive: resolve('var(--dbd-chip-active)', FALLBACK_THEME.chipActive),
+    surface: resolve('var(--dbd-surface)', FALLBACK_THEME.surface),
+    borderStrong: resolve('var(--dbd-border-strong)', FALLBACK_THEME.borderStrong),
   };
   return {
     theme: t,
@@ -374,6 +383,121 @@ function arrowheadDef(theme: Theme): string {
   </marker>`;
 }
 
+/** The sequence diagrams (with their participants and messages) to draw. */
+export interface SequenceExportData {
+  diagrams: readonly SequenceDiagramModel[];
+  lifelines: readonly LifelineModel[];
+  messages: readonly SequenceMessageModel[];
+}
+
+const SEQ_BOX_PAD = 26;
+const CW_12 = 7.2;
+
+/**
+ * Lay out and render one sequence diagram, mirroring sequence-diagram.component:
+ * rounded box, participant headers, dashed spines, arrows (rows snapped to the
+ * diagram's row grid) and break dividers. Null when it has no participants.
+ */
+function renderSequence(
+  diagram: SequenceDiagramModel,
+  allLifelines: readonly LifelineModel[],
+  allMessages: readonly SequenceMessageModel[],
+  theme: Theme,
+): { box: { x0: number; y0: number; x1: number; y1: number }; svg: string } | null {
+  const lls = allLifelines.filter((l) => l.diagramId === diagram.id).sort((a, b) => a.x - b.x);
+  if (!lls.length) {
+    return null;
+  }
+  const msgs = allMessages.filter((m) => m.diagramId === diagram.id).sort((a, b) => a.y - b.y);
+  const headerBottom = diagram.originY + diagram.headerHeight;
+  const gap = diagram.rowSpacing;
+  const rowIndex = (y: number): number => Math.max(1, Math.round((y - headerBottom) / gap));
+  const maxRow = msgs.length ? Math.max(...msgs.map((m) => rowIndex(m.y))) : 0;
+  const spineEnd = headerBottom + gap * (maxRow + 1);
+
+  const x0 = Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD;
+  const x1 = Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD;
+  const y0 = diagram.originY - SEQ_BOX_PAD;
+  const y1 = spineEnd + SEQ_BOX_PAD;
+  const minX = Math.min(...lls.map((l) => l.x));
+  const maxX = Math.max(...lls.map((l) => l.x));
+  const byId = new Map(lls.map((l) => [l.id, l] as const));
+
+  const out: string[] = [];
+  out.push(
+    `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
+      `fill="${theme.surface}" stroke="${theme.border}" stroke-width="1.5" />`,
+  );
+  for (const l of lls) {
+    out.push(
+      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${theme.connector}" ` +
+        `stroke-width="1.4" stroke-dasharray="4 4" />`,
+    );
+  }
+
+  for (const m of msgs) {
+    const isBreak = m.style === 'break';
+    const f = byId.get(m.fromLifelineId);
+    const t = byId.get(m.toLifelineId);
+    const y = headerBottom + gap * rowIndex(m.y);
+    const label = m.label ?? '';
+    if (isBreak) {
+      out.push(
+        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${theme.borderStrong}" ` +
+          `stroke-width="1.4" stroke-dasharray="5 4" />`,
+      );
+      if (label) {
+        const text = label.toUpperCase();
+        const w = Math.ceil(text.length * (CW_11 + 0.44)) + 22;
+        const mid = (minX + maxX) / 2;
+        out.push(
+          `<rect x="${mid - w / 2}" y="${y - 11}" width="${w}" height="22" rx="11" ry="11" ` +
+            `fill="${theme.surface}" stroke="${theme.border}" stroke-width="1" />`,
+          `<text x="${mid}" y="${y + 4}" text-anchor="middle" font-family="${FONT}" font-size="11" ` +
+            `font-weight="600" letter-spacing="0.44" fill="${theme.textMuted}">${esc(text)}</text>`,
+        );
+      }
+      continue;
+    }
+    if (!f || !t) {
+      continue;
+    }
+    const headX = m.direction === 'forward' ? t.x : f.x;
+    const otherX = headX === f.x ? t.x : f.x;
+    const dir = headX >= otherX ? -8 : 8;
+    const left = Math.min(f.x, t.x);
+    const dash = m.style === 'dashed' ? ' stroke-dasharray="6 4"' : '';
+    out.push(
+      `<line x1="${left}" y1="${y}" x2="${Math.max(f.x, t.x, left + 1)}" y2="${y}" ` +
+        `stroke="${theme.connector}" stroke-width="1.6"${dash} />`,
+      `<path d="M${headX + dir} ${y - 4} L${headX} ${y} L${headX + dir} ${y + 4}" fill="none" ` +
+        `stroke="${theme.connector}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
+    );
+    if (label) {
+      const mid = (f.x + t.x) / 2;
+      const w = Math.ceil(label.length * CW_11) + 10;
+      out.push(
+        `<rect x="${mid - w / 2}" y="${y - 20}" width="${w}" height="15" rx="4" ry="4" fill="${theme.canvasBg}" />`,
+        `<text x="${mid}" y="${y - 9}" text-anchor="middle" font-family="${FONT}" font-size="11" ` +
+          `fill="${theme.text}">${esc(label)}</text>`,
+      );
+    }
+  }
+
+  for (const l of lls) {
+    const colored = !!l.color;
+    const maxChars = Math.floor((l.width - 16) / CW_12);
+    out.push(
+      `<rect x="${l.x - l.width / 2 + 0.5}" y="${diagram.originY + 0.5}" width="${l.width - 1}" height="${diagram.headerHeight - 1}" ` +
+        `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${colored ? 'none' : theme.nodeBorder}" stroke-width="1" />`,
+      `<text x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
+        `font-size="12" font-weight="600" fill="${colored ? HEADER_COLORED_TEXT : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+    );
+  }
+
+  return { box: { x0, y0, x1, y1 }, svg: out.join('\n') };
+}
+
 export interface DiagramSvg {
   svg: string;
   width: number;
@@ -392,6 +516,7 @@ export function buildDiagramSvg(
   tables: readonly TableModel[],
   relationships: readonly RelationshipModel[],
   elements: readonly CanvasElementModel[] = [],
+  sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
 ): DiagramSvg {
   const { theme, dispose } = readTheme();
   try {
@@ -423,6 +548,15 @@ export function buildDiagramSvg(
       const box = elementBox(element);
       extend(box.x0, box.y0);
       extend(box.x1, box.y1);
+    }
+    const sequenceSvgs: string[] = [];
+    for (const diagram of sequences.diagrams) {
+      const laid = renderSequence(diagram, sequences.lifelines, sequences.messages, theme);
+      if (laid) {
+        extend(laid.box.x0, laid.box.y0);
+        extend(laid.box.x1, laid.box.y1);
+        sequenceSvgs.push(laid.svg);
+      }
     }
 
     if (!Number.isFinite(minX)) {
@@ -460,6 +594,7 @@ export function buildDiagramSvg(
 <rect x="0" y="0" width="${width}" height="${height}" fill="${theme.canvasBg}" />
 <rect x="0" y="0" width="${width}" height="${height}" fill="url(#dbd-export-grid)" />
 <g transform="translate(${shiftX}, ${shiftY})">
+${sequenceSvgs.join('\n')}
 ${edges}
 ${shapes}
 ${nodes}

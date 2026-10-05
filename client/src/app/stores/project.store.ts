@@ -784,11 +784,13 @@ export const ProjectStore = signalStore(
           tableIds: string[],
           relationshipIds: string[],
           elementIds: string[] = [],
+          messageIds: string[] = [],
         ): void {
           patchState(store, {
             selectedTableIds: tableIds,
             selectedRelationshipIds: relationshipIds,
             selectedElementIds: elementIds,
+            selectedMessageIds: messageIds,
           });
         },
 
@@ -831,6 +833,21 @@ export const ProjectStore = signalStore(
         selectMessage(messageId: string): void {
           patchState(store, {
             selectedMessageIds: [messageId],
+            selectedLifelineIds: [],
+            selectedDiagramId: null,
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        /** Add/remove one message from the message selection (shift/ctrl-click). */
+        toggleMessage(messageId: string): void {
+          const current = store.selectedMessageIds();
+          patchState(store, {
+            selectedMessageIds: current.includes(messageId)
+              ? current.filter((id) => id !== messageId)
+              : [...current, messageId],
             selectedLifelineIds: [],
             selectedDiagramId: null,
             selectedTableIds: [],
@@ -920,21 +937,40 @@ export const ProjectStore = signalStore(
         },
 
         /** Add a participant column to a diagram, on the given side of its spread. */
-        async addLifeline(diagramId: string, side: 'left' | 'right' = 'right'): Promise<void> {
+        /**
+         * Add a participant. `at` is the insert position in left-to-right order
+         * (0 = before the first, n = after the last); later participants slide
+         * right by one spacing to make room.
+         */
+        async addLifeline(diagramId: string, at: number): Promise<void> {
           const projectId = store.projectId();
           if (!projectId) {
             return;
           }
           const diagram = store.sequenceDiagrams().find((d) => d.id === diagramId);
-          const lls = store.lifelines().filter((l) => l.diagramId === diagramId);
+          const lls = store
+            .lifelines()
+            .filter((l) => l.diagramId === diagramId)
+            .sort((a, b) => a.x - b.x);
           const spacing = diagram?.lifelineSpacing ?? 160;
           const order = lls.length;
+          const index = Math.max(0, Math.min(at, lls.length));
           let x = 0;
           if (lls.length) {
-            x =
-              side === 'left'
-                ? Math.min(...lls.map((l) => l.x)) - spacing
-                : Math.max(...lls.map((l) => l.x)) + spacing;
+            if (index === 0) {
+              x = lls[0].x - spacing;
+            } else {
+              x = lls[index - 1].x + spacing;
+              for (const l of lls.slice(index)) {
+                const nx = l.x + spacing;
+                mapLifeline(l.id, (m) => ({ ...m, x: nx }));
+                debounce(`llpos:${l.id}`, () => {
+                  void runSave(() =>
+                    firstValueFrom(sequenceApi.moveLifeline(projectId, l.id, { x: nx })),
+                  );
+                });
+              }
+            }
           }
           const created = await runSave(() =>
             firstValueFrom(

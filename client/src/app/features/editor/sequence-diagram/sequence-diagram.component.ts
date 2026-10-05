@@ -47,7 +47,14 @@ type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 type Drag =
   | { kind: 'll'; id: string; start: number; startVal: number }
-  | { kind: 'msg'; id: string; startClientY: number; startY: number }
+  | {
+      kind: 'msg';
+      id: string;
+      startClientY: number;
+      startY: number;
+      /** Start y of every message being moved (the whole selection). */
+      startYs: Map<string, number>;
+    }
   | {
       kind: 'diagram';
       diagramId: string;
@@ -229,6 +236,8 @@ export class SequenceDiagramComponent {
   });
 
   protected readonly canEdit = computed(() => this.store.canEdit());
+  /** Endpoint handles only make sense for a single selected message. */
+  protected readonly singleMessage = computed(() => this.store.selectedMessageIds().length === 1);
 
   // Live drag-connect preview (signal-driven so it re-renders).
   protected readonly connectFromId = signal<string | null>(null);
@@ -491,9 +500,10 @@ export class SequenceDiagramComponent {
       const id = await this.store.duplicateLifeline(d.id, 0);
       if (id) next = { ...d, id };
     } else {
-      this.store.moveMessage(d.id, d.startY);
+      // Alt-drag copies just the grabbed message: put the whole group back first.
+      for (const [mid, y] of d.startYs) this.store.moveMessage(mid, y);
       const id = await this.store.duplicateMessage(d.id, 0);
-      if (id) next = { ...d, id };
+      if (id) next = { ...d, id, startYs: new Map([[id, d.startY]]) };
     }
     this.duplicating = false;
     if (this.drag !== d) return; // released while the copy was being created
@@ -511,8 +521,7 @@ export class SequenceDiagramComponent {
       this.store.moveLifeline(d.id, d.startVal + (event.clientX - d.start) / this.zoom());
     } else if (d.kind === 'msg') {
       // Follow the cursor, snapped to the nearest row so spacing stays even.
-      const raw = d.startY + (event.clientY - d.startClientY) / this.zoom();
-      this.store.moveMessage(d.id, this.rowY(raw));
+      this.moveMessages(d, event.clientY);
     } else if (d.kind === 'diagram') {
       this.shiftDiagram(d, event);
     } else if (d.kind === 'resize') {
@@ -642,8 +651,7 @@ export class SequenceDiagramComponent {
       this.tempTo.set(null);
     } else if (d?.kind === 'msg') {
       // Finalize at the release position (robust even without intermediate moves).
-      const raw = d.startY + (event.clientY - d.startClientY) / this.zoom();
-      this.store.moveMessage(d.id, this.rowY(raw));
+      this.moveMessages(d, event.clientY);
     } else if (d?.kind === 'diagram' || d?.kind === 'resize') {
       // Apply the final position once more from the release point (covers drags
       // where no intermediate pointermove fired), then persist everything.
@@ -693,19 +701,69 @@ export class SequenceDiagramComponent {
     if (label && label !== l.label) void this.store.updateLifeline(l.id, { label });
   }
 
-  protected addParticipant(event: Event, side: 'left' | 'right'): void {
+  protected addParticipant(event: Event, at: number): void {
     event.stopPropagation();
-    void this.store.addLifeline(this.diagram().id, side);
+    void this.store.addLifeline(this.diagram().id, at);
   }
+
+  /** Plus buttons appear while the pointer is over the participant headers. */
+  protected readonly showAddButtons = signal(false);
+  private hideAddTimer: ReturnType<typeof setTimeout> | null = null;
+  protected addHover(on: boolean): void {
+    if (this.hideAddTimer) clearTimeout(this.hideAddTimer);
+    this.hideAddTimer = null;
+    if (on) this.showAddButtons.set(true);
+    else this.hideAddTimer = setTimeout(() => this.showAddButtons.set(false), 150);
+  }
+
+  /**
+   * Insert slots, pinned to header edges so they sit the same distance from every
+   * block regardless of spacing: every header gets one on its left edge (insert
+   * before it) and one on its right edge (insert after it).
+   */
+  protected readonly addSlots = computed<{ key: string; at: number; x: number }[]>(() =>
+    this.lls().flatMap((h, i) => [
+      { key: `${h.id}-l`, at: i, x: h.x - h.width / 2 },
+      { key: `${h.id}-r`, at: i + 1, x: h.x + h.width / 2 },
+    ]),
+  );
 
   // ----- Messages: select + vertical drag (snaps to rows; rows may be shared) -----
   protected onMessageDown(event: PointerEvent, m: MessageView): void {
     event.stopPropagation();
-    this.store.selectMessage(m.id);
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      // Toggle into/out of the selection; no drag so the gesture stays a pure click.
+      const own = new Set(this.msgs().map((x) => x.id));
+      const others = this.store.selectedMessageIds().filter((id) => !own.has(id));
+      if (others.length) this.store.selectMessage(m.id);
+      else this.store.toggleMessage(m.id);
+      return;
+    }
+    // Pressing an already-selected message keeps the group so it can be dragged together.
+    if (!this.store.selectedMessageIds().includes(m.id)) this.store.selectMessage(m.id);
     if (!this.canEdit() || this.editingMessageId() === m.id) return;
     this.startDrag();
-    this.drag = { kind: 'msg', id: m.id, startClientY: event.clientY, startY: m.y };
+    const startYs = new Map<string, number>();
+    const sel = new Set(this.store.selectedMessageIds());
+    for (const v of this.msgViews()) if (sel.has(v.id)) startYs.set(v.id, v.y);
+    this.drag = {
+      kind: 'msg',
+      id: m.id,
+      startClientY: event.clientY,
+      startY: m.y,
+      startYs,
+    };
     if (event.altKey) void this.duplicateDrag();
+  }
+
+  /** Move every message in the drag by the same row delta as the grabbed one. */
+  private moveMessages(d: Extract<Drag, { kind: 'msg' }>, clientY: number): void {
+    const raw = d.startY + (clientY - d.startClientY) / this.zoom();
+    let delta = this.rowY(raw) - d.startY;
+    // Don't let the group slide above the first row.
+    const minStart = Math.min(...d.startYs.values());
+    delta = Math.max(delta, this.headerBottom() + this.rowSpacing() - minStart);
+    for (const [id, y] of d.startYs) this.store.moveMessage(id, y + delta);
   }
 
   // ----- Endpoint reattach: drag a message's end onto another participant -----

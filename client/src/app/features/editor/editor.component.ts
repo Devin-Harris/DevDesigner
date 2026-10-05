@@ -64,7 +64,8 @@ import { buildShapeViews, fontStack, fontWeightFor } from './canvas/helpers/shap
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
-import { buildDiagramSvg } from './export/diagram-svg.helper';
+import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
+import { embedFonts } from './export/font-embed.helper';
 import { ExportDialogComponent } from './export/export-dialog.component';
 import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
 import { InspectorComponent } from './inspector/inspector.component';
@@ -1822,14 +1823,45 @@ export class EditorComponent {
       .filter((e) => elementIntersectsRect(e, rect))
       .map((e) => e.id);
 
+    const messageIds = this.messagesInRect(rect);
+
     if (this.marqueeAdditive) {
       const nextTables = new Set([...this.store.selectedTableIds(), ...tableIds]);
       const nextRels = new Set([...this.store.selectedRelationshipIds(), ...relIds]);
       const nextEls = new Set([...this.store.selectedElementIds(), ...elementIds]);
-      this.store.setSelection([...nextTables], [...nextRels], [...nextEls]);
+      const nextMsgs = new Set([...this.store.selectedMessageIds(), ...messageIds]);
+      this.store.setSelection([...nextTables], [...nextRels], [...nextEls], [...nextMsgs]);
     } else {
-      this.store.setSelection(tableIds, relIds, elementIds);
+      this.store.setSelection(tableIds, relIds, elementIds, messageIds);
     }
+  }
+
+  /** Sequence messages whose snapped row line crosses the marquee rect. */
+  private messagesInRect(rect: Rect): string[] {
+    const lifelines = this.store.lifelines();
+    const out: string[] = [];
+    for (const d of this.store.sequenceDiagrams()) {
+      const lls = lifelines.filter((l) => l.diagramId === d.id);
+      if (!lls.length) continue;
+      const byId = new Map(lls.map((l) => [l.id, l.x] as const));
+      const minX = Math.min(...lls.map((l) => l.x));
+      const maxX = Math.max(...lls.map((l) => l.x));
+      const hb = d.originY + d.headerHeight;
+      for (const m of this.store.sequenceMessages()) {
+        if (m.diagramId !== d.id) continue;
+        const isBreak = m.style === 'break';
+        const fx = byId.get(m.fromLifelineId);
+        const tx = byId.get(m.toLifelineId);
+        if (!isBreak && (fx === undefined || tx === undefined)) continue;
+        const left = isBreak ? minX : Math.min(fx!, tx!);
+        const right = isBreak ? maxX : Math.max(fx!, tx!);
+        const y = hb + d.rowSpacing * Math.max(1, Math.round((m.y - hb) / d.rowSpacing));
+        if (left <= rect.maxX && right >= rect.minX && y >= rect.minY && y <= rect.maxY) {
+          out.push(m.id);
+        }
+      }
+    }
+    return out;
   }
 
   private boxIntersects(table: TableModel, rect: Rect): boolean {
@@ -2114,11 +2146,20 @@ export class EditorComponent {
     tables: TableModel[];
     relationships: RelationshipModel[];
     elements: CanvasElementModel[];
+    sequences: SequenceExportData;
     selectionOnly: boolean;
   } {
     const selectedTableIds = new Set(this.store.selectedTableIds());
     const selectedElementIds = new Set(this.store.selectedElementIds());
-    const selectionOnly = selectedTableIds.size > 0 || selectedElementIds.size > 0;
+    const selectedMessageIds = new Set(this.store.selectedMessageIds());
+    const selectedLifelineIds = new Set(this.store.selectedLifelineIds());
+    const selectedDiagramId = this.store.selectedDiagramId();
+    const selectionOnly =
+      selectedTableIds.size > 0 ||
+      selectedElementIds.size > 0 ||
+      selectedMessageIds.size > 0 ||
+      selectedLifelineIds.size > 0 ||
+      selectedDiagramId !== null;
     const tables = selectionOnly
       ? this.store.tables().filter((t) => selectedTableIds.has(t.id))
       : this.store.tables();
@@ -2136,7 +2177,35 @@ export class EditorComponent {
       .relationships()
       .filter((r) => columnIds.has(r.sourceColumnId) && columnIds.has(r.targetColumnId));
 
-    return { tables, relationships, elements, selectionOnly };
+    // A selection includes a sequence diagram when the diagram itself, or any of
+    // its participants/messages, is selected. With only some messages selected,
+    // draw just those (participants stay so the arrows have ends).
+    const allLifelines = this.store.lifelines();
+    const allMessages = this.store.sequenceMessages();
+    const diagrams = this.store.sequenceDiagrams().filter((d) => {
+      if (!selectionOnly) return true;
+      return (
+        d.id === selectedDiagramId ||
+        allLifelines.some((l) => l.diagramId === d.id && selectedLifelineIds.has(l.id)) ||
+        allMessages.some((m) => m.diagramId === d.id && selectedMessageIds.has(m.id))
+      );
+    });
+    const diagramIds = new Set(diagrams.map((d) => d.id));
+    const messages = allMessages.filter((m) => {
+      if (!diagramIds.has(m.diagramId)) return false;
+      if (!selectionOnly || m.diagramId === selectedDiagramId) return true;
+      const hasPicked = allMessages.some(
+        (o) => o.diagramId === m.diagramId && selectedMessageIds.has(o.id),
+      );
+      return !hasPicked || selectedMessageIds.has(m.id);
+    });
+    const sequences: SequenceExportData = {
+      diagrams,
+      lifelines: allLifelines.filter((l) => diagramIds.has(l.diagramId)),
+      messages,
+    };
+
+    return { tables, relationships, elements, sequences, selectionOnly };
   }
 
   private exportBaseName(selectionOnly: boolean): string {
@@ -2169,15 +2238,16 @@ export class EditorComponent {
 
   /** Export the current scope as an image, matching the live theme and layout. */
   protected async onExportImage(format: ImageFormat): Promise<void> {
-    const { tables, relationships, elements, selectionOnly } = this.exportScope();
-    if (tables.length === 0 && elements.length === 0) {
+    const { tables, relationships, elements, sequences, selectionOnly } = this.exportScope();
+    if (tables.length === 0 && elements.length === 0 && sequences.lifelines.length === 0) {
       this.snackBar.open('Nothing to export yet. Add a table or shape first.', undefined, {
         duration: 2500,
       });
       return;
     }
     try {
-      const diagram = buildDiagramSvg(tables, relationships, elements);
+      const built = buildDiagramSvg(tables, relationships, elements, sequences);
+      const diagram = { ...built, svg: await embedFonts(built.svg) };
       await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
     } catch (err) {
       this.snackBar.open(
