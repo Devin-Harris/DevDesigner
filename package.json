@@ -16,6 +16,8 @@
     "dev": "npm run build:shared && concurrently -n shared,server,client -c gray,blue,green \"npm run watch:shared\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:windows": "npm run build:shared && node scripts/dev.mjs",
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
+    "build:server": "npm run build -w shared && npm run build -w server",
+    "build:client": "npm run build -w shared && npm run build -w client",
     "test": "npm run test -w shared && npm run test -w server",
     "lint": "eslint .",
     "format": "prettier --write ."
