@@ -27,6 +27,40 @@
     var(--dbd-shadow-2);
 }
 
+// Invisible strip straddling the right edge; shows a primary-colored bar on hover.
+.width-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 8px;
+  z-index: 2;
+  cursor: ew-resize;
+  display: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    left: 3px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--dbd-primary);
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+:host(:hover) .width-grip,
+:host(.selected) .width-grip {
+  display: block;
+}
+
 .node-head {
   box-sizing: border-box;
   display: flex;
@@ -238,19 +272,43 @@
   gap: 3px;
 }
 
-// At rest a table reads like clean schema: the flag chips and the per-row delete
-// are hidden until the table is hovered or selected.
-.chips,
+// The flag chips are always shown. The per-row delete takes no space at rest
+// (display: none); the name ellipsizes to make room when it appears.
+// Collapsed to zero width (and the flex gap cancelled by a negative margin) and
+// animated open, so the name's width eases instead of jumping on hover.
 .row .icon-btn.tiny {
+  flex: 0 0 auto;
+  box-sizing: content-box;
+  width: 0;
+  padding: 2px 0;
+  margin-left: calc(-1 * var(--dbd-space-1));
+  overflow: hidden;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition:
+    width 0.15s ease,
+    padding 0.15s ease,
+    margin 0.15s ease,
+    opacity 0.15s ease;
 }
 
-:host(:hover) .chips,
-:host(.selected) .chips,
+.chips {
+  flex-shrink: 0;
+}
+
 :host(:hover) .row .icon-btn.tiny,
 :host(.selected) .row .icon-btn.tiny {
+  width: 15px;
+  padding: 2px;
+  margin-left: 0;
   opacity: 1;
+}
+
+// Key info (type) never gets squeezed out by the name.
+.type,
+.len,
+.keyglyph,
+.keyslot {
+  flex-shrink: 0;
 }
 
 // Header add/delete actions collapse entirely at rest (so the count sits at the
@@ -338,10 +396,16 @@
     color: var(--dbd-text-muted);
   }
 
+  // Collapsed at rest so there is no dead space after the type; eases open on hover.
   .chev {
     --dbd-icon-size: 16px;
+    display: inline-block;
+    width: 0;
+    overflow: hidden;
     opacity: 0;
-    transition: opacity 0.12s ease;
+    transition:
+      width 0.15s ease,
+      opacity 0.15s ease;
   }
 }
 
@@ -355,6 +419,7 @@
   }
 
   .chev {
+    width: 16px;
     opacity: 0.6;
   }
 }

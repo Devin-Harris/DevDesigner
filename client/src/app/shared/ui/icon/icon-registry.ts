@@ -46,6 +46,7 @@ export const ICON_PATHS: Record<string, string> = {
   picture_as_pdf: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/>',
 
   // ---- project / item actions ----
+  warning: '<path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5M12 17.5v.01"/>',
   edit: '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/>',
   content_copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   delete: '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M10 11v6M14 11v6"/>',
@@ -110,6 +111,7 @@ export const ICON_PATHS: Record<string, string> = {
   add_link: '<path d="M9 12h6M8 8H6a4 4 0 0 0 0 8h2M16 8h2a4 4 0 0 1 4 4M18 18v3M16.5 19.5h3" />',
   link_off: '<path d="M9 12h3M8 8H6a4 4 0 0 0-.5 8M16 16h2a4 4 0 0 0 3-6.6M4 4l16 16"/>',
   arrow_downward: '<path d="M12 4v15M6 13l6 6 6-6"/>',
+  arrow_upward: '<path d="M12 20V5M6 11l6-6 6 6"/>',
   east: '<path d="M4 12h15M14 7l5 5-5 5"/>',
   play_arrow: '<path d="M7 5l11 7-11 7z"/>',
 

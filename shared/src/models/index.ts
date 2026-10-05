@@ -57,6 +57,8 @@ export interface TableModel {
   y: number;
   color?: string;
   note?: string;
+  /** Manual width override in px (stretched/squeezed by the user); absent = auto-fit. */
+  width?: number;
 }
 
 export interface RelationshipModel {

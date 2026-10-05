@@ -61,7 +61,7 @@ interface EditorState {
   selectedLifelineIds: string[];
   selectedMessageIds: string[];
   /** The sequence diagram whose bounding box is selected (null = none). */
-  selectedDiagramId: string | null;
+  selectedDiagramIds: string[];
   /** Transient: a message whose inline label editor should open (toolbar pencil). */
   pendingMessageEditId: string | null;
   /** Transient: a lifeline whose inline label editor should open (toolbar pencil). */
@@ -97,6 +97,14 @@ interface HistoryEntry {
   redo: () => void | Promise<void>;
 }
 
+/** Positions that define one sequence diagram's layout (for move/resize undo). */
+export interface SequenceLayoutSnapshot {
+  lifelineXs: ReadonlyMap<string, number>;
+  messageYs: ReadonlyMap<string, number>;
+  originY: number;
+  rowSpacing: number;
+}
+
 const DEFAULT_VIEWPORT: ViewportModel = { x: 0, y: 0, zoom: 1 };
 
 /** Header colors assigned round-robin to new tables so the canvas reads clearly. */
@@ -121,7 +129,7 @@ const initialState: EditorState = {
   selectedElementIds: [],
   selectedLifelineIds: [],
   selectedMessageIds: [],
-  selectedDiagramId: null,
+  selectedDiagramIds: [],
   pendingMessageEditId: null,
   pendingLifelineEditId: null,
   loading: false,
@@ -224,7 +232,7 @@ export const ProjectStore = signalStore(
       selectedElementIds,
       selectedLifelineIds,
       selectedMessageIds,
-      selectedDiagramId,
+      selectedDiagramIds,
       accessMode,
       undoDepth,
       redoDepth,
@@ -280,11 +288,16 @@ export const ProjectStore = signalStore(
     }),
     /** The selected diagram (its bounding box), for the inspector. */
     selectedDiagram: computed(() => {
-      const id = selectedDiagramId();
+      const ids = selectedDiagramIds();
+      const id = ids.length === 1 ? ids[0] : null;
       return id ? (schema()?.sequenceDiagrams.find((d) => d.id === id) ?? null) : null;
     }),
+    /** The single selected diagram id (null when none or several are selected). */
+    selectedDiagramId: computed(() =>
+      selectedDiagramIds().length === 1 ? selectedDiagramIds()[0] : null,
+    ),
     /** True when any sequence diagram's box is selected. */
-    sequenceSelected: computed(() => selectedDiagramId() != null),
+    sequenceSelected: computed(() => selectedDiagramIds().length > 0),
     canEdit: computed(() => accessMode() !== 'VIEW'),
     canUndo: computed(() => undoDepth() > 0),
     canRedo: computed(() => redoDepth() > 0),
@@ -785,12 +798,16 @@ export const ProjectStore = signalStore(
           relationshipIds: string[],
           elementIds: string[] = [],
           messageIds: string[] = [],
+          lifelineIds: string[] = [],
+          diagramIds: string[] = [],
         ): void {
           patchState(store, {
             selectedTableIds: tableIds,
             selectedRelationshipIds: relationshipIds,
             selectedElementIds: elementIds,
             selectedMessageIds: messageIds,
+            selectedLifelineIds: lifelineIds,
+            selectedDiagramIds: diagramIds,
           });
         },
 
@@ -801,7 +818,7 @@ export const ProjectStore = signalStore(
             selectedElementIds: [],
             selectedLifelineIds: [],
             selectedMessageIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
           });
         },
 
@@ -810,7 +827,7 @@ export const ProjectStore = signalStore(
         /** Select one sequence diagram (its bounding box). */
         selectSequence(diagramId: string): void {
           patchState(store, {
-            selectedDiagramId: diagramId,
+            selectedDiagramIds: [diagramId],
             selectedLifelineIds: [],
             selectedMessageIds: [],
             selectedTableIds: [],
@@ -819,11 +836,51 @@ export const ProjectStore = signalStore(
           });
         },
 
+        /** Add/remove a diagram from the multi-selection (clears other kinds). */
+        toggleSequence(diagramId: string): void {
+          const current = store.selectedDiagramIds();
+          patchState(store, {
+            selectedDiagramIds: current.includes(diagramId)
+              ? current.filter((id) => id !== diagramId)
+              : [...current, diagramId],
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+            selectedTableIds: [],
+            selectedRelationshipIds: [],
+            selectedElementIds: [],
+          });
+        },
+
+        /** Positions of a diagram's lifelines/rows, captured at the start of a group move. */
+        sequenceDiagramSnapshot(diagramId: string): {
+          diagramId: string;
+          startXs: Map<string, number>;
+          startOriginY: number;
+          startRows: Map<string, number>;
+        } | null {
+          const s = store.schema();
+          const d = s?.sequenceDiagrams.find((x) => x.id === diagramId);
+          if (!s || !d) return null;
+          const base = d.originY + d.headerHeight;
+          return {
+            diagramId,
+            startXs: new Map(
+              s.lifelines.filter((l) => l.diagramId === diagramId).map((l) => [l.id, l.x]),
+            ),
+            startOriginY: d.originY,
+            startRows: new Map(
+              s.sequenceMessages
+                .filter((m) => m.diagramId === diagramId)
+                .map((m) => [m.id, Math.max(1, Math.round((m.y - base) / d.rowSpacing))]),
+            ),
+          };
+        },
+
         selectLifeline(lifelineId: string): void {
           patchState(store, {
             selectedLifelineIds: [lifelineId],
             selectedMessageIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
             selectedTableIds: [],
             selectedRelationshipIds: [],
             selectedElementIds: [],
@@ -834,7 +891,7 @@ export const ProjectStore = signalStore(
           patchState(store, {
             selectedMessageIds: [messageId],
             selectedLifelineIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
             selectedTableIds: [],
             selectedRelationshipIds: [],
             selectedElementIds: [],
@@ -849,7 +906,7 @@ export const ProjectStore = signalStore(
               ? current.filter((id) => id !== messageId)
               : [...current, messageId],
             selectedLifelineIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
             selectedTableIds: [],
             selectedRelationshipIds: [],
             selectedElementIds: [],
@@ -927,7 +984,7 @@ export const ProjectStore = signalStore(
             sequenceMessages: [...s.sequenceMessages, m],
           }));
           patchState(store, {
-            selectedDiagramId: diagram.id,
+            selectedDiagramIds: [diagram.id],
             selectedLifelineIds: [],
             selectedMessageIds: [],
             selectedTableIds: [],
@@ -988,7 +1045,7 @@ export const ProjectStore = signalStore(
           patchState(store, {
             selectedLifelineIds: [created.id],
             selectedMessageIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
           });
         },
 
@@ -1077,7 +1134,7 @@ export const ProjectStore = signalStore(
           patchState(store, {
             selectedMessageIds: [created.id],
             selectedLifelineIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
           });
         },
 
@@ -1103,7 +1160,7 @@ export const ProjectStore = signalStore(
           );
           setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, diagram] }));
           patchState(store, {
-            selectedDiagramId: diagram.id,
+            selectedDiagramIds: [diagram.id],
             selectedLifelineIds: [],
             selectedMessageIds: [],
             selectedTableIds: [],
@@ -1181,7 +1238,7 @@ export const ProjectStore = signalStore(
           patchState(store, {
             selectedLifelineIds: [copy.id],
             selectedMessageIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
           });
           return copy.id;
         },
@@ -1211,7 +1268,7 @@ export const ProjectStore = signalStore(
           patchState(store, {
             selectedMessageIds: [copy.id],
             selectedLifelineIds: [],
-            selectedDiagramId: null,
+            selectedDiagramIds: [],
           });
           return copy.id;
         },
@@ -1230,8 +1287,7 @@ export const ProjectStore = signalStore(
             sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== diagramId),
           }));
           patchState(store, {
-            selectedDiagramId:
-              store.selectedDiagramId() === diagramId ? null : store.selectedDiagramId(),
+            selectedDiagramIds: store.selectedDiagramIds().filter((id) => id !== diagramId),
             selectedLifelineIds: [],
             selectedMessageIds: [],
           });
@@ -1288,6 +1344,27 @@ export const ProjectStore = signalStore(
             firstValueFrom(sequenceApi.updateDiagram(projectId, diagramId, patch)),
           );
           mapDiagram(diagramId, () => updated);
+        },
+
+        /** Record a completed diagram move/resize (already applied) so it can be undone. */
+        recordSequenceLayout(
+          diagramId: string,
+          before: SequenceLayoutSnapshot,
+          after: SequenceLayoutSnapshot,
+        ): void {
+          const apply = (snap: SequenceLayoutSnapshot): void => {
+            for (const [id, x] of snap.lifelineXs) {
+              this.moveLifeline(id, x);
+            }
+            for (const [id, y] of snap.messageYs) {
+              this.moveMessage(id, y);
+            }
+            void this.updateSequenceConfig(diagramId, {
+              rowSpacing: snap.rowSpacing,
+              originY: snap.originY,
+            });
+          };
+          pushHistory({ undo: () => apply(before), redo: () => apply(after) });
         },
 
         /**
@@ -1382,6 +1459,11 @@ export const ProjectStore = signalStore(
           });
         },
 
+        /** Live (local-only) width while dragging a table's edge; persist via updateTable. */
+        setTableWidthLocal(tableId: string, width: number | undefined): void {
+          mapTable(tableId, (t) => ({ ...t, width }));
+        },
+
         async updateTable(tableId: string, patch: UpdateTableDto): Promise<void> {
           const updated = await runSave(() => firstValueFrom(tablesApi.update(tableId, patch)));
           mapTable(tableId, () => updated);
@@ -1402,17 +1484,17 @@ export const ProjectStore = signalStore(
           dy = 40,
           select = true,
           waitForColumns = true,
+          columnMap?: Map<string, string>,
         ): Promise<string | null> {
           const projectId = store.projectId();
           const source = store.tables().find((t) => t.id === tableId);
           if (!projectId || !source) {
             return null;
           }
-          const name = `${source.name}_copy`.slice(0, 120);
           const created = await runSave(() =>
             firstValueFrom(
               tablesApi.create(projectId, {
-                name,
+                name: source.name,
                 x: source.x + dx,
                 y: source.y + dy,
                 color: source.color ?? undefined,
@@ -1422,6 +1504,10 @@ export const ProjectStore = signalStore(
           // Show the copy as soon as the table exists; columns stream in after, so
           // an Alt-drag can grab it immediately instead of waiting on N round trips.
           setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
+          if (source.width) {
+            mapTable(created.id, (t) => ({ ...t, width: source.width }));
+            void tablesApi.update(created.id, { width: source.width }).subscribe();
+          }
           if (select) {
             patchState(store, {
               selectedTableIds: [created.id],
@@ -1441,6 +1527,7 @@ export const ProjectStore = signalStore(
                   isAutoIncrement: col.isAutoIncrement,
                 }),
               );
+              columnMap?.set(col.id, newCol.id);
               mapTable(created.id, (t) => ({ ...t, columns: [...t.columns, newCol] }));
             }
           })();
@@ -1548,6 +1635,49 @@ export const ProjectStore = signalStore(
           );
           setSchema((s) => ({ ...s, relationships: [...s.relationships, created] }));
           patchState(store, { selectedRelationshipIds: [created.id], selectedTableIds: [] });
+        },
+
+        /**
+         * Clone relationships onto cloned tables. `columnMap` maps original column
+         * ids to their copies; only relationships with both endpoints mapped are
+         * cloned. Returns the new relationship ids.
+         */
+        async duplicateRelationships(
+          sources: RelationshipModel[],
+          columnMap: Map<string, string>,
+        ): Promise<string[]> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return [];
+          }
+          const ids: string[] = [];
+          for (const rel of sources) {
+            const sourceColumnId = columnMap.get(rel.sourceColumnId);
+            const targetColumnId = columnMap.get(rel.targetColumnId);
+            if (!sourceColumnId || !targetColumnId) {
+              continue;
+            }
+            let created = await runSave(() =>
+              firstValueFrom(
+                relationshipsApi.create(projectId, {
+                  sourceColumnId,
+                  targetColumnId,
+                  type: rel.type,
+                  onDelete: rel.onDelete,
+                  onUpdate: rel.onUpdate,
+                }),
+              ),
+            );
+            if (rel.waypoints?.length) {
+              const waypoints = rel.waypoints.map((w) => ({ ...w }));
+              created = await runSave(() =>
+                firstValueFrom(relationshipsApi.update(created.id, { waypoints })),
+              );
+            }
+            setSchema((s) => ({ ...s, relationships: [...s.relationships, created] }));
+            ids.push(created.id);
+          }
+          return ids;
         },
 
         async updateRelationship(id: string, patch: UpdateRelationshipDto): Promise<void> {

@@ -46,8 +46,6 @@
       [style.height.px]="headerH()"
       [style.--ll-color]="l.color || null"
       (pointerdown)="onHeaderDown($event, l)"
-      (pointerenter)="addHover(true)"
-      (pointerleave)="addHover(false)"
       (dblclick)="startEditLifeline($event, l)"
     >
       @if (editingLifelineId() === l.id) {
@@ -179,7 +177,7 @@
     }
   }
 
-  <!-- Add-participant buttons on the left/right bounds (editor-only; never exported). -->
+  <!-- Add-participant buttons on the left/right edges, shown on hover (editor-only; never exported). -->
   @if (canEdit() && showAddButtons()) {
     @for (s of addSlots(); track s.key) {
       <button
@@ -187,8 +185,6 @@
         [style.left.px]="s.x"
         [style.top.px]="originY() + headerH() / 2"
         (pointerdown)="$event.stopPropagation()"
-        (pointerenter)="addHover(true)"
-        (pointerleave)="addHover(false)"
         (click)="addParticipant($event, s.at)"
         title="Add participant here"
         aria-label="Add participant here"
@@ -199,7 +195,7 @@
   }
 
   <!-- Resize handles on every side/corner (only when this diagram is selected). -->
-  @if (canEdit() && sequenceSelected()) {
+  @if (canEdit() && soleSelected()) {
     @for (h of handles(); track h.id) {
       <div
         class="seq-handle {{ h.id }}"

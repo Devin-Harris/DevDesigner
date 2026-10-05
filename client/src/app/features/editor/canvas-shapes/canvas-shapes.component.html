@@ -53,13 +53,25 @@
         <!-- Invisible hit target so the element is grabbable over its whole box. -->
         @if (s.rect) {
           <rect
-            class="hit"
+            [class.hit]="s.type !== 'frame'"
+            [class.hit-edge]="s.type === 'frame'"
             [attr.x]="s.rect.x"
             [attr.y]="s.rect.y"
             [attr.width]="s.rect.width"
             [attr.height]="s.rect.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
+          @if (s.type === 'frame') {
+            <!-- Frames are grabbed by the border or the name strip, not the interior. -->
+            <rect
+              class="hit"
+              [attr.x]="s.rect.x"
+              [attr.y]="s.rect.y - frameTitleH"
+              [attr.width]="frameTitleW"
+              [attr.height]="frameTitleH"
+              (pointerdown)="onBody(s.id, $event)"
+            ></rect>
+          }
           <rect
             [attr.x]="s.rect.x"
             [attr.y]="s.rect.y"
@@ -71,6 +83,7 @@
             [attr.stroke]="s.stroke"
             [attr.stroke-width]="s.strokeWidth"
             [attr.stroke-dasharray]="s.dash"
+            [attr.pointer-events]="s.type === 'frame' ? 'none' : null"
           ></rect>
         }
         @if (s.ellipse) {

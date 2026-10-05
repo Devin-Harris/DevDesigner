@@ -53,10 +53,11 @@ function cacheKey(
   tIndex: number,
   obstacles: readonly Box[],
   waypoints: readonly Point[],
+  bounds?: Box,
 ): string {
   const obs = obstacles.map(boxKey).sort().join(';');
   const wps = waypoints.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(';');
-  return `${boxKey(sBox)}#${sIndex}|${boxKey(tBox)}#${tIndex}|${obs}|${wps}`;
+  return `${boxKey(sBox)}#${sIndex}|${boxKey(tBox)}#${tIndex}|${obs}|${wps}|${bounds ? boxKey(bounds) : ''}`;
 }
 
 function remember(key: string, value: Resolved): Resolved {
@@ -84,6 +85,7 @@ function autoRoute(
   sBox: Box,
   tBox: Box,
   obstacles: readonly Box[],
+  bounds?: Box,
 ): Resolved {
   const sCenter = source.x + tableWidth(source) / 2;
   const tCenter = target.x + tableWidth(target) / 2;
@@ -103,7 +105,7 @@ function autoRoute(
   for (const [ss, ts] of combos) {
     const a = columnAnchor(source, sIndex, ss);
     const b = columnAnchor(target, tIndex, ts);
-    const elbow = cleanElbow(a, b, sideDir(ss), sideDir(ts), sBox, tBox);
+    const elbow = cleanElbow(a, b, sideDir(ss), sideDir(ts), sBox, tBox, bounds);
 
     // How much this elbow cuts through: its own nodes (dir-violating combos) and
     // any other table. A tight inset on obstacles means even a slight graze routes
@@ -113,6 +115,11 @@ function autoRoute(
     let blocked = 0;
     for (const box of obstacles) {
       blocked += crossings(elbow, box, 1);
+    }
+    // An elbow that strays outside the shared frame counts as blocked too, so the
+    // bounded A* search takes over.
+    if (bounds && elbow.some((p) => p.x < bounds.x0 || p.x > bounds.x1 || p.y < bounds.y0 || p.y > bounds.y1)) {
+      blocked += 1;
     }
 
     // Priority: never cross a node, then fewest elbows, then face the near side,
@@ -134,11 +141,15 @@ function autoRoute(
     return { a: winner.a, b: winner.b, route: winner.elbow };
   }
   // A table sits in the way: route around it with the A* search.
-  const route = routeOrthogonal(winner.a, winner.b, sideDir(winner.ss), sideDir(winner.ts), [
-    ...obstacles,
-    sBox,
-    tBox,
-  ]);
+  const route = routeOrthogonal(
+    winner.a,
+    winner.b,
+    sideDir(winner.ss),
+    sideDir(winner.ts),
+    [...obstacles, sBox, tBox],
+    OBSTACLE_GAP,
+    bounds,
+  );
   return { a: winner.a, b: winner.b, route };
 }
 
@@ -150,11 +161,12 @@ function resolveConnector(
   target: TableModel,
   tIndex: number,
   obstacles: readonly Box[],
+  bounds?: Box,
 ): Resolved {
   const sBox = tableBox(source);
   const tBox = tableBox(target);
   const waypoints = rel.waypoints ?? [];
-  const key = cacheKey(sBox, sIndex, tBox, tIndex, obstacles, waypoints);
+  const key = cacheKey(sBox, sIndex, tBox, tIndex, obstacles, waypoints, bounds);
   const cached = routeCache.get(key);
   if (cached) {
     return cached;
@@ -177,12 +189,47 @@ function resolveConnector(
     const ts: Side = last.x >= target.x + tableWidth(target) / 2 ? 'right' : 'left';
     const a = columnAnchor(source, sIndex, ss);
     const b = columnAnchor(target, tIndex, ts);
-    const route = routeThroughWaypoints(a, b, sideDir(ss), sideDir(ts), usable, obstaclesWithEnds);
+    const route = routeThroughWaypoints(
+      a,
+      b,
+      sideDir(ss),
+      sideDir(ts),
+      usable,
+      obstaclesWithEnds,
+      OBSTACLE_GAP,
+      bounds,
+    );
     resolved = { a, b, route };
   } else {
-    resolved = autoRoute(source, sIndex, target, tIndex, sBox, tBox, obstacles);
+    resolved = autoRoute(source, sIndex, target, tIndex, sBox, tBox, obstacles, bounds);
   }
   return remember(key, resolved);
+}
+
+/** Distance the route keeps from the frame edge so the line stays visibly inside. */
+const FRAME_INSET = 8;
+
+/**
+ * Bounds a connector is confined to: the smallest frame fully containing both
+ * tables, pulled in slightly. Null when the tables don't share a frame.
+ */
+function sharedFrameBounds(sBox: Box, tBox: Box, frames: readonly Box[]): Box | undefined {
+  let best: Box | undefined;
+  for (const f of frames) {
+    const holds = (b: Box): boolean => b.x0 >= f.x0 && b.x1 <= f.x1 && b.y0 >= f.y0 && b.y1 <= f.y1;
+    if (!holds(sBox) || !holds(tBox)) {
+      continue;
+    }
+    if (!best || (f.x1 - f.x0) * (f.y1 - f.y0) < (best.x1 - best.x0) * (best.y1 - best.y0)) {
+      best = f;
+    }
+  }
+  return best && {
+    x0: best.x0 + FRAME_INSET,
+    y0: best.y0 + FRAME_INSET,
+    x1: best.x1 - FRAME_INSET,
+    y1: best.y1 - FRAME_INSET,
+  };
 }
 
 /** Build the SVG connectors for the current schema. */
@@ -190,6 +237,7 @@ export function computeConnectors(
   tables: readonly TableModel[],
   relationships: readonly RelationshipModel[],
   selectedIds: ReadonlySet<string>,
+  frames: readonly Box[] = [],
 ): Connector[] {
   const locations = buildColumnLocations(tables);
   const boxes = new Map<string, Box>();
@@ -238,6 +286,7 @@ export function computeConnectors(
       target.table,
       target.index,
       obstacles,
+      sharedFrameBounds(sBox, tBox, frames),
     );
     // Final guard: every segment stored and drawn is strictly horizontal/vertical.
     const route = orthogonalize(resolved.route);

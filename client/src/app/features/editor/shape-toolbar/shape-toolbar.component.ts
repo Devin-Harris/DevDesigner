@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import { DEFAULT_FRAME_PRESET, FRAME_PRESETS } from '../canvas/constants/frame-presets';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -20,7 +21,8 @@ export type EditorTool =
   | 'arrow'
   | 'line'
   | 'text'
-  | 'freedraw';
+  | 'freedraw'
+  | 'frame';
 
 /** Shape tools grouped behind the dock's Shape flyout. */
 const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];
@@ -56,6 +58,10 @@ export class ShapeToolbarComponent {
   readonly canExport = input<boolean>(false);
   readonly canUndo = input<boolean>(false);
   readonly canRedo = input<boolean>(false);
+
+  /** The aspect-ratio preset new frames are drawn with (two-way bound to the editor). */
+  readonly framePreset = model<string>(DEFAULT_FRAME_PRESET);
+  protected readonly framePresets = FRAME_PRESETS;
 
   readonly toolChange = output<EditorTool>();
   readonly undo = output<void>();
@@ -101,6 +107,12 @@ export class ShapeToolbarComponent {
 
   protected onChange(value: EditorTool): void {
     this.toolChange.emit(value);
+  }
+
+  /** Pick the frame tool with a specific page ratio. */
+  protected pickFrame(presetId: string): void {
+    this.framePreset.set(presetId);
+    this.onChange('frame');
   }
 
   /** Pick the rectangle tool with a specific corner radius (square vs rounded). */

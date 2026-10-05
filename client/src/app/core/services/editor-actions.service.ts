@@ -7,6 +7,8 @@ export interface EditorActionHandlers {
   share: () => void;
   exportSql: () => void;
   exportImage: (format: ExportImageFormat) => void;
+  exportFramesPdf: () => void;
+  deleteSelection: () => void;
 }
 
 /**
@@ -20,6 +22,10 @@ export interface EditorActionHandlers {
 export class EditorActionsService {
   /** True while an editor is mounted with a project loaded. */
   readonly active = signal(false);
+  /** False when the tables in the export scope share a name (SQL would be invalid). */
+  readonly canExportSql = signal(true);
+  /** True when at least one table is selected (SQL export is offered only then). */
+  readonly hasTableSelection = signal(false);
   private handlers: EditorActionHandlers | null = null;
 
   register(handlers: EditorActionHandlers): void {
@@ -40,5 +46,11 @@ export class EditorActionsService {
   }
   exportImage(format: ExportImageFormat): void {
     this.handlers?.exportImage(format);
+  }
+  deleteSelection(): void {
+    this.handlers?.deleteSelection();
+  }
+  exportFramesPdf(): void {
+    this.handlers?.exportFramesPdf();
   }
 }

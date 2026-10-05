@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import type { LifelineModel, SequenceDiagramModel } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';
 
 interface MessageView {
   id: string;
@@ -63,6 +63,8 @@ type Drag =
       startXs: Map<string, number>;
       startOriginY: number;
       startRows: Map<string, number>;
+      /** Other selected diagrams moving along with this one. */
+      others: { diagramId: string; startXs: Map<string, number>; startOriginY: number; startRows: Map<string, number> }[];
     }
   | {
       kind: 'resize';
@@ -105,6 +107,8 @@ const MIN_ROW = 20;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AutofocusDirective],
+  // pointerover/out bubble from every child (box, headers, spines, messages, buttons).
+  host: { '(pointerover)': 'addHover(true)', '(pointerout)': 'addHover(false)' },
   templateUrl: './sequence-diagram.component.html',
   styleUrl: './sequence-diagram.component.scss',
 })
@@ -150,10 +154,14 @@ export class SequenceDiagramComponent {
     this.store.sequenceMessages().filter((m) => m.diagramId === this.diagram().id),
   );
 
-  protected readonly selectedLifelineIds = computed(() => new Set(this.store.selectedLifelineIds()));
-  protected readonly sequenceSelected = computed(
-    () => this.store.selectedDiagramId() === this.diagram().id,
+  protected readonly selectedLifelineIds = computed(
+    () => new Set(this.store.selectedLifelineIds()),
   );
+  protected readonly sequenceSelected = computed(
+    () => this.store.selectedDiagramIds().includes(this.diagram().id),
+  );
+  /** Resize handles only show when this is the sole selected diagram. */
+  protected readonly soleSelected = computed(() => this.store.selectedDiagramId() === this.diagram().id);
 
   /** Snap a world-y to its row centre on the grid (row 1 is the first below the header). */
   protected rowY(y: number): number {
@@ -380,13 +388,53 @@ export class SequenceDiagramComponent {
     return out;
   }
 
+  /** Layout at gesture start, recorded for undo when a move/resize ends. */
+  private layoutBefore: SequenceLayoutSnapshot | null = null;
+  /** Same, for the other diagrams moved along in a group drag. */
+  private othersBefore = new Map<string, SequenceLayoutSnapshot>();
+
+  private snapshotLayout(diagramId: string): SequenceLayoutSnapshot {
+    const cfg = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
+    return {
+      lifelineXs: new Map(
+        this.store
+          .lifelines()
+          .filter((l) => l.diagramId === diagramId)
+          .map((l) => [l.id, l.x]),
+      ),
+      messageYs: new Map(
+        this.store
+          .sequenceMessages()
+          .filter((m) => m.diagramId === diagramId)
+          .map((m) => [m.id, m.y]),
+      ),
+      originY: cfg?.originY ?? 0,
+      rowSpacing: cfg?.rowSpacing ?? 48,
+    };
+  }
+
   // ----- Bounding box: select + move this diagram -----
   protected onBoxDown(event: PointerEvent): void {
     event.stopPropagation();
-    this.store.selectSequence(this.diagram().id);
+    const id = this.diagram().id;
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      // Toggle into/out of the selection; no drag so the gesture stays a pure click.
+      this.store.toggleSequence(id);
+      return;
+    }
+    // Pressing an already-selected diagram keeps the group so it can be dragged together.
+    if (!this.store.selectedDiagramIds().includes(id)) this.store.selectSequence(id);
     if (!this.canEdit()) return;
+    const others = this.store
+      .selectedDiagramIds()
+      .filter((x) => x !== id)
+      .map((x) => this.store.sequenceDiagramSnapshot(x))
+      .filter((x) => x !== null);
+    this.layoutBefore = this.snapshotLayout(id);
+    this.othersBefore = new Map(others.map((o) => [o.diagramId, this.snapshotLayout(o.diagramId)]));
     this.startDrag();
     this.drag = {
+      others,
       kind: 'diagram',
       diagramId: this.diagram().id,
       startX: event.clientX,
@@ -403,6 +451,7 @@ export class SequenceDiagramComponent {
     event.stopPropagation();
     if (!this.canEdit()) return;
     this.store.selectSequence(this.diagram().id);
+    this.layoutBefore = this.snapshotLayout(this.diagram().id);
     this.startDrag();
     const l = this.lls();
     const left = l.length ? Math.min(...l.map((x) => x.x)) : 0;
@@ -469,6 +518,7 @@ export class SequenceDiagramComponent {
     const d = this.drag;
     if (!d || this.dragCopied || this.duplicating || !this.canEdit()) return;
     if (d.kind !== 'diagram' && d.kind !== 'll' && d.kind !== 'msg') return;
+    if (d.kind === 'diagram' && d.others.length) return; // no group duplication
     this.duplicating = true;
     let next: Drag | null = null;
     if (d.kind === 'diagram') {
@@ -511,7 +561,7 @@ export class SequenceDiagramComponent {
     this.dragCopied = true;
     this.drag = next;
     if (this.lastPointer) this.onMove(this.lastPointer);
-  };
+  }
 
   protected onMove = (event: PointerEvent): void => {
     this.lastPointer = event;
@@ -530,7 +580,7 @@ export class SequenceDiagramComponent {
       const fn = this.toWorld();
       if (fn) this.tempTo.set(fn(event.clientX, event.clientY));
     }
-  }
+  };
 
   /** Shift the whole diagram, snapping the block to the grid when grid-snap is on. */
   private shiftDiagram(d: Extract<Drag, { kind: 'diagram' }>, event: PointerEvent): void {
@@ -544,6 +594,9 @@ export class SequenceDiagramComponent {
       dy = snap(d.startOriginY + dy) - d.startOriginY;
     }
     this.store.shiftSequence(d.diagramId, d.startXs, dx, d.startOriginY, dy, d.startRows);
+    for (const o of d.others) {
+      this.store.shiftSequence(o.diagramId, o.startXs, dx, o.startOriginY, dy, o.startRows);
+    }
   }
 
   /** Compute new spread + vertical size for a resize drag (Shift locks, Alt centers). */
@@ -599,7 +652,8 @@ export class SequenceDiagramComponent {
 
     const scaleX = horiz ? newW / spanX : 1;
     const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
-    const rowSpacing = d.nRows > 0 ? Math.max(MIN_ROW, (newH - d.headerH) / d.nRows) : d.startRowSpacing;
+    const rowSpacing =
+      d.nRows > 0 ? Math.max(MIN_ROW, (newH - d.headerH) / d.nRows) : d.startRowSpacing;
 
     let originY = d.top;
     if (isTop || isBottom) {
@@ -660,23 +714,46 @@ export class SequenceDiagramComponent {
       } else {
         this.applyResize(d, event);
       }
-      const id = d.kind === 'diagram' ? d.diagramId : this.diagram().id;
-      for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
-        this.store.moveLifeline(l.id, l.x);
+      const ids =
+        d.kind === 'diagram'
+          ? [d.diagramId, ...d.others.map((o) => o.diagramId)]
+          : [this.diagram().id];
+      for (const id of ids) {
+        for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
+          this.store.moveLifeline(l.id, l.x);
+        }
+        // Messages moved with the diagram — persist their new rows too.
+        for (const m of this.store.sequenceMessages().filter((x) => x.diagramId === id)) {
+          this.store.moveMessage(m.id, m.y);
+        }
+        const cfg = this.store.sequenceDiagrams().find((x) => x.id === id);
+        if (cfg) {
+          void this.store.updateSequenceConfig(id, {
+            rowSpacing: cfg.rowSpacing,
+            originY: cfg.originY,
+          });
+        }
       }
-      // Messages moved with the diagram — persist their new rows too.
-      for (const m of this.store.sequenceMessages().filter((x) => x.diagramId === id)) {
-        this.store.moveMessage(m.id, m.y);
+      const own = d.kind === 'diagram' ? d.diagramId : this.diagram().id;
+      const befores = new Map(this.othersBefore);
+      if (this.layoutBefore) befores.set(own, this.layoutBefore);
+      for (const [dId, before] of befores) {
+        const after = this.snapshotLayout(dId);
+        if (!this.dragCopied && this.layoutChanged(before, after)) {
+          this.store.recordSequenceLayout(dId, before, after);
+        }
       }
-      const cfg = this.store.sequenceDiagrams().find((x) => x.id === id);
-      if (cfg) {
-        void this.store.updateSequenceConfig(id, {
-          rowSpacing: cfg.rowSpacing,
-          originY: cfg.originY,
-        });
-      }
+      this.layoutBefore = null;
+      this.othersBefore = new Map();
     }
     this.drag = null;
+  };
+
+  private layoutChanged(a: SequenceLayoutSnapshot, b: SequenceLayoutSnapshot): boolean {
+    if (a.originY !== b.originY || a.rowSpacing !== b.rowSpacing) return true;
+    for (const [id, x] of a.lifelineXs) if (b.lifelineXs.get(id) !== x) return true;
+    for (const [id, y] of a.messageYs) if (b.messageYs.get(id) !== y) return true;
+    return false;
   }
 
   /** Nearest lifeline in THIS diagram to a world x. */
@@ -709,24 +786,22 @@ export class SequenceDiagramComponent {
   /** Plus buttons appear while the pointer is over the participant headers. */
   protected readonly showAddButtons = signal(false);
   private hideAddTimer: ReturnType<typeof setTimeout> | null = null;
-  protected addHover(on: boolean): void {
+  addHover(on: boolean): void {
     if (this.hideAddTimer) clearTimeout(this.hideAddTimer);
     this.hideAddTimer = null;
     if (on) this.showAddButtons.set(true);
     else this.hideAddTimer = setTimeout(() => this.showAddButtons.set(false), 150);
   }
 
-  /**
-   * Insert slots, pinned to header edges so they sit the same distance from every
-   * block regardless of spacing: every header gets one on its left edge (insert
-   * before it) and one on its right edge (insert after it).
-   */
-  protected readonly addSlots = computed<{ key: string; at: number; x: number }[]>(() =>
-    this.lls().flatMap((h, i) => [
-      { key: `${h.id}-l`, at: i, x: h.x - h.width / 2 },
-      { key: `${h.id}-r`, at: i + 1, x: h.x + h.width / 2 },
-    ]),
-  );
+  /** Two insert slots, centered on the diagram's left and right edges. */
+  protected readonly addSlots = computed<{ key: string; at: number; x: number }[]>(() => {
+    const b = this.box();
+    if (!b) return [];
+    return [
+      { key: 'left', at: 0, x: b.left },
+      { key: 'right', at: this.lls().length, x: b.right },
+    ];
+  });
 
   // ----- Messages: select + vertical drag (snaps to rows; rows may be shared) -----
   protected onMessageDown(event: PointerEvent, m: MessageView): void {

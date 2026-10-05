@@ -20,7 +20,7 @@
       <span
         class="swatch"
         [class.none]="element().fillStyle === 'none'"
-        [style.background]="element().fillStyle === 'none' ? 'transparent' : (element().backgroundColor || '#ffffff')"
+        [style.background]="element().fillStyle === 'none' ? 'transparent' : fillCss(element().backgroundColor)"
       ></span>
     </button>
     <ng-template #fillMenu let-close>
@@ -29,14 +29,15 @@
           <button
             class="swatch-btn"
             [class.none]="c === 'transparent'"
+            [class.surface]="c === 'surface'"
             [class.active]="c === 'transparent' ? element().fillStyle === 'none' : (element().fillStyle !== 'none' && c === element().backgroundColor)"
-            [style.background]="c"
+            [style.background]="c === 'transparent' ? c : fillCss(c)"
             (click)="setFill(c); close()"
           ></button>
         }
         <label class="swatch-btn custom">
           <dbd-icon name="colorize" />
-          <input type="color" [value]="element().backgroundColor || '#ffffff'" (change)="setFill($any($event.target).value)" />
+          <input type="color" [value]="element().backgroundColor === 'surface' ? '#ffffff' : (element().backgroundColor || '#ffffff')" (change)="setFill($any($event.target).value)" />
         </label>
       </div>
     </ng-template>

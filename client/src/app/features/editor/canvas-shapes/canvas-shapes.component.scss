@@ -37,6 +37,15 @@
   cursor: move;
 }
 
+// Frame border: grabbable on the outline only, so the interior stays click-through.
+.hit-edge {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: move;
+}
+
 .hit-stroke {
   fill: none;
   stroke: transparent;

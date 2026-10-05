@@ -82,6 +82,8 @@ export interface UpdateTableDto {
   name?: string;
   color?: string;
   note?: string;
+  /** Manual width in px; 0 clears the override back to auto-fit. */
+  width?: number;
 }
 export interface UpdatePositionDto {
   x: number;

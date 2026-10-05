@@ -44,6 +44,10 @@ export class TableEntity {
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 
+  /** Manual width override in px; null = auto-fit to content. */
+  @Column({ type: 'float', nullable: true })
+  width!: number | null;
+
   @OneToMany(() => ColumnEntity, (column) => column.table)
   columns!: ColumnEntity[];
 

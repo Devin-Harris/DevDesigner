@@ -59,6 +59,9 @@ export class AppComponent {
   protected exportImage(format: ExportImageFormat): void {
     this.editorActions.exportImage(format);
   }
+  protected exportFramesPdf(): void {
+    this.editorActions.exportFramesPdf();
+  }
   protected share(): void {
     this.editorActions.share();
   }

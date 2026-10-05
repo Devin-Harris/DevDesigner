@@ -20,5 +20,6 @@ export function toTableModel(entity: TableEntity): TableModel {
     y: entity.y,
     color: entity.color ?? undefined,
     note: entity.note ?? undefined,
+    width: entity.width ?? undefined,
   };
 }

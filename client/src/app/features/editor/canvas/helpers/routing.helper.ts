@@ -26,7 +26,14 @@ import {
  * inside an obstacle). When a table is right against the anchor the stub can
  * shrink to nothing and the line simply turns immediately.
  */
-function exitStub(from: Point, dir: number, toward: Point, obstacles: readonly Box[], gap: number): Point {
+function exitStub(
+  from: Point,
+  dir: number,
+  toward: Point,
+  obstacles: readonly Box[],
+  gap: number,
+  bounds?: Box,
+): Point {
   const sign = dir >= 0 ? 1 : -1;
   let dist = EXIT_STUB;
 
@@ -50,6 +57,14 @@ function exitStub(from: Point, dir: number, toward: Point, obstacles: readonly B
     }
   }
 
+  // Bounds clamp: a stub never leaves the frame the connector is confined to.
+  if (bounds) {
+    const room = sign * ((sign > 0 ? bounds.x1 : bounds.x0) - from.x);
+    if (room >= 0) {
+      dist = Math.min(dist, room);
+    }
+  }
+
   return { x: from.x + sign * Math.max(0, dist), y: from.y };
 }
 
@@ -67,13 +82,17 @@ export function cleanElbow(
   dirB: number,
   sBox: Box,
   tBox: Box,
+  bounds?: Box,
 ): Point[] {
   if (Math.sign(dirA) === Math.sign(dirB)) {
     const dir = dirA >= 0 ? 1 : -1;
-    const extentX =
+    let extentX =
       dir > 0
         ? Math.max(sBox.x1, tBox.x1) + EXIT_STUB
         : Math.min(sBox.x0, tBox.x0) - EXIT_STUB;
+    if (bounds) {
+      extentX = Math.min(bounds.x1, Math.max(bounds.x0, extentX));
+    }
     return simplifyRoute([a, { x: extentX, y: a.y }, { x: extentX, y: b.y }, b]);
   }
   const gap = Math.abs(b.x - a.x);
@@ -103,7 +122,13 @@ function pushUnique(values: number[], value: number): void {
   }
 }
 
-function buildGraph(start: Point, goal: Point, obstacles: readonly Box[], gap: number): Graph {
+function buildGraph(
+  start: Point,
+  goal: Point,
+  obstacles: readonly Box[],
+  gap: number,
+  bounds?: Box,
+): Graph {
   const inflated = obstacles.map((box) => inflate(box, gap));
   const xs: number[] = [start.x, goal.x];
   const ys: number[] = [start.y, goal.y];
@@ -112,6 +137,13 @@ function buildGraph(start: Point, goal: Point, obstacles: readonly Box[], gap: n
     pushUnique(xs, box.x1);
     pushUnique(ys, box.y0);
     pushUnique(ys, box.y1);
+  }
+
+  if (bounds) {
+    pushUnique(xs, bounds.x0);
+    pushUnique(xs, bounds.x1);
+    pushUnique(ys, bounds.y0);
+    pushUnique(ys, bounds.y1);
   }
 
   const points: Point[] = [];
@@ -130,6 +162,9 @@ function buildGraph(start: Point, goal: Point, obstacles: readonly Box[], gap: n
   for (const x of xs) {
     for (const y of ys) {
       const p = { x, y };
+      if (bounds && (x < bounds.x0 || x > bounds.x1 || y < bounds.y0 || y > bounds.y1)) {
+        continue;
+      }
       if (!inflated.some((box) => pointInside(p, box))) {
         add(p);
       }
@@ -290,10 +325,11 @@ export function routeOrthogonal(
   dirB: number,
   obstacles: readonly Box[],
   gap = OBSTACLE_GAP,
+  bounds?: Box,
 ): Point[] {
-  const startStub = exitStub(a, dirA, b, obstacles, gap);
-  const endStub = exitStub(b, dirB, a, obstacles, gap);
-  const routed = search(buildGraph(startStub, endStub, obstacles, gap));
+  const startStub = exitStub(a, dirA, b, obstacles, gap, bounds);
+  const endStub = exitStub(b, dirB, a, obstacles, gap, bounds);
+  const routed = search(buildGraph(startStub, endStub, obstacles, gap, bounds));
   if (routed) {
     return simplifyRoute([a, ...routed, b]);
   }
@@ -303,8 +339,14 @@ export function routeOrthogonal(
 }
 
 /** One obstacle-avoiding orthogonal leg between two free points (plain elbow if blocked). */
-function routeLeg(from: Point, to: Point, obstacles: readonly Box[], gap: number): Point[] {
-  return search(buildGraph(from, to, obstacles, gap)) ?? simplifyRoute(manhattanRoute(from, to, []));
+function routeLeg(
+  from: Point,
+  to: Point,
+  obstacles: readonly Box[],
+  gap: number,
+  bounds?: Box,
+): Point[] {
+  return search(buildGraph(from, to, obstacles, gap, bounds)) ?? simplifyRoute(manhattanRoute(from, to, []));
 }
 
 /**
@@ -323,6 +365,7 @@ export function routeThroughWaypoints(
   waypoints: readonly Point[],
   obstacles: readonly Box[],
   gap = OBSTACLE_GAP,
+  bounds?: Box,
 ): Point[] {
   // Ignore any waypoint that a table now covers: routing to a point under a node
   // would force the line under it. Skipped waypoints stay in the store, so they
@@ -331,18 +374,18 @@ export function routeThroughWaypoints(
     (w) => !obstacles.some((box) => pointInside(w, inflate(box, gap))),
   );
   if (usable.length === 0) {
-    return routeOrthogonal(a, b, dirA, dirB, obstacles, gap);
+    return routeOrthogonal(a, b, dirA, dirB, obstacles, gap, bounds);
   }
   const first = usable[0];
   const last = usable[usable.length - 1];
   const fixed = [
-    exitStub(a, dirA, first, obstacles, gap),
+    exitStub(a, dirA, first, obstacles, gap, bounds),
     ...usable,
-    exitStub(b, dirB, last, obstacles, gap),
+    exitStub(b, dirB, last, obstacles, gap, bounds),
   ];
   const route: Point[] = [a];
   for (let i = 0; i < fixed.length - 1; i += 1) {
-    route.push(...routeLeg(fixed[i], fixed[i + 1], obstacles, gap));
+    route.push(...routeLeg(fixed[i], fixed[i + 1], obstacles, gap, bounds));
   }
   route.push(b);
   return simplifyRoute(route);

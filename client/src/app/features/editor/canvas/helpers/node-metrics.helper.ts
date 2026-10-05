@@ -6,6 +6,8 @@ import {
   HEADER_FIXED_W,
   HEADER_H,
   MAX_NAME_CHARS,
+  MAX_TABLE_WIDTH,
+  MIN_TABLE_WIDTH,
   NAME_CHAR_W,
   NODE_WIDTH,
   ROW_FIXED_W,
@@ -29,6 +31,11 @@ export function tableWidth(table: TableModel): number {
   const cached = widthCache.get(table);
   if (cached !== undefined) {
     return cached;
+  }
+  if (table.width) {
+    const manual = Math.round(Math.min(MAX_TABLE_WIDTH, Math.max(MIN_TABLE_WIDTH, table.width)));
+    widthCache.set(table, manual);
+    return manual;
   }
   const chars = (name: string): number => Math.min(name.length, MAX_NAME_CHARS);
   let need = HEADER_FIXED_W + chars(table.name) * HEADER_CHAR_W;

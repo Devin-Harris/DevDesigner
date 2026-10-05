@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import type { UpdateTableDto as IUpdateTableDto } from '@dbdesigner/shared';
 
 /** Body for PATCH /tables/:tableId (name / color / note). */
@@ -17,4 +17,10 @@ export class UpdateTableDto implements IUpdateTableDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(4000)
+  width?: number;
 }

@@ -12,11 +12,13 @@ import {
   type UpdateElementDto,
   type VerticalAlign,
 } from '@dbdesigner/shared';
+import { EditorActionsService } from '../../../core/services/editor-actions.service';
+import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { ProjectStore } from '../../../stores/project.store';
 
 // Saturated palette shared with the table header tints (no muted pastels).
 const STROKE_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
-const FILL_COLORS = ['transparent', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
+const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 const STROKE_WIDTHS: { value: number; label: string }[] = [
   { value: 1, label: 'Thin' },
   { value: 2, label: 'Bold' },
@@ -57,6 +59,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
 })
 export class ElementFloatingToolbarComponent {
   protected readonly store = inject(ProjectStore);
+  private readonly editorActions = inject(EditorActionsService);
   protected readonly strokeColors = STROKE_COLORS;
   protected readonly fillColors = FILL_COLORS;
   protected readonly strokeWidths = STROKE_WIDTHS;
@@ -120,6 +123,11 @@ export class ElementFloatingToolbarComponent {
 
   protected setStroke(color: string): void {
     this.patchAll({ strokeColor: color });
+  }
+
+  /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
+  protected fillCss(color: string | undefined): string {
+    return color === SURFACE_FILL ? 'var(--dbd-surface)' : color || '#ffffff';
   }
 
   protected setFill(color: string): void {
@@ -205,8 +213,7 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected remove(): void {
-    for (const id of [...this.store.selectedElementIds()]) {
-      void this.store.deleteElement(id);
-    }
+    // The editor owns delete so a frame takes its contents with it.
+    this.editorActions.deleteSelection();
   }
 }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import type { ArrowheadType } from '@dbdesigner/shared';
 import type { ShapeView } from '../canvas/models/shape-view.model';
+import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
@@ -46,6 +47,9 @@ export class CanvasShapesComponent {
   readonly bindHighlight = input<{ x: number; y: number; width: number; height: number } | null>(
     null,
   );
+
+  protected readonly frameTitleW = FRAME_TITLE_W;
+  protected readonly frameTitleH = FRAME_TITLE_H;
 
   readonly elementPointerDown = output<ShapePointerEvent>();
   readonly resizeDown = output<ResizeDownEvent>();

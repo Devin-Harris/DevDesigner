@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { firstValueFrom } from 'rxjs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -24,11 +25,11 @@ import type {
   RelationshipType,
   TableModel,
 } from '@dbdesigner/shared';
-import { generateSql } from '@dbdesigner/shared';
+import { generateSql, type SequenceDiagramModel } from '@dbdesigner/shared';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
 import {
   CanvasConnectorsComponent,
@@ -45,10 +46,14 @@ import {
 import { type AlignAction } from './canvas/models/toolbar-actions';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
+import { frameContents } from './canvas/helpers/frame-contents.helper';
+import { DEFAULT_FRAME_PRESET, framePreset } from './canvas/constants/frame-presets';
 import {
   absolutePoints,
   elementBox,
   elementIntersectsRect,
+  FRAME_TITLE_H,
+  FRAME_TITLE_W,
   hitTestElement,
   tableBox,
   toRelative,
@@ -67,7 +72,17 @@ import { ElementFloatingToolbarComponent } from './element-floating-toolbar/elem
 import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
 import { embedFonts } from './export/font-embed.helper';
 import { ExportDialogComponent } from './export/export-dialog.component';
-import { exportDiagramImage, type ImageFormat } from './export/image-export.helper';
+import {
+  FrameOrderDialogComponent,
+  type FrameOrderDialogData,
+} from './export/frame-order-dialog.component';
+import {
+  downloadBlob,
+  exportDiagramImage,
+  pagesToPdfBlob,
+  type DiagramImage,
+  type ImageFormat,
+} from './export/image-export.helper';
 import { InspectorComponent } from './inspector/inspector.component';
 import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
 import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
@@ -98,6 +113,13 @@ type DragMode =
 const DEFAULT_ELEMENT_STROKE = '#2f3a45';
 const DEFAULT_FONT_SIZE = 20;
 
+/** A sequence diagram's layout at drag start, as `shiftSequence` expects it. */
+interface SequenceStart {
+  xs: Map<string, number>;
+  originY: number;
+  rows: Map<string, number>;
+}
+
 interface ElementGesture {
   id: string;
   /** Starting geometry of the element(s) at gesture start (for delta math). */
@@ -106,6 +128,12 @@ interface ElementGesture {
   snapshot: CanvasElementModel;
   /** Additional selected elements moved together (id -> start x/y), move only. */
   others?: Map<string, { x: number; y: number }>;
+  /** Tables carried along by a moved frame (id -> start x/y). */
+  tables?: Map<string, { x: number; y: number }>;
+  /** Manual relationship routes between two carried tables (id -> start waypoints). */
+  waypoints?: Map<string, { x: number; y: number }[]>;
+  /** Sequence diagrams carried along by a moved frame (id -> start layout). */
+  sequences?: Map<string, SequenceStart>;
   handle?: ResizeHandle;
   which?: 'start' | 'end';
   /** Original points (absolute) for an endpoint drag. */
@@ -250,6 +278,10 @@ export class EditorComponent {
       this.store.tables(),
       this.store.relationships(),
       new Set(this.store.selectedRelationshipIds()),
+      this.store
+        .elements()
+        .filter((e) => e.type === 'frame')
+        .map(elementBox),
     ),
   );
 
@@ -257,6 +289,8 @@ export class EditorComponent {
 
   /** The active tool. 'select' is the pointer mode; others draw that element. */
   protected readonly activeTool = signal<EditorTool>('select');
+  /** Aspect-ratio preset new frames are drawn with (see frame-presets). */
+  protected readonly framePresetId = signal<string>(DEFAULT_FRAME_PRESET);
 
   /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
   protected readonly panning = signal(false);
@@ -412,12 +446,13 @@ export class EditorComponent {
   });
 
   /** Resolved canvas background + text color for the render-time contrast guard. */
-  private themeColors(): { canvasBg: string; text: string } | undefined {
+  private themeColors(): { canvasBg: string; text: string; surface: string } | undefined {
     try {
       const styles = getComputedStyle(this.canvasRef().nativeElement);
       const canvasBg = styles.getPropertyValue('--dbd-canvas-bg').trim();
       const text = styles.getPropertyValue('--dbd-text').trim();
-      return canvasBg && text ? { canvasBg, text } : undefined;
+      const surface = styles.getPropertyValue('--dbd-surface').trim();
+      return canvasBg && text ? { canvasBg, text, surface } : undefined;
     } catch {
       return undefined;
     }
@@ -441,6 +476,7 @@ export class EditorComponent {
     const editable =
       el &&
       (el.type === 'text' ||
+        el.type === 'frame' ||
         el.type === 'rectangle' ||
         el.type === 'ellipse' ||
         el.type === 'diamond' ||
@@ -451,6 +487,26 @@ export class EditorComponent {
     }
     const v = this.store.viewport();
     const z = v.zoom;
+    if (el.type === 'frame') {
+      // The frame's name is edited in place on the strip above its top-left corner.
+      return {
+        id,
+        left: el.x * z + v.x,
+        top: (el.y - FRAME_TITLE_H) * z + v.y,
+        width: FRAME_TITLE_W * z,
+        height: FRAME_TITLE_H * z,
+        fontSize: 14 * z,
+        fontFamily: fontStack('normal'),
+        fontWeight: 600,
+        italic: false,
+        value: el.text ?? '',
+        color: el.strokeColor,
+        align: 'left' as const,
+        wrap: false,
+        center: false,
+        padding: 0,
+      };
+    }
     const isLabel = el.type !== 'text';
     // A text element that has been resized keeps its fixed width and wraps.
     const wrapped = !isLabel && this.resizedTextIds.has(id);
@@ -747,8 +803,19 @@ export class EditorComponent {
       share: () => this.openShare(),
       exportSql: () => this.openSqlExport(),
       exportImage: (format) => void this.onExportImage(format),
+      exportFramesPdf: () => void this.exportAllFramesPdf(),
+      deleteSelection: () => this.deleteSelection(),
     });
     this.destroyRef.onDestroy(() => this.editorActions.clear());
+    // SQL needs unique table names within the exported scope (selection or whole diagram).
+    effect(() => {
+      const selected = this.store.selectedTableIds();
+      const tables = this.store.tables();
+      const scope = selected.length ? tables.filter((t) => selected.includes(t.id)) : tables;
+      const names = scope.map((t) => t.name.trim().toLowerCase());
+      this.editorActions.hasTableSelection.set(selected.length > 0);
+      this.editorActions.canExportSql.set(new Set(names).size === names.length);
+    });
     // Persist the grid-snap toggle across refreshes.
     effect(() => {
       const on = this.gridSnap();
@@ -877,6 +944,15 @@ export class EditorComponent {
     }
   }
 
+  /** Read a theme CSS custom property from the canvas, or null if unavailable. */
+  private themeVar(name: string): string | null {
+    try {
+      return getComputedStyle(this.canvasRef().nativeElement).getPropertyValue(name).trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Add an ERD table centered near the given screen point. */
   private addTableAt(clientX: number, clientY: number): void {
     const world = this.toWorld(clientX, clientY);
@@ -910,7 +986,21 @@ export class EditorComponent {
     const x = this.gridSnap() ? snapToGrid(world.x) : world.x;
     const y = this.gridSnap() ? snapToGrid(world.y) : world.y;
     const type = tool as ElementType;
-    const style = this.store.elementStyle();
+    const sticky = this.store.elementStyle();
+    // Frames keep their own quiet look; they don't inherit the last-used shape style.
+    const style =
+      type === 'frame'
+        ? {
+            ...sticky,
+            strokeColor: this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
+            backgroundColor: undefined,
+            fillStyle: 'none' as const,
+            strokeWidth: 1.5,
+            strokeStyle: 'solid' as const,
+            opacity: 100,
+            cornerRadius: 0,
+          }
+        : sticky;
     const draft: CanvasElementModel = {
       id: `draft-${Date.now()}`,
       type,
@@ -994,7 +1084,13 @@ export class EditorComponent {
     const { x: ax, y: ay } = this.drawAnchor;
     let dx = ex - ax;
     let dy = ey - ay;
-    if (shift) {
+    if (draft.type === 'frame') {
+      // A preset frame is locked to its page ratio: width follows the pointer, height follows width.
+      const ratio = framePreset(this.framePresetId()).ratio;
+      if (ratio) {
+        dy = (dy < 0 ? -1 : 1) * (Math.abs(dx) / ratio);
+      }
+    } else if (shift) {
       const size = Math.max(Math.abs(dx), Math.abs(dy));
       dx = (dx < 0 ? -1 : 1) * size;
       dy = (dy < 0 ? -1 : 1) * size;
@@ -1059,11 +1155,21 @@ export class EditorComponent {
   private draftToDto(draft: CanvasElementModel): CreateElementDto {
     const { x, y, points } = draft;
     let { width, height } = draft;
+    let text = draft.text;
     if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
       if (width < 4 && height < 4) {
         width = 120;
         height = 80;
       }
+    }
+    if (draft.type === 'frame') {
+      if (width < 40 || height < 40) {
+        const preset = framePreset(this.framePresetId());
+        width = preset.width;
+        height = preset.height;
+      }
+      const count = this.store.elements().filter((e) => e.type === 'frame').length;
+      text = text || `Frame ${count + 1}`;
     }
     return {
       type: draft.type,
@@ -1081,7 +1187,7 @@ export class EditorComponent {
       zIndex: draft.zIndex,
       cornerRadius: draft.cornerRadius,
       points,
-      text: draft.text,
+      text,
       fontSize: draft.fontSize,
       fontFamily: draft.fontFamily,
       textAlign: draft.textAlign,
@@ -1128,11 +1234,126 @@ export class EditorComponent {
         others.set(id, { x: e.x, y: e.y });
       }
     }
+    const carried = this.dragCopied ? null : this.carriedByFrames(others);
+    if (carried) {
+      for (const [id, pos] of carried.elements) {
+        others.set(id, pos);
+      }
+    }
     this.elementGesture = {
       id: el.id,
       start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
       snapshot: el,
       others,
+      tables: carried?.tables,
+      waypoints: carried?.waypoints,
+      sequences: carried?.sequences,
+    };
+  }
+
+  /**
+   * Everything fully inside any frame being moved (nested frames included) rides
+   * along with it: elements, tables, and the manual routes between carried tables.
+   * Null when no frame is part of the drag.
+   */
+  private carriedByFrames(moving: { has(id: string): boolean }): {
+    elements: Map<string, { x: number; y: number }>;
+    tables: Map<string, { x: number; y: number }>;
+    waypoints: Map<string, { x: number; y: number }[]>;
+    sequences: Map<string, SequenceStart>;
+  } | null {
+    const all = this.store.elements();
+    if (!all.some((e) => e.type === 'frame' && moving.has(e.id))) {
+      return null;
+    }
+    const inner = frameContents(
+      { has: (id) => moving.has(id) } as ReadonlySet<string>,
+      all,
+      this.store.tables(),
+      this.store.sequenceDiagrams(),
+      this.store.lifelines(),
+      this.store.sequenceMessages(),
+    );
+    const elements = new Map<string, { x: number; y: number }>();
+    for (const e of all) {
+      if (inner.elementIds.has(e.id)) {
+        elements.set(e.id, { x: e.x, y: e.y });
+      }
+    }
+    const tables = new Map<string, { x: number; y: number }>();
+    for (const t of this.store.tables()) {
+      if (inner.tableIds.has(t.id)) {
+        tables.set(t.id, { x: t.x, y: t.y });
+      }
+    }
+    const waypoints = new Map<string, { x: number; y: number }[]>();
+    if (tables.size) {
+      const locs = this.columnLocations();
+      for (const rel of this.store.relationships()) {
+        const st = locs.get(rel.sourceColumnId)?.table.id;
+        const tt = locs.get(rel.targetColumnId)?.table.id;
+        if (st && tt && tables.has(st) && tables.has(tt) && rel.waypoints?.length) {
+          waypoints.set(rel.id, rel.waypoints.map((w) => ({ ...w })));
+        }
+      }
+    }
+    const sequences = new Map<string, SequenceStart>();
+    for (const id of inner.diagramIds) {
+      const start = this.sequenceStart(id);
+      if (start) {
+        sequences.set(id, start);
+      }
+    }
+    return { elements, tables, waypoints, sequences };
+  }
+
+  /** Add freshly created copies (inside a duplicated frame) to the running drag. */
+  private attachCarried(elementIds: string[], tableIds: string[], diagramIds: string[]): void {
+    const g = this.elementGesture;
+    if (!g?.others) {
+      return;
+    }
+    for (const id of elementIds) {
+      const e = this.store.elements().find((x) => x.id === id);
+      if (e) {
+        g.others.set(id, { x: e.x, y: e.y });
+      }
+    }
+    g.tables = new Map(
+      this.store
+        .tables()
+        .filter((t) => tableIds.includes(t.id))
+        .map((t) => [t.id, { x: t.x, y: t.y }]),
+    );
+    g.sequences = new Map(
+      diagramIds
+        .map((id) => [id, this.sequenceStart(id)] as const)
+        .filter((e): e is readonly [string, SequenceStart] => !!e[1]),
+    );
+  }
+
+  /** A sequence diagram's current layout, captured so it can be shifted rigidly. */
+  private sequenceStart(diagramId: string): SequenceStart | null {
+    const d = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
+    if (!d) {
+      return null;
+    }
+    const hb = d.originY + d.headerHeight;
+    const rowOf = (y: number): number => Math.max(1, Math.round((y - hb) / d.rowSpacing));
+    return {
+      xs: new Map(
+        this.store
+          .lifelines()
+          .filter((l) => l.diagramId === diagramId)
+          .map((l) => [l.id, l.x]),
+      ),
+      originY: d.originY,
+      rows: new Map(
+        this.store
+          .sequenceMessages()
+          .filter((m) => m.diagramId === diagramId)
+          .map((m) => [m.id, rowOf(m.y)]),
+      ),
     };
   }
 
@@ -1198,6 +1419,22 @@ export class EditorComponent {
       }
     }
     this.store.recordElementMove(moves);
+    // Persist carried sequence diagrams (the live shift is local-only).
+    for (const id of g.sequences?.keys() ?? []) {
+      for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
+        this.store.moveLifeline(l.id, l.x);
+      }
+      for (const m of this.store.sequenceMessages().filter((x) => x.diagramId === id)) {
+        this.store.moveMessage(m.id, m.y);
+      }
+      const cfg = this.store.sequenceDiagrams().find((x) => x.id === id);
+      if (cfg) {
+        void this.store.updateSequenceConfig(id, {
+          rowSpacing: cfg.rowSpacing,
+          originY: cfg.originY,
+        });
+      }
+    }
   }
 
   private moveElements(clientX: number, clientY: number): void {
@@ -1213,6 +1450,25 @@ export class EditorComponent {
       const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
       const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
       this.store.moveElement(id, nx, ny);
+    }
+    // Carry a frame's tables with it by the same (snapped) displacement as the frame.
+    const grabbed = g.others.get(g.id);
+    if (grabbed && (g.tables?.size || g.waypoints?.size || g.sequences?.size)) {
+      const el = this.store.elements().find((e) => e.id === g.id);
+      const mx = el ? el.x - grabbed.x : 0;
+      const my = el ? el.y - grabbed.y : 0;
+      for (const [id, start] of g.tables ?? []) {
+        this.store.moveTable(id, start.x + mx, start.y + my);
+      }
+      for (const [relId, wp] of g.waypoints ?? []) {
+        this.store.setWaypoints(
+          relId,
+          wp.map((w) => ({ x: Math.round(w.x + mx), y: Math.round(w.y + my) })),
+        );
+      }
+      for (const [id, seq] of g.sequences ?? []) {
+        this.store.shiftSequence(id, seq.xs, mx, seq.originY, my, seq.rows);
+      }
     }
   }
 
@@ -1341,7 +1597,12 @@ export class EditorComponent {
     // Topmost element first (elements render in ascending zIndex order).
     const elements = [...this.store.elements()].reverse();
     for (const el of elements) {
-      if (el.id === excludeElementId || el.type === 'line' || el.type === 'arrow') {
+      if (
+        el.id === excludeElementId ||
+        el.type === 'line' ||
+        el.type === 'arrow' ||
+        el.type === 'frame'
+      ) {
         continue;
       }
       const box = elementBox(el);
@@ -1498,6 +1759,15 @@ export class EditorComponent {
       for (const [id, start] of this.elementGesture?.others ?? []) {
         this.store.moveElement(id, start.x, start.y);
       }
+      for (const [id, start] of this.elementGesture?.tables ?? []) {
+        this.store.moveTable(id, start.x, start.y);
+      }
+      for (const [relId, wp] of this.elementGesture?.waypoints ?? []) {
+        this.store.setWaypoints(relId, wp);
+      }
+      for (const [id, seq] of this.elementGesture?.sequences ?? []) {
+        this.store.shiftSequence(id, seq.xs, 0, seq.originY, 0, seq.rows);
+      }
     } else {
       for (const [id, start] of this.multiDragStart) {
         this.store.moveTable(id, start.x, start.y);
@@ -1510,28 +1780,74 @@ export class EditorComponent {
     let resume: (() => void) | null = null;
     let created: string[] = [];
     if (kind === 'element') {
+      const selected = new Set(this.store.selectedElementIds());
+      // Duplicating a frame duplicates what's inside it too (tables, sequence
+      // diagrams, and elements), and the copies travel with the copied frame.
+      const inner = this.carriedByFrames(selected);
+      const tableCopies: string[] = [];
+      for (const id of inner?.tables.keys() ?? []) {
+        const copy = await this.store.duplicateTable(id, 0, 0, false, false);
+        if (copy) {
+          tableCopies.push(copy);
+        }
+      }
+      const sequenceCopies: string[] = [];
+      for (const id of inner?.sequences.keys() ?? []) {
+        const copy = await this.store.duplicateSequence(id, 0, 0);
+        if (copy) {
+          sequenceCopies.push(copy);
+        }
+      }
+      // One call for selected + inner elements so bindings between copies remap.
       const sources = this.store
         .elements()
-        .filter((e) => this.store.selectedElementIds().includes(e.id));
+        .filter((e) => selected.has(e.id) || inner?.elements.has(e.id));
       const copies = await this.store.duplicateElements(sources, 0, 0);
       created = [...copies.values()].map((c) => c.id);
       const grabbed = (grabbedElement && copies.get(grabbedElement)) || [...copies.values()][0];
       if (grabbed) {
-        resume = () => this.beginElementDrag(grabbed);
+        const innerElementCopies = [...(inner?.elements.keys() ?? [])]
+          .map((id) => copies.get(id)?.id)
+          .filter((id): id is string => !!id);
+        resume = () => {
+          // Select only what was selected; the inner copies ride along as carried content.
+          const selectedCopies = [...selected]
+            .map((id) => copies.get(id)?.id)
+            .filter((id): id is string => !!id);
+          this.store.setSelection([], [], selectedCopies);
+          this.beginElementDrag(grabbed);
+          this.attachCarried(innerElementCopies, tableCopies, sequenceCopies);
+        };
       }
     } else {
       const sources = this.store
         .tables()
         .filter((t) => this.store.selectedTableIds().includes(t.id));
       const ids = new Map<string, string>();
+      // Selected relationships between cloned tables are cloned too, which needs
+      // the copies' column ids, so wait for the columns in that case.
+      const relSources = this.store
+        .relationships()
+        .filter((r) => this.store.selectedRelationshipIds().includes(r.id));
+      const columnMap = new Map<string, string>();
       for (const src of sources) {
-        const id = await this.store.duplicateTable(src.id, 0, 0, false, false);
+        const id = await this.store.duplicateTable(
+          src.id,
+          0,
+          0,
+          false,
+          relSources.length > 0,
+          columnMap,
+        );
         if (id) {
           ids.set(src.id, id);
         }
       }
       created = [...ids.values()];
-      this.store.setSelection(created, [], []);
+      const relCopies = relSources.length
+        ? await this.store.duplicateRelationships(relSources, columnMap)
+        : [];
+      this.store.setSelection(created, relCopies, []);
       const grabbed = (grabbedTable && ids.get(grabbedTable)) || created[0];
       if (grabbed) {
         resume = () => this.beginNodeDrag(grabbed);
@@ -1824,15 +2140,55 @@ export class EditorComponent {
       .map((e) => e.id);
 
     const messageIds = this.messagesInRect(rect);
+    const lifelineIds = this.store
+      .lifelines()
+      .filter((l) => {
+        const d = this.store.sequenceDiagrams().find((x) => x.id === l.diagramId);
+        if (!d) return false;
+        const left = l.x - l.width / 2;
+        return (
+          left <= rect.maxX &&
+          left + l.width >= rect.minX &&
+          d.originY <= rect.maxY &&
+          d.originY + d.headerHeight >= rect.minY
+        );
+      })
+      .map((l) => l.id);
+
+    const diagramIds = this.diagramsInRect(rect);
+    // A diagram swept up whole is selected as a unit; its parts needn't be listed too.
+    const hit = new Set(diagramIds);
+    const looseMessages = messageIds.filter(
+      (id) => !hit.has(this.store.sequenceMessages().find((m) => m.id === id)?.diagramId ?? ''),
+    );
+    const looseLifelines = lifelineIds.filter(
+      (id) => !hit.has(this.store.lifelines().find((l) => l.id === id)?.diagramId ?? ''),
+    );
 
     if (this.marqueeAdditive) {
       const nextTables = new Set([...this.store.selectedTableIds(), ...tableIds]);
       const nextRels = new Set([...this.store.selectedRelationshipIds(), ...relIds]);
       const nextEls = new Set([...this.store.selectedElementIds(), ...elementIds]);
-      const nextMsgs = new Set([...this.store.selectedMessageIds(), ...messageIds]);
-      this.store.setSelection([...nextTables], [...nextRels], [...nextEls], [...nextMsgs]);
+      const nextMsgs = new Set([...this.store.selectedMessageIds(), ...looseMessages]);
+      const nextLls = new Set([...this.store.selectedLifelineIds(), ...looseLifelines]);
+      const nextDiagrams = new Set([...this.store.selectedDiagramIds(), ...diagramIds]);
+      this.store.setSelection(
+        [...nextTables],
+        [...nextRels],
+        [...nextEls],
+        [...nextMsgs],
+        [...nextLls],
+        [...nextDiagrams],
+      );
     } else {
-      this.store.setSelection(tableIds, relIds, elementIds, messageIds);
+      this.store.setSelection(
+        tableIds,
+        relIds,
+        elementIds,
+        looseMessages,
+        looseLifelines,
+        diagramIds,
+      );
     }
   }
 
@@ -1859,6 +2215,36 @@ export class EditorComponent {
         if (left <= rect.maxX && right >= rect.minX && y >= rect.minY && y <= rect.maxY) {
           out.push(m.id);
         }
+      }
+    }
+    return out;
+  }
+
+  /** A sequence diagram's bounding box as drawn (header, spines and padding). */
+  private diagramBox(d: SequenceDiagramModel): Rect | null {
+    const pad = 26;
+    const lls = this.store.lifelines().filter((l) => l.diagramId === d.id);
+    if (!lls.length) return null;
+    const hb = d.originY + d.headerHeight;
+    const maxRow = this.store
+      .sequenceMessages()
+      .filter((m) => m.diagramId === d.id)
+      .reduce((mx, m) => Math.max(mx, Math.round((m.y - hb) / d.rowSpacing)), 0);
+    return {
+      minX: Math.min(...lls.map((l) => l.x - l.width / 2)) - pad,
+      maxX: Math.max(...lls.map((l) => l.x + l.width / 2)) + pad,
+      minY: d.originY - pad,
+      maxY: hb + d.rowSpacing * (Math.max(1, maxRow) + 1) + pad,
+    };
+  }
+
+  /** Sequence diagrams whose bounding box (as drawn) intersects the marquee rect. */
+  private diagramsInRect(rect: Rect): string[] {
+    const out: string[] = [];
+    for (const d of this.store.sequenceDiagrams()) {
+      const b = this.diagramBox(d);
+      if (b && b.minX <= rect.maxX && b.maxX >= rect.minX && b.minY <= rect.maxY && b.maxY >= rect.minY) {
+        out.push(d.id);
       }
     }
     return out;
@@ -1947,7 +2333,7 @@ export class EditorComponent {
       const elementIds = [...this.store.selectedElementIds()];
       const lifelineIds = [...this.store.selectedLifelineIds()];
       const messageIds = [...this.store.selectedMessageIds()];
-      const diagramId = this.store.selectedDiagramId();
+      const diagramId = this.store.selectedDiagramIds().length > 0;
       if (
         relIds.length ||
         tableIds.length ||
@@ -1957,17 +2343,45 @@ export class EditorComponent {
         diagramId
       ) {
         event.preventDefault();
-        relIds.forEach((id) => void this.store.deleteRelationship(id));
-        tableIds.forEach((id) => void this.store.deleteTable(id));
-        elementIds.forEach((id) => void this.store.deleteElement(id));
-        messageIds.forEach((id) => void this.store.deleteMessage(id));
-        if (diagramId) {
-          // Selecting the diagram box deletes that whole diagram.
-          void this.store.deleteSequence(diagramId);
-        } else {
-          lifelineIds.forEach((id) => void this.store.deleteLifeline(id));
-        }
+        this.deleteSelection();
       }
+    }
+  }
+
+  /**
+   * Delete everything selected. Deleting a frame also deletes what sits inside it
+   * (elements, tables and sequence diagrams), so a frame removes its whole page.
+   */
+  private deleteSelection(): void {
+    if (!this.store.canEdit()) {
+      return;
+    }
+    const relIds = [...this.store.selectedRelationshipIds()];
+    const tableIds = new Set(this.store.selectedTableIds());
+    const elementIds = new Set(this.store.selectedElementIds());
+    const lifelineIds = [...this.store.selectedLifelineIds()];
+    const messageIds = [...this.store.selectedMessageIds()];
+    const diagramIds = new Set<string>();
+    this.store.selectedDiagramIds().forEach((id) => diagramIds.add(id));
+    const inner = frameContents(
+      elementIds,
+      this.store.elements(),
+      this.store.tables(),
+      this.store.sequenceDiagrams(),
+      this.store.lifelines(),
+      this.store.sequenceMessages(),
+    );
+    inner.elementIds.forEach((id) => elementIds.add(id));
+    inner.tableIds.forEach((id) => tableIds.add(id));
+    inner.diagramIds.forEach((id) => diagramIds.add(id));
+
+    relIds.forEach((id) => void this.store.deleteRelationship(id));
+    tableIds.forEach((id) => void this.store.deleteTable(id));
+    elementIds.forEach((id) => void this.store.deleteElement(id));
+    diagramIds.forEach((id) => void this.store.deleteSequence(id));
+    if (!diagramIds.size) {
+      messageIds.forEach((id) => void this.store.deleteMessage(id));
+      lifelineIds.forEach((id) => void this.store.deleteLifeline(id));
     }
   }
 
@@ -1983,6 +2397,7 @@ export class EditorComponent {
     l: 'line',
     t: 'text',
     p: 'freedraw',
+    f: 'frame',
   };
 
   protected onToolChange(tool: EditorTool): void {
@@ -2056,6 +2471,7 @@ export class EditorComponent {
     if (hit) {
       if (
         hit.type === 'text' ||
+        hit.type === 'frame' ||
         hit.type === 'rectangle' ||
         hit.type === 'ellipse' ||
         hit.type === 'diamond' ||
@@ -2142,24 +2558,24 @@ export class EditorComponent {
    * multi-select), export just those and only the relationships whose endpoints
    * both fall inside the selection; otherwise export the whole diagram.
    */
-  private exportScope(): {
+  private exportScope(ignoreSelection = false): {
     tables: TableModel[];
     relationships: RelationshipModel[];
     elements: CanvasElementModel[];
     sequences: SequenceExportData;
     selectionOnly: boolean;
   } {
-    const selectedTableIds = new Set(this.store.selectedTableIds());
-    const selectedElementIds = new Set(this.store.selectedElementIds());
-    const selectedMessageIds = new Set(this.store.selectedMessageIds());
-    const selectedLifelineIds = new Set(this.store.selectedLifelineIds());
-    const selectedDiagramId = this.store.selectedDiagramId();
+    const selectedTableIds = new Set(ignoreSelection ? [] : this.store.selectedTableIds());
+    const selectedElementIds = new Set(ignoreSelection ? [] : this.store.selectedElementIds());
+    const selectedMessageIds = new Set(ignoreSelection ? [] : this.store.selectedMessageIds());
+    const selectedLifelineIds = new Set(ignoreSelection ? [] : this.store.selectedLifelineIds());
+    const selectedDiagramIds = new Set(ignoreSelection ? [] : this.store.selectedDiagramIds());
     const selectionOnly =
       selectedTableIds.size > 0 ||
       selectedElementIds.size > 0 ||
       selectedMessageIds.size > 0 ||
       selectedLifelineIds.size > 0 ||
-      selectedDiagramId !== null;
+      selectedDiagramIds.size > 0;
     const tables = selectionOnly
       ? this.store.tables().filter((t) => selectedTableIds.has(t.id))
       : this.store.tables();
@@ -2185,7 +2601,7 @@ export class EditorComponent {
     const diagrams = this.store.sequenceDiagrams().filter((d) => {
       if (!selectionOnly) return true;
       return (
-        d.id === selectedDiagramId ||
+        selectedDiagramIds.has(d.id) ||
         allLifelines.some((l) => l.diagramId === d.id && selectedLifelineIds.has(l.id)) ||
         allMessages.some((m) => m.diagramId === d.id && selectedMessageIds.has(m.id))
       );
@@ -2193,7 +2609,7 @@ export class EditorComponent {
     const diagramIds = new Set(diagrams.map((d) => d.id));
     const messages = allMessages.filter((m) => {
       if (!diagramIds.has(m.diagramId)) return false;
-      if (!selectionOnly || m.diagramId === selectedDiagramId) return true;
+      if (!selectionOnly || selectedDiagramIds.has(m.diagramId)) return true;
       const hasPicked = allMessages.some(
         (o) => o.diagramId === m.diagramId && selectedMessageIds.has(o.id),
       );
@@ -2238,6 +2654,15 @@ export class EditorComponent {
 
   /** Export the current scope as an image, matching the live theme and layout. */
   protected async onExportImage(format: ImageFormat): Promise<void> {
+    // Selecting one or more frames exports those frames (each as its own fixed-size page).
+    const selectedIds = new Set(this.store.selectedElementIds());
+    const selectedFrames = this.store
+      .elements()
+      .filter((e) => e.type === 'frame' && selectedIds.has(e.id));
+    if (selectedFrames.length) {
+      await this.exportFrames(format, selectedFrames);
+      return;
+    }
     const { tables, relationships, elements, sequences, selectionOnly } = this.exportScope();
     if (tables.length === 0 && elements.length === 0 && sequences.lifelines.length === 0) {
       this.snackBar.open('Nothing to export yet. Add a table or shape first.', undefined, {
@@ -2256,6 +2681,114 @@ export class EditorComponent {
         { duration: 4000 },
       );
     }
+  }
+
+  /** Export every frame on the canvas as a multi-page PDF (one page per frame). */
+  protected async exportAllFramesPdf(): Promise<void> {
+    const frames = this.store.elements().filter((e) => e.type === 'frame');
+    if (!frames.length) {
+      this.snackBar.open('No frames yet. Draw one with the Frame tool (F).', undefined, {
+        duration: 2500,
+      });
+      return;
+    }
+    await this.exportFrames('pdf', frames);
+  }
+
+  /**
+   * Export frames as cropped, exact-size images. PDF bundles them into one
+   * multi-page file (reading order by default; with several frames the user
+   * arranges the pages first); SVG/PNG
+   * download one file per frame, named after the frame.
+   */
+  private async exportFrames(
+    format: ImageFormat,
+    frames: readonly CanvasElementModel[],
+  ): Promise<void> {
+    // Whole-canvas scope: a frame crops the full diagram, whatever is selected.
+    const { tables, relationships, elements, sequences } = this.exportScope(true);
+    let ordered = [...frames].sort((a, b) => a.y - b.y || a.x - b.x);
+    if (format === 'pdf' && ordered.length > 1) {
+      const arranged = await this.arrangeFramePages(ordered);
+      if (!arranged) {
+        return;
+      }
+      ordered = arranged;
+    }
+    try {
+      const images: DiagramImage[] = [];
+      for (const frame of ordered) {
+        const built = buildDiagramSvg(tables, relationships, elements, sequences, {
+          x: frame.x,
+          y: frame.y,
+          width: frame.width,
+          height: frame.height,
+        });
+        images.push({ ...built, svg: await embedFonts(built.svg) });
+      }
+      if (format === 'pdf') {
+        const name = ordered.length === 1 ? EditorComponent.fileSafe(ordered[0].text) : 'frames';
+        downloadBlob(await pagesToPdfBlob(images), `${name}.pdf`);
+        return;
+      }
+      const used = new Map<string, number>();
+      for (let i = 0; i < ordered.length; i += 1) {
+        const base = EditorComponent.fileSafe(ordered[i].text) || `frame-${i + 1}`;
+        const n = (used.get(base) ?? 0) + 1;
+        used.set(base, n);
+        await exportDiagramImage(format, images[i], n > 1 ? `${base}-${n}` : base);
+      }
+    } catch (err) {
+      this.snackBar.open(
+        `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        { duration: 4000 },
+      );
+    }
+  }
+
+  /** Page order the user last picked, reused as the starting order next time. */
+  private lastFramePageOrder: string[] = [];
+
+  /**
+   * Ask the user for the PDF page order. Starts from their previous arrangement
+   * (frames not seen before follow in reading order). Null when cancelled.
+   */
+  private async arrangeFramePages(
+    frames: CanvasElementModel[],
+  ): Promise<CanvasElementModel[] | null> {
+    const rank = (f: CanvasElementModel): number => {
+      const i = this.lastFramePageOrder.indexOf(f.id);
+      return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const start = [...frames].sort((a, b) => rank(a) - rank(b)); // stable: reading order for new ones
+    const ref = this.dialog.open<FrameOrderDialogComponent, FrameOrderDialogData, string[]>(
+      FrameOrderDialogComponent,
+      {
+        width: '460px',
+        maxWidth: '92vw',
+        data: {
+          frames: start.map((f) => ({
+            id: f.id,
+            name: f.text || 'Untitled frame',
+            width: Math.round(f.width),
+            height: Math.round(f.height),
+          })),
+        },
+      },
+    );
+    const ids = await firstValueFrom(ref.afterClosed());
+    if (!ids) {
+      return null;
+    }
+    this.lastFramePageOrder = ids;
+    const byId = new Map(frames.map((f) => [f.id, f]));
+    return ids.map((id) => byId.get(id)).filter((f): f is CanvasElementModel => !!f);
+  }
+
+  /** A frame name made safe for use as a file name. */
+  private static fileSafe(name: string | undefined): string {
+    return (name ?? 'frame').trim().replace(/[^\w\-. ]+/g, '').replace(/\s+/g, '-') || 'frame';
   }
 
   private applyZoom(factor: number, centerX: number, centerY: number): void {
@@ -2332,6 +2865,28 @@ export class EditorComponent {
         });
       }
     }
+    // Whole sequence diagrams align by their drawn box; moving one shifts every
+    // participant and message with it (rows kept), then persists + records undo.
+    const seqMoves: { id: string; before: SequenceLayoutSnapshot }[] = [];
+    for (const d of this.store.sequenceDiagrams()) {
+      if (!this.store.selectedDiagramIds().includes(d.id)) continue;
+      const b = this.diagramBox(d);
+      const snap = this.store.sequenceDiagramSnapshot(d.id);
+      if (!b || !snap) continue;
+      items.push({
+        x: b.minX,
+        y: b.minY,
+        w: b.maxX - b.minX,
+        h: b.maxY - b.minY,
+        place: (x, y) => {
+          const dx = Math.round(x - b.minX);
+          const dy = Math.round(y - b.minY);
+          if (!dx && !dy) return;
+          seqMoves.push({ id: d.id, before: this.layoutSnapshot(d.id) });
+          this.store.shiftSequence(d.id, snap.startXs, dx, snap.startOriginY, dy, snap.startRows);
+        },
+      });
+    }
     if (items.length < 2) {
       return;
     }
@@ -2381,5 +2936,35 @@ export class EditorComponent {
       }
     }
     this.store.recordElementMove(moves);
+    for (const { id, before } of seqMoves) {
+      const after = this.layoutSnapshot(id);
+      for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
+      for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
+      void this.store.updateSequenceConfig(id, {
+        rowSpacing: after.rowSpacing,
+        originY: after.originY,
+      });
+      this.store.recordSequenceLayout(id, before, after);
+    }
+  }
+
+  private layoutSnapshot(diagramId: string): SequenceLayoutSnapshot {
+    const cfg = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
+    return {
+      lifelineXs: new Map(
+        this.store
+          .lifelines()
+          .filter((l) => l.diagramId === diagramId)
+          .map((l) => [l.id, l.x]),
+      ),
+      messageYs: new Map(
+        this.store
+          .sequenceMessages()
+          .filter((m) => m.diagramId === diagramId)
+          .map((m) => [m.id, m.y]),
+      ),
+      originY: cfg?.originY ?? 0,
+      rowSpacing: cfg?.rowSpacing ?? 48,
+    };
   }
 }

@@ -89,8 +89,24 @@ export function hitTestElement(
     }
     return pts.length === 1 ? Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= tolerance : false;
   }
+  if (element.type === 'frame') {
+    // A frame is a transparent page outline: only its border and title are
+    // grabbable, so clicks inside it still reach the canvas (and what it frames).
+    const b = elementBox(element);
+    const edge = tolerance + 4;
+    const outer = boxContains(b, p, edge);
+    const inner =
+      p.x > b.x0 + edge && p.x < b.x1 - edge && p.y > b.y0 + edge && p.y < b.y1 - edge;
+    const title =
+      p.x >= b.x0 && p.x <= b.x0 + FRAME_TITLE_W && p.y >= b.y0 - FRAME_TITLE_H && p.y <= b.y0;
+    return (outer && !inner) || title;
+  }
   return boxContains(elementBox(element), p, tolerance);
 }
+
+/** World size of the clickable name strip above a frame's top-left corner. */
+export const FRAME_TITLE_W = 240;
+export const FRAME_TITLE_H = 26;
 
 /** True when segment a-b passes through the rect (Liang-Barsky clip). */
 function segmentIntersectsRect(
@@ -155,6 +171,11 @@ export function elementIntersectsRect(
     return false;
   }
   const b = elementBox(element);
+  if (element.type === 'frame') {
+    // A marquee only picks up a frame it fully encloses; otherwise dragging over
+    // part of a frame to select its contents would grab the frame too.
+    return b.x0 >= rect.minX && b.x1 <= rect.maxX && b.y0 >= rect.minY && b.y1 <= rect.maxY;
+  }
   return b.x0 <= rect.maxX && b.x1 >= rect.minX && b.y0 <= rect.maxY && b.y1 >= rect.minY;
 }
 

@@ -99,12 +99,35 @@ export async function svgToPdfBlob(
   scale = 2,
   background = '#ffffff',
 ): Promise<Blob> {
-  const canvas = await rasterize(svg, width, height, scale, background);
-  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-  const jpegBytes = dataUrlToBytes(jpegDataUrl);
-  const pageWidth = +(width * 0.75).toFixed(2);
-  const pageHeight = +(height * 0.75).toFixed(2);
-  return buildJpegPdf(jpegBytes, canvas.width, canvas.height, pageWidth, pageHeight);
+  return pagesToPdfBlob([{ svg, width, height, background }], scale);
+}
+
+/** One rendered diagram (or frame): its SVG markup, size in px, and background. */
+export interface DiagramImage {
+  svg: string;
+  width: number;
+  height: number;
+  background: string;
+}
+
+/**
+ * Produce a multi-page PDF Blob with one page per image, each page sized to its
+ * own image (1 SVG unit = 0.75pt). Same-ratio frames therefore yield same-shape
+ * pages, and A4/Letter frame presets land on the real paper size.
+ */
+export async function pagesToPdfBlob(pages: readonly DiagramImage[], scale = 2): Promise<Blob> {
+  const rendered: PdfPage[] = [];
+  for (const page of pages) {
+    const canvas = await rasterize(page.svg, page.width, page.height, scale, page.background);
+    rendered.push({
+      jpeg: dataUrlToBytes(canvas.toDataURL('image/jpeg', 0.92)),
+      pxWidth: canvas.width,
+      pxHeight: canvas.height,
+      pageWidth: +(page.width * 0.75).toFixed(2),
+      pageHeight: +(page.height * 0.75).toFixed(2),
+    });
+  }
+  return buildJpegPdf(rendered);
 }
 
 export type ImageFormat = 'svg' | 'png' | 'pdf';
@@ -147,13 +170,15 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
  * classic cross-reference table with byte-accurate offsets. Kept small and
  * self-contained so no PDF library is needed.
  */
-function buildJpegPdf(
-  jpeg: Uint8Array,
-  pxWidth: number,
-  pxHeight: number,
-  pageWidth: number,
-  pageHeight: number,
-): Blob {
+interface PdfPage {
+  jpeg: Uint8Array;
+  pxWidth: number;
+  pxHeight: number;
+  pageWidth: number;
+  pageHeight: number;
+}
+
+function buildJpegPdf(pages: readonly PdfPage[]): Blob {
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [];
   const offsets: number[] = [];
@@ -176,33 +201,40 @@ function buildJpegPdf(
   markObject();
   push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
-  // 2: Pages
+  // 2: Pages (page i uses objects 3+3i Page, 4+3i Image, 5+3i Contents)
+  const kids = pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ');
   markObject();
-  push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  push(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>\nendobj\n`);
 
-  // 3: Page
-  markObject();
-  push(
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] ` +
-      `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`,
-  );
+  pages.forEach((page, i) => {
+    const pageObj = 3 + 3 * i;
+    const imageObj = pageObj + 1;
+    const contentObj = pageObj + 2;
+    const { jpeg, pxWidth, pxHeight, pageWidth, pageHeight } = page;
 
-  // 4: Image XObject (JPEG via DCTDecode)
-  markObject();
-  push(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pxWidth} /Height ${pxHeight} ` +
-      `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`,
-  );
-  push(jpeg);
-  push('\nendstream\nendobj\n');
+    // Page
+    markObject();
+    push(
+      `${pageObj} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] ` +
+        `/Resources << /XObject << /Im0 ${imageObj} 0 R >> >> /Contents ${contentObj} 0 R >>\nendobj\n`,
+    );
 
-  // 5: Contents (draw the image to fill the page)
-  const content = `q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q\n`;
-  const contentBytes = encoder.encode(content);
-  markObject();
-  push(`5 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
-  push(contentBytes);
-  push('endstream\nendobj\n');
+    // Image XObject (JPEG via DCTDecode)
+    markObject();
+    push(
+      `${imageObj} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pxWidth} /Height ${pxHeight} ` +
+        `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`,
+    );
+    push(jpeg);
+    push('\nendstream\nendobj\n');
+
+    // Contents (draw the image to fill the page)
+    const contentBytes = encoder.encode(`q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q\n`);
+    markObject();
+    push(`${contentObj} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
+    push(contentBytes);
+    push('endstream\nendobj\n');
+  });
 
   // Cross-reference table.
   const xrefStart = length;

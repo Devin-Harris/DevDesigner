@@ -51,6 +51,7 @@
           [selected]="store.selectedTableIds().includes(table.id)"
           [editable]="store.canEdit()"
           [fkColumnIds]="store.foreignKeyColumnIds()"
+          [snap]="snapWorld"
           (nodePointerDown)="onNodePointerDown($event, table)"
           (handleDown)="onHandleDown($event)"
           (handleUp)="onHandleUp($event)"
@@ -89,10 +90,11 @@
       [zoomLabel]="zoomLabel()"
       [saveLabel]="saveLabel()"
       [gridSnap]="gridSnap()"
-      [canAlign]="store.canEdit() && store.selectedTableIds().length + store.selectedElementIds().length >= 2"
+      [canAlign]="store.canEdit() && store.selectedTableIds().length + store.selectedElementIds().length + store.selectedDiagramIds().length >= 2"
       [canExport]="!!store.projectId()"
       [canUndo]="store.canUndo()"
       [canRedo]="store.canRedo()"
+      [(framePreset)]="framePresetId"
       (toolChange)="onToolChange($event)"
       (undo)="store.undoElement()"
       (redo)="store.redoElement()"
@@ -220,7 +222,7 @@
       <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-element-inspector [element]="element"></app-element-inspector>
       </div>
-    } @else if (store.selectedLifeline() || store.selectedMessage() || store.sequenceSelected()) {
+    } @else if (store.selectedLifeline() || store.selectedMessage() || store.selectedDiagram()) {
       <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
         <app-sequence-inspector></app-sequence-inspector>
       </div>

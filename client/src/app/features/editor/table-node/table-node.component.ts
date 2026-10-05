@@ -17,7 +17,12 @@ import { AutofocusDirective } from '../../../core/directives/autofocus.directive
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import { ProjectStore } from '../../../stores/project.store';
-import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
+import {
+  HEADER_H,
+  MAX_TABLE_WIDTH,
+  MIN_TABLE_WIDTH,
+  ROW_H,
+} from '../canvas/constants/canvas.constants';
 import { tableWidth } from '../canvas/helpers/node-metrics.helper';
 
 export interface HandleEvent {
@@ -56,6 +61,9 @@ export class TableNodeComponent {
   /** Column ids that are relationship endpoints; a non-PK one renders an FK glyph. */
   readonly fkColumnIds = input<ReadonlySet<string>>(new Set<string>());
 
+  /** Snap a world coordinate to the grid (identity/null when grid-snap is off). */
+  readonly snap = input<((n: number) => number) | null>(null);
+
   readonly nodePointerDown = output<PointerEvent>();
   readonly handleDown = output<HandleEvent>();
   readonly handleUp = output<HandleEvent>();
@@ -85,6 +93,53 @@ export class TableNodeComponent {
 
   protected readonly editingName = signal(false);
   protected readonly editingColumnId = signal<string | null>(null);
+
+  // --- width resize (drag the right edge; double-click resets to auto-fit) ---
+
+  protected onResizeDown(event: PointerEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    if (!this.editable() || event.button !== 0) {
+      return;
+    }
+    const table = this.table();
+    const startX = event.clientX;
+    const startWidth = tableWidth(table);
+    const hadWidth = table.width;
+    const zoom = this.store.viewport().zoom;
+    let latest = startWidth;
+    const move = (e: PointerEvent): void => {
+      let right = table.x + startWidth + (e.clientX - startX) / zoom;
+      const snap = this.snap();
+      if (snap && !e.altKey) {
+        right = snap(right);
+      }
+      latest = Math.round(Math.min(MAX_TABLE_WIDTH, Math.max(MIN_TABLE_WIDTH, right - table.x)));
+      this.store.setTableWidthLocal(table.id, latest);
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (latest !== startWidth) {
+        void this.store.updateTable(table.id, { width: latest });
+      } else {
+        this.store.setTableWidthLocal(table.id, hadWidth);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }
+
+  protected resetWidth(event: Event): void {
+    event.stopPropagation();
+    if (!this.editable() || !this.table().width) {
+      return;
+    }
+    this.store.setTableWidthLocal(this.table().id, undefined);
+    void this.store.updateTable(this.table().id, { width: 0 });
+  }
 
   // --- connect handles (delegated to the parent canvas) ---
 

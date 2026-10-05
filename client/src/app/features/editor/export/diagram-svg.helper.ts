@@ -517,11 +517,22 @@ export function buildDiagramSvg(
   relationships: readonly RelationshipModel[],
   elements: readonly CanvasElementModel[] = [],
   sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
+  crop?: { x: number; y: number; width: number; height: number },
 ): DiagramSvg {
   const { theme, dispose } = readTheme();
   try {
-    const connectors = computeConnectors(tables, relationships, new Set<string>());
-    const shapeViews = buildShapeViews(elements, tables, new Set<string>());
+    const frameBoxes = elements.filter((e) => e.type === 'frame').map(elementBox);
+    if (crop) {
+      // A frame export shows exactly the frame's area; the frames themselves
+      // (their outlines and names) are page furniture, not content.
+      elements = elements.filter((e) => e.type !== 'frame');
+    }
+    const connectors = computeConnectors(tables, relationships, new Set<string>(), frameBoxes);
+    const shapeViews = buildShapeViews(elements, tables, new Set<string>(), {
+      canvasBg: theme.canvasBg,
+      text: theme.text,
+      surface: theme.surface,
+    });
 
     let minX = Infinity;
     let minY = Infinity;
@@ -566,10 +577,15 @@ export function buildDiagramSvg(
       maxY = 200;
     }
 
-    const width = Math.ceil(maxX - minX) + PADDING * 2;
-    const height = Math.ceil(maxY - minY) + PADDING * 2;
-    const shiftX = PADDING - minX;
-    const shiftY = PADDING - minY;
+    // Cropped: the canvas is the frame itself (no padding), so the output keeps
+    // the frame's exact size and aspect ratio. Otherwise fit the content + padding.
+    const pad = crop ? 0 : PADDING;
+    const originX = crop ? crop.x : minX;
+    const originY = crop ? crop.y : minY;
+    const width = crop ? Math.round(crop.width) : Math.ceil(maxX - minX) + PADDING * 2;
+    const height = crop ? Math.round(crop.height) : Math.ceil(maxY - minY) + PADDING * 2;
+    const shiftX = pad - originX;
+    const shiftY = pad - originY;
 
     const edges = connectors
       .map(

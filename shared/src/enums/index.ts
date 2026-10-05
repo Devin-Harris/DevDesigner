@@ -73,7 +73,8 @@ export type ElementType =
   | 'line'
   | 'arrow'
   | 'freedraw'
-  | 'text';
+  | 'text'
+  | 'frame';
 
 export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
@@ -83,6 +84,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'arrow',
   'freedraw',
   'text',
+  'frame',
 ] as const;
 
 /** How a shape's interior is filled. */

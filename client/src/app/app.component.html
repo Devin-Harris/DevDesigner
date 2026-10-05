@@ -29,10 +29,20 @@
         </button>
         <ng-template #exportMenu let-close>
           <div class="dbd-menu">
-            <button class="dbd-menu-item" (click)="exportSql(); close()"><dbd-icon name="data_object" />SQL…</button>
+            @if (editorActions.hasTableSelection()) {
+              <button
+                class="dbd-menu-item"
+                [disabled]="!editorActions.canExportSql()"
+                [title]="editorActions.canExportSql() ? '' : 'Selected tables share a name. Table names must be unique to export SQL.'"
+                (click)="exportSql(); close()"
+              >
+                <dbd-icon [name]="editorActions.canExportSql() ? 'data_object' : 'warning'" />SQL…
+              </button>
+            }
             <button class="dbd-menu-item" (click)="exportImage('png'); close()"><dbd-icon name="photo" />Image (PNG)</button>
             <button class="dbd-menu-item" (click)="exportImage('svg'); close()"><dbd-icon name="image" />Image (SVG)</button>
             <button class="dbd-menu-item" (click)="exportImage('pdf'); close()"><dbd-icon name="picture_as_pdf" />Image (PDF)</button>
+            <button class="dbd-menu-item" (click)="exportFramesPdf(); close()"><dbd-icon name="picture_as_pdf" />All frames (PDF pages)</button>
           </div>
         </ng-template>
 

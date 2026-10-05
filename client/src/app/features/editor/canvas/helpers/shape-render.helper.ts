@@ -13,6 +13,8 @@ import {
   type RotatedBox,
   elementBox,
   elementCenter,
+  FRAME_TITLE_H,
+  FRAME_TITLE_W,
   tableBox,
 } from './element-geometry.helper';
 import { freehandFillPath, polylinePath } from './freedraw-path.helper';
@@ -35,7 +37,16 @@ export interface ThemeColors {
   canvasBg: string;
   /** The theme's foreground/text color to fall back to (`--dbd-text`). */
   text: string;
+  /** The raised surface color (`--dbd-surface`) used by the "surface" fill. */
+  surface?: string;
 }
+
+/**
+ * Sentinel `backgroundColor` meaning "the theme surface" (`--dbd-surface`). It is
+ * resolved at render time so the fill follows light/dark mode, and — unlike
+ * `fillStyle: 'none'` — it is opaque, hiding the canvas grid behind the shape.
+ */
+export const SURFACE_FILL = 'surface';
 
 function parseColor(color: string): [number, number, number] | null {
   const s = color.trim();
@@ -223,7 +234,10 @@ function dashArray(element: CanvasElementModel): string | null {
   }
 }
 
-function fillOf(element: CanvasElementModel): {
+function fillOf(
+  element: CanvasElementModel,
+  theme: ThemeColors | undefined,
+): {
   fill: string;
   fillOpacity: number;
   hatch?: { id: string; color: string };
@@ -231,12 +245,16 @@ function fillOf(element: CanvasElementModel): {
   if (element.fillStyle === 'none' || !element.backgroundColor) {
     return { fill: 'none', fillOpacity: 1 };
   }
+  const color =
+    element.backgroundColor === SURFACE_FILL
+      ? (theme?.surface ?? '#ffffff')
+      : element.backgroundColor;
   // Hachure = real diagonal-line hatching via a per-element SVG <pattern>.
   if (element.fillStyle === 'hachure') {
     const id = `hatch-${element.id}`;
-    return { fill: `url(#${id})`, fillOpacity: 1, hatch: { id, color: element.backgroundColor } };
+    return { fill: `url(#${id})`, fillOpacity: 1, hatch: { id, color } };
   }
-  return { fill: element.backgroundColor, fillOpacity: 1 };
+  return { fill: color, fillOpacity: 1 };
 }
 
 function rotation(element: CanvasElementModel, center: Point): string | null {
@@ -363,11 +381,11 @@ export function buildShapeViews(
     return e ? { ...elementBox(e), angle: e.angle } : null;
   };
 
-  return elements.map((element) => {
+  const views = elements.map((element) => {
     const box = elementBox(element);
     const center = elementCenter(element);
     const stroke = contrastSafe(element.strokeColor, theme);
-    const { fill, fillOpacity, hatch } = fillOf(element);
+    const { fill, fillOpacity, hatch } = fillOf(element, theme);
     const base: ShapeView = {
       id: element.id,
       type: element.type,
@@ -400,6 +418,29 @@ export function buildShapeViews(
         };
         base.label = shapeLabel(element, base.bbox, theme);
         break;
+      case 'frame': {
+        // A page outline: square corners, transparent unless a fill was chosen,
+        // with its name sitting above the top-left corner (outside the frame, so
+        // it never lands in an export crop).
+        base.rect = { x: element.x, y: element.y, width: element.width, height: element.height, rx: 0 };
+        if (element.text) {
+          base.label = layoutTextBlock(
+            element.text,
+            { x: element.x, y: element.y - FRAME_TITLE_H, width: FRAME_TITLE_W, height: FRAME_TITLE_H },
+            {
+              fontSize: 14,
+              fontFamilyKey: 'normal',
+              fontWeight: 600,
+              color: stroke,
+              align: 'left',
+              vAlign: 'middle',
+              padding: 0,
+              wrap: false,
+            },
+          );
+        }
+        break;
+      }
       case 'ellipse':
         base.ellipse = {
           cx: element.x + element.width / 2,
@@ -484,4 +525,6 @@ export function buildShapeViews(
     }
     return base;
   });
+  // Frames are page backdrops: draw them beneath everything else (stable sort).
+  return views.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
 }
