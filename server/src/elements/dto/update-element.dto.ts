@@ -136,4 +136,9 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsIn([...ARROWHEAD_TYPES])
   endArrowhead?: ArrowheadType;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  groupId?: string | null;
 }

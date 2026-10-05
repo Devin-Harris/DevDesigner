@@ -20,7 +20,7 @@
       <span
         class="swatch"
         [class.none]="element().fillStyle === 'none'"
-        [style.background]="element().fillStyle === 'none' ? 'transparent' : fillCss(element().backgroundColor)"
+        [style.background-color]="element().fillStyle === 'none' ? 'transparent' : fillCss(element().backgroundColor)"
       ></span>
     </button>
     <ng-template #fillMenu let-close>
@@ -31,7 +31,7 @@
             [class.none]="c === 'transparent'"
             [class.surface]="c === 'surface'"
             [class.active]="c === 'transparent' ? element().fillStyle === 'none' : (element().fillStyle !== 'none' && c === element().backgroundColor)"
-            [style.background]="c === 'transparent' ? c : fillCss(c)"
+            [style.background-color]="c === 'transparent' ? c : fillCss(c)"
             (click)="setFill(c); close()"
           ></button>
         }

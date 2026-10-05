@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { ArrowheadType } from '@dbdesigner/shared';
 import type { ShapeView } from '../canvas/models/shape-view.model';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
@@ -37,6 +37,16 @@ export interface ShapeEndpointEvent {
 })
 export class CanvasShapesComponent {
   readonly shapes = input.required<ShapeView[]>();
+  /** Which elements this layer draws: frames sit below connectors, everything else above. */
+  readonly layer = input<'all' | 'frames' | 'content'>('all');
+  readonly visible = computed(() => {
+    const layer = this.layer();
+    const all = this.shapes();
+    if (layer === 'all') {
+      return all;
+    }
+    return all.filter((s) => (s.type === 'frame') === (layer === 'frames'));
+  });
   readonly svgOffset = input.required<number>();
   readonly dragging = input<boolean>(false);
   readonly interactive = input<boolean>(true);

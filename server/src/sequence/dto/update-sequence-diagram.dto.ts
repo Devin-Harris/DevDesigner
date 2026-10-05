@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { UpdateSequenceDiagramDto as IUpdateSequenceDiagramDto } from '@dbdesigner/shared';
 
 /** Body for PATCH /projects/:projectId/sequence-diagrams/:diagramId. */
@@ -18,4 +18,9 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
   @IsOptional()
   @IsNumber()
   originY?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  groupId?: string | null;
 }

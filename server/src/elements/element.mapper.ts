@@ -39,5 +39,6 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     endBinding: toBinding(entity.endBindingKind, entity.endBindingId),
     startArrowhead: entity.startArrowhead ?? undefined,
     endArrowhead: entity.endArrowhead ?? undefined,
+    groupId: entity.groupId ?? undefined,
   };
 }

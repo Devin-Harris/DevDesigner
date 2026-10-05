@@ -48,6 +48,10 @@ export class TableEntity {
   @Column({ type: 'float', nullable: true })
   width!: number | null;
 
+  /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
+  @Column({ type: 'varchar', nullable: true })
+  groupId!: string | null;
+
   @OneToMany(() => ColumnEntity, (column) => column.table)
   columns!: ColumnEntity[];
 

@@ -107,6 +107,7 @@ export class SequenceService {
     if (dto.rowSpacing !== undefined) entity.rowSpacing = dto.rowSpacing;
     if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
     if (dto.originY !== undefined) entity.originY = dto.originY;
+    if (dto.groupId !== undefined) entity.groupId = dto.groupId;
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.updated', diagram: model });

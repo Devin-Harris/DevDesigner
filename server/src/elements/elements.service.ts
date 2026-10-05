@@ -208,6 +208,9 @@ export class ElementsService {
     if (dto.points !== undefined) {
       element.pointsJson = JSON.stringify(dto.points);
     }
+    if (dto.groupId !== undefined) {
+      element.groupId = dto.groupId;
+    }
     if (dto.startBinding !== undefined) {
       element.startBindingKind = dto.startBinding?.targetKind ?? null;
       element.startBindingId = dto.startBinding?.targetId ?? null;

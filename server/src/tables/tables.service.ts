@@ -84,6 +84,9 @@ export class TablesService {
     if (dto.width !== undefined) {
       table.width = dto.width > 0 ? dto.width : null;
     }
+    if (dto.groupId !== undefined) {
+      table.groupId = dto.groupId;
+    }
     await this.tables.save(table);
     const model = await this.getModel(tableId);
     this.realtime.emit(projectId, clientId, { kind: 'table.updated', table: model });

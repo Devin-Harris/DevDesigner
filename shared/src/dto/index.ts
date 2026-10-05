@@ -84,6 +84,8 @@ export interface UpdateTableDto {
   note?: string;
   /** Manual width in px; 0 clears the override back to auto-fit. */
   width?: number;
+  /** Group membership; null clears it. */
+  groupId?: string | null;
 }
 export interface UpdatePositionDto {
   x: number;
@@ -223,6 +225,8 @@ export interface UpdateElementDto {
   endBinding?: ElementBinding | null;
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
+  /** Group membership; null clears it. */
+  groupId?: string | null;
 }
 /** High-frequency drag/reshape autosave (position and/or vertices only). */
 export interface UpdateElementPositionDto {
@@ -246,6 +250,8 @@ export interface UpdateSequenceDiagramDto {
   rowSpacing?: number;
   headerHeight?: number;
   originY?: number;
+  /** Group membership; null clears it. */
+  groupId?: string | null;
 }
 
 // --- Lifelines (sequence diagram participant columns) ---

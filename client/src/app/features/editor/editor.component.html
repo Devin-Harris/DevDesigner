@@ -17,6 +17,20 @@
         <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dbd-grid)" />
       </svg>
 
+      <!-- Frames sit at the very back so their fills never cover connectors. -->
+      <app-canvas-shapes
+        layer="frames"
+        [shapes]="shapeViews()"
+        [svgOffset]="svgOffset"
+        [dragging]="dragging()"
+        [interactive]="shapesInteractive()"
+        [editingId]="editingTextId()"
+        (elementPointerDown)="onElementPointerDown($event)"
+        (resizeDown)="onElementResizeDown($event)"
+        (rotateDown)="onElementRotateDown($event)"
+        (endpointDown)="onElementEndpointDown($event)"
+      ></app-canvas-shapes>
+
       <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
       <app-canvas-connectors
@@ -33,6 +47,7 @@
       <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
       <app-canvas-shapes
+        layer="content"
         [shapes]="shapeViews()"
         [svgOffset]="svgOffset"
         [dragging]="dragging()"
@@ -60,6 +75,17 @@
 
       <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
       <app-canvas-sequence [toWorld]="toWorldPoint" [snap]="snapWorld"></app-canvas-sequence>
+
+      @for (g of groupOutlines(); track g.id) {
+        <div
+          class="group-outline"
+          [class.entered]="g.entered"
+          [style.left.px]="g.left"
+          [style.top.px]="g.top"
+          [style.width.px]="g.width"
+          [style.height.px]="g.height"
+        ></div>
+      }
 
       <!-- Selection highlights: a colored ring around tables another participant
            currently has selected (what they are editing). -->
@@ -90,7 +116,7 @@
       [zoomLabel]="zoomLabel()"
       [saveLabel]="saveLabel()"
       [gridSnap]="gridSnap()"
-      [canAlign]="store.canEdit() && store.selectedTableIds().length + store.selectedElementIds().length + store.selectedDiagramIds().length >= 2"
+      [canAlign]="canAlign()"
       [canExport]="!!store.projectId()"
       [canUndo]="store.canUndo()"
       [canRedo]="store.canRedo()"

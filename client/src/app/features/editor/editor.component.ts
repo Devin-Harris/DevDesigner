@@ -46,7 +46,7 @@ import {
 import { type AlignAction } from './canvas/models/toolbar-actions';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
-import { frameContents } from './canvas/helpers/frame-contents.helper';
+import { frameContents, sequenceDiagramBox } from './canvas/helpers/frame-contents.helper';
 import { DEFAULT_FRAME_PRESET, framePreset } from './canvas/constants/frame-presets';
 import {
   absolutePoints,
@@ -317,6 +317,11 @@ export class EditorComponent {
   /** The element currently being drawn (local only until committed on pointer-up). */
   private readonly draft = signal<CanvasElementModel | null>(null);
   private elementGesture: ElementGesture | null = null;
+  /** Non-table selection members dragged along when a table is grabbed (groups, mixed selections). */
+  private nodeExtras: {
+    elements: Map<string, { x: number; y: number }>;
+    sequences: Map<string, SequenceStart>;
+  } | null = null;
 
   /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
   protected readonly bindHighlight = signal<{
@@ -459,6 +464,90 @@ export class EditorComponent {
   }
 
   /** The shapes layer is interactive only in select mode (drawing passes through it). */
+  /** Two or more independently movable units (a whole group counts as one). */
+  protected readonly canAlign = computed(() => {
+    const byItem = this.store.groupByItem();
+    const entered = this.store.enteredGroupId();
+    const ids = [
+      ...this.store.selectedTableIds(),
+      ...this.store.selectedElementIds(),
+      ...this.store.selectedDiagramIds(),
+    ];
+    const units = new Set(
+      ids.map((id) => {
+        const g = byItem.get(id);
+        return g && g !== entered ? g : id;
+      }),
+    );
+    return this.store.canEdit() && units.size >= 2;
+  });
+
+  /** Dashed outlines around selected groups and the group currently entered. */
+  protected readonly groupOutlines = computed(() => {
+    const groups = this.store.groups();
+    if (!groups.size) {
+      return [];
+    }
+    const entered = this.store.enteredGroupId();
+    const selT = new Set(this.store.selectedTableIds());
+    const selE = new Set(this.store.selectedElementIds());
+    const selD = new Set(this.store.selectedDiagramIds());
+    const tables = new Map(this.store.tables().map((t) => [t.id, t] as const));
+    const elements = new Map(this.store.elements().map((e) => [e.id, e] as const));
+    const diagrams = new Map(this.store.sequenceDiagrams().map((d) => [d.id, d] as const));
+    const lifelines = this.store.lifelines();
+    const messages = this.store.sequenceMessages();
+    const pad = 8;
+    const out: {
+      id: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      entered: boolean;
+    }[] = [];
+    for (const [gid, g] of groups) {
+      const active =
+        gid === entered ||
+        g.tableIds.some((id) => selT.has(id)) ||
+        g.elementIds.some((id) => selE.has(id)) ||
+        g.diagramIds.some((id) => selD.has(id));
+      if (!active) {
+        continue;
+      }
+      const boxes: Box[] = [];
+      for (const id of g.tableIds) {
+        const t = tables.get(id);
+        if (t) boxes.push(tableBox(t));
+      }
+      for (const id of g.elementIds) {
+        const e = elements.get(id);
+        if (e) boxes.push(elementBox(e));
+      }
+      for (const id of g.diagramIds) {
+        const d = diagrams.get(id);
+        const b = d ? sequenceDiagramBox(d, lifelines, messages) : null;
+        if (b) boxes.push(b);
+      }
+      if (!boxes.length) {
+        continue;
+      }
+      const x0 = Math.min(...boxes.map((b) => b.x0)) - pad;
+      const y0 = Math.min(...boxes.map((b) => b.y0)) - pad;
+      const x1 = Math.max(...boxes.map((b) => b.x1)) + pad;
+      const y1 = Math.max(...boxes.map((b) => b.y1)) + pad;
+      out.push({
+        id: gid,
+        left: x0,
+        top: y0,
+        width: x1 - x0,
+        height: y1 - y0,
+        entered: gid === entered,
+      });
+    }
+    return out;
+  });
+
   protected readonly shapesInteractive = computed(
     () => this.activeTool() === 'select' && this.store.canEdit(),
   );
@@ -1234,7 +1323,12 @@ export class EditorComponent {
         others.set(id, { x: e.x, y: e.y });
       }
     }
-    const carried = this.dragCopied ? null : this.carriedByFrames(others);
+    const carried = this.dragCopied
+      ? null
+      : this.carriedByFrames(others, {
+          tableIds: new Set(this.store.selectedTableIds()),
+          diagramIds: new Set(this.store.selectedDiagramIds()),
+        });
     if (carried) {
       for (const [id, pos] of carried.elements) {
         others.set(id, pos);
@@ -1254,26 +1348,40 @@ export class EditorComponent {
   /**
    * Everything fully inside any frame being moved (nested frames included) rides
    * along with it: elements, tables, and the manual routes between carried tables.
-   * Null when no frame is part of the drag.
+   * `extra` adds selected tables / diagrams (members of a mixed-kind group) that
+   * move rigidly with the grabbed element. Null when nothing rides along.
    */
-  private carriedByFrames(moving: { has(id: string): boolean }): {
+  private carriedByFrames(
+    moving: { has(id: string): boolean },
+    extra?: { tableIds: ReadonlySet<string>; diagramIds: ReadonlySet<string> },
+  ): {
     elements: Map<string, { x: number; y: number }>;
     tables: Map<string, { x: number; y: number }>;
     waypoints: Map<string, { x: number; y: number }[]>;
     sequences: Map<string, SequenceStart>;
   } | null {
     const all = this.store.elements();
-    if (!all.some((e) => e.type === 'frame' && moving.has(e.id))) {
+    const hasFrame = all.some((e) => e.type === 'frame' && moving.has(e.id));
+    if (!hasFrame && !extra?.tableIds.size && !extra?.diagramIds.size) {
       return null;
     }
-    const inner = frameContents(
-      { has: (id) => moving.has(id) } as ReadonlySet<string>,
-      all,
-      this.store.tables(),
-      this.store.sequenceDiagrams(),
-      this.store.lifelines(),
-      this.store.sequenceMessages(),
-    );
+    const inner = hasFrame
+      ? frameContents(
+          { has: (id) => moving.has(id) } as ReadonlySet<string>,
+          all,
+          this.store.tables(),
+          this.store.sequenceDiagrams(),
+          this.store.lifelines(),
+          this.store.sequenceMessages(),
+        )
+      : {
+          elementIds: new Set<string>(),
+          tableIds: new Set<string>(),
+          diagramIds: new Set<string>(),
+        };
+    // Selected tables / diagrams (a group of mixed kinds) travel with the element.
+    extra?.tableIds.forEach((id) => inner.tableIds.add(id));
+    extra?.diagramIds.forEach((id) => inner.diagramIds.add(id));
     const elements = new Map<string, { x: number; y: number }>();
     for (const e of all) {
       if (inner.elementIds.has(e.id)) {
@@ -1419,8 +1527,12 @@ export class EditorComponent {
       }
     }
     this.store.recordElementMove(moves);
-    // Persist carried sequence diagrams (the live shift is local-only).
-    for (const id of g.sequences?.keys() ?? []) {
+    this.persistSequences(g.sequences?.keys() ?? []);
+  }
+
+  /** Persist sequence diagrams that were shifted live (the live shift is local-only). */
+  private persistSequences(ids: Iterable<string>): void {
+    for (const id of ids) {
       for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
         this.store.moveLifeline(l.id, l.x);
       }
@@ -1434,6 +1546,46 @@ export class EditorComponent {
           originY: cfg.originY,
         });
       }
+    }
+  }
+
+  /** After a table-grabbed drag, record/persist the elements and diagrams that rode along. */
+  private settleNodeExtras(): void {
+    const ex = this.nodeExtras;
+    if (!ex) {
+      return;
+    }
+    const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] =
+      [];
+    for (const [id, from] of ex.elements) {
+      const el = this.store.elements().find((e) => e.id === id);
+      if (el && (el.x !== from.x || el.y !== from.y)) {
+        moves.push({ id, from, to: { x: el.x, y: el.y } });
+      }
+    }
+    this.store.recordElementMove(moves);
+    this.persistSequences(ex.sequences.keys());
+  }
+
+  /** Shift elements/diagrams riding with a grabbed table by that table's net displacement. */
+  private moveNodeExtras(): void {
+    const ex = this.nodeExtras;
+    const grabbed = this.dragTableId;
+    if (!ex || !grabbed) {
+      return;
+    }
+    const start = this.multiDragStart.get(grabbed);
+    const table = this.store.tables().find((t) => t.id === grabbed);
+    if (!start || !table) {
+      return;
+    }
+    const mx = table.x - start.x;
+    const my = table.y - start.y;
+    for (const [id, p] of ex.elements) {
+      this.store.moveElement(id, p.x + mx, p.y + my);
+    }
+    for (const [id, seq] of ex.sequences) {
+      this.store.shiftSequence(id, seq.xs, mx, seq.originY, my, seq.rows);
     }
   }
 
@@ -1775,6 +1927,12 @@ export class EditorComponent {
       for (const [relId, start] of this.waypointDragStart) {
         this.store.setWaypoints(relId, start.wp);
       }
+      for (const [id, p] of this.nodeExtras?.elements ?? []) {
+        this.store.moveElement(id, p.x, p.y);
+      }
+      for (const [id, seq] of this.nodeExtras?.sequences ?? []) {
+        this.store.shiftSequence(id, seq.xs, 0, seq.originY, 0, seq.rows);
+      }
     }
     this.mode = 'duplicating';
     let resume: (() => void) | null = null;
@@ -1877,6 +2035,25 @@ export class EditorComponent {
         .filter((t) => this.store.selectedTableIds().includes(t.id))
         .map((t) => [t.id, { x: t.x, y: t.y }]),
     );
+
+    const elementIds = new Set(this.store.selectedElementIds());
+    const diagramIds = this.store.selectedDiagramIds();
+    this.nodeExtras =
+      elementIds.size || diagramIds.length
+        ? {
+            elements: new Map(
+              this.store
+                .elements()
+                .filter((e) => elementIds.has(e.id))
+                .map((e) => [e.id, { x: e.x, y: e.y }] as const),
+            ),
+            sequences: new Map(
+              diagramIds
+                .map((id) => [id, this.sequenceStart(id)] as const)
+                .filter((e): e is readonly [string, SequenceStart] => !!e[1]),
+            ),
+          }
+        : null;
 
     const moved = new Set(this.store.selectedTableIds());
     const locs = this.columnLocations();
@@ -2045,6 +2222,7 @@ export class EditorComponent {
         const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
         this.store.moveTable(id, nx, ny);
       }
+      this.moveNodeExtras();
       // Keep manual routes attached as their tables move. Both endpoints moving
       // together: translate the whole route rigidly. A single endpoint moving:
       // the waypoint nearest that anchor follows it in y (its horizontal run
@@ -2083,6 +2261,8 @@ export class EditorComponent {
       void this.commitDraft(false);
     } else if (this.mode === 'element') {
       this.recordMoveGesture();
+    } else if (this.mode === 'node') {
+      this.settleNodeExtras();
     } else if (
       this.mode === 'element-resize' ||
       this.mode === 'element-rotate' ||
@@ -2093,6 +2273,7 @@ export class EditorComponent {
     this.mode = 'idle';
     this.panning.set(false);
     this.dragTableId = null;
+    this.nodeExtras = null;
     this.elementGesture = null;
     this.gestureActive.set(false);
     this.bindHighlight.set(null);
@@ -2295,6 +2476,18 @@ export class EditorComponent {
       }
       return;
     }
+    if (mod && event.key.toLowerCase() === 'g') {
+      // Group / ungroup the selection (also stops the browser's find-next).
+      event.preventDefault();
+      if (this.store.canEdit()) {
+        if (event.shiftKey) {
+          void this.store.ungroupSelection();
+        } else {
+          void this.store.groupSelection();
+        }
+      }
+      return;
+    }
     if (mod && event.key.toLowerCase() === 'c') {
       this.copySelection();
       return;
@@ -2461,13 +2654,31 @@ export class EditorComponent {
   // --- toolbar: add / zoom / grid / align ---
 
   protected onCanvasDblClick(event: MouseEvent): void {
+    const world = this.toWorld(event.clientX, event.clientY);
+    const hit = [...this.store.elements()].reverse().find((e) => hitTestElement(e, world));
+    // Double-clicking a member of a group steps into it (selecting just that
+    // member); once inside, the usual double-click behaviour applies.
+    const locked = (id: string): boolean => {
+      const gid = this.store.groupIdOf(id);
+      return !!gid && gid !== this.store.enteredGroupId();
+    };
+    const diagram = this.store.sequenceDiagrams().find((d) => {
+      const b = this.diagramBox(d);
+      return !!b && world.x >= b.minX && world.x <= b.maxX && world.y >= b.minY && world.y <= b.maxY;
+    });
+    if (diagram && locked(diagram.id)) {
+      this.store.enterGroup('diagram', diagram.id);
+      return;
+    }
+    if (hit && locked(hit.id)) {
+      this.store.enterGroup('element', hit.id);
+      return;
+    }
     if (!this.store.canEdit() || !this.store.projectId()) {
       return;
     }
-    const world = this.toWorld(event.clientX, event.clientY);
     // Double-clicking a text element edits it; double-clicking a shape edits its
     // centered label; double-clicking empty canvas creates a text block.
-    const hit = [...this.store.elements()].reverse().find((e) => hitTestElement(e, world));
     if (hit) {
       if (
         hit.type === 'text' ||
@@ -2821,8 +3032,17 @@ export class EditorComponent {
     if (!this.store.canEdit()) {
       return;
     }
-    // Tables and canvas elements (text, shapes, lines...) align together by their
-    // bounding boxes. `place` moves the item so its box's top-left is (x, y).
+    // Tables, canvas elements (text, shapes, lines...) and sequence diagrams align
+    // together by their bounding boxes. A whole group is ONE item: its box is the
+    // union of its members, and placing it shifts every member by the same amount.
+    interface Member {
+      gid: string | null;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      shift: (dx: number, dy: number) => void;
+    }
     interface Item {
       x: number;
       y: number;
@@ -2830,16 +3050,23 @@ export class EditorComponent {
       h: number;
       place: (x: number, y: number) => void;
     }
-    const items: Item[] = [];
+    const byItem = this.store.groupByItem();
+    const entered = this.store.enteredGroupId();
+    const gidOf = (id: string): string | null => {
+      const g = byItem.get(id);
+      return g && g !== entered ? g : null;
+    };
+    const members: Member[] = [];
     const tableIds = this.store.selectedTableIds();
     for (const t of this.store.tables()) {
       if (tableIds.includes(t.id)) {
-        items.push({
+        members.push({
+          gid: gidOf(t.id),
           x: t.x,
           y: t.y,
           w: tableWidth(t),
           h: nodeHeight(t.columns.length),
-          place: (x, y) => this.store.moveTable(t.id, Math.round(x), Math.round(y)),
+          shift: (dx, dy) => this.store.moveTable(t.id, Math.round(t.x + dx), Math.round(t.y + dy)),
         });
       }
     }
@@ -2849,14 +3076,15 @@ export class EditorComponent {
     for (const e of this.store.elements()) {
       if (elementIds.includes(e.id)) {
         const b = elementBox(e);
-        items.push({
+        members.push({
+          gid: gidOf(e.id),
           x: b.x0,
           y: b.y0,
           w: b.x1 - b.x0,
           h: b.y1 - b.y0,
-          place: (x, y) => {
-            const nx = Math.round(e.x + (x - b.x0));
-            const ny = Math.round(e.y + (y - b.y0));
+          shift: (dx, dy) => {
+            const nx = Math.round(e.x + dx);
+            const ny = Math.round(e.y + dy);
             if (nx !== e.x || ny !== e.y) {
               moves.push({ id: e.id, from: { x: e.x, y: e.y }, to: { x: nx, y: ny } });
               this.store.moveElement(e.id, nx, ny);
@@ -2865,26 +3093,53 @@ export class EditorComponent {
         });
       }
     }
-    // Whole sequence diagrams align by their drawn box; moving one shifts every
-    // participant and message with it (rows kept), then persists + records undo.
+    // Moving a sequence diagram shifts every participant and message with it (rows
+    // kept), then persists + records undo.
     const seqMoves: { id: string; before: SequenceLayoutSnapshot }[] = [];
     for (const d of this.store.sequenceDiagrams()) {
       if (!this.store.selectedDiagramIds().includes(d.id)) continue;
       const b = this.diagramBox(d);
       const snap = this.store.sequenceDiagramSnapshot(d.id);
       if (!b || !snap) continue;
-      items.push({
+      members.push({
+        gid: gidOf(d.id),
         x: b.minX,
         y: b.minY,
         w: b.maxX - b.minX,
         h: b.maxY - b.minY,
-        place: (x, y) => {
-          const dx = Math.round(x - b.minX);
-          const dy = Math.round(y - b.minY);
-          if (!dx && !dy) return;
+        shift: (dx, dy) => {
+          const rx = Math.round(dx);
+          const ry = Math.round(dy);
+          if (!rx && !ry) return;
           seqMoves.push({ id: d.id, before: this.layoutSnapshot(d.id) });
-          this.store.shiftSequence(d.id, snap.startXs, dx, snap.startOriginY, dy, snap.startRows);
+          this.store.shiftSequence(d.id, snap.startXs, rx, snap.startOriginY, ry, snap.startRows);
         },
+      });
+    }
+    const items: Item[] = [];
+    const grouped = new Map<string, Member[]>();
+    for (const m of members) {
+      if (m.gid) {
+        grouped.set(m.gid, [...(grouped.get(m.gid) ?? []), m]);
+      } else {
+        items.push({
+          x: m.x,
+          y: m.y,
+          w: m.w,
+          h: m.h,
+          place: (x, y) => m.shift(x - m.x, y - m.y),
+        });
+      }
+    }
+    for (const parts of grouped.values()) {
+      const gx = Math.min(...parts.map((m) => m.x));
+      const gy = Math.min(...parts.map((m) => m.y));
+      items.push({
+        x: gx,
+        y: gy,
+        w: Math.max(...parts.map((m) => m.x + m.w)) - gx,
+        h: Math.max(...parts.map((m) => m.y + m.h)) - gy,
+        place: (x, y) => parts.forEach((m) => m.shift(x - gx, y - gy)),
       });
     }
     if (items.length < 2) {

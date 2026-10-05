@@ -58,7 +58,7 @@
           class="swatch"
           [class.none]="c === 'transparent'"
           [class.active]="c !== 'transparent' && element().fillStyle !== 'none' && element().backgroundColor === c"
-          [style.background]="c === 'transparent' ? 'transparent' : fillCss(c)"
+          [style.background-color]="c === 'transparent' ? 'transparent' : fillCss(c)"
           [disabled]="!store.canEdit()"
           (click)="setFill(c)"
         ></button>

@@ -116,6 +116,22 @@
   }
 }
 
+// Dashed frame around a selected group (dotted and fainter while its members are edited).
+.group-outline {
+  position: absolute;
+  border: 1.5px dashed var(--dbd-primary);
+  border-radius: 6px;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 3;
+  opacity: 0.8;
+
+  &.entered {
+    border-style: dotted;
+    opacity: 0.55;
+  }
+}
+
 // A ring around a table another participant currently has selected.
 .remote-ring {
   position: absolute;

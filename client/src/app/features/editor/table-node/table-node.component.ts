@@ -49,7 +49,7 @@ export interface HandleEvent {
     '[style.width.px]': 'nodeWidth()',
     '[class.selected]': 'selected()',
     '(pointerdown)': 'nodePointerDown.emit($event)',
-    '(dblclick)': '$event.stopPropagation()',
+    '(dblclick)': 'onDblClick($event)',
   },
 })
 export class TableNodeComponent {
@@ -154,9 +154,26 @@ export class TableNodeComponent {
 
   // --- inline table name ---
 
-  protected startEditName(event: Event): void {
+  /**
+   * Double-clicking a grouped table that isn't yet "entered" steps into its group
+   * (selecting just this table) instead of starting an edit. True when it did.
+   */
+  private enterGroupInstead(event: Event): boolean {
     event.stopPropagation();
-    if (!this.editable()) {
+    const gid = this.store.groupIdOf(this.table().id);
+    if (!gid || gid === this.store.enteredGroupId()) {
+      return false;
+    }
+    this.store.enterGroup('table', this.table().id);
+    return true;
+  }
+
+  protected onDblClick(event: Event): void {
+    this.enterGroupInstead(event);
+  }
+
+  protected startEditName(event: Event): void {
+    if (this.enterGroupInstead(event) || !this.editable()) {
       return;
     }
     this.editingColumnId.set(null);
@@ -177,8 +194,7 @@ export class TableNodeComponent {
   // --- inline column name ---
 
   protected startEditColumn(event: Event, column: ColumnModel): void {
-    event.stopPropagation();
-    if (!this.editable()) {
+    if (this.enterGroupInstead(event) || !this.editable()) {
       return;
     }
     this.editingName.set(false);

@@ -23,4 +23,9 @@ export class UpdateTableDto implements IUpdateTableDto {
   @Min(0)
   @Max(4000)
   width?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  groupId?: string | null;
 }

@@ -27,7 +27,7 @@
       <path d="M4 1 L4 11" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" />
     </marker>
     <!-- Per-element diagonal hatch fills (fillStyle: 'hachure'). -->
-    @for (s of shapes(); track s.id) {
+    @for (s of visible(); track s.id) {
       @if (s.hatch; as h) {
         <pattern [attr.id]="h.id" width="7" height="7" patternUnits="userSpaceOnUse"
           patternTransform="rotate(45)">
@@ -48,7 +48,7 @@
         rx="8"
       ></rect>
     }
-    @for (s of shapes(); track s.id) {
+    @for (s of visible(); track s.id) {
       <g [attr.transform]="s.transform" [style.opacity]="s.opacity">
         <!-- Invisible hit target so the element is grabbable over its whole box. -->
         @if (s.rect) {

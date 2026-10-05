@@ -31,4 +31,8 @@ export class SequenceDiagramEntity {
 
   @Column({ type: 'float', default: 0 })
   originY!: number;
+
+  /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
+  @Column({ type: 'varchar', nullable: true })
+  groupId!: string | null;
 }

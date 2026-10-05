@@ -45,6 +45,14 @@ type SnapFn = (n: number) => number;
 /** All eight resize handles, like any other shape. */
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
+/** Selected tables/elements that ride along when a diagram is dragged (mixed selections, groups). */
+interface Companions {
+  tables: Map<string, { x: number; y: number }>;
+  elements: Map<string, { x: number; y: number }>;
+  /** Manual routes whose both ends move, shifted rigidly with them. */
+  waypoints: Map<string, { x: number; y: number }[]>;
+}
+
 type Drag =
   | { kind: 'll'; id: string; start: number; startVal: number }
   | {
@@ -65,6 +73,8 @@ type Drag =
       startRows: Map<string, number>;
       /** Other selected diagrams moving along with this one. */
       others: { diagramId: string; startXs: Map<string, number>; startOriginY: number; startRows: Map<string, number> }[];
+      /** Non-diagram selection members moving along with it. */
+      companions: Companions;
     }
   | {
       kind: 'resize';
@@ -160,6 +170,12 @@ export class SequenceDiagramComponent {
   protected readonly sequenceSelected = computed(
     () => this.store.selectedDiagramIds().includes(this.diagram().id),
   );
+  /** In a group that hasn't been entered: parts act as the whole group, not individually. */
+  private groupLocked(): boolean {
+    const gid = this.store.groupIdOf(this.diagram().id);
+    return !!gid && gid !== this.store.enteredGroupId();
+  }
+
   /** Resize handles only show when this is the sole selected diagram. */
   protected readonly soleSelected = computed(() => this.store.selectedDiagramId() === this.diagram().id);
 
@@ -435,6 +451,7 @@ export class SequenceDiagramComponent {
     this.startDrag();
     this.drag = {
       others,
+      companions: this.captureCompanions(),
       kind: 'diagram',
       diagramId: this.diagram().id,
       startX: event.clientX,
@@ -481,6 +498,10 @@ export class SequenceDiagramComponent {
 
   // ----- Participant header: select + horizontal drag -----
   protected onHeaderDown(event: PointerEvent, l: LifelineModel): void {
+    if (this.groupLocked()) {
+      this.onBoxDown(event);
+      return;
+    }
     event.stopPropagation();
     this.store.selectLifeline(l.id);
     if (!this.canEdit() || this.editingLifelineId() === l.id) return;
@@ -491,6 +512,10 @@ export class SequenceDiagramComponent {
 
   // ----- Connect drag: start anywhere on a spine -----
   protected onConnectDown(event: PointerEvent, l: LifelineModel): void {
+    if (this.groupLocked()) {
+      this.onBoxDown(event);
+      return;
+    }
     event.stopPropagation();
     if (!this.canEdit()) return;
     this.startDrag();
@@ -518,7 +543,9 @@ export class SequenceDiagramComponent {
     const d = this.drag;
     if (!d || this.dragCopied || this.duplicating || !this.canEdit()) return;
     if (d.kind !== 'diagram' && d.kind !== 'll' && d.kind !== 'msg') return;
-    if (d.kind === 'diagram' && d.others.length) return; // no group duplication
+    if (d.kind === 'diagram' && (d.others.length || d.companions.tables.size || d.companions.elements.size)) {
+      return; // no group duplication
+    }
     this.duplicating = true;
     let next: Drag | null = null;
     if (d.kind === 'diagram') {
@@ -596,6 +623,53 @@ export class SequenceDiagramComponent {
     this.store.shiftSequence(d.diagramId, d.startXs, dx, d.startOriginY, dy, d.startRows);
     for (const o of d.others) {
       this.store.shiftSequence(o.diagramId, o.startXs, dx, o.startOriginY, dy, o.startRows);
+    }
+    this.moveCompanions(d.companions, dx, dy);
+  }
+
+  /** Snapshot the selected tables/elements (and routes between them) to drag with the diagram. */
+  private captureCompanions(): Companions {
+    const tableIds = new Set(this.store.selectedTableIds());
+    const elementIds = new Set(this.store.selectedElementIds());
+    const tables = new Map(
+      this.store
+        .tables()
+        .filter((t) => tableIds.has(t.id))
+        .map((t) => [t.id, { x: t.x, y: t.y }] as const),
+    );
+    const elements = new Map(
+      this.store
+        .elements()
+        .filter((e) => elementIds.has(e.id))
+        .map((e) => [e.id, { x: e.x, y: e.y }] as const),
+    );
+    const waypoints = new Map<string, { x: number; y: number }[]>();
+    if (tables.size > 1) {
+      const owner = new Map<string, string>();
+      for (const t of this.store.tables()) for (const c of t.columns) owner.set(c.id, t.id);
+      for (const r of this.store.relationships()) {
+        const a = owner.get(r.sourceColumnId);
+        const b = owner.get(r.targetColumnId);
+        if (a && b && tables.has(a) && tables.has(b) && r.waypoints?.length) {
+          waypoints.set(r.id, r.waypoints.map((w) => ({ ...w })));
+        }
+      }
+    }
+    return { tables, elements, waypoints };
+  }
+
+  private moveCompanions(c: Companions, dx: number, dy: number): void {
+    for (const [id, p] of c.tables) {
+      this.store.moveTable(id, Math.round(p.x + dx), Math.round(p.y + dy));
+    }
+    for (const [id, p] of c.elements) {
+      this.store.moveElement(id, Math.round(p.x + dx), Math.round(p.y + dy));
+    }
+    for (const [id, wp] of c.waypoints) {
+      this.store.setWaypoints(
+        id,
+        wp.map((w) => ({ x: Math.round(w.x + dx), y: Math.round(w.y + dy) })),
+      );
     }
   }
 
@@ -734,6 +808,17 @@ export class SequenceDiagramComponent {
           });
         }
       }
+      if (d.kind === 'diagram' && !this.dragCopied) {
+        const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] =
+          [];
+        for (const [id, from] of d.companions.elements) {
+          const el = this.store.elements().find((e) => e.id === id);
+          if (el && (el.x !== from.x || el.y !== from.y)) {
+            moves.push({ id, from, to: { x: el.x, y: el.y } });
+          }
+        }
+        this.store.recordElementMove(moves);
+      }
       const own = d.kind === 'diagram' ? d.diagramId : this.diagram().id;
       const befores = new Map(this.othersBefore);
       if (this.layoutBefore) befores.set(own, this.layoutBefore);
@@ -766,6 +851,12 @@ export class SequenceDiagramComponent {
   // ----- Inline label edit: lifeline -----
   protected startEditLifeline(event: Event, l: LifelineModel): void {
     event.stopPropagation();
+    if (this.groupLocked()) {
+      // First double-click steps into the group, selecting just this participant.
+      this.store.enterGroup('diagram', this.diagram().id);
+      this.store.selectLifeline(l.id);
+      return;
+    }
     if (!this.canEdit()) return;
     this.editValue.set(l.label);
     this.editingMessageId.set(null);
@@ -805,6 +896,10 @@ export class SequenceDiagramComponent {
 
   // ----- Messages: select + vertical drag (snaps to rows; rows may be shared) -----
   protected onMessageDown(event: PointerEvent, m: MessageView): void {
+    if (this.groupLocked()) {
+      this.onBoxDown(event);
+      return;
+    }
     event.stopPropagation();
     if (event.shiftKey || event.ctrlKey || event.metaKey) {
       // Toggle into/out of the selection; no drag so the gesture stays a pure click.
@@ -856,6 +951,11 @@ export class SequenceDiagramComponent {
   }
   protected startEditMessage(event: Event, m: MessageView): void {
     event.stopPropagation();
+    if (this.groupLocked()) {
+      this.store.enterGroup('diagram', this.diagram().id);
+      this.store.selectMessage(m.id);
+      return;
+    }
     if (!this.canEdit()) return;
     this.editValue.set(m.label);
     this.editingLifelineId.set(null);

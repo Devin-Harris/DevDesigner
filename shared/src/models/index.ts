@@ -59,6 +59,8 @@ export interface TableModel {
   note?: string;
   /** Manual width override in px (stretched/squeezed by the user); absent = auto-fit. */
   width?: number;
+  /** Group this table belongs to; absent = ungrouped. */
+  groupId?: string;
 }
 
 export interface RelationshipModel {
@@ -139,6 +141,8 @@ export interface CanvasElementModel {
   /** Line/arrow only: arrowhead style at each end (default: none at start, arrow at end). */
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
+  /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
+  groupId?: string;
 }
 
 export interface ViewportModel {
@@ -196,6 +200,8 @@ export interface SequenceDiagramModel {
   headerHeight: number;
   /** World-space Y where this diagram's lifeline spines begin. */
   originY: number;
+  /** Group this diagram belongs to; absent = ungrouped. */
+  groupId?: string;
 }
 
 /**
