@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
-import type {
-  ProjectGraphResponse,
-  ProjectSummary,
-  SchemaModel,
+import { DataSource, IsNull, Repository } from 'typeorm';
+import {
+  PROJECT_EXPORT_FORMAT,
+  PROJECT_EXPORT_VERSION,
+  type ProjectExportFile,
+  type ProjectGraphResponse,
+  type ProjectSummary,
+  type SchemaModel,
 } from '@dbdesigner/shared';
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
@@ -15,6 +18,8 @@ import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
+import { parseProjectExport } from './project-import.parser';
+import { writeImportedProject } from './project-import.writer';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -35,6 +40,7 @@ export class ProjectsService {
     private readonly elements: ElementsService,
     private readonly sequence: SequenceService,
     private readonly access: AccessService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -152,6 +158,38 @@ export class ProjectsService {
     const saved = await this.projects.save(copy);
     // NOTE: deep-copies only the project row for now. Tables, columns,
     // relationships, and notes are copied once those modules exist (Phase 2+).
+    return this.toSummary(saved);
+  }
+
+  /**
+   * Portable snapshot of a project for download. Anyone who can read the project
+   * can export it (a view-only share link included, since they already see all of it).
+   */
+  async exportProject(
+    id: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<ProjectExportFile> {
+    const { project, schema } = await this.getGraph(id, userId, shareToken);
+    return {
+      format: PROJECT_EXPORT_FORMAT,
+      version: PROJECT_EXPORT_VERSION,
+      exportedAt: new Date().toISOString(),
+      project: { name: project.name, description: project.description, type: project.type },
+      schema,
+    };
+  }
+
+  /**
+   * Create a new project from an exported file. The importer owns the result
+   * (or it is ownerless when anonymous), so a file moves freely between accounts
+   * and devices. All-or-nothing: a failure rolls back and leaves no partial project.
+   */
+  async importProject(raw: unknown, userId: string | null): Promise<ProjectSummary> {
+    const parsed = parseProjectExport(raw);
+    const saved = await this.dataSource.transaction((manager) =>
+      writeImportedProject(manager, parsed, userId),
+    );
     return this.toSummary(saved);
   }
 

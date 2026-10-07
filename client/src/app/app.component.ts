@@ -6,6 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { EditorActionsService } from './core/services/editor-actions.service';
+import { ProjectFileService } from './core/services/project-file.service';
 import { RealtimeService } from './core/services/realtime.service';
 import { ProjectsStore } from './stores/projects.store';
 import { ProjectStore } from './stores/project.store';
@@ -37,6 +38,7 @@ export class AppComponent {
   protected readonly editorActions = inject(EditorActionsService);
   protected readonly realtime = inject(RealtimeService);
   private readonly overlay = inject(ProjectsOverlayService);
+  private readonly projectFile = inject(ProjectFileService);
 
   constructor() {
     void this.auth.loadMe();
@@ -61,6 +63,12 @@ export class AppComponent {
   }
   protected exportFramesPdf(): void {
     this.editorActions.exportFramesPdf();
+  }
+  protected exportProjectFile(): void {
+    const id = this.editorStore.projectId();
+    if (id) {
+      void this.projectFile.download(id, this.projects.selected()?.name ?? 'project');
+    }
   }
   protected share(): void {
     this.editorActions.share();

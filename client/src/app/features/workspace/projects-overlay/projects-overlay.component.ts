@@ -1,8 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@dbdesigner/shared';
+import { ProjectFileService } from '../../../core/services/project-file.service';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
@@ -46,6 +48,7 @@ export class ProjectsOverlayComponent {
   private readonly dialog = inject(MatDialog);
   private readonly dialogRef = inject(MatDialogRef<ProjectsOverlayComponent>);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly projectFile = inject(ProjectFileService);
 
   protected readonly view = signal<OverlayView>('projects');
   protected readonly editingId = signal<string | null>(null);
@@ -105,6 +108,37 @@ export class ProjectsOverlayComponent {
       this.dialogRef.close();
     } catch (err) {
       this.notifyError('Could not create from template', err);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Download the project as a `.dbdesigner.json` file that can be imported elsewhere. */
+  protected exportProject(project: ProjectSummary): Promise<void> {
+    return this.projectFile.download(project.id, project.name);
+  }
+
+  /** Import a project file chosen via the hidden file input, then open it. */
+  protected async importFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-selecting the same file
+    if (!file || this.busy()) return;
+    this.busy.set(true);
+    try {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        throw new Error('That file is not valid JSON.');
+      }
+      const created = await this.store.importProject(parsed);
+      this.store.select(created.id);
+      this.dialogRef.close();
+      this.notify(`Imported "${created.name}"`);
+    } catch (err) {
+      const detail = err instanceof HttpErrorResponse ? err.error?.message : (err as Error).message;
+      this.notifyError(`Could not import project${detail ? `: ${detail}` : ''}`, err);
     } finally {
       this.busy.set(false);
     }

@@ -106,6 +106,20 @@ export const ProjectsStore = signalStore(
       return created;
     },
 
+    /** Create a project from a parsed export file; it lands in the active list. */
+    async importProject(file: unknown): Promise<ProjectSummary> {
+      const created = await firstValueFrom(service.import(file));
+      if (!store.showArchived()) {
+        patchState(store, { projects: [created, ...store.projects()] });
+      }
+      return created;
+    },
+
+    /** Fetch the portable snapshot for a project (the caller saves it to disk). */
+    exportProject(id: string) {
+      return firstValueFrom(service.export(id));
+    },
+
     async rename(id: string, dto: UpdateProjectDto): Promise<void> {
       const updated = await firstValueFrom(service.update(id, dto));
       patchState(store, {

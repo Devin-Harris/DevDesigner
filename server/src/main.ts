@@ -2,11 +2,15 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
+
+  // Project import posts a whole exported diagram; Express's 100kb default is too small.
+  app.useBodyParser('json', { limit: '25mb' });
 
   // All routes are served under /api (see BUILD_INSTRUCTIONS.md section 5).
   app.setGlobalPrefix('api');

@@ -40,6 +40,7 @@ export const ICON_PATHS: Record<string, string> = {
   // ---- export ----
   ios_share: '<path d="M12 15V4M8.5 7.5L12 4l3.5 3.5M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6"/>',
   download: '<path d="M12 4v11M8 11l4 4 4-4M5 19h14"/>',
+  upload: '<path d="M12 15V4M8 8l4-4 4 4M5 19h14"/>',
   data_object: '<path d="M8 4a3 3 0 0 0-3 3v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a3 3 0 0 0 3 3M16 4a3 3 0 0 1 3 3v2a2 2 0 0 0 2 2 2 2 0 0 0-2 2v2a3 3 0 0 1-3 3"/>',
   photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>',

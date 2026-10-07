@@ -43,6 +43,8 @@
             <button class="dbd-menu-item" (click)="exportImage('svg'); close()"><dbd-icon name="image" />Image (SVG)</button>
             <button class="dbd-menu-item" (click)="exportImage('pdf'); close()"><dbd-icon name="picture_as_pdf" />Image (PDF)</button>
             <button class="dbd-menu-item" (click)="exportFramesPdf(); close()"><dbd-icon name="picture_as_pdf" />All frames (PDF pages)</button>
+            <div class="dbd-menu-sep"></div>
+            <button class="dbd-menu-item" (click)="exportProjectFile(); close()"><dbd-icon name="download" />Project file (.json)</button>
           </div>
         </ng-template>
 

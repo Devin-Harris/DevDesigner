@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import type {
+  ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
 } from '@dbdesigner/shared';
@@ -44,6 +45,24 @@ export class ProjectsController {
     @CurrentUserId() userId: string | null,
   ): Promise<ProjectSummary> {
     return this.projects.create(dto, userId);
+  }
+
+  /** Create a project from an exported file. Declared before ':projectId' routes. */
+  @Post('import')
+  import(
+    @Body() body: unknown,
+    @CurrentUserId() userId: string | null,
+  ): Promise<ProjectSummary> {
+    return this.projects.importProject(body, userId);
+  }
+
+  @Get(':projectId/export-file')
+  export(
+    @Param('projectId') projectId: string,
+    @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+  ): Promise<ProjectExportFile> {
+    return this.projects.exportProject(projectId, userId, shareToken);
   }
 
   @Get(':projectId')

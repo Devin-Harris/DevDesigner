@@ -1,0 +1,249 @@
+import { DataSource } from 'typeorm';
+import { PROJECT_EXPORT_FORMAT, type ProjectExportFile } from '@dbdesigner/shared';
+import { buildDataSourceOptions } from '../database/data-source';
+import { ColumnEntity } from '../columns/column.entity';
+import { ElementEntity } from '../elements/element.entity';
+import { IndexEntity } from '../indexes/index.entity';
+import { RelationshipEntity } from '../relationships/relationship.entity';
+import { LifelineEntity } from '../sequence/lifeline.entity';
+import { SequenceMessageEntity } from '../sequence/sequence-message.entity';
+import { TableEntity } from '../tables/table.entity';
+import { Project } from './project.entity';
+import { parseProjectExport } from './project-import.parser';
+import { writeImportedProject } from './project-import.writer';
+
+function sampleFile(): ProjectExportFile {
+  return {
+    format: PROJECT_EXPORT_FORMAT,
+    version: 1,
+    exportedAt: '2026-10-07T00:00:00.000Z',
+    project: { name: 'Shop', description: 'demo', type: 'ERD' },
+    schema: {
+      tables: [
+        {
+          id: 't-users',
+          name: 'users',
+          x: 10,
+          y: 20,
+          groupId: 'g1',
+          columns: [
+            {
+              id: 'c-users-id',
+              name: 'id',
+              dataType: { name: 'INT' },
+              isPrimaryKey: true,
+              isNullable: false,
+              isUnique: true,
+              isAutoIncrement: true,
+            },
+            {
+              id: 'c-users-role',
+              name: 'role',
+              dataType: { name: 'ENUM', args: ['a', 'b'] },
+              isPrimaryKey: false,
+              isNullable: true,
+              isUnique: false,
+              isAutoIncrement: false,
+            },
+          ],
+          indexes: [{ id: 'i1', name: 'idx_role', columnIds: ['c-users-role', 'ghost'], isUnique: false }],
+        },
+        {
+          id: 't-orders',
+          name: 'orders',
+          x: 300,
+          y: 20,
+          groupId: 'g1',
+          columns: [
+            {
+              id: 'c-orders-user',
+              name: 'user_id',
+              dataType: { name: 'INT' },
+              isPrimaryKey: false,
+              isNullable: false,
+              isUnique: false,
+              isAutoIncrement: false,
+            },
+          ],
+        },
+      ],
+      relationships: [
+        {
+          id: 'r1',
+          sourceColumnId: 'c-orders-user',
+          targetColumnId: 'c-users-id',
+          type: 'ONE_TO_MANY',
+          waypoints: [{ x: 1, y: 2 }],
+        },
+        { id: 'r-dangling', sourceColumnId: 'nope', targetColumnId: 'c-users-id', type: 'ONE_TO_ONE' },
+      ],
+      notes: [],
+      elements: [
+        {
+          id: 'e-box',
+          type: 'rectangle',
+          x: 0,
+          y: 0,
+          width: 50,
+          height: 50,
+          angle: 0,
+          strokeColor: '#000',
+          fillStyle: 'none',
+          strokeWidth: 2,
+          strokeStyle: 'solid',
+          opacity: 100,
+          zIndex: 1,
+        },
+        {
+          id: 'e-arrow',
+          type: 'arrow',
+          x: 0,
+          y: 0,
+          width: 10,
+          height: 10,
+          angle: 0,
+          strokeColor: '#000',
+          fillStyle: 'none',
+          strokeWidth: 2,
+          strokeStyle: 'solid',
+          opacity: 100,
+          zIndex: 2,
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+          ],
+          startBinding: { targetKind: 'table', targetId: 't-users' },
+          endBinding: { targetKind: 'element', targetId: 'e-box' },
+          groupId: 'g1',
+        },
+      ],
+      sequenceDiagrams: [
+        { id: 'd1', lifelineSpacing: 160, rowSpacing: 48, headerHeight: 42, originY: 5 },
+      ],
+      lifelines: [
+        { id: 'l1', diagramId: 'd1', label: 'A', x: 0, width: 100, order: 0 },
+        { id: 'l2', diagramId: 'd1', label: 'B', x: 200, width: 100, order: 1 },
+      ],
+      sequenceMessages: [
+        {
+          id: 'm1',
+          diagramId: 'd1',
+          fromLifelineId: 'l1',
+          toLifelineId: 'l2',
+          label: 'hi',
+          y: 80,
+          style: 'solid',
+          direction: 'forward',
+          arrowhead: 'arrow',
+        },
+      ],
+      viewport: { x: 5, y: 6, zoom: 1.5 },
+    },
+  };
+}
+
+describe('parseProjectExport', () => {
+  it('accepts a valid file', () => {
+    const parsed = parseProjectExport(sampleFile());
+    expect(parsed.name).toBe('Shop');
+    expect(parsed.schema.tables).toHaveLength(2);
+  });
+
+  it.each([
+    ['not an object', 'nope'],
+    ['wrong format marker', { ...sampleFile(), format: 'something-else' }],
+    ['newer version', { ...sampleFile(), version: 99 }],
+    ['missing project', { ...sampleFile(), project: undefined }],
+    ['blank name', { ...sampleFile(), project: { name: '  ', type: 'ERD' } }],
+  ])('rejects %s', (_label, input) => {
+    expect(() => parseProjectExport(input)).toThrow(/Invalid project file/);
+  });
+
+  it('names the offending field for a bad enum', () => {
+    const file = sampleFile();
+    (file.schema.elements[0] as unknown as { type: string }).type = 'hexagon';
+    expect(() => parseProjectExport(file)).toThrow(/schema\.elements\[0\]\.type/);
+  });
+
+  it('tolerates missing optional arrays', () => {
+    const file = sampleFile() as unknown as { schema: Record<string, unknown> };
+    delete file.schema['elements'];
+    delete file.schema['sequenceDiagrams'];
+    expect(parseProjectExport(file).schema.elements).toEqual([]);
+  });
+});
+
+describe('writeImportedProject', () => {
+  let ds: DataSource;
+
+  beforeAll(async () => {
+    ds = new DataSource(
+      buildDataSourceOptions({ DATABASE_PATH: ':memory:', DATABASE_SYNCHRONIZE: 'true' } as NodeJS.ProcessEnv),
+    );
+    await ds.initialize();
+  });
+  afterAll(async () => ds.destroy());
+
+  it('creates a new project with fresh ids and remapped references', async () => {
+    const parsed = parseProjectExport(sampleFile());
+    const project = await ds.transaction((m) => writeImportedProject(m, parsed, 'user-2'));
+    expect(project.ownerId).toBe('user-2');
+    expect(project.zoom).toBe(1.5);
+
+    const tables = await ds.getRepository(TableEntity).find({ where: { projectId: project.id } });
+    expect(tables.map((t) => t.name).sort()).toEqual(['orders', 'users']);
+    expect(tables.map((t) => t.id)).not.toContain('t-users');
+    // Group ids share one fresh value across tables/elements.
+    const elements = await ds.getRepository(ElementEntity).find({ where: { projectId: project.id } });
+    const arrow = elements.find((e) => e.type === 'arrow')!;
+    const box = elements.find((e) => e.type === 'rectangle')!;
+    expect(tables[0].groupId).toBeTruthy();
+    expect(tables[0].groupId).not.toBe('g1');
+    expect(arrow.groupId).toBe(tables[0].groupId);
+
+    // Bindings were rewritten to the new ids.
+    const users = tables.find((t) => t.name === 'users')!;
+    expect(arrow.startBindingId).toBe(users.id);
+    expect(arrow.endBindingId).toBe(box.id);
+    expect(JSON.parse(arrow.pointsJson!)).toHaveLength(2);
+
+    // Columns, enum args, and the dangling relationship dropped.
+    const cols = await ds.getRepository(ColumnEntity).find();
+    const role = cols.find((c) => c.name === 'role')!;
+    expect(JSON.parse(role.dataTypeArgs!)).toEqual(['a', 'b']);
+    const rels = await ds.getRepository(RelationshipEntity).find({ where: { projectId: project.id } });
+    expect(rels).toHaveLength(1);
+    const userId = cols.find((c) => c.name === 'user_id')!;
+    const idCol = cols.find((c) => c.name === 'id')!;
+    expect(rels[0].sourceColumnId).toBe(userId.id);
+    expect(rels[0].targetColumnId).toBe(idCol.id);
+
+    // Index keeps only the column that exists, remapped.
+    const idx = await ds.getRepository(IndexEntity).find();
+    expect(JSON.parse(idx[0].columnIdsJson)).toEqual([role.id]);
+
+    // Sequence diagram wiring.
+    const lifelines = await ds.getRepository(LifelineEntity).find({ where: { projectId: project.id } });
+    const [msg] = await ds.getRepository(SequenceMessageEntity).find({ where: { projectId: project.id } });
+    expect(lifelines.map((l) => l.id)).toEqual(expect.arrayContaining([msg.fromLifelineId, msg.toLifelineId]));
+  });
+
+  it('can be imported twice without id collisions', async () => {
+    const parsed = parseProjectExport(sampleFile());
+    const a = await ds.transaction((m) => writeImportedProject(m, parsed, null));
+    const b = await ds.transaction((m) => writeImportedProject(m, parsed, null));
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it('rolls back everything when the transaction fails', async () => {
+    const before = await ds.getRepository(Project).count();
+    const parsed = parseProjectExport(sampleFile());
+    await expect(
+      ds.transaction(async (m) => {
+        await writeImportedProject(m, parsed, null);
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
+    expect(await ds.getRepository(Project).count()).toBe(before);
+  });
+});

@@ -3,6 +3,17 @@
     <header class="panel-head">
       <h2 class="title">Projects</h2>
       <div class="head-actions">
+        <input
+          #importInput
+          type="file"
+          accept=".json,application/json"
+          hidden
+          (change)="importFile($event)"
+        />
+        <button class="btn" [disabled]="busy()" (click)="importInput.click()">
+          <dbd-icon name="upload" />
+          Import
+        </button>
         <button class="btn primary" (click)="addProject()">
           <dbd-icon name="add" />
           New
@@ -87,6 +98,9 @@
                   </button>
                   <button class="dbd-menu-item" (click)="duplicate(project); close()">
                     <dbd-icon name="content_copy" />Duplicate
+                  </button>
+                  <button class="dbd-menu-item" (click)="exportProject(project); close()">
+                    <dbd-icon name="download" />Export
                   </button>
                   <button class="dbd-menu-item" (click)="toggleArchive(project); close()">
                     <dbd-icon [name]="project.archived ? 'unarchive' : 'archive'" />

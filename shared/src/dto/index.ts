@@ -71,6 +71,27 @@ export interface ProjectGraphResponse {
   accessLevel: AccessLevel;
 }
 
+/** Marker + version stamped into exported project files so import can recognise them. */
+export const PROJECT_EXPORT_FORMAT = 'dbdesigner-project';
+export const PROJECT_EXPORT_VERSION = 1;
+
+/**
+ * A portable, self-contained snapshot of one project (GET /projects/:id/export,
+ * accepted by POST /projects/import). Ids inside `schema` are only meaningful
+ * within the file; import mints fresh ids and remaps every reference.
+ */
+export interface ProjectExportFile {
+  format: typeof PROJECT_EXPORT_FORMAT;
+  version: number;
+  exportedAt: string;
+  project: {
+    name: string;
+    description: string | null;
+    type: ProjectType;
+  };
+  schema: SchemaModel;
+}
+
 // --- Tables ---
 export interface CreateTableDto {
   name: string;

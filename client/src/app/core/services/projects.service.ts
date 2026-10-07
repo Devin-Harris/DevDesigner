@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
   CreateProjectDto,
+  ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
   UpdateProjectDto,
@@ -37,6 +38,16 @@ export class ProjectsService {
   /** POST /projects/:id/duplicate : deep copy. */
   duplicate(id: string): Observable<ProjectSummary> {
     return this.api.post<ProjectSummary>(`/projects/${id}/duplicate`, {});
+  }
+
+  /** GET /projects/:id/export-file : portable snapshot to save as a file. */
+  export(id: string): Observable<ProjectExportFile> {
+    return this.api.get<ProjectExportFile>(`/projects/${id}/export-file`);
+  }
+
+  /** POST /projects/import : create a new project from an exported file. */
+  import(file: unknown): Observable<ProjectSummary> {
+    return this.api.post<ProjectSummary>('/projects/import', file);
   }
 
   /** DELETE /projects/:id */
