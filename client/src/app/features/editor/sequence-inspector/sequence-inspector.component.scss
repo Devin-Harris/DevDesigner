@@ -221,3 +221,24 @@
   font-size: 12px;
   color: var(--dbd-text-muted);
 }
+
+.default-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--dbd-border-strong);
+  background: var(--dbd-surface-2);
+  color: var(--dbd-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+
+  &.active {
+    border-color: var(--dbd-primary);
+    color: var(--dbd-primary);
+    box-shadow: 0 0 0 1px var(--dbd-primary);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}

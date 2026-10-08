@@ -16,13 +16,13 @@
 
     <div class="field-label">Header color</div>
     <div class="swatches">
+      <button type="button" class="default-btn" [class.active]="!l.color" [disabled]="!store.canEdit()" (click)="setColor('')">Default</button>
       @for (s of swatches; track s) {
         <button
           type="button"
           class="swatch"
-          [class.none]="s === ''"
           [class.active]="(l.color || '') === s"
-          [style.background]="s || 'var(--dbd-surface-2)'"
+          [style.background]="s"
           [disabled]="!store.canEdit()"
           (click)="setColor(s)"
         ></button>
@@ -31,13 +31,13 @@
 
     <div class="field-label">Line color</div>
     <div class="swatches">
+      <button type="button" class="default-btn" [class.active]="!l.lineColor" [disabled]="!store.canEdit()" (click)="setLineColor('')">Default</button>
       @for (s of swatches; track s) {
         <button
           type="button"
           class="swatch"
-          [class.none]="s === ''"
           [class.active]="(l.lineColor || '') === s"
-          [style.background]="s || 'var(--dbd-surface-2)'"
+          [style.background]="s"
           [disabled]="!store.canEdit()"
           (click)="setLineColor(s)"
         ></button>
@@ -83,13 +83,13 @@
 
     <div class="field-label">Line color</div>
     <div class="swatches">
+      <button type="button" class="default-btn" [class.active]="!m.color" [disabled]="!store.canEdit()" (click)="setMsgColor('')">Default</button>
       @for (s of swatches; track s) {
         <button
           type="button"
           class="swatch"
-          [class.none]="s === ''"
           [class.active]="(m.color || '') === s"
-          [style.background]="s || 'var(--dbd-surface-2)'"
+          [style.background]="s"
           [disabled]="!store.canEdit()"
           (click)="setMsgColor(s)"
         ></button>
@@ -112,13 +112,13 @@
 
     <div class="field-label">Background</div>
     <div class="swatches">
+      <button type="button" class="default-btn" [class.active]="!diagram()!.backgroundColor" [disabled]="!store.canEdit()" (click)="setBackground('')">Default</button>
       @for (s of bgSwatches; track s) {
         <button
           type="button"
           class="swatch"
-          [class.none]="s === ''"
           [class.active]="(diagram()!.backgroundColor || '') === s"
-          [style.background]="s || 'var(--dbd-surface-2)'"
+          [style.background]="s"
           [disabled]="!store.canEdit()"
           (click)="setBackground(s)"
         ></button>

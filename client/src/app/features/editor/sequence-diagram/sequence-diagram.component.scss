@@ -37,7 +37,7 @@
 .spine {
   position: absolute;
   width: 0;
-  border-left: 1.4px dashed var(--line-color, var(--dbd-connector));
+  border-left: 1.4px dashed var(--line-color, var(--seq-fg, var(--dbd-connector)));
   pointer-events: none;
 }
 
@@ -169,7 +169,7 @@
 .msg-line {
   position: absolute;
   height: 0;
-  border-top: 1.6px solid var(--msg-color, var(--dbd-connector));
+  border-top: 1.6px solid var(--msg-color, var(--seq-fg, var(--dbd-connector)));
   pointer-events: none;
 
   &.dashed {
@@ -187,7 +187,7 @@
   overflow: visible;
   pointer-events: none;
   fill: none;
-  stroke: var(--msg-color, var(--dbd-connector));
+  stroke: var(--msg-color, var(--seq-fg, var(--dbd-connector)));
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -262,7 +262,7 @@
   cursor: text;
   font-family: var(--dbd-mono);
   font-size: 11px;
-  color: var(--dbd-text);
+  color: var(--seq-fg, var(--dbd-text));
   background: var(--seq-bg, var(--dbd-surface));
   padding: 0 5px;
   border-radius: 4px;
@@ -287,7 +287,7 @@
   font: inherit;
   font-family: var(--dbd-mono);
   font-size: 11px;
-  color: var(--dbd-text);
+  color: var(--seq-fg, var(--dbd-text));
   background: var(--seq-bg, var(--dbd-surface));
   border: 0;
   border-radius: 4px;
@@ -309,7 +309,7 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--dbd-text-muted);
+    color: var(--seq-fg-muted, var(--dbd-text-muted));
     background: var(--seq-bg, var(--dbd-surface));
     padding: 1px 10px;
     border-radius: 12px;
@@ -342,7 +342,7 @@
 .break-line {
   position: absolute;
   height: 0;
-  border-top: 1.4px dashed var(--msg-color, var(--dbd-border-strong));
+  border-top: 1.4px dashed var(--msg-color, var(--seq-fg-muted, var(--dbd-border-strong)));
   pointer-events: none;
 
   &.selected {
@@ -358,7 +358,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--seq-fg-muted, var(--dbd-text-muted));
   background: var(--seq-bg, var(--dbd-surface));
   border: 1px solid var(--dbd-border);
   padding: 1px 10px;

@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import type { LifelineModel, SequenceDiagramModel } from '@dbdesigner/shared';
+import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';
 
@@ -127,6 +128,8 @@ const MIN_HEADER_W = 60;
     '(pointerout)': 'addHover(false)',
     // Message labels sit on the diagram's own background so they blend with it.
     '[style.--seq-bg]': 'diagram().backgroundColor || null',
+    '[style.--seq-fg]': 'fg()?.text || null',
+    '[style.--seq-fg-muted]': 'fg()?.muted || null',
   },
   templateUrl: './sequence-diagram.component.html',
   styleUrl: './sequence-diagram.component.scss',
@@ -156,6 +159,9 @@ export class SequenceDiagramComponent {
         originY: 0,
       },
   );
+
+  /** Text colors that stay readable on a custom background; null = theme defaults. */
+  protected readonly fg = computed(() => contrastText(this.diagram().backgroundColor));
 
   protected readonly originY = computed(() => this.diagram().originY);
   protected readonly headerH = computed(() => this.diagram().headerHeight);

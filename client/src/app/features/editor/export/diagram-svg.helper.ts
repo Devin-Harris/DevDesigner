@@ -7,6 +7,7 @@ import type {
   SequenceMessageModel,
   TableModel,
 } from '@dbdesigner/shared';
+import { contrastText } from '../sequence-diagram/contrast';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
 import { nodeHeight, tableBox, tableWidth } from '../canvas/helpers/node-metrics.helper';
 import { computeConnectors } from '../canvas/helpers/connectors.helper';
@@ -434,6 +435,9 @@ function renderSequence(
   const byId = new Map(lls.map((l) => [l.id, l] as const));
 
   const bg = diagram.backgroundColor || theme.surface;
+  const fg = contrastText(diagram.backgroundColor);
+  const labelText = fg?.text ?? theme.text;
+  const labelMuted = fg?.muted ?? theme.textMuted;
   const out: string[] = [];
   out.push(
     `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
@@ -441,7 +445,7 @@ function renderSequence(
   );
   for (const l of lls) {
     out.push(
-      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || theme.connector}" ` +
+      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.text || theme.connector}" ` +
         `stroke-width="1.4" stroke-dasharray="4 4" />`,
     );
   }
@@ -452,10 +456,10 @@ function renderSequence(
     const t = byId.get(m.toLifelineId);
     const y = headerBottom + gap * rowIndex(m.y);
     const label = m.label ?? '';
-    const stroke = m.color || theme.connector;
+    const stroke = m.color || fg?.text || theme.connector;
     if (isBreak) {
       out.push(
-        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || theme.borderStrong}" ` +
+        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || fg?.muted || theme.borderStrong}" ` +
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
@@ -466,7 +470,7 @@ function renderSequence(
         out.push(
           `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(11, h / 2)}" ry="${Math.min(11, h / 2)}" ` +
             `fill="${bg}" stroke="${theme.border}" stroke-width="1" />`,
-          seqText(mid, y, lines, `font-weight="600" letter-spacing="0.44" fill="${theme.textMuted}"`),
+          seqText(mid, y, lines, `font-weight="600" letter-spacing="0.44" fill="${labelMuted}"`),
         );
       }
       continue;
@@ -492,7 +496,7 @@ function renderSequence(
       const h = lines.length * SEQ_LINE_H;
       out.push(
         `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" ry="4" fill="${bg}" />`,
-        seqText(mid, y, lines, `fill="${theme.text}"`),
+        seqText(mid, y, lines, `fill="${labelText}"`),
       );
     }
   }

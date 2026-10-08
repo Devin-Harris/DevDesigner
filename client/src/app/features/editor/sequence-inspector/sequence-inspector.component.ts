@@ -45,7 +45,6 @@ export class SequenceInspectorComponent {
   );
 
   protected readonly swatches = [
-    '',
     '#e5484d',
     '#f5a623',
     '#12b76a',
@@ -72,7 +71,6 @@ export class SequenceInspectorComponent {
     if (l) void this.store.updateLifeline(l.id, { color });
   }
   protected readonly bgSwatches = [
-    '',
     '#ffffff',
     '#f1f5f9',
     '#fef3c7',
