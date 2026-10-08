@@ -2,7 +2,7 @@
  * Readable text colors for a custom diagram background (hex). Returns null when
  * the background is unset/unparseable so callers fall back to the theme colors.
  */
-export function contrastText(bg: string | undefined): { text: string; muted: string } | null {
+export function contrastText(bg: string | undefined): { text: string; muted: string; soft: string } | null {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((bg ?? '').trim());
   if (!m) return null;
   let h = m[1];
@@ -13,6 +13,6 @@ export function contrastText(bg: string | undefined): { text: string; muted: str
   };
   const lum = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
   return lum > 0.4
-    ? { text: '#0f172a', muted: '#475569' }
-    : { text: '#f8fafc', muted: '#cbd5e1' };
+    ? { text: '#0f172a', muted: '#475569', soft: '#334155' }
+    : { text: '#f8fafc', muted: '#cbd5e1', soft: '#e2e8f0' };
 }

@@ -131,6 +131,8 @@ const MIN_HEADER_W = 60;
     '[style.--seq-bg]': 'diagram().backgroundColor || null',
     '[style.--seq-fg]': 'fg()?.text || null',
     '[style.--seq-fg-muted]': 'fg()?.muted || null',
+    '[style.--seq-fg-soft]': 'fg()?.soft || null',
+    '[style.--seq-spine]': 'fg() ? "color-mix(in srgb, " + fg()!.muted + " 55%, transparent)" : null',
   },
   templateUrl: './sequence-diagram.component.html',
   styleUrl: './sequence-diagram.component.scss',

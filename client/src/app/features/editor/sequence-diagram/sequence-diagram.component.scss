@@ -37,7 +37,10 @@
 .spine {
   position: absolute;
   width: 0;
-  border-left: 1.4px dashed var(--line-color, var(--seq-fg, var(--dbd-connector)));
+  border-left: 1.4px dashed var(
+    --line-color,
+    var(--seq-spine, var(--dbd-border))
+  );
   pointer-events: none;
 }
 
@@ -174,6 +177,8 @@
 
   &.dashed {
     border-top-style: dashed;
+    // Return messages are quieter than calls, like break dividers.
+    border-top-color: var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
   }
   &.selected {
     border-top-color: var(--dbd-primary);
@@ -192,6 +197,9 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 
+  &.dashed {
+    stroke: var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
+  }
   &.selected {
     stroke: var(--dbd-primary);
   }
@@ -342,7 +350,7 @@
 .break-line {
   position: absolute;
   height: 0;
-  border-top: 1.4px dashed var(--msg-color, var(--seq-fg-muted, var(--dbd-border-strong)));
+  border-top: 1.4px dashed var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
   pointer-events: none;
 
   &.selected {

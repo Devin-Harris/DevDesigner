@@ -445,7 +445,7 @@ function renderSequence(
   );
   for (const l of lls) {
     out.push(
-      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.text || theme.connector}" ` +
+      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.muted || theme.border}"${l.lineColor || !fg ? '' : ' stroke-opacity="0.55"'} ` +
         `stroke-width="1.4" stroke-dasharray="4 4" />`,
     );
   }
@@ -456,10 +456,11 @@ function renderSequence(
     const t = byId.get(m.toLifelineId);
     const y = headerBottom + gap * rowIndex(m.y);
     const label = m.label ?? '';
-    const stroke = m.color || fg?.text || theme.connector;
+    const stroke =
+      m.color || (m.style === 'dashed' ? fg?.soft ?? theme.textMuted : fg?.text ?? theme.connector);
     if (isBreak) {
       out.push(
-        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || fg?.muted || theme.borderStrong}" ` +
+        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || fg?.soft || theme.textMuted}" ` +
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
