@@ -18,6 +18,7 @@ import type {
   VerticalAlign,
 } from '../enums';
 import type { DataType, ElementBinding, PointModel, SchemaModel } from '../models';
+import type { SchemaMutation } from '../realtime';
 
 // --- Auth ---
 export interface RegisterDto {
@@ -90,6 +91,21 @@ export interface ProjectExportFile {
     type: ProjectType;
   };
   schema: SchemaModel;
+}
+
+/** Body of POST /projects/:id/import-content: merge an export file into an existing project. */
+export interface ImportIntoProjectDto {
+  /** The parsed contents of a `.dbdesigner.json` file. */
+  file: ProjectExportFile;
+  /** World point to place the content's top-left corner at (e.g. the visible canvas). */
+  anchor?: { x: number; y: number };
+}
+/**
+ * What the merge added, as the same mutations broadcast to collaborators. The
+ * caller applies them locally (its own echo is filtered out of the broadcast).
+ */
+export interface ImportIntoProjectResponse {
+  mutations: SchemaMutation[];
 }
 
 // --- Tables ---

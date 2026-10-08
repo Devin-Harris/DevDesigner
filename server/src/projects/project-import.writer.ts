@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import type { EntityManager, EntityTarget, ObjectLiteral } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import type { ElementBinding } from '@dbdesigner/shared';
+import type {
+  CanvasElementModel,
+  ElementBinding,
+  IndexModel,
+  LifelineModel,
+  RelationshipModel,
+  SchemaModel,
+  SequenceDiagramModel,
+  SequenceMessageModel,
+  TableModel,
+} from '@dbdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
 import { fromDataType } from '../columns/column.mapper';
 import { ElementEntity } from '../elements/element.entity';
@@ -40,34 +50,73 @@ class IdMap {
   }
 }
 
+/** A world-space point the imported content's top-left corner is moved to. */
+export interface ImportAnchor {
+  x: number;
+  y: number;
+}
+
 /**
- * Insert a validated project file as a brand-new project. EVERY id is regenerated
- * (so an export can be imported repeatedly, or onto the server it came from, with
- * no collisions) and every cross-reference is rewritten through the id maps.
- * References that no longer resolve (a relationship to a missing column, a
- * binding to a missing shape) are dropped rather than failing the whole import.
- *
- * Must be called inside a transaction so a failure leaves no partial project.
+ * Translation that moves the content's top-left corner (smallest x / y across
+ * every positioned item) onto `anchor`, preserving the content's own layout.
+ * Zero when there is nothing to position.
  */
-export async function writeImportedProject(
+export function offsetToAnchor(
+  schema: SchemaModel,
+  anchor: ImportAnchor,
+): { dx: number; dy: number } {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const t of schema.tables) {
+    xs.push(t.x);
+    ys.push(t.y);
+  }
+  for (const e of schema.elements) {
+    xs.push(e.x);
+    ys.push(e.y);
+  }
+  for (const l of schema.lifelines) xs.push(l.x);
+  for (const m of schema.sequenceMessages) ys.push(m.y);
+  for (const d of schema.sequenceDiagrams) ys.push(d.originY);
+  for (const r of schema.relationships) {
+    for (const p of r.waypoints ?? []) {
+      xs.push(p.x);
+      ys.push(p.y);
+    }
+  }
+  if (xs.length === 0 || ys.length === 0) return { dx: 0, dy: 0 };
+  return { dx: anchor.x - Math.min(...xs), dy: anchor.y - Math.min(...ys) };
+}
+
+export interface WriteOptions {
+  /** Translation applied to every world coordinate (default none). */
+  dx?: number;
+  dy?: number;
+  /** Merging into a project that already has elements: stack the new ones above them. */
+  stackAboveExisting?: boolean;
+}
+
+/** The content written by `writeSchemaInto`, as models carrying the NEW ids. */
+export type WrittenSchema = Omit<SchemaModel, 'viewport' | 'notes'>;
+
+/**
+ * Insert a validated schema into `projectId` (a brand-new project or an existing
+ * one). EVERY id is regenerated (so a file can be imported repeatedly, or onto the
+ * server it came from, with no collisions) and every cross-reference is rewritten
+ * through the id maps. References that no longer resolve (a relationship to a
+ * missing column, a binding to a missing shape) are dropped rather than failing
+ * the whole import.
+ *
+ * Must be called inside a transaction so a failure leaves nothing half-written.
+ */
+export async function writeSchemaInto(
   manager: EntityManager,
-  parsed: ParsedProjectImport,
-  ownerId: string | null,
-): Promise<Project> {
-  const { schema } = parsed;
-  const project = await manager.save(
-    manager.create(Project, {
-      name: parsed.name,
-      description: parsed.description,
-      type: parsed.type,
-      ownerId,
-      archived: false,
-      viewportX: schema.viewport.x,
-      viewportY: schema.viewport.y,
-      zoom: schema.viewport.zoom,
-    }),
-  );
-  const projectId = project.id;
+  projectId: string,
+  schema: SchemaModel,
+  options: WriteOptions = {},
+): Promise<WrittenSchema> {
+  const dx = options.dx ?? 0;
+  const dy = options.dy ?? 0;
 
   const tableIds = new IdMap();
   const columnIds = new IdMap();
@@ -81,24 +130,46 @@ export async function writeImportedProject(
   };
 
   // Tables, their columns and indexes.
+  const tableModels: TableModel[] = [];
   const tableRows: QueryDeepPartialEntity<TableEntity>[] = [];
   const columnRows: QueryDeepPartialEntity<ColumnEntity>[] = [];
+  const indexRows: QueryDeepPartialEntity<IndexEntity>[] = [];
+  for (const t of schema.tables) tableIds.mint(t.id);
   for (const t of schema.tables) {
-    const tableId = tableIds.mint(t.id);
+    const tableId = tableIds.get(t.id)!;
+    const groupId = group(t.groupId);
+    const columns = t.columns.map((c) => ({ ...c, id: columnIds.mint(c.id) }));
+    const indexes: IndexModel[] = [];
+    for (const ix of t.indexes ?? []) {
+      const covered = ix.columnIds
+        .map((id) => columnIds.get(id))
+        .filter((id): id is string => id !== undefined);
+      if (covered.length === 0) continue;
+      indexes.push({ id: randomUUID(), name: ix.name, columnIds: covered, isUnique: ix.isUnique });
+    }
+    tableModels.push({
+      ...t,
+      id: tableId,
+      x: t.x + dx,
+      y: t.y + dy,
+      columns,
+      indexes: indexes.length ? indexes : undefined,
+      groupId: groupId ?? undefined,
+    });
     tableRows.push({
       id: tableId,
       projectId,
       name: t.name,
-      x: t.x,
-      y: t.y,
+      x: t.x + dx,
+      y: t.y + dy,
       color: t.color ?? null,
       note: t.note ?? null,
       width: t.width ?? null,
-      groupId: group(t.groupId),
+      groupId,
     });
-    t.columns.forEach((c, orderIndex) => {
+    columns.forEach((c, orderIndex) => {
       columnRows.push({
-        id: columnIds.mint(c.id),
+        id: c.id,
         tableId,
         name: c.name,
         ...fromDataType(c.dataType),
@@ -111,58 +182,76 @@ export async function writeImportedProject(
         orderIndex,
       });
     });
-  }
-  await insertAll(manager, TableEntity, tableRows);
-  await insertAll(manager, ColumnEntity, columnRows);
-
-  const indexRows: QueryDeepPartialEntity<IndexEntity>[] = [];
-  for (const t of schema.tables) {
-    (t.indexes ?? []).forEach((ix, orderIndex) => {
-      const covered = ix.columnIds
-        .map((id) => columnIds.get(id))
-        .filter((id): id is string => id !== undefined);
-      if (covered.length === 0) return;
+    indexes.forEach((ix, orderIndex) => {
       indexRows.push({
-        tableId: tableIds.get(t.id),
+        id: ix.id,
+        tableId,
         name: ix.name,
-        columnIdsJson: JSON.stringify(covered),
+        columnIdsJson: JSON.stringify(ix.columnIds),
         isUnique: ix.isUnique,
         orderIndex,
       });
     });
   }
+  await insertAll(manager, TableEntity, tableRows);
+  await insertAll(manager, ColumnEntity, columnRows);
   await insertAll(manager, IndexEntity, indexRows);
 
   // Relationships (both endpoint columns must have survived).
+  const relationshipModels: RelationshipModel[] = [];
   const relationshipRows: QueryDeepPartialEntity<RelationshipEntity>[] = [];
   for (const r of schema.relationships) {
     const sourceColumnId = columnIds.get(r.sourceColumnId);
     const targetColumnId = columnIds.get(r.targetColumnId);
     if (!sourceColumnId || !targetColumnId) continue;
+    const waypoints = r.waypoints?.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    const id = randomUUID();
+    relationshipModels.push({ ...r, id, sourceColumnId, targetColumnId, waypoints });
     relationshipRows.push({
+      id,
       projectId,
       sourceColumnId,
       targetColumnId,
       type: r.type,
       onDelete: r.onDelete ?? null,
       onUpdate: r.onUpdate ?? null,
-      waypointsJson: r.waypoints?.length ? JSON.stringify(r.waypoints) : null,
+      waypointsJson: waypoints?.length ? JSON.stringify(waypoints) : null,
     });
   }
   await insertAll(manager, RelationshipEntity, relationshipRows);
 
   // Free-form elements. Mint all ids first: bindings can point at later elements.
   for (const e of schema.elements) elementIds.mint(e.id);
-  const resolveBinding = (b: ElementBinding | undefined) => {
-    if (!b) return { kind: null, id: null };
+  let zShift = 0;
+  if (options.stackAboveExisting && schema.elements.length) {
+    const top = await manager
+      .createQueryBuilder(ElementEntity, 'e')
+      .select('MAX(e.zIndex)', 'max')
+      .where('e.projectId = :projectId', { projectId })
+      .getRawOne<{ max: number | null }>();
+    const lowest = Math.min(...schema.elements.map((e) => e.zIndex));
+    zShift = (top?.max ?? -1) + 1 - lowest;
+  }
+  const resolveBinding = (b: ElementBinding | undefined): ElementBinding | undefined => {
+    if (!b) return undefined;
     const id = b.targetKind === 'table' ? tableIds.get(b.targetId) : elementIds.get(b.targetId);
-    return id ? { kind: b.targetKind, id } : { kind: null, id: null };
+    return id ? { targetKind: b.targetKind, targetId: id } : undefined;
   };
-  const elementRows: QueryDeepPartialEntity<ElementEntity>[] = schema.elements.map((e) => {
-    const start = resolveBinding(e.startBinding);
-    const end = resolveBinding(e.endBinding);
-    return {
-      id: elementIds.get(e.id),
+  const elementModels: CanvasElementModel[] = schema.elements.map((e) => ({
+    ...e,
+    id: elementIds.get(e.id)!,
+    x: e.x + dx,
+    y: e.y + dy,
+    zIndex: e.zIndex + zShift,
+    startBinding: resolveBinding(e.startBinding),
+    endBinding: resolveBinding(e.endBinding),
+    groupId: group(e.groupId) ?? undefined,
+  }));
+  await insertAll(
+    manager,
+    ElementEntity,
+    elementModels.map((e) => ({
+      id: e.id,
       projectId,
       type: e.type,
       x: e.x,
@@ -186,67 +275,119 @@ export async function writeImportedProject(
       italic: e.italic ?? null,
       textAlign: e.textAlign ?? null,
       verticalAlign: e.verticalAlign ?? null,
-      startBindingKind: start.kind,
-      startBindingId: start.id,
-      endBindingKind: end.kind,
-      endBindingId: end.id,
+      startBindingKind: e.startBinding?.targetKind ?? null,
+      startBindingId: e.startBinding?.targetId ?? null,
+      endBindingKind: e.endBinding?.targetKind ?? null,
+      endBindingId: e.endBinding?.targetId ?? null,
       startArrowhead: e.startArrowhead ?? null,
       endArrowhead: e.endArrowhead ?? null,
-      groupId: group(e.groupId),
-    };
-  });
-  await insertAll(manager, ElementEntity, elementRows);
+      groupId: e.groupId ?? null,
+    })),
+  );
 
   // Sequence diagrams -> lifelines -> messages (children of a missing parent are dropped).
-  const diagramRows: QueryDeepPartialEntity<SequenceDiagramEntity>[] = schema.sequenceDiagrams.map(
-    (d) => ({
-      id: diagramIds.mint(d.id),
+  const diagramModels: SequenceDiagramModel[] = schema.sequenceDiagrams.map((d) => ({
+    ...d,
+    id: diagramIds.mint(d.id),
+    originY: d.originY + dy,
+    groupId: group(d.groupId) ?? undefined,
+  }));
+  await insertAll(
+    manager,
+    SequenceDiagramEntity,
+    diagramModels.map((d) => ({
+      id: d.id,
       projectId,
       lifelineSpacing: d.lifelineSpacing,
       rowSpacing: d.rowSpacing,
       headerHeight: d.headerHeight,
       originY: d.originY,
-      groupId: group(d.groupId),
-    }),
+      groupId: d.groupId ?? null,
+    })),
   );
-  await insertAll(manager, SequenceDiagramEntity, diagramRows);
 
-  const lifelineRows: QueryDeepPartialEntity<LifelineEntity>[] = [];
+  const lifelineModels: LifelineModel[] = [];
   for (const l of schema.lifelines) {
     const diagramId = diagramIds.get(l.diagramId);
     if (!diagramId) continue;
-    lifelineRows.push({
-      id: lifelineIds.mint(l.id),
+    lifelineModels.push({ ...l, id: lifelineIds.mint(l.id), diagramId, x: l.x + dx });
+  }
+  await insertAll(
+    manager,
+    LifelineEntity,
+    lifelineModels.map((l) => ({
+      id: l.id,
       projectId,
-      diagramId,
+      diagramId: l.diagramId,
       label: l.label,
       color: l.color ?? null,
       x: l.x,
       width: l.width,
       orderIndex: l.order,
-    });
-  }
-  await insertAll(manager, LifelineEntity, lifelineRows);
+    })),
+  );
 
-  const messageRows: QueryDeepPartialEntity<SequenceMessageEntity>[] = [];
+  const messageModels: SequenceMessageModel[] = [];
   for (const m of schema.sequenceMessages) {
     const diagramId = diagramIds.get(m.diagramId);
     const fromLifelineId = lifelineIds.get(m.fromLifelineId);
     const toLifelineId = lifelineIds.get(m.toLifelineId);
     if (!diagramId || !fromLifelineId || !toLifelineId) continue;
-    messageRows.push({
-      projectId,
+    messageModels.push({
+      ...m,
+      id: randomUUID(),
       diagramId,
       fromLifelineId,
       toLifelineId,
+      y: m.y + dy,
+    });
+  }
+  await insertAll(
+    manager,
+    SequenceMessageEntity,
+    messageModels.map((m) => ({
+      id: m.id,
+      projectId,
+      diagramId: m.diagramId,
+      fromLifelineId: m.fromLifelineId,
+      toLifelineId: m.toLifelineId,
       label: m.label ?? null,
       y: m.y,
       style: m.style,
       direction: m.direction,
       arrowhead: m.arrowhead,
-    });
-  }
-  await insertAll(manager, SequenceMessageEntity, messageRows);
+    })),
+  );
 
+  return {
+    tables: tableModels,
+    relationships: relationshipModels,
+    elements: elementModels,
+    sequenceDiagrams: diagramModels,
+    lifelines: lifelineModels,
+    sequenceMessages: messageModels,
+  };
+}
+
+/** Insert a validated project file as a brand-new project. */
+export async function writeImportedProject(
+  manager: EntityManager,
+  parsed: ParsedProjectImport,
+  ownerId: string | null,
+): Promise<Project> {
+  const { schema } = parsed;
+  const project = await manager.save(
+    manager.create(Project, {
+      name: parsed.name,
+      description: parsed.description,
+      type: parsed.type,
+      ownerId,
+      archived: false,
+      viewportX: schema.viewport.x,
+      viewportY: schema.viewport.y,
+      zoom: schema.viewport.zoom,
+    }),
+  );
+  await writeSchemaInto(manager, project.id, schema);
   return project;
 }

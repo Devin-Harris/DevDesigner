@@ -25,9 +25,16 @@ import type {
   RelationshipType,
   TableModel,
 } from '@dbdesigner/shared';
-import { generateSql, type SequenceDiagramModel } from '@dbdesigner/shared';
+import {
+  generateSql,
+  PROJECT_EXPORT_FORMAT,
+  PROJECT_EXPORT_VERSION,
+  type SequenceDiagramModel,
+} from '@dbdesigner/shared';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
+import { ProjectFileService } from '../../core/services/project-file.service';
+import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
@@ -201,6 +208,8 @@ export class EditorComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly realtime = inject(RealtimeService);
   private readonly dialog = inject(MatDialog);
+  private readonly projectFile = inject(ProjectFileService);
+  private readonly projectsStore = inject(ProjectsStore);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
   private readonly editorActions = inject(EditorActionsService);
@@ -893,6 +902,8 @@ export class EditorComponent {
       exportSql: () => this.openSqlExport(),
       exportImage: (format) => void this.onExportImage(format),
       exportFramesPdf: () => void this.exportAllFramesPdf(),
+      exportSelectionFile: () => this.exportSelectionFile(),
+      importFile: (file) => this.importProjectFile(file),
       deleteSelection: () => this.deleteSelection(),
     });
     this.destroyRef.onDestroy(() => this.editorActions.clear());
@@ -904,6 +915,15 @@ export class EditorComponent {
       const names = scope.map((t) => t.name.trim().toLowerCase());
       this.editorActions.hasTableSelection.set(selected.length > 0);
       this.editorActions.canExportSql.set(new Set(names).size === names.length);
+    });
+    effect(() => {
+      this.editorActions.hasSelection.set(
+        this.store.selectedTableIds().length > 0 ||
+          this.store.selectedElementIds().length > 0 ||
+          this.store.selectedMessageIds().length > 0 ||
+          this.store.selectedLifelineIds().length > 0 ||
+          this.store.selectedDiagramIds().length > 0,
+      );
     });
     // Persist the grid-snap toggle across refreshes.
     effect(() => {
@@ -2837,6 +2857,53 @@ export class EditorComponent {
 
   private exportBaseName(selectionOnly: boolean): string {
     return selectionOnly ? 'diagram-selection' : 'diagram';
+  }
+
+  /** Merge a project file into this project, landing in the visible part of the canvas. */
+  protected importProjectFile(file: unknown): Promise<number> {
+    const rect = this.canvasRect();
+    const v = this.store.viewport();
+    // Top-left of the content goes a little in from the canvas's top-left corner.
+    const anchor = {
+      x: Math.round((rect.width * 0.1 - v.x) / v.zoom),
+      y: Math.round((rect.height * 0.15 - v.y) / v.zoom),
+    };
+    return this.store.importFile(file, anchor);
+  }
+
+  /**
+   * Save just the current selection as a project file. It imports as its own new
+   * project; references that leave the selection (e.g. an arrow bound to an
+   * unselected table) are dropped by the importer.
+   */
+  protected exportSelectionFile(): void {
+    const { tables, relationships, elements, sequences, selectionOnly } = this.exportScope();
+    if (!selectionOnly) return;
+    const current = this.projectsStore.selected();
+    const baseName = (current?.name ?? 'project').slice(0, 100);
+    this.projectFile.save(
+      {
+        format: PROJECT_EXPORT_FORMAT,
+        version: PROJECT_EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        project: {
+          name: `${baseName} (selection)`,
+          description: current?.description ?? null,
+          type: current?.type ?? 'ERD',
+        },
+        schema: {
+          tables,
+          relationships,
+          notes: [],
+          elements,
+          sequenceDiagrams: [...sequences.diagrams],
+          lifelines: [...sequences.lifelines],
+          sequenceMessages: [...sequences.messages],
+          viewport: this.store.viewport(),
+        },
+      },
+      `${baseName}-selection`,
+    );
   }
 
   /** Open the SQL export dialog for the current scope (selection or whole diagram). */

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from './core/services/theme.service';
@@ -39,6 +41,7 @@ export class AppComponent {
   protected readonly realtime = inject(RealtimeService);
   private readonly overlay = inject(ProjectsOverlayService);
   private readonly projectFile = inject(ProjectFileService);
+  private readonly snackBar = inject(MatSnackBar);
 
   constructor() {
     void this.auth.loadMe();
@@ -69,6 +72,35 @@ export class AppComponent {
     if (id) {
       void this.projectFile.download(id, this.projects.selected()?.name ?? 'project');
     }
+  }
+  /** Merge a chosen `.dbdesigner.json` file into the open project. */
+  protected async importProjectFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    try {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        throw new Error('That file is not valid JSON.');
+      }
+      const count = await this.editorActions.importFile(parsed);
+      this.snackBar.open(`Imported ${count} item${count === 1 ? '' : 's'}`, undefined, {
+        duration: 2500,
+      });
+    } catch (err) {
+      const detail = err instanceof HttpErrorResponse ? err.error?.message : (err as Error).message;
+      // eslint-disable-next-line no-console
+      console.error('Could not import file', err);
+      this.snackBar.open(`Could not import file${detail ? `: ${detail}` : ''}`, 'Dismiss', {
+        duration: 5000,
+      });
+    }
+  }
+  protected exportSelectionFile(): void {
+    this.editorActions.exportSelectionFile();
   }
   protected share(): void {
     this.editorActions.share();

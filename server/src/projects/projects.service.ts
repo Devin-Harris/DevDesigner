@@ -4,9 +4,11 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import {
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
+  type ImportIntoProjectResponse,
   type ProjectExportFile,
   type ProjectGraphResponse,
   type ProjectSummary,
+  type SchemaMutation,
   type SchemaModel,
 } from '@dbdesigner/shared';
 import { TablesService } from '../tables/tables.service';
@@ -14,12 +16,13 @@ import { RelationshipsService } from '../relationships/relationships.service';
 import { ElementsService } from '../elements/elements.service';
 import { SequenceService } from '../sequence/sequence.service';
 import { AccessService } from '../access/access.service';
+import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { parseProjectExport } from './project-import.parser';
-import { writeImportedProject } from './project-import.writer';
+import { offsetToAnchor, writeImportedProject, writeSchemaInto } from './project-import.writer';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -41,6 +44,7 @@ export class ProjectsService {
     private readonly sequence: SequenceService,
     private readonly access: AccessService,
     private readonly dataSource: DataSource,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   /**
@@ -191,6 +195,50 @@ export class ProjectsService {
       writeImportedProject(manager, parsed, userId),
     );
     return this.toSummary(saved);
+  }
+
+  /**
+   * Merge an exported file into an EXISTING project (needs write access). Content
+   * gets fresh ids, is shifted so its top-left sits at `anchor`, and is stacked
+   * above existing shapes. The additions are broadcast to collaborators and also
+   * returned so the importing tab can apply them without a reload.
+   */
+  async importIntoProject(
+    projectId: string,
+    body: unknown,
+    userId: string | null,
+    shareToken: string | null,
+    clientId: string | null,
+  ): Promise<ImportIntoProjectResponse> {
+    await this.access.assertCanWrite(projectId, userId, shareToken);
+    const { file, anchor } = (body ?? {}) as { file?: unknown; anchor?: { x?: unknown; y?: unknown } };
+    const parsed = parseProjectExport(file);
+    const { dx, dy } =
+      anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)
+        ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
+        : { dx: 0, dy: 0 };
+    const added = await this.dataSource.transaction((manager) =>
+      writeSchemaInto(manager, projectId, parsed.schema, { dx, dy, stackAboveExisting: true }),
+    );
+    // Parents before children so peers never see a dangling reference.
+    const mutations: SchemaMutation[] = [
+      ...added.tables.map((table): SchemaMutation => ({ kind: 'table.created', table })),
+      ...added.relationships.map(
+        (relationship): SchemaMutation => ({ kind: 'relationship.created', relationship }),
+      ),
+      ...added.elements.map((element): SchemaMutation => ({ kind: 'element.created', element })),
+      ...added.sequenceDiagrams.map(
+        (diagram): SchemaMutation => ({ kind: 'sequenceDiagram.created', diagram }),
+      ),
+      ...added.lifelines.map((lifeline): SchemaMutation => ({ kind: 'lifeline.created', lifeline })),
+      ...added.sequenceMessages.map(
+        (message): SchemaMutation => ({ kind: 'message.created', message }),
+      ),
+    ];
+    for (const mutation of mutations) {
+      this.realtime.emit(projectId, clientId, mutation);
+    }
+    return { mutations };
   }
 
   async remove(id: string, userId: string | null): Promise<void> {

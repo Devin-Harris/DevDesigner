@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
   CreateProjectDto,
+  ImportIntoProjectDto,
+  ImportIntoProjectResponse,
   ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
@@ -48,6 +50,11 @@ export class ProjectsService {
   /** POST /projects/import : create a new project from an exported file. */
   import(file: unknown): Observable<ProjectSummary> {
     return this.api.post<ProjectSummary>('/projects/import', file);
+  }
+
+  /** POST /projects/:id/import-content : merge an export file into an existing project. */
+  importInto(id: string, dto: ImportIntoProjectDto): Observable<ImportIntoProjectResponse> {
+    return this.api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, dto);
   }
 
   /** DELETE /projects/:id */

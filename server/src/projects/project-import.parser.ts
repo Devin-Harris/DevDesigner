@@ -285,10 +285,14 @@ function parseMessage(raw: unknown, path: string): SequenceMessageModel {
  */
 export function parseProjectExport(raw: unknown): ParsedProjectImport {
   const file = obj(raw, 'file');
-  if (file['format'] !== PROJECT_EXPORT_FORMAT) {
+  // The marker is optional: files written without it (e.g. by an older client build)
+  // are accepted as version 1 and still go through the full structural validation
+  // below. A marker that is present but wrong means some other kind of file.
+  const format = file['format'];
+  if (format !== undefined && format !== null && format !== PROJECT_EXPORT_FORMAT) {
     fail('file', 'is not a DBDesigner project export');
   }
-  const version = file['version'];
+  const version = file['version'] ?? 1;
   if (typeof version !== 'number' || version < 1) {
     fail('version', 'must be a positive number');
   }

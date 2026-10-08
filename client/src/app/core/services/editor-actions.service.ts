@@ -8,6 +8,8 @@ export interface EditorActionHandlers {
   exportSql: () => void;
   exportImage: (format: ExportImageFormat) => void;
   exportFramesPdf: () => void;
+  exportSelectionFile: () => void;
+  importFile: (file: unknown) => Promise<number>;
   deleteSelection: () => void;
 }
 
@@ -26,6 +28,8 @@ export class EditorActionsService {
   readonly canExportSql = signal(true);
   /** True when at least one table is selected (SQL export is offered only then). */
   readonly hasTableSelection = signal(false);
+  /** True when anything (table, shape, sequence part) is selected. */
+  readonly hasSelection = signal(false);
   private handlers: EditorActionHandlers | null = null;
 
   register(handlers: EditorActionHandlers): void {
@@ -49,6 +53,13 @@ export class EditorActionsService {
   }
   deleteSelection(): void {
     this.handlers?.deleteSelection();
+  }
+  /** Merge an export file into the open project; resolves with the number of items added. */
+  importFile(file: unknown): Promise<number> {
+    return this.handlers?.importFile(file) ?? Promise.reject(new Error('No project is open.'));
+  }
+  exportSelectionFile(): void {
+    this.handlers?.exportSelectionFile();
   }
   exportFramesPdf(): void {
     this.handlers?.exportFramesPdf();

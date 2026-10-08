@@ -10,7 +10,7 @@ import { SequenceMessageEntity } from '../sequence/sequence-message.entity';
 import { TableEntity } from '../tables/table.entity';
 import { Project } from './project.entity';
 import { parseProjectExport } from './project-import.parser';
-import { writeImportedProject } from './project-import.writer';
+import { offsetToAnchor, writeImportedProject, writeSchemaInto } from './project-import.writer';
 
 function sampleFile(): ProjectExportFile {
   return {
@@ -152,6 +152,7 @@ describe('parseProjectExport', () => {
   it.each([
     ['not an object', 'nope'],
     ['wrong format marker', { ...sampleFile(), format: 'something-else' }],
+    ['no marker and no project/schema', { foo: 1 }],
     ['newer version', { ...sampleFile(), version: 99 }],
     ['missing project', { ...sampleFile(), project: undefined }],
     ['blank name', { ...sampleFile(), project: { name: '  ', type: 'ERD' } }],
@@ -163,6 +164,13 @@ describe('parseProjectExport', () => {
     const file = sampleFile();
     (file.schema.elements[0] as unknown as { type: string }).type = 'hexagon';
     expect(() => parseProjectExport(file)).toThrow(/schema\.elements\[0\]\.type/);
+  });
+
+  it('accepts a file with no format marker or version', () => {
+    const file = sampleFile() as unknown as Record<string, unknown>;
+    delete file['format'];
+    delete file['version'];
+    expect(parseProjectExport(file).schema.tables).toHaveLength(2);
   });
 
   it('tolerates missing optional arrays', () => {
@@ -245,5 +253,40 @@ describe('writeImportedProject', () => {
       }),
     ).rejects.toThrow('boom');
     expect(await ds.getRepository(Project).count()).toBe(before);
+  });
+
+  it('merges into an existing project, shifted to the anchor and stacked above its shapes', async () => {
+    const parsed = parseProjectExport(sampleFile());
+    const target = await ds.transaction((m) => writeImportedProject(m, parsed, null));
+    const before = await ds.getRepository(ElementEntity).find({ where: { projectId: target.id } });
+    const maxZ = Math.max(...before.map((e) => e.zIndex));
+
+    // Content's top-left is (0,0) (the box); anchor it at (500,400).
+    const { dx, dy } = offsetToAnchor(parsed.schema, { x: 500, y: 400 });
+    expect({ dx, dy }).toEqual({ dx: 500, dy: 400 });
+    const added = await ds.transaction((m) =>
+      writeSchemaInto(m, target.id, parsed.schema, { dx, dy, stackAboveExisting: true }),
+    );
+
+    // Returned models carry the new ids and shifted positions.
+    const users = added.tables.find((t) => t.name === 'users')!;
+    expect(users.x).toBe(10 + dx);
+    expect(added.relationships).toHaveLength(1);
+    expect(added.sequenceDiagrams[0].originY).toBe(5 + dy);
+    expect(added.sequenceMessages[0].y).toBe(80 + dy);
+
+    // Project now holds both copies; the new elements sit above the old ones.
+    const tables = await ds.getRepository(TableEntity).find({ where: { projectId: target.id } });
+    expect(tables).toHaveLength(4);
+    expect(tables.map((t) => t.id)).toContain(users.id);
+    const after = await ds.getRepository(ElementEntity).find({ where: { projectId: target.id } });
+    const newOnes = after.filter((e) => !before.some((b) => b.id === e.id));
+    expect(newOnes).toHaveLength(2);
+    expect(Math.min(...newOnes.map((e) => e.zIndex))).toBe(maxZ + 1);
+  });
+
+  it('offsetToAnchor is zero for empty content', () => {
+    const empty = parseProjectExport({ ...sampleFile(), schema: { tables: [] } });
+    expect(offsetToAnchor(empty.schema, { x: 9, y: 9 })).toEqual({ dx: 0, dy: 0 });
   });
 });

@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import type {
+  ImportIntoProjectResponse,
   ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
@@ -20,7 +21,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../common/request.decorators';
 
 /**
  * Granular project routes (BUILD_INSTRUCTIONS.md section 5). Controllers only
@@ -54,6 +55,18 @@ export class ProjectsController {
     @CurrentUserId() userId: string | null,
   ): Promise<ProjectSummary> {
     return this.projects.importProject(body, userId);
+  }
+
+  /** Merge an exported file into this existing project. */
+  @Post(':projectId/import-content')
+  importContent(
+    @Param('projectId') projectId: string,
+    @Body() body: unknown,
+    @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
+  ): Promise<ImportIntoProjectResponse> {
+    return this.projects.importIntoProject(projectId, body, userId, shareToken, clientId);
   }
 
   @Get(':projectId/export-file')

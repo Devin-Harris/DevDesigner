@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import type { ProjectExportFile } from '@dbdesigner/shared';
 import { downloadText } from '../../features/editor/export/image-export.helper';
 import { ProjectsStore } from '../../stores/projects.store';
 
@@ -13,11 +14,16 @@ export class ProjectFileService {
   private readonly store = inject(ProjectsStore);
   private readonly snackBar = inject(MatSnackBar);
 
+  /** Save an already-built export file (e.g. a selection) under `<name>.dbdesigner.json`. */
+  save(file: ProjectExportFile, name: string): void {
+    const safe = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'project';
+    downloadText(JSON.stringify(file, null, 2), `${safe}.dbdesigner.json`, 'application/json');
+  }
+
   async download(projectId: string, projectName: string): Promise<void> {
     try {
       const file = await this.store.exportProject(projectId);
-      const safe = projectName.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'project';
-      downloadText(JSON.stringify(file, null, 2), `${safe}.dbdesigner.json`, 'application/json');
+      this.save(file, projectName);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Could not export project', err);
