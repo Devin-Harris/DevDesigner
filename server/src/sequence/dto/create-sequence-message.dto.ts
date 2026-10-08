@@ -36,4 +36,9 @@ export class CreateSequenceMessageDto implements ICreateSequenceMessageDto {
   @IsOptional()
   @IsIn(ARROWHEADS)
   arrowhead?: (typeof ARROWHEADS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  color?: string;
 }

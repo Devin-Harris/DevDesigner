@@ -71,6 +71,35 @@ export class SequenceInspectorComponent {
     const l = this.lifeline();
     if (l) void this.store.updateLifeline(l.id, { color });
   }
+  protected readonly bgSwatches = [
+    '',
+    '#ffffff',
+    '#f1f5f9',
+    '#fef3c7',
+    '#dcfce7',
+    '#dbeafe',
+    '#fce7f3',
+    '#1e293b',
+  ];
+  protected setBackground(backgroundColor: string): void {
+    const d = this.activeDiagram();
+    if (d) void this.store.updateSequenceConfig(d.id, { backgroundColor });
+  }
+  protected setLineColor(lineColor: string): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { lineColor });
+  }
+  protected setWidth(width: string | number): void {
+    const l = this.lifeline();
+    const w = Math.round(Number(width));
+    if (l && Number.isFinite(w)) {
+      void this.store.updateLifeline(l.id, { width: Math.min(600, Math.max(60, w)) });
+    }
+  }
+  protected nudgeWidth(delta: number): void {
+    const l = this.lifeline();
+    if (l) this.setWidth(l.width + delta);
+  }
   protected deleteLifeline(): void {
     const l = this.lifeline();
     if (l) void this.store.deleteLifeline(l.id);
@@ -92,6 +121,10 @@ export class SequenceInspectorComponent {
   protected setMsgLabel(label: string | number): void {
     const m = this.message();
     if (m) void this.store.updateMessage(m.id, { label: String(label) });
+  }
+  protected setMsgColor(color: string): void {
+    const m = this.message();
+    if (m) void this.store.updateMessage(m.id, { color });
   }
   protected setStyle(style: SequenceMessageModel['style']): void {
     const m = this.message();

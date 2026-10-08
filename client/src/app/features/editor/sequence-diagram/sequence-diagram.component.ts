@@ -27,6 +27,8 @@ interface MessageView {
   spanLeft: number;
   spanWidth: number;
   selected: boolean;
+  /** Custom line + arrowhead color; empty = theme default. */
+  color: string;
 }
 
 interface BoundingBox {
@@ -55,6 +57,7 @@ interface Companions {
 
 type Drag =
   | { kind: 'll'; id: string; start: number; startVal: number }
+  | { kind: 'llw'; id: string; side: -1 | 1; startClientX: number; startWidth: number }
   | {
       kind: 'msg';
       id: string;
@@ -98,6 +101,7 @@ type Drag =
 
 const BOX_PAD = 26;
 const MIN_ROW = 20;
+const MIN_HEADER_W = 60;
 
 /**
  * One sequence diagram: a rounded bounding box wrapping its participant lifelines
@@ -118,7 +122,12 @@ const MIN_ROW = 20;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AutofocusDirective],
   // pointerover/out bubble from every child (box, headers, spines, messages, buttons).
-  host: { '(pointerover)': 'addHover(true)', '(pointerout)': 'addHover(false)' },
+  host: {
+    '(pointerover)': 'addHover(true)',
+    '(pointerout)': 'addHover(false)',
+    // Message labels sit on the diagram's own background so they blend with it.
+    '[style.--seq-bg]': 'diagram().backgroundColor || null',
+  },
   templateUrl: './sequence-diagram.component.html',
   styleUrl: './sequence-diagram.component.scss',
 })
@@ -221,6 +230,7 @@ export class SequenceDiagramComponent {
         spanLeft: minX,
         spanWidth: Math.max(maxX - minX, 1),
         selected: sel.has(m.id),
+        color: m.color ?? '',
       });
     });
     return out;
@@ -510,6 +520,22 @@ export class SequenceDiagramComponent {
     if (event.altKey) void this.duplicateDrag();
   }
 
+  // ----- Participant header: drag a side handle to widen/narrow it (symmetric about the spine) -----
+  protected onWidthDown(event: PointerEvent, l: LifelineModel, side: -1 | 1): void {
+    event.stopPropagation();
+    if (!this.canEdit()) return;
+    this.startDrag();
+    this.drag = { kind: 'llw', id: l.id, side, startClientX: event.clientX, startWidth: l.width };
+  }
+
+  private applyWidth(d: Extract<Drag, { kind: 'llw' }>, clientX: number): void {
+    const dx = ((clientX - d.startClientX) / this.zoom()) * d.side;
+    let w = Math.max(MIN_HEADER_W, d.startWidth + dx * 2);
+    const snap = this.snap();
+    if (snap) w = Math.max(MIN_HEADER_W, Math.round(snap(w)));
+    this.store.setLifelineWidthLocal(d.id, Math.round(w));
+  }
+
   // ----- Connect drag: start anywhere on a spine -----
   protected onConnectDown(event: PointerEvent, l: LifelineModel): void {
     if (this.groupLocked()) {
@@ -596,6 +622,8 @@ export class SequenceDiagramComponent {
     if (!d || this.duplicating) return;
     if (d.kind === 'll') {
       this.store.moveLifeline(d.id, d.startVal + (event.clientX - d.start) / this.zoom());
+    } else if (d.kind === 'llw') {
+      this.applyWidth(d, event.clientX);
     } else if (d.kind === 'msg') {
       // Follow the cursor, snapped to the nearest row so spacing stays even.
       this.moveMessages(d, event.clientY);
@@ -756,7 +784,11 @@ export class SequenceDiagramComponent {
       this.drag = null;
       return;
     }
-    if (d?.kind === 'connect') {
+    if (d?.kind === 'llw') {
+      this.applyWidth(d, event.clientX);
+      const l = this.store.lifelines().find((x) => x.id === d.id);
+      if (l && l.width !== d.startWidth) void this.store.updateLifeline(d.id, { width: l.width });
+    } else if (d?.kind === 'connect') {
       const fn = this.toWorld();
       const w = fn ? fn(event.clientX, event.clientY) : this.tempTo();
       const target = w ? this.nearestLifeline(w.x) : null;
@@ -969,5 +1001,16 @@ export class SequenceDiagramComponent {
 
   protected onEditInput(value: string): void {
     this.editValue.set(value);
+  }
+
+  /** Enter commits; Shift+Enter falls through to the textarea's own newline. */
+  protected onMessageEnter(event: Event, m: MessageView): void {
+    event.preventDefault();
+    this.commitMessage(m);
+  }
+
+  /** Visible line count of the message editor, so the textarea grows with its text. */
+  protected editRows(): number {
+    return Math.min(8, this.editValue().split(/\r?\n/).length);
   }
 }

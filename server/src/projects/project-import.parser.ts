@@ -247,6 +247,7 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     headerHeight: num(d, 'headerHeight', path, 42),
     originY: num(d, 'originY', path, 0),
     groupId: optStr(d, 'groupId', path, 100),
+    backgroundColor: optStr(d, 'backgroundColor', path, 100),
   };
 }
 
@@ -257,6 +258,7 @@ function parseLifeline(raw: unknown, path: string): LifelineModel {
     diagramId: str(l, 'diagramId', path, 100),
     label: str(l, 'label', path, 255),
     color: optStr(l, 'color', path, 100),
+    lineColor: optStr(l, 'lineColor', path, 100),
     x: num(l, 'x', path, 0),
     width: num(l, 'width', path, 120),
     order: num(l, 'order', path, 0),
@@ -275,6 +277,7 @@ function parseMessage(raw: unknown, path: string): SequenceMessageModel {
     style: oneOf(m, 'style', path, ['solid', 'dashed', 'break'] as const, 'solid'),
     direction: oneOf(m, 'direction', path, ['forward', 'reverse'] as const, 'forward'),
     arrowhead: oneOf(m, 'arrowhead', path, ['arrow', 'open', 'none'] as const, 'arrow'),
+    color: optStr(m, 'color', path, 100),
   };
 }
 

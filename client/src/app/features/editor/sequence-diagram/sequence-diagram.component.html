@@ -16,6 +16,7 @@
   @for (l of lls(); track l.id) {
     <div
       class="spine"
+      [style.--line-color]="l.lineColor || null"
       [style.left.px]="l.x"
       [style.top.px]="headerBottom()"
       [style.height.px]="spineEnd() - headerBottom()"
@@ -63,6 +64,10 @@
       } @else {
         <span class="ll-label">{{ l.label }}</span>
       }
+      @if (canEdit() && selectedLifelineIds().has(l.id) && editingLifelineId() !== l.id) {
+        <div class="ll-width-handle left" title="Drag to resize" (pointerdown)="onWidthDown($event, l, -1)"></div>
+        <div class="ll-width-handle right" title="Drag to resize" (pointerdown)="onWidthDown($event, l, 1)"></div>
+      }
     </div>
   }
 
@@ -73,6 +78,7 @@
       <div
         class="break-line"
         [class.selected]="m.selected"
+        [style.--msg-color]="m.color || null"
         [style.left.px]="m.spanLeft"
         [style.top.px]="m.y"
         [style.width.px]="m.spanWidth"
@@ -85,23 +91,28 @@
         (pointerdown)="onMessageDown($event, m)"
         (dblclick)="startEditMessage($event, m)"
       ></div>
-      <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y - 11">
+      <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y">
         @if (editingMessageId() === m.id) {
-          <input
-            class="msg-edit"
+          <textarea
+            class="msg-edit break"
             appAutofocus
+            [rows]="editRows()"
             [value]="editValue()"
             (pointerdown)="$event.stopPropagation()"
             (input)="onEditInput($any($event.target).value)"
-            (keydown.enter)="commitMessage(m)"
+            (keydown.enter)="onMessageEnter($event, m)"
             (keydown.escape)="editingMessageId.set(null)"
             (blur)="commitMessage(m)"
             maxlength="200"
-          />
+          ></textarea>
         } @else if (m.label) {
-          <span class="break-label" [class.selected]="m.selected" (dblclick)="startEditMessage($event, m)">{{
-            m.label
-          }}</span>
+          <span
+            class="break-label"
+            [class.selected]="m.selected"
+            (pointerdown)="onMessageDown($event, m)"
+            (dblclick)="startEditMessage($event, m)"
+            >{{ m.label }}</span
+          >
         }
       </div>
     } @else {
@@ -109,6 +120,7 @@
         class="msg-line"
         [class.dashed]="m.dashed"
         [class.selected]="m.selected"
+        [style.--msg-color]="m.color || null"
         [style.left.px]="m.leftX"
         [style.top.px]="m.y"
         [style.width.px]="m.width"
@@ -117,6 +129,7 @@
       <svg
         class="msg-head"
         [class.selected]="m.selected"
+        [style.--msg-color]="m.color || null"
         viewBox="0 0 10 10"
         [style.left.px]="m.headX - (m.dirRight ? 9 : 1)"
         [style.top.px]="m.y - 5"
@@ -137,23 +150,28 @@
         (dblclick)="startEditMessage($event, m)"
       ></div>
 
-      <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y - 20">
+      <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y">
         @if (editingMessageId() === m.id) {
-          <input
+          <textarea
             class="msg-edit"
             appAutofocus
+            [rows]="editRows()"
             [value]="editValue()"
             (pointerdown)="$event.stopPropagation()"
             (input)="onEditInput($any($event.target).value)"
-            (keydown.enter)="commitMessage(m)"
+            (keydown.enter)="onMessageEnter($event, m)"
             (keydown.escape)="editingMessageId.set(null)"
             (blur)="commitMessage(m)"
             maxlength="200"
-          />
+          ></textarea>
         } @else if (m.label) {
-          <span class="msg-label" [class.selected]="m.selected" (dblclick)="startEditMessage($event, m)">{{
-            m.label
-          }}</span>
+          <span
+            class="msg-label"
+            [class.selected]="m.selected"
+            (pointerdown)="onMessageDown($event, m)"
+            (dblclick)="startEditMessage($event, m)"
+            >{{ m.label }}</span
+          >
         }
       </div>
 

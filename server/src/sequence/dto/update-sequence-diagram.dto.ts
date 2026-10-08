@@ -23,4 +23,9 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
   @IsString()
   @MaxLength(64)
   groupId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  backgroundColor?: string;
 }

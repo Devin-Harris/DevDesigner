@@ -17,6 +17,11 @@ export class CreateLifelineDto implements ICreateLifelineDto {
   @MaxLength(20)
   color?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  lineColor?: string;
+
   @IsNumber()
   x!: number;
 

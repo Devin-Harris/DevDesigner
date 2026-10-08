@@ -86,6 +86,7 @@ export class SequenceService {
       lifelineSpacing: dto.lifelineSpacing ?? 160,
       rowSpacing: dto.rowSpacing ?? 48,
       headerHeight: dto.headerHeight ?? 42,
+      backgroundColor: dto.backgroundColor ?? null,
     });
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
@@ -108,6 +109,7 @@ export class SequenceService {
     if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
     if (dto.originY !== undefined) entity.originY = dto.originY;
     if (dto.groupId !== undefined) entity.groupId = dto.groupId;
+    if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.updated', diagram: model });
@@ -147,6 +149,7 @@ export class SequenceService {
       diagramId: dto.diagramId,
       label: dto.label,
       color: dto.color ?? null,
+      lineColor: dto.lineColor ?? null,
       x: dto.x,
       width: dto.width ?? 120,
       orderIndex: dto.order ?? 0,
@@ -169,6 +172,7 @@ export class SequenceService {
     const entity = await this.lifelineOrThrow(projectId, lifelineId);
     if (dto.label !== undefined) entity.label = dto.label;
     if (dto.color !== undefined) entity.color = dto.color;
+    if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
     if (dto.width !== undefined) entity.width = dto.width;
     const saved = await this.lifelines.save(entity);
     const model = toLifelineModel(saved);
@@ -231,6 +235,7 @@ export class SequenceService {
       style: dto.style ?? 'solid',
       direction: dto.direction ?? 'forward',
       arrowhead: dto.arrowhead ?? 'arrow',
+      color: dto.color ?? null,
     });
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
@@ -254,6 +259,7 @@ export class SequenceService {
     if (dto.style !== undefined) entity.style = dto.style;
     if (dto.direction !== undefined) entity.direction = dto.direction;
     if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
+    if (dto.color !== undefined) entity.color = dto.color;
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'message.updated', message: model });

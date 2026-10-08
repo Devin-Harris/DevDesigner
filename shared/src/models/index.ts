@@ -160,6 +160,8 @@ export interface LifelineModel {
   label: string;
   /** Header box fill color (hex). */
   color?: string;
+  /** Color of the dashed spine below the header (hex); absent = theme connector color. */
+  lineColor?: string;
   /** World-space X center of this lifeline's spine. */
   x: number;
   /** Header box width in px. */
@@ -184,6 +186,8 @@ export interface SequenceMessageModel {
   /** Which end carries the arrowhead. */
   direction: 'forward' | 'reverse';
   arrowhead: 'arrow' | 'open' | 'none';
+  /** Line + arrowhead color (hex); absent = theme connector color. */
+  color?: string;
 }
 
 /**
@@ -202,6 +206,8 @@ export interface SequenceDiagramModel {
   originY: number;
   /** Group this diagram belongs to; absent = ungrouped. */
   groupId?: string;
+  /** Background fill of the diagram box (hex); absent = theme surface. */
+  backgroundColor?: string;
 }
 
 /**

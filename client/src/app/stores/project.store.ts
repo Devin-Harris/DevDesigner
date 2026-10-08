@@ -1343,6 +1343,11 @@ export const ProjectStore = signalStore(
           });
         },
 
+        /** Live (local-only) header width while dragging its edge; persist via updateLifeline. */
+        setLifelineWidthLocal(lifelineId: string, width: number): void {
+          mapLifeline(lifelineId, (l) => ({ ...l, width }));
+        },
+
         async deleteLifeline(lifelineId: string): Promise<void> {
           const projectId = store.projectId();
           if (!projectId) {
@@ -1426,6 +1431,7 @@ export const ProjectStore = signalStore(
                 lifelineSpacing: src.lifelineSpacing,
                 rowSpacing: src.rowSpacing,
                 headerHeight: src.headerHeight,
+                backgroundColor: src.backgroundColor,
               }),
             ),
           );
@@ -1450,6 +1456,7 @@ export const ProjectStore = signalStore(
                   diagramId: diagram.id,
                   label: l.label,
                   color: l.color,
+                  lineColor: l.lineColor,
                   x: l.x + dx,
                   width: l.width,
                   order: l.order,
@@ -1477,6 +1484,7 @@ export const ProjectStore = signalStore(
                   style: m.style,
                   direction: m.direction,
                   arrowhead: m.arrowhead,
+                  color: m.color,
                 }),
               ),
             );
@@ -1499,6 +1507,7 @@ export const ProjectStore = signalStore(
                 diagramId: src.diagramId,
                 label: src.label,
                 color: src.color,
+                lineColor: src.lineColor,
                 x: src.x + dx,
                 width: src.width,
                 order,
@@ -1532,6 +1541,7 @@ export const ProjectStore = signalStore(
                 style: src.style,
                 direction: src.direction,
                 arrowhead: src.arrowhead,
+                color: src.color,
               }),
             ),
           );

@@ -303,6 +303,7 @@ export async function writeSchemaInto(
       headerHeight: d.headerHeight,
       originY: d.originY,
       groupId: d.groupId ?? null,
+      backgroundColor: d.backgroundColor ?? null,
     })),
   );
 
@@ -321,6 +322,7 @@ export async function writeSchemaInto(
       diagramId: l.diagramId,
       label: l.label,
       color: l.color ?? null,
+      lineColor: l.lineColor ?? null,
       x: l.x,
       width: l.width,
       orderIndex: l.order,
@@ -356,6 +358,7 @@ export async function writeSchemaInto(
       style: m.style,
       direction: m.direction,
       arrowhead: m.arrowhead,
+      color: m.color ?? null,
     })),
   );
 

@@ -29,6 +29,28 @@
       }
     </div>
 
+    <div class="field-label">Line color</div>
+    <div class="swatches">
+      @for (s of swatches; track s) {
+        <button
+          type="button"
+          class="swatch"
+          [class.none]="s === ''"
+          [class.active]="(l.lineColor || '') === s"
+          [style.background]="s || 'var(--dbd-surface-2)'"
+          [disabled]="!store.canEdit()"
+          (click)="setLineColor(s)"
+        ></button>
+      }
+    </div>
+
+    <div class="field-label">Width</div>
+    <div class="flag-chips">
+      <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">−</button>
+      <span class="width-val">{{ l.width }}px</span>
+      <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">+</button>
+    </div>
+
     <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
       <dbd-icon name="add" />Add participant
     </button>
@@ -59,6 +81,21 @@
       <button class="flag" [class.on]="m.style === 'break'" [disabled]="!store.canEdit()" (click)="setStyle('break')">Break</button>
     </div>
 
+    <div class="field-label">Line color</div>
+    <div class="swatches">
+      @for (s of swatches; track s) {
+        <button
+          type="button"
+          class="swatch"
+          [class.none]="s === ''"
+          [class.active]="(m.color || '') === s"
+          [style.background]="s || 'var(--dbd-surface-2)'"
+          [disabled]="!store.canEdit()"
+          (click)="setMsgColor(s)"
+        ></button>
+      }
+    </div>
+
     @if (m.style !== 'break') {
       <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
         <dbd-icon name="swap_horiz" />Flip direction
@@ -71,6 +108,21 @@
         <div class="eyebrow">Sequence diagram</div>
         <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
       </div>
+    </div>
+
+    <div class="field-label">Background</div>
+    <div class="swatches">
+      @for (s of bgSwatches; track s) {
+        <button
+          type="button"
+          class="swatch"
+          [class.none]="s === ''"
+          [class.active]="(diagram()!.backgroundColor || '') === s"
+          [style.background]="s || 'var(--dbd-surface-2)'"
+          [disabled]="!store.canEdit()"
+          (click)="setBackground(s)"
+        ></button>
+      }
     </div>
 
     <div class="field-label">Add participant</div>

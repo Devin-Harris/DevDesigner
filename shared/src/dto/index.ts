@@ -281,6 +281,7 @@ export interface CreateSequenceDiagramDto {
   lifelineSpacing?: number;
   rowSpacing?: number;
   headerHeight?: number;
+  backgroundColor?: string;
 }
 export interface UpdateSequenceDiagramDto {
   lifelineSpacing?: number;
@@ -289,6 +290,8 @@ export interface UpdateSequenceDiagramDto {
   originY?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
+  /** Box background (hex); empty string clears back to the theme surface. */
+  backgroundColor?: string;
 }
 
 // --- Lifelines (sequence diagram participant columns) ---
@@ -296,6 +299,7 @@ export interface CreateLifelineDto {
   diagramId: string;
   label: string;
   color?: string;
+  lineColor?: string;
   x: number;
   width?: number;
   order?: number;
@@ -303,6 +307,7 @@ export interface CreateLifelineDto {
 export interface UpdateLifelineDto {
   label?: string;
   color?: string;
+  lineColor?: string;
   width?: number;
 }
 export interface UpdateLifelinePositionDto {
@@ -319,6 +324,7 @@ export interface CreateSequenceMessageDto {
   style?: 'solid' | 'dashed' | 'break';
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
+  color?: string;
 }
 export interface UpdateSequenceMessageDto {
   fromLifelineId?: string;
@@ -327,6 +333,7 @@ export interface UpdateSequenceMessageDto {
   style?: 'solid' | 'dashed' | 'break';
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
+  color?: string;
 }
 export interface UpdateSequenceMessagePositionDto {
   y: number;

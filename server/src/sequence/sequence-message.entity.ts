@@ -59,4 +59,7 @@ export class SequenceMessageEntity {
 
   @Column({ type: 'varchar', default: 'arrow' })
   arrowhead!: SequenceMessageModel['arrowhead'];
+
+  @Column({ type: 'varchar', nullable: true })
+  color!: string | null;
 }

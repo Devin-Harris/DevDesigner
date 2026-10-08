@@ -35,4 +35,8 @@ export class SequenceDiagramEntity {
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;
+
+  /** Box background color (hex); null = theme surface. */
+  @Column({ type: 'varchar', nullable: true })
+  backgroundColor!: string | null;
 }

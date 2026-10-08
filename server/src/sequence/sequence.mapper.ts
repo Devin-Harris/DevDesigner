@@ -15,6 +15,7 @@ export function toSequenceDiagramModel(e: SequenceDiagramEntity): SequenceDiagra
     headerHeight: e.headerHeight,
     originY: e.originY,
     groupId: e.groupId ?? undefined,
+    backgroundColor: e.backgroundColor ?? undefined,
   };
 }
 
@@ -24,6 +25,7 @@ export function toLifelineModel(e: LifelineEntity): LifelineModel {
     diagramId: e.diagramId,
     label: e.label,
     color: e.color ?? undefined,
+    lineColor: e.lineColor ?? undefined,
     x: e.x,
     width: e.width,
     order: e.orderIndex,
@@ -41,5 +43,6 @@ export function toSequenceMessageModel(e: SequenceMessageEntity): SequenceMessag
     style: e.style,
     direction: e.direction,
     arrowhead: e.arrowhead,
+    color: e.color ?? undefined,
   };
 }

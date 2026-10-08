@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateSequenceDiagramDto as ICreateSequenceDiagramDto } from '@dbdesigner/shared';
 
 /** Body for POST /projects/:projectId/sequence-diagrams. */
@@ -17,4 +17,9 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   @IsOptional()
   @IsNumber()
   headerHeight?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  backgroundColor?: string;
 }

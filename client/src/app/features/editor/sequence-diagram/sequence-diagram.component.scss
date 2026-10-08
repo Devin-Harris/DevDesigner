@@ -18,7 +18,7 @@
   box-sizing: border-box;
   border-radius: 16px;
   border: 1.5px solid var(--dbd-border);
-  background: var(--dbd-surface);
+  background: var(--seq-bg, var(--dbd-surface));
   cursor: move;
   pointer-events: auto;
   touch-action: none;
@@ -37,7 +37,7 @@
 .spine {
   position: absolute;
   width: 0;
-  border-left: 1.4px dashed var(--dbd-connector);
+  border-left: 1.4px dashed var(--line-color, var(--dbd-connector));
   pointer-events: none;
 }
 
@@ -169,7 +169,7 @@
 .msg-line {
   position: absolute;
   height: 0;
-  border-top: 1.6px solid var(--dbd-connector);
+  border-top: 1.6px solid var(--msg-color, var(--dbd-connector));
   pointer-events: none;
 
   &.dashed {
@@ -187,7 +187,7 @@
   overflow: visible;
   pointer-events: none;
   fill: none;
-  stroke: var(--dbd-connector);
+  stroke: var(--msg-color, var(--dbd-connector));
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -251,8 +251,10 @@
 
 .msg-label-wrap {
   position: absolute;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
+  display: flex;
+  justify-content: center;
 }
 
 .msg-label {
@@ -261,10 +263,12 @@
   font-family: var(--dbd-mono);
   font-size: 11px;
   color: var(--dbd-text);
-  background: var(--dbd-canvas-bg);
+  background: var(--seq-bg, var(--dbd-surface));
   padding: 0 5px;
   border-radius: 4px;
-  white-space: nowrap;
+  white-space: pre; // honors Shift+Enter line breaks
+  text-align: center;
+  line-height: 1.35;
 
   &.selected {
     color: var(--dbd-primary);
@@ -278,24 +282,67 @@
 }
 
 .msg-edit {
+  // Mirrors .msg-label exactly (font, padding, line height) so the text doesn't
+  // shift or resize when editing starts; the focus ring is an outline, not a border.
   font: inherit;
   font-family: var(--dbd-mono);
   font-size: 11px;
   color: var(--dbd-text);
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-primary);
-  border-radius: 5px;
-  outline: none;
-  padding: 1px 5px;
+  background: var(--seq-bg, var(--dbd-surface));
+  border: 0;
+  border-radius: 4px;
+  outline: 1.5px solid var(--dbd-primary);
+  padding: 0 5px;
+  margin: 0;
+  box-sizing: content-box;
+  field-sizing: content; // grow/shrink to fit the text as you type
+  min-width: 1ch;
   pointer-events: auto;
-  min-width: 80px;
+  resize: none;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.35;
+  white-space: pre;
+
+  // Break rows: match .break-label's pill styling.
+  &.break {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--dbd-text-muted);
+    background: var(--seq-bg, var(--dbd-surface));
+    padding: 1px 10px;
+    border-radius: 12px;
+  }
+}
+
+// Side grips on a selected participant header: drag to widen/narrow it.
+.ll-width-handle {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 3px;
+  background: var(--dbd-surface);
+  border: 1.5px solid var(--dbd-primary);
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 4;
+
+  &.left {
+    left: -5px;
+  }
+  &.right {
+    right: -5px;
+  }
 }
 
 // Break: a label-only divider spanning the diagram, no arrowheads.
 .break-line {
   position: absolute;
   height: 0;
-  border-top: 1.4px dashed var(--dbd-border-strong);
+  border-top: 1.4px dashed var(--msg-color, var(--dbd-border-strong));
   pointer-events: none;
 
   &.selected {
@@ -312,11 +359,13 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dbd-text-muted);
-  background: var(--dbd-surface);
+  background: var(--seq-bg, var(--dbd-surface));
   border: 1px solid var(--dbd-border);
   padding: 1px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
+  border-radius: 12px;
+  white-space: pre;
+  text-align: center;
+  line-height: 1.35;
 
   &.selected {
     color: var(--dbd-primary);

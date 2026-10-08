@@ -31,4 +31,9 @@ export class UpdateSequenceMessageDto implements IUpdateSequenceMessageDto {
   @IsOptional()
   @IsIn(ARROWHEADS)
   arrowhead?: (typeof ARROWHEADS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  color?: string;
 }

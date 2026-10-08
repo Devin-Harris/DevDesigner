@@ -43,6 +43,9 @@ export class LifelineEntity {
   @Column({ type: 'varchar', nullable: true })
   color!: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  lineColor!: string | null;
+
   @Column({ type: 'float', default: 0 })
   x!: number;
 

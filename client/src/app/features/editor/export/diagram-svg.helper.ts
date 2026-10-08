@@ -391,6 +391,16 @@ export interface SequenceExportData {
 }
 
 const SEQ_BOX_PAD = 26;
+const SEQ_LINE_H = 15;
+
+/** Multi-line, horizontally centered text block whose vertical middle sits on `cy`. */
+function seqText(cx: number, cy: number, lines: readonly string[], attrs: string): string {
+  const first = cy - ((lines.length - 1) * SEQ_LINE_H) / 2 + 4;
+  const spans = lines
+    .map((s, i) => `<tspan x="${cx}" y="${first + i * SEQ_LINE_H}">${esc(s)}</tspan>`)
+    .join('');
+  return `<text text-anchor="middle" font-family="${FONT}" font-size="11" ${attrs}>${spans}</text>`;
+}
 const CW_12 = 7.2;
 
 /**
@@ -423,14 +433,15 @@ function renderSequence(
   const maxX = Math.max(...lls.map((l) => l.x));
   const byId = new Map(lls.map((l) => [l.id, l] as const));
 
+  const bg = diagram.backgroundColor || theme.surface;
   const out: string[] = [];
   out.push(
     `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
-      `fill="${theme.surface}" stroke="${theme.border}" stroke-width="1.5" />`,
+      `fill="${bg}" stroke="${theme.border}" stroke-width="1.5" />`,
   );
   for (const l of lls) {
     out.push(
-      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${theme.connector}" ` +
+      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || theme.connector}" ` +
         `stroke-width="1.4" stroke-dasharray="4 4" />`,
     );
   }
@@ -441,20 +452,21 @@ function renderSequence(
     const t = byId.get(m.toLifelineId);
     const y = headerBottom + gap * rowIndex(m.y);
     const label = m.label ?? '';
+    const stroke = m.color || theme.connector;
     if (isBreak) {
       out.push(
-        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${theme.borderStrong}" ` +
+        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || theme.borderStrong}" ` +
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
-        const text = label.toUpperCase();
-        const w = Math.ceil(text.length * (CW_11 + 0.44)) + 22;
+        const lines = label.toUpperCase().split(/\r?\n/);
+        const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 22;
+        const h = lines.length * SEQ_LINE_H + 6;
         const mid = (minX + maxX) / 2;
         out.push(
-          `<rect x="${mid - w / 2}" y="${y - 11}" width="${w}" height="22" rx="11" ry="11" ` +
-            `fill="${theme.surface}" stroke="${theme.border}" stroke-width="1" />`,
-          `<text x="${mid}" y="${y + 4}" text-anchor="middle" font-family="${FONT}" font-size="11" ` +
-            `font-weight="600" letter-spacing="0.44" fill="${theme.textMuted}">${esc(text)}</text>`,
+          `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(11, h / 2)}" ry="${Math.min(11, h / 2)}" ` +
+            `fill="${bg}" stroke="${theme.border}" stroke-width="1" />`,
+          seqText(mid, y, lines, `font-weight="600" letter-spacing="0.44" fill="${theme.textMuted}"`),
         );
       }
       continue;
@@ -469,17 +481,18 @@ function renderSequence(
     const dash = m.style === 'dashed' ? ' stroke-dasharray="6 4"' : '';
     out.push(
       `<line x1="${left}" y1="${y}" x2="${Math.max(f.x, t.x, left + 1)}" y2="${y}" ` +
-        `stroke="${theme.connector}" stroke-width="1.6"${dash} />`,
+        `stroke="${stroke}" stroke-width="1.6"${dash} />`,
       `<path d="M${headX + dir} ${y - 4} L${headX} ${y} L${headX + dir} ${y + 4}" fill="none" ` +
-        `stroke="${theme.connector}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
+        `stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
     );
     if (label) {
+      const lines = label.split(/\r?\n/);
       const mid = (f.x + t.x) / 2;
-      const w = Math.ceil(label.length * CW_11) + 10;
+      const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 10;
+      const h = lines.length * SEQ_LINE_H;
       out.push(
-        `<rect x="${mid - w / 2}" y="${y - 20}" width="${w}" height="15" rx="4" ry="4" fill="${theme.canvasBg}" />`,
-        `<text x="${mid}" y="${y - 9}" text-anchor="middle" font-family="${FONT}" font-size="11" ` +
-          `fill="${theme.text}">${esc(label)}</text>`,
+        `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" ry="4" fill="${bg}" />`,
+        seqText(mid, y, lines, `fill="${theme.text}"`),
       );
     }
   }
