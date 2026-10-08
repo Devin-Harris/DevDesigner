@@ -138,6 +138,10 @@ export class UpdateElementDto implements IUpdateElementDto {
   endArrowhead?: ArrowheadType;
 
   @IsOptional()
+  @IsNumber()
+  curvature?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(64)
   groupId?: string | null;

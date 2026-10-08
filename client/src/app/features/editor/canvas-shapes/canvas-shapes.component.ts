@@ -15,6 +15,10 @@ export interface ResizeDownEvent {
   handle: ResizeHandle;
   event: PointerEvent;
 }
+export interface ShapeBendEvent {
+  id: string;
+  event: PointerEvent;
+}
 export interface ShapeEndpointEvent {
   id: string;
   which: 'start' | 'end';
@@ -32,20 +36,28 @@ export interface ShapeEndpointEvent {
   selector: 'app-canvas-shapes',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // The lines layer must clear the sequence diagram's own z-indexed parts (up to 7).
+  host: { '[style.z-index]': "layer() === 'lines' ? 20 : null" },
   templateUrl: './canvas-shapes.component.html',
   styleUrl: './canvas-shapes.component.scss',
 })
 export class CanvasShapesComponent {
   readonly shapes = input.required<ShapeView[]>();
-  /** Which elements this layer draws: frames sit below connectors, everything else above. */
-  readonly layer = input<'all' | 'frames' | 'content'>('all');
+  /**
+   * Which elements this layer draws: frames sit below connectors, lines/arrows sit
+   * above everything (tables and sequence diagrams, so they can anchor to message
+   * labels), and the rest sits between.
+   */
+  readonly layer = input<'all' | 'frames' | 'content' | 'lines'>('all');
   readonly visible = computed(() => {
     const layer = this.layer();
     const all = this.shapes();
     if (layer === 'all') {
       return all;
     }
-    return all.filter((s) => (s.type === 'frame') === (layer === 'frames'));
+    const kind = (s: ShapeView): 'frames' | 'lines' | 'content' =>
+      s.type === 'frame' ? 'frames' : s.type === 'line' || s.type === 'arrow' ? 'lines' : 'content';
+    return all.filter((s) => kind(s) === layer);
   });
   readonly svgOffset = input.required<number>();
   readonly dragging = input<boolean>(false);
@@ -65,6 +77,7 @@ export class CanvasShapesComponent {
   readonly resizeDown = output<ResizeDownEvent>();
   readonly rotateDown = output<ShapePointerEvent>();
   readonly endpointDown = output<ShapeEndpointEvent>();
+  readonly bendDown = output<ShapeBendEvent>();
 
   /** SVG marker url for an arrowhead type, or null for 'none'. */
   protected markerUrl(type: ArrowheadType): string | null {
@@ -89,6 +102,12 @@ export class CanvasShapesComponent {
     event.stopPropagation();
     event.preventDefault();
     this.rotateDown.emit({ id, event });
+  }
+
+  protected onBend(id: string, event: PointerEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.bendDown.emit({ id, event });
   }
 
   protected onEndpoint(id: string, which: 'start' | 'end', event: PointerEvent): void {

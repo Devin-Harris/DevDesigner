@@ -233,6 +233,7 @@ export interface CreateElementDto {
   endBinding?: ElementBinding | null;
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
+  curvature?: number;
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {
@@ -262,6 +263,7 @@ export interface UpdateElementDto {
   endBinding?: ElementBinding | null;
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
+  curvature?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
 }

@@ -47,6 +47,7 @@ import {
   CanvasShapesComponent,
   type ResizeDownEvent,
   type ResizeHandle,
+  type ShapeBendEvent,
   type ShapeEndpointEvent,
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
@@ -65,6 +66,7 @@ import {
   tableBox,
   toRelative,
 } from './canvas/helpers/element-geometry.helper';
+import { chordNormal } from './canvas/helpers/freedraw-path.helper';
 import {
   buildColumnLocations,
   columnAnchor,
@@ -72,6 +74,7 @@ import {
   snapToGrid,
   tableWidth,
 } from './canvas/helpers/node-metrics.helper';
+import { messageLabelBoxes } from './canvas/helpers/message-box.helper';
 import { buildShapeViews, fontStack, fontWeightFor } from './canvas/helpers/shape-render.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
@@ -113,6 +116,7 @@ type DragMode =
   | 'element-resize'
   | 'element-rotate'
   | 'arrow-endpoint'
+  | 'arrow-bend'
   /** Alt-drag: waiting for the copies to be created before the drag can start. */
   | 'duplicating';
 
@@ -445,6 +449,15 @@ export class EditorComponent {
     return { left: l.x * v.zoom + v.x, top: d.originY * v.zoom + v.y };
   });
 
+  /** World boxes of sequence message labels: anchor targets for lines/arrows. */
+  private readonly messageBoxes = computed(() =>
+    messageLabelBoxes(
+      this.store.sequenceDiagrams(),
+      this.store.lifelines(),
+      this.store.sequenceMessages(),
+    ),
+  );
+
   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
   protected readonly shapeViews = computed(() => {
     const draft = this.draft();
@@ -456,6 +469,7 @@ export class EditorComponent {
       this.store.tables(),
       new Set(this.store.selectedElementIds()),
       this.themeColors(),
+      this.messageBoxes(),
     );
   });
 
@@ -1302,6 +1316,7 @@ export class EditorComponent {
       textAlign: draft.textAlign,
       startArrowhead: draft.startArrowhead,
       endArrowhead: draft.endArrowhead,
+      curvature: draft.curvature,
     };
   }
 
@@ -1532,6 +1547,41 @@ export class EditorComponent {
     };
   }
 
+  protected onElementBendDown(payload: ShapeBendEvent): void {
+    const el = this.store.elements().find((e) => e.id === payload.id);
+    if (!el || !this.store.canEdit()) {
+      return;
+    }
+    this.mode = 'arrow-bend';
+    this.gestureActive.set(true);
+    this.elementGesture = {
+      id: el.id,
+      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      snapshot: el,
+    };
+  }
+
+  /** Drag the bend handle: curvature is the pointer's signed distance from the chord. */
+  private moveBend(clientX: number, clientY: number): void {
+    const g = this.elementGesture;
+    const ends = g ? this.shapeViews().find((s) => s.id === g.id)?.ends : undefined;
+    if (!g || !ends) {
+      return;
+    }
+    const n = chordNormal(ends.start, ends.end);
+    if (!n) {
+      return;
+    }
+    const world = this.toWorld(clientX, clientY);
+    const mid = { x: (ends.start.x + ends.end.x) / 2, y: (ends.start.y + ends.end.y) / 2 };
+    let curvature = (world.x - mid.x) * n.x + (world.y - mid.y) * n.y;
+    // Snap back to a straight line when the handle is dragged close to the chord.
+    if (Math.abs(curvature) < 6) {
+      curvature = 0;
+    }
+    this.store.patchElementLocal(g.id, { curvature });
+  }
+
   /** After a move drag, record the net displacement of each element for undo. */
   private recordMoveGesture(): void {
     const g = this.elementGesture;
@@ -1756,10 +1806,16 @@ export class EditorComponent {
     world: { x: number; y: number },
     excludeElementId: string,
   ): {
-    binding: { targetKind: 'element' | 'table'; targetId: string };
+    binding: { targetKind: 'element' | 'table' | 'message'; targetId: string };
     box: { x: number; y: number; width: number; height: number };
   } | null {
     const toRect = (b: Box) => ({ x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 });
+    // Sequence message labels are small and sit on top of everything: check first.
+    for (const [id, box] of this.messageBoxes()) {
+      if (this.pointInBox(world, box)) {
+        return { binding: { targetKind: 'message', targetId: id }, box: toRect(box) };
+      }
+    }
     for (const table of this.store.tables()) {
       const box = tableBox(table);
       if (this.pointInBox(world, box)) {
@@ -1808,6 +1864,12 @@ export class EditorComponent {
       );
     } else if (this.mode === 'element-rotate') {
       void this.store.commitElementGeometry(g.id, { angle: snap.angle }, { angle: el.angle });
+    } else if (this.mode === 'arrow-bend') {
+      void this.store.commitElementGeometry(
+        g.id,
+        { curvature: snap.curvature ?? 0 },
+        { curvature: el.curvature ?? 0 },
+      );
     } else if (this.mode === 'arrow-endpoint') {
       void this.store.commitElementGeometry(
         g.id,
@@ -2227,6 +2289,10 @@ export class EditorComponent {
       this.moveEndpoint(event.clientX, event.clientY);
       return;
     }
+    if (this.mode === 'arrow-bend') {
+      this.moveBend(event.clientX, event.clientY);
+      return;
+    }
     if (this.mode === 'pan') {
       const dx = event.clientX - this.startClientX;
       const dy = event.clientY - this.startClientY;
@@ -2286,7 +2352,8 @@ export class EditorComponent {
     } else if (
       this.mode === 'element-resize' ||
       this.mode === 'element-rotate' ||
-      this.mode === 'arrow-endpoint'
+      this.mode === 'arrow-endpoint' ||
+      this.mode === 'arrow-bend'
     ) {
       this.commitElementGesture();
     }

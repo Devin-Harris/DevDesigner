@@ -11,6 +11,7 @@ import { contrastText } from '../sequence-diagram/contrast';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
 import { nodeHeight, tableBox, tableWidth } from '../canvas/helpers/node-metrics.helper';
 import { computeConnectors } from '../canvas/helpers/connectors.helper';
+import { messageLabelBoxes } from '../canvas/helpers/message-box.helper';
 import { buildShapeViews } from '../canvas/helpers/shape-render.helper';
 import { elementBox } from '../canvas/helpers/element-geometry.helper';
 import type { ShapeView, TextBlockView } from '../canvas/models/shape-view.model';
@@ -550,7 +551,7 @@ export function buildDiagramSvg(
       canvasBg: theme.canvasBg,
       text: theme.text,
       surface: theme.surface,
-    });
+    }, messageLabelBoxes(sequences.diagrams, sequences.lifelines, sequences.messages));
 
     let minX = Infinity;
     let minY = Infinity;

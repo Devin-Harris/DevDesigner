@@ -29,6 +29,7 @@
         (resizeDown)="onElementResizeDown($event)"
         (rotateDown)="onElementRotateDown($event)"
         (endpointDown)="onElementEndpointDown($event)"
+        (bendDown)="onElementBendDown($event)"
       ></app-canvas-shapes>
 
       <!-- Connectors render behind nodes so lines are hidden where they pass a
@@ -53,11 +54,11 @@
         [dragging]="dragging()"
         [interactive]="shapesInteractive()"
         [editingId]="editingTextId()"
-        [bindHighlight]="bindHighlight()"
         (elementPointerDown)="onElementPointerDown($event)"
         (resizeDown)="onElementResizeDown($event)"
         (rotateDown)="onElementRotateDown($event)"
         (endpointDown)="onElementEndpointDown($event)"
+        (bendDown)="onElementBendDown($event)"
       ></app-canvas-shapes>
 
       @for (table of store.tables(); track table.id) {
@@ -75,6 +76,23 @@
 
       <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
       <app-canvas-sequence [toWorld]="toWorldPoint" [snap]="snapWorld"></app-canvas-sequence>
+
+      <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
+           to message labels. -->
+      <app-canvas-shapes
+        layer="lines"
+        [shapes]="shapeViews()"
+        [svgOffset]="svgOffset"
+        [dragging]="dragging()"
+        [interactive]="shapesInteractive()"
+        [editingId]="editingTextId()"
+        [bindHighlight]="bindHighlight()"
+        (elementPointerDown)="onElementPointerDown($event)"
+        (resizeDown)="onElementResizeDown($event)"
+        (rotateDown)="onElementRotateDown($event)"
+        (endpointDown)="onElementEndpointDown($event)"
+        (bendDown)="onElementBendDown($event)"
+      ></app-canvas-shapes>
 
       @for (g of groupOutlines(); track g.id) {
         <div

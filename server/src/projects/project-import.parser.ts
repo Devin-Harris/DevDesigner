@@ -127,7 +127,7 @@ function binding(value: unknown, path: string): ElementBinding | undefined {
   if (value === undefined || value === null) return undefined;
   const b = obj(value, path);
   return {
-    targetKind: oneOf(b, 'targetKind', path, ['element', 'table'] as const),
+    targetKind: oneOf(b, 'targetKind', path, ['element', 'table', 'message'] as const),
     targetId: str(b, 'targetId', path, 100),
   };
 }
@@ -234,6 +234,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     endBinding: binding(e['endBinding'], `${path}.endBinding`),
     startArrowhead: optOneOf(e, 'startArrowhead', path, ARROWHEAD_TYPES),
     endArrowhead: optOneOf(e, 'endArrowhead', path, ARROWHEAD_TYPES),
+    curvature: optNum(e, 'curvature', path),
     groupId: optStr(e, 'groupId', path, 100),
   };
 }

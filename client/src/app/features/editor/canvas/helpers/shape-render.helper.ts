@@ -17,7 +17,7 @@ import {
   FRAME_TITLE_W,
   tableBox,
 } from './element-geometry.helper';
-import { freehandFillPath, polylinePath } from './freedraw-path.helper';
+import { curvedPath, freehandFillPath, polylinePath } from './freedraw-path.helper';
 import { ANCHOR_GAP } from '../constants/canvas.constants';
 
 /** Map a stored font-family key to a concrete CSS font stack (see index.html). */
@@ -369,10 +369,14 @@ export function buildShapeViews(
   tables: readonly TableModel[],
   selectedIds: ReadonlySet<string>,
   theme?: ThemeColors,
+  messageBoxes?: ReadonlyMap<string, Box>,
 ): ShapeView[] {
   const tableById = new Map(tables.map((t) => [t.id, t]));
   const elementById = new Map(elements.map((e) => [e.id, e]));
   const targetBox = (binding: ElementBinding): RotatedBox | null => {
+    if (binding.targetKind === 'message') {
+      return messageBoxes?.get(binding.targetId) ?? null;
+    }
     if (binding.targetKind === 'table') {
       const t = tableById.get(binding.targetId);
       return t ? tableBox(t) : null;
@@ -478,7 +482,22 @@ export function buildShapeViews(
         } else {
           ends = resolveEnds(element, targetBox);
         }
-        base.path = polylinePath(ends);
+        const curvature = ends.length >= 2 ? (element.curvature ?? 0) : 0;
+        let labelAt: Point | undefined;
+        if (Math.abs(curvature) > 0.5) {
+          const curve = curvedPath(ends[0], ends[ends.length - 1], curvature);
+          base.path = curve.path;
+          base.bend = curve.mid;
+          labelAt = curve.mid;
+        } else {
+          base.path = polylinePath(ends);
+          if (ends.length >= 2) {
+            base.bend = {
+              x: (ends[0].x + ends[ends.length - 1].x) / 2,
+              y: (ends[0].y + ends[ends.length - 1].y) / 2,
+            };
+          }
+        }
         base.fill = 'none';
         // Default arrowheads: arrow => end only; line => none. Element can override.
         const defaultEnd: ShapeView['markerEnd'] = element.type === 'arrow' ? 'arrow' : 'none';
@@ -486,7 +505,7 @@ export function buildShapeViews(
         base.markerEnd = element.endArrowhead ?? defaultEnd;
         if (ends.length >= 2) {
           base.ends = { start: ends[0], end: ends[ends.length - 1] };
-          base.label = arrowLabel(element, ends[0], ends[ends.length - 1], theme);
+          base.label = arrowLabel(element, labelAt ?? ends[0], labelAt ? labelAt : ends[ends.length - 1], theme);
         }
         // Recompute bbox from resolved ends so the selection box tracks bindings.
         if (ends.length) {

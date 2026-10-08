@@ -49,3 +49,30 @@ export function polylinePath(points: readonly PointModel[]): string {
   }
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 }
+
+/** Unit normal of the chord start→end (rotated 90° clockwise), or null if degenerate. */
+export function chordNormal(start: PointModel, end: PointModel): PointModel | null {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const len = Math.hypot(dx, dy);
+  return len < 1e-6 ? null : { x: -dy / len, y: dx / len };
+}
+
+/**
+ * A single quadratic curve from start to end that bows `curvature` px away from
+ * the chord at its midpoint (the sign picks the side). Returns the SVG path and
+ * the curve's actual midpoint (where the bend handle and label sit).
+ */
+export function curvedPath(
+  start: PointModel,
+  end: PointModel,
+  curvature: number,
+): { path: string; mid: PointModel } {
+  const n = chordNormal(start, end) ?? { x: 0, y: 0 };
+  const chordMid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const mid = { x: chordMid.x + n.x * curvature, y: chordMid.y + n.y * curvature };
+  // A quadratic's midpoint sits halfway between the chord midpoint and its control point.
+  const cx = chordMid.x + n.x * curvature * 2;
+  const cy = chordMid.y + n.y * curvature * 2;
+  return { path: `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`, mid };
+}

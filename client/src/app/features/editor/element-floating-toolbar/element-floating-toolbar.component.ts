@@ -186,6 +186,26 @@ export class ElementFloatingToolbarComponent {
     this.patchAll({ endArrowhead: type });
   }
 
+  /** Toggle between a straight line and a curve (drag the midpoint handle to fine-tune). */
+  protected toggleCurve(): void {
+    const el = this.element();
+    if (el.curvature) {
+      this.patchAll({ curvature: 0 });
+      return;
+    }
+    for (const id of this.store.selectedElementIds()) {
+      const target = this.store.elements().find((e) => e.id === id);
+      const pts = target?.points;
+      if (!target || !pts || pts.length < 2) {
+        continue;
+      }
+      const a = pts[0];
+      const b = pts[pts.length - 1];
+      const bend = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.25);
+      void this.store.updateElement(id, { curvature: bend });
+    }
+  }
+
   /** Swap the start and end arrowheads so the line points the other way. */
   protected reverseArrowheads(): void {
     this.patchAll({

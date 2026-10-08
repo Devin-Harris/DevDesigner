@@ -132,4 +132,8 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsIn([...ARROWHEAD_TYPES])
   endArrowhead?: ArrowheadType;
+
+  @IsOptional()
+  @IsNumber()
+  curvature?: number;
 }

@@ -81,6 +81,7 @@ export class ElementsService {
       endBindingId: dto.endBinding?.targetId ?? null,
       startArrowhead: dto.startArrowhead ?? null,
       endArrowhead: dto.endArrowhead ?? null,
+      curvature: dto.curvature ?? null,
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
@@ -191,6 +192,7 @@ export class ElementsService {
       'verticalAlign',
       'startArrowhead',
       'endArrowhead',
+      'curvature',
     ] as const;
     for (const key of scalarKeys) {
       if (dto[key] !== undefined) {

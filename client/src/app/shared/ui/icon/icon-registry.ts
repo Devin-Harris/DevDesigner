@@ -95,6 +95,7 @@ export const ICON_PATHS: Record<string, string> = {
   bring_forward: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 14V6a2 2 0 0 1 2-2h8"/>',
   send_backward: '<rect x="4" y="4" width="12" height="12" rx="2"/><path d="M10 20h8a2 2 0 0 0 2-2v-8"/>',
   swap_horiz: '<path d="M7 8h13M16 4l4 4-4 4M17 16H4M8 12l-4 4 4 4"/>',
+  curve: '<path d="M4 18C6 6 18 6 20 18"/>',
   timeline: '<path d="M4 14l5-5 4 4 7-7"/><circle cx="9" cy="9" r="1.4"/><circle cx="13" cy="13" r="1.4"/>',
   drag_handle: '<path d="M4 9h16M4 15h16"/>',
 

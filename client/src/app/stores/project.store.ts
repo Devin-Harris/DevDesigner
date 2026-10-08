@@ -220,6 +220,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     endBinding: e.endBinding,
     startArrowhead: e.startArrowhead,
     endArrowhead: e.endArrowhead,
+    curvature: e.curvature,
   };
 }
 

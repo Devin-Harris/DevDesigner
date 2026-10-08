@@ -123,6 +123,7 @@ export async function writeSchemaInto(
   const elementIds = new IdMap();
   const diagramIds = new IdMap();
   const lifelineIds = new IdMap();
+  const messageIds = new IdMap();
   const groupIds = new IdMap();
   const group = (old: string | undefined): string | null => {
     if (old === undefined) return null;
@@ -222,6 +223,8 @@ export async function writeSchemaInto(
 
   // Free-form elements. Mint all ids first: bindings can point at later elements.
   for (const e of schema.elements) elementIds.mint(e.id);
+  // Message ids too: an arrow may be anchored to a message label.
+  for (const m of schema.sequenceMessages) messageIds.mint(m.id);
   let zShift = 0;
   if (options.stackAboveExisting && schema.elements.length) {
     const top = await manager
@@ -234,7 +237,9 @@ export async function writeSchemaInto(
   }
   const resolveBinding = (b: ElementBinding | undefined): ElementBinding | undefined => {
     if (!b) return undefined;
-    const id = b.targetKind === 'table' ? tableIds.get(b.targetId) : elementIds.get(b.targetId);
+    const map =
+      b.targetKind === 'table' ? tableIds : b.targetKind === 'message' ? messageIds : elementIds;
+    const id = map.get(b.targetId);
     return id ? { targetKind: b.targetKind, targetId: id } : undefined;
   };
   const elementModels: CanvasElementModel[] = schema.elements.map((e) => ({
@@ -281,6 +286,7 @@ export async function writeSchemaInto(
       endBindingId: e.endBinding?.targetId ?? null,
       startArrowhead: e.startArrowhead ?? null,
       endArrowhead: e.endArrowhead ?? null,
+      curvature: e.curvature ?? null,
       groupId: e.groupId ?? null,
     })),
   );
@@ -337,7 +343,7 @@ export async function writeSchemaInto(
     if (!diagramId || !fromLifelineId || !toLifelineId) continue;
     messageModels.push({
       ...m,
-      id: randomUUID(),
+      id: messageIds.get(m.id)!,
       diagramId,
       fromLifelineId,
       toLifelineId,

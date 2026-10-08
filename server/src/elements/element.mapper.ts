@@ -3,7 +3,7 @@ import { ElementEntity } from './element.entity';
 
 /** Reassemble a binding from its stored kind/id columns. */
 function toBinding(
-  kind: 'element' | 'table' | null,
+  kind: 'element' | 'table' | 'message' | null,
   id: string | null,
 ): ElementBinding | undefined {
   return kind && id ? { targetKind: kind, targetId: id } : undefined;
@@ -39,6 +39,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     endBinding: toBinding(entity.endBindingKind, entity.endBindingId),
     startArrowhead: entity.startArrowhead ?? undefined,
     endArrowhead: entity.endArrowhead ?? undefined,
+    curvature: entity.curvature ?? undefined,
     groupId: entity.groupId ?? undefined,
   };
 }

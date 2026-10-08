@@ -142,8 +142,11 @@
     </ng-template>
   }
 
-  <!-- Arrow/line: arrowheads -->
+  <!-- Arrow/line: curve + arrowheads -->
   @if (isLine()) {
+    <button class="tb" [class.on]="!!element().curvature" matTooltip="Curved" [disabled]="!store.canEdit()" (click)="toggleCurve()">
+      <dbd-icon name="curve" />
+    </button>
     <button class="tb" [dbdPopoverTrigger]="headMenu" placement="below-start" matTooltip="Arrowheads" [disabled]="!store.canEdit()">
       <dbd-icon name="swap_horiz" />
     </button>

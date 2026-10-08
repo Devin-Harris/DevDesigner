@@ -205,6 +205,16 @@
               r="6"
               (pointerdown)="onEndpoint(s.id, 'end', $event)"
             ></circle>
+            @if (s.bend; as b) {
+              <!-- Drag to bend the line into a curve (drag back to the chord to straighten). -->
+              <circle
+                class="bend"
+                [attr.cx]="b.x"
+                [attr.cy]="b.y"
+                r="5"
+                (pointerdown)="onBend(s.id, $event)"
+              ></circle>
+            }
           } @else {
             <!-- Shape/text: bounding box, corner resize handles, rotate handle. -->
             <rect

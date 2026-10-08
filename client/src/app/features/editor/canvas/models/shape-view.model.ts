@@ -61,6 +61,9 @@ export interface ShapeView {
   /** Resolved endpoints for a line/arrow, used to draw endpoint handles. */
   ends?: { start: { x: number; y: number }; end: { x: number; y: number } };
 
+  /** Line/arrow: the curve's midpoint, where the draggable bend handle sits. */
+  bend?: { x: number; y: number };
+
   /** Selection bounding box (world coords) for the outline and resize handles. */
   bbox: { x: number; y: number; width: number; height: number };
 }

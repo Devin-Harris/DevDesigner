@@ -91,7 +91,7 @@ export interface NoteModel {
  * endpoint falls back to its stored point in `points`.
  */
 export interface ElementBinding {
-  targetKind: 'element' | 'table';
+  targetKind: 'element' | 'table' | 'message';
   targetId: string;
 }
 
@@ -141,6 +141,8 @@ export interface CanvasElementModel {
   /** Line/arrow only: arrowhead style at each end (default: none at start, arrow at end). */
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
+  /** Line/arrow only: perpendicular offset (px) of the curve's midpoint from the straight chord; 0/absent = straight. */
+  curvature?: number;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
 }

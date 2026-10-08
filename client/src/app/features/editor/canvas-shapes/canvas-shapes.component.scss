@@ -74,6 +74,7 @@
 
 .handle,
 .endpoint,
+.bend,
 .rotate {
   fill: var(--dbd-surface);
   stroke: var(--dbd-connector-selected);
@@ -91,6 +92,12 @@
 
 .endpoint {
   cursor: grab;
+}
+
+.bend {
+  cursor: grab;
+  fill: var(--dbd-connector-selected);
+  fill-opacity: 0.35;
 }
 
 .rotate {

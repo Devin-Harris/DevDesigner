@@ -101,13 +101,13 @@ export class ElementEntity {
 
   // Line/arrow endpoint bindings, split into kind + target id (see ElementBinding).
   @Column({ type: 'varchar', nullable: true })
-  startBindingKind!: 'element' | 'table' | null;
+  startBindingKind!: 'element' | 'table' | 'message' | null;
 
   @Column({ type: 'varchar', nullable: true })
   startBindingId!: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  endBindingKind!: 'element' | 'table' | null;
+  endBindingKind!: 'element' | 'table' | 'message' | null;
 
   @Column({ type: 'varchar', nullable: true })
   endBindingId!: string | null;
@@ -117,6 +117,10 @@ export class ElementEntity {
 
   @Column({ type: 'varchar', nullable: true })
   endArrowhead!: ArrowheadType | null;
+
+  // Line/arrow curve bend (px, perpendicular offset of the midpoint); null = straight.
+  @Column({ type: 'float', nullable: true })
+  curvature!: number | null;
 
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
