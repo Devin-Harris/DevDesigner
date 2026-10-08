@@ -2590,14 +2590,18 @@ export class EditorComponent {
     inner.tableIds.forEach((id) => tableIds.add(id));
     inner.diagramIds.forEach((id) => diagramIds.add(id));
 
-    relIds.forEach((id) => void this.store.deleteRelationship(id));
-    tableIds.forEach((id) => void this.store.deleteTable(id));
-    elementIds.forEach((id) => void this.store.deleteElement(id));
-    diagramIds.forEach((id) => void this.store.deleteSequence(id));
-    if (!diagramIds.size) {
-      messageIds.forEach((id) => void this.store.deleteMessage(id));
-      lifelineIds.forEach((id) => void this.store.deleteLifeline(id));
-    }
+    void this.store.batchHistory(() => {
+      const jobs: unknown[] = [];
+      relIds.forEach((id) => jobs.push(this.store.deleteRelationship(id)));
+      tableIds.forEach((id) => jobs.push(this.store.deleteTable(id)));
+      elementIds.forEach((id) => jobs.push(this.store.deleteElement(id)));
+      diagramIds.forEach((id) => jobs.push(this.store.deleteSequence(id)));
+      if (!diagramIds.size) {
+        messageIds.forEach((id) => jobs.push(this.store.deleteMessage(id)));
+        lifelineIds.forEach((id) => jobs.push(this.store.deleteLifeline(id)));
+      }
+      return Promise.all(jobs);
+    });
   }
 
   /** Single-key tool shortcuts (Excalidraw-style). */

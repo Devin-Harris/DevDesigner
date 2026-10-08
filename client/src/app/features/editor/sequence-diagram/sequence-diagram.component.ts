@@ -858,7 +858,9 @@ export class SequenceDiagramComponent {
     } else if (d?.kind === 'llw') {
       this.applyWidth(d, event.clientX);
       const l = this.store.lifelines().find((x) => x.id === d.id);
-      if (l && l.width !== d.startWidth) void this.store.updateLifeline(d.id, { width: l.width });
+      if (l && l.width !== d.startWidth) {
+        void this.store.updateLifeline(d.id, { width: l.width }, { width: d.startWidth });
+      }
     } else if (d?.kind === 'connect') {
       const fn = this.toWorld();
       const w = fn ? fn(event.clientX, event.clientY) : this.tempTo();
@@ -883,6 +885,20 @@ export class SequenceDiagramComponent {
     } else if (d?.kind === 'msg') {
       // Finalize at the release position (robust even without intermediate moves).
       this.moveMessages(d, event.clientY);
+      if (!this.dragCopied) {
+        const byId = new Map(this.store.sequenceMessages().map((m) => [m.id, m.y] as const));
+        const moves = [...d.startYs]
+          .map(([id, from]) => ({ id, from, to: byId.get(id) ?? from }))
+          .filter((m) => this.rowY(m.from) !== this.rowY(m.to));
+        this.store.recordMessageMoves(moves);
+      }
+    } else if (d?.kind === 'll') {
+      if (!this.dragCopied) {
+        const now = this.store.lifelines().find((x) => x.id === d.id);
+        if (now && Math.abs(now.x - d.startVal) > 0.5) {
+          this.store.recordLifelineMove(d.id, d.startVal, now.x);
+        }
+      }
     } else if (d?.kind === 'diagram' || d?.kind === 'resize') {
       // Apply the final position once more from the release point (covers drags
       // where no intermediate pointermove fired), then persist everything.

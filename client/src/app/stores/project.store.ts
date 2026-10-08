@@ -383,8 +383,16 @@ export const ProjectStore = signalStore(
         patchState(store, { undoDepth: undoStack.length, redoDepth: redoStack.length });
       }
 
+      // While a batch is open, pushed entries are collected and recorded as one
+      // undo step (e.g. deleting a multi-selection).
+      let historyBatch: HistoryEntry[] | null = null;
+
       function pushHistory(entry: HistoryEntry): void {
         if (applyingHistory) {
+          return;
+        }
+        if (historyBatch) {
+          historyBatch.push(entry);
           return;
         }
         undoStack.push(entry);
@@ -664,6 +672,211 @@ export const ProjectStore = signalStore(
           patchState(store, { saveStatus: 'error' });
           throw err;
         }
+      }
+
+      // ---- Sequence undo/redo ----
+      // Undoing a delete re-creates the row with a NEW server id, so history entries
+      // refer to rows by their original id and resolve it through this alias chain.
+      const idAlias = new Map<string, string>();
+      function rid(id: string): string {
+        let cur = id;
+        for (let i = 0; i < 50 && idAlias.has(cur); i++) cur = idAlias.get(cur)!;
+        return cur;
+      }
+      function aliasTo(oldId: string, newId: string): void {
+        idAlias.set(rid(oldId), newId);
+        idAlias.set(oldId, newId);
+      }
+
+      type SeqKind = 'message' | 'lifeline' | 'diagram';
+      interface SeqSnapshot {
+        kind: SeqKind;
+        diagram?: SequenceDiagramModel;
+        lifelines: LifelineModel[];
+        messages: SequenceMessageModel[];
+      }
+
+      function captureSeq(kind: SeqKind, id: string): SeqSnapshot | null {
+        const s = store.schema();
+        if (!s) return null;
+        if (kind === 'message') {
+          const m = s.sequenceMessages.find((x) => x.id === id);
+          return m ? { kind, lifelines: [], messages: [{ ...m }] } : null;
+        }
+        if (kind === 'lifeline') {
+          const l = s.lifelines.find((x) => x.id === id);
+          if (!l) return null;
+          return {
+            kind,
+            lifelines: [{ ...l }],
+            messages: s.sequenceMessages
+              .filter((m) => m.fromLifelineId === id || m.toLifelineId === id)
+              .map((m) => ({ ...m })),
+          };
+        }
+        const d = s.sequenceDiagrams.find((x) => x.id === id);
+        if (!d) return null;
+        return {
+          kind,
+          diagram: { ...d },
+          lifelines: s.lifelines.filter((l) => l.diagramId === id).map((l) => ({ ...l })),
+          messages: s.sequenceMessages.filter((m) => m.diagramId === id).map((m) => ({ ...m })),
+        };
+      }
+
+      function seqRootId(snap: SeqSnapshot): string {
+        return snap.kind === 'diagram'
+          ? snap.diagram!.id
+          : snap.kind === 'lifeline'
+            ? snap.lifelines[0].id
+            : snap.messages[0].id;
+      }
+
+      async function createMessageRaw(m: SequenceMessageModel): Promise<void> {
+        const projectId = store.projectId();
+        if (!projectId) return;
+        const copy = await runSave(() =>
+          firstValueFrom(
+            sequenceApi.createMessage(projectId, {
+              diagramId: rid(m.diagramId),
+              fromLifelineId: rid(m.fromLifelineId),
+              toLifelineId: rid(m.toLifelineId),
+              label: m.label,
+              y: m.y,
+              style: m.style,
+              direction: m.direction,
+              arrowhead: m.arrowhead,
+              color: m.color,
+            }),
+          ),
+        );
+        aliasTo(m.id, copy.id);
+        setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, copy] }));
+      }
+
+      async function createLifelineRaw(l: LifelineModel): Promise<void> {
+        const projectId = store.projectId();
+        if (!projectId) return;
+        const copy = await runSave(() =>
+          firstValueFrom(
+            sequenceApi.createLifeline(projectId, {
+              diagramId: rid(l.diagramId),
+              label: l.label,
+              color: l.color,
+              lineColor: l.lineColor,
+              x: l.x,
+              width: l.width,
+              order: l.order,
+            }),
+          ),
+        );
+        aliasTo(l.id, copy.id);
+        setSchema((s) => ({ ...s, lifelines: [...s.lifelines, copy] }));
+      }
+
+      async function restoreSeq(snap: SeqSnapshot): Promise<void> {
+        const projectId = store.projectId();
+        if (!projectId) return;
+        if (snap.diagram) {
+          const d = snap.diagram;
+          const copy = await runSave(() =>
+            firstValueFrom(
+              sequenceApi.createDiagram(projectId, {
+                originY: d.originY,
+                lifelineSpacing: d.lifelineSpacing,
+                rowSpacing: d.rowSpacing,
+                headerHeight: d.headerHeight,
+                backgroundColor: d.backgroundColor,
+              }),
+            ),
+          );
+          aliasTo(d.id, copy.id);
+          setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, copy] }));
+        }
+        for (const l of [...snap.lifelines].sort((a, b) => a.order - b.order)) {
+          await createLifelineRaw(l);
+        }
+        for (const m of snap.messages) {
+          await createMessageRaw(m);
+        }
+      }
+
+      async function removeSeq(kind: SeqKind, id: string): Promise<void> {
+        const projectId = store.projectId();
+        if (!projectId) return;
+        if (kind === 'message') {
+          await runSave(() => firstValueFrom(sequenceApi.deleteMessage(projectId, id)));
+          setSchema((s) => ({
+            ...s,
+            sequenceMessages: s.sequenceMessages.filter((m) => m.id !== id),
+          }));
+          patchState(store, {
+            selectedMessageIds: store.selectedMessageIds().filter((x) => x !== id),
+          });
+        } else if (kind === 'lifeline') {
+          await runSave(() => firstValueFrom(sequenceApi.deleteLifeline(projectId, id)));
+          setSchema((s) => ({
+            ...s,
+            lifelines: s.lifelines.filter((l) => l.id !== id),
+            sequenceMessages: s.sequenceMessages.filter(
+              (m) => m.fromLifelineId !== id && m.toLifelineId !== id,
+            ),
+          }));
+          patchState(store, {
+            selectedLifelineIds: store.selectedLifelineIds().filter((x) => x !== id),
+          });
+        } else {
+          await runSave(() => firstValueFrom(sequenceApi.deleteDiagram(projectId, id)));
+          setSchema((s) => ({
+            ...s,
+            sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== id),
+            lifelines: s.lifelines.filter((l) => l.diagramId !== id),
+            sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== id),
+          }));
+          patchState(store, {
+            selectedDiagramIds: store.selectedDiagramIds().filter((x) => x !== id),
+            selectedLifelineIds: [],
+            selectedMessageIds: [],
+          });
+        }
+      }
+
+      /** Undo = remove it again; redo = bring it back (state re-captured at undo time). */
+      function recordSeqCreate(kind: SeqKind, id: string): void {
+        let snap = captureSeq(kind, id);
+        if (!snap) return;
+        pushHistory({
+          undo: async () => {
+            snap = captureSeq(kind, rid(id)) ?? snap;
+            await removeSeq(kind, rid(id));
+          },
+          redo: () => restoreSeq(snap!),
+        });
+      }
+
+      /** Undo = bring the deleted rows back; redo = delete them again. */
+      function recordSeqDelete(snap: SeqSnapshot): void {
+        const id = seqRootId(snap);
+        pushHistory({
+          undo: () => restoreSeq(snap),
+          redo: () => removeSeq(snap.kind, rid(id)),
+        });
+      }
+
+      /** Pick the patched keys from a model (missing values become '' so they can be cleared). */
+      function pickKeys(model: object, keys: string[]): Record<string, unknown> {
+        const src = model as Record<string, unknown>;
+        return Object.fromEntries(keys.map((k) => [k, src[k] ?? '']));
+      }
+      function sameValues(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+        return Object.keys(a).every((k) => a[k] === b[k]);
+      }
+      function resolveRefs(patch: Record<string, unknown>): Record<string, unknown> {
+        const out = { ...patch };
+        for (const k of ['fromLifelineId', 'toLifelineId']) {
+          if (typeof out[k] === 'string') out[k] = rid(out[k] as string);
+        }
+        return out;
       }
 
       function debounce(key: string, fn: () => void, ms = 500): void {
@@ -1262,6 +1475,7 @@ export const ProjectStore = signalStore(
             selectedRelationshipIds: [],
             selectedElementIds: [],
           });
+          recordSeqCreate('diagram', diagram.id);
         },
 
         /** Add a participant column to a diagram, on the given side of its spread. */
@@ -1284,6 +1498,7 @@ export const ProjectStore = signalStore(
           const order = lls.length;
           const index = Math.max(0, Math.min(at, lls.length));
           let x = 0;
+          const shifted: { id: string; from: number; to: number }[] = [];
           if (lls.length) {
             if (index === 0) {
               x = lls[0].x - spacing;
@@ -1291,6 +1506,7 @@ export const ProjectStore = signalStore(
               x = lls[index - 1].x + spacing;
               for (const l of lls.slice(index)) {
                 const nx = l.x + spacing;
+                shifted.push({ id: l.id, from: l.x, to: nx });
                 mapLifeline(l.id, (m) => ({ ...m, x: nx }));
                 debounce(`llpos:${l.id}`, () => {
                   void runSave(() =>
@@ -1318,17 +1534,50 @@ export const ProjectStore = signalStore(
             selectedMessageIds: [],
             selectedDiagramIds: [],
           });
+          let snap = captureSeq('lifeline', created.id);
+          if (snap) {
+            pushHistory({
+              undo: async () => {
+                snap = captureSeq('lifeline', rid(created.id)) ?? snap;
+                await removeSeq('lifeline', rid(created.id));
+                shifted.forEach((s) => this.moveLifeline(rid(s.id), s.from));
+              },
+              redo: async () => {
+                await restoreSeq(snap!);
+                shifted.forEach((s) => this.moveLifeline(rid(s.id), s.to));
+              },
+            });
+          }
         },
 
-        async updateLifeline(lifelineId: string, patch: UpdateLifelineDto): Promise<void> {
+        async updateLifeline(
+          lifelineId: string,
+          patch: UpdateLifelineDto,
+          /** Values to restore on undo when the local model was already changed live (drag). */
+          prev?: UpdateLifelineDto,
+        ): Promise<void> {
           const projectId = store.projectId();
           if (!projectId) {
             return;
           }
+          const keys = Object.keys(patch);
+          const current = store.lifelines().find((l) => l.id === lifelineId);
+          const before = prev
+            ? (prev as Record<string, unknown>)
+            : current
+              ? pickKeys(current, keys)
+              : null;
           const updated = await runSave(() =>
             firstValueFrom(sequenceApi.updateLifeline(projectId, lifelineId, patch)),
           );
           mapLifeline(lifelineId, () => updated);
+          const after = pickKeys(updated, keys);
+          if (before && !sameValues(before, after)) {
+            pushHistory({
+              undo: () => this.updateLifeline(rid(lifelineId), before as UpdateLifelineDto),
+              redo: () => this.updateLifeline(rid(lifelineId), after as UpdateLifelineDto),
+            });
+          }
         },
 
         /** Optimistic horizontal move; the position PATCH is debounced per lifeline. */
@@ -1353,17 +1602,9 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
-          await runSave(() => firstValueFrom(sequenceApi.deleteLifeline(projectId, lifelineId)));
-          setSchema((s) => ({
-            ...s,
-            lifelines: s.lifelines.filter((l) => l.id !== lifelineId),
-            sequenceMessages: s.sequenceMessages.filter(
-              (m) => m.fromLifelineId !== lifelineId && m.toLifelineId !== lifelineId,
-            ),
-          }));
-          patchState(store, {
-            selectedLifelineIds: store.selectedLifelineIds().filter((id) => id !== lifelineId),
-          });
+          const snap = captureSeq('lifeline', lifelineId);
+          await removeSeq('lifeline', lifelineId);
+          if (snap) recordSeqDelete(snap);
         },
 
         /**
@@ -1412,6 +1653,7 @@ export const ProjectStore = signalStore(
             selectedLifelineIds: [],
             selectedDiagramIds: [],
           });
+          recordSeqCreate('message', created.id);
         },
 
         /**
@@ -1490,6 +1732,7 @@ export const ProjectStore = signalStore(
             );
             setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, copy] }));
           }
+          recordSeqCreate('diagram', diagram.id);
           return diagram.id;
         },
 
@@ -1520,6 +1763,7 @@ export const ProjectStore = signalStore(
             selectedMessageIds: [],
             selectedDiagramIds: [],
           });
+          recordSeqCreate('lifeline', copy.id);
           return copy.id;
         },
 
@@ -1551,6 +1795,7 @@ export const ProjectStore = signalStore(
             selectedLifelineIds: [],
             selectedDiagramIds: [],
           });
+          recordSeqCreate('message', copy.id);
           return copy.id;
         },
 
@@ -1560,18 +1805,9 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
-          await runSave(() => firstValueFrom(sequenceApi.deleteDiagram(projectId, diagramId)));
-          setSchema((s) => ({
-            ...s,
-            sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== diagramId),
-            lifelines: s.lifelines.filter((l) => l.diagramId !== diagramId),
-            sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== diagramId),
-          }));
-          patchState(store, {
-            selectedDiagramIds: store.selectedDiagramIds().filter((id) => id !== diagramId),
-            selectedLifelineIds: [],
-            selectedMessageIds: [],
-          });
+          const snap = captureSeq('diagram', diagramId);
+          await removeSeq('diagram', diagramId);
+          if (snap) recordSeqDelete(snap);
         },
 
         async updateMessage(messageId: string, patch: UpdateSequenceMessageDto): Promise<void> {
@@ -1579,10 +1815,22 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
+          const keys = Object.keys(patch);
+          const current = store.sequenceMessages().find((m) => m.id === messageId);
+          const before = current ? pickKeys(current, keys) : null;
           const updated = await runSave(() =>
             firstValueFrom(sequenceApi.updateMessage(projectId, messageId, patch)),
           );
           mapMessage(messageId, () => updated);
+          const after = pickKeys(updated, keys);
+          if (before && !sameValues(before, after)) {
+            pushHistory({
+              undo: () =>
+                this.updateMessage(rid(messageId), resolveRefs(before) as UpdateSequenceMessageDto),
+              redo: () =>
+                this.updateMessage(rid(messageId), resolveRefs(after) as UpdateSequenceMessageDto),
+            });
+          }
         },
 
         /** Optimistic vertical move; the position PATCH is debounced per message. */
@@ -1602,14 +1850,9 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
-          await runSave(() => firstValueFrom(sequenceApi.deleteMessage(projectId, messageId)));
-          setSchema((s) => ({
-            ...s,
-            sequenceMessages: s.sequenceMessages.filter((m) => m.id !== messageId),
-          }));
-          patchState(store, {
-            selectedMessageIds: store.selectedMessageIds().filter((id) => id !== messageId),
-          });
+          const snap = captureSeq('message', messageId);
+          await removeSeq('message', messageId);
+          if (snap) recordSeqDelete(snap);
         },
 
         /** Update one diagram's layout config (spacing / origin), persisted. */
@@ -1621,10 +1864,26 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
+          // Move/resize gestures record their own layout step; only the appearance
+          // settings are recorded here.
+          const keys = Object.keys(patch).filter((k) =>
+            ['backgroundColor', 'lifelineSpacing', 'headerHeight'].includes(k),
+          );
+          const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
+          const before = current && keys.length ? pickKeys(current, keys) : null;
           const updated = await runSave(() =>
             firstValueFrom(sequenceApi.updateDiagram(projectId, diagramId, patch)),
           );
           mapDiagram(diagramId, () => updated);
+          const after = before ? pickKeys(updated, keys) : null;
+          if (before && after && !sameValues(before, after)) {
+            pushHistory({
+              undo: () =>
+                this.updateSequenceConfig(rid(diagramId), before as UpdateSequenceDiagramDto),
+              redo: () =>
+                this.updateSequenceConfig(rid(diagramId), after as UpdateSequenceDiagramDto),
+            });
+          }
         },
 
         /** Record a completed diagram move/resize (already applied) so it can be undone. */
@@ -2141,6 +2400,51 @@ export const ProjectStore = signalStore(
               Promise.all(
                 moves.map((m) => updateElementRaw(m.id, { x: m.to.x, y: m.to.y })),
               ).then(() => undefined),
+          });
+        },
+
+        /** Run `fn`, recording everything it does as a single undo step. */
+        async batchHistory(fn: () => Promise<unknown>): Promise<void> {
+          if (historyBatch) {
+            await fn();
+            return;
+          }
+          const batch: HistoryEntry[] = [];
+          historyBatch = batch;
+          try {
+            await fn();
+          } finally {
+            historyBatch = null;
+          }
+          if (!batch.length) return;
+          if (batch.length === 1) {
+            pushHistory(batch[0]);
+            return;
+          }
+          pushHistory({
+            undo: async () => {
+              for (const e of [...batch].reverse()) await e.undo();
+            },
+            redo: async () => {
+              for (const e of batch) await e.redo();
+            },
+          });
+        },
+
+        /** Record a finished drag of message rows (already applied) for undo/redo. */
+        recordMessageMoves(moves: { id: string; from: number; to: number }[]): void {
+          if (!moves.length) return;
+          pushHistory({
+            undo: () => moves.forEach((m) => this.moveMessage(rid(m.id), m.from)),
+            redo: () => moves.forEach((m) => this.moveMessage(rid(m.id), m.to)),
+          });
+        },
+
+        /** Record a finished horizontal drag of a participant for undo/redo. */
+        recordLifelineMove(id: string, from: number, to: number): void {
+          pushHistory({
+            undo: () => this.moveLifeline(rid(id), from),
+            redo: () => this.moveLifeline(rid(id), to),
           });
         },
 
