@@ -1,0 +1,35 @@
+{
+  "name": "dbdesigner-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron shell for DBDesigner. Standalone (not an npm workspace) so its better-sqlite3 can be built for Electron's ABI without breaking the Node dev server.",
+  "author": "Devin Harris",
+  "main": "main.js",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "start": "electron .",
+    "stage": "node scripts/stage.mjs",
+    "dist": "node scripts/stage.mjs && electron-builder --win nsis --publish never",
+    "release": "node scripts/stage.mjs && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "npmRebuild": false,
+    "appId": "com.devinharris.dbdesigner",
+    "productName": "DBDesigner",
+    "directories": { "output": "release" },
+    "files": ["main.js", "package.json"],
+    "extraResources": [{ "from": "stage", "to": "." }],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": true, "perMachine": false },
+    "publish": [{ "provider": "github", "owner": "Devin-Harris", "repo": "DBDesigner" }]
+  }
+}

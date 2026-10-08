@@ -133,3 +133,28 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Desktop app (Electron)
+
+Runs the whole app locally: the NestJS server starts inside Electron, serves the built client, and stores data in the OS user-data folder (File > Open Data Folder).
+
+```bash
+npm run electron:install   # once: installs Electron + a better-sqlite3 build for its ABI
+npm run electron           # builds shared/server/client, then launches the app
+```
+
+**Sharing without a hosted server:** File > Share on Local Network binds the embedded server to your LAN and makes share links use your LAN address. Peers open the link in a browser, or copy it and use File > Open Shared Link from Clipboard in their own copy of the app. Live collaboration works the same as the web version. Both machines must be on the same network (or VPN); the host must be running.
+
+### Windows installer and auto-update
+
+```bash
+npm run electron:build            # build shared/server/client (repo root)
+npm run dist --prefix electron    # -> electron/release/DBDesigner Setup <version>.exe
+```
+
+Installed copies check GitHub Releases (`Devin-Harris/DBDesigner`) on launch and via File > Check for Updates, download in the background, and offer a restart. To ship an update:
+
+1. Bump `version` in `electron/package.json`.
+2. `npm run electron:build`, then set `GH_TOKEN` (a token with repo access) and run `npm run release --prefix electron`. This uploads the installer and `latest.yml` as a GitHub release. Publish the draft release if it is created as a draft.
+
+The installer is unsigned, so Windows SmartScreen will warn on first install. The database schema auto-syncs on startup (`DATABASE_SYNCHRONIZE`), so avoid destructive entity changes between releases.

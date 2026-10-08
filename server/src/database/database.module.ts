@@ -15,6 +15,7 @@ import { buildDataSourceOptions } from './data-source';
       useFactory: (config: ConfigService) =>
         buildDataSourceOptions({
           DATABASE_PATH: config.get<string>('DATABASE_PATH', 'dbdesigner.sqlite'),
+          SQLITE_DRIVER_PATH: config.get<string>('SQLITE_DRIVER_PATH'),
           // Default on for the current dev phase so the schema auto-creates with
           // no migrations. Set DATABASE_SYNCHRONIZE=false and use migrations
           // before any real deployment.

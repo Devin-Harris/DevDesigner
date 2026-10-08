@@ -12,6 +12,8 @@ export function buildDataSourceOptions(env: NodeJS.ProcessEnv = process.env): Da
   return {
     type: 'better-sqlite3',
     database: env.DATABASE_PATH ?? 'dbdesigner.sqlite',
+    // The Electron shell supplies a better-sqlite3 build compiled for its own ABI.
+    ...(env.SQLITE_DRIVER_PATH ? { driver: require(env.SQLITE_DRIVER_PATH) } : {}),
     // Entities are added per feature module; glob keeps registration automatic.
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../../migrations/*{.ts,.js}'],
