@@ -2439,12 +2439,14 @@ export class EditorComponent {
     };
   }
 
-  /** Sequence diagrams whose bounding box (as drawn) intersects the marquee rect. */
+  /** Sequence diagrams whose bounding box (as drawn) lies entirely inside the marquee rect. */
   private diagramsInRect(rect: Rect): string[] {
     const out: string[] = [];
     for (const d of this.store.sequenceDiagrams()) {
       const b = this.diagramBox(d);
-      if (b && b.minX <= rect.maxX && b.maxX >= rect.minX && b.minY <= rect.maxY && b.maxY >= rect.minY) {
+      // Only a diagram the marquee fully encloses is picked as a unit; a partial sweep
+      // selects just the messages/participants it touches.
+      if (b && b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY) {
         out.push(d.id);
       }
     }

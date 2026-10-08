@@ -372,3 +372,12 @@
     border-color: var(--dbd-primary);
   }
 }
+
+// Shift+drag selection rectangle for picking several messages.
+.seq-marquee {
+  position: absolute;
+  border: 1px solid var(--dbd-primary);
+  background: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
+  pointer-events: none;
+  z-index: 7;
+}

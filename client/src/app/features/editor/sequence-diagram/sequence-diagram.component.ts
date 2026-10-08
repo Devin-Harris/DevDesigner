@@ -97,6 +97,7 @@ type Drag =
       nRows: number;
       startRowSpacing: number;
     }
+  | { kind: 'marquee'; start: { x: number; y: number }; moved: boolean }
   | { kind: 'connect'; fromId: string; startY: number }
   | { kind: 'endpoint'; id: string; which: 'from' | 'to' };
 
@@ -450,6 +451,16 @@ export class SequenceDiagramComponent {
     event.stopPropagation();
     const id = this.diagram().id;
     if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      const fn = this.toWorld();
+      if (event.shiftKey && !event.ctrlKey && !event.metaKey && fn) {
+        // Shift+drag inside the diagram marquee-selects its messages; a plain
+        // shift-click (no movement) still toggles the diagram, decided on release.
+        const p = fn(event.clientX, event.clientY);
+        this.startDrag();
+        this.drag = { kind: 'marquee', start: p, moved: false };
+        this.marqueeEnd.set(p);
+        return;
+      }
       // Toggle into/out of the selection; no drag so the gesture stays a pure click.
       this.store.toggleSequence(id);
       return;
@@ -622,10 +633,56 @@ export class SequenceDiagramComponent {
     if (this.lastPointer) this.onMove(this.lastPointer);
   }
 
+  // Live message-marquee rectangle (world coords).
+  private readonly marqueeEnd = signal<{ x: number; y: number } | null>(null);
+  private marqueeStart: { x: number; y: number } | null = null;
+  protected readonly marqueeRect = computed(() => {
+    const e = this.marqueeEnd();
+    const s = this.marqueeStart;
+    if (!e || !s) return null;
+    const left = Math.min(s.x, e.x);
+    const top = Math.min(s.y, e.y);
+    return { left, top, width: Math.abs(e.x - s.x), height: Math.abs(e.y - s.y) };
+  });
+
+  /** Select the messages of this diagram whose line crosses the rect (added to the current selection). */
+  private selectMessagesIn(rect: { left: number; top: number; width: number; height: number }): void {
+    const right = rect.left + rect.width;
+    const bottom = rect.top + rect.height;
+    const hits = this.msgViews()
+      .filter((m) => {
+        const l = m.isBreak ? m.spanLeft : m.leftX;
+        const r = l + (m.isBreak ? m.spanWidth : m.width);
+        return l <= right && r >= rect.left && m.y >= rect.top && m.y <= bottom;
+      })
+      .map((m) => m.id);
+    if (!hits.length) return;
+    const id = this.diagram().id;
+    this.store.setSelection(
+      this.store.selectedTableIds(),
+      this.store.selectedRelationshipIds(),
+      this.store.selectedElementIds(),
+      [...new Set([...this.store.selectedMessageIds(), ...hits])],
+      this.store.selectedLifelineIds(),
+      this.store.selectedDiagramIds().filter((x) => x !== id),
+    );
+  }
+
   protected onMove = (event: PointerEvent): void => {
     this.lastPointer = event;
     const d = this.drag;
     if (!d || this.duplicating) return;
+    if (d.kind === 'marquee') {
+      const fn = this.toWorld();
+      if (!fn) return;
+      const p = fn(event.clientX, event.clientY);
+      if (Math.hypot(p.x - d.start.x, p.y - d.start.y) * this.zoom() > 4) d.moved = true;
+      if (d.moved) {
+        this.marqueeStart = d.start;
+        this.marqueeEnd.set(p);
+      }
+      return;
+    }
     if (d.kind === 'll') {
       this.store.moveLifeline(d.id, d.startVal + (event.clientX - d.start) / this.zoom());
     } else if (d.kind === 'llw') {
@@ -790,7 +847,13 @@ export class SequenceDiagramComponent {
       this.drag = null;
       return;
     }
-    if (d?.kind === 'llw') {
+    if (d?.kind === 'marquee') {
+      const rect = d.moved ? this.marqueeRect() : null;
+      this.marqueeEnd.set(null);
+      this.marqueeStart = null;
+      if (rect) this.selectMessagesIn(rect);
+      else this.store.toggleSequence(this.diagram().id);
+    } else if (d?.kind === 'llw') {
       this.applyWidth(d, event.clientX);
       const l = this.store.lifelines().find((x) => x.id === d.id);
       if (l && l.width !== d.startWidth) void this.store.updateLifeline(d.id, { width: l.width });

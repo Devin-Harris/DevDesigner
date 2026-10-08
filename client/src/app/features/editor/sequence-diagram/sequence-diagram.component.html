@@ -12,6 +12,16 @@
     ></div>
   }
 
+  @if (marqueeRect(); as q) {
+    <div
+      class="seq-marquee"
+      [style.left.px]="q.left"
+      [style.top.px]="q.top"
+      [style.width.px]="q.width"
+      [style.height.px]="q.height"
+    ></div>
+  }
+
   <!-- Lifeline spines (visual) -->
   @for (l of lls(); track l.id) {
     <div
