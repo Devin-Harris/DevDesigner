@@ -272,7 +272,7 @@
   font-size: 11px;
   color: var(--seq-fg, var(--dbd-text));
   background: var(--seq-bg, var(--dbd-surface));
-  padding: 0 5px;
+  padding: 4px 10px;
   border-radius: 4px;
   white-space: pre; // honors Shift+Enter line breaks
   text-align: center;
@@ -300,7 +300,7 @@
   border: 0;
   border-radius: 4px;
   outline: 1.5px solid var(--dbd-primary);
-  padding: 0 5px;
+  padding: 4px 10px;
   margin: 0;
   box-sizing: content-box;
   field-sizing: content; // grow/shrink to fit the text as you type
@@ -319,7 +319,7 @@
     text-transform: uppercase;
     color: var(--seq-fg-muted, var(--dbd-text-muted));
     background: var(--seq-bg, var(--dbd-surface));
-    padding: 1px 10px;
+    padding: 4px 14px;
     border-radius: 12px;
   }
 }
@@ -369,7 +369,7 @@
   color: var(--seq-fg-muted, var(--dbd-text-muted));
   background: var(--seq-bg, var(--dbd-surface));
   border: 1px solid var(--dbd-border);
-  padding: 1px 10px;
+  padding: 4px 14px;
   border-radius: 12px;
   white-space: pre;
   text-align: center;

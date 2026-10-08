@@ -465,8 +465,8 @@ function renderSequence(
       );
       if (label) {
         const lines = label.toUpperCase().split(/\r?\n/);
-        const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 22;
-        const h = lines.length * SEQ_LINE_H + 6;
+        const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 30;
+        const h = lines.length * SEQ_LINE_H + 14;
         const mid = (minX + maxX) / 2;
         out.push(
           `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(11, h / 2)}" ry="${Math.min(11, h / 2)}" ` +
@@ -493,8 +493,8 @@ function renderSequence(
     if (label) {
       const lines = label.split(/\r?\n/);
       const mid = (f.x + t.x) / 2;
-      const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 10;
-      const h = lines.length * SEQ_LINE_H;
+      const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20;
+      const h = lines.length * SEQ_LINE_H + 8;
       out.push(
         `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" ry="4" fill="${bg}" />`,
         seqText(mid, y, lines, `fill="${labelText}"`),
