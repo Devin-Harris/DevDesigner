@@ -15,6 +15,11 @@
   box-shadow: var(--dbd-shadow-2);
 }
 
+.lang {
+  font-size: 12px;
+  font-weight: 600;
+}
+
 // Toolbar icon button.
 .tb {
   display: inline-flex;
@@ -33,6 +38,13 @@
     width: 28px;
     height: 28px;
     --dbd-icon-size: 18px;
+  }
+
+  // Icon + label (the code language picker).
+  &.wide {
+    width: auto;
+    gap: 6px;
+    padding: 0 8px;
   }
 
   &:hover:not(:disabled) {

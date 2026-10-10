@@ -96,6 +96,36 @@
     </ng-template>
   }
 
+  <!-- Code block: language + text size -->
+  @if (isCode()) {
+    <button class="tb wide" [dbdPopoverTrigger]="languageMenu" placement="below-start" matTooltip="Language" [disabled]="!store.canEdit()">
+      <dbd-icon name="code" />
+      <span class="lang">{{ languageLabel() }}</span>
+    </button>
+    <ng-template #languageMenu let-close>
+      <div class="dbd-menu">
+        @for (l of languages; track l.id) {
+          <button class="dbd-menu-item" [class.on]="l.id === (element().language ?? 'typescript')" (click)="setLanguage(l.id); close()">{{ l.label }}</button>
+        }
+      </div>
+    </ng-template>
+
+    <button class="tb" matTooltip="Format code (Shift+Alt+F)" [disabled]="!store.canEdit() || !canFormat()" (click)="format()">
+      <dbd-icon name="auto_fix" />
+    </button>
+
+    <button class="tb" [dbdPopoverTrigger]="codeSizeMenu" placement="below-start" matTooltip="Text size" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_size" />
+    </button>
+    <ng-template #codeSizeMenu let-close>
+      <div class="dbd-menu">
+        @for (s of codeSizes; track s) {
+          <button class="dbd-menu-item" [class.on]="s === (element().fontSize ?? 14)" (click)="setCodeSize(s); close()">{{ s }} px</button>
+        }
+      </div>
+    </ng-template>
+  }
+
   <!-- Text / label: font + size + bold/italic + alignment -->
   @if (canHaveText()) {
     <button class="tb wide" [dbdPopoverTrigger]="fontMenu" placement="below-start" matTooltip="Font" [disabled]="!store.canEdit()">

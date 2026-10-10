@@ -41,6 +41,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     endArrowhead: entity.endArrowhead ?? undefined,
     curvature: entity.curvature ?? undefined,
     fileId: entity.fileId ?? undefined,
+    language: entity.language ?? undefined,
     groupId: entity.groupId ?? undefined,
   };
 }

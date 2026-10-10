@@ -8,6 +8,7 @@
 import type {
   AccessLevel,
   ArrowheadType,
+  CodeLanguage,
   ElementType,
   FillStyle,
   ProjectType,
@@ -262,6 +263,8 @@ export interface CreateElementDto {
   curvature?: number;
   /** Image only: the uploaded project image to display (see UploadImageDto). */
   fileId?: string;
+  /** Code only: the highlight language of `text`. */
+  language?: CodeLanguage;
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {
@@ -292,6 +295,7 @@ export interface UpdateElementDto {
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
   curvature?: number;
+  language?: CodeLanguage;
   /** Group membership; null clears it. */
   groupId?: string | null;
 }

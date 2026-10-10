@@ -14,7 +14,7 @@ import { computeConnectors } from '../canvas/helpers/connectors.helper';
 import { messageLabelBoxes } from '../canvas/helpers/message-box.helper';
 import { buildShapeViews } from '../canvas/helpers/shape-render.helper';
 import { elementBox } from '../canvas/helpers/element-geometry.helper';
-import type { ShapeView, TextBlockView } from '../canvas/models/shape-view.model';
+import type { CodeBlockView, ShapeView, TextBlockView } from '../canvas/models/shape-view.model';
 
 /**
  * Build a standalone vector SVG of the diagram that mirrors the on-screen canvas
@@ -326,7 +326,9 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
   const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${view.opacity}">`;
   const stroke = `stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash}`;
   const body: string[] = [];
-  if (view.image) {
+  if (view.code) {
+    body.push(renderCodeBlock(view.code, stroke));
+  } else if (view.image) {
     // Embedded as a data: URI so the exported file is self-contained.
     const href = imageData.get(view.image.fileId);
     if (href) {
@@ -364,6 +366,41 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
     body.push(renderTextBlock(view.label));
   }
   return `${open}${body.join('')}</g>`;
+}
+
+/** Render a code card: surface, line-number gutter and colored tokens, clipped to the card. */
+function renderCodeBlock(c: CodeBlockView, stroke: string): string {
+  const { rect } = c;
+  const font = `font-size="${c.fontSize}" font-family="${esc(c.fontFamily)}"`;
+  const out: string[] = [
+    `<clipPath id="${esc(c.clipId)}"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" ` +
+      `height="${rect.height}" rx="${rect.rx}" /></clipPath>`,
+    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" ` +
+      `rx="${rect.rx}" fill="${esc(c.background)}" ${stroke} />`,
+    `<g clip-path="url(#${esc(c.clipId)})">`,
+  ];
+  for (const line of c.lines) {
+    out.push(
+      `<text x="${c.numberX}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.number}</text>`,
+    );
+    const runs = line.tokens
+      .map(
+        (t) =>
+          `<tspan fill="${t.color}"${t.italic ? ' font-style="italic"' : ''}>${esc(t.text)}</tspan>`,
+      )
+      .join('');
+    out.push(
+      `<text x="${c.textX}" y="${line.y}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
+    );
+  }
+  if (c.label) {
+    out.push(
+      `<text x="${c.label.x}" y="${c.label.y}" text-anchor="end" font-size="10" ` +
+        `font-family="${esc(c.fontFamily)}" fill="${c.label.color}">${esc(c.label.text)}</text>`,
+    );
+  }
+  out.push('</g>');
+  return out.join('');
 }
 
 /** Render a laid-out text block (text element content or a shape label). */

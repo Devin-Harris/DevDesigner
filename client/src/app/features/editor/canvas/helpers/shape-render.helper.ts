@@ -6,7 +6,22 @@ import type {
   VerticalAlign,
 } from '@dbdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
-import type { ShapeView, TextBlockView, TextLineView } from '../models/shape-view.model';
+import type {
+  CodeBlockView,
+  ShapeView,
+  TextBlockView,
+  TextLineView,
+} from '../models/shape-view.model';
+import {
+  CODE_LANGUAGE_LABELS,
+  TAB_SIZE,
+  codePalette,
+  expandTabs,
+  isElisionLine,
+  tokenColor,
+  tokenizeCode,
+  type CodeToken,
+} from './code-highlight.helper';
 import {
   absolutePoints,
   boundaryPoint,
@@ -222,6 +237,205 @@ function layoutTextBlock(
   };
 }
 
+// --- code blocks ---
+
+export const CODE_FONT_SIZE = 14;
+/** Inner padding of a code card and the gap between the line-number gutter and the code. */
+export const CODE_PADDING = 12;
+const CODE_GUTTER_GAP = 14;
+const CODE_LINE_HEIGHT = 1.5;
+
+/** Baseline offset inside a code line box; matches how a textarea centers a line. */
+function codeBaseline(fontSize: number): number {
+  return (fontSize * CODE_LINE_HEIGHT) / 2 + fontSize * 0.36;
+}
+
+function codeCharWidth(fontSize: number): number {
+  return measureWidth('0'.repeat(20), `400 ${fontSize}px ${fontStack('code')}`) / 20;
+}
+
+/** Geometry shared by the SVG renderer and the inline editor so the two line up exactly. */
+export function codeLayoutMetrics(
+  fontSize: number,
+  lineCount: number,
+): { charWidth: number; lineHeight: number; textOffset: number } {
+  const charWidth = codeCharWidth(fontSize);
+  const digits = Math.max(2, String(lineCount).length);
+  return {
+    charWidth,
+    lineHeight: fontSize * CODE_LINE_HEIGHT,
+    textOffset: CODE_PADDING + digits * charWidth + CODE_GUTTER_GAP,
+  };
+}
+
+/** Number of numbered lines in a code block (elision rows like `...` are not numbered). */
+export function codeLineCount(text: string): number {
+  const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  return Math.max(1, lines.filter((l) => !isElisionLine(l)).length);
+}
+
+/** One drawn row of a code block: a line or an elision gap. */
+interface CodeRow {
+  tokens: CodeToken[];
+  /** Line number, '' for gaps. */
+  number: string;
+  gap: boolean;
+}
+
+/** Expand tabs across a line's tokens (column-aware, so rendered and typed columns agree). */
+function expandTokenTabs(tokens: CodeToken[]): CodeToken[] {
+  let col = 0;
+  return tokens.map((t) => {
+    let text = '';
+    for (const ch of t.text) {
+      if (ch === '\t') {
+        const n = TAB_SIZE - (col % TAB_SIZE);
+        text += ' '.repeat(n);
+        col += n;
+      } else {
+        text += ch;
+        col += 1;
+      }
+    }
+    return { text, kind: t.kind };
+  });
+}
+
+/** How many characters fit across a code card of `width`. */
+export function codeColumns(width: number, textOffset: number, charWidth: number): number {
+  return Math.max(4, Math.floor((width - textOffset - CODE_PADDING) / charWidth + 1e-6));
+}
+
+/**
+ * Lay a code block out into drawn rows: tokenized, tab-expanded, elision lines as
+ * gaps (unnumbered).
+ */
+function layoutCodeRows(
+  text: string,
+  language: string,
+  fontSize: number,
+): { rows: CodeRow[]; metrics: ReturnType<typeof codeLayoutMetrics>; digits: number } {
+  const raw = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  const tokenLines = tokenizeCode(text || '', language);
+  const realCount = Math.max(1, raw.filter((l) => !isElisionLine(l)).length);
+  const metrics = codeLayoutMetrics(fontSize, realCount);
+  const rows: CodeRow[] = [];
+  let n = 0;
+  raw.forEach((line, i) => {
+    if (isElisionLine(line)) {
+      const indent = /^\s*/.exec(expandTabs(line))?.[0] ?? '';
+      const tokens: CodeToken[] = [];
+      if (indent) {
+        tokens.push({ text: indent, kind: 'plain' });
+      }
+      tokens.push({ text: '...', kind: 'elision' });
+      rows.push({ tokens, number: '', gap: true });
+      return;
+    }
+    n += 1;
+    const tokens = expandTokenTabs(tokenLines[i] ?? []);
+    rows.push({ tokens, number: String(n), gap: false });
+  });
+  return { rows, metrics, digits: Math.max(2, String(realCount).length) };
+}
+
+/** The smallest box that shows all of `text` without clipping. */
+export function codeContentSize(
+  text: string,
+  fontSize: number,
+): { width: number; height: number } {
+  const { rows, metrics } = layoutCodeRows(text, 'plaintext', fontSize);
+  const longest = Math.max(1, ...rows.map((r) => r.tokens.reduce((c, t) => c + t.text.length, 0)));
+  return {
+    width: Math.ceil(metrics.textOffset + longest * metrics.charWidth + CODE_PADDING),
+    height: Math.ceil(rows.length * metrics.lineHeight + CODE_PADDING * 2),
+  };
+}
+
+/**
+ * The Prettier print width that matches a code card's current width, so formatting
+ * re-flows the code to the card's bounds (taller, not wider).
+ */
+export function codePrintWidth(element: CanvasElementModel): number {
+  const fontSize = element.fontSize ?? CODE_FONT_SIZE;
+  const m = codeLayoutMetrics(fontSize, codeLineCount(element.text ?? ''));
+  return Math.max(20, codeColumns(element.width, m.textOffset, m.charWidth));
+}
+
+/** True when the color is dark enough that a light token palette reads on it. */
+function isDarkColor(color: string): boolean {
+  const rgb = parseColor(color);
+  return rgb ? relativeLuminance(rgb) < 0.25 : false;
+}
+
+/** The surface a code card is drawn on: its own fill, else the theme-matched default. */
+function codeBackground(element: CanvasElementModel, theme: ThemeColors | undefined): string {
+  if (element.fillStyle !== 'none' && element.backgroundColor) {
+    return element.backgroundColor === SURFACE_FILL
+      ? (theme?.surface ?? '#ffffff')
+      : element.backgroundColor;
+  }
+  const canvasDark = theme ? isDarkColor(theme.canvasBg) : false;
+  return codePalette(canvasDark).background;
+}
+
+function codeBlockView(
+  element: CanvasElementModel,
+  theme: ThemeColors | undefined,
+): CodeBlockView {
+  const fontSize = element.fontSize ?? CODE_FONT_SIZE;
+  const background = codeBackground(element, theme);
+  const palette = codePalette(isDarkColor(background));
+  const language = element.language ?? 'typescript';
+  const { rows, metrics: m, digits } = layoutCodeRows(
+    element.text ?? '',
+    language,
+    fontSize,
+  );
+  const baseline = codeBaseline(fontSize);
+  const top = element.y + CODE_PADDING;
+  const lines = rows.map((row, i) => ({
+    y: top + i * m.lineHeight + baseline,
+    number: row.number,
+    tokens: row.tokens.map((t) => ({
+      // An elision reads as a muted "···" (same width as the "..." typed).
+      text: t.kind === 'elision' ? '\u00b7\u00b7\u00b7' : t.text,
+      color: tokenColor(palette, t.kind),
+      italic: t.kind === 'comment',
+    })),
+  }));
+  const labelText = language === 'plaintext' ? '' : CODE_LANGUAGE_LABELS[language];
+  const firstLineLen = (rows[0]?.tokens ?? []).reduce((n, t) => n + t.text.length, 0);
+  const labelWidth = labelText.length * 10 * 0.62;
+  const room = element.width - (m.textOffset + firstLineLen * m.charWidth) - CODE_PADDING;
+  return {
+    rect: {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      rx: element.cornerRadius ?? 8,
+    },
+    background,
+    fontSize,
+    fontFamily: fontStack('code'),
+    clipId: `code-clip-${element.id}`,
+    numberX: element.x + CODE_PADDING + digits * m.charWidth,
+    textX: element.x + m.textOffset,
+    numberColor: palette.muted,
+    lines,
+    label:
+      labelText && room > labelWidth + 12
+        ? {
+            text: labelText,
+            x: element.x + element.width - 10,
+            y: element.y + 15,
+            color: palette.muted,
+          }
+        : undefined,
+  };
+}
+
 function dashArray(element: CanvasElementModel): string | null {
   const w = Math.max(1, element.strokeWidth);
   switch (element.strokeStyle) {
@@ -421,6 +635,11 @@ export function buildShapeViews(
             Math.min(12, Math.min(element.width, element.height) * 0.15),
         };
         base.label = shapeLabel(element, base.bbox, theme);
+        break;
+      case 'code':
+        base.code = codeBlockView(element, theme);
+        // The card carries its own fill; the SVG layer draws the border from stroke.
+        base.fill = base.code.background;
         break;
       case 'image':
         if (element.fileId) {

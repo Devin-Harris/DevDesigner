@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   ARROWHEAD_TYPES,
+  CODE_LANGUAGES,
   ELEMENT_TYPES,
   FILL_STYLES,
   PROJECT_EXPORT_FORMAT,
@@ -239,6 +240,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     endArrowhead: optOneOf(e, 'endArrowhead', path, ARROWHEAD_TYPES),
     curvature: optNum(e, 'curvature', path),
     fileId: optStr(e, 'fileId', path, 100),
+    language: optOneOf(e, 'language', path, CODE_LANGUAGES),
     groupId: optStr(e, 'groupId', path, 100),
   };
 }

@@ -24,6 +24,12 @@
   pointer-events: none;
 }
 
+// Code card text: keep runs of spaces and never offer it for selection.
+.code text {
+  white-space: pre;
+  user-select: none;
+}
+
 .label {
   pointer-events: none;
   user-select: none;

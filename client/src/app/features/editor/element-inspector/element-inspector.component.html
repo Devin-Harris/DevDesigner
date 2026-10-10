@@ -96,6 +96,25 @@
     </div>
   }
 
+  <!-- Code block: highlight language + text size -->
+  @if (isCode()) {
+    <div class="field-label">Language</div>
+    <div class="seg-row wrap">
+      @for (l of languages; track l.id) {
+        <button class="seg text" [class.on]="(element().language ?? 'typescript') === l.id" [disabled]="!store.canEdit()" (click)="setLanguage(l.id)">{{ l.label }}</button>
+      }
+    </div>
+    <div class="seg-row wrap code-actions">
+      <button class="seg text" [disabled]="!store.canEdit() || !canFormat()" (click)="format()" title="Format with Prettier (Shift+Alt+F)">Format code</button>
+    </div>
+    <div class="field-label">Text size</div>
+    <div class="seg-row wrap">
+      @for (s of codeSizes; track s) {
+        <button class="seg text" [class.on]="(element().fontSize ?? 14) === s" [disabled]="!store.canEdit()" (click)="setCodeSize(s)">{{ s }}</button>
+      }
+    </div>
+  }
+
   <!-- Opacity -->
   <div class="field-label">Opacity</div>
   <div class="slider-row">

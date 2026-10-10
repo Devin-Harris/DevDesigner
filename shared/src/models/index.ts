@@ -5,6 +5,7 @@
 
 import type {
   ArrowheadType,
+  CodeLanguage,
   ElementType,
   FillStyle,
   RelationshipType,
@@ -145,6 +146,8 @@ export interface CanvasElementModel {
   curvature?: number;
   /** Image only: id of the uploaded project image this element displays. */
   fileId?: string;
+  /** Code only: the language the `text` is highlighted as (default typescript). */
+  language?: CodeLanguage;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
 }

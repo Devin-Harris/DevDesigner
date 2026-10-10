@@ -19,6 +19,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type {
   CanvasElementModel,
+  CodeLanguage,
   CreateElementDto,
   ElementType,
   RelationshipModel,
@@ -77,7 +78,19 @@ import {
   tableWidth,
 } from './canvas/helpers/node-metrics.helper';
 import { messageLabelBoxes } from './canvas/helpers/message-box.helper';
-import { buildShapeViews, fontStack, fontWeightFor } from './canvas/helpers/shape-render.helper';
+import {
+  buildShapeViews,
+  CODE_FONT_SIZE,
+  CODE_PADDING,
+  codeContentSize,
+  codeLayoutMetrics,
+  codeLineCount,
+  codePrintWidth,
+  fontStack,
+  fontWeightFor,
+} from './canvas/helpers/shape-render.helper';
+import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
+import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
@@ -591,6 +604,7 @@ export class EditorComponent {
     const editable =
       el &&
       (el.type === 'text' ||
+        el.type === 'code' ||
         el.type === 'frame' ||
         el.type === 'rectangle' ||
         el.type === 'ellipse' ||
@@ -620,6 +634,35 @@ export class EditorComponent {
         wrap: false,
         center: false,
         padding: 0,
+        code: false,
+        lineHeight: null as number | null,
+        padLeft: null as number | null,
+      };
+    }
+    if (el.type === 'code') {
+      // The textarea sits exactly over the card with transparent glyphs, so the
+      // live-highlighted SVG beneath shows through while the caret and selection stay native.
+      const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+      const m = codeLayoutMetrics(fontSize, codeLineCount(el.text ?? ''));
+      return {
+        id,
+        left: el.x * z + v.x,
+        top: el.y * z + v.y,
+        width: el.width * z,
+        height: el.height * z,
+        fontSize: fontSize * z,
+        fontFamily: fontStack('code'),
+        fontWeight: 400,
+        italic: false,
+        value: el.text ?? '',
+        color: 'transparent',
+        align: 'left' as const,
+        wrap: false,
+        center: false,
+        padding: CODE_PADDING * z,
+        code: true,
+        lineHeight: m.lineHeight * z,
+        padLeft: m.textOffset * z,
       };
     }
     const isLabel = el.type !== 'text';
@@ -650,8 +693,24 @@ export class EditorComponent {
       wrap: isLabel || wrapped,
       center: isLabel,
       padding: (isLabel ? 8 : 2) * z,
+      code: false,
+      lineHeight: null as number | null,
+      padLeft: null as number | null,
     };
   });
+
+  /** Id of a just-created code card, discarded if it is left empty. */
+  private freshCodeId: string | null = null;
+  /** The language new code blocks start with: that of the most recent code block. */
+  private lastCodeLanguage(): CodeLanguage {
+    const els = this.store.elements();
+    for (let i = els.length - 1; i >= 0; i -= 1) {
+      if (els[i].type === 'code' && els[i].language) {
+        return els[i].language as CodeLanguage;
+      }
+    }
+    return 'typescript';
+  }
 
   /**
    * Measure a multi-line text block in world units using a hidden DOM element in
@@ -1125,7 +1184,21 @@ export class EditorComponent {
     const sticky = this.store.elementStyle();
     // Frames keep their own quiet look; they don't inherit the last-used shape style.
     const style =
-      type === 'frame'
+      type === 'code'
+        ? {
+            // A code card: a hairline border, no fill override (it picks a theme-matched surface).
+            ...sticky,
+            strokeColor: this.themeVar('--dbd-border-strong') ?? this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
+            backgroundColor: undefined,
+            fillStyle: 'none' as const,
+            strokeWidth: 1,
+            strokeStyle: 'solid' as const,
+            opacity: 100,
+            cornerRadius: 8,
+            fontFamily: 'code',
+            fontSize: CODE_FONT_SIZE,
+          }
+        : type === 'frame'
         ? {
             ...sticky,
             strokeColor: this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
@@ -1164,6 +1237,14 @@ export class EditorComponent {
           }
         : {}),
       ...(type === 'freedraw' ? { points: [{ x: 0, y: 0 }] } : {}),
+      ...(type === 'code'
+        ? {
+            text: '',
+            fontSize: CODE_FONT_SIZE,
+            fontFamily: 'code',
+            language: this.lastCodeLanguage(),
+          }
+        : {}),
       ...(type === 'text'
         ? {
             text: '',
@@ -1285,6 +1366,11 @@ export class EditorComponent {
       if (created && selectAfter && created.type === 'text') {
         this.editingTextId.set(created.id);
       }
+      if (created && created.type === 'code') {
+        // A fresh code card opens straight into its editor; an untouched one is discarded on exit.
+        this.freshCodeId = created.id;
+        this.editingTextId.set(created.id);
+      }
     }
   }
 
@@ -1297,6 +1383,10 @@ export class EditorComponent {
         width = 120;
         height = 80;
       }
+    }
+    if (draft.type === 'code' && (width < 40 || height < 40)) {
+      width = 360;
+      height = 160;
     }
     if (draft.type === 'frame') {
       if (width < 40 || height < 40) {
@@ -1330,6 +1420,7 @@ export class EditorComponent {
       startArrowhead: draft.startArrowhead,
       endArrowhead: draft.endArrowhead,
       curvature: draft.curvature,
+      language: draft.language,
     };
   }
 
@@ -1929,6 +2020,16 @@ export class EditorComponent {
     if (!id || !el) {
       return;
     }
+    if (el.type === 'code') {
+      // The card grows to fit what is typed but never shrinks under a manual resize.
+      const size = codeContentSize(value, el.fontSize ?? CODE_FONT_SIZE);
+      this.store.patchElementLocal(id, {
+        text: value,
+        width: Math.max(el.width, size.width),
+        height: Math.max(el.height, size.height),
+      });
+      return;
+    }
     if (el.type !== 'text') {
       // Shape label: just update text; the shape box does not resize.
       this.store.patchElementLocal(id, { text: value });
@@ -1955,6 +2056,80 @@ export class EditorComponent {
     return { width: Math.max(size.width, 8), height: size.height };
   }
 
+  /**
+   * Keys inside the inline editor. Esc leaves edit mode (for every element). In a
+   * code block, Tab indents (Shift+Tab outdents the line), and Enter keeps the
+   * current line's indent, adding one more level after an opening bracket.
+   */
+  protected onEditorKeydown(event: KeyboardEvent): void {
+    const area = event.target as HTMLTextAreaElement;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      area.blur();
+      return;
+    }
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (el?.type !== 'code' || event.isComposing) {
+      return;
+    }
+    const insert = (text: string): void => {
+      // execCommand keeps the browser's native undo stack; fall back to a manual splice.
+      if (!document.execCommand('insertText', false, text)) {
+        area.setRangeText(text, area.selectionStart, area.selectionEnd, 'end');
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+    const indent = ' '.repeat(TAB_SIZE);
+    if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'f') {
+      // Format in place through the textarea so the edit stays one undo step.
+      event.preventDefault();
+      void formatCode(area.value, el.language, codePrintWidth(el))
+        .then((formatted) => {
+          if (formatted === area.value) {
+            return;
+          }
+          area.select();
+          insert(formatted);
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Could not format the code.';
+          this.snackBar.open(`Couldn't format: ${message}`, undefined, { duration: 4000 });
+        });
+      return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const { value, selectionStart: start, selectionEnd: end } = area;
+      const multi = value.slice(start, end).includes('\n');
+      if (!event.shiftKey && !multi) {
+        insert(indent);
+        return;
+      }
+      // Indent/outdent every line the selection touches.
+      const from = value.lastIndexOf('\n', start - 1) + 1;
+      const block = value.slice(from, end);
+      const changed = block
+        .split('\n')
+        .map((line) =>
+          event.shiftKey ? line.replace(new RegExp(`^(?: {1,${TAB_SIZE}}|\\t)`), '') : indent + line,
+        )
+        .join('\n');
+      area.setSelectionRange(from, end);
+      insert(changed);
+      area.setSelectionRange(from, from + changed.length);
+      return;
+    }
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      const { value, selectionStart: start } = area;
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lead = /^[ \t]*/.exec(value.slice(lineStart, start))?.[0] ?? '';
+      const opens = /[{[(]$/.test(value.slice(lineStart, start).trimEnd());
+      insert(`\n${lead}${opens ? indent : ''}`);
+    }
+  }
+
   protected commitTextEdit(): void {
     const id = this.editingTextId();
     this.editingTextId.set(null);
@@ -1966,6 +2141,21 @@ export class EditorComponent {
       return;
     }
     const text = el.text ?? '';
+    if (el.type === 'code') {
+      if (text.trim() === '' && id === this.freshCodeId) {
+        this.freshCodeId = null;
+        void this.store.deleteElement(id);
+        return;
+      }
+      this.freshCodeId = null;
+      const size = codeContentSize(text, el.fontSize ?? CODE_FONT_SIZE);
+      void this.store.updateElement(id, {
+        text,
+        width: Math.max(el.width, size.width),
+        height: Math.max(el.height, size.height),
+      });
+      return;
+    }
     if (el.type !== 'text') {
       // Shape label: store the (possibly empty) label without resizing the shape.
       void this.store.updateElement(id, { text });
@@ -2716,6 +2906,7 @@ export class EditorComponent {
     t: 'text',
     p: 'freedraw',
     f: 'frame',
+    c: 'code',
   };
 
   protected onToolChange(tool: EditorTool): void {
@@ -2874,6 +3065,10 @@ export class EditorComponent {
     }
     this.clipboard = { tables, elements };
     this.pasteCount = 0;
+    // A lone code block also lands on the system clipboard as plain text.
+    if (!tables.length && elements.length === 1 && elements[0].type === 'code') {
+      void navigator.clipboard?.writeText(elements[0].text ?? '').catch(() => undefined);
+    }
   }
 
   /** Paste the clipboard, each successive paste stepping further from the original. */
@@ -2931,6 +3126,7 @@ export class EditorComponent {
     if (hit) {
       if (
         hit.type === 'text' ||
+        hit.type === 'code' ||
         hit.type === 'frame' ||
         hit.type === 'rectangle' ||
         hit.type === 'ellipse' ||
@@ -3085,7 +3281,9 @@ export class EditorComponent {
             ? 'line'
             : el.type === 'frame'
               ? 'frame'
-              : 'shape';
+              : el.type === 'code'
+                ? 'text'
+                : 'shape';
       items.push({
         kind,
         ...b,

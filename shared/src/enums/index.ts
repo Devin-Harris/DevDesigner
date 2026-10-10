@@ -75,7 +75,8 @@ export type ElementType =
   | 'freedraw'
   | 'text'
   | 'frame'
-  | 'image';
+  | 'image'
+  | 'code';
 
 export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
@@ -87,6 +88,35 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'text',
   'frame',
   'image',
+  'code',
+] as const;
+
+/** Languages a `code` element can be syntax-highlighted as (highlighting is render-only). */
+export type CodeLanguage =
+  | 'plaintext'
+  | 'typescript'
+  | 'javascript'
+  | 'sql'
+  | 'json'
+  | 'python'
+  | 'csharp'
+  | 'java'
+  | 'html'
+  | 'css'
+  | 'bash';
+
+export const CODE_LANGUAGES: readonly CodeLanguage[] = [
+  'plaintext',
+  'typescript',
+  'javascript',
+  'sql',
+  'json',
+  'python',
+  'csharp',
+  'java',
+  'html',
+  'css',
+  'bash',
 ] as const;
 
 /** How a shape's interior is filled. */

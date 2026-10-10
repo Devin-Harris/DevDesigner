@@ -34,6 +34,13 @@
           <line x1="0" y1="0" x2="0" y2="7" [attr.stroke]="h.color" stroke-width="1.3" />
         </pattern>
       }
+      @if (s.code; as c) {
+        <!-- Keeps code that outgrows a resized card inside it. -->
+        <clipPath [attr.id]="c.clipId">
+          <rect [attr.x]="c.rect.x" [attr.y]="c.rect.y" [attr.width]="c.rect.width"
+            [attr.height]="c.rect.height" [attr.rx]="c.rect.rx"></rect>
+        </clipPath>
+      }
     }
   </defs>
 
@@ -108,6 +115,60 @@
             [attr.y]="img.y"
             [attr.width]="img.width"
             [attr.height]="img.height"
+            (pointerdown)="onBody(s.id, $event)"
+          ></rect>
+        }
+        @if (s.code; as c) {
+          <rect
+            [attr.x]="c.rect.x"
+            [attr.y]="c.rect.y"
+            [attr.width]="c.rect.width"
+            [attr.height]="c.rect.height"
+            [attr.rx]="c.rect.rx"
+            [attr.fill]="c.background"
+            [attr.stroke]="s.stroke"
+            [attr.stroke-width]="s.strokeWidth"
+            [attr.stroke-dasharray]="s.dash"
+          ></rect>
+          <g [attr.clip-path]="'url(#' + c.clipId + ')'" class="code" pointer-events="none">
+            @for (line of c.lines; track $index) {
+              <text
+                [attr.x]="c.numberX"
+                [attr.y]="line.y"
+                text-anchor="end"
+                [attr.font-size]="c.fontSize"
+                [attr.font-family]="c.fontFamily"
+                [attr.fill]="c.numberColor"
+              >{{ line.number }}</text>
+              <text
+                [attr.x]="c.textX"
+                [attr.y]="line.y"
+                xml:space="preserve"
+                [attr.font-size]="c.fontSize"
+                [attr.font-family]="c.fontFamily"
+              >
+                @for (t of line.tokens; track $index) {
+                  <tspan [attr.fill]="t.color" [attr.font-style]="t.italic ? 'italic' : null">{{ t.text }}</tspan>
+                }
+              </text>
+            }
+            @if (c.label; as l) {
+              <text
+                [attr.x]="l.x"
+                [attr.y]="l.y"
+                text-anchor="end"
+                font-size="10"
+                [attr.font-family]="c.fontFamily"
+                [attr.fill]="l.color"
+              >{{ l.text }}</text>
+            }
+          </g>
+          <rect
+            class="hit"
+            [attr.x]="c.rect.x"
+            [attr.y]="c.rect.y"
+            [attr.width]="c.rect.width"
+            [attr.height]="c.rect.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
         }

@@ -11,11 +11,13 @@ import {
 } from 'class-validator';
 import {
   ARROWHEAD_TYPES,
+  CODE_LANGUAGES,
   FILL_STYLES,
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
   type ArrowheadType,
+  type CodeLanguage,
   type ElementBinding,
   type FillStyle,
   type PointModel,
@@ -91,7 +93,7 @@ export class UpdateElementDto implements IUpdateElementDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
+  @MaxLength(50000)
   text?: string;
 
   @IsOptional()
@@ -140,6 +142,10 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsNumber()
   curvature?: number;
+
+  @IsOptional()
+  @IsIn([...CODE_LANGUAGES])
+  language?: CodeLanguage;
 
   @IsOptional()
   @IsString()

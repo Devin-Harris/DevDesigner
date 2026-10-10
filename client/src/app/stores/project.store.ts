@@ -222,6 +222,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     endArrowhead: e.endArrowhead,
     curvature: e.curvature,
     fileId: e.fileId,
+    language: e.language,
   };
 }
 

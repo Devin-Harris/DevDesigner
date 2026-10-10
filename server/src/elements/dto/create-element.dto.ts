@@ -11,12 +11,14 @@ import {
 } from 'class-validator';
 import {
   ARROWHEAD_TYPES,
+  CODE_LANGUAGES,
   ELEMENT_TYPES,
   FILL_STYLES,
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
   type ArrowheadType,
+  type CodeLanguage,
   type CreateElementDto as ICreateElementDto,
   type ElementBinding,
   type ElementType,
@@ -87,7 +89,7 @@ export class CreateElementDto implements ICreateElementDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
+  @MaxLength(50000)
   text?: string;
 
   @IsOptional()
@@ -141,4 +143,8 @@ export class CreateElementDto implements ICreateElementDto {
   @IsString()
   @MaxLength(100)
   fileId?: string;
+
+  @IsOptional()
+  @IsIn([...CODE_LANGUAGES])
+  language?: CodeLanguage;
 }

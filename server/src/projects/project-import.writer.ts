@@ -317,6 +317,7 @@ export async function writeSchemaInto(
       endArrowhead: e.endArrowhead ?? null,
       curvature: e.curvature ?? null,
       fileId: e.fileId ?? null,
+      language: e.type === 'code' ? (e.language ?? 'typescript') : null,
       groupId: e.groupId ?? null,
     })),
   );

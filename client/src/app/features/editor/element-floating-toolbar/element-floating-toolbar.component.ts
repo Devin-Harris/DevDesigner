@@ -3,8 +3,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import {
+  CODE_LANGUAGES,
   type ArrowheadType,
   type CanvasElementModel,
+  type CodeLanguage,
   type FillStyle,
   type FontFamily,
   type StrokeStyle,
@@ -14,6 +16,9 @@ import {
 } from '@dbdesigner/shared';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
+import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
+import { canFormatCode } from '../canvas/helpers/code-format.helper';
+import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ProjectStore } from '../../../stores/project.store';
 
 // Saturated palette shared with the table header tints (no muted pastels).
@@ -35,6 +40,7 @@ const FONTS: { value: FontFamily; label: string }[] = [
   { value: 'code', label: 'Code' },
 ];
 const FONT_SIZES = [14, 16, 20, 28, 36, 48];
+const CODE_FONT_SIZES = [11, 12, 14, 16, 18, 20, 24];
 const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
   { value: 'none', icon: 'horizontal_rule', label: 'None' },
   { value: 'arrow', icon: 'east', label: 'Arrow' },
@@ -60,6 +66,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
 export class ElementFloatingToolbarComponent {
   protected readonly store = inject(ProjectStore);
   private readonly editorActions = inject(EditorActionsService);
+  private readonly codeActions = inject(CodeActionsService);
   protected readonly strokeColors = STROKE_COLORS;
   protected readonly fillColors = FILL_COLORS;
   protected readonly strokeWidths = STROKE_WIDTHS;
@@ -74,6 +81,15 @@ export class ElementFloatingToolbarComponent {
   protected readonly isText = computed(() => this.element().type === 'text');
   /** Pictures have no stroke/fill styling, only opacity and layering. */
   protected readonly isImage = computed(() => this.element().type === 'image');
+  protected readonly isCode = computed(() => this.element().type === 'code');
+  protected readonly languages = CODE_LANGUAGES.map((id) => ({
+    id,
+    label: CODE_LANGUAGE_LABELS[id],
+  }));
+  protected readonly codeSizes = CODE_FONT_SIZES;
+  protected readonly languageLabel = computed(
+    () => CODE_LANGUAGE_LABELS[this.element().language ?? 'typescript'],
+  );
   protected readonly isLine = computed(
     () => this.element().type === 'arrow' || this.element().type === 'line',
   );
@@ -125,6 +141,31 @@ export class ElementFloatingToolbarComponent {
     if (Object.keys(stylePatch).length) {
       this.store.setElementStyle(stylePatch);
     }
+  }
+
+  /** Code-block edits apply to every selected code block and never touch the sticky text style. */
+  private patchCode(patch: UpdateElementDto): void {
+    const ids = this.store.selectedElementIds();
+    const targets = ids.length ? ids : [this.element().id];
+    for (const id of targets) {
+      if (this.store.elements().find((e) => e.id === id)?.type === 'code') {
+        void this.store.updateElement(id, patch);
+      }
+    }
+  }
+
+  protected readonly canFormat = computed(() => canFormatCode(this.element().language));
+
+  protected format(): void {
+    void this.codeActions.format(this.store.selectedElementIds());
+  }
+
+  protected setLanguage(language: CodeLanguage): void {
+    this.patchCode({ language });
+  }
+
+  protected setCodeSize(fontSize: number): void {
+    this.patchCode({ fontSize });
   }
 
   protected setStroke(color: string): void {

@@ -1,6 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import type {
   ArrowheadType,
+  CodeLanguage,
   ElementType,
   FillStyle,
   StrokeStyle,
@@ -125,6 +126,10 @@ export class ElementEntity {
   /** Image elements: id of the ProjectImageEntity this element displays. */
   @Column({ type: 'varchar', nullable: true })
   fileId!: string | null;
+
+  /** Code elements: the highlight language of `text`. */
+  @Column({ type: 'varchar', nullable: true })
+  language!: CodeLanguage | null;
 
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })

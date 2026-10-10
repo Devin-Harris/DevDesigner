@@ -1,12 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import type {
-  CanvasElementModel,
-  FillStyle,
-  FontFamily,
-  StrokeStyle,
-  UpdateElementDto,
+import {
+  CODE_LANGUAGES,
+  type CanvasElementModel,
+  type CodeLanguage,
+  type FillStyle,
+  type FontFamily,
+  type StrokeStyle,
+  type UpdateElementDto,
 } from '@dbdesigner/shared';
 import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
+import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
+import { canFormatCode } from '../canvas/helpers/code-format.helper';
+import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
@@ -30,6 +35,7 @@ const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a
 })
 export class ElementInspectorComponent {
   protected readonly store = inject(ProjectStore);
+  private readonly codeActions = inject(CodeActionsService);
   readonly element = input.required<CanvasElementModel>();
 
   protected readonly strokeColors = STROKE_COLORS;
@@ -47,10 +53,17 @@ export class ElementInspectorComponent {
     if (t === 'arrow' || t === 'line') return t === 'arrow' ? 'Arrow' : 'Line';
     if (t === 'freedraw') return 'Pen stroke';
     if (t === 'text') return 'Text';
+    if (t === 'code') return 'Code block';
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
 
   protected readonly isText = computed(() => this.element().type === 'text');
+  protected readonly isCode = computed(() => this.element().type === 'code');
+  protected readonly languages = CODE_LANGUAGES.map((id) => ({
+    id,
+    label: CODE_LANGUAGE_LABELS[id],
+  }));
+  protected readonly codeSizes = [11, 12, 14, 16, 18, 20, 24];
   protected readonly isLine = computed(
     () => this.element().type === 'arrow' || this.element().type === 'line',
   );
@@ -88,6 +101,31 @@ export class ElementInspectorComponent {
       if (key in patch) stylePatch[key] = (patch as Record<string, unknown>)[key];
     }
     if (Object.keys(stylePatch).length) this.store.setElementStyle(stylePatch);
+  }
+
+  /** Code-block edits go to every selected code block and skip the sticky text style. */
+  private patchCode(patch: UpdateElementDto): void {
+    const ids = this.store.selectedElementIds();
+    const targets = ids.length ? ids : [this.element().id];
+    for (const id of targets) {
+      if (this.store.elements().find((e) => e.id === id)?.type === 'code') {
+        void this.store.updateElement(id, patch);
+      }
+    }
+  }
+
+  protected readonly canFormat = computed(() => canFormatCode(this.element().language));
+
+  protected format(): void {
+    void this.codeActions.format(this.store.selectedElementIds());
+  }
+
+  protected setLanguage(language: CodeLanguage): void {
+    this.patchCode({ language });
+  }
+
+  protected setCodeSize(fontSize: number): void {
+    this.patchCode({ fontSize });
   }
 
   protected setStroke(color: string): void {

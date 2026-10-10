@@ -94,6 +94,7 @@ export class ElementsService {
       endArrowhead: dto.endArrowhead ?? null,
       curvature: dto.curvature ?? null,
       fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
+      language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
@@ -205,6 +206,7 @@ export class ElementsService {
       'startArrowhead',
       'endArrowhead',
       'curvature',
+      'language',
     ] as const;
     for (const key of scalarKeys) {
       if (dto[key] !== undefined) {

@@ -22,7 +22,8 @@ export type EditorTool =
   | 'line'
   | 'text'
   | 'freedraw'
-  | 'frame';
+  | 'frame'
+  | 'code';
 
 /** Shape tools grouped behind the dock's Shape flyout. */
 const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];

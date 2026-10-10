@@ -18,6 +18,30 @@ export interface TextBlockView {
   anchor: 'start' | 'middle' | 'end';
 }
 
+/** One colored run of code on a single line. Tokens flow left to right after the line's x. */
+export interface CodeTokenView {
+  text: string;
+  color: string;
+  italic: boolean;
+}
+
+/** A syntax-highlighted code block (code element): card, gutter and colored lines. */
+export interface CodeBlockView {
+  rect: { x: number; y: number; width: number; height: number; rx: number };
+  background: string;
+  fontSize: number;
+  fontFamily: string;
+  /** Unique id for the clip that keeps overflowing code inside the card. */
+  clipId: string;
+  /** Right edge of the line-number gutter and left edge of the code text (world x). */
+  numberX: number;
+  textX: number;
+  numberColor: string;
+  lines: { y: number; number: string; tokens: CodeTokenView[] }[];
+  /** Language name drawn muted in the top-right corner, when there is room. */
+  label?: { text: string; x: number; y: number; color: string };
+}
+
 /**
  * Fully-resolved render data for one canvas element, produced by buildShapeViews
  * and consumed by CanvasShapesComponent. All coordinates are world-space; the SVG
@@ -47,6 +71,8 @@ export interface ShapeView {
   polygon?: string;
   /** An uploaded picture (image element): drawn stretched to this box. */
   image?: { x: number; y: number; width: number; height: number; fileId: string };
+  /** A syntax-highlighted code block (code element). */
+  code?: CodeBlockView;
   path?: string;
   /** True for a freehand stroke: `path` is a filled outline (fill = stroke color). */
   freehand: boolean;
