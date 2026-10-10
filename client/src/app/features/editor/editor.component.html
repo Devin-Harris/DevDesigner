@@ -187,51 +187,49 @@
       (exportImage)="onExportImage($event)"
     ></app-shape-toolbar>
 
-    @if (slideOutline(); as sb) {
+    @for (set of slideSets(); track set.name) {
       <div
         class="slide-bounds"
-        [style.left.px]="sb.left"
-        [style.top.px]="sb.top"
-        [style.width.px]="sb.width"
-        [style.height.px]="sb.height"
+        [style.left.px]="set.outline.left"
+        [style.top.px]="set.outline.top"
+        [style.width.px]="set.outline.width"
+        [style.height.px]="set.outline.height"
         [class.grabbable]="shapesInteractive()"
       >
-        <!-- Grab the outer border to move the whole slide, contents and panels with it.
-             The slide's name lives in the settings panel's Name tab. -->
-        <span class="slide-edge top" (pointerdown)="onSlideBorderDown($event)"></span>
-        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown($event)"></span>
-        <span class="slide-edge left" (pointerdown)="onSlideBorderDown($event)"></span>
-        <span class="slide-edge right" (pointerdown)="onSlideBorderDown($event)"></span>
+        <!-- Grab the outer border to move the whole presentation, contents and panels with it. -->
+        <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
+        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
+        <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
+        <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
       </div>
-    }
-
-    @if (slidesPanelFrame()) {
       <app-slides-panel
         class="slides-panel"
-        [style.left.px]="slidesPanelBox().left"
-        [style.top.px]="slidesPanelBox().top"
-        [style.width.px]="slidesPanelBox().width"
-        [style.height.px]="slidesPanelBox().height"
-        [style.transform]="'scale(' + slidesPanelBox().scale + ')'"
-        [active]="activeSlideId()"
+        [style.left.px]="set.list.left"
+        [style.top.px]="set.list.top"
+        [style.width.px]="set.list.width"
+        [style.height.px]="set.list.height"
+        [style.transform]="'scale(' + set.list.scale + ')'"
+        [presentation]="set.name"
+        [active]="set.frameId"
         part="list"
-        (pointerdown)="$event.stopPropagation()"
+        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (command)="onSlidesCommand($event)"
+        (command)="onSlidesCommand($event, set.name)"
       ></app-slides-panel>
       <app-slides-panel
         class="slide-settings"
         part="settings"
+        [presentation]="set.name"
         [folded]="settingsFolded()"
-        [style.width.px]="slideSettingsBox().width"
-        [style.left.px]="slideSettingsBox().left"
-        [style.top.px]="slideSettingsBox().top"
-        [style.height.px]="slideSettingsBox().height"
-        [style.transform]="'scale(' + slideSettingsBox().scale + ')'"
-        [active]="activeSlideId()"
-        (pointerdown)="$event.stopPropagation()"
+        [style.width.px]="set.settings.width"
+        [style.left.px]="set.settings.left"
+        [style.top.px]="set.settings.top"
+        [style.height.px]="set.settings.height"
+        [style.transform]="'scale(' + set.settings.scale + ')'"
+        [active]="set.frameId"
+        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
-        (command)="onSlidesCommand($event)"
+        (command)="onSlidesCommand($event, set.name)"
       ></app-slides-panel>
     }
 

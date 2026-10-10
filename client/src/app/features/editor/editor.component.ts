@@ -321,20 +321,6 @@ export class EditorComponent {
     () => this.focusHidden()?.diagramIds ?? null,
   );
 
-  /**
-   * The slide frame the slides panels are pinned to: the shown slide, whenever the
-   * project has slides (the panels stay up whatever is selected).
-   */
-  protected readonly slidesPanelFrame = computed<CanvasElementModel | null>(() => {
-    const frames = this.store.slideFrames();
-    return frames.find((f) => f.id === this.activeSlideId()) ?? null;
-  });
-
-  /**
-   * Pinned to the frame: the panel's right edge sits a fixed gap from the frame's
-   * left edge and its top lines up with the frame's top, so it moves exactly with
-   * the frame. Its size is a constant: it does not change with zoom or position.
-   */
   /** The settings panel is folded to a narrow strip (it folds sideways, toward the frame's edge). */
   protected readonly settingsFolded = signal(false);
 
@@ -353,59 +339,69 @@ export class EditorComponent {
    * the same proportion to the frame at every zoom. `width`/`height` are the
    * unscaled world size the element is given; `scale` is applied around the top-left.
    */
-  protected readonly slidesPanelBox = computed(() => {
+  /**
+   * One block per presentation: its shown slide's frame with the slide list pinned
+   * to its left edge, the settings pinned to its right, and a border around all
+   * three. Each presentation is a self-contained set at its own spot.
+   */
+  protected readonly slideSets = computed(() => {
     const v = this.store.viewport();
-    const frame = this.slidesPanelFrame();
     const gap = EditorComponent.PANEL_GAP;
-    return {
-      left: frame ? (frame.x - EditorComponent.LIST_W - gap) * v.zoom + v.x : 76,
-      top: frame ? frame.y * v.zoom + v.y : 16,
-      width: EditorComponent.LIST_W,
-      height: frame ? Math.max(frame.height, EditorComponent.PANEL_MIN_H) : EditorComponent.PANEL_MIN_H,
-      scale: v.zoom,
-    };
+    const frames = this.store.slideFrames();
+    const shown = this.store.shownByPresentation();
+    const folded = this.settingsFolded();
+    return this.store.presentations().flatMap((name) => {
+      const frame = frames.find((f) => f.id === shown.get(name));
+      if (!frame) {
+        return [];
+      }
+      const top = frame.y * v.zoom + v.y;
+      const height = Math.max(frame.height, EditorComponent.PANEL_MIN_H);
+      const list = {
+        left: (frame.x - EditorComponent.LIST_W - gap) * v.zoom + v.x,
+        top,
+        width: EditorComponent.LIST_W,
+        height,
+        scale: v.zoom,
+      };
+      const settings = {
+        left: (frame.x + frame.width + gap) * v.zoom + v.x,
+        top,
+        width: folded ? EditorComponent.FOLDED_W : EditorComponent.SETTINGS_W,
+        height,
+        scale: v.zoom,
+      };
+      const pad = EditorComponent.PANEL_PAD * v.zoom;
+      const bottom = top + height * v.zoom;
+      return [
+        {
+          name,
+          frameId: frame.id,
+          list,
+          settings,
+          outline: {
+            left: list.left - pad,
+            top: top - pad,
+            width: settings.left + settings.width * v.zoom - list.left + pad * 2,
+            height: bottom - top + pad * 2,
+          },
+        },
+      ];
+    });
   });
 
-  /** The transition / size / notes panel: to the right of the slide frame, same top. */
-  protected readonly slideSettingsBox = computed(() => {
-    const v = this.store.viewport();
-    const frame = this.slidesPanelFrame();
-    const gap = EditorComponent.PANEL_GAP;
-    return {
-      left: frame ? (frame.x + frame.width + gap) * v.zoom + v.x : 400,
-      top: frame ? frame.y * v.zoom + v.y : 16,
-      height: frame ? Math.max(frame.height, EditorComponent.PANEL_MIN_H) : EditorComponent.PANEL_MIN_H,
-      width: this.settingsFolded() ? EditorComponent.FOLDED_W : EditorComponent.SETTINGS_W,
-      scale: v.zoom,
-    };
-  });
-
-  /** A border around the frame and both panels, tying them together (screen px). */
-  protected readonly slideOutline = computed(() => {
-    const frame = this.slidesPanelFrame();
-    if (!frame) {
-      return null;
-    }
-    const l = this.slidesPanelBox();
-    const r = this.slideSettingsBox();
-    const pad = EditorComponent.PANEL_PAD * l.scale;
-    const bottom = Math.max(l.top + l.height * l.scale, r.top + r.height * r.scale);
-    return {
-      left: l.left - pad,
-      top: l.top - pad,
-      width: r.left + r.width * r.scale - l.left + pad * 2,
-      height: bottom - l.top + pad * 2,
-    };
-  });
-
-  /** Pointer down on the slide's outer border / name: grab the slide frame (it carries its contents). */
-  protected onSlideBorderDown(event: PointerEvent): void {
-    const frame = this.slidesPanelFrame();
-    if (!frame || event.button !== 0 || !this.shapesInteractive()) {
+  /** Pointer down on a slide set's outer border: grab its slide frame (it carries its contents). */
+  protected onSlideBorderDown(frameId: string, event: PointerEvent): void {
+    if (event.button !== 0 || !this.shapesInteractive()) {
       return;
     }
     event.stopPropagation();
-    this.onElementPointerDown({ id: frame.id, event });
+    this.onElementPointerDown({ id: frameId, event });
+  }
+
+  /** Touching a presentation's panels makes it the selected one (F5, export). */
+  protected selectSlideSet(name: string): void {
+    this.store.selectPresentation(name);
   }
   private readonly destroyRef = inject(DestroyRef);
   private readonly editorActions = inject(EditorActionsService);
@@ -1135,15 +1131,31 @@ export class EditorComponent {
       this.store.sequenceDiagrams();
       this.store.lifelines();
       this.store.sequenceMessages();
-      this.activeSlideId();
+      this.store.shownSlideIds();
       const timer = setTimeout(() => void this.adoptIntoShownSlide(), 350);
       onCleanup(() => clearTimeout(timer));
     });
-    // Bring slides saved side by side onto the shared spot (once per such slide).
+    // Selecting something on a presentation's slide makes that presentation the selected one.
+    effect(() => {
+      const id = this.store.selectedElementIds()[0];
+      const frames = this.store.slideFrames();
+      untracked(() => {
+        const el = id ? this.store.elements().find((e) => e.id === id) : undefined;
+        const frame = el?.type === 'frame' ? el : frames.find((f) => f.id === el?.slideId);
+        if (frame?.slide) {
+          this.store.selectPresentation(presentationOf(frame));
+        }
+      });
+    });
+    // Bring slides saved side by side onto their presentation's spot (once per such
+    // slide), and give presentations that were stacked on one spot their own.
     effect(() => {
       this.store.slideFrames();
       this.store.elements();
-      untracked(() => void this.stackLegacySlides());
+      untracked(
+        () =>
+          void this.stackLegacySlides().then(() => this.separateStackedPresentations()),
+      );
     });
     // Load the project: from a share token (anonymous) or a project id (owner).
     effect(() => {
@@ -1825,7 +1837,7 @@ export class EditorComponent {
           this.store.sequenceDiagrams(),
           this.store.lifelines(),
           this.store.sequenceMessages(),
-          this.store.activeSlideId(),
+          this.store.shownSlideIds(),
         )
       : {
           elementIds: new Set<string>(),
@@ -3461,9 +3473,14 @@ export class EditorComponent {
       return;
     }
     if (event.key === 'F5') {
-      // Present from the beginning; Shift+F5 from the current slide (as in PowerPoint).
-      event.preventDefault();
-      void this.startPresentation(event.shiftKey ? 'current' : 'start');
+      // Only with a presentation selected; otherwise the browser's reload runs as usual.
+      const name = this.selectedPresentationName();
+      if (name) {
+        // Present from the beginning; Shift+F5 from the current slide (as in PowerPoint).
+        event.preventDefault();
+        this.store.selectPresentation(name);
+        void this.startPresentation(event.shiftKey ? 'current' : 'start');
+      }
       return;
     }
     if (event.key === ' ') {
@@ -3591,7 +3608,7 @@ export class EditorComponent {
       this.store.sequenceDiagrams(),
       this.store.lifelines(),
       this.store.sequenceMessages(),
-      this.store.activeSlideId(),
+      this.store.shownSlideIds(),
     );
     inner.elementIds.forEach((id) => elementIds.add(id));
     inner.tableIds.forEach((id) => tableIds.add(id));
@@ -3613,7 +3630,9 @@ export class EditorComponent {
 
   // --- slides / presentation mode ---
 
-  protected onSlidesCommand(cmd: SlidesCommand): void {
+  protected onSlidesCommand(cmd: SlidesCommand, presentation: string): void {
+    // Everything below acts on the selected presentation: the one whose panel was used.
+    this.store.selectPresentation(presentation);
     switch (cmd.kind) {
       case 'close':
         this.store.setSelection([], [], []);
@@ -3633,11 +3652,8 @@ export class EditorComponent {
       case 'add':
         void this.addSlide();
         break;
-      case 'newPresentation':
-        void this.addSlide(undefined, cmd.name);
-        break;
       case 'deletePresentation': {
-        const ids = presentationSlides(this.store.slideFrames(), cmd.name).map((f) => f.id);
+        const ids = presentationSlides(this.store.slideFrames(), presentation).map((f) => f.id);
         if (ids.length) {
           this.store.setSelection([], [], ids);
           this.deleteSelection();
@@ -3683,83 +3699,91 @@ export class EditorComponent {
    * same amount. Skipped when several moved at once (a remote peer already did it).
    */
   private syncSlideMoves(): void {
-    const frames = this.store.slideFrames();
+    const all = this.store.slideFrames();
     const prev = this.slideBounds;
     this.slideBounds = new Map(
-      frames.map((f) => [f.id, { x: f.x, y: f.y, w: f.width, h: f.height }]),
+      all.map((f) => [f.id, { x: f.x, y: f.y, w: f.width, h: f.height }]),
     );
     if (!this.store.canEdit() || this.migratingSlides) {
       return;
     }
-    if (prev.size === 0) {
-      // First sight of the slides: bring any that differ to the first slide's size.
-      const first = frames[0];
-      for (const f of frames.slice(1)) {
-        if (first && (f.width !== first.width || f.height !== first.height)) {
-          void this.store.patchElementSilently(f.id, {
-            x: first.x,
-            y: first.y,
-            width: first.width,
-            height: first.height,
-          });
-          this.slideBounds.set(f.id, { x: first.x, y: first.y, w: first.width, h: first.height });
+    // Each presentation is locked together on its own: its slides share a spot and a size.
+    for (const name of this.store.presentations()) {
+      const frames = presentationSlides(all, name);
+      const known = frames.filter((f) => prev.has(f.id));
+      if (known.length === 0) {
+        // First sight of this presentation: bring slides that differ to the first one's size.
+        const first = frames[0];
+        for (const f of frames.slice(1)) {
+          if (first && (f.width !== first.width || f.height !== first.height)) {
+            void this.store.patchElementSilently(f.id, {
+              x: first.x,
+              y: first.y,
+              width: first.width,
+              height: first.height,
+            });
+            this.slideBounds.set(f.id, { x: first.x, y: first.y, w: first.width, h: first.height });
+          }
         }
-      }
-      return;
-    }
-    // Every slide has the same size: resizing one resizes them all.
-    const resized = frames.filter((f) => {
-      const p = prev.get(f.id);
-      return !!p && (p.w !== f.width || p.h !== f.height);
-    });
-    if (resized.length === 1) {
-      const r = resized[0];
-      for (const other of frames) {
-        if (other.id === r.id) {
-          continue;
-        }
-        void this.store.patchElementSilently(other.id, {
-          x: r.x,
-          y: r.y,
-          width: r.width,
-          height: r.height,
-        });
-        this.slideBounds.set(other.id, { x: r.x, y: r.y, w: r.width, h: r.height });
-      }
-      return;
-    }
-    const moved = frames.filter((f) => {
-      const p = prev.get(f.id);
-      return !!p && p.w === f.width && p.h === f.height && (p.x !== f.x || p.y !== f.y);
-    });
-    if (moved.length !== 1) {
-      return;
-    }
-    const m = moved[0];
-    const p = prev.get(m.id)!;
-    const dx = m.x - p.x;
-    const dy = m.y - p.y;
-    for (const other of frames) {
-      if (other.id === m.id) {
         continue;
       }
-      this.shiftSlide(other.id, dx, dy);
-      const b = this.slideBounds.get(other.id);
-      if (b) {
-        this.slideBounds.set(other.id, { ...b, x: b.x + dx, y: b.y + dy });
+      // Every slide has the same size: resizing one resizes them all.
+      const resized = frames.filter((f) => {
+        const p = prev.get(f.id);
+        return !!p && (p.w !== f.width || p.h !== f.height);
+      });
+      if (resized.length === 1) {
+        const r = resized[0];
+        for (const other of frames) {
+          if (other.id === r.id) {
+            continue;
+          }
+          void this.store.patchElementSilently(other.id, {
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+          });
+          this.slideBounds.set(other.id, { x: r.x, y: r.y, w: r.width, h: r.height });
+        }
+        continue;
+      }
+      const moved = frames.filter((f) => {
+        const p = prev.get(f.id);
+        return !!p && p.w === f.width && p.h === f.height && (p.x !== f.x || p.y !== f.y);
+      });
+      if (moved.length !== 1) {
+        continue;
+      }
+      const m = moved[0];
+      const p = prev.get(m.id)!;
+      const dx = m.x - p.x;
+      const dy = m.y - p.y;
+      for (const other of frames) {
+        if (other.id === m.id) {
+          continue;
+        }
+        this.shiftSlide(other.id, dx, dy);
+        const b = this.slideBounds.get(other.id);
+        if (b) {
+          this.slideBounds.set(other.id, { ...b, x: b.x + dx, y: b.y + dy });
+        }
       }
     }
   }
 
-  /** Content lying inside the shown slide's frame that belongs to no slide joins it. */
+  /** Content lying inside a shown slide's frame that belongs to no slide joins it. */
   private async adoptIntoShownSlide(): Promise<void> {
     if (!this.store.canEdit() || this.migratingSlides || this.presentation()) {
       return;
     }
-    const active = this.store.slideFrames().find((f) => f.id === this.activeSlideId());
-    if (!active) {
-      return;
+    const shown = this.store.shownSlideIds();
+    for (const active of this.store.slideFrames().filter((f) => shown.has(f.id))) {
+      await this.adoptInto(active);
     }
+  }
+
+  private async adoptInto(active: CanvasElementModel): Promise<void> {
     const inside = (cx: number, cy: number): boolean =>
       cx >= active.x && cx <= active.x + active.width && cy >= active.y && cy <= active.y + active.height;
     const elements = this.store
@@ -3893,7 +3917,13 @@ export class EditorComponent {
     if (frames.length === 0) {
       return;
     }
-    const anchor = frames[0];
+    // A presentation's slides gather on its first slide's spot.
+    const anchors = new Map<string, CanvasElementModel>();
+    for (const f of frames) {
+      if (!anchors.has(presentationOf(f))) {
+        anchors.set(presentationOf(f), f);
+      }
+    }
     const elements = this.store.elements();
     // A frame is never the content of a slide; undo an earlier mistaken claim.
     const claimedFrames = elements.filter((e) => e.type === 'frame' && e.slideId);
@@ -3906,8 +3936,12 @@ export class EditorComponent {
     // Only slides still sitting elsewhere (saved side by side) are legacy: a slide on
     // the shared spot gets its content through adoption of the shown slide instead.
     const work = frames
-      .filter((f) => !owns(f.id) && (f.x !== anchor.x || f.y !== anchor.y))
+      .filter((f) => {
+        const anchor = anchors.get(presentationOf(f))!;
+        return !owns(f.id) && (f.x !== anchor.x || f.y !== anchor.y);
+      })
       .map((f) => {
+        const anchor = anchors.get(presentationOf(f))!;
         const asPlain = elements.map((e) => (e.id === f.id ? { ...e, slide: undefined } : e));
         const geo = frameContents(
           new Set([f.id]),
@@ -3999,8 +4033,40 @@ export class EditorComponent {
   }
 
   /**
-   * Show a slide. Slides are stacked in one spot and only the shown one is on the
-   * canvas, so switching just changes what is drawn there: the view never moves.
+   * Presentations used to share one spot. Each presentation now has its own set of
+   * panels, so one that sits exactly on top of an earlier presentation moves down
+   * (with its slides and their contents) to free canvas.
+   */
+  private separateStackedPresentations(): void {
+    if (this.migratingSlides || !this.store.canEdit() || !this.store.projectId()) {
+      return;
+    }
+    const frames = this.store.slideFrames();
+    const placed: Array<{ x: number; y: number }> = [];
+    for (const name of this.store.presentations()) {
+      const slides = presentationSlides(frames, name);
+      const first = slides[0];
+      if (!first) {
+        continue;
+      }
+      let dy = 0;
+      while (placed.some((p) => p.x === first.x && p.y === first.y + dy)) {
+        dy += first.height + 200;
+      }
+      placed.push({ x: first.x, y: first.y + dy });
+      if (dy === 0) {
+        continue;
+      }
+      for (const f of slides) {
+        this.shiftSlide(f.id, 0, dy);
+        this.slideBounds.set(f.id, { x: f.x, y: f.y + dy, w: f.width, h: f.height });
+      }
+    }
+  }
+
+  /**
+   * Show a slide. Slides are stacked in one spot per presentation and only the shown
+   * one is on the canvas, so switching just changes what is drawn there: the view never moves.
    */
   private focusFrame(id: string): void {
     if (!this.store.elements().some((e) => e.id === id)) {
@@ -4017,6 +4083,38 @@ export class EditorComponent {
       0,
       frames.findIndex((f) => f.id === this.activeSlideId()),
     );
+  }
+
+  /**
+   * The presentation the canvas selection belongs to: a selected slide frame, or an
+   * item on a slide. Null when nothing of any presentation is selected.
+   */
+  private selectedPresentationName(): string | null {
+    const frames = this.store.slideFrames();
+    const owner = (slideId: string | undefined): string | null => {
+      const f = slideId ? frames.find((x) => x.id === slideId) : undefined;
+      return f ? presentationOf(f) : null;
+    };
+    for (const id of this.store.selectedElementIds()) {
+      const e = this.store.elements().find((x) => x.id === id);
+      const name = e?.type === 'frame' && e.slide ? presentationOf(e) : owner(e?.slideId);
+      if (name) {
+        return name;
+      }
+    }
+    for (const id of this.store.selectedTableIds()) {
+      const name = owner(this.store.tables().find((t) => t.id === id)?.slideId);
+      if (name) {
+        return name;
+      }
+    }
+    for (const id of this.store.selectedDiagramIds()) {
+      const name = owner(this.store.sequenceDiagrams().find((d) => d.id === id)?.slideId);
+      if (name) {
+        return name;
+      }
+    }
+    return null;
   }
 
   /** Render the sequence and open the full-screen presenter. */
@@ -4064,20 +4162,32 @@ export class EditorComponent {
     this.presentation.set({ slides: rendered, start: 0, preview: true, follow: null });
   }
 
-  /** Add a new 16:9 frame to the sequence, right of the last slide (or in view). */
-  private async addSlide(
-    at?: { x: number; y: number },
-    /** Start a new presentation with this name instead of extending the selected one. */
-    newPresentation?: string,
-  ): Promise<void> {
+  /** The first free "Presentation N" name. */
+  private newPresentationName(): string {
+    const taken = new Set(this.store.presentations());
+    let n = 1;
+    while (taken.has(`Presentation ${n}`)) {
+      n += 1;
+    }
+    return `Presentation ${n}`;
+  }
+
+  /**
+   * Add a slide. With `at` (the Slide tool) it starts a whole new presentation there:
+   * a first 16:9 slide with its own list and settings panels. Without it, the new slide
+   * joins the selected presentation, stacked on the one it shows.
+   */
+  private async addSlide(at?: { x: number; y: number }): Promise<void> {
     if (!this.store.canEdit()) {
       return;
     }
     const preset = framePreset('16-9');
-    const everySlide = this.store.slideFrames();
+    const newPresentation = at ? this.newPresentationName() : undefined;
     const slides = newPresentation ? [] : this.store.presentationFrames();
     const presentation = newPresentation ?? this.store.presentation() ?? undefined;
-    const shown = everySlide.find((f) => f.id === this.activeSlideId()) ?? everySlide[0];
+    const shown = newPresentation
+      ? undefined
+      : this.store.slideFrames().find((f) => f.id === this.activeSlideId());
     let x: number;
     let y: number;
     if (shown) {
@@ -4246,7 +4356,7 @@ export class EditorComponent {
       this.store.sequenceDiagrams(),
       this.store.lifelines(),
       this.store.sequenceMessages(),
-      this.store.activeSlideId(),
+      this.store.shownSlideIds(),
     );
     let newId: string | null = null;
     await this.store.batchHistory(async () => {
@@ -4453,7 +4563,7 @@ export class EditorComponent {
       this.store.sequenceDiagrams(),
       this.store.lifelines(),
       this.store.sequenceMessages(),
-      this.store.activeSlideId(),
+      this.store.shownSlideIds(),
     );
     const selectedDiagrams = new Set(this.store.selectedDiagramIds());
     const tables = this.store

@@ -79,6 +79,8 @@ interface EditorState {
   activeSlideKey: string | null;
   /** The presentation chosen in the slides panel (a name); the shown slide's when unset or stale. */
   selectedPresentationKey: string | null;
+  /** The slide each presentation shows on its own spot (name -> frame id). */
+  shownByPresentationKey: Record<string, string>;
   /** Transient: a message whose inline label editor should open (toolbar pencil). */
   pendingMessageEditId: string | null;
   /** Transient: a lifeline whose inline label editor should open (toolbar pencil). */
@@ -187,6 +189,7 @@ const initialState: EditorState = {
   enteredGroupId: null,
   activeSlideKey: null,
   selectedPresentationKey: null,
+  shownByPresentationKey: {},
   pendingMessageEditId: null,
   pendingLifelineEditId: null,
   loading: false,
@@ -303,6 +306,7 @@ export const ProjectStore = signalStore(
       accessMode,
       activeSlideKey,
       selectedPresentationKey,
+      shownByPresentationKey,
       undoDepth,
       redoDepth,
     }) => {
@@ -320,6 +324,23 @@ export const ProjectStore = signalStore(
         const shown = frames.find((f) => f.id === activeSlideKey()) ?? frames[0];
         return shown ? presentationOf(shown) : null;
       });
+      /** The slide each presentation shows (its chosen one if it still exists, else its first). */
+      const shownByPresentation = computed(() => {
+        const picked = shownByPresentationKey();
+        const frames = slideFrames();
+        const out = new Map<string, string>();
+        for (const name of presentations()) {
+          const slides = presentationSlides(frames, name);
+          const hit = slides.find((f) => f.id === picked[name]) ?? slides[0];
+          if (hit) {
+            out.set(name, hit.id);
+          }
+        }
+        return out as ReadonlyMap<string, string>;
+      });
+      const shownSlideIds = computed(
+        () => new Set(shownByPresentation().values()) as ReadonlySet<string>,
+      );
       return {
     slideFrames,
     /** The presentations in the project (names), in order of first appearance. */
@@ -344,38 +365,41 @@ export const ProjectStore = signalStore(
       return ids as ReadonlySet<string>;
     }),
     elements: computed(() => schema()?.elements ?? []),
-    /** The slide shown on the canvas: the chosen one if it still exists, else the first. */
+    /** The slide each presentation shows on the canvas (name -> frame id). */
+    shownByPresentation,
+    /** The slides shown on the canvas: one per presentation. */
+    shownSlideIds,
+    /** The slide shown for the selected presentation (where new content goes). */
     activeSlideId: computed(() => {
-      const frames = slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame'));
-      return frames.find((f) => f.id === activeSlideKey())?.id ?? frames[0]?.id ?? null;
+      const name = presentation();
+      return (name ? shownByPresentation().get(name) : undefined) ?? null;
     }),
     /**
-     * What the canvas leaves out because it belongs to another slide. Slides are
-     * stacked in one spot and only the active one is shown; things with no slide are
-     * shown always.
+     * What the canvas leaves out because it belongs to another slide. Each
+     * presentation stacks its slides in one spot and only its shown slide is drawn;
+     * things with no slide are shown always.
      */
     hiddenBySlides: computed(() => {
       const elements = schema()?.elements ?? [];
-      const frames = slideSequence(elements.filter((e) => e.type === 'frame'));
-      const active = frames.find((f) => f.id === activeSlideKey())?.id ?? frames[0]?.id ?? null;
-      if (!active) {
+      const shown = shownSlideIds();
+      if (!shown.size) {
         return null;
       }
       const elementIds = new Set<string>();
       for (const e of elements) {
-        if (e.type === 'frame' ? !!e.slide && e.id !== active : !!e.slideId && e.slideId !== active) {
+        if (e.type === 'frame' ? !!e.slide && !shown.has(e.id) : !!e.slideId && !shown.has(e.slideId)) {
           elementIds.add(e.id);
         }
       }
       const tableIds = new Set<string>();
       for (const t of schema()?.tables ?? []) {
-        if (t.slideId && t.slideId !== active) {
+        if (t.slideId && !shown.has(t.slideId)) {
           tableIds.add(t.id);
         }
       }
       const diagramIds = new Set<string>();
       for (const d of schema()?.sequenceDiagrams ?? []) {
-        if (d.slideId && d.slideId !== active) {
+        if (d.slideId && !shown.has(d.slideId)) {
           diagramIds.add(d.id);
         }
       }
@@ -550,16 +574,34 @@ export const ProjectStore = signalStore(
 
       // Raw element operations (persist + local update, no history). Both the
       // public methods and the undo/redo closures build on these.
+      /** The shown slide whose frame covers a canvas point (new content there joins it). */
+      function shownSlideAt(x: number, y: number): string | undefined {
+        const shown = store.shownSlideIds();
+        return store
+          .slideFrames()
+          .find(
+            (f) =>
+              shown.has(f.id) &&
+              x >= f.x &&
+              x <= f.x + f.width &&
+              y >= f.y &&
+              y <= f.y + f.height,
+          )?.id;
+      }
+
       async function createElementRaw(dto: CreateElementDto): Promise<CanvasElementModel | null> {
         const projectId = store.projectId();
         if (!projectId) {
           return null;
         }
-        // New content lands on the slide being shown.
+        // New content drawn on a presentation's shown slide joins that slide.
         const withSlide: CreateElementDto =
           dto.slideId || dto.type === 'frame'
             ? dto
-            : { ...dto, slideId: store.activeSlideId() ?? undefined };
+            : {
+                ...dto,
+                slideId: shownSlideAt(dto.x + dto.width / 2, dto.y + dto.height / 2),
+              };
         const created = await runSave(() =>
           firstValueFrom(elementsApi.create(projectId, withSlide)),
         );
@@ -1542,7 +1584,7 @@ export const ProjectStore = signalStore(
           const diagram = await runSave(() =>
             firstValueFrom(sequenceApi.createDiagram(projectId, {
                 originY: y,
-                slideId: store.activeSlideId() ?? undefined,
+                slideId: shownSlideAt(x, y),
               })),
           );
           setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, diagram] }));
@@ -2114,7 +2156,7 @@ export const ProjectStore = signalStore(
                 x,
                 y,
                 color,
-                slideId: store.activeSlideId() ?? undefined,
+                slideId: shownSlideAt(x, y),
               })),
           );
           setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
@@ -2425,16 +2467,26 @@ export const ProjectStore = signalStore(
           const frame = id ? store.slideFrames().find((f) => f.id === id) : undefined;
           patchState(store, {
             activeSlideKey: id,
-            ...(frame ? { selectedPresentationKey: presentationOf(frame) } : {}),
+            ...(frame
+              ? {
+                  selectedPresentationKey: presentationOf(frame),
+                  shownByPresentationKey: {
+                    ...store.shownByPresentationKey(),
+                    [presentationOf(frame)]: frame.id,
+                  },
+                }
+              : {}),
           });
         },
 
-        /** Choose a presentation and show its first slide. */
+        /** Make a presentation the selected one (F5, export); it keeps the slide it shows. */
         selectPresentation(name: string): void {
-          const first = presentationSlides(store.slideFrames(), name)[0];
+          if (store.presentation() === name) {
+            return;
+          }
           patchState(store, {
             selectedPresentationKey: name,
-            activeSlideKey: first?.id ?? store.activeSlideKey(),
+            activeSlideKey: store.shownByPresentation().get(name) ?? store.activeSlideKey(),
           });
         },
 

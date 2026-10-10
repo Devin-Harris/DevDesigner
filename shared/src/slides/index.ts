@@ -6,7 +6,7 @@ import type { SlideConfig, SlideTransition } from '../models';
 /** What a transition into a slide does when none has been configured. */
 export const DEFAULT_SLIDE_TRANSITION: SlideTransition = {
   type: 'none',
-  duration: 600,
+  duration: 300,
   easing: 'ease-in-out',
 };
 
@@ -128,7 +128,13 @@ function sizeRatioOk(a: MorphItem, b: MorphItem): boolean {
 }
 
 /** Types whose content is the point: never paired just for being the same kind. */
-const FREE_FORM_TYPES: ReadonlySet<string> = new Set(['text', 'code', 'image', 'freedraw', 'frame']);
+const FREE_FORM_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'code',
+  'image',
+  'freedraw',
+  'frame',
+]);
 
 /**
  * Pair items of two consecutive slides for a morph. Returns [fromIndex, toIndex]

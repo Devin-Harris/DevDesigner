@@ -53,8 +53,8 @@ export function frameContents(
   diagrams: readonly SequenceDiagramModel[],
   lifelines: readonly LifelineModel[],
   messages: readonly SequenceMessageModel[],
-  /** The slide shown on the canvas; plain frames only take what is on it (or on no slide). */
-  activeSlideId: string | null = null,
+  /** The slide(s) shown on the canvas; plain frames only take what is on them (or on no slide). */
+  activeSlideId: string | ReadonlySet<string> | null = null,
 ): FrameContents {
   const out: FrameContents = {
     elementIds: new Set(),
@@ -87,7 +87,8 @@ export function frameContents(
       continue;
     }
     const takes = (slideId: string | undefined): boolean =>
-      !slideId || slideId === activeSlideId;
+      !slideId ||
+      (typeof activeSlideId === 'string' ? slideId === activeSlideId : !!activeSlideId?.has(slideId));
     for (const e of elements) {
       if (
         e.id !== frame.id &&

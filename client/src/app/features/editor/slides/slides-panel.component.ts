@@ -13,9 +13,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  DEFAULT_PRESENTATION,
   effectiveTransition,
-  nextCopyName,
+  presentationSlides,
   type CanvasElementModel,
   type SlideConfig,
   type SlideDirection,
@@ -37,8 +36,7 @@ export type SlidesCommand =
   | { kind: 'duplicate'; id: string; toIndex?: number }
   | { kind: 'delete'; id: string }
   | { kind: 'add' }
-  | { kind: 'newPresentation'; name: string }
-  | { kind: 'deletePresentation'; name: string }
+  | { kind: 'deletePresentation' }
   | { kind: 'close' }
   | { kind: 'fold' };
 
@@ -81,47 +79,26 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
   template: `
     @if (part() === 'list') {
     <header class="head">
-      @if (renaming()) {
-        <input
-          class="rename"
-          type="text"
-          maxlength="120"
-          [value]="presentation() ?? ''"
-          (keydown.enter)="commitRename($any($event.target).value)"
-          (keydown.escape)="renaming.set(false)"
-          (blur)="commitRename($any($event.target).value)"
-          (click)="$event.stopPropagation()"
-        />
-      } @else {
-        <dbd-select
-          class="pres"
-          [options]="presentationOptions()"
-          [ngModel]="presentation()"
-          (ngModelChange)="store.selectPresentation($event)"
-        />
-      }
-      @if (canEdit() && presentation()) {
-        <span class="pres-tools">
-          <button class="icon" (click)="renaming.set(true)" title="Rename presentation" aria-label="Rename presentation">
-            <dbd-icon name="edit" />
-          </button>
-          <button
-            class="icon"
-            (click)="command.emit({ kind: 'newPresentation', name: newPresentationName() })"
-            title="New presentation"
-            aria-label="New presentation"
-          >
-            <dbd-icon name="add" />
-          </button>
-          <button
-            class="icon"
-            (click)="command.emit({ kind: 'deletePresentation', name: presentation()! })"
-            title="Delete presentation and its slides"
-            aria-label="Delete presentation"
-          >
-            <dbd-icon name="delete" />
-          </button>
-        </span>
+      <input
+        class="rename"
+        type="text"
+        maxlength="120"
+        aria-label="Presentation name"
+        [value]="presentation()"
+        [disabled]="!canEdit()"
+        (keydown.enter)="$any($event.target).blur()"
+        (keydown.escape)="cancelRename($any($event.target))"
+        (blur)="commitRename($any($event.target))"
+      />
+      @if (canEdit()) {
+        <button
+          class="icon"
+          (click)="command.emit({ kind: 'deletePresentation' })"
+          title="Delete presentation and its slides"
+          aria-label="Delete presentation"
+        >
+          <dbd-icon name="delete" />
+        </button>
       }
     </header>
 
@@ -438,14 +415,6 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
       .head {
         gap: 4px;
       }
-      .pres {
-        flex: 1 1 0;
-        min-width: 0;
-      }
-      .pres-tools {
-        display: flex;
-        flex: none;
-      }
       .rename {
         flex: 1 1 0;
         min-width: 0;
@@ -453,11 +422,20 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         font: inherit;
         font-weight: 600;
         color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-primary);
+        background: transparent;
+        border: 1px solid transparent;
         border-radius: 8px;
         padding: 0 8px;
         box-sizing: border-box;
+        text-overflow: ellipsis;
+      }
+      .rename:hover:not(:disabled) {
+        background: var(--dbd-surface-2);
+      }
+      .rename:focus {
+        outline: none;
+        background: var(--dbd-surface-2);
+        border-color: var(--dbd-primary);
       }
       h3 {
         margin: 0 0 8px;
@@ -843,8 +821,10 @@ export class SlidesPanelComponent {
   readonly part = input<'list' | 'settings'>('list');
   /** Settings panel only: folded sideways to a narrow strip. */
   readonly folded = input<boolean>(false);
-  /** The slide currently shown on the canvas (the only one visible). */
+  /** The slide of this presentation currently shown on the canvas (the only one visible). */
   readonly active_ = input<string | null>(null, { alias: 'active' });
+  /** The presentation this panel belongs to (its name). */
+  readonly presentation = input.required<string>();
 
   protected readonly store = inject(ProjectStore);
   private readonly render = inject(SlideRenderService);
@@ -856,39 +836,37 @@ export class SlidesPanelComponent {
   protected readonly stepOptions = STEP_OPTIONS;
 
   protected readonly canEdit = this.store.canEdit;
-  /** Slides of the selected presentation, in order (skipped ones included). */
-  protected readonly frames = this.store.presentationFrames;
-  protected readonly presentation = this.store.presentation;
-  protected readonly presentationOptions = computed<SelectOption<string>[]>(() =>
-    this.store.presentations().map((name) => ({ value: name, label: name })),
+  /** Slides of this presentation, in order (skipped ones included). */
+  protected readonly frames = computed(() =>
+    presentationSlides(this.store.slideFrames(), this.presentation()),
   );
-  protected readonly renaming = signal(false);
 
-  /** A name for a new presentation: the next free "Presentation N". */
-  protected newPresentationName(): string {
-    return nextCopyName(this.presentation() ?? DEFAULT_PRESENTATION, this.store.presentations());
+  /** Put the saved name back (Escape, or a name that is empty or already taken). */
+  protected cancelRename(input: HTMLInputElement): void {
+    input.value = this.presentation();
+    input.blur();
   }
 
-  /** Rename the selected presentation (every one of its slides carries the name). */
-  protected commitRename(raw: string): void {
-    if (!this.renaming()) {
-      return;
-    }
-    this.renaming.set(false);
+  /** Rename the presentation (every one of its slides carries the name). */
+  protected commitRename(input: HTMLInputElement): void {
     const current = this.presentation();
-    const name = raw.trim().slice(0, 120);
-    if (!current || !name || name === current || this.store.presentations().includes(name)) {
+    const name = input.value.trim().slice(0, 120);
+    if (!name || name === current || this.store.presentations().includes(name)) {
+      input.value = current;
       return;
     }
     const slides = this.frames();
-    this.store.selectPresentation(name);
-    void this.store.batchHistory(async () => {
-      for (const f of slides) {
-        if (f.slide) {
-          await this.store.updateElement(f.id, { slide: { ...f.slide, presentation: name } });
+    const shown = this.active_();
+    void this.store
+      .batchHistory(async () => {
+        for (const f of slides) {
+          if (f.slide) {
+            await this.store.updateElement(f.id, { slide: { ...f.slide, presentation: name } });
+          }
         }
-      }
-    });
+      })
+      // The shown slide and the selection follow the new name.
+      .finally(() => (shown ? this.store.setActiveSlide(shown) : undefined));
   }
   /** Ids in the order just dropped, held until the store has caught up with the writes. */
   private readonly pendingOrder = signal<string[] | null>(null);
@@ -987,8 +965,8 @@ export class SlidesPanelComponent {
   });
   /** The preset every slide matches, or 'custom'. */
   protected readonly sizeValue = computed(() => {
-    // Every slide of the project shares one size, whatever presentation it is in.
-    const slides = this.store.slideFrames();
+    // Every slide of a presentation shares one size.
+    const slides = this.frames();
     const hit = FRAME_PRESETS.find((p) =>
       slides.every((f) => Math.round(f.width) === p.width && Math.round(f.height) === p.height),
     );
@@ -1137,7 +1115,7 @@ export class SlidesPanelComponent {
   /** Resize every slide to a preset: all slides share one size. */
   protected setSize(presetId: string): void {
     const preset = FRAME_PRESETS.find((p) => p.id === presetId);
-    const targets = this.store.slideFrames();
+    const targets = this.frames();
     if (!preset || !targets.length) {
       return;
     }
