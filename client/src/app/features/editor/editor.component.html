@@ -127,6 +127,14 @@
       </div>
     }
 
+    <app-minimap
+      (pointerdown)="$event.stopPropagation()"
+      (wheel)="$event.stopPropagation()"
+      [items]="minimapItems()"
+      [view]="minimapView()"
+      (panTo)="panToWorld($event)"
+    ></app-minimap>
+
     <app-shape-toolbar
       (pointerdown)="$event.stopPropagation()"
       [tool]="activeTool()"
@@ -138,6 +146,8 @@
       [canExport]="!!store.projectId()"
       [canUndo]="store.canUndo()"
       [canRedo]="store.canRedo()"
+      [hasHome]="!!store.home()"
+      [canSetHome]="store.canEdit() && !!store.projectId()"
       [(framePreset)]="framePresetId"
       (toolChange)="onToolChange($event)"
       (undo)="store.undoElement()"
@@ -145,6 +155,8 @@
       (zoomIn)="zoomIn()"
       (zoomOut)="zoomOut()"
       (resetView)="resetView()"
+      (setHome)="setHome()"
+      (clearHome)="clearHome()"
       (toggleGrid)="toggleGrid()"
       (align)="onAlign($event)"
       (exportSql)="openSqlExport()"

@@ -58,6 +58,10 @@ export class ShapeToolbarComponent {
   readonly canExport = input<boolean>(false);
   readonly canUndo = input<boolean>(false);
   readonly canRedo = input<boolean>(false);
+  /** True when the project has a saved home view. */
+  readonly hasHome = input<boolean>(false);
+  /** Whether the viewer may save/clear the shared home view (editors only). */
+  readonly canSetHome = input<boolean>(false);
 
   /** The aspect-ratio preset new frames are drawn with (two-way bound to the editor). */
   readonly framePreset = model<string>(DEFAULT_FRAME_PRESET);
@@ -69,6 +73,8 @@ export class ShapeToolbarComponent {
   readonly zoomIn = output<void>();
   readonly zoomOut = output<void>();
   readonly resetView = output<void>();
+  readonly setHome = output<void>();
+  readonly clearHome = output<void>();
   readonly toggleGrid = output<void>();
   readonly align = output<AlignAction>();
   readonly exportSql = output<void>();

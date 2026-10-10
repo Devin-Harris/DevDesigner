@@ -97,7 +97,7 @@ export interface WriteOptions {
 }
 
 /** The content written by `writeSchemaInto`, as models carrying the NEW ids. */
-export type WrittenSchema = Omit<SchemaModel, 'viewport' | 'notes'>;
+export type WrittenSchema = Omit<SchemaModel, 'viewport' | 'home' | 'notes'>;
 
 /**
  * Insert a validated schema into `projectId` (a brand-new project or an existing
@@ -395,6 +395,9 @@ export async function writeImportedProject(
       viewportX: schema.viewport.x,
       viewportY: schema.viewport.y,
       zoom: schema.viewport.zoom,
+      homeX: schema.home?.x ?? null,
+      homeY: schema.home?.y ?? null,
+      homeZoom: schema.home?.zoom ?? null,
     }),
   );
   await writeSchemaInto(manager, project.id, schema);

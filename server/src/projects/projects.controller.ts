@@ -20,6 +20,7 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
+import { UpdateHomeDto } from './dto/update-home.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
 import { ClientId, ShareToken } from '../common/request.decorators';
 
@@ -105,6 +106,18 @@ export class ProjectsController {
     @ShareToken() shareToken: string | null,
   ): Promise<void> {
     return this.projects.updateViewport(projectId, dto, userId, shareToken);
+  }
+
+  @Patch(':projectId/home')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateHome(
+    @Param('projectId') projectId: string,
+    @Body() dto: UpdateHomeDto,
+    @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
+  ): Promise<void> {
+    return this.projects.updateHome(projectId, dto, userId, shareToken, clientId);
   }
 
   @Post(':projectId/duplicate')

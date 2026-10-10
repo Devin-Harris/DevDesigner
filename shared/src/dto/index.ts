@@ -56,6 +56,10 @@ export interface UpdateViewportDto {
   viewportY: number;
   zoom: number;
 }
+/** Body for PATCH /projects/:projectId/home; `home: null` clears it. */
+export interface UpdateHomeDto {
+  home: { x: number; y: number; zoom: number } | null;
+}
 export interface ProjectSummary {
   id: string;
   name: string;

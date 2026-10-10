@@ -310,6 +310,9 @@ export function parseProjectExport(raw: unknown): ParsedProjectImport {
 
   const s = obj(file['schema'], 'schema');
   const viewport = s['viewport'] === undefined ? {} : obj(s['viewport'], 'schema.viewport');
+  const homeRaw = s['home'];
+  const home =
+    homeRaw === undefined || homeRaw === null ? null : obj(homeRaw, 'schema.home');
 
   return {
     name,
@@ -340,6 +343,13 @@ export function parseProjectExport(raw: unknown): ParsedProjectImport {
         y: num(viewport, 'y', 'schema.viewport', 0),
         zoom: num(viewport, 'zoom', 'schema.viewport', 1),
       },
+      home: home
+        ? {
+            x: num(home, 'x', 'schema.home'),
+            y: num(home, 'y', 'schema.home'),
+            zoom: num(home, 'zoom', 'schema.home'),
+          }
+        : null,
     },
   };
 }

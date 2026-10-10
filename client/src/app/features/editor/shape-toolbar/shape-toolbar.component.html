@@ -220,16 +220,46 @@
   <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out">
     <dbd-icon name="remove" />
   </button>
-  <button class="zoom-label" (click)="resetView.emit()" matTooltip="Reset view">
+  <button class="zoom-label" (click)="resetView.emit()" matTooltip="Go to home view">
     {{ zoomLabel() }}
   </button>
   <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dbd-icon name="add" /></button>
 
   <span class="sep"></span>
 
-  <button class="sbtn" (click)="resetView.emit()" matTooltip="Fit / reset view">
+  <button class="sbtn" (click)="resetView.emit()" matTooltip="Go to home view (Home)">
     <dbd-icon name="center_focus_strong" />
   </button>
+  <button
+    class="sbtn"
+    [class.on]="hasHome()"
+    [dbdPopoverTrigger]="homeMenu"
+    placement="above-start"
+    matTooltip="Home view"
+  >
+    <dbd-icon name="home" />
+  </button>
+  <ng-template #homeMenu let-close>
+    <div class="dbd-menu">
+      <button class="dbd-menu-item" (click)="resetView.emit(); close()">
+        <dbd-icon name="home" />Go to home
+      </button>
+      <button
+        class="dbd-menu-item"
+        [disabled]="!canSetHome()"
+        (click)="setHome.emit(); close()"
+      >
+        <dbd-icon name="center_focus_strong" />Set current view as home
+      </button>
+      <button
+        class="dbd-menu-item"
+        [disabled]="!canSetHome() || !hasHome()"
+        (click)="clearHome.emit(); close()"
+      >
+        <dbd-icon name="close" />Clear home
+      </button>
+    </div>
+  </ng-template>
   <button
     class="sbtn"
     [class.on]="gridSnap()"

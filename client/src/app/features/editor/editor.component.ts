@@ -52,6 +52,7 @@ import {
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './canvas/models/toolbar-actions';
+import { MinimapComponent, type MinimapItem } from './minimap/minimap.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
 import { frameContents, sequenceDiagramBox } from './canvas/helpers/frame-contents.helper';
@@ -196,6 +197,7 @@ function readStoredGrid(): boolean {
     SequenceInspectorComponent,
     SequenceMessageToolbarComponent,
     SequenceParticipantToolbarComponent,
+    MinimapComponent,
     CanvasSequenceComponent,
     ElementFloatingToolbarComponent,
     RelationshipInspectorComponent,
@@ -902,6 +904,16 @@ export class EditorComponent {
       if (id) {
         this.realtime.connect(id);
       }
+    });
+    // Track the canvas size for the minimap's viewport rectangle.
+    effect((onCleanup) => {
+      const el = this.canvasRef().nativeElement;
+      const update = (): void =>
+        this.canvasSize.set({ width: el.clientWidth, height: el.clientHeight });
+      update();
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      onCleanup(() => ro.disconnect());
     });
     // Broadcast this participant's selection so others see what is being edited.
     effect(() => {
@@ -2542,6 +2554,11 @@ export class EditorComponent {
       event.preventDefault();
       return;
     }
+    if (event.key === 'Home') {
+      this.resetView();
+      event.preventDefault();
+      return;
+    }
     if (event.key === 'Escape') {
       this.activeTool.set('select');
       return;
@@ -2849,9 +2866,107 @@ export class EditorComponent {
     this.applyZoom(1 / 1.2, rect.width / 2, rect.height / 2);
   }
 
+  /** Animate back to the project's saved home view, or the default (origin, 100%). */
   protected resetView(): void {
-    this.store.setViewport(0, 0, 1);
+    const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
+    this.animateViewport(home.x, home.y, home.zoom);
   }
+
+  protected setHome(): void {
+    if (!this.store.canEdit()) {
+      return;
+    }
+    const v = this.store.viewport();
+    void this.store.setHome({ x: v.x, y: v.y, zoom: v.zoom });
+  }
+
+  protected clearHome(): void {
+    if (!this.store.canEdit()) {
+      return;
+    }
+    void this.store.setHome(null);
+  }
+
+  /** Pan (keeping zoom) so the given world point is at the center of the canvas. */
+  protected panToWorld(world: { x: number; y: number }): void {
+    const rect = this.canvasRect();
+    const v = this.store.viewport();
+    this.store.setViewport(rect.width / 2 - world.x * v.zoom, rect.height / 2 - world.y * v.zoom, v.zoom);
+  }
+
+  private viewAnim = 0;
+
+  /** Canvas pixel size, tracked so the minimap can show the visible world rectangle. */
+  private readonly canvasSize = signal({ width: 0, height: 0 });
+
+  private animateViewport(x: number, y: number, zoom: number): void {
+    cancelAnimationFrame(this.viewAnim);
+    const from = this.store.viewport();
+    const start = performance.now();
+    const duration = 250;
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - start) / duration);
+      const e = 1 - Math.pow(1 - t, 3);
+      this.store.setViewport(
+        from.x + (x - from.x) * e,
+        from.y + (y - from.y) * e,
+        from.zoom + (zoom - from.zoom) * e,
+      );
+      if (t < 1) {
+        this.viewAnim = requestAnimationFrame(step);
+      }
+    };
+    this.viewAnim = requestAnimationFrame(step);
+  }
+
+  /** Simplified world-space footprint of every element, for the minimap. */
+  protected readonly minimapItems = computed<MinimapItem[]>(() => {
+    const items: MinimapItem[] = [];
+    for (const t of this.store.tables()) {
+      items.push({
+        kind: 'table',
+        x0: t.x,
+        y0: t.y,
+        x1: t.x + tableWidth(t),
+        y1: t.y + nodeHeight(t.columns.length),
+      });
+    }
+    for (const d of this.store.sequenceDiagrams()) {
+      const b = this.diagramBox(d);
+      if (b) {
+        items.push({ kind: 'sequence', x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+      }
+    }
+    for (const el of this.store.elements()) {
+      const b = elementBox(el);
+      const kind: MinimapItem['kind'] =
+        el.type === 'text'
+          ? 'text'
+          : el.type === 'line' || el.type === 'arrow' || el.type === 'freedraw'
+            ? 'line'
+            : el.type === 'frame'
+              ? 'frame'
+              : 'shape';
+      items.push({
+        kind,
+        ...b,
+        points: kind === 'line' ? absolutePoints(el) : undefined,
+      });
+    }
+    return items;
+  });
+
+  /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
+  protected readonly minimapView = computed(() => {
+    const v = this.store.viewport();
+    const rect = this.canvasSize();
+    return {
+      x0: -v.x / v.zoom,
+      y0: -v.y / v.zoom,
+      x1: (rect.width - v.x) / v.zoom,
+      y1: (rect.height - v.y) / v.zoom,
+    };
+  });
 
   protected toggleGrid(): void {
     this.gridSnap.update((v) => !v);

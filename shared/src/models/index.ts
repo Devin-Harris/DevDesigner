@@ -229,4 +229,6 @@ export interface SchemaModel {
   /** Sequence diagram message rows (each tagged with its diagramId). */
   sequenceMessages: SequenceMessageModel[];
   viewport: ViewportModel;
+  /** User-defined "home" view that reset-view returns to; null/absent = default. */
+  home?: ViewportModel | null;
 }

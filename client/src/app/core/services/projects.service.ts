@@ -7,6 +7,7 @@ import type {
   ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
+  UpdateHomeDto,
   UpdateProjectDto,
   UpdateViewportDto,
 } from '@dbdesigner/shared';
@@ -65,6 +66,11 @@ export class ProjectsService {
   /** GET /projects/:id : full project graph (schema + access level) for editor load. */
   getGraph(id: string): Observable<ProjectGraphResponse> {
     return this.api.get<ProjectGraphResponse>(`/projects/${id}`);
+  }
+
+  /** PATCH /projects/:id/home : set or clear (null) the shared home view. */
+  updateHome(id: string, dto: UpdateHomeDto): Observable<void> {
+    return this.api.patch<void>(`/projects/${id}/home`, dto);
   }
 
   /** PATCH /projects/:id/viewport : persist pan/zoom (debounced client-side). */

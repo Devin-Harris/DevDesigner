@@ -49,6 +49,16 @@ export class Project {
   @Column({ type: 'float', default: 1 })
   zoom!: number;
 
+  // User-defined "home" view (reset-view target). All three null = no home set.
+  @Column({ type: 'float', nullable: true })
+  homeX!: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  homeY!: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  homeZoom!: number | null;
+
   // Sequence-diagram layout config (one row per project; see SequenceConfigModel).
   @Column({ type: 'float', default: 160 })
   seqLifelineSpacing!: number;

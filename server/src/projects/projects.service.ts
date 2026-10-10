@@ -21,6 +21,7 @@ import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
+import { UpdateHomeDto } from './dto/update-home.dto';
 import { parseProjectExport } from './project-import.parser';
 import { offsetToAnchor, writeImportedProject, writeSchemaInto } from './project-import.writer';
 
@@ -99,6 +100,10 @@ export class ProjectsService {
         y: project.viewportY,
         zoom: project.zoom,
       },
+      home:
+        project.homeX !== null && project.homeY !== null && project.homeZoom !== null
+          ? { x: project.homeX, y: project.homeY, zoom: project.homeZoom }
+          : null,
     };
     return {
       project: this.toSummary(project),
@@ -121,6 +126,30 @@ export class ProjectsService {
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
+  }
+
+  /** Set (or clear, with `home: null`) the project's shared home view and tell collaborators. */
+  async updateHome(
+    id: string,
+    dto: UpdateHomeDto,
+    userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
+  ): Promise<void> {
+    await this.access.assertCanWrite(id, userId, shareToken);
+    const home = dto.home ?? null;
+    const result = await this.projects.update(
+      { id },
+      {
+        homeX: home?.x ?? null,
+        homeY: home?.y ?? null,
+        homeZoom: home?.zoom ?? null,
+      },
+    );
+    if (!result.affected) {
+      throw new NotFoundException(`Project ${id} not found.`);
+    }
+    this.realtime.emit(id, clientId, { kind: 'home.updated', home });
   }
 
   async update(
@@ -158,6 +187,9 @@ export class ProjectsService {
       viewportX: source.viewportX,
       viewportY: source.viewportY,
       zoom: source.zoom,
+      homeX: source.homeX,
+      homeY: source.homeY,
+      homeZoom: source.homeZoom,
     });
     const saved = await this.projects.save(copy);
     // NOTE: deep-copies only the project row for now. Tables, columns,

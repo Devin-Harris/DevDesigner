@@ -147,6 +147,13 @@ describe('parseProjectExport', () => {
     const parsed = parseProjectExport(sampleFile());
     expect(parsed.name).toBe('Shop');
     expect(parsed.schema.tables).toHaveLength(2);
+    expect(parsed.schema.home).toBeNull();
+  });
+
+  it('keeps a saved home view', () => {
+    const file = sampleFile();
+    file.schema.home = { x: 10, y: -20, zoom: 0.5 };
+    expect(parseProjectExport(file).schema.home).toEqual({ x: 10, y: -20, zoom: 0.5 });
   });
 
   it.each([

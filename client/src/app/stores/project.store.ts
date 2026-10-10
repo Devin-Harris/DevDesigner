@@ -299,6 +299,8 @@ export const ProjectStore = signalStore(
     }),
     elements: computed(() => schema()?.elements ?? []),
     viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
+    /** The user-defined home view, or null when none is set. */
+    home: computed(() => schema()?.home ?? null),
     /** The single selected table (only when exactly one is selected), for the inspector. */
     selectedTable: computed(() => {
       const ids = selectedTableIds();
@@ -1171,7 +1173,20 @@ export const ProjectStore = signalStore(
                 sequenceMessages: s.sequenceMessages.filter((m) => m.id !== mutation.messageId),
               }));
               break;
+            case 'home.updated':
+              setSchema((s) => ({ ...s, home: mutation.home }));
+              break;
           }
+        },
+
+        /** Save (or clear, with null) the shared home view that reset-view returns to. */
+        async setHome(home: ViewportModel | null): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          setSchema((s) => ({ ...s, home }));
+          await runSave(() => firstValueFrom(projectsApi.updateHome(projectId, { home })));
         },
 
         /** Select a table (or its whole group). additive (ctrl/shift) toggles it within the set. */

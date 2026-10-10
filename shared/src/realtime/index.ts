@@ -15,6 +15,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
+  ViewportModel,
 } from '../models';
 
 /** Socket.io namespace the realtime gateway is mounted on. */
@@ -94,7 +95,8 @@ export type SchemaMutation =
   | { kind: 'message.created'; message: SequenceMessageModel }
   | { kind: 'message.updated'; message: SequenceMessageModel }
   | { kind: 'message.moved'; messageId: string; y: number }
-  | { kind: 'message.deleted'; messageId: string };
+  | { kind: 'message.deleted'; messageId: string }
+  | { kind: 'home.updated'; home: ViewportModel | null };
 
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {
