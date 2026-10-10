@@ -395,7 +395,7 @@ export class EditorComponent {
     // covers it; when there is no room above, flip the bar below the selection.
     const ROTATE_CLEAR = 24;
     const BAR = 52;
-    const above = (minY * v.zoom + v.y) - ROTATE_CLEAR * v.zoom - BAR;
+    const above = minY * v.zoom + v.y - ROTATE_CLEAR * v.zoom - BAR;
     const below = maxY * v.zoom + v.y + 16;
     return {
       left: ((minX + maxX) / 2) * v.zoom + v.x,
@@ -934,6 +934,8 @@ export class EditorComponent {
   /** True once the current drag has switched to dragging Alt-made copies. */
   private dragCopied = false;
   private lastPointer: PointerEvent | null = null;
+  /** Live Shift state, so a move drag can lock to an axis without a pointer move. */
+  private shiftHeld = false;
   private multiDragStart = new Map<string, { x: number; y: number }>();
   // Manual routes touching the dragged tables. `both` true when both endpoints
   // move together (rigid translate). Otherwise only one end moves: the waypoint
@@ -1188,7 +1190,10 @@ export class EditorComponent {
         ? {
             // A code card: a hairline border, no fill override (it picks a theme-matched surface).
             ...sticky,
-            strokeColor: this.themeVar('--dbd-border-strong') ?? this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
+            strokeColor:
+              this.themeVar('--dbd-border-strong') ??
+              this.themeVar('--dbd-text-muted') ??
+              sticky.strokeColor,
             backgroundColor: undefined,
             fillStyle: 'none' as const,
             strokeWidth: 1,
@@ -1199,17 +1204,17 @@ export class EditorComponent {
             fontSize: CODE_FONT_SIZE,
           }
         : type === 'frame'
-        ? {
-            ...sticky,
-            strokeColor: this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
-            backgroundColor: undefined,
-            fillStyle: 'none' as const,
-            strokeWidth: 1.5,
-            strokeStyle: 'solid' as const,
-            opacity: 100,
-            cornerRadius: 0,
-          }
-        : sticky;
+          ? {
+              ...sticky,
+              strokeColor: this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
+              backgroundColor: undefined,
+              fillStyle: 'none' as const,
+              strokeWidth: 1.5,
+              strokeStyle: 'solid' as const,
+              opacity: 100,
+              cornerRadius: 0,
+            }
+          : sticky;
     const draft: CanvasElementModel = {
       id: `draft-${Date.now()}`,
       type,
@@ -1540,7 +1545,10 @@ export class EditorComponent {
         const st = locs.get(rel.sourceColumnId)?.table.id;
         const tt = locs.get(rel.targetColumnId)?.table.id;
         if (st && tt && tables.has(st) && tables.has(tt) && rel.waypoints?.length) {
-          waypoints.set(rel.id, rel.waypoints.map((w) => ({ ...w })));
+          waypoints.set(
+            rel.id,
+            rel.waypoints.map((w) => ({ ...w })),
+          );
         }
       }
     }
@@ -1768,9 +1776,7 @@ export class EditorComponent {
     if (!g?.others) {
       return;
     }
-    const zoom = this.store.viewport().zoom;
-    const dx = (clientX - this.startClientX) / zoom;
-    const dy = (clientY - this.startClientY) / zoom;
+    const { dx, dy } = this.dragDelta(clientX, clientY);
     const snap = this.gridSnap();
     for (const [id, start] of g.others) {
       const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
@@ -2112,7 +2118,9 @@ export class EditorComponent {
       const changed = block
         .split('\n')
         .map((line) =>
-          event.shiftKey ? line.replace(new RegExp(`^(?: {1,${TAB_SIZE}}|\\t)`), '') : indent + line,
+          event.shiftKey
+            ? line.replace(new RegExp(`^(?: {1,${TAB_SIZE}}|\\t)`), '')
+            : indent + line,
         )
         .join('\n');
       area.setSelectionRange(from, end);
@@ -2323,8 +2331,26 @@ export class EditorComponent {
     }
     resume();
     if (this.lastPointer) {
-      this.onPointerMove(this.lastPointer);
+      this.handlePointerMove(this.lastPointer);
     }
+  }
+
+  /**
+   * Pointer displacement (world units) of a move drag. While Shift is held (moving
+   * or Alt-duplicating), movement locks to the dominant axis relative to the start.
+   */
+  private dragDelta(clientX: number, clientY: number): { dx: number; dy: number } {
+    const zoom = this.store.viewport().zoom;
+    let dx = (clientX - this.startClientX) / zoom;
+    let dy = (clientY - this.startClientY) / zoom;
+    if (this.shiftHeld) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        dy = 0;
+      } else {
+        dx = 0;
+      }
+    }
+    return { dx, dy };
   }
 
   /** Start moving the current table selection, grabbed by `tableId`. */
@@ -2477,6 +2503,11 @@ export class EditorComponent {
   @HostListener('window:pointermove', ['$event'])
   protected onPointerMove(event: PointerEvent): void {
     this.lastPointer = event;
+    this.shiftHeld = event.shiftKey;
+    this.handlePointerMove(event);
+  }
+
+  private handlePointerMove(event: PointerEvent): void {
     if (this.mode === 'duplicating') {
       return; // copies are still being created; the drag resumes from lastPointer
     }
@@ -2519,9 +2550,7 @@ export class EditorComponent {
       const v = this.store.viewport();
       this.store.setViewport(this.startViewportX + dx, this.startViewportY + dy, v.zoom);
     } else if (this.mode === 'node' && this.dragTableId) {
-      const zoom = this.store.viewport().zoom;
-      const dx = (event.clientX - this.startClientX) / zoom;
-      const dy = (event.clientY - this.startClientY) / zoom;
+      const { dx, dy } = this.dragDelta(event.clientX, event.clientY);
       const snap = this.gridSnap();
       for (const [id, start] of this.multiDragStart) {
         const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
@@ -2733,7 +2762,13 @@ export class EditorComponent {
       const b = this.diagramBox(d);
       // Only a diagram the marquee fully encloses is picked as a unit; a partial sweep
       // selects just the messages/participants it touches.
-      if (b && b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY) {
+      if (
+        b &&
+        b.minX >= rect.minX &&
+        b.maxX <= rect.maxX &&
+        b.minY >= rect.minY &&
+        b.maxY <= rect.maxY
+      ) {
         out.push(d.id);
       }
     }
@@ -2814,6 +2849,13 @@ export class EditorComponent {
     if (event.key === 'Alt' && (this.mode === 'element' || this.mode === 'node')) {
       event.preventDefault();
       void this.duplicateAndDrag();
+      return;
+    }
+    if (event.key === 'Shift' && (this.mode === 'element' || this.mode === 'node')) {
+      this.shiftHeld = true;
+      if (this.lastPointer) {
+        this.handlePointerMove(this.lastPointer);
+      }
       return;
     }
     if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
@@ -2917,6 +2959,12 @@ export class EditorComponent {
   protected onKeyUp(event: KeyboardEvent): void {
     if (event.key === ' ') {
       this.spaceDown = false;
+    }
+    if (event.key === 'Shift') {
+      this.shiftHeld = false;
+      if ((this.mode === 'element' || this.mode === 'node') && this.lastPointer) {
+        this.handlePointerMove(this.lastPointer);
+      }
     }
     if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
       this.updateDraw(
@@ -3108,7 +3156,9 @@ export class EditorComponent {
     };
     const diagram = this.store.sequenceDiagrams().find((d) => {
       const b = this.diagramBox(d);
-      return !!b && world.x >= b.minX && world.x <= b.maxX && world.y >= b.minY && world.y <= b.maxY;
+      return (
+        !!b && world.x >= b.minX && world.x <= b.maxX && world.y >= b.minY && world.y <= b.maxY
+      );
     });
     if (diagram && locked(diagram.id)) {
       this.store.enterGroup('diagram', diagram.id);
@@ -3226,7 +3276,11 @@ export class EditorComponent {
   protected panToWorld(world: { x: number; y: number }): void {
     const rect = this.canvasRect();
     const v = this.store.viewport();
-    this.store.setViewport(rect.width / 2 - world.x * v.zoom, rect.height / 2 - world.y * v.zoom, v.zoom);
+    this.store.setViewport(
+      rect.width / 2 - world.x * v.zoom,
+      rect.height / 2 - world.y * v.zoom,
+      v.zoom,
+    );
   }
 
   private viewAnim = 0;
@@ -3475,7 +3529,14 @@ export class EditorComponent {
     }
     try {
       const imageData = await this.imageDataFor(elements);
-      const built = buildDiagramSvg(tables, relationships, elements, sequences, undefined, imageData);
+      const built = buildDiagramSvg(
+        tables,
+        relationships,
+        elements,
+        sequences,
+        undefined,
+        imageData,
+      );
       const diagram = { ...built, svg: await embedFonts(built.svg) };
       await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
     } catch (err) {
@@ -3616,7 +3677,12 @@ export class EditorComponent {
 
   /** A frame name made safe for use as a file name. */
   private static fileSafe(name: string | undefined): string {
-    return (name ?? 'frame').trim().replace(/[^\w\-. ]+/g, '').replace(/\s+/g, '-') || 'frame';
+    return (
+      (name ?? 'frame')
+        .trim()
+        .replace(/[^\w\-. ]+/g, '')
+        .replace(/\s+/g, '-') || 'frame'
+    );
   }
 
   private applyZoom(factor: number, centerX: number, centerY: number): void {
