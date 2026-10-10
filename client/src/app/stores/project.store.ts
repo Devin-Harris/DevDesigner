@@ -227,6 +227,9 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     fontFamily: e.fontFamily,
     bold: e.bold,
     italic: e.italic,
+    lineHeight: e.lineHeight,
+    wrap: e.wrap,
+    runs: e.runs,
     textAlign: e.textAlign,
     verticalAlign: e.verticalAlign,
     startBinding: e.startBinding,
@@ -594,6 +597,7 @@ export const ProjectStore = signalStore(
             key === 'startBinding' ||
             key === 'endBinding' ||
             key === 'slide' ||
+            key === 'runs' ||
             key === 'morphId' ||
             key === 'step' ||
             key === 'slideId'

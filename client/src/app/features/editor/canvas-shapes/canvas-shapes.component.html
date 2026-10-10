@@ -251,7 +251,18 @@
             [attr.text-anchor]="t.anchor"
           >
             @for (line of t.lines; track $index) {
-              <tspan [attr.x]="line.x" [attr.y]="line.y">{{ line.text }}</tspan>
+              <tspan [attr.x]="line.x" [attr.y]="line.y" style="white-space: pre">
+                @if (line.spans; as spans) {
+                  @for (sp of spans; track $index) {
+                    <tspan
+                      [attr.font-weight]="sp.fontWeight"
+                      [attr.font-style]="sp.fontStyle"
+                      [attr.fill]="sp.color"
+                      [attr.text-decoration]="sp.underline ? 'underline' : null"
+                    >{{ sp.text }}</tspan>
+                  }
+                } @else {{{ line.text }}}
+              </tspan>
             }
           </text>
         }
@@ -267,7 +278,18 @@
             [attr.text-anchor]="l.anchor"
           >
             @for (line of l.lines; track $index) {
-              <tspan [attr.x]="line.x" [attr.y]="line.y">{{ line.text }}</tspan>
+              <tspan [attr.x]="line.x" [attr.y]="line.y" style="white-space: pre">
+                @if (line.spans; as spans) {
+                  @for (sp of spans; track $index) {
+                    <tspan
+                      [attr.font-weight]="sp.fontWeight"
+                      [attr.font-style]="sp.fontStyle"
+                      [attr.fill]="sp.color"
+                      [attr.text-decoration]="sp.underline ? 'underline' : null"
+                    >{{ sp.text }}</tspan>
+                  }
+                } @else {{{ line.text }}}
+              </tspan>
             }
           </text>
         }
@@ -356,6 +378,27 @@
               height="10"
               (pointerdown)="onResize(s.id, 'se', $event)"
             ></rect>
+            @if (s.type === 'text') {
+              <!-- Side handles set a fixed width: the text wraps and the height follows it. -->
+              <rect
+                class="handle side"
+                rx="3"
+                [attr.x]="s.bbox.x - 4"
+                [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
+                width="8"
+                height="18"
+                (pointerdown)="onResize(s.id, 'w', $event)"
+              ></rect>
+              <rect
+                class="handle side"
+                rx="3"
+                [attr.x]="s.bbox.x + s.bbox.width - 4"
+                [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
+                width="8"
+                height="18"
+                (pointerdown)="onResize(s.id, 'e', $event)"
+              ></rect>
+            }
           }
         </g>
       }

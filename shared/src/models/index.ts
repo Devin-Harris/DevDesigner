@@ -101,6 +101,16 @@ export interface ElementBinding {
   targetId: string;
 }
 
+/** One styled stretch of a rich text block; unset flags inherit the element's style. */
+export interface TextRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** CSS color overriding the element's stroke color for this run. */
+  color?: string;
+}
+
 /** How a slide is entered: type, direction (for `slide`), duration (ms) and easing. */
 export interface SlideTransition {
   type: SlideTransitionType;
@@ -170,6 +180,16 @@ export interface CanvasElementModel {
   /** Text weight/style toggles for a text element or shape label. */
   bold?: boolean;
   italic?: boolean;
+  /** Line height as a multiple of the font size (default 1.25). */
+  lineHeight?: number;
+  /** Text only: fixed width — text wraps to `width` and the height follows it. Absent = auto-size. */
+  wrap?: boolean;
+  /**
+   * Rich text: styled runs that concatenate to `text` (which stays the plain-text
+   * source of truth for search/export). Absent = the whole block is styled
+   * uniformly by the element's own bold/italic/color.
+   */
+  runs?: TextRun[];
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   /** Line/arrow only: bound endpoints that re-route as their target moves. */

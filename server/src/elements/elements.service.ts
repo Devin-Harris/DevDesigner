@@ -84,6 +84,9 @@ export class ElementsService {
       fontFamily: dto.fontFamily ?? null,
       bold: dto.bold ?? null,
       italic: dto.italic ?? null,
+      lineHeight: dto.lineHeight ?? null,
+      wrap: dto.wrap ?? null,
+      runsJson: dto.runs?.length ? JSON.stringify(dto.runs) : null,
       textAlign: dto.textAlign ?? null,
       verticalAlign: dto.verticalAlign ?? null,
       startBindingKind: dto.startBinding?.targetKind ?? null,
@@ -205,6 +208,8 @@ export class ElementsService {
       'fontFamily',
       'bold',
       'italic',
+      'lineHeight',
+      'wrap',
       'textAlign',
       'verticalAlign',
       'startArrowhead',
@@ -227,6 +232,9 @@ export class ElementsService {
     }
     if (dto.points !== undefined) {
       element.pointsJson = JSON.stringify(dto.points);
+    }
+    if (dto.runs !== undefined) {
+      element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;
     }
     if (dto.groupId !== undefined) {
       element.groupId = dto.groupId;

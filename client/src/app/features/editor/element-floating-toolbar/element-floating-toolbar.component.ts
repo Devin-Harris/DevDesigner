@@ -15,14 +15,22 @@ import {
   type VerticalAlign,
 } from '@dbdesigner/shared';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
-import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
+import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
+import { RichTextSessionService } from '../../../core/services/rich-text-session.service';
+import { clearRunKeys, isPlainRuns, patchRuns, runsOrPlain } from '../canvas/helpers/rich-text.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
+import {
+  DEFAULT_LINE_HEIGHT,
+  ensureFontLoaded,
+  LINE_HEIGHTS,
+  withTextFit,
+} from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
 
 // Saturated palette shared with the table header tints (no muted pastels).
-const STROKE_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+const STROKE_COLORS = ['#ffffff', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
 const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 const STROKE_WIDTHS: { value: number; label: string }[] = [
   { value: 1, label: 'Thin' },
@@ -33,11 +41,6 @@ const STROKE_STYLE_ICONS: { value: StrokeStyle; icon: string }[] = [
   { value: 'solid', icon: 'remove' },
   { value: 'dashed', icon: 'more_horiz' },
   { value: 'dotted', icon: 'drag_handle' },
-];
-const FONTS: { value: FontFamily; label: string }[] = [
-  { value: 'hand', label: 'Hand-drawn' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'code', label: 'Code' },
 ];
 const FONT_SIZES = [14, 16, 20, 28, 36, 48];
 const CODE_FONT_SIZES = [11, 12, 14, 16, 18, 20, 24];
@@ -67,11 +70,14 @@ export class ElementFloatingToolbarComponent {
   protected readonly store = inject(ProjectStore);
   private readonly editorActions = inject(EditorActionsService);
   private readonly codeActions = inject(CodeActionsService);
+  private readonly rich = inject(RichTextSessionService);
   protected readonly strokeColors = STROKE_COLORS;
   protected readonly fillColors = FILL_COLORS;
   protected readonly strokeWidths = STROKE_WIDTHS;
   protected readonly strokeStyleIcons = STROKE_STYLE_ICONS;
-  protected readonly fonts = FONTS;
+  protected readonly fonts = FONT_OPTIONS;
+  protected readonly lineHeights = LINE_HEIGHTS;
+  protected readonly stackOf = fontStack;
   protected readonly fontSizes = FONT_SIZES;
   protected readonly arrowheads = ARROWHEADS;
 
@@ -79,6 +85,30 @@ export class ElementFloatingToolbarComponent {
   readonly element = input.required<CanvasElementModel>();
 
   protected readonly isText = computed(() => this.element().type === 'text');
+
+  /** True while this text element is open in the inline rich-text editor. */
+  private readonly editingRich = computed(() => this.rich.editingId() === this.element().id);
+  /** Styling state shown by the toolbar: the selected characters while editing. */
+  protected readonly boldOn = computed(() =>
+    this.editingRich() ? !!this.rich.selection()?.bold : !!this.element().bold,
+  );
+  protected readonly italicOn = computed(() =>
+    this.editingRich() ? !!this.rich.selection()?.italic : !!this.element().italic,
+  );
+  protected readonly underlineOn = computed(() => {
+    if (this.editingRich()) {
+      return !!this.rich.selection()?.underline;
+    }
+    const el = this.element();
+    const runs = runsOrPlain(el.text ?? '', el.runs);
+    return runs.length > 0 && runs.every((r) => r.underline);
+  });
+  protected readonly strokeSwatch = computed(
+    () => (this.editingRich() ? this.rich.selection()?.color : null) ?? this.element().strokeColor,
+  );
+  protected readonly currentLineHeight = computed(
+    () => this.element().lineHeight ?? DEFAULT_LINE_HEIGHT,
+  );
   /** Pictures have no stroke/fill styling, only opacity and layering. */
   protected readonly isImage = computed(() => this.element().type === 'image');
   protected readonly isCode = computed(() => this.element().type === 'code');
@@ -130,7 +160,9 @@ export class ElementFloatingToolbarComponent {
     const ids = this.store.selectedElementIds();
     const targets = ids.length ? ids : [this.element().id];
     for (const id of targets) {
-      void this.store.updateElement(id, patch);
+      // Text boxes hug their glyphs: a font/size/weight change refits the box.
+      const el = this.store.elements().find((e) => e.id === id);
+      void this.store.updateElement(id, el ? withTextFit(el, this.withRunReset(el, patch)) : patch);
     }
     const stylePatch: Record<string, unknown> = {};
     for (const key of ElementFloatingToolbarComponent.STYLE_KEYS) {
@@ -141,6 +173,24 @@ export class ElementFloatingToolbarComponent {
     if (Object.keys(stylePatch).length) {
       this.store.setElementStyle(stylePatch);
     }
+  }
+
+  /**
+   * An element-level color/bold/italic change should win over per-character
+   * overrides, so the overrides it replaces are dropped from the rich runs.
+   */
+  private withRunReset(el: CanvasElementModel, patch: UpdateElementDto): UpdateElementDto {
+    if (el.type !== 'text' || !el.runs?.length) {
+      return patch;
+    }
+    const keys: ('bold' | 'italic' | 'color')[] = [];
+    if ('strokeColor' in patch) keys.push('color');
+    if ('bold' in patch) keys.push('bold');
+    if ('italic' in patch) keys.push('italic');
+    if (!keys.length) {
+      return patch;
+    }
+    return { ...patch, runs: clearRunKeys(el.runs, keys) };
   }
 
   /** Code-block edits apply to every selected code block and never touch the sticky text style. */
@@ -169,6 +219,9 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected setStroke(color: string): void {
+    if (this.editingRich() && this.rich.apply({ color })) {
+      return;
+    }
     this.patchAll({ strokeColor: color });
   }
 
@@ -198,7 +251,12 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected setFont(font: FontFamily): void {
-    this.patchAll({ fontFamily: font });
+    // Fonts are downloaded on first use; wait so the box is measured in the real face.
+    void ensureFontLoaded(font).then(() => this.patchAll({ fontFamily: font }));
+  }
+
+  protected setLineHeight(lineHeight: number): void {
+    this.patchAll({ lineHeight });
   }
 
   protected setFontSize(size: number): void {
@@ -206,10 +264,46 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected toggleBold(): void {
+    if (this.editingRich() && this.rich.apply({ bold: !this.boldOn() })) {
+      return;
+    }
     this.patchAll({ bold: !this.element().bold });
   }
 
+  /** Switch a text block between auto-size and fixed-width (wrapping) mode. */
+  protected toggleWrap(): void {
+    const on = !this.element().wrap;
+    const ids = this.store.selectedElementIds();
+    for (const id of ids.length ? ids : [this.element().id]) {
+      const el = this.store.elements().find((e) => e.id === id);
+      if (el?.type === 'text') {
+        void this.store.updateElement(id, withTextFit(el, { wrap: on }));
+      }
+    }
+  }
+
+  /** Underline has no element-level flag: it is applied to every run of the block. */
+  protected toggleUnderline(): void {
+    const on = !this.underlineOn();
+    if (this.editingRich() && this.rich.apply({ underline: on })) {
+      return;
+    }
+    const ids = this.store.selectedElementIds();
+    for (const id of ids.length ? ids : [this.element().id]) {
+      const el = this.store.elements().find((e) => e.id === id);
+      if (el?.type !== 'text') {
+        continue;
+      }
+      const text = el.text ?? '';
+      const runs = patchRuns(runsOrPlain(text, el.runs), 0, text.length, { underline: on });
+      void this.store.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
+    }
+  }
+
   protected toggleItalic(): void {
+    if (this.editingRich() && this.rich.apply({ italic: !this.italicOn() })) {
+      return;
+    }
     this.patchAll({ italic: !this.element().italic });
   }
 

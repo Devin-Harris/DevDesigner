@@ -24,6 +24,7 @@ import type {
   PointModel,
   SchemaModel,
   SlideConfig,
+  TextRun,
 } from '../models';
 import type { SchemaMutation } from '../realtime';
 
@@ -264,6 +265,9 @@ export interface CreateElementDto {
   fontFamily?: string;
   bold?: boolean;
   italic?: boolean;
+  lineHeight?: number;
+  wrap?: boolean;
+  runs?: TextRun[];
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   startBinding?: ElementBinding | null;
@@ -303,6 +307,10 @@ export interface UpdateElementDto {
   fontFamily?: string;
   bold?: boolean;
   italic?: boolean;
+  lineHeight?: number;
+  wrap?: boolean;
+  /** null clears the rich runs (uniform styling). */
+  runs?: TextRun[] | null;
   textAlign?: TextAlign;
   verticalAlign?: VerticalAlign;
   /** null clears a binding (endpoint reverts to its stored point). */

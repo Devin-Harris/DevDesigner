@@ -3,9 +3,11 @@ import type {
   ElementBinding,
   TableModel,
   TextAlign,
+  TextRun,
   VerticalAlign,
 } from '@dbdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
+import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import type {
   CodeBlockView,
   ShapeView,
@@ -37,10 +39,31 @@ import { ANCHOR_GAP } from '../constants/canvas.constants';
 
 /** Map a stored font-family key to a concrete CSS font stack (see index.html). */
 export const FONT_STACKS: Record<string, string> = {
-  hand: "'Kalam', 'Comic Sans MS', cursive",
   normal: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+  inter: "'Inter', 'Segoe UI', system-ui, sans-serif",
+  poppins: "'Poppins', 'Segoe UI', system-ui, sans-serif",
+  serif: "'Lora', Georgia, 'Times New Roman', serif",
+  display: "'Playfair Display', Georgia, 'Times New Roman', serif",
+  condensed: "'Oswald', 'Arial Narrow', Impact, sans-serif",
+  hand: "'Kalam', 'Comic Sans MS', cursive",
+  caveat: "'Caveat', 'Segoe Script', cursive",
+  marker: "'Permanent Marker', 'Marker Felt', cursive",
   code: "'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace",
 };
+
+/** Font choices offered in the text controls (labels are drawn in their own face). */
+export const FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'normal', label: 'Nunito' },
+  { value: 'inter', label: 'Inter' },
+  { value: 'poppins', label: 'Poppins' },
+  { value: 'serif', label: 'Lora (serif)' },
+  { value: 'display', label: 'Playfair (display)' },
+  { value: 'condensed', label: 'Oswald (condensed)' },
+  { value: 'hand', label: 'Kalam (hand)' },
+  { value: 'caveat', label: 'Caveat (script)' },
+  { value: 'marker', label: 'Permanent Marker' },
+  { value: 'code', label: 'JetBrains Mono' },
+];
 
 export function fontStack(key: string | undefined): string {
   return FONT_STACKS[key ?? 'normal'] ?? FONT_STACKS['normal'];
@@ -167,6 +190,80 @@ function wrapParagraph(para: string, maxWidth: number, cssFont: string): string[
   return lines;
 }
 
+/** Build a CSS font shorthand for a run, given the block's typography. */
+function cssFontFor(opts: { fontSize: number; fontFamilyKey: string | undefined }) {
+  const stack = fontStack(opts.fontFamilyKey);
+  return (weight: number, italic: boolean): string =>
+    `${italic ? 'italic ' : ''}${weight} ${opts.fontSize}px ${stack}`;
+}
+
+/**
+ * Word-wrap styled lines to `maxWidth`. Words are measured in their own run's
+ * font (bold is wider), long words are broken by character, and trailing spaces
+ * are dropped at a break so alignment stays true.
+ */
+function wrapRunLines(
+  paragraphs: TextRun[][],
+  maxWidth: number,
+  baseWeight: number,
+  baseItalic: boolean,
+  fontFor: (weight: number, italic: boolean) => string,
+): TextRun[][] {
+  const out: TextRun[][] = [];
+  for (const para of paragraphs) {
+    let line: TextRun[] = [];
+    let width = 0;
+    const add = (run: TextRun, text: string): void => {
+      const last = line[line.length - 1];
+      if (
+        last &&
+        last.bold === run.bold &&
+        last.italic === run.italic &&
+        last.underline === run.underline &&
+        last.color === run.color
+      ) {
+        last.text += text;
+      } else {
+        line.push({ ...run, text });
+      }
+    };
+    const flush = (): void => {
+      const last = line[line.length - 1];
+      if (last) {
+        last.text = last.text.replace(/\s+$/, '');
+      }
+      out.push(line.filter((r) => r.text));
+      line = [];
+      width = 0;
+    };
+    for (const run of para) {
+      const font = fontFor(runWeight(baseWeight, run), run.italic ?? baseItalic);
+      for (const tok of run.text.match(/\S+\s*|\s+/g) ?? []) {
+        const wordW = measureWidth(tok.replace(/\s+$/, ''), font);
+        if (width > 0 && width + wordW > maxWidth) {
+          flush();
+        }
+        if (wordW > maxWidth) {
+          // A word wider than the box: break it by character.
+          for (const ch of tok) {
+            const cw = measureWidth(ch, font);
+            if (width > 0 && width + cw > maxWidth) {
+              flush();
+            }
+            add(run, ch);
+            width += cw;
+          }
+        } else {
+          add(run, tok);
+          width += measureWidth(tok, font);
+        }
+      }
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 /**
  * Lay out a text block inside a box with wrapping and horizontal/vertical
  * alignment. `wrap` false keeps explicit lines only (auto-size text); true wraps
@@ -185,22 +282,37 @@ function layoutTextBlock(
     vAlign: VerticalAlign;
     padding: number;
     wrap: boolean;
+    /** Line height as a multiple of the font size (default 1.25). */
+    lineHeight?: number;
+    /** Styled runs (honoured when not wrapping); `resolveColor` guards run colors for contrast. */
+    runs?: readonly TextRun[] | null;
+    resolveColor?: (color: string) => string;
   },
 ): TextBlockView {
   const stack = fontStack(opts.fontFamilyKey);
   const style = opts.italic ? 'italic ' : '';
   const cssFont = `${style}${opts.fontWeight} ${opts.fontSize}px ${stack}`;
   const maxWidth = Math.max(8, box.width - opts.padding * 2);
-  const paragraphs = text.split('\n');
+  const rich = opts.runs?.length
+    ? opts.wrap
+      ? wrapRunLines(runLines(opts.runs), maxWidth, opts.fontWeight, !!opts.italic, cssFontFor(opts))
+      : runLines(opts.runs)
+    : null;
   const lines: string[] = [];
-  for (const para of paragraphs) {
-    if (opts.wrap) {
-      lines.push(...wrapParagraph(para, maxWidth, cssFont));
-    } else {
-      lines.push(para);
+  if (rich) {
+    for (const line of rich) {
+      lines.push(line.map((r) => r.text).join(''));
+    }
+  } else {
+    for (const para of text.split('\n')) {
+      if (opts.wrap) {
+        lines.push(...wrapParagraph(para, maxWidth, cssFont));
+      } else {
+        lines.push(para);
+      }
     }
   }
-  const lineHeight = opts.fontSize * LINE_HEIGHT;
+  const lineHeight = opts.fontSize * (opts.lineHeight ?? LINE_HEIGHT);
   const blockHeight = lines.length * lineHeight;
   let top: number;
   switch (opts.vAlign) {
@@ -221,11 +333,22 @@ function layoutTextBlock(
       : anchor === 'end'
         ? box.x + box.width - opts.padding
         : box.x + opts.padding;
-  const lineViews: TextLineView[] = lines.map((t, i) => ({
-    text: t,
-    x,
-    y: top + i * lineHeight + opts.fontSize * 0.8,
-  }));
+  // The baseline sits where a browser puts it: centred in the line box, so a
+  // looser line height adds space above and below the glyphs rather than only below.
+  const baseline = lineHeight / 2 + opts.fontSize * 0.175;
+  const lineViews: TextLineView[] = lines.map((t, i) => {
+    const view: TextLineView = { text: t, x, y: top + i * lineHeight + baseline };
+    if (rich) {
+      view.spans = rich[i].map((r) => ({
+        text: r.text,
+        fontWeight: runWeight(opts.fontWeight, r),
+        fontStyle: (r.italic ?? !!opts.italic) ? 'italic' : 'normal',
+        underline: !!r.underline,
+        color: r.color ? (opts.resolveColor?.(r.color) ?? r.color) : opts.color,
+      }));
+    }
+    return view;
+  });
   return {
     lines: lineViews,
     fontSize: opts.fontSize,
@@ -529,6 +652,7 @@ function shapeLabel(
     vAlign: element.verticalAlign ?? 'middle',
     padding: 8,
     wrap: true,
+    lineHeight: element.lineHeight,
   });
 }
 
@@ -752,23 +876,35 @@ export function buildShapeViews(
         break;
       }
       case 'text': {
-        // Text wraps to its box width. While typing (auto mode) the box is kept
-        // as wide as the content, so wrapping is a no-op; once the box has been
-        // resized narrower, the text reflows to fit. Either way the selection box
-        // is then fit to the wrapped content height so text never spills out.
+        // Text hugs its glyphs and never wraps: the box is sized to the content
+        // (resizing scales the font instead). The one exception is legacy text
+        // that was resized narrower before this model — it keeps its wrapping
+        // until it is next edited, so existing drawings do not change.
         const tFontSize = element.fontSize ?? DEFAULT_FONT_SIZE;
+        const tWeight = element.bold ? 800 : fontWeightFor(element.strokeWidth);
+        // Legacy-wrapped text is recognised from its stored HEIGHT (taller than its
+        // explicit lines), which — unlike a width measurement — does not depend on
+        // whether the web font has loaded yet.
+        const explicitLines = (element.text ?? '').split('\n').length;
+        const lineH = tFontSize * (element.lineHeight ?? LINE_HEIGHT);
+        const legacyWrapped =
+          element.wrap ?? element.height > explicitLines * lineH + 4 + lineH * 0.5;
         base.text = layoutTextBlock(element.text ?? '', base.bbox, {
           fontSize: tFontSize,
           fontFamilyKey: element.fontFamily,
-          fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+          fontWeight: tWeight,
           italic: element.italic,
           color: stroke,
           align: element.textAlign ?? 'left',
           vAlign: element.verticalAlign ?? 'top',
           padding: 2,
-          wrap: true,
+          wrap: legacyWrapped,
+          lineHeight: element.lineHeight,
+          runs: usableRuns(element.text ?? '', element.runs),
+          resolveColor: (c) => contrastSafe(c, theme),
         });
-        const contentH = base.text.lines.length * tFontSize * LINE_HEIGHT + 4;
+        const contentH =
+          base.text.lines.length * tFontSize * (element.lineHeight ?? LINE_HEIGHT) + 4;
         base.bbox = { ...base.bbox, height: contentH };
         break;
       }

@@ -5,6 +5,17 @@ export interface TextLineView {
   text: string;
   x: number;
   y: number;
+  /** Rich text: the styled pieces of this line (absent = the line is one plain run). */
+  spans?: TextSpanView[];
+}
+
+/** One styled piece of a rich-text line. */
+export interface TextSpanView {
+  text: string;
+  fontWeight: number;
+  fontStyle: 'normal' | 'italic';
+  underline: boolean;
+  color: string;
 }
 
 /** A laid-out text block (a text element's content, or a shape's centered label). */

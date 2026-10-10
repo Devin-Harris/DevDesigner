@@ -12,11 +12,13 @@ import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
+import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
+import { withTextFit } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 // Saturated palette shared with the table header tints (no muted pastels).
-const STROKE_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+const STROKE_COLORS = ['#ffffff', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
 const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 
 /**
@@ -42,11 +44,8 @@ export class ElementInspectorComponent {
   protected readonly fillColors = FILL_COLORS;
   protected readonly widths = [1, 2, 4];
   protected readonly styles: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
-  protected readonly fonts: { value: FontFamily; label: string }[] = [
-    { value: 'hand', label: 'Hand' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'code', label: 'Code' },
-  ];
+  protected readonly stackOf = fontStack;
+  protected readonly fonts = FONT_OPTIONS as { value: FontFamily; label: string }[];
 
   protected readonly kindLabel = computed(() => {
     const t = this.element().type;
@@ -94,7 +93,9 @@ export class ElementInspectorComponent {
     const ids = this.store.selectedElementIds();
     const targets = ids.length ? ids : [this.element().id];
     for (const id of targets) {
-      void this.store.updateElement(id, patch);
+      // Text boxes hug their glyphs: a font/size/weight change refits the box.
+      const el = this.store.elements().find((e) => e.id === id);
+      void this.store.updateElement(id, el ? withTextFit(el, patch) : patch);
     }
     const stylePatch: Record<string, unknown> = {};
     for (const key of ElementInspectorComponent.STYLE_KEYS) {

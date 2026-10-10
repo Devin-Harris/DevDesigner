@@ -5,7 +5,7 @@ import type { ShapeView } from '../canvas/models/shape-view.model';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
-export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
+export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'e' | 'w';
 
 export interface ShapePointerEvent {
   id: string;

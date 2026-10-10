@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -25,6 +26,7 @@ import {
   type FillStyle,
   type PointModel,
   type SlideConfig,
+  type TextRun,
   type StrokeStyle,
   type TextAlign,
   type VerticalAlign,
@@ -33,6 +35,7 @@ import {
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
 import { SlideDto } from './slide.dto';
+import { TextRunDto } from './text-run.dto';
 
 /** Body for PATCH /elements/:elementId (style / content / geometry). */
 export class UpdateElementDto implements IUpdateElementDto {
@@ -117,6 +120,23 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsBoolean()
   italic?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.8)
+  @Max(4)
+  lineHeight?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  wrap?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @ValidateNested({ each: true })
+  @Type(() => TextRunDto)
+  runs?: TextRun[] | null;
 
   @IsOptional()
   @IsIn([...TEXT_ALIGNS])

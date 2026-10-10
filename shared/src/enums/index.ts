@@ -136,8 +136,29 @@ export type VerticalAlign = 'top' | 'middle' | 'bottom';
 export const VERTICAL_ALIGNS: readonly VerticalAlign[] = ['top', 'middle', 'bottom'] as const;
 
 /** Font family presets for text elements (Excalidraw-style). */
-export type FontFamily = 'hand' | 'normal' | 'code';
-export const FONT_FAMILIES: readonly FontFamily[] = ['hand', 'normal', 'code'] as const;
+export type FontFamily =
+  | 'hand'
+  | 'normal'
+  | 'code'
+  | 'inter'
+  | 'poppins'
+  | 'serif'
+  | 'display'
+  | 'condensed'
+  | 'caveat'
+  | 'marker';
+export const FONT_FAMILIES: readonly FontFamily[] = [
+  'normal',
+  'inter',
+  'poppins',
+  'serif',
+  'display',
+  'condensed',
+  'hand',
+  'caveat',
+  'marker',
+  'code',
+] as const;
 
 /** Arrowhead style at a line/arrow endpoint. */
 export type ArrowheadType = 'none' | 'arrow' | 'triangle' | 'dot' | 'bar';

@@ -225,3 +225,21 @@
     cursor: default;
   }
 }
+
+.font-select {
+  width: 100%;
+  height: 32px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius-sm);
+  background: var(--dbd-surface-2);
+  color: var(--dbd-text);
+  font-size: 14px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--dbd-primary);
+    outline-offset: 1px;
+  }
+}

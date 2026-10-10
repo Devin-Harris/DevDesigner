@@ -94,6 +94,18 @@ export class ElementEntity {
   @Column({ type: 'boolean', nullable: true })
   italic!: boolean | null;
 
+  /** Line height as a multiple of the font size; null = default (1.25). */
+  @Column({ type: 'float', nullable: true })
+  lineHeight!: number | null;
+
+  /** Text: fixed-width wrapping mode (null = auto-size). */
+  @Column({ type: 'boolean', nullable: true })
+  wrap!: boolean | null;
+
+  /** Rich text: JSON-encoded TextRun[] that concatenates to `text`; null = uniform style. */
+  @Column({ type: 'text', nullable: true })
+  runsJson!: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   textAlign!: TextAlign | null;
 

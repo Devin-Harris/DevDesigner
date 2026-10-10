@@ -254,6 +254,36 @@
     }
 
     @if (textEditor(); as t) {
+     @if (t.rich) {
+      <div
+        #richEditor
+        class="text-editor rich"
+        [class.wrap]="t.wrap"
+        [style.width.px]="t.wrap ? t.width : null"
+        contenteditable="true"
+        spellcheck="false"
+        role="textbox"
+        aria-multiline="true"
+        [style.line-height.px]="t.lineHeight"
+        [style.left.px]="t.left"
+        [style.top.px]="t.top"
+        [style.min-width.px]="t.width"
+        [style.min-height.px]="t.height"
+        [style.font-size.px]="t.fontSize"
+        [style.font-family]="t.fontFamily"
+        [style.font-weight]="t.fontWeight"
+        [style.font-style]="t.italic ? 'italic' : 'normal'"
+        [style.text-align]="t.align"
+        [style.padding.px]="t.padding"
+        [style.color]="t.color"
+        (pointerdown)="$event.stopPropagation()"
+        (keydown)="onRichKeydown($event)"
+        (input)="onRichInput()"
+        (paste)="onRichPaste($event)"
+        (drop)="$event.preventDefault()"
+        (blur)="onRichBlur()"
+      ></div>
+     } @else {
       <textarea
         appAutofocus
         class="text-editor"
@@ -281,6 +311,7 @@
         (input)="onTextInput($any($event.target).value)"
         (blur)="commitTextEdit()"
       ></textarea>
+     }
     }
 
     @if (elementToolbar(); as et) {

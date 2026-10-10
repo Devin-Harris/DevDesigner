@@ -102,6 +102,10 @@
 
 .handle {
   cursor: nwse-resize;
+
+  &.side {
+    cursor: ew-resize;
+  }
 }
 
 .endpoint {

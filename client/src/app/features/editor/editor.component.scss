@@ -63,12 +63,21 @@
   min-width: 8px;
   min-height: 1em;
   margin: 0;
-  border: 1px dashed var(--dbd-primary);
-  background: transparent;
+  // No border: it would nudge the glyphs off the rendered text. The edit state is
+  // a soft, layout-free halo so the text looks the same as when it is not editing.
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
   outline: none;
   resize: none;
   overflow: hidden;
   line-height: 1.25;
+  caret-color: currentColor;
+
+  &::selection {
+    background: color-mix(in srgb, var(--dbd-primary) 30%, transparent);
+  }
   // Text elements never wrap (auto-sized to content); `.wrap` (shape labels)
   // wraps to the box width like the rendered label.
   white-space: pre;
@@ -83,12 +92,23 @@
     transform: translate(-50%, -50%);
   }
 
+  // Rich text: a contenteditable host that grows with its content (the store keeps
+  // the element's box in step), so nothing is clipped or wrapped while typing.
+  &.rich {
+    width: max-content;
+    overflow: visible;
+    cursor: text;
+    user-select: text;
+    -webkit-user-modify: read-write;
+    // The transform on .centered is not used for text elements.
+  }
+
   // Code cards: glyphs are transparent so the highlighted SVG shows through; the
   // padding/line-height/font are set inline to match the rendered lines exactly.
   &.code {
     tab-size: 2;
-    // No border (it would offset the glyphs); an inset ring marks edit mode instead.
-    border: 0;
+    // An inset ring marks edit mode (no border: it would offset the glyphs).
+    background: transparent;
     box-shadow: inset 0 0 0 1px var(--dbd-primary);
     border-radius: 8px;
     overflow: hidden;

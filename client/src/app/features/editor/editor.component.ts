@@ -26,6 +26,7 @@ import type {
   RelationshipModel,
   RelationshipType,
   TableModel,
+  TextRun,
 } from '@dbdesigner/shared';
 import {
   generateSql,
@@ -97,6 +98,24 @@ import {
   fontStack,
   fontWeightFor,
 } from './canvas/helpers/shape-render.helper';
+import {
+  DEFAULT_LINE_HEIGHT,
+  fitTextElement,
+  TEXT_MAX_FONT_SIZE,
+  TEXT_MIN_FONT_SIZE,
+} from './canvas/helpers/text-metrics';
+import {
+  isPlainRuns,
+  normalizeRuns,
+  patchRuns,
+  plainOf,
+  runsOrPlain,
+  styleOver,
+  usableRuns,
+  type RunBase,
+  type RunPatch,
+} from './canvas/helpers/rich-text.helper';
+import { RichTextSessionService } from '../../core/services/rich-text-session.service';
 import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
@@ -524,7 +543,10 @@ export class EditorComponent {
   protected readonly elementToolbar = computed(() => {
     // Shown whenever element(s) are selected and no gesture/text-edit is active,
     // even while a draw tool stays active (drawing a shape selects it).
-    if (this.editingTextId() || this.gestureActive()) {
+    const editingId = this.editingTextId();
+    const richEditing =
+      !!editingId && this.store.elements().find((e) => e.id === editingId)?.type === 'text';
+    if ((editingId && !richEditing) || this.gestureActive()) {
       return null;
     }
     const ids = this.store.selectedElementIds();
@@ -862,6 +884,7 @@ export class EditorComponent {
         center: false,
         padding: 0,
         code: false,
+        rich: false,
         lineHeight: null as number | null,
         padLeft: null as number | null,
       };
@@ -888,18 +911,18 @@ export class EditorComponent {
         center: false,
         padding: CODE_PADDING * z,
         code: true,
+        rich: false,
         lineHeight: m.lineHeight * z,
         padLeft: m.textOffset * z,
       };
     }
     const isLabel = el.type !== 'text';
-    // A text element that has been resized keeps its fixed width and wraps.
-    const wrapped = !isLabel && this.resizedTextIds.has(id);
     const fontSize = el.fontSize ?? (isLabel ? 16 : DEFAULT_FONT_SIZE);
     const text = el.text ?? '';
     // Height of the text content itself (so a label's editor can be centered in
     // its shape); a text element's own box is already fit to its content.
-    const contentHeight = Math.max(1, text.split('\n').length) * fontSize * 1.25;
+    const lh = el.lineHeight ?? DEFAULT_LINE_HEIGHT;
+    const contentHeight = Math.max(1, text.split('\n').length) * fontSize * lh;
     // The editor overlays the text exactly, sized and styled to match the
     // rendered glyphs so it reads as true WYSIWYG — no overlay surface and no
     // second copy of the text behind it. A shape label centers over its shape; a
@@ -917,11 +940,12 @@ export class EditorComponent {
       value: text,
       color: el.strokeColor,
       align: isLabel ? 'center' : (el.textAlign ?? 'left'),
-      wrap: isLabel || wrapped,
+      wrap: isLabel || (el.type === 'text' && !!el.wrap),
       center: isLabel,
       padding: (isLabel ? 8 : 2) * z,
       code: false,
-      lineHeight: null as number | null,
+      rich: el.type === 'text',
+      lineHeight: fontSize * z * lh,
       padLeft: null as number | null,
     };
   });
@@ -937,105 +961,6 @@ export class EditorComponent {
       }
     }
     return 'typescript';
-  }
-
-  /**
-   * Measure a multi-line text block in world units using a hidden DOM element in
-   * the ACTUAL rendered web font (canvas `measureText` falls back to a narrower
-   * font for script faces like Kalam and under-measures, so the box came out too
-   * small and the text spilled out). Includes the 2px layout padding on each side
-   * so the glyphs never touch the box edge.
-   */
-  private measureText(
-    text: string,
-    fontSize: number,
-    fontFamilyKey: string | undefined,
-    fontWeight = 400,
-    italic = false,
-    wrapWidth?: number,
-  ): { width: number; height: number } {
-    const el = EditorComponent.measureEl;
-    if (!el) {
-      const lines = text.split('\n');
-      const width = Math.max(1, ...lines.map((l) => l.length)) * fontSize * 0.6;
-      return { width: Math.ceil(width) + 6, height: Math.ceil(lines.length * fontSize * 1.25) };
-    }
-    el.style.fontFamily = fontStack(fontFamilyKey);
-    el.style.fontSize = `${fontSize}px`;
-    el.style.fontWeight = String(fontWeight);
-    el.style.fontStyle = italic ? 'italic' : 'normal';
-    // wrapWidth set => measure the WRAPPED height at that content width; else the
-    // natural single-line width (auto-size).
-    if (wrapWidth != null) {
-      el.style.whiteSpace = 'pre-wrap';
-      el.style.wordBreak = 'break-word';
-      el.style.width = `${Math.max(1, wrapWidth)}px`;
-    } else {
-      el.style.whiteSpace = 'pre';
-      el.style.wordBreak = 'normal';
-      el.style.width = 'auto';
-    }
-    el.textContent = text.length ? text : ' ';
-    const rect = el.getBoundingClientRect();
-    return {
-      width: Math.ceil(rect.width) + 6, // +4 for the 2px layout padding, +2 slack
-      height: Math.ceil(rect.height) + 4,
-    };
-  }
-
-  /** Hidden element used to measure text in the real web font (1x, outside the zoom). */
-  private static readonly measureEl: HTMLDivElement | null = (() => {
-    if (typeof document === 'undefined') {
-      return null;
-    }
-    const el = document.createElement('div');
-    Object.assign(el.style, {
-      position: 'absolute',
-      left: '-9999px',
-      top: '-9999px',
-      visibility: 'hidden',
-      pointerEvents: 'none',
-      whiteSpace: 'pre',
-      lineHeight: '1.25',
-      padding: '0',
-      margin: '0',
-      border: '0',
-      boxSizing: 'content-box',
-    } as Partial<CSSStyleDeclaration>);
-    el.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(el);
-    return el;
-  })();
-
-  /**
-   * Text element ids whose box has been manually resized: they keep a fixed width
-   * and WRAP their text, instead of auto-growing to fit. Seeded on edit-start from
-   * geometry (text wider than its box) so it survives reloads. In-memory only.
-   */
-  private readonly resizedTextIds = new Set<string>();
-
-  /** Whether a text element is in fixed-width (wrap) mode rather than auto-size. */
-  private isWrappedText(id: string): boolean {
-    return this.resizedTextIds.has(id);
-  }
-
-  /**
-   * Seed the fixed-width/wrap flag for an existing committed text from geometry:
-   * if its settled box is narrower than the natural single-line text, it was
-   * resized. Called at edit-start only (never on a freshly-created box, whose
-   * initial width would wrongly read as "narrower than the text").
-   */
-  private seedWrapFlag(el: CanvasElementModel): void {
-    const natural = this.measureText(
-      el.text ?? '',
-      el.fontSize ?? DEFAULT_FONT_SIZE,
-      el.fontFamily,
-      el.bold ? 800 : fontWeightFor(el.strokeWidth),
-      el.italic,
-    );
-    if (natural.width > el.width + 2) {
-      this.resizedTextIds.add(el.id);
-    }
   }
 
   /**
@@ -1183,6 +1108,20 @@ export class EditorComponent {
   private lastCursorSent = 0;
 
   constructor() {
+    // Initialise the contenteditable once per editing session (the DOM owns the
+    // content while typing, so it is never re-rendered from the store).
+    effect(() => {
+      const ref = this.richEditorRef();
+      untracked(() => {
+        if (ref && ref.nativeElement !== this.richInitFor) {
+          this.richInitFor = ref.nativeElement;
+          this.initRichEditor(ref.nativeElement);
+        } else if (!ref && this.richInitFor) {
+          this.teardownRichEditor();
+        }
+      });
+    });
+    this.destroyRef.onDestroy(() => this.teardownRichEditor());
     // Slides are locked together: moving one moves all of them (once the move settles).
     effect((onCleanup) => {
       this.store.slideFrames();
@@ -2187,13 +2126,33 @@ export class EditorComponent {
     const zoom = this.store.viewport().zoom;
     const dx = (ev.clientX - this.startClientX) / zoom;
     const dy = (ev.clientY - this.startClientY) / zoom;
-    const left = g.handle === 'nw' || g.handle === 'sw';
+    const left = g.handle === 'nw' || g.handle === 'sw' || g.handle === 'w';
     const top = g.handle === 'nw' || g.handle === 'ne';
     const cx = s.x + s.width / 2;
     const cy = s.y + s.height / 2;
     const factor = ev.altKey ? 2 : 1;
 
     const resized = this.store.elements().find((e) => e.id === g.id);
+    if (g.handle === 'e' || g.handle === 'w') {
+      // A side handle on text fixes its width: it wraps and the height follows the text.
+      if (resized?.type !== 'text') {
+        return;
+      }
+      let width = Math.max(24, s.width + (left ? -dx : dx) * factor);
+      if (this.gridSnap()) {
+        width = Math.max(24, snapToGrid(width));
+      }
+      const wrapped: CanvasElementModel = { ...resized, wrap: true };
+      const size = fitTextElement(wrapped, { width });
+      const nx = ev.altKey ? cx - width / 2 : left ? s.x + s.width - width : s.x;
+      this.store.patchElementLocal(g.id, {
+        x: Math.round(nx),
+        width,
+        height: size.height,
+        wrap: true,
+      });
+      return;
+    }
     // Pictures keep their proportions by default; Shift frees them (inverse of shapes).
     const keepProportions = resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
 
@@ -2239,21 +2198,31 @@ export class EditorComponent {
       y = top ? s.y + s.height - height : s.y;
     }
 
-    // Resizing a TEXT element fixes its width and makes it wrap: the horizontal
-    // drag sets the width, the height auto-fits the wrapped text (top-anchored),
-    // and the element is flagged so it keeps wrapping instead of auto-growing.
+    // Resizing a TEXT element scales its font (like Excalidraw): the handles
+    // never change where the text wraps, only how big it is. The dragged corner
+    // projects onto the box diagonal, and the opposite corner stays anchored.
     const el = this.store.elements().find((e) => e.id === g.id);
     if (el?.type === 'text') {
-      this.resizedTextIds.add(g.id);
-      const fitted = this.measureText(
-        el.text ?? '',
-        el.fontSize ?? DEFAULT_FONT_SIZE,
-        el.fontFamily,
-        el.bold ? 800 : fontWeightFor(el.strokeWidth),
-        el.italic,
-        width - 4,
-      );
-      this.store.patchElementLocal(g.id, { x, y: s.y, width, height: fitted.height });
+      const startFont = g.snapshot.fontSize ?? DEFAULT_FONT_SIZE;
+      const diag = s.width * s.width + s.height * s.height;
+      const raw = diag > 0 ? 1 + (grow * s.width + growY * s.height) / diag : 1;
+      let fontSize = startFont * Math.max(0.05, raw);
+      fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, fontSize));
+      fontSize = Math.round(fontSize * 2) / 2;
+      // A fixed-width block scales its width with the font so its wrapping is unchanged.
+      const size = fitTextElement(el, {
+        fontSize,
+        width: el.wrap ? s.width * (fontSize / startFont) : undefined,
+      });
+      const tx = ev.altKey ? cx - size.width / 2 : left ? s.x + s.width - size.width : s.x;
+      const ty = ev.altKey ? cy - size.height / 2 : top ? s.y + s.height - size.height : s.y;
+      this.store.patchElementLocal(g.id, {
+        x: Math.round(tx),
+        y: Math.round(ty),
+        width: size.width,
+        height: size.height,
+        fontSize,
+      });
       return;
     }
 
@@ -2361,10 +2330,23 @@ export class EditorComponent {
     }
     const snap = g.snapshot;
     if (this.mode === 'element-resize') {
+      const scaled = el.type === 'text';
       void this.store.commitElementGeometry(
         g.id,
-        { x: snap.x, y: snap.y, width: snap.width, height: snap.height },
-        { x: el.x, y: el.y, width: el.width, height: el.height },
+        {
+          x: snap.x,
+          y: snap.y,
+          width: snap.width,
+          height: snap.height,
+          ...(scaled ? { fontSize: snap.fontSize, wrap: snap.wrap ?? false } : {}),
+        },
+        {
+          x: el.x,
+          y: el.y,
+          width: el.width,
+          height: el.height,
+          ...(scaled ? { fontSize: el.fontSize, wrap: el.wrap ?? false } : {}),
+        },
       );
     } else if (this.mode === 'element-rotate') {
       void this.store.commitElementGeometry(g.id, { angle: snap.angle }, { angle: el.angle });
@@ -2423,20 +2405,9 @@ export class EditorComponent {
     this.store.patchElementLocal(id, { text: value, width: size.width, height: size.height });
   }
 
-  /**
-   * The box a text element should take for `value`: auto-sized to the content in
-   * auto mode, or the current (resized) width with the text wrapped to it.
-   */
+  /** The box a text element takes for `value`: always hugging its content, never wrapped. */
   private fitTextSize(el: CanvasElementModel, value: string): { width: number; height: number } {
-    const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
-    const weight = el.bold ? 800 : fontWeightFor(el.strokeWidth);
-    if (this.isWrappedText(el.id)) {
-      const width = Math.max(16, el.width);
-      const size = this.measureText(value, fontSize, el.fontFamily, weight, el.italic, width - 4);
-      return { width, height: size.height };
-    }
-    const size = this.measureText(value, fontSize, el.fontFamily, weight, el.italic);
-    return { width: Math.max(size.width, 8), height: size.height };
+    return fitTextElement(el, { text: value });
   }
 
   /**
@@ -2515,9 +2486,311 @@ export class EditorComponent {
     }
   }
 
+  // --- rich text editing (contenteditable) ---
+
+  private readonly richEditorRef = viewChild<ElementRef<HTMLDivElement>>('richEditor');
+  private readonly richSession = inject(RichTextSessionService);
+  /** The editor host the current session was initialised for. */
+  private richInitFor: HTMLDivElement | null = null;
+  /** Selection (character offsets) last seen inside the rich editor. */
+  private richSel = { start: 0, end: 0 };
+  private richCleanup: (() => void) | null = null;
+
+  /** Paint runs into the editor host as inline-styled spans. */
+  private renderRichRuns(root: HTMLElement, runs: readonly TextRun[]): void {
+    root.textContent = '';
+    for (const run of runs) {
+      if (!run.text) {
+        continue;
+      }
+      const span = document.createElement('span');
+      span.textContent = run.text;
+      if (run.bold !== undefined) {
+        span.style.fontWeight = run.bold ? '700' : '400';
+      }
+      if (run.italic !== undefined) {
+        span.style.fontStyle = run.italic ? 'italic' : 'normal';
+      }
+      if (run.underline) {
+        span.style.textDecoration = 'underline';
+      }
+      if (run.color) {
+        span.style.color = run.color;
+        span.dataset['color'] = run.color;
+      }
+      root.appendChild(span);
+    }
+    if (plainOf(runs).endsWith('\n')) {
+      // A trailing newline needs a placeholder so the empty last line is visible.
+      root.appendChild(document.createElement('br'));
+    }
+  }
+
+  /** Read the editor host back into runs (tolerant of browser-inserted markup). */
+  private readRichRuns(root: HTMLElement): TextRun[] {
+    const out: TextRun[] = [];
+    const push = (text: string, style: Partial<TextRun>): void => {
+      if (text) {
+        out.push({ text, ...style });
+      }
+    };
+    const styleOf = (el: HTMLElement, parent: Partial<TextRun>): Partial<TextRun> => {
+      const s: Partial<TextRun> = { ...parent };
+      const fw = el.style.fontWeight;
+      if (fw) {
+        s.bold = fw === 'bold' || fw === 'bolder' || Number.parseInt(fw, 10) >= 600;
+      } else if (el.tagName === 'B' || el.tagName === 'STRONG') {
+        s.bold = true;
+      }
+      if (el.style.fontStyle) {
+        s.italic = el.style.fontStyle === 'italic';
+      } else if (el.tagName === 'I' || el.tagName === 'EM') {
+        s.italic = true;
+      }
+      const deco = el.style.textDecorationLine || el.style.textDecoration;
+      if (deco.includes('underline') || el.tagName === 'U') {
+        s.underline = true;
+      }
+      const color = el.dataset['color'] ?? el.style.color;
+      if (color) {
+        s.color = color;
+      }
+      return s;
+    };
+    const lastLeaf = (n: Node): Node => (n.lastChild ? lastLeaf(n.lastChild) : n);
+    const last = lastLeaf(root);
+    const isBlock = (n: Node): boolean =>
+      n instanceof HTMLElement && (n.tagName === 'DIV' || n.tagName === 'P');
+    const walk = (node: Node, style: Partial<TextRun>): void => {
+      node.childNodes.forEach((child, index) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          push(child.nodeValue ?? '', style);
+        } else if (child instanceof HTMLElement) {
+          if (child.tagName === 'BR') {
+            // The trailing <br> is only a placeholder for the last empty line, and
+            // a lone <br> inside a block is that block's own empty line.
+            const placeholder = isBlock(node) && node.childNodes.length === 1;
+            if (child !== last && !placeholder) {
+              push('\n', style);
+            }
+            return;
+          }
+          if (isBlock(child) && (out.length || index > 0)) {
+            push('\n', style);
+          }
+          walk(child, styleOf(child, style));
+        }
+      });
+    };
+    walk(root, {});
+    return normalizeRuns(out);
+  }
+
+  private richOffset(root: HTMLElement, node: Node, offset: number): number {
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  }
+
+  private setRichSelection(root: HTMLElement, start: number, end: number): void {
+    const locate = (target: number): { node: Node; offset: number } => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let seen = 0;
+      let lastNode: Text | null = null;
+      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
+        const len = n.nodeValue?.length ?? 0;
+        if (target <= seen + len) {
+          return { node: n, offset: target - seen };
+        }
+        seen += len;
+        lastNode = n;
+      }
+      return lastNode
+        ? { node: lastNode, offset: lastNode.nodeValue?.length ?? 0 }
+        : { node: root, offset: 0 };
+    };
+    const a = locate(start);
+    const b = locate(end);
+    const range = document.createRange();
+    range.setStart(a.node, a.offset);
+    range.setEnd(b.node, b.offset);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+
+  private richBase(el: CanvasElementModel): RunBase {
+    return {
+      bold: !!el.bold,
+      italic: !!el.italic,
+      underline: false,
+      color: el.strokeColor,
+    };
+  }
+
+  private publishRichSelection(runs?: TextRun[]): void {
+    const root = this.richEditorRef()?.nativeElement;
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!root || !el) {
+      return;
+    }
+    const { start, end } = this.richSel;
+    const style = styleOver(
+      runs ?? this.readRichRuns(root),
+      Math.min(start, end),
+      Math.max(start, end),
+      this.richBase(el),
+    );
+    this.richSession.selection.set({ ...style, hasRange: start !== end });
+  }
+
+  /** Push the editor's runs into the store (live) with the refit box. */
+  private syncRichModel(runs: TextRun[]): void {
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!id || !el) {
+      return;
+    }
+    const text = plainOf(runs);
+    const stored = isPlainRuns(runs) ? undefined : runs;
+    const size = fitTextElement(el, { text, runs: stored ?? null });
+    this.store.patchElementLocal(id, { text, runs: stored, width: size.width, height: size.height });
+  }
+
+  protected onRichInput(): void {
+    const root = this.richEditorRef()?.nativeElement;
+    if (!root) {
+      return;
+    }
+    const runs = this.readRichRuns(root);
+    this.syncRichModel(runs);
+    this.captureRichSelection(root);
+    this.publishRichSelection(runs);
+  }
+
+  private captureRichSelection(root: HTMLElement): void {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !root.contains(sel.anchorNode)) {
+      return;
+    }
+    const r = sel.getRangeAt(0);
+    this.richSel = {
+      start: this.richOffset(root, r.startContainer, r.startOffset),
+      end: this.richOffset(root, r.endContainer, r.endOffset),
+    };
+  }
+
+  /** Style the selected characters, or the whole block when nothing is selected. */
+  private applyRichPatch(patch: RunPatch): void {
+    const root = this.richEditorRef()?.nativeElement;
+    if (!root) {
+      return;
+    }
+    const runs = this.readRichRuns(root);
+    const total = plainOf(runs).length;
+    const { start, end } = this.richSel;
+    const from = start === end ? 0 : Math.min(start, end);
+    const to = start === end ? total : Math.max(start, end);
+    const next = patchRuns(runs, from, to, patch);
+    this.renderRichRuns(root, next);
+    root.focus();
+    this.setRichSelection(root, Math.min(start, total), Math.min(end, total));
+    this.syncRichModel(next);
+    this.publishRichSelection(next);
+  }
+
+  private initRichEditor(root: HTMLDivElement): void {
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!id || !el || el.type !== 'text') {
+      return;
+    }
+    const text = el.text ?? '';
+    this.renderRichRuns(root, runsOrPlain(text, el.runs));
+    root.focus();
+    this.setRichSelection(root, text.length, text.length);
+    this.richSel = { start: text.length, end: text.length };
+    this.richSession.open(id, (patch) => this.applyRichPatch(patch));
+    this.publishRichSelection();
+
+    const onSelection = (): void => {
+      if (document.activeElement === root) {
+        this.captureRichSelection(root);
+        this.publishRichSelection();
+      }
+    };
+    // Toolbar buttons and their menus must not steal focus (and so the selection)
+    // from the editor; sliders and text fields still need it.
+    const onMouseDown = (e: MouseEvent): void => {
+      const t = e.target as Element | null;
+      if (
+        t?.closest('app-element-floating-toolbar, .cdk-overlay-pane, .dbd-overlay-backdrop') &&
+        !t.closest('input[type=range], input[type=text], input[type=number], textarea')
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('selectionchange', onSelection);
+    document.addEventListener('mousedown', onMouseDown, true);
+    this.richCleanup = () => {
+      document.removeEventListener('selectionchange', onSelection);
+      document.removeEventListener('mousedown', onMouseDown, true);
+    };
+  }
+
+  private teardownRichEditor(): void {
+    this.richCleanup?.();
+    this.richCleanup = null;
+    this.richInitFor = null;
+    this.richSession.close();
+  }
+
+  protected onRichKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      (event.target as HTMLElement).blur();
+      return;
+    }
+    if (event.key === 'Enter' && !event.isComposing) {
+      // A plain line break keeps the content flat (no nested block elements).
+      event.preventDefault();
+      document.execCommand('insertLineBreak');
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      const key = event.key.toLowerCase();
+      const flag = key === 'b' ? 'bold' : key === 'i' ? 'italic' : key === 'u' ? 'underline' : null;
+      if (flag) {
+        event.preventDefault();
+        const current = this.richSession.selection();
+        this.applyRichPatch({ [flag]: !(current?.[flag] ?? false) });
+      }
+    }
+  }
+
+  protected onRichPaste(event: ClipboardEvent): void {
+    // Plain text only: pasted markup would drag foreign styles into the block.
+    event.preventDefault();
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (text) {
+      document.execCommand('insertText', false, text);
+    }
+  }
+
+  protected onRichBlur(): void {
+    // Switching windows or opening a native picker blurs the editor without leaving it.
+    if (!document.hasFocus()) {
+      return;
+    }
+    this.commitTextEdit();
+  }
+
   protected commitTextEdit(): void {
     const id = this.editingTextId();
     this.editingTextId.set(null);
+    this.teardownRichEditor();
     if (!id) {
       return;
     }
@@ -2550,8 +2823,14 @@ export class EditorComponent {
       void this.store.deleteElement(id);
       return;
     }
-    const size = this.fitTextSize(el, text);
-    void this.store.updateElement(id, { text, width: size.width, height: size.height });
+    const runs = usableRuns(text, el.runs);
+    const size = fitTextElement(el, { text, runs });
+    void this.store.updateElement(id, {
+      text,
+      runs: runs ?? null,
+      width: size.width,
+      height: size.height,
+    });
   }
 
   // --- node pointer (select / drag) ---
@@ -4257,6 +4536,17 @@ export class EditorComponent {
   // --- toolbar: add / zoom / grid / align ---
 
   protected onCanvasDblClick(event: MouseEvent): void {
+    // Toolbars, panels, the minimap and the inline editor are children of the
+    // canvas element, so their double-clicks bubble up here. Only a double-click
+    // on the drawing surface itself (the canvas or the world layer) is ours.
+    const target = event.target as Element | null;
+    const onSurface =
+      !!target &&
+      (target === event.currentTarget || !!target.closest('.world')) &&
+      !target.closest('.text-editor');
+    if (!onSurface) {
+      return;
+    }
     const world = this.toWorld(event.clientX, event.clientY);
     const hit = this.shownElements().reverse().find((e) => hitTestElement(e, world));
     // Double-clicking a member of a group steps into it (selecting just that
@@ -4296,9 +4586,19 @@ export class EditorComponent {
         hit.type === 'line'
       ) {
         this.store.selectElement(hit.id);
-        // Seed the fixed-width/wrap flag from geometry before the editor opens.
+        // Older text boxes may have been resized narrower so they wrapped; text
+        // no longer wraps, so refit the box to its content before editing.
         if (hit.type === 'text') {
-          this.seedWrapFlag(hit);
+          const lineH = (hit.fontSize ?? DEFAULT_FONT_SIZE) * (hit.lineHeight ?? 1.25);
+          const explicit = (hit.text ?? '').split('\n').length;
+          const looksWrapped = hit.height > explicit * lineH + 4 + lineH * 0.5;
+          if (hit.wrap === undefined && looksWrapped) {
+            // Legacy narrow text becomes an explicit fixed-width block.
+            this.store.patchElementLocal(hit.id, { wrap: true });
+            void this.store.updateElement(hit.id, { wrap: true });
+          } else if (!hit.wrap) {
+            this.store.patchElementLocal(hit.id, this.fitTextSize(hit, hit.text ?? ''));
+          }
         }
         this.editingTextId.set(hit.id);
       }

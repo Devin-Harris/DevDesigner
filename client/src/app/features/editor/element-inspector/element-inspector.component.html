@@ -87,10 +87,17 @@
   <!-- Text -->
   @if (canHaveText()) {
     <div class="field-label">Text</div>
-    <div class="seg-row wrap">
+    <select
+      class="font-select"
+      [disabled]="!store.canEdit()"
+      [style.font-family]="stackOf(element().fontFamily ?? 'normal')"
+      (change)="setFont($any($event.target).value)"
+    >
       @for (f of fonts; track f.value) {
-        <button class="seg text" [class.on]="(element().fontFamily ?? 'normal') === f.value" [disabled]="!store.canEdit()" (click)="setFont(f.value)">{{ f.label }}</button>
+        <option [value]="f.value" [selected]="(element().fontFamily ?? 'normal') === f.value" [style.font-family]="stackOf(f.value)">{{ f.label }}</option>
       }
+    </select>
+    <div class="seg-row">
       <button class="seg" [class.on]="element().bold" [disabled]="!store.canEdit()" (click)="toggleBold()"><dbd-icon name="format_bold" /></button>
       <button class="seg" [class.on]="element().italic" [disabled]="!store.canEdit()" (click)="toggleItalic()"><dbd-icon name="format_italic" /></button>
     </div>

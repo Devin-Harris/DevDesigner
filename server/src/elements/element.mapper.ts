@@ -3,6 +3,7 @@ import type {
   ElementBinding,
   PointModel,
   SlideConfig,
+  TextRun,
 } from '@dbdesigner/shared';
 import { ElementEntity } from './element.entity';
 
@@ -22,6 +23,19 @@ function toSlide(json: string | null): SlideConfig | undefined {
   try {
     const parsed = JSON.parse(json) as SlideConfig;
     return parsed && typeof parsed.order === 'number' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Decode stored rich-text runs; a corrupt value just means "uniform style". */
+function toRuns(json: string | null): TextRun[] | undefined {
+  if (!json) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return Array.isArray(parsed) ? (parsed as TextRun[]) : undefined;
   } catch {
     return undefined;
   }
@@ -51,6 +65,9 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     fontFamily: entity.fontFamily ?? undefined,
     bold: entity.bold ?? undefined,
     italic: entity.italic ?? undefined,
+    lineHeight: entity.lineHeight ?? undefined,
+    wrap: entity.wrap ?? undefined,
+    runs: toRuns(entity.runsJson),
     textAlign: entity.textAlign ?? undefined,
     verticalAlign: entity.verticalAlign ?? undefined,
     startBinding: toBinding(entity.startBindingKind, entity.startBindingId),

@@ -406,7 +406,18 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
 /** Render a laid-out text block (text element content or a shape label). */
 function renderTextBlock(t: TextBlockView): string {
   const tspans = t.lines
-    .map((l) => `<tspan x="${l.x}" y="${l.y}">${esc(l.text)}</tspan>`)
+    .map((l) => {
+      const inner = l.spans
+        ? l.spans
+            .map(
+              (sp) =>
+                `<tspan font-weight="${sp.fontWeight}" font-style="${sp.fontStyle}" fill="${sp.color}"` +
+                `${sp.underline ? ' text-decoration="underline"' : ''}>${esc(sp.text)}</tspan>`,
+            )
+            .join('')
+        : esc(l.text);
+      return `<tspan x="${l.x}" y="${l.y}" style="white-space:pre">${inner}</tspan>`;
+    })
     .join('');
   return (
     `<text fill="${t.color}" font-size="${t.fontSize}" font-family="${esc(t.fontFamily)}" ` +

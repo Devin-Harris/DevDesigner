@@ -2,12 +2,12 @@
   <!-- Stroke color -->
   @if (!isImage()) {
   <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
-    <span class="swatch ring" [style.background]="element().strokeColor"></span>
+    <span class="swatch ring" [style.background]="strokeSwatch()"></span>
   </button>
   <ng-template #strokeMenu let-close>
     <div class="picker">
       @for (c of strokeColors; track c) {
-        <button class="swatch-btn" [class.active]="c === element().strokeColor" [style.background]="c" (click)="setStroke(c); close()"></button>
+        <button class="swatch-btn" [class.active]="c === strokeSwatch()" [style.background]="c" (click)="setStroke(c); close()"></button>
       }
       <label class="swatch-btn custom">
         <dbd-icon name="colorize" />
@@ -134,7 +134,7 @@
     <ng-template #fontMenu let-close>
       <div class="dbd-menu">
         @for (f of fonts; track f.value) {
-          <button class="dbd-menu-item" [class.on]="f.value === element().fontFamily" (click)="setFont(f.value); close()">{{ f.label }}</button>
+          <button class="dbd-menu-item" [class.on]="f.value === (element().fontFamily ?? 'normal')" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
         }
       </div>
     </ng-template>
@@ -150,12 +150,31 @@
       </div>
     </ng-template>
 
-    <button class="tb" [class.on]="element().bold" (click)="toggleBold()" matTooltip="Bold" [disabled]="!store.canEdit()">
+    <button class="tb" [dbdPopoverTrigger]="lineHeightMenu" placement="below-start" matTooltip="Line height" [disabled]="!store.canEdit()">
+      <dbd-icon name="format_line_spacing" />
+    </button>
+    <ng-template #lineHeightMenu let-close>
+      <div class="dbd-menu">
+        @for (h of lineHeights; track h) {
+          <button class="dbd-menu-item" [class.on]="h === currentLineHeight()" (click)="setLineHeight(h); close()">{{ h }}</button>
+        }
+      </div>
+    </ng-template>
+
+    <button class="tb" [class.on]="boldOn()" (click)="toggleBold()" matTooltip="Bold (Ctrl+B)" [disabled]="!store.canEdit()">
       <dbd-icon name="format_bold" />
     </button>
-    <button class="tb" [class.on]="element().italic" (click)="toggleItalic()" matTooltip="Italic" [disabled]="!store.canEdit()">
+    <button class="tb" [class.on]="italicOn()" (click)="toggleItalic()" matTooltip="Italic (Ctrl+I)" [disabled]="!store.canEdit()">
       <dbd-icon name="format_italic" />
     </button>
+    @if (isText()) {
+      <button class="tb" [class.on]="element().wrap" (click)="toggleWrap()" matTooltip="Wrap text to a fixed width (drag a side handle)" [disabled]="!store.canEdit()">
+        <dbd-icon name="wrap_text" />
+      </button>
+      <button class="tb" [class.on]="underlineOn()" (click)="toggleUnderline()" matTooltip="Underline (Ctrl+U)" [disabled]="!store.canEdit()">
+        <dbd-icon name="format_underlined" />
+      </button>
+    }
 
     <button class="tb" [dbdPopoverTrigger]="alignMenu" placement="below-start" matTooltip="Text alignment" [disabled]="!store.canEdit()">
       <dbd-icon name="format_align_center" />

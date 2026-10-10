@@ -29,6 +29,7 @@ import type {
   SequenceMessageModel,
   SlideConfig,
   TableModel,
+  TextRun,
   ProjectExportImage,
 } from '@dbdesigner/shared';
 
@@ -128,6 +129,24 @@ function points(value: unknown, path: string): PointModel[] | undefined {
   return items.map((raw, i) => {
     const p = obj(raw, `${path}[${i}]`);
     return { x: num(p, 'x', `${path}[${i}]`), y: num(p, 'y', `${path}[${i}]`) };
+  });
+}
+
+function textRuns(value: unknown, path: string): TextRun[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const items = list(value, path);
+  if (items.length > 5000) fail(path, 'has too many runs (max 5000)');
+  return items.map((raw, i) => {
+    const r = obj(raw, `${path}[${i}]`);
+    const flag = (k: string): boolean | undefined =>
+      r[k] === undefined || r[k] === null ? undefined : bool(r, k, `${path}[${i}]`, false);
+    return {
+      text: str(r, 'text', `${path}[${i}]`, 50_000),
+      bold: flag('bold'),
+      italic: flag('italic'),
+      underline: flag('underline'),
+      color: optStr(r, 'color', `${path}[${i}]`, 64),
+    };
   });
 }
 
@@ -257,6 +276,9 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     bold: e['bold'] === undefined || e['bold'] === null ? undefined : bool(e, 'bold', path, false),
     italic:
       e['italic'] === undefined || e['italic'] === null ? undefined : bool(e, 'italic', path, false),
+    lineHeight: optNum(e, 'lineHeight', path),
+    wrap: e['wrap'] === undefined || e['wrap'] === null ? undefined : bool(e, 'wrap', path, false),
+    runs: textRuns(e['runs'], `${path}.runs`),
     textAlign: optOneOf(e, 'textAlign', path, TEXT_ALIGNS),
     verticalAlign: optOneOf(e, 'verticalAlign', path, VERTICAL_ALIGNS),
     startBinding: binding(e['startBinding'], `${path}.startBinding`),
