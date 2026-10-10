@@ -67,6 +67,9 @@ export class AppComponent {
   protected exportFramesPdf(): void {
     this.editorActions.exportFramesPdf();
   }
+  protected exportSlidesPdf(): void {
+    this.editorActions.exportSlidesPdf();
+  }
   protected exportProjectFile(): void {
     const id = this.editorStore.projectId();
     if (id) {

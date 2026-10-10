@@ -146,4 +146,8 @@ export class ElementEntity {
   /** Build step the element is revealed on while presenting; null = always visible. */
   @Column({ type: 'integer', nullable: true })
   step!: number | null;
+
+  /** The slide (frame element id) this element belongs to; null = none. */
+  @Column({ type: 'varchar', nullable: true })
+  slideId!: string | null;
 }

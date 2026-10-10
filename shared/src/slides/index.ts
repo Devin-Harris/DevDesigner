@@ -39,6 +39,27 @@ export function slideSequence<T extends SlideFrameLike>(frames: readonly T[]): T
     );
 }
 
+/** The presentation a slide belongs to when it has not been given one. */
+export const DEFAULT_PRESENTATION = 'Presentation 1';
+
+/** The presentation a slide frame belongs to (its own, else the default). */
+export function presentationOf(frame: { slide?: SlideConfig }): string {
+  return frame.slide?.presentation?.trim() || DEFAULT_PRESENTATION;
+}
+
+/** The distinct presentations among the slide frames, in order of first appearance. */
+export function presentationNames<T extends SlideFrameLike>(frames: readonly T[]): string[] {
+  return [...new Set(slideSequence(frames).map((f) => presentationOf(f)))];
+}
+
+/** The slides of one presentation, in order (hidden ones included). */
+export function presentationSlides<T extends SlideFrameLike>(
+  frames: readonly T[],
+  name: string | null,
+): T[] {
+  return slideSequence(frames).filter((f) => presentationOf(f) === name);
+}
+
 /** The slides that will actually be shown (hidden ones skipped). */
 export function presentableSlides<T extends SlideFrameLike>(frames: readonly T[]): T[] {
   return slideSequence(frames).filter((f) => !f.slide?.hidden);
@@ -106,13 +127,19 @@ function sizeRatioOk(a: MorphItem, b: MorphItem): boolean {
   return ok(a.w, b.w) && ok(a.h, b.h);
 }
 
+/** Types whose content is the point: never paired just for being the same kind. */
+const FREE_FORM_TYPES: ReadonlySet<string> = new Set(['text', 'code', 'image', 'freedraw', 'frame']);
+
 /**
  * Pair items of two consecutive slides for a morph. Returns [fromIndex, toIndex]
  * pairs; anything unpaired fades out (from) or in (to). Passes, strongest first:
  *   1. shared lineage key (copied slides, or a manual pairing),
  *   2. same type and identical text,
  *   3. same type and similar text,
- *   4. same type, no text, similar size, nearby.
+ *   4. same type, no text, similar size, nearby,
+ *   5. leftover plain shapes (rectangle, ellipse, arrow...) of the same type, however
+ *      far apart or different in size, so a shape redrawn on the next slide still
+ *      glides (and resizes) instead of fading out and back in.
  * Within a pass the closest candidates win; each item is used at most once.
  */
 export function matchMorphItems(
@@ -168,5 +195,26 @@ export function matchMorphItems(
     const d = dist(a, b);
     return d <= maxDistance && sizeRatioOk(a, b) ? d : null;
   });
+  pass((a, b) =>
+    a.type === b.type && !FREE_FORM_TYPES.has(a.type)
+      ? dist(a, b) + Math.abs(a.w - b.w) + Math.abs(a.h - b.h)
+      : null,
+  );
   return pairs;
+}
+
+/**
+ * The name for a copy of something called `name`: a trailing number is counted up
+ * to the next one not already used ("Slide 2" -> "Slide 3"); without one, " 2" is
+ * appended.
+ */
+export function nextCopyName(name: string, existing: Iterable<string>): string {
+  const taken = new Set([...existing].map((n) => n.trim().toLowerCase()));
+  const m = /^(.*?)(\d+)\s*$/.exec(name.trim());
+  const prefix = m ? m[1] : `${name.trim()} `;
+  let n = m ? Number(m[2]) + 1 : 2;
+  while (taken.has(`${prefix}${n}`.trim().toLowerCase())) {
+    n += 1;
+  }
+  return `${prefix}${n}`.trim();
 }

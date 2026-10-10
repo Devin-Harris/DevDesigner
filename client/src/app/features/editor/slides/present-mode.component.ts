@@ -457,9 +457,12 @@ export class PresentModeComponent {
     }
     const to = (p: { x: number; y: number }): { x: number; y: number } => this.toScreen(slide, p);
     return views.map((view) => {
-      const pts = view.points.map((p) => ({ ...to(p), age: p.age }));
+      const pts = view.points.map((p) => ({ ...to(p), age: p.age, start: p.start }));
       const segments = [];
       for (let i = 1; i < pts.length; i += 1) {
+        if (pts[i].start) {
+          continue;
+        }
         const life = 1 - (pts[i - 1].age + pts[i].age) / 2;
         segments.push({
           x1: pts[i - 1].x,

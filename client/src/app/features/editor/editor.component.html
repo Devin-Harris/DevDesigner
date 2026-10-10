@@ -2,6 +2,7 @@
   <div
     #canvas
     class="canvas"
+    [class.tool-active]="activeTool() !== 'select'"
     [style.cursor]="canvasCursor()"
     (pointerdown)="onCanvasPointerDown($event)"
     (dblclick)="onCanvasDblClick($event)"
@@ -63,7 +64,7 @@
         (bendDown)="onElementBendDown($event)"
       ></app-canvas-shapes>
 
-      @for (table of store.tables(); track table.id) {
+      @for (table of visibleTables(); track table.id) {
         <app-table-node
           [table]="table"
           [selected]="store.selectedTableIds().includes(table.id)"
@@ -77,7 +78,11 @@
       }
 
       <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
-      <app-canvas-sequence [toWorld]="toWorldPoint" [snap]="snapWorld"></app-canvas-sequence>
+      <app-canvas-sequence
+        [toWorld]="toWorldPoint"
+        [snap]="snapWorld"
+        [hiddenIds]="hiddenDiagramIds()"
+      ></app-canvas-sequence>
 
       <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
            to message labels. -->
@@ -165,8 +170,6 @@
       [hasHome]="!!store.home()"
       [canSetHome]="store.canEdit() && !!store.projectId()"
       [(framePreset)]="framePresetId"
-      [slidesOpen]="slidesOpen()"
-      (toggleSlides)="toggleSlides()"
       (toolChange)="onToolChange($event)"
       (addImage)="pickImages()"
       (undo)="store.undoElement()"
@@ -182,9 +185,48 @@
       (exportImage)="onExportImage($event)"
     ></app-shape-toolbar>
 
-    @if (slidesOpen()) {
+    @if (slideOutline(); as sb) {
+      <div
+        class="slide-bounds"
+        [style.left.px]="sb.left"
+        [style.top.px]="sb.top"
+        [style.width.px]="sb.width"
+        [style.height.px]="sb.height"
+        [class.grabbable]="shapesInteractive()"
+      >
+        <!-- Grab the outer border to move the whole slide, contents and panels with it.
+             The slide's name lives in the settings panel's Name tab. -->
+        <span class="slide-edge top" (pointerdown)="onSlideBorderDown($event)"></span>
+        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown($event)"></span>
+        <span class="slide-edge left" (pointerdown)="onSlideBorderDown($event)"></span>
+        <span class="slide-edge right" (pointerdown)="onSlideBorderDown($event)"></span>
+      </div>
+    }
+
+    @if (slidesPanelFrame()) {
       <app-slides-panel
         class="slides-panel"
+        [style.left.px]="slidesPanelBox().left"
+        [style.top.px]="slidesPanelBox().top"
+        [style.width.px]="slidesPanelBox().width"
+        [style.height.px]="slidesPanelBox().height"
+        [style.transform]="'scale(' + slidesPanelBox().scale + ')'"
+        [active]="activeSlideId()"
+        part="list"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (command)="onSlidesCommand($event)"
+      ></app-slides-panel>
+      <app-slides-panel
+        class="slide-settings"
+        part="settings"
+        [folded]="settingsFolded()"
+        [style.width.px]="slideSettingsBox().width"
+        [style.left.px]="slideSettingsBox().left"
+        [style.top.px]="slideSettingsBox().top"
+        [style.height.px]="slideSettingsBox().height"
+        [style.transform]="'scale(' + slideSettingsBox().scale + ')'"
+        [active]="activeSlideId()"
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
         (command)="onSlidesCommand($event)"
@@ -319,19 +361,71 @@
     <!-- Inspectors float over the canvas (they do not push it, and clear the top
          bar and share button). -->
     @if (store.selectedTable(); as table) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+      <div
+        class="side-panel"
+        [class.collapsed]="sidePanelCollapsed()"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      >
+        <button
+          class="side-collapse"
+          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
+          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+        >
+          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
+        </button>
         <app-inspector [table]="table"></app-inspector>
       </div>
     } @else if (store.selectedRelationship(); as relationship) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+      <div
+        class="side-panel"
+        [class.collapsed]="sidePanelCollapsed()"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      >
+        <button
+          class="side-collapse"
+          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
+          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+        >
+          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
+        </button>
         <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
       </div>
     } @else if (store.selectedElement(); as element) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+      <div
+        class="side-panel"
+        [class.collapsed]="sidePanelCollapsed()"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      >
+        <button
+          class="side-collapse"
+          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
+          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+        >
+          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
+        </button>
         <app-element-inspector [element]="element"></app-element-inspector>
       </div>
     } @else if (store.selectedLifeline() || store.selectedMessage() || store.selectedDiagram()) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+      <div
+        class="side-panel"
+        [class.collapsed]="sidePanelCollapsed()"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      >
+        <button
+          class="side-collapse"
+          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
+          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
+        >
+          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
+        </button>
         <app-sequence-inspector></app-sequence-inspector>
       </div>
     }

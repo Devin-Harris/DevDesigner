@@ -168,4 +168,9 @@ export class CreateElementDto implements ICreateElementDto {
   @Min(0)
   @Max(20)
   step?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  slideId?: string;
 }

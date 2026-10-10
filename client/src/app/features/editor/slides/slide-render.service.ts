@@ -3,13 +3,17 @@ import {
   effectiveTransition,
   type CanvasElementModel,
   type MorphItem,
+  type LifelineModel,
   type RelationshipModel,
+  type SequenceDiagramModel,
+  type SequenceMessageModel,
   type SlideTransition,
   type TableModel,
 } from '@dbdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectStore } from '../../../stores/project.store';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
+import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../export/diagram-svg.helper';
 import { embedFonts } from '../export/font-embed.helper';
 
@@ -49,6 +53,12 @@ export interface RenderedSlide {
   items: SlideItem[];
   /** Relationships and image data the slide draws with (for live morph rendering). */
   relationships: RelationshipModel[];
+  /** Sequence diagrams that overlap the slide (world coordinates). */
+  sequences: {
+    diagrams: SequenceDiagramModel[];
+    lifelines: LifelineModel[];
+    messages: SequenceMessageModel[];
+  };
   imageData: ReadonlyMap<string, string>;
 }
 
@@ -68,17 +78,28 @@ export class SlideRenderService {
     frames: readonly CanvasElementModel[],
     options: { fonts: boolean } = { fonts: true },
   ): Promise<RenderedSlide[]> {
-    const elements = this.store.elements();
-    const tables = this.store.tables();
+    const allElements = this.store.elements();
+    const allTables = this.store.tables();
     const relationships = this.store.relationships();
-    const sequences = {
-      diagrams: this.store.sequenceDiagrams(),
-      lifelines: this.store.lifelines(),
-      messages: this.store.sequenceMessages(),
-    };
-    const imageData = await this.imageData(elements);
+    const imageData = await this.imageData(allElements);
     const out: RenderedSlide[] = [];
-    for (const frame of frames) {
+    for (const [index, frame] of frames.entries()) {
+      const mine = contentForFrame(
+        frame.id,
+        !!frame.slide,
+        allElements,
+        allTables,
+        this.store.sequenceDiagrams(),
+        this.store.lifelines(),
+        this.store.sequenceMessages(),
+      );
+      const elements = mine.elements;
+      const tables = mine.tables;
+      const sequences = {
+        diagrams: mine.diagrams,
+        lifelines: mine.lifelines,
+        messages: mine.messages,
+      };
       const crop = { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
       const built = buildDiagramSvg(tables, relationships, elements, sequences, crop, imageData);
       const svg = options.fonts ? await embedFonts(built.svg) : built.svg;
@@ -99,7 +120,8 @@ export class SlideRenderService {
         maxStep,
         stepSvgs,
         id: frame.id,
-        name: frame.text?.trim() || 'Untitled slide',
+        // Slides are named by their place in the sequence.
+        name: frame.slide ? `Slide ${index + 1}` : frame.text?.trim() || 'Untitled frame',
         width: built.width,
         height: built.height,
         svg,
@@ -108,6 +130,7 @@ export class SlideRenderService {
         transition: effectiveTransition(frame.slide),
         items,
         relationships: [...relationships],
+        sequences: this.sequencesWithin(frame, sequences),
         imageData,
       });
     }
@@ -117,6 +140,33 @@ export class SlideRenderService {
   /** A `data:` URL for an SVG string (used for <img> thumbnails and slides). */
   static dataUrl(svg: string): string {
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  /** The sequence diagrams (with parts) whose box overlaps the frame. */
+  private sequencesWithin(
+    frame: CanvasElementModel,
+    all: {
+      diagrams: readonly SequenceDiagramModel[];
+      lifelines: readonly LifelineModel[];
+      messages: readonly SequenceMessageModel[];
+    },
+  ): RenderedSlide['sequences'] {
+    const diagrams = all.diagrams.filter((d) => {
+      const b = sequenceDiagramBox(d, all.lifelines, all.messages);
+      return (
+        !!b &&
+        b.x1 > frame.x &&
+        b.x0 < frame.x + frame.width &&
+        b.y1 > frame.y &&
+        b.y0 < frame.y + frame.height
+      );
+    });
+    const ids = new Set(diagrams.map((d) => d.id));
+    return {
+      diagrams,
+      lifelines: all.lifelines.filter((l) => ids.has(l.diagramId)),
+      messages: all.messages.filter((m) => ids.has(m.diagramId)),
+    };
   }
 
   /** Elements and tables that overlap the frame, positioned relative to it. */

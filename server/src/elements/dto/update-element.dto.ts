@@ -172,4 +172,9 @@ export class UpdateElementDto implements IUpdateElementDto {
   @Min(0)
   @Max(20)
   step?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  slideId?: string | null;
 }

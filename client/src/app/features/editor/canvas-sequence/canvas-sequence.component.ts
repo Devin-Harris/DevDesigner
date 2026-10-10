@@ -25,4 +25,6 @@ export class CanvasSequenceComponent {
   readonly toWorld = input<WorldFn | null>(null);
   /** Snap a world coordinate to the grid (identity when grid-snap is off). */
   readonly snap = input<SnapFn | null>(null);
+  /** Diagram ids to leave out (collapsed by the slides focus mode). */
+  readonly hiddenIds = input<ReadonlySet<string> | null>(null);
 }

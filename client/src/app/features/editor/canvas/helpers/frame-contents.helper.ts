@@ -53,6 +53,8 @@ export function frameContents(
   diagrams: readonly SequenceDiagramModel[],
   lifelines: readonly LifelineModel[],
   messages: readonly SequenceMessageModel[],
+  /** The slide shown on the canvas; plain frames only take what is on it (or on no slide). */
+  activeSlideId: string | null = null,
 ): FrameContents {
   const out: FrameContents = {
     elementIds: new Set(),
@@ -64,22 +66,90 @@ export function frameContents(
     b.x0 >= f.x0 && b.x1 <= f.x1 && b.y0 >= f.y0 && b.y1 <= f.y1;
   for (const frame of frames) {
     const fb = elementBox(frame);
+    if (frame.slide) {
+      // A slide owns what is tagged with its id (slides are stacked in one spot, so
+      // geometry cannot tell them apart).
+      for (const e of elements) {
+        if (e.slideId === frame.id) {
+          out.elementIds.add(e.id);
+        }
+      }
+      for (const t of tables) {
+        if (t.slideId === frame.id) {
+          out.tableIds.add(t.id);
+        }
+      }
+      for (const d of diagrams) {
+        if (d.slideId === frame.id) {
+          out.diagramIds.add(d.id);
+        }
+      }
+      continue;
+    }
+    const takes = (slideId: string | undefined): boolean =>
+      !slideId || slideId === activeSlideId;
     for (const e of elements) {
-      if (e.id !== frame.id && !frameIds.has(e.id) && inside(elementBox(e), fb)) {
+      if (
+        e.id !== frame.id &&
+        !frameIds.has(e.id) &&
+        takes(e.slideId) &&
+        inside(elementBox(e), fb)
+      ) {
         out.elementIds.add(e.id);
       }
     }
     for (const t of tables) {
-      if (inside(tableBox(t), fb)) {
+      if (takes(t.slideId) && inside(tableBox(t), fb)) {
         out.tableIds.add(t.id);
       }
     }
     for (const d of diagrams) {
       const box = sequenceDiagramBox(d, lifelines, messages);
-      if (box && inside(box, fb)) {
+      if (takes(d.slideId) && box && inside(box, fb)) {
         out.diagramIds.add(d.id);
       }
     }
   }
   return out;
+}
+
+/**
+ * What belongs in the picture of the frame `frameId` (a slide's thumbnail, its
+ * presentation image, an export): items owned by that slide plus anything on no
+ * slide. Other slides' items, stacked in the same spot, are left out.
+ */
+export function contentForFrame<
+  E extends { slideId?: string },
+  T extends { slideId?: string },
+  D extends { id: string; slideId?: string },
+  L extends { diagramId: string },
+  M extends { diagramId: string },
+>(
+  frameId: string,
+  isSlide: boolean,
+  elements: readonly E[],
+  tables: readonly T[],
+  diagrams: readonly D[],
+  lifelines: readonly L[],
+  messages: readonly M[],
+): { elements: E[]; tables: T[]; diagrams: D[]; lifelines: L[]; messages: M[] } {
+  if (!isSlide) {
+    return {
+      elements: [...elements],
+      tables: [...tables],
+      diagrams: [...diagrams],
+      lifelines: [...lifelines],
+      messages: [...messages],
+    };
+  }
+  const mine = (slideId: string | undefined): boolean => !slideId || slideId === frameId;
+  const ds = diagrams.filter((d) => mine(d.slideId));
+  const ids = new Set(ds.map((d) => d.id));
+  return {
+    elements: elements.filter((e) => mine(e.slideId)),
+    tables: tables.filter((t) => mine(t.slideId)),
+    diagrams: ds,
+    lifelines: lifelines.filter((l) => ids.has(l.diagramId)),
+    messages: messages.filter((m) => ids.has(m.diagramId)),
+  };
 }

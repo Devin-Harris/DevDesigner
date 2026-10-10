@@ -98,6 +98,7 @@ export function hitTestElement(
     const inner =
       p.x > b.x0 + edge && p.x < b.x1 - edge && p.y > b.y0 + edge && p.y < b.y1 - edge;
     const title =
+      !element.slide &&
       p.x >= b.x0 && p.x <= b.x0 + FRAME_TITLE_W && p.y >= b.y0 - FRAME_TITLE_H && p.y <= b.y0;
     return (outer && !inner) || title;
   }

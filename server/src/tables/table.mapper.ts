@@ -22,5 +22,6 @@ export function toTableModel(entity: TableEntity): TableModel {
     note: entity.note ?? undefined,
     width: entity.width ?? undefined,
     groupId: entity.groupId ?? undefined,
+    slideId: entity.slideId ?? undefined,
   };
 }

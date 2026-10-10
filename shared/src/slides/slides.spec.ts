@@ -1,7 +1,10 @@
 import {
   effectiveTransition,
   matchMorphItems,
+  nextCopyName,
   presentableSlides,
+  presentationNames,
+  presentationSlides,
   slideSequence,
   textSimilarity,
   type MorphItem,
@@ -82,7 +85,7 @@ describe('morph matching', () => {
     expect(pairs).toEqual([[0, 0]]);
   });
 
-  it('pairs textless same-type shapes only when near and similar in size', () => {
+  it('pairs textless same-type shapes, nearest first, however far or different in size', () => {
     const near = matchMorphItems(
       [item('a', 'rectangle', '', 0, 0)],
       [item('b', 'rectangle', '', 50, 40)],
@@ -90,14 +93,23 @@ describe('morph matching', () => {
     expect(near).toEqual([[0, 0]]);
     const far = matchMorphItems(
       [item('a', 'rectangle', '', 0, 0)],
-      [item('b', 'rectangle', '', 5000, 0)],
+      [item('b', 'rectangle', '', 5000, 0, 40, 20)],
     );
-    expect(far).toEqual([]);
-    const tiny = matchMorphItems(
-      [item('a', 'rectangle', '', 0, 0)],
-      [item('b', 'rectangle', '', 10, 0, 10, 5)],
+    expect(far).toEqual([[0, 0]]);
+    const two = matchMorphItems(
+      [item('a', 'rectangle', '', 0, 0), item('b', 'rectangle', '', 600, 0)],
+      [item('c', 'rectangle', '', 590, 300)],
     );
-    expect(tiny).toEqual([]);
+    expect(two).toEqual([[1, 0]]);
+  });
+
+  it('does not pair different shape types, or unrelated free-form content', () => {
+    expect(
+      matchMorphItems([item('a', 'rectangle', '', 0, 0)], [item('b', 'ellipse', '', 0, 0)]),
+    ).toEqual([]);
+    expect(
+      matchMorphItems([item('a', 'text', 'Users', 0, 0)], [item('b', 'text', 'Billing', 0, 0)]),
+    ).toEqual([]);
   });
 
   it('never pairs an element with a table or reuses an item', () => {
@@ -107,5 +119,32 @@ describe('morph matching', () => {
       item('a', 'rectangle', '', 5, 5),
     ];
     expect(matchMorphItems(from, to)).toEqual([[0, 1]]);
+  });
+});
+
+describe('nextCopyName', () => {
+  it('counts a trailing number up past taken names', () => {
+    expect(nextCopyName('Slide 2', ['Slide 1', 'Slide 2'])).toBe('Slide 3');
+    expect(nextCopyName('Slide 2', ['Slide 2', 'Slide 3', 'slide 4'])).toBe('Slide 5');
+  });
+  it('appends 2 when there is no number', () => {
+    expect(nextCopyName('Intro', ['Intro'])).toBe('Intro 2');
+    expect(nextCopyName('Intro', ['Intro', 'Intro 2'])).toBe('Intro 3');
+  });
+});
+
+describe('presentations', () => {
+  const inPres = (id: string, order: number, presentation?: string) => ({
+    id,
+    x: 0,
+    y: 0,
+    slide: { order, presentation },
+  });
+  const frames = [inPres('a', 0), inPres('b', 1, 'Demo'), inPres('c', 2), inPres('d', 3, 'Demo')];
+
+  it('groups slides by presentation, unnamed ones in the default', () => {
+    expect(presentationNames(frames)).toEqual(['Presentation 1', 'Demo']);
+    expect(presentationSlides(frames, 'Demo').map((f) => f.id)).toEqual(['b', 'd']);
+    expect(presentationSlides(frames, 'Presentation 1').map((f) => f.id)).toEqual(['a', 'c']);
   });
 });

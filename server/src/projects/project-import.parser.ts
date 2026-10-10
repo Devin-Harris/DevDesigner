@@ -146,6 +146,7 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
   const t = s['transition'] === undefined || s['transition'] === null ? undefined : obj(s['transition'], `${path}.transition`);
   return {
     order: num(s, 'order', path, 0),
+    presentation: optStr(s, 'presentation', path, 120),
     hidden: s['hidden'] === undefined || s['hidden'] === null ? undefined : bool(s, 'hidden', path, false),
     notes: optStr(s, 'notes', path, 20_000),
     transition: t
@@ -214,6 +215,7 @@ function parseTable(raw: unknown, path: string): TableModel {
     note: optStr(t, 'note', path, 10_000),
     width: optNum(t, 'width', path),
     groupId: optStr(t, 'groupId', path, 100),
+    slideId: optStr(t, 'slideId', path, 100),
   };
 }
 
@@ -268,6 +270,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     slide: slide(e['slide'], `${path}.slide`),
     morphId: optStr(e, 'morphId', path, 100),
     step: optNum(e, 'step', path),
+    slideId: optStr(e, 'slideId', path, 100),
   };
 }
 
@@ -289,6 +292,7 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     headerHeight: num(d, 'headerHeight', path, 42),
     originY: num(d, 'originY', path, 0),
     groupId: optStr(d, 'groupId', path, 100),
+    slideId: optStr(d, 'slideId', path, 100),
     backgroundColor: optStr(d, 'backgroundColor', path, 100),
   };
 }

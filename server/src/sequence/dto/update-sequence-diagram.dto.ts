@@ -26,6 +26,11 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(64)
+  slideId?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(20)
   backgroundColor?: string;
 }

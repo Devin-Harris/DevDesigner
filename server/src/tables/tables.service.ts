@@ -56,6 +56,7 @@ export class TablesService {
       x: dto.x,
       y: dto.y,
       color: dto.color ?? null,
+      slideId: dto.slideId ?? null,
     });
     const saved = await this.tables.save(table);
     const model = toTableModel({ ...saved, columns: [], indexes: [] });
@@ -86,6 +87,9 @@ export class TablesService {
     }
     if (dto.groupId !== undefined) {
       table.groupId = dto.groupId;
+    }
+    if (dto.slideId !== undefined) {
+      table.slideId = dto.slideId;
     }
     await this.tables.save(table);
     const model = await this.getModel(tableId);

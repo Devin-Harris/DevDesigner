@@ -68,7 +68,7 @@
             [attr.height]="s.rect.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
-          @if (s.type === 'frame') {
+          @if (s.type === 'frame' && s.label) {
             <!-- Frames are grabbed by the border or the name strip, not the interior. -->
             <rect
               class="hit"

@@ -64,5 +64,6 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     slide: toSlide(entity.slideJson),
     morphId: entity.morphId ?? undefined,
     step: entity.step ?? undefined,
+    slideId: entity.slideId ?? undefined,
   };
 }

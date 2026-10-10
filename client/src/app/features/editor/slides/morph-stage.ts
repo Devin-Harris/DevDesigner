@@ -1,8 +1,11 @@
 import {
   matchMorphItems,
   type CanvasElementModel,
+  type LifelineModel,
   type PointModel,
   type RelationshipModel,
+  type SequenceDiagramModel,
+  type SequenceMessageModel,
   type TableModel,
 } from '@dbdesigner/shared';
 import { buildDiagramSvg } from '../export/diagram-svg.helper';
@@ -131,6 +134,35 @@ function blendElement(
     curvature: num(a.curvature, b.curvature),
     points,
   };
+}
+
+/** Fraction of lifeline labels two sequence diagrams share (0..1). */
+function diagramSimilarity(
+  a: RenderedSlide['sequences'],
+  b: RenderedSlide['sequences'],
+  da: SequenceDiagramModel,
+  db: SequenceDiagramModel,
+): number {
+  const la = a.lifelines.filter((l) => l.diagramId === da.id).map((l) => l.label);
+  const lb = b.lifelines.filter((l) => l.diagramId === db.id).map((l) => l.label);
+  if (!la.length || !lb.length) {
+    return 0;
+  }
+  const pool = [...lb];
+  let hit = 0;
+  for (const label of la) {
+    const k = pool.indexOf(label);
+    if (k >= 0) {
+      pool.splice(k, 1);
+      hit += 1;
+    }
+  }
+  return hit / Math.max(la.length, lb.length);
+}
+
+interface SeqPair {
+  a: SequenceDiagramModel;
+  b: SequenceDiagramModel;
 }
 
 interface Glyph {
@@ -292,6 +324,9 @@ export class MorphStage {
   private readonly elementPairs: Pair[] = [];
   private readonly tablePairs: Pair[] = [];
   private readonly codes: CodeMorph[] = [];
+  private readonly seqPairs: SeqPair[] = [];
+  private readonly fromSeq: RenderedSlide['sequences'];
+  private readonly toSeq: RenderedSlide['sequences'];
   private codeSeq = 0;
   private readonly liveRels: RelationshipModel[] = [];
   private readonly outgoing: SVGGElement[] = [];
@@ -310,6 +345,8 @@ export class MorphStage {
 
   constructor(from: RenderedSlide, to: RenderedSlide) {
     this.to = to;
+    this.fromSeq = from.sequences;
+    this.toSeq = to.sequences;
     this.offA = { x: from.originX, y: from.originY };
     this.offB = { x: to.originX, y: to.originY };
     const a = parse(from, GRID_ID);
@@ -398,6 +435,28 @@ export class MorphStage {
     const ridB = liveRelIds(to.relationships, to.items, matchedB);
     this.liveRels.push(...to.relationships.filter((r) => ridB.has(r.id)));
 
+    // Sequence diagrams on both slides are paired by their participants and drawn
+    // live (lifelines and messages glide, the box grows); others cross-fade.
+    const usedSeqA = new Set<string>();
+    const usedSeqB = new Set<string>();
+    const cands: Array<{ da: SequenceDiagramModel; db: SequenceDiagramModel; score: number }> = [];
+    for (const da of from.sequences.diagrams) {
+      for (const db of to.sequences.diagrams) {
+        const score = diagramSimilarity(from.sequences, to.sequences, da, db);
+        if (score >= 0.5) {
+          cands.push({ da, db, score });
+        }
+      }
+    }
+    cands.sort((x, y) => y.score - x.score);
+    for (const c of cands) {
+      if (!usedSeqA.has(c.da.id) && !usedSeqB.has(c.db.id)) {
+        usedSeqA.add(c.da.id);
+        usedSeqB.add(c.db.id);
+        this.seqPairs.push({ a: c.da, b: c.db });
+      }
+    }
+
     const shell = (side: Side): SVGGElement => {
       const g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
       const tr = side.main.getAttribute('transform');
@@ -406,19 +465,28 @@ export class MorphStage {
       }
       return g;
     };
-    const buildRest = (side: Side, live: Set<string>, target: SVGGElement): void => {
+    const buildRest = (
+      side: Side,
+      live: Set<string>,
+      liveSeq: Set<string>,
+      target: SVGGElement,
+    ): void => {
       const s = shell(side);
       for (const el of side.rest) {
         const rid = el.getAttribute('data-rid');
         if (rid && live.has(rid)) {
           continue;
         }
+        const sid = el.getAttribute('data-seq');
+        if (sid && liveSeq.has(sid)) {
+          continue;
+        }
         s.appendChild(document.importNode(el, true));
       }
       target.appendChild(s);
     };
-    buildRest(a, ridA, this.restA);
-    buildRest(b, ridB, this.restB);
+    buildRest(a, ridA, usedSeqA, this.restA);
+    buildRest(b, ridB, usedSeqB, this.restB);
     svg.append(this.restA, this.restB);
 
     // Objects on only one slide fade out / in right where they are.
@@ -691,12 +759,15 @@ export class MorphStage {
       x: lerp(p.a.table!.x - this.offA.x, p.b.table!.x - this.offB.x, t),
       y: lerp(p.a.table!.y - this.offA.y, p.b.table!.y - this.offB.y, t),
     }));
-    if (elements.length || tables.length) {
+    const seq = this.seqPairs.length
+      ? this.blendSequences(t)
+      : { diagrams: [], lifelines: [], messages: [], smooth: false };
+    if (elements.length || tables.length || seq.diagrams.length) {
       this.live.innerHTML = buildDiagramSvg(
         tables,
         this.liveRels,
         elements,
-        { diagrams: [], lifelines: [], messages: [] },
+        seq,
         { x: 0, y: 0, width: this.to.width, height: this.to.height },
         this.to.imageData,
       ).body;
@@ -730,9 +801,110 @@ export class MorphStage {
     }
   }
 
+  /** The live sequence diagrams at progress `t`, in slide-local coordinates. */
+  private blendSequences(t: number): {
+    diagrams: SequenceDiagramModel[];
+    lifelines: LifelineModel[];
+    messages: SequenceMessageModel[];
+    smooth: boolean;
+  } {
+    const diagrams: SequenceDiagramModel[] = [];
+    const lifelines: LifelineModel[] = [];
+    const messages: SequenceMessageModel[] = [];
+    const offA = this.offA;
+    const offB = this.offB;
+    const row = (m: SequenceMessageModel, d: SequenceDiagramModel): number =>
+      Math.max(1, Math.round((m.y - (d.originY + d.headerHeight)) / d.rowSpacing));
+
+    for (const { a: da, b: db } of this.seqPairs) {
+      const originY = lerp(da.originY - offA.y, db.originY - offB.y, t);
+      const headerHeight = lerp(da.headerHeight, db.headerHeight, t);
+      const rowSpacing = lerp(da.rowSpacing, db.rowSpacing, t);
+      diagrams.push({
+        ...db,
+        originY,
+        headerHeight,
+        rowSpacing,
+        lifelineSpacing: lerp(da.lifelineSpacing, db.lifelineSpacing, t),
+        backgroundColor: mixOptionalColor(da.backgroundColor, db.backgroundColor, t),
+      });
+      const hb = originY + headerHeight;
+
+      // Participants: the same label is the same participant.
+      const llA = this.fromSeq.lifelines.filter((l) => l.diagramId === da.id);
+      const llB = this.toSeq.lifelines.filter((l) => l.diagramId === db.id);
+      const takenA = new Set<string>();
+      const idOfA = new Map<string, string>();
+      const labelOf = new Map<string, string>();
+      for (const lb of llB) {
+        labelOf.set(lb.id, lb.label);
+        const la = llA.find((l) => !takenA.has(l.id) && l.label === lb.label);
+        if (la) {
+          takenA.add(la.id);
+          idOfA.set(la.id, lb.id);
+          lifelines.push({
+            ...lb,
+            x: lerp(la.x - offA.x, lb.x - offB.x, t),
+            width: lerp(la.width, lb.width, t),
+            color: mixOptionalColor(la.color, lb.color, t),
+          });
+        } else if (t >= 0.5) {
+          lifelines.push({ ...lb, x: lb.x - offB.x });
+        }
+      }
+      for (const la of llA) {
+        labelOf.set(la.id, la.label);
+        if (!takenA.has(la.id) && t < 0.5) {
+          idOfA.set(la.id, la.id);
+          lifelines.push({ ...la, x: la.x - offA.x, diagramId: db.id });
+        }
+      }
+
+      // Messages: the same participants and wording is the same message.
+      const msA = this.fromSeq.messages.filter((m) => m.diagramId === da.id);
+      const msB = this.toSeq.messages.filter((m) => m.diagramId === db.id);
+      const key = (m: SequenceMessageModel): string =>
+        `${labelOf.get(m.fromLifelineId)}|${labelOf.get(m.toLifelineId)}|${m.label ?? ''}|${m.style}`;
+      const usedA = new Set<string>();
+      for (const mb of msB) {
+        const ma = msA.find((m) => !usedA.has(m.id) && key(m) === key(mb));
+        if (ma) {
+          usedA.add(ma.id);
+          messages.push({
+            ...mb,
+            diagramId: db.id,
+            y: hb + rowSpacing * lerp(row(ma, da), row(mb, db), t),
+            color: mixOptionalColor(ma.color, mb.color, t),
+          });
+        } else if (t >= 0.5) {
+          messages.push({ ...mb, diagramId: db.id, y: hb + rowSpacing * row(mb, db) });
+        }
+      }
+      if (t < 0.5) {
+        for (const ma of msA) {
+          if (usedA.has(ma.id)) {
+            continue;
+          }
+          const from = idOfA.get(ma.fromLifelineId);
+          const to = idOfA.get(ma.toLifelineId);
+          if (from && to) {
+            messages.push({
+              ...ma,
+              diagramId: db.id,
+              fromLifelineId: from,
+              toLifelineId: to,
+              y: hb + rowSpacing * row(ma, da),
+            });
+          }
+        }
+      }
+    }
+    return { diagrams, lifelines, messages, smooth: true };
+  }
+
   /** Number of objects that glide between the slides (0 = it is just a cross-fade). */
   get pairedCount(): number {
-    return this.elementPairs.length + this.tablePairs.length;
+    return this.elementPairs.length + this.tablePairs.length + this.seqPairs.length;
   }
 
   dispose(): void {

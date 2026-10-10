@@ -28,4 +28,9 @@ export class UpdateTableDto implements IUpdateTableDto {
   @IsString()
   @MaxLength(64)
   groupId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  slideId?: string | null;
 }

@@ -436,6 +436,8 @@ export interface SequenceExportData {
   diagrams: readonly SequenceDiagramModel[];
   lifelines: readonly LifelineModel[];
   messages: readonly SequenceMessageModel[];
+  /** Keep message rows fractional (no snapping to the row grid), for animated morphs. */
+  smooth?: boolean;
 }
 
 const SEQ_BOX_PAD = 26;
@@ -461,6 +463,7 @@ function renderSequence(
   allLifelines: readonly LifelineModel[],
   allMessages: readonly SequenceMessageModel[],
   theme: Theme,
+  smooth = false,
 ): { box: { x0: number; y0: number; x1: number; y1: number }; svg: string } | null {
   const lls = allLifelines.filter((l) => l.diagramId === diagram.id).sort((a, b) => a.x - b.x);
   if (!lls.length) {
@@ -469,7 +472,8 @@ function renderSequence(
   const msgs = allMessages.filter((m) => m.diagramId === diagram.id).sort((a, b) => a.y - b.y);
   const headerBottom = diagram.originY + diagram.headerHeight;
   const gap = diagram.rowSpacing;
-  const rowIndex = (y: number): number => Math.max(1, Math.round((y - headerBottom) / gap));
+  const rowIndex = (y: number): number =>
+    smooth ? Math.max(1, (y - headerBottom) / gap) : Math.max(1, Math.round((y - headerBottom) / gap));
   const maxRow = msgs.length ? Math.max(...msgs.map((m) => rowIndex(m.y))) : 0;
   const spineEnd = headerBottom + gap * (maxRow + 1);
 
@@ -631,7 +635,13 @@ export function buildDiagramSvg(
     }
     const sequenceSvgs: string[] = [];
     for (const diagram of sequences.diagrams) {
-      const laid = renderSequence(diagram, sequences.lifelines, sequences.messages, theme);
+      const laid = renderSequence(
+        diagram,
+        sequences.lifelines,
+        sequences.messages,
+        theme,
+        sequences.smooth === true,
+      );
       if (laid) {
         extend(laid.box.x0, laid.box.y0);
         extend(laid.box.x1, laid.box.y1);

@@ -657,7 +657,8 @@ export function buildShapeViews(
         // with its name sitting above the top-left corner (outside the frame, so
         // it never lands in an export crop).
         base.rect = { x: element.x, y: element.y, width: element.width, height: element.height, rx: 0 };
-        if (element.text) {
+        // A slide's name is drawn on the slide outline instead (editor overlay).
+        if (element.text && !element.slide) {
           base.label = layoutTextBlock(
             element.text,
             { x: element.x, y: element.y - FRAME_TITLE_H, width: FRAME_TITLE_W, height: FRAME_TITLE_H },

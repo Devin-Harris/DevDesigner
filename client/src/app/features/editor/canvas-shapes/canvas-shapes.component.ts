@@ -37,8 +37,9 @@ export interface ShapeEndpointEvent {
   selector: 'app-canvas-shapes',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // The lines layer must clear the sequence diagram's own z-indexed parts (up to 7).
-  host: { '[style.z-index]': "layer() === 'lines' ? 20 : null" },
+  // The lines layer must clear the sequence diagram's own z-indexed parts (up to 7);
+  // the content layer sits above the diagrams (z 2) but below table nodes (z 4).
+  host: { '[style.z-index]': "layer() === 'lines' ? 20 : layer() === 'content' ? 3 : null" },
   templateUrl: './canvas-shapes.component.html',
   styleUrl: './canvas-shapes.component.scss',
 })

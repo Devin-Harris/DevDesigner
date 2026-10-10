@@ -18,4 +18,9 @@ export class CreateTableDto implements ICreateTableDto {
   @IsString()
   @MaxLength(32)
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  slideId?: string;
 }

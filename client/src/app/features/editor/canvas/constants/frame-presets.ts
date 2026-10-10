@@ -18,8 +18,8 @@ export const FRAME_PRESETS: readonly FramePreset[] = [
   { id: 'a4-portrait', label: 'A4 portrait', width: 794, height: 1123, ratio: 794 / 1123 },
   { id: 'letter-landscape', label: 'Letter landscape', width: 1056, height: 816, ratio: 1056 / 816 },
   { id: 'letter-portrait', label: 'Letter portrait', width: 816, height: 1056, ratio: 816 / 1056 },
-  { id: '16-9', label: 'Slide 16:9', width: 1280, height: 720, ratio: 16 / 9 },
-  { id: '4-3', label: 'Slide 4:3', width: 1024, height: 768, ratio: 4 / 3 },
+  { id: '16-9', label: 'Wide 16:9', width: 1280, height: 720, ratio: 16 / 9 },
+  { id: '4-3', label: 'Standard 4:3', width: 1024, height: 768, ratio: 4 / 3 },
   { id: '1-1', label: 'Square 1:1', width: 800, height: 800, ratio: 1 },
   { id: 'free', label: 'Free-form', width: 800, height: 600, ratio: null },
 ];

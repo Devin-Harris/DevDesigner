@@ -17,6 +17,16 @@
   user-select: none;
 }
 
+// While a drawing / pan tool is active, tables and sequence diagrams are
+// click-through so a gesture can start (and shapes can be drawn) on top of them.
+.canvas.tool-active {
+  app-table-node,
+  app-table-node ::ng-deep *,
+  app-canvas-sequence ::ng-deep * {
+    pointer-events: none !important;
+  }
+}
+
 .world {
   position: absolute;
   left: 0;
@@ -146,13 +156,16 @@
   }
 }
 
+.slide-settings {
+  position: absolute;
+  transform-origin: 0 0; // scaled with the canvas zoom, anchored to the frame's side
+  z-index: 3; // below the toolbars and the canvas side panels (5)
+}
+
 .slides-panel {
   position: absolute;
-  top: 16px;
-  left: 76px;
-  bottom: 70px;
-  width: 296px;
-  z-index: 6;
+  transform-origin: 0 0;
+  z-index: 3; // below the toolbars and the canvas side panels (5)
 }
 
 .overlay {
@@ -204,6 +217,7 @@
 .laser-capture {
   position: absolute;
   inset: 0;
+  z-index: 4; // over the slide panels (3) so drawing works across them; under toolbars (5)
   cursor: crosshair;
   touch-action: none;
 }
@@ -265,5 +279,96 @@
 
   &:first-child {
     margin-left: 0;
+  }
+}
+
+// Collapsible canvas side panels: the content folds away, leaving a small handle.
+.side-collapse {
+  position: absolute;
+  top: 8px;
+  left: -14px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--dbd-border);
+  background: var(--dbd-surface);
+  color: var(--dbd-text-muted);
+  cursor: pointer;
+  box-shadow: var(--dbd-shadow-2);
+
+  &:hover {
+    color: var(--dbd-text);
+  }
+}
+
+.side-panel {
+  overflow: visible;
+}
+
+.side-panel.collapsed {
+  bottom: auto;
+  width: 0;
+  height: 0;
+  box-shadow: none;
+
+  > :not(.side-collapse) {
+    display: none;
+  }
+
+  .side-collapse {
+    left: -24px;
+  }
+}
+
+// The outline that ties the slide frame and its two panels together.
+.slide-bounds {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px dashed var(--dbd-border-strong);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--dbd-surface) 22%, transparent);
+}
+
+// The border strips are the slide's grab handles (the rest stays click-through).
+.slide-edge {
+  position: absolute;
+  pointer-events: none;
+}
+
+.slide-bounds.grabbable .slide-edge {
+  pointer-events: auto;
+  cursor: move;
+}
+
+.slide-edge {
+  &.top,
+  &.bottom {
+    left: -5px;
+    right: -5px;
+    height: 10px;
+  }
+  &.top {
+    top: -5px;
+  }
+  &.bottom {
+    bottom: -5px;
+  }
+  &.left,
+  &.right {
+    top: -5px;
+    bottom: -5px;
+    width: 10px;
+  }
+  &.left {
+    left: -5px;
+  }
+  &.right {
+    right: -5px;
   }
 }

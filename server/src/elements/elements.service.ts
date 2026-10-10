@@ -98,6 +98,7 @@ export class ElementsService {
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
       step: dto.step ?? null,
+      slideId: dto.type === 'frame' ? null : (dto.slideId ?? null),
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
@@ -238,6 +239,9 @@ export class ElementsService {
     }
     if (dto.step !== undefined) {
       element.step = dto.step;
+    }
+    if (dto.slideId !== undefined) {
+      element.slideId = dto.slideId;
     }
     if (dto.startBinding !== undefined) {
       element.startBindingKind = dto.startBinding?.targetKind ?? null;

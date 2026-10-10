@@ -44,11 +44,14 @@ export class LaserLayerComponent {
       y: p.y * v.zoom + v.y,
     });
     return this.laser.views().map((view) => {
-      const pts = view.points.map((p) => ({ ...project(p), age: p.age }));
+      const pts = view.points.map((p) => ({ ...project(p), age: p.age, start: p.start }));
       const segments: LaserSegment[] = [];
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1];
         const b = pts[i];
+        if (b.start) {
+          continue;
+        }
         const life = 1 - (a.age + b.age) / 2;
         segments.push({
           x1: a.x,

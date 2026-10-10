@@ -22,4 +22,9 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   @IsString()
   @MaxLength(20)
   backgroundColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  slideId?: string;
 }

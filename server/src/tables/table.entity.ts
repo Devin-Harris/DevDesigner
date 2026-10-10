@@ -52,6 +52,10 @@ export class TableEntity {
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;
 
+  /** The slide (frame element id) this table belongs to; null = none. */
+  @Column({ type: 'varchar', nullable: true })
+  slideId!: string | null;
+
   @OneToMany(() => ColumnEntity, (column) => column.table)
   columns!: ColumnEntity[];
 

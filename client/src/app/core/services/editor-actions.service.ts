@@ -8,6 +8,7 @@ export interface EditorActionHandlers {
   exportSql: () => void;
   exportImage: (format: ExportImageFormat) => void;
   exportFramesPdf: () => void;
+  exportSlidesPdf: () => void;
   exportSelectionFile: () => void;
   importFile: (file: unknown) => Promise<number>;
   deleteSelection: () => void;
@@ -30,6 +31,10 @@ export class EditorActionsService {
   readonly hasTableSelection = signal(false);
   /** True when anything (table, shape, sequence part) is selected. */
   readonly hasSelection = signal(false);
+  /** The selected presentation's name, or null when the project has no slides. */
+  readonly presentationName = signal<string | null>(null);
+  /** True when the project has frames that are not slides. */
+  readonly hasPlainFrames = signal(false);
   private handlers: EditorActionHandlers | null = null;
 
   register(handlers: EditorActionHandlers): void {
@@ -63,5 +68,8 @@ export class EditorActionsService {
   }
   exportFramesPdf(): void {
     this.handlers?.exportFramesPdf();
+  }
+  exportSlidesPdf(): void {
+    this.handlers?.exportSlidesPdf();
   }
 }

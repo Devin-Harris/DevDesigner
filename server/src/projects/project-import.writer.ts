@@ -141,6 +141,11 @@ export async function writeSchemaInto(
     return groupIds.get(old) ?? groupIds.mint(old);
   };
 
+  // Element ids are minted first: tables, diagrams and elements point at their slide frame.
+  for (const e of schema.elements) elementIds.mint(e.id);
+  const slideOf = (old: string | undefined): string | null =>
+    old === undefined ? null : (elementIds.get(old) ?? null);
+
   // Tables, their columns and indexes.
   const tableModels: TableModel[] = [];
   const tableRows: QueryDeepPartialEntity<TableEntity>[] = [];
@@ -167,6 +172,7 @@ export async function writeSchemaInto(
       columns,
       indexes: indexes.length ? indexes : undefined,
       groupId: groupId ?? undefined,
+      slideId: slideOf(t.slideId) ?? undefined,
     });
     tableRows.push({
       id: tableId,
@@ -178,6 +184,7 @@ export async function writeSchemaInto(
       note: t.note ?? null,
       width: t.width ?? null,
       groupId,
+      slideId: slideOf(t.slideId),
     });
     columns.forEach((c, orderIndex) => {
       columnRows.push({
@@ -251,7 +258,9 @@ export async function writeSchemaInto(
     (e) => e.type !== 'image' || (e.fileId !== undefined && imageIds.get(e.fileId) !== undefined),
   );
   // Free-form elements. Mint all ids first: bindings can point at later elements.
-  for (const e of sourceElements) elementIds.mint(e.id);
+  for (const e of sourceElements) {
+    if (elementIds.get(e.id) === undefined) elementIds.mint(e.id);
+  }
   // Message ids too: an arrow may be anchored to a message label.
   for (const m of schema.sequenceMessages) messageIds.mint(m.id);
   let zShift = 0;
@@ -300,6 +309,7 @@ export async function writeSchemaInto(
     startBinding: resolveBinding(e.startBinding),
     endBinding: resolveBinding(e.endBinding),
     groupId: group(e.groupId) ?? undefined,
+    slideId: slideOf(e.slideId) ?? undefined,
     slide:
       e.type === 'frame' && e.slide
         ? { ...e.slide, order: e.slide.order + slideShift }
@@ -348,6 +358,7 @@ export async function writeSchemaInto(
       slideJson: e.slide ? JSON.stringify(e.slide) : null,
       morphId: e.morphId ?? null,
       step: e.step ?? null,
+      slideId: e.slideId ?? null,
     })),
   );
 
@@ -357,6 +368,7 @@ export async function writeSchemaInto(
     id: diagramIds.mint(d.id),
     originY: d.originY + dy,
     groupId: group(d.groupId) ?? undefined,
+    slideId: slideOf(d.slideId) ?? undefined,
   }));
   await insertAll(
     manager,
@@ -369,6 +381,7 @@ export async function writeSchemaInto(
       headerHeight: d.headerHeight,
       originY: d.originY,
       groupId: d.groupId ?? null,
+      slideId: d.slideId ?? null,
       backgroundColor: d.backgroundColor ?? null,
     })),
   );

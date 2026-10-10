@@ -29,7 +29,13 @@ import type {
   UpdateTableDto,
   ViewportModel,
 } from '@dbdesigner/shared';
-import { slideSequence } from '@dbdesigner/shared';
+import {
+  nextCopyName,
+  presentationNames,
+  presentationOf,
+  presentationSlides,
+  slideSequence,
+} from '@dbdesigner/shared';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { ColumnsService } from '../core/services/columns.service';
@@ -69,6 +75,10 @@ interface EditorState {
    * instead of as a unit. Reset whenever the selection moves outside that group.
    */
   enteredGroupId: string | null;
+  /** The slide shown on the canvas (a frame id); the first slide when unset or stale. */
+  activeSlideKey: string | null;
+  /** The presentation chosen in the slides panel (a name); the shown slide's when unset or stale. */
+  selectedPresentationKey: string | null;
   /** Transient: a message whose inline label editor should open (toolbar pencil). */
   pendingMessageEditId: string | null;
   /** Transient: a lifeline whose inline label editor should open (toolbar pencil). */
@@ -175,6 +185,8 @@ const initialState: EditorState = {
   selectedMessageIds: [],
   selectedDiagramIds: [],
   enteredGroupId: null,
+  activeSlideKey: null,
+  selectedPresentationKey: null,
   pendingMessageEditId: null,
   pendingLifelineEditId: null,
   loading: false,
@@ -227,6 +239,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     slide: e.slide,
     morphId: e.morphId,
     step: e.step,
+    slideId: e.slideId,
   };
 }
 
@@ -285,9 +298,33 @@ export const ProjectStore = signalStore(
       selectedMessageIds,
       selectedDiagramIds,
       accessMode,
+      activeSlideKey,
+      selectedPresentationKey,
       undoDepth,
       redoDepth,
-    }) => ({
+    }) => {
+      const slideFrames = computed(() =>
+        slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame')),
+      );
+      const presentations = computed(() => presentationNames(slideFrames()));
+      const presentation = computed<string | null>(() => {
+        const names = presentations();
+        const picked = selectedPresentationKey();
+        if (picked && names.includes(picked)) {
+          return picked;
+        }
+        const frames = slideFrames();
+        const shown = frames.find((f) => f.id === activeSlideKey()) ?? frames[0];
+        return shown ? presentationOf(shown) : null;
+      });
+      return {
+    slideFrames,
+    /** The presentations in the project (names), in order of first appearance. */
+    presentations,
+    /** The selected presentation: the one the slides panel, F5 and the PDF export act on. */
+    presentation,
+    /** The slides of the selected presentation, in order (skipped ones included). */
+    presentationFrames: computed(() => presentationSlides(slideFrames(), presentation())),
     tables: computed(() => schema()?.tables ?? []),
     relationships: computed(() => schema()?.relationships ?? []),
     /**
@@ -304,10 +341,47 @@ export const ProjectStore = signalStore(
       return ids as ReadonlySet<string>;
     }),
     elements: computed(() => schema()?.elements ?? []),
-    /** Frames that are part of the slide sequence, in presentation order (hidden ones included). */
-    slideFrames: computed(() =>
-      slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame')),
-    ),
+    /** The slide shown on the canvas: the chosen one if it still exists, else the first. */
+    activeSlideId: computed(() => {
+      const frames = slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame'));
+      return frames.find((f) => f.id === activeSlideKey())?.id ?? frames[0]?.id ?? null;
+    }),
+    /**
+     * What the canvas leaves out because it belongs to another slide. Slides are
+     * stacked in one spot and only the active one is shown; things with no slide are
+     * shown always.
+     */
+    hiddenBySlides: computed(() => {
+      const elements = schema()?.elements ?? [];
+      const frames = slideSequence(elements.filter((e) => e.type === 'frame'));
+      const active = frames.find((f) => f.id === activeSlideKey())?.id ?? frames[0]?.id ?? null;
+      if (!active) {
+        return null;
+      }
+      const elementIds = new Set<string>();
+      for (const e of elements) {
+        if (e.type === 'frame' ? !!e.slide && e.id !== active : !!e.slideId && e.slideId !== active) {
+          elementIds.add(e.id);
+        }
+      }
+      const tableIds = new Set<string>();
+      for (const t of schema()?.tables ?? []) {
+        if (t.slideId && t.slideId !== active) {
+          tableIds.add(t.id);
+        }
+      }
+      const diagramIds = new Set<string>();
+      for (const d of schema()?.sequenceDiagrams ?? []) {
+        if (d.slideId && d.slideId !== active) {
+          diagramIds.add(d.id);
+        }
+      }
+      return { elementIds, tableIds, diagramIds } as {
+        elementIds: ReadonlySet<string>;
+        tableIds: ReadonlySet<string>;
+        diagramIds: ReadonlySet<string>;
+      };
+    }),
     viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
     /** The user-defined home view, or null when none is set. */
     home: computed(() => schema()?.home ?? null),
@@ -368,7 +442,8 @@ export const ProjectStore = signalStore(
     canEdit: computed(() => accessMode() !== 'VIEW'),
     canUndo: computed(() => undoDepth() > 0),
     canRedo: computed(() => redoDepth() > 0),
-    }),
+      };
+    },
   ),
   withMethods(
     (
@@ -477,7 +552,14 @@ export const ProjectStore = signalStore(
         if (!projectId) {
           return null;
         }
-        const created = await runSave(() => firstValueFrom(elementsApi.create(projectId, dto)));
+        // New content lands on the slide being shown.
+        const withSlide: CreateElementDto =
+          dto.slideId || dto.type === 'frame'
+            ? dto
+            : { ...dto, slideId: store.activeSlideId() ?? undefined };
+        const created = await runSave(() =>
+          firstValueFrom(elementsApi.create(projectId, withSlide)),
+        );
         setSchema((s) => ({ ...s, elements: [...s.elements, created] }));
         return created;
       }
@@ -513,7 +595,8 @@ export const ProjectStore = signalStore(
             key === 'endBinding' ||
             key === 'slide' ||
             key === 'morphId' ||
-            key === 'step'
+            key === 'step' ||
+            key === 'slideId'
           ) {
             before[key] = element[key] ?? null;
           } else {
@@ -806,6 +889,7 @@ export const ProjectStore = signalStore(
                 rowSpacing: d.rowSpacing,
                 headerHeight: d.headerHeight,
                 backgroundColor: d.backgroundColor,
+                slideId: d.slideId,
               }),
             ),
           );
@@ -1452,7 +1536,10 @@ export const ProjectStore = signalStore(
             return;
           }
           const diagram = await runSave(() =>
-            firstValueFrom(sequenceApi.createDiagram(projectId, { originY: y })),
+            firstValueFrom(sequenceApi.createDiagram(projectId, {
+                originY: y,
+                slideId: store.activeSlideId() ?? undefined,
+              })),
           );
           setSchema((s) => ({ ...s, sequenceDiagrams: [...s.sequenceDiagrams, diagram] }));
           const spacing = diagram.lifelineSpacing;
@@ -1706,6 +1793,7 @@ export const ProjectStore = signalStore(
                 rowSpacing: src.rowSpacing,
                 headerHeight: src.headerHeight,
                 backgroundColor: src.backgroundColor,
+                slideId: src.slideId,
               }),
             ),
           );
@@ -2017,7 +2105,13 @@ export const ProjectStore = signalStore(
           const name = uniqueTableName(store.tables());
           const color = TABLE_PALETTE[store.tables().length % TABLE_PALETTE.length];
           const created = await runSave(() =>
-            firstValueFrom(tablesApi.create(projectId, { name, x, y, color })),
+            firstValueFrom(tablesApi.create(projectId, {
+                name,
+                x,
+                y,
+                color,
+                slideId: store.activeSlideId() ?? undefined,
+              })),
           );
           setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
           patchState(store, { selectedTableIds: [created.id], selectedRelationshipIds: [] });
@@ -2070,6 +2164,7 @@ export const ProjectStore = signalStore(
                 x: source.x + dx,
                 y: source.y + dy,
                 color: source.color ?? undefined,
+                slideId: source.slideId,
               }),
             ),
           );
@@ -2289,6 +2384,56 @@ export const ProjectStore = signalStore(
         // --- Canvas elements (excalidraw-style drawing layer) ---
 
         /** Update the sticky style applied to subsequently drawn elements. */
+        /** Persist an element patch without an undo step (automatic bookkeeping). */
+        async patchElementSilently(elementId: string, patch: UpdateElementDto): Promise<void> {
+          await updateElementRaw(elementId, patch);
+        },
+
+        /**
+         * Put things on a slide without recording undo steps: used to adopt content
+         * that was dropped or moved into the shown slide's frame.
+         */
+        async assignSlide(
+          items: { elements: string[]; tables: string[]; diagrams: string[] },
+          slideId: string | null,
+        ): Promise<void> {
+          const projectId = store.projectId();
+          for (const id of items.elements) {
+            await updateElementRaw(id, { slideId });
+          }
+          for (const id of items.tables) {
+            const updated = await runSave(() => firstValueFrom(tablesApi.update(id, { slideId })));
+            mapTable(id, () => updated);
+          }
+          if (projectId) {
+            for (const id of items.diagrams) {
+              const updated = await runSave(() =>
+                firstValueFrom(sequenceApi.updateDiagram(projectId, id, { slideId })),
+              );
+              mapDiagram(id, () => updated);
+            }
+          }
+        },
+
+        /** Choose which slide is shown on the canvas. */
+        setActiveSlide(id: string | null): void {
+          // Showing a slide also selects the presentation it belongs to.
+          const frame = id ? store.slideFrames().find((f) => f.id === id) : undefined;
+          patchState(store, {
+            activeSlideKey: id,
+            ...(frame ? { selectedPresentationKey: presentationOf(frame) } : {}),
+          });
+        },
+
+        /** Choose a presentation and show its first slide. */
+        selectPresentation(name: string): void {
+          const first = presentationSlides(store.slideFrames(), name)[0];
+          patchState(store, {
+            selectedPresentationKey: name,
+            activeSlideKey: first?.id ?? store.activeSlideKey(),
+          });
+        },
+
         setElementStyle(patch: Partial<ElementStyleState>): void {
           patchState(store, { elementStyle: { ...store.elementStyle(), ...patch } });
         },
@@ -2337,7 +2482,11 @@ export const ProjectStore = signalStore(
           if (!sources.length) {
             return new Map();
           }
-          const ordered = [...sources].sort((a, b) => a.zIndex - b.zIndex);
+          // Frames first, so what belongs to a copied slide can be pointed at its copy.
+          const ordered = [...sources].sort(
+            (a, b) =>
+              (b.type === 'frame' ? 1 : 0) - (a.type === 'frame' ? 1 : 0) || a.zIndex - b.zIndex,
+          );
           const idMap = new Map<string, string>();
           const copiesBySource = new Map<string, CanvasElementModel>();
           const created: CanvasElementModel[] = [];
@@ -2353,6 +2502,20 @@ export const ProjectStore = signalStore(
               // Copies share their source's lineage so they morph with it, and a
               // copied slide lands right after its source in the sequence.
               morphId: src.morphId ?? src.id,
+              slideId:
+                src.slideId && idMap.has(src.slideId) ? idMap.get(src.slideId) : src.slideId,
+              // A copied plain frame counts its name up ("Page 2" -> "Page 3"); slides are
+              // named by their order instead.
+              text:
+                src.type === 'frame' && src.text && !src.slide
+                  ? nextCopyName(
+                      src.text,
+                      store
+                        .elements()
+                        .filter((e) => e.type === 'frame' && e.text)
+                        .map((e) => e.text as string),
+                    )
+                  : dto.text,
               slide: src.slide ? { ...src.slide, order: src.slide.order + 0.01 } : undefined,
               x: src.x + dx,
               y: src.y + dy,

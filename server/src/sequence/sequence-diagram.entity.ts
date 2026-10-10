@@ -36,6 +36,10 @@ export class SequenceDiagramEntity {
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;
 
+  /** The slide (frame element id) this diagram belongs to; null = none. */
+  @Column({ type: 'varchar', nullable: true })
+  slideId!: string | null;
+
   /** Box background color (hex); null = theme surface. */
   @Column({ type: 'varchar', nullable: true })
   backgroundColor!: string | null;

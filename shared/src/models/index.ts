@@ -65,6 +65,8 @@ export interface TableModel {
   width?: number;
   /** Group this table belongs to; absent = ungrouped. */
   groupId?: string;
+  /** The slide (frame id) this table belongs to; absent = on every slide / no slide. */
+  slideId?: string;
 }
 
 export interface RelationshipModel {
@@ -116,6 +118,12 @@ export interface SlideTransition {
 export interface SlideConfig {
   /** Position in the sequence (ascending; need not be contiguous). */
   order: number;
+  /**
+   * The presentation this slide belongs to (its name). A project can hold several
+   * presentations; slides saved before that existed have none and belong to the
+   * default one.
+   */
+  presentation?: string;
   /** Skipped when presenting. */
   hidden?: boolean;
   /** Speaker notes. */
@@ -178,6 +186,8 @@ export interface CanvasElementModel {
   language?: CodeLanguage;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
+  /** The slide (frame id) this element belongs to; absent = on every slide / no slide. */
+  slideId?: string;
   /** Frame only: its place in the slide sequence + transition (absent = not a slide). */
   slide?: SlideConfig;
   /**
@@ -253,6 +263,8 @@ export interface SequenceDiagramModel {
   originY: number;
   /** Group this diagram belongs to; absent = ungrouped. */
   groupId?: string;
+  /** The slide (frame id) this diagram belongs to; absent = on every slide / no slide. */
+  slideId?: string;
   /** Background fill of the diagram box (hex); absent = theme surface. */
   backgroundColor?: string;
 }

@@ -15,6 +15,7 @@ export function toSequenceDiagramModel(e: SequenceDiagramEntity): SequenceDiagra
     headerHeight: e.headerHeight,
     originY: e.originY,
     groupId: e.groupId ?? undefined,
+    slideId: e.slideId ?? undefined,
     backgroundColor: e.backgroundColor ?? undefined,
   };
 }

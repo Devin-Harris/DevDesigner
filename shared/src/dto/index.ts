@@ -147,6 +147,8 @@ export interface CreateTableDto {
   x: number;
   y: number;
   color?: string;
+  /** The slide (frame id) the table is created on. */
+  slideId?: string;
 }
 export interface UpdateTableDto {
   name?: string;
@@ -156,6 +158,8 @@ export interface UpdateTableDto {
   width?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
+  /** Owning slide (frame id); null clears it. */
+  slideId?: string | null;
 }
 export interface UpdatePositionDto {
   x: number;
@@ -276,6 +280,7 @@ export interface CreateElementDto {
   /** Morph lineage (set on copies so they morph with their source). */
   morphId?: string;
   step?: number;
+  slideId?: string;
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {
@@ -315,6 +320,8 @@ export interface UpdateElementDto {
   morphId?: string | null;
   /** Build step; null clears it. */
   step?: number | null;
+  /** Owning slide (frame id); null clears it. */
+  slideId?: string | null;
 }
 /** High-frequency drag/reshape autosave (position and/or vertices only). */
 export interface UpdateElementPositionDto {
@@ -333,6 +340,8 @@ export interface CreateSequenceDiagramDto {
   rowSpacing?: number;
   headerHeight?: number;
   backgroundColor?: string;
+  /** The slide (frame id) the diagram is created on. */
+  slideId?: string;
 }
 export interface UpdateSequenceDiagramDto {
   lifelineSpacing?: number;
@@ -341,6 +350,8 @@ export interface UpdateSequenceDiagramDto {
   originY?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
+  /** Owning slide (frame id); null clears it. */
+  slideId?: string | null;
   /** Box background (hex); empty string clears back to the theme surface. */
   backgroundColor?: string;
 }

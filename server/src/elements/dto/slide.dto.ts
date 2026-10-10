@@ -45,6 +45,11 @@ export class SlideDto implements SlideConfig {
   order!: number;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  presentation?: string;
+
+  @IsOptional()
   @IsBoolean()
   hidden?: boolean;
 

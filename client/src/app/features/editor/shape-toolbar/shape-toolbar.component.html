@@ -160,6 +160,21 @@
 
   <button
     class="dock-btn"
+    [class.on]="tool() === 'slide'"
+    [disabled]="disabled()"
+    (click)="onChange('slide')"
+    matTooltip="Slide (S) — a page of the presentation"
+    matTooltipPosition="right"
+    aria-label="Slide"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="11" rx="2" />
+      <path d="M12 15.5v4M8 19.5h8M10.5 8l3.5 2-3.5 2z" />
+    </svg>
+  </button>
+
+  <button
+    class="dock-btn"
     [class.on]="tool() === 'arrow'"
     [disabled]="disabled()"
     (click)="onChange('arrow')"
@@ -260,20 +275,6 @@
     </svg>
   </button>
 
-  <!-- Slides / presentation mode: open to view-only guests too, who can present locally. -->
-  <button
-    class="dock-btn"
-    [class.on]="slidesOpen()"
-    (click)="toggleSlides.emit()"
-    matTooltip="Slides & presentation (F5 to present)"
-    matTooltipPosition="right"
-    aria-label="Slides"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="11" rx="2" />
-      <path d="M12 15.5v4M8 19.5h8M10.5 8l3.5 2-3.5 2z" />
-    </svg>
-  </button>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->

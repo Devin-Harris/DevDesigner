@@ -10,6 +10,8 @@ interface LaserSample {
   x: number;
   y: number;
   t: number;
+  /** First sample of a new stroke: no segment is drawn from the previous sample. */
+  start?: boolean;
 }
 
 interface LaserTrail {
@@ -22,7 +24,7 @@ interface LaserTrail {
 export interface LaserView {
   id: string;
   head: { x: number; y: number } | null;
-  points: { x: number; y: number; age: number }[];
+  points: { x: number; y: number; age: number; start?: boolean }[];
 }
 
 /**
@@ -43,7 +45,7 @@ export class LaserService {
     const out: LaserView[] = [];
     for (const [id, trail] of Object.entries(this.trails())) {
       const points = trail.points
-        .map((p) => ({ x: p.x, y: p.y, age: (now - p.t) / LASER_TRAIL_MS }))
+        .map((p) => ({ x: p.x, y: p.y, age: (now - p.t) / LASER_TRAIL_MS, start: p.start }))
         .filter((p) => p.age < 1);
       if (points.length || trail.head) {
         out.push({ id, head: trail.head, points });
@@ -57,7 +59,12 @@ export class LaserService {
     const t = performance.now();
     this.trails.update((all) => {
       const prev = all[id];
-      const points = [...(prev?.points ?? []).filter((p) => t - p.t < LASER_TRAIL_MS), { x, y, t }];
+      // A sample added while no pointer is held begins a new stroke.
+      const start = !prev?.head;
+      const points = [
+        ...(prev?.points ?? []).filter((p) => t - p.t < LASER_TRAIL_MS),
+        { x, y, t, start },
+      ];
       return { ...all, [id]: { points, head: { x, y } } };
     });
     this.startClock();
