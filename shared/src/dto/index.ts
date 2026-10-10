@@ -348,6 +348,8 @@ export interface CreateSequenceDiagramDto {
   rowSpacing?: number;
   headerHeight?: number;
   backgroundColor?: string;
+  /** Stacking order against elements (default -1 = under all of them). */
+  zIndex?: number;
   /** The slide (frame id) the diagram is created on. */
   slideId?: string;
 }
@@ -356,6 +358,8 @@ export interface UpdateSequenceDiagramDto {
   rowSpacing?: number;
   headerHeight?: number;
   originY?: number;
+  /** Stacking order against elements; a diagram sits above elements ranked below it. */
+  zIndex?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
   /** Owning slide (frame id); null clears it. */

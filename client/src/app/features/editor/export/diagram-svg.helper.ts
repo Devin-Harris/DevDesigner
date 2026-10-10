@@ -599,18 +599,40 @@ export function buildDiagramSvg(
   relationships: readonly RelationshipModel[],
   elements: readonly CanvasElementModel[] = [],
   sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
-  crop?: { x: number; y: number; width: number; height: number },
+  crop?: { x: number; y: number; width: number; height: number; frameId?: string },
   /** fileId -> `data:` URI for each image element (see ElementImagesService.dataUrl). */
   imageData: ReadonlyMap<string, string> = new Map(),
 ): DiagramSvg {
   const { theme, dispose } = readTheme();
   try {
     const frameBoxes = elements.filter((e) => e.type === 'frame').map(elementBox);
+    // The frame being exported: its fill is the page's background, so it is drawn
+    // (without outline or name) even though the frame itself is not content.
+    const pageFrame = crop
+      ? elements.find((e) =>
+          crop.frameId
+            ? e.id === crop.frameId
+            : e.type === 'frame' && e.x === crop.x && e.y === crop.y,
+        )
+      : undefined;
     if (crop) {
       // A frame export shows exactly the frame's area; the frames themselves
       // (their outlines and names) are page furniture, not content.
       elements = elements.filter((e) => e.type !== 'frame');
     }
+    const pageView = pageFrame
+      ? buildShapeViews([pageFrame], [], new Set<string>(), {
+          canvasBg: theme.canvasBg,
+          text: theme.text,
+          surface: theme.surface,
+        })[0]
+      : undefined;
+    const pageFill =
+      pageView && pageView.rect && pageView.fill !== 'none'
+        ? `<rect x="${pageView.rect.x}" y="${pageView.rect.y}" width="${pageView.rect.width}" ` +
+          `height="${pageView.rect.height}" fill="${pageView.fill}" fill-opacity="${pageView.fillOpacity}" ` +
+          `opacity="${pageView.opacity}" />`
+        : '';
     const connectors = computeConnectors(tables, relationships, new Set<string>(), frameBoxes);
     const shapeViews = buildShapeViews(elements, tables, new Set<string>(), {
       canvasBg: theme.canvasBg,
@@ -644,7 +666,7 @@ export function buildDiagramSvg(
       extend(box.x0, box.y0);
       extend(box.x1, box.y1);
     }
-    const sequenceSvgs: string[] = [];
+    const sequenceSvgs: Array<{ z: number; svg: string }> = [];
     for (const diagram of sequences.diagrams) {
       const laid = renderSequence(
         diagram,
@@ -656,7 +678,7 @@ export function buildDiagramSvg(
       if (laid) {
         extend(laid.box.x0, laid.box.y0);
         extend(laid.box.x1, laid.box.y1);
-        sequenceSvgs.push(`<g data-seq="${esc(diagram.id)}">${laid.svg}</g>`);
+        sequenceSvgs.push({ z: diagram.zIndex, svg: `<g data-seq="${esc(diagram.id)}">${laid.svg}</g>` });
       }
     }
 
@@ -690,12 +712,49 @@ export function buildDiagramSvg(
     const nodes = tables
       .map((t) => `<g data-tid="${esc(t.id)}">${renderTable(t, theme)}</g>`)
       .join('\n');
-    // Elements render above connectors and below table nodes, matching the canvas.
-    const shapes = shapeViews
-      .map((v) => `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`)
-      .join('\n');
+    // Stacking mirrors the canvas: connectors, frames, then drawing elements with
+    // sequence diagrams interleaved by zIndex, table nodes, any diagram above
+    // every element, and finally lines/arrows.
+    const elementZ = new Map(elements.map((e) => [e.id, e.zIndex]));
+    const maxZ = elements.reduce(
+      (m, e) => (e.type === 'frame' ? m : Math.max(m, e.zIndex)),
+      -Infinity,
+    );
+    const shapeSvg = (v: (typeof shapeViews)[number]): string =>
+      `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`;
+    const isLine = (v: (typeof shapeViews)[number]): boolean =>
+      v.type === 'line' || v.type === 'arrow';
+    const frameShapes = shapeViews.filter((v) => v.type === 'frame').map(shapeSvg);
+    const lineShapes = shapeViews.filter(isLine).map(shapeSvg);
+    const stacked: Array<{ z: number; svg: string }> = [
+      ...shapeViews
+        .filter((v) => v.type !== 'frame' && !isLine(v))
+        .map((v) => ({ z: elementZ.get(v.id) ?? Infinity, svg: shapeSvg(v) })),
+      ...sequenceSvgs.filter((d) => d.z <= maxZ),
+    ].sort((a, b) => a.z - b.z);
+    const topDiagrams = sequenceSvgs.filter((d) => d.z > maxZ).sort((a, b) => a.z - b.z);
 
-    const body = [sequenceSvgs.join('\n'), edges, shapes, nodes].join('\n');
+    const stack = [
+      pageFill,
+      edges,
+      frameShapes.join('\n'),
+      stacked.map((i) => i.svg).join('\n'),
+      nodes,
+      topDiagrams.map((i) => i.svg).join('\n'),
+      lineShapes.join('\n'),
+    ].join('\n');
+
+    // Hachure fills reference a per-element <pattern>; without it they render blank.
+    const hatchDefs = [...shapeViews, ...(pageView ? [pageView] : [])]
+      .filter((v) => v.hatch)
+      .map(
+        (v) =>
+          `<pattern id="${esc(v.hatch!.id)}" width="7" height="7" patternUnits="userSpaceOnUse" ` +
+          `patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="${v.hatch!.color}" stroke-width="1.3" /></pattern>`,
+      )
+      .join('');
+
+    const body = stack;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs>
   <pattern id="dbd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${shiftX % 24}, ${shiftY % 24})">
@@ -703,14 +762,12 @@ export function buildDiagramSvg(
   </pattern>
   ${markerDefs(theme)}
   ${arrowheadDef(theme)}
+  ${hatchDefs}
 </defs>
 <rect x="0" y="0" width="${width}" height="${height}" fill="${theme.canvasBg}" />
 <rect x="0" y="0" width="${width}" height="${height}" fill="url(#dbd-export-grid)" />
 <g transform="translate(${shiftX}, ${shiftY})">
-${sequenceSvgs.join('\n')}
-${edges}
-${shapes}
-${nodes}
+${stack}
 </g>
 </svg>`;
 

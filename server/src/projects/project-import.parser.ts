@@ -313,6 +313,7 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     rowSpacing: num(d, 'rowSpacing', path, 48),
     headerHeight: num(d, 'headerHeight', path, 42),
     originY: num(d, 'originY', path, 0),
+    zIndex: num(d, 'zIndex', path, -1),
     groupId: optStr(d, 'groupId', path, 100),
     slideId: optStr(d, 'slideId', path, 100),
     backgroundColor: optStr(d, 'backgroundColor', path, 100),

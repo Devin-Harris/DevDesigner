@@ -140,4 +140,9 @@ export class SequenceInspectorComponent {
     const m = this.message();
     if (m) void this.store.deleteMessage(m.id);
   }
+
+  /** Re-stack the selected diagram against drawing elements. */
+  protected arrange(op: 'front' | 'back'): void {
+    this.store.arrangeSelection(op);
+  }
 }

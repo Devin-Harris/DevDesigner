@@ -27,4 +27,6 @@ export class CanvasSequenceComponent {
   readonly snap = input<SnapFn | null>(null);
   /** Diagram ids to leave out (collapsed by the slides focus mode). */
   readonly hiddenIds = input<ReadonlySet<string> | null>(null);
+  /** Per-diagram z-index (stacking against drawing elements), from the editor. */
+  readonly layerZ = input<ReadonlyMap<string, number> | null>(null);
 }

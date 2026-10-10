@@ -40,6 +40,13 @@ export class SequenceDiagramEntity {
   @Column({ type: 'varchar', nullable: true })
   slideId!: string | null;
 
+  /**
+   * Stacking order against elements: sits above elements ranked below it. The
+   * default (-1) keeps a new diagram under every drawing element.
+   */
+  @Column({ type: 'float', default: -1 })
+  zIndex!: number;
+
   /** Box background color (hex); null = theme surface. */
   @Column({ type: 'varchar', nullable: true })
   backgroundColor!: string | null;

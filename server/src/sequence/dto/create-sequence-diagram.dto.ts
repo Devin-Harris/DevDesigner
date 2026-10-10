@@ -19,6 +19,10 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   headerHeight?: number;
 
   @IsOptional()
+  @IsNumber()
+  zIndex?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(20)
   backgroundColor?: string;

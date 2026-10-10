@@ -118,7 +118,7 @@ function sampleFile(): ProjectExportFile {
         },
       ],
       sequenceDiagrams: [
-        { id: 'd1', lifelineSpacing: 160, rowSpacing: 48, headerHeight: 42, originY: 5 },
+        { id: 'd1', lifelineSpacing: 160, rowSpacing: 48, headerHeight: 42, originY: 5, zIndex: -1 },
       ],
       lifelines: [
         { id: 'l1', diagramId: 'd1', label: 'A', x: 0, width: 100, order: 0 },

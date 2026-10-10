@@ -281,6 +281,11 @@ export interface SequenceDiagramModel {
   headerHeight: number;
   /** World-space Y where this diagram's lifeline spines begin. */
   originY: number;
+  /**
+   * Stacking order in the element layer's space: the diagram sits above elements
+   * ranked below it (fractional, e.g. 2.5 = above the third element). -1 = under all.
+   */
+  zIndex: number;
   /** Group this diagram belongs to; absent = ungrouped. */
   groupId?: string;
   /** The slide (frame id) this diagram belongs to; absent = on every slide / no slide. */

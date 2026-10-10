@@ -327,6 +327,8 @@ export class EditorComponent {
   /** Panels hug the frame: this is the gap to its edge, and the outline's padding. */
   private static readonly PANEL_GAP = 8;
   private static readonly PANEL_PAD = 6;
+  /** Smallest outline padding on screen, so the dashed border clears the panels at any zoom. */
+  private static readonly PANEL_MIN_PAD_PX = 8;
   private static readonly LIST_W = 296;
   private static readonly SETTINGS_W = 296;
   private static readonly FOLDED_W = 44;
@@ -371,7 +373,9 @@ export class EditorComponent {
         height,
         scale: v.zoom,
       };
-      const pad = EditorComponent.PANEL_PAD * v.zoom;
+      // The border and its corner radius are fixed screen px, so zoomed far out the scaled
+      // padding would shrink below them and the panels would poke through the outline.
+      const pad = Math.max(EditorComponent.PANEL_PAD * v.zoom, EditorComponent.PANEL_MIN_PAD_PX);
       const bottom = top + height * v.zoom;
       return [
         {
@@ -648,6 +652,40 @@ export class EditorComponent {
       this.store.sequenceMessages(),
     ),
   );
+
+  /**
+   * Stacking of sequence diagrams against drawing elements. A diagram with a
+   * zIndex at or below the topmost element sits among the content shapes (the
+   * content layer is split into slices around each such diagram); one above
+   * every element also clears the table nodes. Table nodes stay at z 400.
+   */
+  protected readonly diagramLayers = computed(() => {
+    const els = this.store.elements().filter((e) => e.type !== 'frame');
+    const maxZ = els.reduce((m, e) => Math.max(m, e.zIndex), -Infinity);
+    const sorted = [...this.store.sequenceDiagrams()].sort((a, b) => a.zIndex - b.zIndex);
+    const among = sorted.filter((d) => d.zIndex <= maxZ);
+    const z = new Map<string, number>();
+    among.forEach((d, i) => z.set(d.id, 11 + 2 * i));
+    sorted.filter((d) => d.zIndex > maxZ).forEach((d, i) => z.set(d.id, 401 + i));
+    const segmentOf = new Map<string, number>();
+    for (const e of els) {
+      let s = 0;
+      while (s < among.length && among[s].zIndex < e.zIndex) s++;
+      segmentOf.set(e.id, s);
+    }
+    return { z, segmentOf, segments: among.length + 1 };
+  });
+
+  /** One content-layer slice per gap between diagrams (a single one without diagrams). */
+  protected readonly contentSegments = computed(() => {
+    const { segmentOf, segments } = this.diagramLayers();
+    return Array.from({ length: segments }, (_, index) => ({
+      index,
+      z: 10 + 2 * index,
+      // Anything unknown (the in-progress draft) is newest, so it draws on top.
+      accept: (id: string): boolean => (segmentOf.get(id) ?? segments - 1) === index,
+    }));
+  });
 
   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
   protected readonly shapeViews = computed(() => {
@@ -3526,6 +3564,17 @@ export class EditorComponent {
       if (this.store.canEdit()) {
         event.preventDefault();
         this.store.redoElement();
+      }
+      return;
+    }
+    if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
+      // Ctrl+[ / ] steps the selection back / forward one layer; Shift goes all the way.
+      event.preventDefault();
+      if (this.store.canEdit()) {
+        const forward = event.code === 'BracketRight';
+        this.store.arrangeSelection(
+          event.shiftKey ? (forward ? 'front' : 'back') : forward ? 'forward' : 'backward',
+        );
       }
       return;
     }

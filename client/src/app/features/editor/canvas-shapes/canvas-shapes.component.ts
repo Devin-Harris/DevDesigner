@@ -37,9 +37,12 @@ export interface ShapeEndpointEvent {
   selector: 'app-canvas-shapes',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // The lines layer must clear the sequence diagram's own z-indexed parts (up to 7);
-  // the content layer sits above the diagrams (z 2) but below table nodes (z 4).
-  host: { '[style.z-index]': "layer() === 'lines' ? 20 : layer() === 'content' ? 3 : null" },
+  // Stacking inside the world: content slices + sequence diagrams interleave in
+  // 10..299 (set by the editor), table nodes are 400, diagrams brought above every
+  // element 401+, and lines/arrows clear them all.
+  host: {
+    '[style.z-index]': "layer() === 'lines' ? 1000 : layer() === 'content' ? (hostZ() ?? 10) : null",
+  },
   templateUrl: './canvas-shapes.component.html',
   styleUrl: './canvas-shapes.component.scss',
 })
@@ -51,6 +54,10 @@ export class CanvasShapesComponent {
    * labels), and the rest sits between.
    */
   readonly layer = input<'all' | 'frames' | 'content' | 'lines'>('all');
+  /** Content layer only: this instance's z-index (slots between sequence diagrams). */
+  readonly hostZ = input<number | null>(null);
+  /** Content layer only: which elements this instance draws (a slice between diagrams). */
+  readonly accept = input<((id: string) => boolean) | null>(null);
   readonly visible = computed(() => {
     const layer = this.layer();
     const all = this.shapes();
@@ -59,7 +66,9 @@ export class CanvasShapesComponent {
     }
     const kind = (s: ShapeView): 'frames' | 'lines' | 'content' =>
       s.type === 'frame' ? 'frames' : s.type === 'line' || s.type === 'arrow' ? 'lines' : 'content';
-    return all.filter((s) => kind(s) === layer);
+    const inLayer = all.filter((s) => kind(s) === layer);
+    const accept = this.accept();
+    return accept ? inLayer.filter((s) => accept(s.id)) : inLayer;
   });
   readonly svgOffset = input.required<number>();
   readonly dragging = input<boolean>(false);

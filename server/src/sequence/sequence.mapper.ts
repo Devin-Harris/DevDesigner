@@ -14,6 +14,7 @@ export function toSequenceDiagramModel(e: SequenceDiagramEntity): SequenceDiagra
     rowSpacing: e.rowSpacing,
     headerHeight: e.headerHeight,
     originY: e.originY,
+    zIndex: e.zIndex,
     groupId: e.groupId ?? undefined,
     slideId: e.slideId ?? undefined,
     backgroundColor: e.backgroundColor ?? undefined,

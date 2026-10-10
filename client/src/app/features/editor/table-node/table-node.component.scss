@@ -1,7 +1,8 @@
 :host {
   position: absolute;
-  // Above the free-form shapes layer (3), which sits above sequence diagrams (2).
-  z-index: 4;
+  // Above the free-form shapes and sequence diagrams (10..299, see the editor's
+  // diagramLayers); only a diagram brought to the very front (401+) covers it.
+  z-index: 400;
   box-sizing: border-box;
   background: var(--dbd-node-surface);
   // Border rendered as a box-shadow ring so it does not offset inner layout

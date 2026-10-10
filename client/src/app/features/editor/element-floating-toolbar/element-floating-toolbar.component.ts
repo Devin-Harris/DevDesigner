@@ -360,17 +360,11 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected bringToFront(): void {
-    const ids = this.store.elements().map((e) => e.id);
-    for (const id of this.store.selectedElementIds()) {
-      this.store.reorderElements([...ids.filter((x) => x !== id), id]);
-    }
+    this.store.arrangeSelection('front');
   }
 
   protected sendToBack(): void {
-    const ids = this.store.elements().map((e) => e.id);
-    for (const id of [...this.store.selectedElementIds()].reverse()) {
-      this.store.reorderElements([id, ...ids.filter((x) => x !== id)]);
-    }
+    this.store.arrangeSelection('back');
   }
 
   protected remove(): void {

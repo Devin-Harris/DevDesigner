@@ -125,6 +125,12 @@
       }
     </div>
 
+    <div class="field-label">Arrange</div>
+    <div class="flag-chips">
+      <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('back')">Send to back</button>
+      <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('front')">Bring to front</button>
+    </div>
+
     <div class="field-label">Add participant</div>
     <div class="flag-chips">
       <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('left')">◂ Left</button>

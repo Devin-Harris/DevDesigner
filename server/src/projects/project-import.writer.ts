@@ -383,6 +383,7 @@ export async function writeSchemaInto(
       rowSpacing: d.rowSpacing,
       headerHeight: d.headerHeight,
       originY: d.originY,
+      zIndex: d.zIndex,
       groupId: d.groupId ?? null,
       slideId: d.slideId ?? null,
       backgroundColor: d.backgroundColor ?? null,

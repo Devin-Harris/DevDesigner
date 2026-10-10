@@ -50,19 +50,23 @@
 
       <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
-      <app-canvas-shapes
-        layer="content"
-        [shapes]="shapeViews()"
-        [svgOffset]="svgOffset"
-        [dragging]="dragging()"
-        [interactive]="shapesInteractive()"
-        [editingId]="editingTextId()"
-        (elementPointerDown)="onElementPointerDown($event)"
-        (resizeDown)="onElementResizeDown($event)"
-        (rotateDown)="onElementRotateDown($event)"
-        (endpointDown)="onElementEndpointDown($event)"
-        (bendDown)="onElementBendDown($event)"
-      ></app-canvas-shapes>
+      @for (seg of contentSegments(); track seg.index) {
+        <app-canvas-shapes
+          layer="content"
+          [hostZ]="seg.z"
+          [accept]="seg.accept"
+          [shapes]="shapeViews()"
+          [svgOffset]="svgOffset"
+          [dragging]="dragging()"
+          [interactive]="shapesInteractive()"
+          [editingId]="editingTextId()"
+          (elementPointerDown)="onElementPointerDown($event)"
+          (resizeDown)="onElementResizeDown($event)"
+          (rotateDown)="onElementRotateDown($event)"
+          (endpointDown)="onElementEndpointDown($event)"
+          (bendDown)="onElementBendDown($event)"
+        ></app-canvas-shapes>
+      }
 
       @for (table of visibleTables(); track table.id) {
         <app-table-node
@@ -82,6 +86,7 @@
         [toWorld]="toWorldPoint"
         [snap]="snapWorld"
         [hiddenIds]="hiddenDiagramIds()"
+        [layerZ]="diagramLayers().z"
       ></app-canvas-sequence>
 
       <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor

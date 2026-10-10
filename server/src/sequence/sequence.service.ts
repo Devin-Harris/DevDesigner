@@ -88,6 +88,7 @@ export class SequenceService {
       headerHeight: dto.headerHeight ?? 42,
       backgroundColor: dto.backgroundColor ?? null,
       slideId: dto.slideId ?? null,
+      zIndex: dto.zIndex ?? -1,
     });
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
@@ -109,6 +110,7 @@ export class SequenceService {
     if (dto.rowSpacing !== undefined) entity.rowSpacing = dto.rowSpacing;
     if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
     if (dto.originY !== undefined) entity.originY = dto.originY;
+    if (dto.zIndex !== undefined) entity.zIndex = dto.zIndex;
     if (dto.groupId !== undefined) entity.groupId = dto.groupId;
     if (dto.slideId !== undefined) entity.slideId = dto.slideId;
     if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;

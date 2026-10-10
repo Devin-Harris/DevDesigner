@@ -942,6 +942,7 @@ export const ProjectStore = signalStore(
                 rowSpacing: d.rowSpacing,
                 headerHeight: d.headerHeight,
                 backgroundColor: d.backgroundColor,
+                zIndex: d.zIndex,
                 slideId: d.slideId,
               }),
             ),
@@ -1846,6 +1847,7 @@ export const ProjectStore = signalStore(
                 rowSpacing: src.rowSpacing,
                 headerHeight: src.headerHeight,
                 backgroundColor: src.backgroundColor,
+                zIndex: src.zIndex,
                 slideId: src.slideId,
               }),
             ),
@@ -2811,6 +2813,100 @@ export const ProjectStore = signalStore(
           debounce('elements:reorder', () => {
             void runSave(() => firstValueFrom(elementsApi.reorder(projectId, { orderedElementIds })));
           });
+        },
+
+        /**
+         * Re-stack the selected elements and sequence diagrams together: all the way
+         * to the front/back, or one step past the next item they visually overlap.
+         * Diagrams sit between elements via a fractional zIndex (see
+         * SequenceDiagramModel.zIndex), so both kinds share one ordering.
+         */
+        arrangeSelection(op: 'front' | 'back' | 'forward' | 'backward'): void {
+          const elements = store.elements();
+          const selEls = new Set(store.selectedElementIds());
+          const selDiagrams = new Set(store.selectedDiagramIds());
+          if (!store.canEdit() || (selEls.size === 0 && selDiagrams.size === 0)) {
+            return;
+          }
+          type Item = { id: string; diagram: boolean; cls: 'frame' | 'line' | 'content' };
+          const diagrams = [...store.sequenceDiagrams()].sort((a, b) => a.zIndex - b.zIndex);
+          const items: Item[] = [];
+          let di = 0;
+          const pushDiagramsBelow = (z: number): void => {
+            while (di < diagrams.length && diagrams[di].zIndex < z) {
+              items.push({ id: diagrams[di].id, diagram: true, cls: 'content' });
+              di++;
+            }
+          };
+          for (const e of elements) {
+            pushDiagramsBelow(e.zIndex);
+            items.push({
+              id: e.id,
+              diagram: false,
+              cls: e.type === 'frame' ? 'frame' : e.type === 'line' || e.type === 'arrow' ? 'line' : 'content',
+            });
+          }
+          pushDiagramsBelow(Infinity);
+
+          const isSel = (it: Item): boolean => (it.diagram ? selDiagrams : selEls).has(it.id);
+          let next = items;
+          if (op === 'front') {
+            next = [...items.filter((i) => !isSel(i)), ...items.filter(isSel)];
+          } else if (op === 'back') {
+            next = [...items.filter(isSel), ...items.filter((i) => !isSel(i))];
+          } else {
+            const step = op === 'forward' ? 1 : -1;
+            next = [...items];
+            const order = next.map((_, i) => i);
+            if (step === 1) order.reverse();
+            for (const i of order) {
+              const it = next[i];
+              if (!isSel(it)) continue;
+              // Hop to the nearest neighbor it visually overlaps (same layer class).
+              let j = i + step;
+              while (j >= 0 && j < next.length && next[j].cls !== it.cls) j += step;
+              if (j < 0 || j >= next.length || isSel(next[j])) continue;
+              next.splice(i, 1);
+              next.splice(j, 0, it);
+            }
+          }
+
+          // Elements take plain indices; each diagram sits just above the element
+          // before it. The very top (above every element) also clears table nodes.
+          const orderedIds = next.filter((i) => !i.diagram).map((i) => i.id);
+          const total = orderedIds.length;
+          let before = 0;
+          let slot = 0;
+          const changes: Array<{ id: string; zIndex: number }> = [];
+          for (const it of next) {
+            if (!it.diagram) {
+              before++;
+              slot = 0;
+              continue;
+            }
+            if (total === 0 && !isSel(it)) continue;
+            // With no elements to rank against, only the direction tells front from back.
+            const atBottom = total > 0 ? before === 0 : op === 'back' || op === 'backward';
+            const base = atBottom ? -1 : Math.max(before, 1) - 0.5;
+            const z = base + slot * 0.001;
+            slot++;
+            const cur = diagrams.find((d) => d.id === it.id);
+            if (cur && cur.zIndex !== z) changes.push({ id: it.id, zIndex: z });
+          }
+
+          const currentIds = elements.map((e) => e.id);
+          if (orderedIds.some((id, i) => id !== currentIds[i])) {
+            this.reorderElements(orderedIds);
+          }
+          const projectId = store.projectId();
+          for (const c of changes) {
+            mapDiagram(c.id, (d) => ({ ...d, zIndex: c.zIndex }));
+            if (projectId) {
+              void runSave(() =>
+                firstValueFrom(sequenceApi.updateDiagram(projectId, c.id, { zIndex: c.zIndex })),
+              );
+            }
+          }
         },
       };
     },

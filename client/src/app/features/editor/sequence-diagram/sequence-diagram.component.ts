@@ -160,6 +160,7 @@ export class SequenceDiagramComponent {
         rowSpacing: 48,
         headerHeight: 42,
         originY: 0,
+        zIndex: -1,
       },
   );
 

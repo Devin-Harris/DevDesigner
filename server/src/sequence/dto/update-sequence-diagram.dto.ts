@@ -20,6 +20,10 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
   originY?: number;
 
   @IsOptional()
+  @IsNumber()
+  zIndex?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(64)
   groupId?: string | null;

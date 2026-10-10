@@ -100,7 +100,13 @@ export class SlideRenderService {
         lifelines: mine.lifelines,
         messages: mine.messages,
       };
-      const crop = { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
+      const crop = {
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height,
+        frameId: frame.id,
+      };
       const built = buildDiagramSvg(tables, relationships, elements, sequences, crop, imageData);
       const svg = options.fonts ? await embedFonts(built.svg) : built.svg;
       const items = this.itemsWithin(frame, elements, tables);
