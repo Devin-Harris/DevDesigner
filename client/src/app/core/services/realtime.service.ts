@@ -6,11 +6,13 @@ import {
   type MutationEvent,
   type Participant,
   type PresenceCursor,
+  type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
 } from '@dbdesigner/shared';
 import { environment } from '../../../environments/environment';
 import { ProjectStore } from '../../stores/project.store';
+import { LaserService } from './laser.service';
 import { ShareSessionService } from './share-session.service';
 
 /** A remote participant's cursor tagged with their roster color and name. */
@@ -30,6 +32,7 @@ export interface RemoteCursor extends PresenceCursor {
 export class RealtimeService {
   private readonly store = inject(ProjectStore);
   private readonly session = inject(ShareSessionService);
+  private readonly laser = inject(LaserService);
 
   private socket: Socket | null = null;
   private currentProjectId: string | null = null;
@@ -105,6 +108,13 @@ export class RealtimeService {
     socket.on(RT_EVENTS.selection, (selection: PresenceSelection) => {
       this._selections.update((m) => ({ ...m, [selection.participantId]: selection }));
     });
+    socket.on(RT_EVENTS.laser, (sample: PresenceLaser) => {
+      if (sample.end) {
+        this.laser.release(sample.participantId);
+      } else {
+        this.laser.add(sample.participantId, sample.x, sample.y);
+      }
+    });
     socket.on(RT_EVENTS.mutation, (event: MutationEvent) => {
       // Ignore the echo of our own change: we already applied it optimistically.
       if (event.originClientId === this.session.clientId) {
@@ -128,10 +138,16 @@ export class RealtimeService {
     this._selections.set({});
     this._connected.set(false);
     this._selfId.set(null);
+    this.laser.clear();
   }
 
   sendCursor(x: number, y: number): void {
     this.socket?.emit(RT_EVENTS.cursor, { x, y });
+  }
+
+  /** Broadcast a laser-pointer sample (world coords); `end` signals release. */
+  sendLaser(x: number, y: number, end = false): void {
+    this.socket?.emit(RT_EVENTS.laser, { x, y, end });
   }
 
   sendSelection(tableIds: string[], relationshipIds: string[], columnId?: string): void {
@@ -160,6 +176,7 @@ export class RealtimeService {
   /** Drop cursor/selection entries for participants who have left the room. */
   private pruneStale(participants: Participant[]): void {
     const live = new Set(participants.map((p) => p.id));
+    this.laser.pruneRemote(live);
     this._cursors.update((m) => filterByKeys(m, live));
     this._selections.update((m) => filterByKeys(m, live));
   }

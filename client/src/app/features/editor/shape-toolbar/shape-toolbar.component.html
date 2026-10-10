@@ -242,6 +242,23 @@
       <path d="M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4.5" />
     </svg>
   </button>
+
+  <div class="dock-sep"></div>
+
+  <!-- Presenting tool: stays enabled for view-only guests, never edits the project. -->
+  <button
+    class="dock-btn"
+    [class.on]="tool() === 'laser'"
+    (click)="onChange('laser')"
+    matTooltip="Laser pointer (K)"
+    matTooltipPosition="right"
+    aria-label="Laser pointer"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" />
+    </svg>
+  </button>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->

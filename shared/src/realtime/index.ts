@@ -27,8 +27,9 @@ export const RT_EVENTS = {
   roster: 'presence:roster',
   cursor: 'presence:cursor',
   selection: 'presence:selection',
+  laser: 'presence:laser',
   mutation: 'project:mutation',
-  // clients -> server (cursor/selection are reused by name)
+  // clients -> server (cursor/selection/laser are reused by name)
 } as const;
 
 /** A connected collaborator as seen by everyone in the project room. */
@@ -48,6 +49,18 @@ export interface PresenceCursor {
   participantId: string;
   x: number;
   y: number;
+}
+
+/**
+ * One sample of a participant's laser pointer, in canvas world coordinates.
+ * Purely ephemeral (never persisted). `end` marks the pointer being released so
+ * peers can start fading that participant's trail.
+ */
+export interface PresenceLaser {
+  participantId: string;
+  x: number;
+  y: number;
+  end?: boolean;
 }
 
 /** What a participant currently has selected, for colored highlights. */

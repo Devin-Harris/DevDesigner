@@ -157,6 +157,14 @@
   opacity: 0.85;
 }
 
+// Full-canvas pointer surface used while the laser tool is active.
+.laser-capture {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
 // Another participant's live cursor.
 .remote-cursor {
   position: absolute;

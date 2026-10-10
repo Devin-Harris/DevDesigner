@@ -6,6 +6,7 @@ import {
   type MutationEvent,
   type Participant,
   type PresenceCursor,
+  type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
 } from '@dbdesigner/shared';
@@ -131,6 +132,25 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
     const payload: PresenceCursor = { participantId: data.participant.id, x: body.x, y: body.y };
     client.to(roomOf(data.projectId)).emit(RT_EVENTS.cursor, payload);
+  }
+
+  /** Relay a laser-pointer sample to the room. Ephemeral: never stored or persisted. */
+  @SubscribeMessage(RT_EVENTS.laser)
+  onLaser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { x: number; y: number; end?: boolean },
+  ): void {
+    const data = client.data as SocketData | undefined;
+    if (!data?.participant || !Number.isFinite(body?.x) || !Number.isFinite(body?.y)) {
+      return;
+    }
+    const payload: PresenceLaser = {
+      participantId: data.participant.id,
+      x: body.x,
+      y: body.y,
+      end: body.end === true ? true : undefined,
+    };
+    client.to(roomOf(data.projectId)).emit(RT_EVENTS.laser, payload);
   }
 
   @SubscribeMessage(RT_EVENTS.selection)

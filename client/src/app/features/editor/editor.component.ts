@@ -32,6 +32,7 @@ import {
   PROJECT_EXPORT_VERSION,
   type SequenceDiagramModel,
 } from '@dbdesigner/shared';
+import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { ProjectFileService } from '../../core/services/project-file.service';
@@ -117,6 +118,7 @@ import { SequenceParticipantToolbarComponent } from './sequence-participant-tool
 import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
+import { LaserLayerComponent } from './laser-layer/laser-layer.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
 import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
@@ -206,6 +208,7 @@ function readStoredGrid(): boolean {
     MatTooltipModule,
     CanvasConnectorsComponent,
     CanvasShapesComponent,
+    LaserLayerComponent,
     ShapeToolbarComponent,
     InspectorComponent,
     SequenceInspectorComponent,
@@ -227,6 +230,7 @@ function readStoredGrid(): boolean {
 export class EditorComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly realtime = inject(RealtimeService);
+  private readonly laser = inject(LaserService);
   private readonly dialog = inject(MatDialog);
   private readonly projectFile = inject(ProjectFileService);
   private readonly projectsStore = inject(ProjectsStore);
@@ -1102,7 +1106,13 @@ export class EditorComponent {
       return;
     }
     const tool = this.activeTool();
-    if (tool !== 'select' && tool !== 'hand' && this.store.canEdit() && this.store.projectId()) {
+    if (
+      tool !== 'select' &&
+      tool !== 'hand' &&
+      tool !== 'laser' &&
+      this.store.canEdit() &&
+      this.store.projectId()
+    ) {
       event.preventDefault();
       if (tool === 'table') {
         this.addTableAt(event.clientX, event.clientY);
@@ -1125,6 +1135,57 @@ export class EditorComponent {
     this.marqueeStart.set(p);
     this.marqueeCurrent.set(p);
     this.mode = 'marquee';
+  }
+
+  // --- laser pointer (ephemeral: never persisted, undoable, or dirtying) ---
+
+  /** Pointer id currently driving the laser, or null when it is not held. */
+  private laserPointerId: number | null = null;
+  private lastLaserSent = 0;
+
+  protected onLaserPointerDown(event: PointerEvent): void {
+    // Middle-button and space-drag fall through to the canvas so panning still works.
+    if (event.button !== 0 || this.spaceDown) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    } catch {
+      // synthetic/touch pointers can refuse capture; window listeners still see moves
+    }
+    this.laserPointerId = event.pointerId;
+    this.addLaserSample(event, true);
+  }
+
+  protected onLaserPointerMove(event: PointerEvent): void {
+    if (this.laserPointerId === event.pointerId) {
+      this.addLaserSample(event, false);
+    }
+  }
+
+  protected onLaserPointerUp(event: PointerEvent): void {
+    if (this.laserPointerId !== event.pointerId) {
+      return;
+    }
+    const world = this.toWorld(event.clientX, event.clientY);
+    this.laserPointerId = null;
+    this.laser.release(LOCAL_LASER);
+    this.realtime.sendLaser(world.x, world.y, true);
+  }
+
+  private addLaserSample(event: PointerEvent, force: boolean): void {
+    const world = this.toWorld(event.clientX, event.clientY);
+    this.laser.add(LOCAL_LASER, world.x, world.y);
+    const now = Date.now();
+    if (!force && now - this.lastLaserSent < 33) {
+      return;
+    }
+    this.lastLaserSent = now;
+    if (this.realtime.connected()) {
+      this.realtime.sendLaser(world.x, world.y);
+    }
   }
 
   // --- drawing new elements ---
@@ -1176,7 +1237,7 @@ export class EditorComponent {
 
   /** Start drawing an element of the active tool at the pointer. */
   private beginDraw(
-    tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence'>,
+    tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence' | 'laser'>,
     event: PointerEvent,
   ): void {
     const world = this.toWorld(event.clientX, event.clientY);
@@ -2869,7 +2930,8 @@ export class EditorComponent {
       return;
     }
     const tool = mod ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
-    if (tool && this.store.canEdit()) {
+    // The laser pointer is a presenting tool, so view-only guests may use it too.
+    if (tool && (this.store.canEdit() || tool === 'laser')) {
       this.activeTool.set(tool);
       return;
     }
@@ -2949,6 +3011,7 @@ export class EditorComponent {
     p: 'freedraw',
     f: 'frame',
     c: 'code',
+    k: 'laser',
   };
 
   protected onToolChange(tool: EditorTool): void {

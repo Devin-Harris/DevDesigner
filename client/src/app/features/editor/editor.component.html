@@ -129,6 +129,20 @@
       </div>
     }
 
+    <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
+         surface that only exists while the laser tool is active so it never
+         interferes with tables, shapes or connectors. -->
+    <app-laser-layer></app-laser-layer>
+    @if (activeTool() === 'laser') {
+      <div
+        class="laser-capture"
+        (pointerdown)="onLaserPointerDown($event)"
+        (pointermove)="onLaserPointerMove($event)"
+        (pointerup)="onLaserPointerUp($event)"
+        (pointercancel)="onLaserPointerUp($event)"
+      ></div>
+    }
+
     <app-minimap
       (pointerdown)="$event.stopPropagation()"
       (wheel)="$event.stopPropagation()"
