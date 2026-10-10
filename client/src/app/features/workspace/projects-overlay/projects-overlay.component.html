@@ -47,15 +47,26 @@
       } @else {
         <div class="cards">
           @for (project of store.visibleProjects(); track project.id) {
-            <div class="card" [class.sel]="project.id === store.selectedId()" (click)="select(project)">
-              <div class="thumb" [style.--a]="accent(project.id)">
-                <svg viewBox="0 0 92 60" aria-hidden="true">
-                  <line x1="34" y1="22" x2="56" y2="38" stroke="var(--dbd-connector)" stroke-width="1.4" />
-                  <rect x="9" y="13" width="26" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
-                  <rect x="9" y="13" width="26" height="6" rx="3" fill="var(--a)" />
-                  <rect x="52" y="30" width="30" height="22" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
-                  <rect x="52" y="30" width="30" height="6" rx="3" fill="var(--a)" />
-                </svg>
+            <div class="card" [class.sel]="project.id === store.selectedId()" (click)="onCardClick(project, $event)">
+              @let thumbState = thumbs.state(project);
+              <div class="thumb project-thumb" [style.--a]="accent(project.id)">
+                @switch (thumbState.status) {
+                  @case ('ready') {
+                    <img [src]="thumbState.url" alt="" draggable="false" />
+                  }
+                  @case ('loading') {
+                    <div class="thumb-skeleton"></div>
+                  }
+                  @default {
+                    <div class="thumb-empty">
+                      <svg viewBox="0 0 92 60" aria-hidden="true">
+                        <rect x="9" y="13" width="26" height="20" rx="3" fill="none" stroke="var(--dbd-border-strong)" stroke-dasharray="3 3" />
+                        <rect x="52" y="30" width="30" height="22" rx="3" fill="none" stroke="var(--dbd-border-strong)" stroke-dasharray="3 3" />
+                      </svg>
+                      <span>{{ thumbState.status === 'empty' ? 'Empty' : 'No preview' }}</span>
+                    </div>
+                  }
+                }
               </div>
 
               <div class="meta">

@@ -15,6 +15,7 @@ import {
   ConfirmDialogComponent,
   type ConfirmDialogData,
 } from '../confirm-dialog/confirm-dialog.component';
+import { ProjectThumbnailService } from './project-thumbnail.service';
 import { PROJECT_TEMPLATES, type ProjectTemplate } from '../templates/project-templates';
 import { TemplatesService } from '../templates/templates.service';
 
@@ -44,6 +45,7 @@ type OverlayView = 'projects' | 'templates';
 })
 export class ProjectsOverlayComponent {
   protected readonly store = inject(ProjectsStore);
+  protected readonly thumbs = inject(ProjectThumbnailService);
   private readonly templates = inject(TemplatesService);
   private readonly dialog = inject(MatDialog);
   private readonly dialogRef = inject(MatDialogRef<ProjectsOverlayComponent>);
@@ -55,6 +57,12 @@ export class ProjectsOverlayComponent {
   protected readonly editName = signal('');
   protected readonly busy = signal(false);
   protected readonly templateDefs: ProjectTemplate[] = PROJECT_TEMPLATES;
+
+  constructor() {
+    // Project content can change while the dialog is closed; rebuild previews
+    // (the cached pictures keep showing until the fresh ones arrive).
+    this.thumbs.invalidate();
+  }
 
   /** Deterministic accent per project so a card keeps its thumbnail color. */
   private static readonly ACCENTS = ['#6f8bff', '#34d0c0', '#f0b45e', '#e06b8b', '#8b7bff', '#7ac98a'];
@@ -81,6 +89,32 @@ export class ProjectsOverlayComponent {
 
   protected setSearch(value: string | number): void {
     this.store.setSearch(String(value));
+  }
+
+  private openTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Card click. A click on the name waits briefly so a double-click (rename)
+   * can cancel the open; clicks elsewhere on the card open immediately.
+   */
+  protected onCardClick(project: ProjectSummary, event: MouseEvent): void {
+    this.cancelPendingOpen();
+    const onName = (event.target as HTMLElement).closest('.name-row');
+    if (!onName) {
+      this.select(project);
+      return;
+    }
+    this.openTimer = setTimeout(() => {
+      this.openTimer = null;
+      this.select(project);
+    }, 250);
+  }
+
+  private cancelPendingOpen(): void {
+    if (this.openTimer !== null) {
+      clearTimeout(this.openTimer);
+      this.openTimer = null;
+    }
   }
 
   protected select(project: ProjectSummary): void {
@@ -145,6 +179,7 @@ export class ProjectsOverlayComponent {
   }
 
   protected startRename(project: ProjectSummary): void {
+    this.cancelPendingOpen();
     this.editingId.set(project.id);
     this.editName.set(project.name);
   }
