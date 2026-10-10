@@ -165,6 +165,8 @@
       [hasHome]="!!store.home()"
       [canSetHome]="store.canEdit() && !!store.projectId()"
       [(framePreset)]="framePresetId"
+      [slidesOpen]="slidesOpen()"
+      (toggleSlides)="toggleSlides()"
       (toolChange)="onToolChange($event)"
       (addImage)="pickImages()"
       (undo)="store.undoElement()"
@@ -179,6 +181,33 @@
       (exportSql)="openSqlExport()"
       (exportImage)="onExportImage($event)"
     ></app-shape-toolbar>
+
+    @if (slidesOpen()) {
+      <app-slides-panel
+        class="slides-panel"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+        (command)="onSlidesCommand($event)"
+      ></app-slides-panel>
+    }
+
+    @if (!presentation() && presenters()[0]; as who) {
+      <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
+        <span class="dot" [style.background]="who.color"></span>
+        {{ who.name }} is presenting
+        <button (click)="followPresenter(who.id)">Follow</button>
+      </div>
+    }
+
+    @if (presentation(); as p) {
+      <app-present-mode
+        [slides]="p.slides"
+        [startIndex]="p.start"
+        [autoplay]="p.preview"
+        [follow]="p.follow"
+        (closed)="presentation.set(null)"
+      ></app-present-mode>
+    }
 
     @if (textEditor(); as t) {
       <textarea

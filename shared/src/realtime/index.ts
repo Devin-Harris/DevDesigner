@@ -28,6 +28,7 @@ export const RT_EVENTS = {
   cursor: 'presence:cursor',
   selection: 'presence:selection',
   laser: 'presence:laser',
+  present: 'presence:present',
   mutation: 'project:mutation',
   // clients -> server (cursor/selection/laser are reused by name)
 } as const;
@@ -42,6 +43,8 @@ export interface Participant {
   color: string;
   accessLevel: AccessLevel;
   isOwner: boolean;
+  /** Set while this participant is presenting: which slide (frame) and build step. */
+  presenting?: { frameId: string; step: number } | null;
 }
 
 /** A participant's live cursor position, in canvas world coordinates. */

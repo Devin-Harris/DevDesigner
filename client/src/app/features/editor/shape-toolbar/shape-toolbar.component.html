@@ -259,6 +259,21 @@
       <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" />
     </svg>
   </button>
+
+  <!-- Slides / presentation mode: open to view-only guests too, who can present locally. -->
+  <button
+    class="dock-btn"
+    [class.on]="slidesOpen()"
+    (click)="toggleSlides.emit()"
+    matTooltip="Slides & presentation (F5 to present)"
+    matTooltipPosition="right"
+    aria-label="Slides"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="11" rx="2" />
+      <path d="M12 15.5v4M8 19.5h8M10.5 8l3.5 2-3.5 2z" />
+    </svg>
+  </button>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->

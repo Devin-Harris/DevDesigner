@@ -64,6 +64,8 @@ export class ShapeToolbarComponent {
   readonly hasHome = input<boolean>(false);
   /** Whether the viewer may save/clear the shared home view (editors only). */
   readonly canSetHome = input<boolean>(false);
+  /** Whether the slides panel is open (highlights the dock button). */
+  readonly slidesOpen = input<boolean>(false);
 
   /** The aspect-ratio preset new frames are drawn with (two-way bound to the editor). */
   readonly framePreset = model<string>(DEFAULT_FRAME_PRESET);
@@ -78,6 +80,7 @@ export class ShapeToolbarComponent {
   readonly setHome = output<void>();
   readonly clearHome = output<void>();
   readonly toggleGrid = output<void>();
+  readonly toggleSlides = output<void>();
   readonly align = output<AlignAction>();
   readonly exportSql = output<void>();
   /** Open the image picker (images are placed via the editor, not drawn). */

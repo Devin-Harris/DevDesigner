@@ -569,6 +569,8 @@ export interface DiagramSvg {
   height: number;
   /** Canvas background color, so PNG/PDF backgrounds match the theme. */
   background: string;
+  /** The drawing alone (no defs/background), in the same coordinates as `svg`'s content group. */
+  body: string;
 }
 
 /**
@@ -633,7 +635,7 @@ export function buildDiagramSvg(
       if (laid) {
         extend(laid.box.x0, laid.box.y0);
         extend(laid.box.x1, laid.box.y1);
-        sequenceSvgs.push(laid.svg);
+        sequenceSvgs.push(`<g data-seq="${esc(diagram.id)}">${laid.svg}</g>`);
       }
     }
 
@@ -657,15 +659,22 @@ export function buildDiagramSvg(
     const edges = connectors
       .map(
         (c) =>
-          `<path d="${c.d}" fill="none" stroke="${theme.connector}" stroke-width="1.75" ` +
+          `<path data-rid="${esc(c.id)}" d="${c.d}" fill="none" stroke="${theme.connector}" stroke-width="1.75" ` +
           `marker-start="${c.markerStart}" marker-end="${c.markerEnd}" />`,
       )
       .join('\n');
 
-    const nodes = tables.map((t) => renderTable(t, theme)).join('\n');
+    // Each table / element sits in a tagged group so presentation mode can pick
+    // items out of a slide's SVG and animate them (the morph transition).
+    const nodes = tables
+      .map((t) => `<g data-tid="${esc(t.id)}">${renderTable(t, theme)}</g>`)
+      .join('\n');
     // Elements render above connectors and below table nodes, matching the canvas.
-    const shapes = shapeViews.map((v) => renderShape(v, imageData)).join('\n');
+    const shapes = shapeViews
+      .map((v) => `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`)
+      .join('\n');
 
+    const body = [sequenceSvgs.join('\n'), edges, shapes, nodes].join('\n');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs>
   <pattern id="dbd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${shiftX % 24}, ${shiftY % 24})">
@@ -684,7 +693,7 @@ ${nodes}
 </g>
 </svg>`;
 
-    return { svg, width, height, background: theme.canvasBg };
+    return { svg, width, height, background: theme.canvasBg, body };
   } finally {
     dispose();
   }

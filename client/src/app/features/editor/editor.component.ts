@@ -121,6 +121,9 @@ import { RelationshipToolbarComponent } from './relationship-toolbar/relationshi
 import { LaserLayerComponent } from './laser-layer/laser-layer.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
 import { ShareDialogComponent } from './share-dialog/share-dialog.component';
+import { PresentModeComponent } from './slides/present-mode.component';
+import { SlideRenderService, type RenderedSlide } from './slides/slide-render.service';
+import { SlidesPanelComponent, type SlidesCommand } from './slides/slides-panel.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
 
 type DragMode =
@@ -223,6 +226,8 @@ function readStoredGrid(): boolean {
     TableToolbarComponent,
     TableNodeComponent,
     AutofocusDirective,
+    SlidesPanelComponent,
+    PresentModeComponent,
   ],
   templateUrl: './editor.component.html',
   styleUrl: './editor.component.scss',
@@ -235,6 +240,20 @@ export class EditorComponent {
   private readonly projectFile = inject(ProjectFileService);
   private readonly projectsStore = inject(ProjectsStore);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly slideRender = inject(SlideRenderService);
+
+  /** The slide sorter panel (slides / presentation mode). */
+  protected readonly slidesOpen = signal(false);
+  /** The running presentation (or a one-transition preview), or null when not presenting. */
+  protected readonly presentation = signal<{
+    slides: RenderedSlide[];
+    start: number;
+    preview: boolean;
+    /** Participant id being followed, when watching someone else's presentation. */
+    follow: string | null;
+  } | null>(null);
+  /** Other participants who are presenting right now (offer to follow them). */
+  protected readonly presenters = this.realtime.presenters;
   private readonly destroyRef = inject(DestroyRef);
   private readonly editorActions = inject(EditorActionsService);
   private readonly theme = inject(ThemeService);
@@ -2846,11 +2865,21 @@ export class EditorComponent {
 
   @HostListener('window:keydown', ['$event'])
   protected onKeyDown(event: KeyboardEvent): void {
+    if (this.presentation()) {
+      // The presenter owns the keyboard; nothing behind it may react.
+      return;
+    }
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
     const typing =
       tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable;
     if (typing) {
+      return;
+    }
+    if (event.key === 'F5') {
+      // Present from the beginning; Shift+F5 from the current slide (as in PowerPoint).
+      event.preventDefault();
+      void this.startPresentation(event.shiftKey ? 'current' : 'start');
       return;
     }
     if (event.key === ' ') {
@@ -2995,6 +3024,253 @@ export class EditorComponent {
       }
       return Promise.all(jobs);
     });
+  }
+
+  // --- slides / presentation mode ---
+
+  protected toggleSlides(): void {
+    this.slidesOpen.update((v) => !v);
+  }
+
+  protected onSlidesCommand(cmd: SlidesCommand): void {
+    switch (cmd.kind) {
+      case 'close':
+        this.slidesOpen.set(false);
+        break;
+      case 'present':
+        void this.startPresentation(cmd.from);
+        break;
+      case 'preview':
+        void this.previewTransition(cmd.id);
+        break;
+      case 'focus':
+        this.focusFrame(cmd.id);
+        break;
+      case 'add':
+        void this.addSlide();
+        break;
+      case 'export':
+        void this.exportSlides(cmd.format);
+        break;
+      case 'duplicate':
+        void this.duplicateSlide(cmd.id);
+        break;
+      case 'delete':
+        this.store.setSelection([], [], [cmd.id]);
+        this.deleteSelection();
+        break;
+    }
+  }
+
+  /** Watch another participant's presentation, staying on their slide and step. */
+  protected async followPresenter(participantId: string): Promise<void> {
+    const slides = this.store.slideFrames().filter((f) => !f.slide?.hidden);
+    if (!slides.length) {
+      return;
+    }
+    const p = this.realtime.participants().find((x) => x.id === participantId);
+    const start = Math.max(
+      0,
+      slides.findIndex((f) => f.id === p?.presenting?.frameId),
+    );
+    const rendered = await this.slideRender.render(slides);
+    this.presentation.set({ slides: rendered, start, preview: false, follow: participantId });
+  }
+
+  /** Export the sequence (skipped slides left out) in presentation order. */
+  private async exportSlides(format: 'pdf' | 'png'): Promise<void> {
+    const frames = this.store.slideFrames().filter((f) => !f.slide?.hidden);
+    if (!frames.length) {
+      return;
+    }
+    await this.exportFrames(format, frames, true);
+  }
+
+  /** Select a frame and fly the view to fit it. */
+  private focusFrame(id: string): void {
+    const frame = this.store.elements().find((e) => e.id === id);
+    if (!frame) {
+      return;
+    }
+    this.store.setSelection([], [], [id]);
+    const rect = this.canvasRect();
+    const margin = 120;
+    const zoom = Math.min(
+      MAX_ZOOM,
+      Math.max(
+        MIN_ZOOM,
+        Math.min(
+          (rect.width - margin * 2) / Math.max(1, frame.width),
+          (rect.height - margin * 2) / Math.max(1, frame.height),
+        ),
+      ),
+    );
+    const cx = frame.x + frame.width / 2;
+    const cy = frame.y + frame.height / 2;
+    this.animateViewport(rect.width / 2 - cx * zoom, rect.height / 2 - cy * zoom, zoom);
+  }
+
+  /** The slide the view is on: the selected slide, else the one under the view center. */
+  private currentSlideIndex(): number {
+    const frames = this.store.slideFrames();
+    const selected = new Set(this.store.selectedElementIds());
+    const bySelection = frames.findIndex((f) => selected.has(f.id));
+    if (bySelection >= 0) {
+      return bySelection;
+    }
+    const rect = this.canvasRect();
+    const c = this.toWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const byView = frames.findIndex(
+      (f) => c.x >= f.x && c.x <= f.x + f.width && c.y >= f.y && c.y <= f.y + f.height,
+    );
+    return Math.max(0, byView);
+  }
+
+  /** Render the sequence and open the full-screen presenter. */
+  private async startPresentation(from: 'start' | 'current'): Promise<void> {
+    const all = this.store.slideFrames();
+    const slides = all.filter((f) => !f.slide?.hidden);
+    if (!slides.length) {
+      this.snackBar.open('No slides yet. Open Slides and add a frame to the sequence.', undefined, {
+        duration: 3000,
+      });
+      this.slidesOpen.set(true);
+      return;
+    }
+    let start = 0;
+    if (from === 'current') {
+      const here = all[this.currentSlideIndex()];
+      start = Math.max(
+        0,
+        slides.findIndex((f) => f.id === here?.id),
+      );
+    }
+    try {
+      const rendered = await this.slideRender.render(slides);
+      this.presentation.set({ slides: rendered, start, preview: false, follow: null });
+    } catch (err) {
+      this.snackBar.open(
+        `Could not start the presentation: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        { duration: 4000 },
+      );
+    }
+  }
+
+  /** Play the transition into a slide from the one before it, without presenting. */
+  private async previewTransition(id: string): Promise<void> {
+    const frames = this.store.slideFrames();
+    const i = frames.findIndex((f) => f.id === id);
+    if (i <= 0) {
+      this.snackBar.open('The first slide has no transition into it.', undefined, {
+        duration: 2500,
+      });
+      return;
+    }
+    const rendered = await this.slideRender.render([frames[i - 1], frames[i]]);
+    this.presentation.set({ slides: rendered, start: 0, preview: true, follow: null });
+  }
+
+  /** Add a new 16:9 frame to the sequence, right of the last slide (or in view). */
+  private async addSlide(): Promise<void> {
+    if (!this.store.canEdit()) {
+      return;
+    }
+    const preset = framePreset('16-9');
+    const slides = this.store.slideFrames();
+    const last = slides[slides.length - 1];
+    let x: number;
+    let y: number;
+    if (last) {
+      x = last.x + last.width + 160;
+      y = last.y;
+    } else {
+      const rect = this.canvasRect();
+      const c = this.toWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      x = Math.round(c.x - preset.width / 2);
+      y = Math.round(c.y - preset.height / 2);
+    }
+    const order = slides.reduce((m, f) => Math.max(m, f.slide?.order ?? 0), -1) + 1;
+    const created = await this.store.addElement({
+      type: 'frame',
+      x,
+      y,
+      width: preset.width,
+      height: preset.height,
+      angle: 0,
+      strokeColor: this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
+      fillStyle: 'none',
+      strokeWidth: 1.5,
+      strokeStyle: 'solid',
+      opacity: 100,
+      cornerRadius: 0,
+      text: `Slide ${slides.length + 1}`,
+      slide: { order },
+    });
+    if (created) {
+      this.focusFrame(created.id);
+    }
+  }
+
+  /** Duplicate a slide with everything on it, beside the original and right after it in the sequence. */
+  private async duplicateSlide(id: string): Promise<void> {
+    const frame = this.store.elements().find((e) => e.id === id);
+    if (!frame || !this.store.canEdit()) {
+      return;
+    }
+    const frames = this.store.elements().filter((e) => e.type === 'frame');
+    // Slide it right until the page lands on free canvas.
+    let dx = frame.width + 160;
+    for (let i = 0; i < 40; i += 1) {
+      const clash = frames.some(
+        (f) =>
+          f.id !== id &&
+          frame.x + dx < f.x + f.width &&
+          frame.x + dx + frame.width > f.x &&
+          frame.y < f.y + f.height &&
+          frame.y + frame.height > f.y,
+      );
+      if (!clash) {
+        break;
+      }
+      dx += frame.width + 160;
+    }
+    const inner = frameContents(
+      new Set([id]),
+      this.store.elements(),
+      this.store.tables(),
+      this.store.sequenceDiagrams(),
+      this.store.lifelines(),
+      this.store.sequenceMessages(),
+    );
+    let newId: string | null = null;
+    await this.store.batchHistory(async () => {
+      // Tables first (with the relationships between them), then sequences, then elements.
+      const columnMap = new Map<string, string>();
+      const locs = this.columnLocations();
+      const relSources = this.store.relationships().filter((r) => {
+        const st = locs.get(r.sourceColumnId)?.table.id;
+        const tt = locs.get(r.targetColumnId)?.table.id;
+        return !!st && !!tt && inner.tableIds.has(st) && inner.tableIds.has(tt);
+      });
+      for (const tableId of inner.tableIds) {
+        await this.store.duplicateTable(tableId, dx, 0, false, relSources.length > 0, columnMap);
+      }
+      if (relSources.length) {
+        await this.store.duplicateRelationships(relSources, columnMap);
+      }
+      for (const diagramId of inner.diagramIds) {
+        await this.store.duplicateSequence(diagramId, dx, 0);
+      }
+      const sources = this.store
+        .elements()
+        .filter((e) => e.id === id || inner.elementIds.has(e.id));
+      const copies = await this.store.duplicateElements(sources, dx, 0);
+      newId = copies.get(id)?.id ?? null;
+    });
+    if (newId) {
+      this.focusFrame(newId);
+    }
   }
 
   /** Single-key tool shortcuts (Excalidraw-style). */
@@ -3653,11 +3929,13 @@ export class EditorComponent {
   private async exportFrames(
     format: ImageFormat,
     frames: readonly CanvasElementModel[],
+    /** Keep `frames` in the given order (slide sequence) instead of reading order + arrange dialog. */
+    keepOrder = false,
   ): Promise<void> {
     // Whole-canvas scope: a frame crops the full diagram, whatever is selected.
     const { tables, relationships, elements, sequences } = this.exportScope(true);
-    let ordered = [...frames].sort((a, b) => a.y - b.y || a.x - b.x);
-    if (format === 'pdf' && ordered.length > 1) {
+    let ordered = keepOrder ? [...frames] : [...frames].sort((a, b) => a.y - b.y || a.x - b.x);
+    if (!keepOrder && format === 'pdf' && ordered.length > 1) {
       const arranged = await this.arrangeFramePages(ordered);
       if (!arranged) {
         return;
@@ -3679,7 +3957,12 @@ export class EditorComponent {
         images.push({ ...built, svg: await embedFonts(built.svg) });
       }
       if (format === 'pdf') {
-        const name = ordered.length === 1 ? EditorComponent.fileSafe(ordered[0].text) : 'frames';
+        const name =
+          ordered.length === 1
+            ? EditorComponent.fileSafe(ordered[0].text)
+            : keepOrder
+              ? 'slides'
+              : 'frames';
         downloadBlob(await pagesToPdfBlob(images), `${name}.pdf`);
         return;
       }

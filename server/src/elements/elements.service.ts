@@ -95,6 +95,9 @@ export class ElementsService {
       curvature: dto.curvature ?? null,
       fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
       language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
+      slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
+      morphId: dto.morphId ?? null,
+      step: dto.step ?? null,
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
@@ -226,6 +229,15 @@ export class ElementsService {
     }
     if (dto.groupId !== undefined) {
       element.groupId = dto.groupId;
+    }
+    if (dto.slide !== undefined && element.type === 'frame') {
+      element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
+    }
+    if (dto.morphId !== undefined) {
+      element.morphId = dto.morphId;
+    }
+    if (dto.step !== undefined) {
+      element.step = dto.step;
     }
     if (dto.startBinding !== undefined) {
       element.startBindingKind = dto.startBinding?.targetKind ?? null;

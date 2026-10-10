@@ -9,6 +9,9 @@ import type {
   ElementType,
   FillStyle,
   RelationshipType,
+  SlideDirection,
+  SlideEasing,
+  SlideTransitionType,
   StrokeStyle,
   TextAlign,
   VerticalAlign,
@@ -96,6 +99,31 @@ export interface ElementBinding {
   targetId: string;
 }
 
+/** How a slide is entered: type, direction (for `slide`), duration (ms) and easing. */
+export interface SlideTransition {
+  type: SlideTransitionType;
+  direction?: SlideDirection;
+  /** Duration in milliseconds. */
+  duration: number;
+  easing: SlideEasing;
+}
+
+/**
+ * Presentation settings carried by a `frame` element. A frame with a `slide`
+ * belongs to the project's slide sequence; the sequence is the frames that have
+ * one, sorted by `order`. A frame without it is just a page on the canvas.
+ */
+export interface SlideConfig {
+  /** Position in the sequence (ascending; need not be contiguous). */
+  order: number;
+  /** Skipped when presenting. */
+  hidden?: boolean;
+  /** Speaker notes. */
+  notes?: string;
+  /** The transition INTO this slide (ignored for the first slide). */
+  transition?: SlideTransition;
+}
+
 /**
  * A free-form drawing element on the canvas: a shape (rectangle/ellipse/diamond),
  * a line/arrow, a freehand (pen) stroke, or a text block. This is the
@@ -150,6 +178,18 @@ export interface CanvasElementModel {
   language?: CodeLanguage;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
+  /** Frame only: its place in the slide sequence + transition (absent = not a slide). */
+  slide?: SlideConfig;
+  /**
+   * Morph lineage: copies share their source's morph id, so the same object on two
+   * slides animates between them. Absent = the element's own id is its lineage.
+   */
+  morphId?: string;
+  /**
+   * Build step: while presenting, the element appears on this step of its slide
+   * (1 = after the first advance). Absent/0 = visible from the start.
+   */
+  step?: number;
 }
 
 export interface ViewportModel {

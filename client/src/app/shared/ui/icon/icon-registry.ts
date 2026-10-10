@@ -128,5 +128,9 @@ export const ICON_PATHS: Record<string, string> = {
   // ---- misc used in dialogs / share ----
   check: '<path d="M5 12l5 5L20 7"/>',
   visibility: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  visibility_off: '<path d="M3 3l18 18M10.6 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.4 6.5C3.8 8.3 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  slideshow: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8M10.5 8.5l3.5 1.5-3.5 1.5z"/>',
+  fullscreen: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  notes: '<path d="M5 4h14v16H5zM8.5 9h7M8.5 13h7M8.5 17h4"/>',
   edit_note: '<path d="M4 6h11M4 11h7M4 16h5M14 20l6-6-2.5-2.5-6 6V20z"/>',
 };

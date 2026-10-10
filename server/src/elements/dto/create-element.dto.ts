@@ -3,10 +3,13 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import {
@@ -24,12 +27,14 @@ import {
   type ElementType,
   type FillStyle,
   type PointModel,
+  type SlideConfig,
   type StrokeStyle,
   type TextAlign,
   type VerticalAlign,
 } from '@dbdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
+import { SlideDto } from './slide.dto';
 
 /** Body for POST /projects/:projectId/elements. */
 export class CreateElementDto implements ICreateElementDto {
@@ -147,4 +152,20 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsIn([...CODE_LANGUAGES])
   language?: CodeLanguage;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SlideDto)
+  slide?: SlideConfig;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  step?: number;
 }

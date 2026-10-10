@@ -44,6 +44,10 @@ export class RealtimeService {
   private readonly _selfId = signal<string | null>(null);
 
   readonly participants = this._participants.asReadonly();
+  /** Other participants who are presenting right now. */
+  readonly presenters = computed(() =>
+    this._participants().filter((p) => p.presenting && p.id !== this._selfId()),
+  );
   readonly connected = this._connected.asReadonly();
   readonly selfId = this._selfId.asReadonly();
 
@@ -148,6 +152,11 @@ export class RealtimeService {
   /** Broadcast a laser-pointer sample (world coords); `end` signals release. */
   sendLaser(x: number, y: number, end = false): void {
     this.socket?.emit(RT_EVENTS.laser, { x, y, end });
+  }
+
+  /** Tell the room which slide (and build step) we are presenting; null frame = stopped. */
+  sendPresenting(frameId: string | null, step = 0): void {
+    this.socket?.emit(RT_EVENTS.present, { frameId, step });
   }
 
   sendSelection(tableIds: string[], relationshipIds: string[], columnId?: string): void {

@@ -29,6 +29,7 @@ import type {
   UpdateTableDto,
   ViewportModel,
 } from '@dbdesigner/shared';
+import { slideSequence } from '@dbdesigner/shared';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { ColumnsService } from '../core/services/columns.service';
@@ -223,6 +224,9 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     curvature: e.curvature,
     fileId: e.fileId,
     language: e.language,
+    slide: e.slide,
+    morphId: e.morphId,
+    step: e.step,
   };
 }
 
@@ -300,6 +304,10 @@ export const ProjectStore = signalStore(
       return ids as ReadonlySet<string>;
     }),
     elements: computed(() => schema()?.elements ?? []),
+    /** Frames that are part of the slide sequence, in presentation order (hidden ones included). */
+    slideFrames: computed(() =>
+      slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame')),
+    ),
     viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
     /** The user-defined home view, or null when none is set. */
     home: computed(() => schema()?.home ?? null),
@@ -500,7 +508,13 @@ export const ProjectStore = signalStore(
       ): UpdateElementDto {
         const before: Record<string, unknown> = {};
         for (const key of Object.keys(patch)) {
-          if (key === 'startBinding' || key === 'endBinding') {
+          if (
+            key === 'startBinding' ||
+            key === 'endBinding' ||
+            key === 'slide' ||
+            key === 'morphId' ||
+            key === 'step'
+          ) {
             before[key] = element[key] ?? null;
           } else {
             before[key] = (element as unknown as Record<string, unknown>)[key];
@@ -2336,6 +2350,10 @@ export const ProjectStore = signalStore(
                 : null;
             const copy = await createElementRaw({
               ...dto,
+              // Copies share their source's lineage so they morph with it, and a
+              // copied slide lands right after its source in the sequence.
+              morphId: src.morphId ?? src.id,
+              slide: src.slide ? { ...src.slide, order: src.slide.order + 0.01 } : undefined,
               x: src.x + dx,
               y: src.y + dy,
               zIndex: baseZ + created.length,

@@ -5,3 +5,4 @@ export * from './dto';
 export * from './sql';
 export * from './validation';
 export * from './realtime';
+export * from './slides';

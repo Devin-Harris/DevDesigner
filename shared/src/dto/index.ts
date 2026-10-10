@@ -18,7 +18,13 @@ import type {
   TextAlign,
   VerticalAlign,
 } from '../enums';
-import type { DataType, ElementBinding, PointModel, SchemaModel } from '../models';
+import type {
+  DataType,
+  ElementBinding,
+  PointModel,
+  SchemaModel,
+  SlideConfig,
+} from '../models';
 import type { SchemaMutation } from '../realtime';
 
 // --- Auth ---
@@ -265,6 +271,11 @@ export interface CreateElementDto {
   fileId?: string;
   /** Code only: the highlight language of `text`. */
   language?: CodeLanguage;
+  /** Frame only: slide-sequence membership + transition. */
+  slide?: SlideConfig;
+  /** Morph lineage (set on copies so they morph with their source). */
+  morphId?: string;
+  step?: number;
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {
@@ -298,6 +309,12 @@ export interface UpdateElementDto {
   language?: CodeLanguage;
   /** Group membership; null clears it. */
   groupId?: string | null;
+  /** Frame only: slide config; null removes the frame from the sequence. */
+  slide?: SlideConfig | null;
+  /** Morph lineage; null clears an explicit pairing. */
+  morphId?: string | null;
+  /** Build step; null clears it. */
+  step?: number | null;
 }
 /** High-frequency drag/reshape autosave (position and/or vertices only). */
 export interface UpdateElementPositionDto {

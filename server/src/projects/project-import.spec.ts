@@ -243,6 +243,47 @@ describe('writeImportedProject', () => {
     expect(lifelines.map((l) => l.id)).toEqual(expect.arrayContaining([msg.fromLifelineId, msg.toLifelineId]));
   });
 
+  it('keeps the slide sequence and remaps morph lineage consistently', async () => {
+    const file = sampleFile();
+    const base = file.schema.elements[0];
+    const frame = (id: string, order: number, morphId?: string) => ({
+      ...base,
+      id,
+      type: 'frame' as const,
+      width: 1280,
+      height: 720,
+      text: id,
+      zIndex: 10 + order,
+      slide: {
+        order,
+        hidden: order === 2,
+        notes: `notes ${id}`,
+        transition: { type: 'morph' as const, duration: 800, easing: 'ease-in-out' as const },
+      },
+      morphId,
+    });
+    file.schema.elements.push(frame('f1', 1), frame('f2', 2, 'lineage-a'), {
+      ...base,
+      id: 'e-copy',
+      morphId: 'lineage-a',
+    });
+    const parsed = parseProjectExport(file);
+    const project = await ds.transaction((m) => writeImportedProject(m, parsed, 'user-3'));
+    const rows = await ds.getRepository(ElementEntity).find({ where: { projectId: project.id } });
+    const frames = rows.filter((r) => r.type === 'frame');
+    expect(frames).toHaveLength(2);
+    const second = frames.find((f) => JSON.parse(f.slideJson!).order === 2)!;
+    expect(JSON.parse(second.slideJson!)).toMatchObject({
+      hidden: true,
+      notes: 'notes f2',
+      transition: { type: 'morph', duration: 800 },
+    });
+    // The copy keeps sharing its lineage with the frame, under a fresh id.
+    const copy = rows.find((r) => r.morphId && r.type === 'rectangle')!;
+    expect(copy.morphId).toBe(second.morphId);
+    expect(copy.morphId).not.toBe('lineage-a');
+  });
+
   it('can be imported twice without id collisions', async () => {
     const parsed = parseProjectExport(sampleFile());
     const a = await ds.transaction((m) => writeImportedProject(m, parsed, null));

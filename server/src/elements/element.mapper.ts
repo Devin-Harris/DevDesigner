@@ -1,4 +1,9 @@
-import type { CanvasElementModel, ElementBinding, PointModel } from '@dbdesigner/shared';
+import type {
+  CanvasElementModel,
+  ElementBinding,
+  PointModel,
+  SlideConfig,
+} from '@dbdesigner/shared';
 import { ElementEntity } from './element.entity';
 
 /** Reassemble a binding from its stored kind/id columns. */
@@ -7,6 +12,19 @@ function toBinding(
   id: string | null,
 ): ElementBinding | undefined {
   return kind && id ? { targetKind: kind, targetId: id } : undefined;
+}
+
+/** Decode a stored slide config; a corrupt value just means "not a slide". */
+function toSlide(json: string | null): SlideConfig | undefined {
+  if (!json) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(json) as SlideConfig;
+    return parsed && typeof parsed.order === 'number' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Map an Element entity to the shared CanvasElementModel. */
@@ -43,5 +61,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     fileId: entity.fileId ?? undefined,
     language: entity.language ?? undefined,
     groupId: entity.groupId ?? undefined,
+    slide: toSlide(entity.slideJson),
+    morphId: entity.morphId ?? undefined,
+    step: entity.step ?? undefined,
   };
 }

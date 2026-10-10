@@ -8,6 +8,9 @@ import {
   PROJECT_EXPORT_VERSION,
   PROJECT_TYPES,
   RELATIONSHIP_TYPES,
+  SLIDE_DIRECTIONS,
+  SLIDE_EASINGS,
+  SLIDE_TRANSITION_TYPES,
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
@@ -24,6 +27,7 @@ import type {
   SchemaModel,
   SequenceDiagramModel,
   SequenceMessageModel,
+  SlideConfig,
   TableModel,
   ProjectExportImage,
 } from '@dbdesigner/shared';
@@ -136,6 +140,25 @@ function binding(value: unknown, path: string): ElementBinding | undefined {
   };
 }
 
+function slide(value: unknown, path: string): SlideConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+  const s = obj(value, path);
+  const t = s['transition'] === undefined || s['transition'] === null ? undefined : obj(s['transition'], `${path}.transition`);
+  return {
+    order: num(s, 'order', path, 0),
+    hidden: s['hidden'] === undefined || s['hidden'] === null ? undefined : bool(s, 'hidden', path, false),
+    notes: optStr(s, 'notes', path, 20_000),
+    transition: t
+      ? {
+          type: oneOf(t, 'type', `${path}.transition`, SLIDE_TRANSITION_TYPES, 'none'),
+          direction: optOneOf(t, 'direction', `${path}.transition`, SLIDE_DIRECTIONS),
+          duration: Math.min(10_000, Math.max(0, num(t, 'duration', `${path}.transition`, 600))),
+          easing: oneOf(t, 'easing', `${path}.transition`, SLIDE_EASINGS, 'ease-in-out'),
+        }
+      : undefined,
+  };
+}
+
 function parseColumn(raw: unknown, path: string): ColumnModel {
   const c = obj(raw, path);
   const dt = obj(c['dataType'], `${path}.dataType`);
@@ -242,6 +265,9 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     fileId: optStr(e, 'fileId', path, 100),
     language: optOneOf(e, 'language', path, CODE_LANGUAGES),
     groupId: optStr(e, 'groupId', path, 100),
+    slide: slide(e['slide'], `${path}.slide`),
+    morphId: optStr(e, 'morphId', path, 100),
+    step: optNum(e, 'step', path),
   };
 }
 

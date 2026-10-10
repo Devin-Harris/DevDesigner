@@ -134,4 +134,16 @@ export class ElementEntity {
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;
+
+  /** Frame elements: JSON-encoded SlideConfig (sequence order, transition, notes); null = not a slide. */
+  @Column({ type: 'text', nullable: true })
+  slideJson!: string | null;
+
+  /** Morph lineage shared with the element this was copied from; null = its own id. */
+  @Column({ type: 'varchar', nullable: true })
+  morphId!: string | null;
+
+  /** Build step the element is revealed on while presenting; null = always visible. */
+  @Column({ type: 'integer', nullable: true })
+  step!: number | null;
 }

@@ -160,3 +160,27 @@ export const IMAGE_MIME_TYPES: readonly string[] = [
 
 /** Largest accepted image upload, in bytes (decoded). */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** How a slide is entered during a presentation (the transition INTO that slide). */
+export type SlideTransitionType = 'none' | 'fade' | 'slide' | 'zoom' | 'morph';
+export const SLIDE_TRANSITION_TYPES: readonly SlideTransitionType[] = [
+  'none',
+  'fade',
+  'slide',
+  'zoom',
+  'morph',
+] as const;
+
+/** Which way a `slide` transition travels (the new slide arrives from the opposite side). */
+export type SlideDirection = 'left' | 'right' | 'up' | 'down';
+export const SLIDE_DIRECTIONS: readonly SlideDirection[] = ['left', 'right', 'up', 'down'] as const;
+
+/** Easing curves a transition can use. */
+export type SlideEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
+export const SLIDE_EASINGS: readonly SlideEasing[] = [
+  'linear',
+  'ease',
+  'ease-in',
+  'ease-out',
+  'ease-in-out',
+] as const;

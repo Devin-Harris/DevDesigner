@@ -135,6 +135,7 @@ export async function writeSchemaInto(
   const lifelineIds = new IdMap();
   const messageIds = new IdMap();
   const groupIds = new IdMap();
+  const morphIds = new IdMap();
   const group = (old: string | undefined): string | null => {
     if (old === undefined) return null;
     return groupIds.get(old) ?? groupIds.mint(old);
@@ -263,6 +264,25 @@ export async function writeSchemaInto(
     const lowest = Math.min(...sourceElements.map((e) => e.zIndex));
     zShift = (top?.max ?? -1) + 1 - lowest;
   }
+  // New slides go after the project's existing ones rather than interleaving.
+  let slideShift = 0;
+  if (options.stackAboveExisting && sourceElements.some((e) => e.slide)) {
+    const existing = await manager.find(ElementEntity, {
+      where: { projectId, type: 'frame' },
+      select: { id: true, slideJson: true },
+    });
+    let top = -1;
+    for (const row of existing) {
+      try {
+        const o = row.slideJson ? (JSON.parse(row.slideJson) as { order?: number }) : null;
+        if (typeof o?.order === 'number') top = Math.max(top, o.order);
+      } catch {
+        /* ignore a corrupt value */
+      }
+    }
+    const lowest = Math.min(...sourceElements.filter((e) => e.slide).map((e) => e.slide!.order));
+    slideShift = top + 1 - lowest;
+  }
   const resolveBinding = (b: ElementBinding | undefined): ElementBinding | undefined => {
     if (!b) return undefined;
     const map =
@@ -280,6 +300,12 @@ export async function writeSchemaInto(
     startBinding: resolveBinding(e.startBinding),
     endBinding: resolveBinding(e.endBinding),
     groupId: group(e.groupId) ?? undefined,
+    slide:
+      e.type === 'frame' && e.slide
+        ? { ...e.slide, order: e.slide.order + slideShift }
+        : undefined,
+    // Lineage ids are remapped as a set so copies still match each other after import.
+    morphId: e.morphId ? (morphIds.get(e.morphId) ?? morphIds.mint(e.morphId)) : undefined,
   }));
   await insertAll(
     manager,
@@ -319,6 +345,9 @@ export async function writeSchemaInto(
       fileId: e.fileId ?? null,
       language: e.type === 'code' ? (e.language ?? 'typescript') : null,
       groupId: e.groupId ?? null,
+      slideJson: e.slide ? JSON.stringify(e.slide) : null,
+      morphId: e.morphId ?? null,
+      step: e.step ?? null,
     })),
   );
 

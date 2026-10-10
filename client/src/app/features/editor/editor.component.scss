@@ -112,6 +112,49 @@
   border-radius: 10px;
 }
 
+.presenter-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  box-shadow: var(--dbd-shadow-2);
+  font-size: 13px;
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  button {
+    border: none;
+    border-radius: 999px;
+    padding: 5px 12px;
+    background: var(--dbd-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.slides-panel {
+  position: absolute;
+  top: 16px;
+  left: 76px;
+  bottom: 70px;
+  width: 296px;
+  z-index: 6;
+}
+
 .overlay {
   position: absolute;
   inset: 0;

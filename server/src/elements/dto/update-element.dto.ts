@@ -3,10 +3,13 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import {
@@ -21,6 +24,7 @@ import {
   type ElementBinding,
   type FillStyle,
   type PointModel,
+  type SlideConfig,
   type StrokeStyle,
   type TextAlign,
   type VerticalAlign,
@@ -28,6 +32,7 @@ import {
 } from '@dbdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
+import { SlideDto } from './slide.dto';
 
 /** Body for PATCH /elements/:elementId (style / content / geometry). */
 export class UpdateElementDto implements IUpdateElementDto {
@@ -151,4 +156,20 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsString()
   @MaxLength(64)
   groupId?: string | null;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SlideDto)
+  slide?: SlideConfig | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  step?: number | null;
 }

@@ -153,6 +153,25 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     client.to(roomOf(data.projectId)).emit(RT_EVENTS.laser, payload);
   }
 
+  /**
+   * A participant started, advanced or stopped presenting. The state rides on
+   * their roster entry so late joiners see it too; ephemeral, never persisted.
+   */
+  @SubscribeMessage(RT_EVENTS.present)
+  onPresent(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { frameId: string | null; step?: number },
+  ): void {
+    const data = client.data as SocketData | undefined;
+    if (!data?.participant) {
+      return;
+    }
+    const frameId = typeof body?.frameId === 'string' ? body.frameId.slice(0, 100) : null;
+    const step = Number.isInteger(body?.step) ? Math.max(0, Math.min(50, body.step as number)) : 0;
+    data.participant.presenting = frameId ? { frameId, step } : null;
+    this.broadcastRoster(data.projectId);
+  }
+
   @SubscribeMessage(RT_EVENTS.selection)
   onSelection(
     @ConnectedSocket() client: Socket,
