@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ElementImagesService } from '../../../core/services/element-images.service';
 import type { ArrowheadType } from '@dbdesigner/shared';
 import type { ShapeView } from '../canvas/models/shape-view.model';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
@@ -69,6 +70,8 @@ export class CanvasShapesComponent {
   readonly bindHighlight = input<{ x: number; y: number; width: number; height: number } | null>(
     null,
   );
+
+  protected readonly images = inject(ElementImagesService);
 
   protected readonly frameTitleW = FRAME_TITLE_W;
   protected readonly frameTitleH = FRAME_TITLE_H;

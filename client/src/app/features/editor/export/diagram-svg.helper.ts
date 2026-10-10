@@ -321,12 +321,21 @@ function markerDefs(theme: Theme): string {
 }
 
 /** Render one drawing element (shape/arrow/freehand/text) as SVG. */
-function renderShape(view: ShapeView): string {
+function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): string {
   const dash = view.dash ? ` stroke-dasharray="${view.dash}"` : '';
   const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${view.opacity}">`;
   const stroke = `stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash}`;
   const body: string[] = [];
-  if (view.rect) {
+  if (view.image) {
+    // Embedded as a data: URI so the exported file is self-contained.
+    const href = imageData.get(view.image.fileId);
+    if (href) {
+      body.push(
+        `<image href="${esc(href)}" x="${view.image.x}" y="${view.image.y}" ` +
+          `width="${view.image.width}" height="${view.image.height}" preserveAspectRatio="none" />`,
+      );
+    }
+  } else if (view.rect) {
     body.push(
       `<rect x="${view.rect.x}" y="${view.rect.y}" width="${view.rect.width}" height="${view.rect.height}" ` +
         `rx="${view.rect.rx}" fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} />`,
@@ -537,6 +546,8 @@ export function buildDiagramSvg(
   elements: readonly CanvasElementModel[] = [],
   sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
   crop?: { x: number; y: number; width: number; height: number },
+  /** fileId -> `data:` URI for each image element (see ElementImagesService.dataUrl). */
+  imageData: ReadonlyMap<string, string> = new Map(),
 ): DiagramSvg {
   const { theme, dispose } = readTheme();
   try {
@@ -616,7 +627,7 @@ export function buildDiagramSvg(
 
     const nodes = tables.map((t) => renderTable(t, theme)).join('\n');
     // Elements render above connectors and below table nodes, matching the canvas.
-    const shapes = shapeViews.map(renderShape).join('\n');
+    const shapes = shapeViews.map((v) => renderShape(v, imageData)).join('\n');
 
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs>

@@ -422,6 +422,17 @@ export function buildShapeViews(
         };
         base.label = shapeLabel(element, base.bbox, theme);
         break;
+      case 'image':
+        if (element.fileId) {
+          base.image = {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            fileId: element.fileId,
+          };
+        }
+        break;
       case 'frame': {
         // A page outline: square corners, transparent unless a fill was chosen,
         // with its name sitting above the top-left corner (outside the frame, so

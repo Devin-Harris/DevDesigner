@@ -72,6 +72,8 @@ export class ElementFloatingToolbarComponent {
   readonly element = input.required<CanvasElementModel>();
 
   protected readonly isText = computed(() => this.element().type === 'text');
+  /** Pictures have no stroke/fill styling, only opacity and layering. */
+  protected readonly isImage = computed(() => this.element().type === 'image');
   protected readonly isLine = computed(
     () => this.element().type === 'arrow' || this.element().type === 'line',
   );
@@ -81,7 +83,11 @@ export class ElementFloatingToolbarComponent {
     return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond';
   });
   protected readonly hasFill = computed(
-    () => !this.isText() && !this.isLine() && this.element().type !== 'freedraw',
+    () =>
+      !this.isText() &&
+      !this.isLine() &&
+      this.element().type !== 'freedraw' &&
+      this.element().type !== 'image',
   );
   /** Corner radius applies to rectangles only. */
   protected readonly isRect = computed(() => this.element().type === 'rectangle');

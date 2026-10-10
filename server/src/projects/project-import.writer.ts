@@ -16,6 +16,7 @@ import { ColumnEntity } from '../columns/column.entity';
 import { fromDataType } from '../columns/column.mapper';
 import { ElementEntity } from '../elements/element.entity';
 import { IndexEntity } from '../indexes/index.entity';
+import { ProjectImageEntity } from '../images/project-image.entity';
 import { RelationshipEntity } from '../relationships/relationship.entity';
 import { LifelineEntity } from '../sequence/lifeline.entity';
 import { SequenceDiagramEntity } from '../sequence/sequence-diagram.entity';
@@ -88,7 +89,16 @@ export function offsetToAnchor(
   return { dx: anchor.x - Math.min(...xs), dy: anchor.y - Math.min(...ys) };
 }
 
+/** A validated image file from an import, ready to insert (id is the file's own id). */
+export interface ImportedImage {
+  id: string;
+  mimeType: string;
+  data: Buffer;
+}
+
 export interface WriteOptions {
+  /** Image files referenced by image elements' `fileId`. Elements whose file is missing are dropped. */
+  images?: ImportedImage[];
   /** Translation applied to every world coordinate (default none). */
   dx?: number;
   dy?: number;
@@ -221,18 +231,36 @@ export async function writeSchemaInto(
   }
   await insertAll(manager, RelationshipEntity, relationshipRows);
 
+  // Image files get fresh ids; image elements are re-pointed at them, or dropped
+  // when their file isn't in the import.
+  const imageIds = new IdMap();
+  const imported = options.images ?? [];
+  for (const img of imported) imageIds.mint(img.id);
+  await insertAll(
+    manager,
+    ProjectImageEntity,
+    imported.map((img) => ({
+      id: imageIds.get(img.id)!,
+      projectId,
+      mimeType: img.mimeType,
+      data: img.data,
+    })),
+  );
+  const sourceElements = schema.elements.filter(
+    (e) => e.type !== 'image' || (e.fileId !== undefined && imageIds.get(e.fileId) !== undefined),
+  );
   // Free-form elements. Mint all ids first: bindings can point at later elements.
-  for (const e of schema.elements) elementIds.mint(e.id);
+  for (const e of sourceElements) elementIds.mint(e.id);
   // Message ids too: an arrow may be anchored to a message label.
   for (const m of schema.sequenceMessages) messageIds.mint(m.id);
   let zShift = 0;
-  if (options.stackAboveExisting && schema.elements.length) {
+  if (options.stackAboveExisting && sourceElements.length) {
     const top = await manager
       .createQueryBuilder(ElementEntity, 'e')
       .select('MAX(e.zIndex)', 'max')
       .where('e.projectId = :projectId', { projectId })
       .getRawOne<{ max: number | null }>();
-    const lowest = Math.min(...schema.elements.map((e) => e.zIndex));
+    const lowest = Math.min(...sourceElements.map((e) => e.zIndex));
     zShift = (top?.max ?? -1) + 1 - lowest;
   }
   const resolveBinding = (b: ElementBinding | undefined): ElementBinding | undefined => {
@@ -242,9 +270,10 @@ export async function writeSchemaInto(
     const id = map.get(b.targetId);
     return id ? { targetKind: b.targetKind, targetId: id } : undefined;
   };
-  const elementModels: CanvasElementModel[] = schema.elements.map((e) => ({
+  const elementModels: CanvasElementModel[] = sourceElements.map((e) => ({
     ...e,
     id: elementIds.get(e.id)!,
+    fileId: e.type === 'image' ? imageIds.get(e.fileId) : undefined,
     x: e.x + dx,
     y: e.y + dy,
     zIndex: e.zIndex + zShift,
@@ -287,6 +316,7 @@ export async function writeSchemaInto(
       startArrowhead: e.startArrowhead ?? null,
       endArrowhead: e.endArrowhead ?? null,
       curvature: e.curvature ?? null,
+      fileId: e.fileId ?? null,
       groupId: e.groupId ?? null,
     })),
   );
@@ -383,6 +413,7 @@ export async function writeImportedProject(
   manager: EntityManager,
   parsed: ParsedProjectImport,
   ownerId: string | null,
+  images: ImportedImage[] = [],
 ): Promise<Project> {
   const { schema } = parsed;
   const project = await manager.save(
@@ -400,6 +431,6 @@ export async function writeImportedProject(
       homeZoom: schema.home?.zoom ?? null,
     }),
   );
-  await writeSchemaInto(manager, project.id, schema);
+  await writeSchemaInto(manager, project.id, schema, { images });
   return project;
 }

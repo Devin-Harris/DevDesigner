@@ -1,13 +1,13 @@
+import type { ProjectGraphResponse, ShareLinkResponse } from '@dbdesigner/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
 import { nanoid } from 'nanoid';
-import type { ProjectGraphResponse, ShareLinkResponse } from '@dbdesigner/shared';
+import { IsNull, Repository } from 'typeorm';
 import { AccessService } from '../access/access.service';
 import { ProjectsService } from '../projects/projects.service';
-import { ShareLink } from './share-link.entity';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
+import { ShareLink } from './share-link.entity';
 
 /** Length of the unguessable share token (BUILD_INSTRUCTIONS.md section 4.1). */
 const TOKEN_LENGTH = 32;
@@ -100,6 +100,6 @@ export class SharingService {
 
   /** Client origin used to build shareable URLs (falls back to the dev client). */
   private baseUrl(): string {
-    return this.config.get<string>('PUBLIC_APP_URL', 'http://localhost:4200').replace(/\/$/, '');
+    return this.config.get<string>('PUBLIC_APP_URL', 'http://localhost:4242').replace(/\/$/, '');
   }
 }

@@ -4,6 +4,7 @@ import { ElementsService } from './elements.service';
 import type { ElementEntity } from './element.entity';
 import type { Project } from '../projects/project.entity';
 import type { AccessService } from '../access/access.service';
+import type { ImagesService } from '../images/images.service';
 import type { RealtimePublisher } from '../realtime/realtime.publisher';
 import type { CreateElementDto } from './dto/create-element.dto';
 
@@ -28,6 +29,7 @@ describe('ElementsService', () => {
     assertCanWriteElement: jest.Mock;
   };
   let realtime: { emit: jest.Mock };
+  let images: { existsInProject: jest.Mock };
   let service: ElementsService;
 
   const baseDto: CreateElementDto = {
@@ -58,11 +60,13 @@ describe('ElementsService', () => {
       assertCanWriteElement: jest.fn().mockResolvedValue('p1'),
     };
     realtime = { emit: jest.fn() };
+    images = { existsInProject: jest.fn().mockResolvedValue(true) };
     service = new ElementsService(
       elements as unknown as Repository<ElementEntity>,
       projects as unknown as Repository<Project>,
       access as unknown as AccessService,
       realtime as unknown as RealtimePublisher,
+      images as unknown as ImagesService,
     );
   });
 

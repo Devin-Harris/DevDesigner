@@ -92,7 +92,7 @@ npm run dev            # runs server + client together
 
 VS Code users can instead launch the **Dev: All**, **Dev: Server**, or **Dev: Client** tasks from the task runner.
 
-Then open the app at `http://localhost:4200`.
+Then open the app at `http://localhost:4242`.
 
 ## Roadmap
 

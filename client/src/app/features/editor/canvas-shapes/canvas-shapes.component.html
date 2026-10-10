@@ -86,6 +86,31 @@
             [attr.pointer-events]="s.type === 'frame' ? 'none' : null"
           ></rect>
         }
+        @if (s.image; as img) {
+          <!-- Pictures render through <image> (static mode: SVG scripts never run). -->
+          @if (images.url(img.fileId); as href) {
+            <image
+              [attr.href]="href"
+              [attr.x]="img.x"
+              [attr.y]="img.y"
+              [attr.width]="img.width"
+              [attr.height]="img.height"
+              preserveAspectRatio="none"
+              pointer-events="none"
+            ></image>
+          } @else {
+            <rect class="image-pending" [attr.x]="img.x" [attr.y]="img.y"
+              [attr.width]="img.width" [attr.height]="img.height" rx="4"></rect>
+          }
+          <rect
+            class="hit"
+            [attr.x]="img.x"
+            [attr.y]="img.y"
+            [attr.width]="img.width"
+            [attr.height]="img.height"
+            (pointerdown)="onBody(s.id, $event)"
+          ></rect>
+        }
         @if (s.ellipse) {
           <ellipse
             class="hit"

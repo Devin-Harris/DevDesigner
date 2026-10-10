@@ -74,7 +74,8 @@ export type ElementType =
   | 'arrow'
   | 'freedraw'
   | 'text'
-  | 'frame';
+  | 'frame'
+  | 'image';
 
 export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
@@ -85,6 +86,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'freedraw',
   'text',
   'frame',
+  'image',
 ] as const;
 
 /** How a shape's interior is filled. */
@@ -116,3 +118,15 @@ export const ARROWHEAD_TYPES: readonly ArrowheadType[] = [
   'dot',
   'bar',
 ] as const;
+
+/** Raster/vector formats accepted for image elements. */
+export const IMAGE_MIME_TYPES: readonly string[] = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+] as const;
+
+/** Largest accepted image upload, in bytes (decoded). */
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;

@@ -6,6 +6,8 @@
     (pointerdown)="onCanvasPointerDown($event)"
     (dblclick)="onCanvasDblClick($event)"
     (wheel)="onWheel($event)"
+    (dragover)="onCanvasDragOver($event)"
+    (drop)="onCanvasDrop($event)"
   >
     <div class="world" [style.transform]="worldTransform()">
       <svg class="grid" width="1" height="1">
@@ -150,6 +152,7 @@
       [canSetHome]="store.canEdit() && !!store.projectId()"
       [(framePreset)]="framePresetId"
       (toolChange)="onToolChange($event)"
+      (addImage)="pickImages()"
       (undo)="store.undoElement()"
       (redo)="store.redoElement()"
       (zoomIn)="zoomIn()"

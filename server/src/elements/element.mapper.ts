@@ -40,6 +40,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     startArrowhead: entity.startArrowhead ?? undefined,
     endArrowhead: entity.endArrowhead ?? undefined,
     curvature: entity.curvature ?? undefined,
+    fileId: entity.fileId ?? undefined,
     groupId: entity.groupId ?? undefined,
   };
 }

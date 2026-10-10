@@ -24,6 +24,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
+  ProjectExportImage,
 } from '@dbdesigner/shared';
 
 /** A validated, normalised project file ready to be inserted. */
@@ -32,6 +33,8 @@ export interface ParsedProjectImport {
   description: string | null;
   type: ProjectType;
   schema: SchemaModel;
+  /** Embedded image files (still base64; validated + decoded by the service). */
+  images: ProjectExportImage[];
 }
 
 const MAX_POINTS = 100_000;
@@ -235,7 +238,17 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     startArrowhead: optOneOf(e, 'startArrowhead', path, ARROWHEAD_TYPES),
     endArrowhead: optOneOf(e, 'endArrowhead', path, ARROWHEAD_TYPES),
     curvature: optNum(e, 'curvature', path),
+    fileId: optStr(e, 'fileId', path, 100),
     groupId: optStr(e, 'groupId', path, 100),
+  };
+}
+
+function parseImage(raw: unknown, path: string): ProjectExportImage {
+  const i = obj(raw, path);
+  return {
+    id: str(i, 'id', path, 100),
+    mimeType: str(i, 'mimeType', path, 100),
+    data: str(i, 'data', path, 8_000_000),
   };
 }
 
@@ -318,6 +331,7 @@ export function parseProjectExport(raw: unknown): ParsedProjectImport {
     name,
     description: optStr(project, 'description', 'project', 5000) ?? null,
     type: oneOf(project, 'type', 'project', PROJECT_TYPES, 'ERD'),
+    images: list(file['images'], 'images').map((img, i) => parseImage(img, `images[${i}]`)),
     schema: {
       tables: list(s['tables'], 'schema.tables').map((t, i) =>
         parseTable(t, `schema.tables[${i}]`),

@@ -1,3 +1,14 @@
+import {
+  PROJECT_MUTATION_EVENT,
+  REALTIME_NAMESPACE,
+  RT_EVENTS,
+  type AccessLevel,
+  type MutationEvent,
+  type Participant,
+  type PresenceCursor,
+  type PresenceSelection,
+  type RealtimeHandshakeAuth,
+} from '@dbdesigner/shared';
 import { Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
@@ -10,17 +21,6 @@ import {
   type OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
-import {
-  PROJECT_MUTATION_EVENT,
-  REALTIME_NAMESPACE,
-  RT_EVENTS,
-  type AccessLevel,
-  type MutationEvent,
-  type Participant,
-  type PresenceCursor,
-  type PresenceSelection,
-  type RealtimeHandshakeAuth,
-} from '@dbdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -47,7 +47,7 @@ function roomOf(projectId: string): string {
 }
 
 function corsOrigins(): string[] {
-  const raw = process.env.CORS_ORIGIN ?? 'http://localhost:4200';
+  const raw = process.env.CORS_ORIGIN ?? 'http://localhost:4242';
   return raw.split(',').map((o) => o.trim());
 }
 
@@ -124,10 +124,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(RT_EVENTS.cursor)
-  onCursor(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: { x: number; y: number },
-  ): void {
+  onCursor(@ConnectedSocket() client: Socket, @MessageBody() body: { x: number; y: number }): void {
     const data = client.data as SocketData | undefined;
     if (!data?.participant || typeof body?.x !== 'number' || typeof body?.y !== 'number') {
       return;

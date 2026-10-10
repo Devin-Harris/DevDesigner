@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TablesModule } from '../tables/tables.module';
 import { RelationshipsModule } from '../relationships/relationships.module';
 import { ElementsModule } from '../elements/elements.module';
+import { ImagesModule } from '../images/images.module';
 import { SequenceModule } from '../sequence/sequence.module';
 import { Project } from './project.entity';
 import { ProjectsController } from './projects.controller';
@@ -21,6 +22,7 @@ import { ProjectsService } from './projects.service';
     TablesModule,
     RelationshipsModule,
     ElementsModule,
+    ImagesModule,
     SequenceModule,
   ],
   controllers: [ProjectsController],

@@ -122,6 +122,10 @@ export class ElementEntity {
   @Column({ type: 'float', nullable: true })
   curvature!: number | null;
 
+  /** Image elements: id of the ProjectImageEntity this element displays. */
+  @Column({ type: 'varchar', nullable: true })
+  fileId!: string | null;
+
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;

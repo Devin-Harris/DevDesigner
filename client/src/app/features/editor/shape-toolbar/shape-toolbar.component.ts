@@ -78,6 +78,8 @@ export class ShapeToolbarComponent {
   readonly toggleGrid = output<void>();
   readonly align = output<AlignAction>();
   readonly exportSql = output<void>();
+  /** Open the image picker (images are placed via the editor, not drawn). */
+  readonly addImage = output<void>();
   readonly exportImage = output<ExportImageFormat>();
 
   /**

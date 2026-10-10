@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { CanvasElementModel } from '@dbdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
+import { ImagesService } from '../images/images.service';
 import { ElementEntity } from './element.entity';
 import { toElementModel } from './element.mapper';
 import { CreateElementDto } from './dto/create-element.dto';
@@ -28,6 +29,7 @@ export class ElementsService {
     private readonly projects: Repository<Project>,
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
+    private readonly images: ImagesService,
   ) {}
 
   /** All elements for a project, ordered by stacking index, as shared models. */
@@ -50,6 +52,15 @@ export class ElementsService {
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
+    }
+    if (dto.type === 'image') {
+      // An image element must point at a file uploaded to THIS project.
+      const owned = dto.fileId
+        ? await this.images.existsInProject(dto.fileId, projectId)
+        : false;
+      if (!owned) {
+        throw new BadRequestException('Image elements need an image uploaded to this project.');
+      }
     }
     const element = this.elements.create({
       projectId,
@@ -82,6 +93,7 @@ export class ElementsService {
       startArrowhead: dto.startArrowhead ?? null,
       endArrowhead: dto.endArrowhead ?? null,
       curvature: dto.curvature ?? null,
+      fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);

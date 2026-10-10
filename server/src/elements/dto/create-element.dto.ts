@@ -136,4 +136,9 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsNumber()
   curvature?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  fileId?: string;
 }

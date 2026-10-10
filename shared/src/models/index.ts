@@ -143,6 +143,8 @@ export interface CanvasElementModel {
   endArrowhead?: ArrowheadType;
   /** Line/arrow only: perpendicular offset (px) of the curve's midpoint from the straight chord; 0/absent = straight. */
   curvature?: number;
+  /** Image only: id of the uploaded project image this element displays. */
+  fileId?: string;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
 }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ImagesModule } from '../images/images.module';
 import { Project } from '../projects/project.entity';
 import { ElementEntity } from './element.entity';
 import { ElementsController } from './elements.controller';
@@ -11,7 +12,7 @@ import { ElementsService } from './elements.service';
  * duplicating query logic.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([ElementEntity, Project])],
+  imports: [TypeOrmModule.forFeature([ElementEntity, Project]), ImagesModule],
   controllers: [ElementsController],
   providers: [ElementsService],
   exports: [ElementsService],

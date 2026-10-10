@@ -95,6 +95,28 @@ export interface ProjectExportFile {
     type: ProjectType;
   };
   schema: SchemaModel;
+  /** Image files referenced by `schema.elements[].fileId`, embedded so the file is self-contained. */
+  images?: ProjectExportImage[];
+}
+
+/** One embedded image in an export file. `id` matches an element's `fileId`. */
+export interface ProjectExportImage {
+  id: string;
+  mimeType: string;
+  /** Base64-encoded file contents. */
+  data: string;
+}
+
+/** Body of POST /projects/:projectId/images. */
+export interface UploadImageDto {
+  mimeType: string;
+  /** Base64-encoded file contents (no data: prefix). */
+  data: string;
+}
+
+/** Response of an image upload: the id to put in an image element's `fileId`. */
+export interface UploadImageResponse {
+  id: string;
 }
 
 /** Body of POST /projects/:id/import-content: merge an export file into an existing project. */
@@ -238,6 +260,8 @@ export interface CreateElementDto {
   startArrowhead?: ArrowheadType;
   endArrowhead?: ArrowheadType;
   curvature?: number;
+  /** Image only: the uploaded project image to display (see UploadImageDto). */
+  fileId?: string;
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {

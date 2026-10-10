@@ -1,5 +1,6 @@
 <div class="bar">
   <!-- Stroke color -->
+  @if (!isImage()) {
   <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
     <span class="swatch ring" [style.background]="element().strokeColor"></span>
   </button>
@@ -14,6 +15,7 @@
       </label>
     </div>
   </ng-template>
+  }
 
   @if (hasFill()) {
     <button class="tb" [dbdPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill color" [disabled]="!store.canEdit()">
@@ -43,9 +45,12 @@
     </ng-template>
   }
 
+  @if (!isImage()) {
   <span class="sep"></span>
+  }
 
   <!-- Stroke width -->
+  @if (!isImage()) {
   <button class="tb" [dbdPopoverTrigger]="widthMenu" placement="below-start" matTooltip="Stroke width" [disabled]="!store.canEdit()">
     <dbd-icon name="line_weight" />
   </button>
@@ -58,9 +63,10 @@
       }
     </div>
   </ng-template>
+  }
 
   <!-- Stroke style -->
-  @if (!isText()) {
+  @if (!isText() && !isImage()) {
     <button class="tb" [dbdPopoverTrigger]="styleMenu" placement="below-start" matTooltip="Stroke style" [disabled]="!store.canEdit()">
       <dbd-icon name="timeline" />
     </button>

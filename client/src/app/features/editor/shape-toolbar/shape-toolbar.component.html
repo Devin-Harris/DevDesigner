@@ -213,6 +213,21 @@
       <path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6" />
     </svg>
   </button>
+
+  <button
+    class="dock-btn"
+    [disabled]="disabled()"
+    (click)="addImage.emit()"
+    matTooltip="Image — or drop / paste one onto the canvas"
+    matTooltipPosition="right"
+    aria-label="Image"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="14" rx="2.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4.5" />
+    </svg>
+  </button>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->

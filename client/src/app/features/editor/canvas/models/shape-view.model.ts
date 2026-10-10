@@ -45,6 +45,8 @@ export interface ShapeView {
   rect?: { x: number; y: number; width: number; height: number; rx: number };
   ellipse?: { cx: number; cy: number; rx: number; ry: number };
   polygon?: string;
+  /** An uploaded picture (image element): drawn stretched to this box. */
+  image?: { x: number; y: number; width: number; height: number; fileId: string };
   path?: string;
   /** True for a freehand stroke: `path` is a filled outline (fill = stroke color). */
   freehand: boolean;

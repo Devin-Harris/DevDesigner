@@ -16,6 +16,14 @@
   pointer-events: none !important;
 }
 
+// Stand-in drawn while a picture's file is still loading.
+.image-pending {
+  fill: color-mix(in srgb, var(--dbd-text-muted) 12%, transparent);
+  stroke: var(--dbd-border-strong);
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
 .label {
   pointer-events: none;
   user-select: none;

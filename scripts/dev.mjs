@@ -1,5 +1,5 @@
 // Launches the server and client dev servers in two SEPARATE terminal windows,
-// so each stream of output (Nest on :3000, Angular on :4200) is isolated.
+// so each stream of output (Nest on :3000, Angular on :4242) is isolated.
 // Cross-platform: Windows (cmd), macOS (Terminal.app), Linux (common emulators).
 //
 // Run indirectly via `npm run dev`, which builds the shared package first.
@@ -50,5 +50,5 @@ for (const target of targets) {
 }
 
 console.log(
-  'Opened two terminals: DBDesigner Server (http://localhost:3000) and DBDesigner Client (http://localhost:4200).',
+  'Opened two terminals: DBDesigner Server (http://localhost:3000) and DBDesigner Client (http://localhost:4242).',
 );

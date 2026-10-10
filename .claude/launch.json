@@ -6,7 +6,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
       "cwd": "client",
-      "port": 4200
+      "port": 4242
     }
   ]
 }

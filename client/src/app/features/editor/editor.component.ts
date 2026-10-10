@@ -34,6 +34,7 @@ import {
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { ProjectFileService } from '../../core/services/project-file.service';
+import { ElementImagesService } from '../../core/services/element-images.service';
 import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
@@ -1725,16 +1726,33 @@ export class EditorComponent {
     const cy = s.y + s.height / 2;
     const factor = ev.altKey ? 2 : 1;
 
-    let width = Math.max(8, s.width + (left ? -dx : dx) * factor);
-    let height = Math.max(8, s.height + (top ? -dy : dy) * factor);
-    if (ev.shiftKey && s.width > 0 && s.height > 0) {
-      const scale = Math.max(width / s.width, height / s.height);
+    const resized = this.store.elements().find((e) => e.id === g.id);
+    // Pictures keep their proportions by default; Shift frees them (inverse of shapes).
+    const keepProportions = resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
+
+    const grow = (left ? -dx : dx) * factor;
+    const growY = (top ? -dy : dy) * factor;
+    let width: number;
+    let height: number;
+    if (keepProportions && s.width > 0 && s.height > 0) {
+      // Project the drag onto the box's diagonal so the corner tracks the cursor
+      // smoothly instead of jumping between the two axes.
+      const diag = s.width * s.width + s.height * s.height;
+      const minScale = 8 / Math.min(s.width, s.height);
+      let scale = Math.max(minScale, 1 + (grow * s.width + growY * s.height) / diag);
+      if (this.gridSnap()) {
+        // Snap one dimension and derive the other so the ratio survives snapping.
+        scale = Math.max(minScale, snapToGrid(s.width * scale) / s.width);
+      }
       width = s.width * scale;
       height = s.height * scale;
-    }
-    if (this.gridSnap()) {
-      width = Math.max(8, snapToGrid(width));
-      height = Math.max(8, snapToGrid(height));
+    } else {
+      width = Math.max(8, s.width + grow);
+      height = Math.max(8, s.height + growY);
+      if (this.gridSnap()) {
+        width = Math.max(8, snapToGrid(width));
+        height = Math.max(8, snapToGrid(height));
+      }
     }
 
     let x: number;
@@ -2599,10 +2617,7 @@ export class EditorComponent {
       return;
     }
     if (mod && event.key.toLowerCase() === 'v') {
-      if (this.clipboard && this.store.canEdit()) {
-        event.preventDefault();
-        void this.pasteClipboard();
-      }
+      // Handled by the window `paste` event, which also sees system-clipboard images.
       return;
     }
     // Shift/Alt pressed or released mid-draw re-applies the constraint immediately.
@@ -2723,6 +2738,130 @@ export class EditorComponent {
   }
 
   // --- copy / paste ---
+
+  /** Ctrl/Cmd+V: a system-clipboard picture becomes an image element, else the in-app clipboard pastes. */
+  @HostListener('window:paste', ['$event'])
+  protected onPaste(event: ClipboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+      return;
+    }
+    if (!this.store.canEdit()) {
+      return;
+    }
+    const files = Array.from(event.clipboardData?.files ?? []).filter((f) =>
+      f.type.startsWith('image/'),
+    );
+    if (files.length) {
+      event.preventDefault();
+      void this.insertImages(files);
+      return;
+    }
+    if (this.clipboard) {
+      event.preventDefault();
+      void this.pasteClipboard();
+    }
+  }
+
+  // --- images ---
+
+  private readonly images = inject(ElementImagesService);
+
+  /** Toolbar "Image": pick one or more files and drop them at the center of the view. */
+  protected pickImages(): void {
+    if (!this.store.canEdit() || !this.store.projectId()) {
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg';
+    input.onchange = () => {
+      const files = Array.from(input.files ?? []);
+      if (files.length) {
+        void this.insertImages(files);
+      }
+    };
+    input.click();
+  }
+
+  protected onCanvasDragOver(event: DragEvent): void {
+    if (this.store.canEdit() && event.dataTransfer?.types.includes('Files')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onCanvasDrop(event: DragEvent): void {
+    const files = Array.from(event.dataTransfer?.files ?? []).filter(
+      (f) => f.type.startsWith('image/') || /\.svg$/i.test(f.name),
+    );
+    if (!files.length) {
+      return;
+    }
+    event.preventDefault();
+    if (this.store.canEdit()) {
+      void this.insertImages(files, this.toWorld(event.clientX, event.clientY));
+    }
+  }
+
+  /**
+   * Upload image files and add each as an image element, centered on `at` (or the
+   * middle of the view) and staggered so several don't stack exactly. Large
+   * pictures are scaled down to a comfortable on-canvas size, keeping proportions.
+   */
+  private async insertImages(files: File[], at?: { x: number; y: number }): Promise<void> {
+    const projectId = this.store.projectId();
+    if (!projectId || !this.store.canEdit()) {
+      return;
+    }
+    const rect = this.canvasRect();
+    const v = this.store.viewport();
+    const center = at ?? {
+      x: (rect.width / 2 - v.x) / v.zoom,
+      y: (rect.height / 2 - v.y) / v.zoom,
+    };
+    const maxSide = 400;
+    let index = 0;
+    for (const file of files) {
+      try {
+        // Some sources (an SVG from a file picker) report no MIME type; infer it.
+        const typed =
+          file.type || !/\.svg$/i.test(file.name)
+            ? file
+            : new Blob([file], { type: 'image/svg+xml' });
+        const uploaded = await this.images.upload(projectId, typed);
+        const scale = Math.min(1, maxSide / Math.max(uploaded.width, uploaded.height));
+        const width = Math.max(8, Math.round(uploaded.width * scale));
+        const height = Math.max(8, Math.round(uploaded.height * scale));
+        const shift = index * 24;
+        const x = Math.round(center.x - width / 2 + shift);
+        const y = Math.round(center.y - height / 2 + shift);
+        await this.store.addElement({
+          type: 'image',
+          x: this.gridSnap() ? snapToGrid(x) : x,
+          y: this.gridSnap() ? snapToGrid(y) : y,
+          width,
+          height,
+          angle: 0,
+          strokeColor: this.defaultStroke(),
+          fillStyle: 'none',
+          strokeWidth: 0,
+          strokeStyle: 'solid',
+          opacity: 100,
+          fileId: uploaded.fileId,
+        });
+        index += 1;
+      } catch (err) {
+        this.snackBar.open(
+          err instanceof Error ? err.message : 'Could not add the image.',
+          undefined,
+          { duration: 4000 },
+        );
+      }
+    }
+  }
 
   /** Snapshot the selected tables and elements into the in-app clipboard. */
   private copySelection(): void {
@@ -3137,7 +3276,8 @@ export class EditorComponent {
       return;
     }
     try {
-      const built = buildDiagramSvg(tables, relationships, elements, sequences);
+      const imageData = await this.imageDataFor(elements);
+      const built = buildDiagramSvg(tables, relationships, elements, sequences, undefined, imageData);
       const diagram = { ...built, svg: await embedFonts(built.svg) };
       await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
     } catch (err) {
@@ -3147,6 +3287,27 @@ export class EditorComponent {
         { duration: 4000 },
       );
     }
+  }
+
+  /** `data:` URIs for the pictures among `elements`, so exports are self-contained. */
+  private async imageDataFor(
+    elements: readonly CanvasElementModel[],
+  ): Promise<Map<string, string>> {
+    const ids = [
+      ...new Set(
+        elements.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string),
+      ),
+    ];
+    const data = new Map<string, string>();
+    await Promise.all(
+      ids.map(async (id) => {
+        const url = await this.images.dataUrl(id);
+        if (url) {
+          data.set(id, url);
+        }
+      }),
+    );
+    return data;
   }
 
   /** Export every frame on the canvas as a multi-page PDF (one page per frame). */
@@ -3183,13 +3344,16 @@ export class EditorComponent {
     }
     try {
       const images: DiagramImage[] = [];
+      const imageData = await this.imageDataFor(elements);
       for (const frame of ordered) {
-        const built = buildDiagramSvg(tables, relationships, elements, sequences, {
-          x: frame.x,
-          y: frame.y,
-          width: frame.width,
-          height: frame.height,
-        });
+        const built = buildDiagramSvg(
+          tables,
+          relationships,
+          elements,
+          sequences,
+          { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
+          imageData,
+        );
         images.push({ ...built, svg: await embedFonts(built.svg) });
       }
       if (format === 'pdf') {

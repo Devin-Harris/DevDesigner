@@ -6,6 +6,7 @@ import {
   PROJECT_EXPORT_VERSION,
   type ImportIntoProjectResponse,
   type ProjectExportFile,
+  type ProjectExportImage,
   type ProjectGraphResponse,
   type ProjectSummary,
   type SchemaMutation,
@@ -23,7 +24,13 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
 import { parseProjectExport } from './project-import.parser';
-import { offsetToAnchor, writeImportedProject, writeSchemaInto } from './project-import.writer';
+import {
+  offsetToAnchor,
+  writeImportedProject,
+  writeSchemaInto,
+  type ImportedImage,
+} from './project-import.writer';
+import { ImagesService } from '../images/images.service';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -46,6 +53,7 @@ export class ProjectsService {
     private readonly access: AccessService,
     private readonly dataSource: DataSource,
     private readonly realtime: RealtimePublisher,
+    private readonly images: ImagesService,
   ) {}
 
   /**
@@ -213,6 +221,7 @@ export class ProjectsService {
       exportedAt: new Date().toISOString(),
       project: { name: project.name, description: project.description, type: project.type },
       schema,
+      images: await this.images.exportForProject(id),
     };
   }
 
@@ -223,8 +232,9 @@ export class ProjectsService {
    */
   async importProject(raw: unknown, userId: string | null): Promise<ProjectSummary> {
     const parsed = parseProjectExport(raw);
+    const images = this.decodeImages(parsed.images);
     const saved = await this.dataSource.transaction((manager) =>
-      writeImportedProject(manager, parsed, userId),
+      writeImportedProject(manager, parsed, userId, images),
     );
     return this.toSummary(saved);
   }
@@ -249,8 +259,14 @@ export class ProjectsService {
       anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)
         ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
         : { dx: 0, dy: 0 };
+    const images = this.decodeImages(parsed.images);
     const added = await this.dataSource.transaction((manager) =>
-      writeSchemaInto(manager, projectId, parsed.schema, { dx, dy, stackAboveExisting: true }),
+      writeSchemaInto(manager, projectId, parsed.schema, {
+        dx,
+        dy,
+        stackAboveExisting: true,
+        images,
+      }),
     );
     // Parents before children so peers never see a dangling reference.
     const mutations: SchemaMutation[] = [
@@ -279,6 +295,15 @@ export class ProjectsService {
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
+  }
+
+  /** Validate (type, size, SVG safety) and decode the images embedded in an import file. */
+  private decodeImages(images: ProjectExportImage[]): ImportedImage[] {
+    return images.map((img) => ({
+      id: img.id,
+      mimeType: img.mimeType,
+      data: this.images.validate(img.mimeType, img.data),
+    }));
   }
 
   private async findOrThrow(id: string): Promise<Project> {
