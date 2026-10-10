@@ -330,46 +330,46 @@
   >
     <dbd-icon name="grid_4x4" />
   </button>
-  <button
-    class="sbtn"
-    [dbdPopoverTrigger]="alignMenu"
-    placement="above-start"
-    [disabled]="!canAlign()"
-    matTooltip="Align selected"
-  >
-    <dbd-icon name="align_horizontal_left" />
-  </button>
-  <ng-template #alignMenu let-close>
-    <div class="dbd-menu">
-      <button class="dbd-menu-item" (click)="align.emit('left'); close()">
-        <dbd-icon name="align_horizontal_left" />Align left
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('hcenter'); close()">
-        <dbd-icon name="align_horizontal_center" />Align center (x)
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('right'); close()">
-        <dbd-icon name="align_horizontal_right" />Align right
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('top'); close()">
-        <dbd-icon name="align_vertical_top" />Align top
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('vcenter'); close()">
-        <dbd-icon name="align_vertical_center" />Align middle (y)
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('bottom'); close()">
-        <dbd-icon name="align_vertical_bottom" />Align bottom
-      </button>
-      <div class="dbd-menu-sep"></div>
-      <button class="dbd-menu-item" (click)="align.emit('dist-h'); close()">
-        <dbd-icon name="horizontal_distribute" />Distribute horizontally
-      </button>
-      <button class="dbd-menu-item" (click)="align.emit('dist-v'); close()">
-        <dbd-icon name="vertical_distribute" />Distribute vertically
-      </button>
-    </div>
-  </ng-template>
 
   @if (saveLabel()) {
     <span class="save-label">{{ saveLabel() }}</span>
   }
 </div>
+
+<!-- Quick-align panel: floats above the status bar while there is something to
+     align (2+ units, or one unit sitting inside a frame / shape). -->
+@if (canAlign()) {
+  <div class="alignbar" [attr.aria-label]="alignToContainer() ? 'Align in container' : 'Align selection'">
+    @if (alignToContainer()) {
+      <span class="align-hint">In container</span>
+    }
+    <button class="sbtn" (click)="align.emit('left')" matTooltip="Align left" matTooltipPosition="above">
+      <dbd-icon name="align_horizontal_left" />
+    </button>
+    <button class="sbtn" (click)="align.emit('hcenter')" matTooltip="Center horizontally" matTooltipPosition="above">
+      <dbd-icon name="align_horizontal_center" />
+    </button>
+    <button class="sbtn" (click)="align.emit('right')" matTooltip="Align right" matTooltipPosition="above">
+      <dbd-icon name="align_horizontal_right" />
+    </button>
+    <span class="sep"></span>
+    <button class="sbtn" (click)="align.emit('top')" matTooltip="Align top" matTooltipPosition="above">
+      <dbd-icon name="align_vertical_top" />
+    </button>
+    <button class="sbtn" (click)="align.emit('vcenter')" matTooltip="Center vertically" matTooltipPosition="above">
+      <dbd-icon name="align_vertical_center" />
+    </button>
+    <button class="sbtn" (click)="align.emit('bottom')" matTooltip="Align bottom" matTooltipPosition="above">
+      <dbd-icon name="align_vertical_bottom" />
+    </button>
+    @if (canDistribute()) {
+      <span class="sep"></span>
+      <button class="sbtn" (click)="align.emit('dist-h')" matTooltip="Distribute horizontally" matTooltipPosition="above">
+        <dbd-icon name="horizontal_distribute" />
+      </button>
+      <button class="sbtn" (click)="align.emit('dist-v')" matTooltip="Distribute vertically" matTooltipPosition="above">
+        <dbd-icon name="vertical_distribute" />
+      </button>
+    }
+  </div>
+}

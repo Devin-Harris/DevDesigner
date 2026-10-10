@@ -8,7 +8,8 @@
 }
 
 .dock,
-.statusbar {
+.statusbar,
+.alignbar {
   position: absolute;
   pointer-events: auto;
   background: var(--dbd-surface);
@@ -105,6 +106,32 @@
     align-self: stretch;
     margin: 9px 4px;
     background: var(--dbd-border);
+  }
+}
+
+// ---- Quick-align panel, floating directly above the status bar ----
+.alignbar {
+  left: 16px;
+  bottom: 68px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  padding: 0 6px;
+  border-radius: 13px;
+
+  .sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 8px 4px;
+    background: var(--dbd-border);
+  }
+
+  .align-hint {
+    margin: 0 6px 0 4px;
+    font-size: 11px;
+    color: var(--dbd-text-muted);
+    white-space: nowrap;
   }
 }
 

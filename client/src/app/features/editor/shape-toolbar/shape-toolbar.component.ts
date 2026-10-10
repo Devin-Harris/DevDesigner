@@ -58,6 +58,10 @@ export class ShapeToolbarComponent {
   readonly saveLabel = input<string>('');
   readonly gridSnap = input<boolean>(false);
   readonly canAlign = input<boolean>(false);
+  /** Three or more units selected, so distribute is meaningful. */
+  readonly canDistribute = input<boolean>(false);
+  /** A lone selection aligns to its surrounding frame/shape rather than to peers. */
+  readonly alignToContainer = input<boolean>(false);
   readonly canExport = input<boolean>(false);
   readonly canUndo = input<boolean>(false);
   readonly canRedo = input<boolean>(false);

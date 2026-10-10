@@ -190,6 +190,8 @@ interface Rect {
   maxY: number;
 }
 
+/** Element kinds that can contain other items (a lone selection aligns to these). */
+const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
 const GRID_SNAP_KEY = 'dbd-grid-snap';
 const SIDE_PANEL_KEY = 'dbd-side-panel-collapsed';
 
@@ -663,7 +665,7 @@ export class EditorComponent {
 
   /** The shapes layer is interactive only in select mode (drawing passes through it). */
   /** Two or more independently movable units (a whole group counts as one). */
-  protected readonly canAlign = computed(() => {
+  private readonly alignUnitCount = computed(() => {
     const byItem = this.store.groupByItem();
     const entered = this.store.enteredGroupId();
     const ids = [
@@ -677,8 +679,74 @@ export class EditorComponent {
         return g && g !== entered ? g : id;
       }),
     );
-    return this.store.canEdit() && units.size >= 2;
+    return units.size;
   });
+
+  /**
+   * The frame / shape a lone selected unit sits fully inside, if any. A single
+   * selection aligns to this container, so no second selection is needed. Once
+   * several units are selected they align to each other instead (which already
+   * covers the "item + its container" case).
+   */
+  private readonly alignContainer = computed<Box | null>(() => {
+    if (this.alignUnitCount() !== 1) {
+      return null;
+    }
+    const selected = new Set([
+      ...this.store.selectedTableIds(),
+      ...this.store.selectedElementIds(),
+      ...this.store.selectedDiagramIds(),
+    ]);
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    const grow = (b: Box): void => {
+      x0 = Math.min(x0, b.x0);
+      y0 = Math.min(y0, b.y0);
+      x1 = Math.max(x1, b.x1);
+      y1 = Math.max(y1, b.y1);
+    };
+    for (const t of this.store.tables()) {
+      if (selected.has(t.id)) grow(tableBox(t));
+    }
+    for (const e of this.store.elements()) {
+      if (selected.has(e.id)) grow(elementBox(e));
+    }
+    for (const d of this.store.sequenceDiagrams()) {
+      const b = selected.has(d.id) ? this.diagramBox(d) : null;
+      if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+    }
+    if (!Number.isFinite(x0)) {
+      return null;
+    }
+    const eps = 0.5;
+    let best: Box | null = null;
+    let bestArea = Infinity;
+    for (const e of this.store.elements()) {
+      if (selected.has(e.id) || !CONTAINER_TYPES.has(e.type)) continue;
+      const b = elementBox(e);
+      if (b.x0 > x0 + eps || b.y0 > y0 + eps || b.x1 < x1 - eps || b.y1 < y1 - eps) continue;
+      const area = (b.x1 - b.x0) * (b.y1 - b.y0);
+      if (area < bestArea) {
+        best = b;
+        bestArea = area;
+      }
+    }
+    return best;
+  });
+
+  /** Align buttons are live for 2+ units, or for one unit inside a container. */
+  protected readonly canAlign = computed(
+    () => this.store.canEdit() && (this.alignUnitCount() >= 2 || !!this.alignContainer()),
+  );
+  protected readonly canDistribute = computed(
+    () => this.store.canEdit() && this.alignUnitCount() >= 3,
+  );
+  /** True when an align action would target the surrounding container. */
+  protected readonly alignToContainer = computed(
+    () => this.alignUnitCount() === 1 && !!this.alignContainer(),
+  );
 
   /** Dashed outlines around selected groups and the group currently entered. */
   protected readonly groupOutlines = computed(() => {
@@ -1699,11 +1767,44 @@ export class EditorComponent {
 
   // --- canvas element pointer (select / move / resize / rotate / endpoint) ---
 
+  /**
+   * Unfilled shapes are grabbable anywhere inside, so a click can land on several
+   * stacked outlines. Pick the innermost (smallest) of the unfilled shapes at the
+   * point, down to the first opaque element, instead of whichever was drawn last.
+   */
+  private pickInnermostAt(clicked: CanvasElementModel, event: PointerEvent): CanvasElementModel {
+    const unfilled = (e: CanvasElementModel): boolean =>
+      (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
+      (e.fillStyle === 'none' || !e.backgroundColor);
+    if (!unfilled(clicked)) {
+      return clicked;
+    }
+    const world = this.toWorld(event.clientX, event.clientY);
+    const hits = this.shownElements()
+      .filter((e) => e.type !== 'frame' && hitTestElement(e, world))
+      .reverse();
+    let best = clicked;
+    let bestArea = Infinity;
+    for (const e of hits) {
+      const b = elementBox(e);
+      const area = (b.x1 - b.x0) * (b.y1 - b.y0);
+      if (area < bestArea) {
+        best = e;
+        bestArea = area;
+      }
+      if (!unfilled(e)) {
+        break;
+      }
+    }
+    return best;
+  }
+
   protected onElementPointerDown(payload: ShapePointerEvent): void {
-    const el = this.store.elements().find((e) => e.id === payload.id);
-    if (!el) {
+    const clicked = this.store.elements().find((e) => e.id === payload.id);
+    if (!clicked) {
       return;
     }
+    const el = this.pickInnermostAt(clicked, payload.event);
     if (EditorComponent.additive(payload.event)) {
       this.store.selectElement(el.id, true);
       return;
@@ -4869,13 +4970,15 @@ export class EditorComponent {
         place: (x, y) => parts.forEach((m) => m.shift(x - gx, y - gy)),
       });
     }
-    if (items.length < 2) {
+    // A lone unit aligns to the frame / shape it sits inside.
+    const container = items.length === 1 ? this.alignContainer() : null;
+    if (items.length < 2 && !container) {
       return;
     }
-    const minX = Math.min(...items.map((i) => i.x));
-    const maxRight = Math.max(...items.map((i) => i.x + i.w));
-    const minY = Math.min(...items.map((i) => i.y));
-    const maxBottom = Math.max(...items.map((i) => i.y + i.h));
+    const minX = container ? container.x0 : Math.min(...items.map((i) => i.x));
+    const maxRight = container ? container.x1 : Math.max(...items.map((i) => i.x + i.w));
+    const minY = container ? container.y0 : Math.min(...items.map((i) => i.y));
+    const maxBottom = container ? container.y1 : Math.max(...items.map((i) => i.y + i.h));
 
     switch (action) {
       case 'left':
@@ -4901,6 +5004,7 @@ export class EditorComponent {
         break;
       }
       case 'dist-h': {
+        if (items.length < 2) break;
         const sorted = [...items].sort((p, q) => p.x - q.x);
         const first = sorted[0].x;
         const last = sorted[sorted.length - 1].x;
@@ -4909,6 +5013,7 @@ export class EditorComponent {
         break;
       }
       case 'dist-v': {
+        if (items.length < 2) break;
         const sorted = [...items].sort((p, q) => p.y - q.y);
         const first = sorted[0].y;
         const last = sorted[sorted.length - 1].y;
