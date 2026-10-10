@@ -173,6 +173,10 @@ interface Glyph {
   fill: string;
   family: string;
   weight: string;
+  italic: boolean;
+  underline: boolean;
+  /** Rich-text style signature (weight, italic, underline, color): equal = same run. */
+  style: string;
   /** Index of the word (run of non-space characters) this glyph belongs to. */
   w: number;
 }
@@ -184,6 +188,48 @@ interface CharMove {
   b: Glyph | null;
 }
 
+interface SpanStyle {
+  weight: string;
+  italic: boolean;
+  underline: boolean;
+  fill: string;
+  line: Element | null;
+}
+
+/** The rich-text style in effect at `node` (innermost tspan attribute wins). */
+function spanStyle(node: Node, text: SVGTextElement): SpanStyle {
+  const attr = (name: string): string | null => {
+    for (let el = node.parentNode as Element | null; el; el = el.parentNode as Element | null) {
+      const v = el.getAttribute(name);
+      if (v !== null) {
+        return v;
+      }
+      if (el === text) {
+        break;
+      }
+    }
+    return null;
+  };
+  let line: Element | null = null;
+  for (
+    let el = node.parentNode as Element | null;
+    el && el !== text;
+    el = el.parentNode as Element | null
+  ) {
+    if (el.hasAttribute('x')) {
+      line = el;
+      break;
+    }
+  }
+  return {
+    weight: attr('font-weight') ?? 'normal',
+    italic: attr('font-style') === 'italic',
+    underline: (attr('text-decoration') ?? '').includes('underline'),
+    fill: attr('fill') ?? '#000',
+    line,
+  };
+}
+
 /** Non-space characters of an on-screen <text>, with where each one actually sits. */
 function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
   const content = text.textContent ?? '';
@@ -192,11 +238,29 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
     return null;
   }
   const size = Number(text.getAttribute('font-size')) || 16;
+  const family = text.getAttribute('font-family') ?? 'sans-serif';
+  const styles: SpanStyle[] = [];
+  const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const st = spanStyle(node, text);
+    for (let k = 0; k < (node.nodeValue?.length ?? 0); k += 1) {
+      styles.push(st);
+    }
+  }
+  if (styles.length !== n) {
+    return null;
+  }
   const out: Glyph[] = [];
   let word = 0;
   let inWord = false;
   for (let i = 0; i < n; i += 1) {
     const ch = content[i];
+    const st = styles[i];
+    // A line break ends a word even though no space character separates the lines.
+    if (inWord && i > 0 && st.line !== styles[i - 1].line) {
+      word += 1;
+      inWord = false;
+    }
     if (/\s/.test(ch)) {
       if (inWord) {
         word += 1;
@@ -211,9 +275,12 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
       x: p.x - off.x,
       y: p.y - off.y,
       size,
-      fill: text.getAttribute('fill') ?? '#000',
-      family: text.getAttribute('font-family') ?? 'sans-serif',
-      weight: text.getAttribute('font-weight') ?? 'normal',
+      fill: st.fill,
+      family,
+      weight: st.weight,
+      italic: st.italic,
+      underline: st.underline,
+      style: `${st.weight}|${st.italic ? 'i' : ''}|${st.underline ? 'u' : ''}|${st.fill}`,
       w: word,
     });
   }
@@ -221,25 +288,99 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
 }
 
 /**
- * Pair the glyphs of two texts, preferring whole words: words that appear in both
- * (in order) keep their letters together and glide as a unit; only the words left
- * over in between are matched letter by letter, and only within the same gap, so a
- * letter never jumps into an unrelated word further along.
+ * Pair the glyphs of two texts, preferring rich-text structure over single letters.
+ *
+ * 1. Style runs (consecutive characters with the same weight / italic / underline /
+ *    color) are paired first: identical runs (same style + text), then the same
+ *    words in a different style (a restyle), then runs that merely share a style.
+ *    Each level only pairs runs left over between pairs of the previous level, so
+ *    a bold run never trades letters with a plain one.
+ * 2. Inside a paired run, words that appear in both (in order) keep their letters
+ *    together and glide as a unit.
+ * 3. Only the words left over in between are matched letter by letter, and only
+ *    within the same gap, so a letter never jumps into an unrelated word.
  */
 function matchGlyphs(ga: readonly Glyph[], gb: readonly Glyph[]): Array<[number, number]> {
-  const group = (g: readonly Glyph[]): number[][] => {
-    const words: number[][] = [];
-    g.forEach((x, i) => (words[x.w] ??= []).push(i));
-    return words.filter(Boolean);
+  const runsOf = (g: readonly Glyph[]): number[][] => {
+    const runs: number[][] = [];
+    g.forEach((x, i) => {
+      const last = runs[runs.length - 1];
+      if (last && g[last[0]].style === x.style) {
+        last.push(i);
+      } else {
+        runs.push([i]);
+      }
+    });
+    return runs;
   };
-  const wa = group(ga);
-  const wb = group(gb);
+  const textOf = (g: readonly Glyph[], run: number[]): string => run.map((i) => g[i].ch).join('');
+  const ra = runsOf(ga);
+  const rb = runsOf(gb);
+  const levels: Array<(g: readonly Glyph[], run: number[]) => string> = [
+    (g, run) => `${g[run[0]].style}\u0000${textOf(g, run)}`,
+    (g, run) => textOf(g, run),
+    (g, run) => g[run[0]].style,
+  ];
+  const runPairs: Array<[number, number]> = [];
+  const solve = (ia: number[], ib: number[], level: number): void => {
+    if (!ia.length || !ib.length || level >= levels.length) {
+      return;
+    }
+    const key = levels[level];
+    const m = lcsPairs(
+      ia.map((i) => key(ga, ra[i])),
+      ib.map((j) => key(gb, rb[j])),
+    );
+    let pa = 0;
+    let pb = 0;
+    for (const [i, j] of m) {
+      solve(ia.slice(pa, i), ib.slice(pb, j), level + 1);
+      runPairs.push([ia[i], ib[j]]);
+      pa = i + 1;
+      pb = j + 1;
+    }
+    solve(ia.slice(pa), ib.slice(pb), level + 1);
+  };
+  solve(
+    ra.map((_r, i) => i),
+    rb.map((_r, i) => i),
+    0,
+  );
+
+  const out: Array<[number, number]> = [];
+  for (const [i, j] of runPairs) {
+    matchWords(ga, gb, ra[i], rb[j], out);
+  }
+  return out;
+}
+
+/** Word-then-letter pairing of two glyph index lists (one style run each). */
+function matchWords(
+  ga: readonly Glyph[],
+  gb: readonly Glyph[],
+  idxA: readonly number[],
+  idxB: readonly number[],
+  out: Array<[number, number]>,
+): void {
+  const group = (g: readonly Glyph[], idx: readonly number[]): number[][] => {
+    const words = new Map<number, number[]>();
+    for (const i of idx) {
+      const list = words.get(g[i].w);
+      if (list) {
+        list.push(i);
+      } else {
+        words.set(g[i].w, [i]);
+      }
+    }
+    return Array.from(words.values());
+  };
+  const wa = group(ga, idxA);
+  const wb = group(gb, idxB);
   const text = (g: readonly Glyph[], idx: number[]): string => idx.map((i) => g[i].ch).join('');
   const wordPairs = lcsPairs(
     wa.map((w) => text(ga, w)),
     wb.map((w) => text(gb, w)),
   );
-  const out: Array<[number, number]> = [];
   const gap = (fromA: number, toA: number, fromB: number, toB: number): void => {
     const ia = wa.slice(fromA, toA).flat();
     const ib = wb.slice(fromB, toB).flat();
@@ -259,7 +400,6 @@ function matchGlyphs(ga: readonly Glyph[], gb: readonly Glyph[]): Array<[number,
     pb = j + 1;
   }
   gap(pa, wa.length, pb, wb.length);
-  return out;
 }
 
 /** Pair characters of two strings by longest common subsequence: [indexA, indexB][]. */
@@ -646,7 +786,8 @@ export class MorphStage {
         p.b.type !== 'code' &&
         !!p.a.text.trim() &&
         !!p.b.text.trim() &&
-        p.a.text !== p.b.text,
+        (p.a.text !== p.b.text ||
+          JSON.stringify(p.a.element?.runs ?? null) !== JSON.stringify(p.b.element?.runs ?? null)),
     );
   }
 
@@ -692,7 +833,6 @@ export class MorphStage {
       const make = (g: Glyph): SVGTextElement => {
         const el = document.createElementNS(SVG_NS, 'text') as SVGTextElement;
         el.setAttribute('font-family', g.family);
-        el.setAttribute('font-weight', g.weight);
         el.textContent = g.ch;
         layer.appendChild(el);
         return el;
@@ -797,6 +937,15 @@ export class MorphStage {
       c.el.setAttribute('y', String(lerp(from.y, to.y, f)));
       c.el.setAttribute('font-size', String(lerp(from.size, to.size, f)));
       c.el.setAttribute('fill', mixColor(from.fill, to.fill, f));
+      // Weight / italic / underline can't be blended: they switch halfway.
+      const style = f < 0.5 ? from : to;
+      c.el.setAttribute('font-weight', style.weight);
+      c.el.setAttribute('font-style', style.italic ? 'italic' : 'normal');
+      if (style.underline) {
+        c.el.setAttribute('text-decoration', 'underline');
+      } else {
+        c.el.removeAttribute('text-decoration');
+      }
       c.el.setAttribute('opacity', String(c.a && c.b ? 1 : c.a ? 1 - t : t));
     }
   }

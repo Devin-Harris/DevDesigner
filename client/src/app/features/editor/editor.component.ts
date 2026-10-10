@@ -1087,6 +1087,8 @@ export class EditorComponent {
   private pasteCount = 0;
   /** True once the current drag has switched to dragging Alt-made copies. */
   private dragCopied = false;
+  /** Pointer was released while Alt-drag copies were still being created. */
+  private releasedWhileDuplicating = false;
   private lastPointer: PointerEvent | null = null;
   /** Live Shift state, so a move drag can lock to an axis without a pointer move. */
   private shiftHeld = false;
@@ -3000,7 +3002,8 @@ export class EditorComponent {
       }
     }
     if (this.mode !== 'duplicating' || !resume) {
-      // Released before the copies existed (or nothing was copied).
+      // Nothing was copied (or the gesture was cancelled meanwhile).
+      this.releasedWhileDuplicating = false;
       if (this.mode === 'duplicating') {
         this.mode = 'idle';
         this.gestureActive.set(false);
@@ -3010,6 +3013,11 @@ export class EditorComponent {
     resume();
     if (this.lastPointer) {
       this.handlePointerMove(this.lastPointer);
+    }
+    if (this.releasedWhileDuplicating) {
+      // The button was let go before the copies existed: land them where it was dropped.
+      this.releasedWhileDuplicating = false;
+      this.onPointerUp();
     }
   }
 
@@ -3268,6 +3276,11 @@ export class EditorComponent {
 
   @HostListener('window:pointerup')
   protected onPointerUp(): void {
+    if (this.mode === 'duplicating') {
+      // The copies are still being created; finish the drop once they exist.
+      this.releasedWhileDuplicating = true;
+      return;
+    }
     if (this.mode === 'marquee') {
       this.commitMarquee();
     } else if (this.mode === 'draw') {

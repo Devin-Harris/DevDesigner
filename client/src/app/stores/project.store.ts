@@ -611,7 +611,14 @@ export const ProjectStore = signalStore(
 
       async function updateElementRaw(elementId: string, patch: UpdateElementDto): Promise<void> {
         const updated = await runSave(() => firstValueFrom(elementsApi.update(elementId, patch)));
-        mapElement(elementId, () => updated);
+        // A drag's position save is debounced, so the response may still carry the
+        // pre-drag position; the local one is newer while that save is pending.
+        const positionPending = timers.has(`pos:elem:${elementId}`);
+        mapElement(elementId, (cur) =>
+          positionPending && patch.x === undefined && patch.y === undefined
+            ? { ...updated, x: cur.x, y: cur.y }
+            : updated,
+        );
       }
 
       async function deleteElementRaw(elementId: string): Promise<void> {
