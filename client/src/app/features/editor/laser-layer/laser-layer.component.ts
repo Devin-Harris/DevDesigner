@@ -52,7 +52,7 @@ export class LaserLayerComponent {
         if (b.start) {
           continue;
         }
-        const life = 1 - (a.age + b.age) / 2;
+        const life = Math.min(1, Math.max(0, 1 - (a.age + b.age) / 2));
         segments.push({
           x1: a.x,
           y1: a.y,

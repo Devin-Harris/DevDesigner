@@ -57,6 +57,10 @@ export class LaserService {
   /** Add a sample to a trail and mark the pointer as held. */
   add(id: string, x: number, y: number): void {
     const t = performance.now();
+    // Keep the clock current so a fresh sample never reads as "from the future"
+    // (now starts at 0, which made the first stroke's segments huge until the
+    // first animation frame).
+    this.now.set(t);
     this.trails.update((all) => {
       const prev = all[id];
       // A sample added while no pointer is held begins a new stroke.
