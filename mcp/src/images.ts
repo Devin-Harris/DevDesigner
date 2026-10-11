@@ -1,7 +1,9 @@
 // Loading an image for a tool: an inline SVG, base64 data, a local file or a URL,
 // checked against the same type/size limits the backend enforces.
 
+import { lookup } from 'node:dns/promises';
 import { readFile } from 'node:fs/promises';
+import { isIP } from 'node:net';
 import { extname } from 'node:path';
 import {
   IMAGE_MIME_TYPES,
@@ -44,6 +46,33 @@ const BY_EXTENSION: Record<string, string> = {
 };
 
 const FETCH_TIMEOUT_MS = 15_000;
+
+/** True when running as a shared remote endpoint (see http.ts). */
+const isRemote = (): boolean => process.env.DBDESIGNER_MCP_REMOTE === '1';
+
+/** Loopback, link-local and private-network addresses (IPv4 and the common IPv6 forms). */
+export function isPrivateAddress(ip: string): boolean {
+  const v = ip.toLowerCase();
+  if (v === '::1' || v === '::' || v.startsWith('fe80:') || v.startsWith('fc') || v.startsWith('fd')) return true;
+  const mapped = /^::ffff:(d+.d+.d+.d+)$/.exec(v);
+  const four = mapped ? mapped[1] : v;
+  const m = /^(d+).(d+).(d+).(d+)$/.exec(four);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return (
+    a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)
+  );
+}
+
+/** Remote mode: refuse hosts that resolve to this server's own or private network. */
+async function assertPublicHost(host: string): Promise<void> {
+  const name = host.replace(/^[|]$/g, '');
+  const addrs = isIP(name) ? [name] : (await lookup(name, { all: true })).map((a) => a.address);
+  if (name === 'localhost' || name.endsWith('.internal') || name.endsWith('.local') || addrs.some(isPrivateAddress)) {
+    throw new UserError('That URL points at a private or local address, which is not allowed here.');
+  }
+}
 
 function check(mimeType: string, bytes: Uint8Array): LoadedImage {
   const mime = mimeType.toLowerCase().split(';')[0].trim();
@@ -93,6 +122,9 @@ export async function loadImage(input: ImageInput): Promise<LoadedImage> {
   }
 
   if (source === 'filePath') {
+    if (isRemote()) {
+      throw new UserError('`filePath` is not available on the remote endpoint; use svg, data (base64) or url.');
+    }
     const path = input.filePath!.trim();
     const mime = input.mimeType ?? BY_EXTENSION[extname(path).toLowerCase()];
     if (!mime) {
@@ -117,10 +149,18 @@ export async function loadImage(input: ImageInput): Promise<LoadedImage> {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new UserError('Only http(s) URLs can be downloaded.');
   }
+  if (isRemote()) {
+    try {
+      await assertPublicHost(url.hostname);
+    } catch (err) {
+      throw err instanceof UserError ? err : new UserError(`Cannot resolve ${url.hostname}.`);
+    }
+  }
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ctl.signal, redirect: 'follow' });
+    // Redirects are refused remotely: a public URL could bounce to an internal one.
+    const res = await fetch(url, { signal: ctl.signal, redirect: isRemote() ? 'error' : 'follow' });
     if (!res.ok) throw new UserError(`Downloading ${url.href} failed: HTTP ${res.status}.`);
     const declared = Number(res.headers.get('content-length') ?? 0);
     if (declared > MAX_IMAGE_BYTES) {
