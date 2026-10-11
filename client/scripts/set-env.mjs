@@ -17,6 +17,7 @@ export const environment = {
   production: true,
   apiBaseUrl: '${origin}/api',
   wsBaseUrl: '${origin}',
+  mcpUrl: '${process.env.mcpUrl}',
 };
 `,
   );
