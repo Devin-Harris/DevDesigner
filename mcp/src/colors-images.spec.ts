@@ -1,6 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { normalizeApiUrl } from './api';
 import { colorArg, describePalette } from './colors';
 import { loadImage } from './images';
 import { UserError } from './model';
@@ -53,5 +54,14 @@ describe('loadImage', () => {
     await expect(loadImage({ data: 'QUJD', mimeType: 'text/html' })).rejects.toThrow(/Unsupported/);
     await expect(loadImage({ svg: 'hello' })).rejects.toThrow(/SVG markup/);
     await expect(loadImage({ url: 'file:///etc/passwd' })).rejects.toThrow(/http/);
+  });
+});
+
+describe('normalizeApiUrl', () => {
+  it('adds /api to a bare host and keeps explicit paths', () => {
+    expect(normalizeApiUrl('https://x.up.railway.app')).toBe('https://x.up.railway.app/api');
+    expect(normalizeApiUrl('https://x.up.railway.app/')).toBe('https://x.up.railway.app/api');
+    expect(normalizeApiUrl('https://x.up.railway.app/api/')).toBe('https://x.up.railway.app/api');
+    expect(normalizeApiUrl('http://localhost:3000/api')).toBe('http://localhost:3000/api');
   });
 });

@@ -12,7 +12,7 @@
 // Logs go to stderr only: in stdio mode stdout belongs to the MCP protocol.
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { DbDesignerApi, configFromEnv } from './api';
+import { DbDesignerApi, configFromEnv, normalizeApiUrl } from './api';
 import { startHttp } from './http';
 import { createServer } from './server';
 
@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   if (process.env.MCP_TRANSPORT === 'http' || process.argv.includes('--http')) {
     await startHttp({
       port: Number(process.env.PORT ?? 3001),
-      apiUrl: (process.env.DBDESIGNER_API_URL ?? 'http://localhost:3000/api').replace(/\/+$/, ''),
+      apiUrl: normalizeApiUrl(process.env.DBDESIGNER_API_URL ?? 'http://localhost:3000/api'),
     });
     return;
   }

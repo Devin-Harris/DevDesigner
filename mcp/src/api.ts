@@ -15,6 +15,20 @@ export interface ApiConfig {
   token: string;
 }
 
+/**
+ * Normalise the configured API URL: trailing slashes dropped, and `/api` appended when
+ * the URL is just a host (the backend serves everything under /api, so a bare host
+ * would 404 with "Cannot GET /projects").
+ */
+export function normalizeApiUrl(raw: string): string {
+  const url = raw.trim().replace(/\/+$/, '');
+  try {
+    return new URL(url).pathname.replace(/\/+$/, '') === '' ? `${url}/api` : url;
+  } catch {
+    return url;
+  }
+}
+
 /** Read connection settings from the environment, failing with a helpful message. */
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const token = env.DBDESIGNER_API_TOKEN?.trim();
@@ -24,7 +38,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ApiConfig {
         'and pass it to the MCP server through this environment variable.',
     );
   }
-  const baseUrl = (env.DBDESIGNER_API_URL ?? 'http://localhost:3000/api').replace(/\/+$/, '');
+  const baseUrl = normalizeApiUrl(env.DBDESIGNER_API_URL ?? 'http://localhost:3000/api');
   return { baseUrl, token };
 }
 
