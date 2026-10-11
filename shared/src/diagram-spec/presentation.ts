@@ -16,7 +16,7 @@ import type {
   SlideTransitionType,
 } from '../enums';
 import { fitWithin, imageSize, base64ToBytes } from '../images';
-import { paletteNames, resolveColor } from '../palette';
+import { LIGHT_TEXT, paletteNames, readableTextOn, resolveColor } from '../palette';
 import type {
   CanvasElementModel,
   LifelineModel,
@@ -145,6 +145,8 @@ export type SlideItem =
       x?: number;
       y?: number;
       morph?: string;
+      /** Card surface (palette name or hex); a dark one switches the code to the light token palette. */
+      backgroundColor?: string;
     }
   | { type: 'schema'; tables: SpecTable[]; relationships?: SpecRelationship[]; x?: number; y?: number }
   | {
@@ -172,6 +174,12 @@ export interface SlideSpec {
   title?: string;
   notes?: string;
   hidden?: boolean;
+  /**
+   * Slide background (palette name or hex), set on the slide frame itself rather than a
+   * rectangle behind the content. On a dark background, text and shape outlines without
+   * an explicit color default to white.
+   */
+  background?: string;
   /** How this slide is entered (ignored for the first slide of a presentation). */
   transition?: SlideTransitionSpec;
   content?: SlideItem[];
@@ -296,6 +304,8 @@ export function buildSlideContent(
     label?: string;
     /** Slide-local Y where the flow starts (below existing content); default top margin. */
     startY?: number;
+    /** Hex used for text / shape outlines that give no color (a light color on a dark slide). */
+    defaultInk?: string;
   },
 ): SlideContent {
   const out: SlideContent = {
@@ -367,7 +377,7 @@ export function buildSlideContent(
         }))
       : undefined;
     if (runs) text = runs.map((r) => r.text).join('');
-    const strokeColor = color(item.color, 'text');
+    const strokeColor = color(item.color, 'text') ?? options.defaultInk;
     const width = Math.min(item.width ?? inner, inner);
     const height = wrappedTextHeight(text, fontSize, width);
     const p = place(item, width, height);
@@ -412,8 +422,8 @@ export function buildSlideContent(
           width: w,
           height: h,
           ...taggedLineage(item.morph),
-          ...(color(item.strokeColor, 'a shape outline')
-            ? { strokeColor: color(item.strokeColor, 'a shape outline') }
+          ...(color(item.strokeColor, 'a shape outline') ?? options.defaultInk
+            ? { strokeColor: color(item.strokeColor, 'a shape outline') ?? options.defaultInk }
             : {}),
           ...(color(item.backgroundColor, 'a shape fill')
             ? {
@@ -497,7 +507,7 @@ export function buildSlideContent(
           language: item.language ?? 'typescript',
           ...(fileName ? { fileName } : {}),
           fontSize: size,
-          backgroundColor: '#f6f8fa',
+          backgroundColor: color(item.backgroundColor, 'a code block background') ?? '#f6f8fa',
           fillStyle: 'solid',
           ...taggedLineage(item.morph),
           ...(options.slideId ? { slideId: options.slideId } : {}),
@@ -584,6 +594,7 @@ export function slideFrame(
   rect: SlideFrameRect,
   slide: SlideConfig,
   zIndex: number,
+  background?: string,
 ): CanvasElementModel {
   return {
     ...baseElement('frame', id, zIndex),
@@ -594,8 +605,17 @@ export function slideFrame(
     strokeColor: '#868e96',
     strokeWidth: 1.5,
     cornerRadius: 0,
+    ...(background ? { backgroundColor: background, fillStyle: 'solid' as const } : {}),
     slide,
   };
+}
+
+/**
+ * Ink for text/outlines drawn on `background`: white when the fill is dark enough that
+ * the default near-black would vanish, otherwise undefined (keep the default).
+ */
+export function inkOn(background: string | undefined): string | undefined {
+  return background && readableTextOn(background) === LIGHT_TEXT ? LIGHT_TEXT : undefined;
 }
 
 export interface BuiltPresentation {
@@ -643,7 +663,16 @@ export function buildPresentationFile(
       ...(s.notes ? { notes: s.notes } : {}),
       ...(transition ? { transition: normalizeTransition(transition) } : {}),
     };
-    frames.push(slideFrame(frameId, options.frame, config, z++));
+    let background: string | undefined;
+    if (s.background?.trim()) {
+      background = resolveColor(s.background).hex ?? undefined;
+      if (!background) {
+        merged.warnings.push(
+          `Slide ${i + 1}: unknown background "${s.background}"; ignored. Use hex or one of: ${paletteNames()}.`,
+        );
+      }
+    }
+    frames.push(slideFrame(frameId, options.frame, config, z++, background));
     const items: SlideItem[] = [
       ...(s.title ? [{ type: 'heading', text: s.title } as SlideItem] : []),
       ...(s.content ?? []),
@@ -653,6 +682,7 @@ export function buildPresentationFile(
       slideId: frameId,
       zStart: z,
       label: `Slide ${i + 1}`,
+      defaultInk: inkOn(background),
     });
     z += built.elements.length + 1;
     merged.elements.push(...built.elements);

@@ -65,13 +65,24 @@ export function estimateTableHeight(columnCount: number): number {
   return TABLE_HEADER_H + Math.max(1, columnCount) * TABLE_ROW_H;
 }
 
-/** A table's world-space footprint. */
+/** Range the editor allows a table's display scale to take (mirror of canvas.constants). */
+export const MIN_TABLE_SCALE = 0.4;
+export const MAX_TABLE_SCALE = 3;
+
+/** A table's effective display scale (1 = natural size), clamped like the editor does. */
+export function tableDisplayScale(table: Pick<TableModel, 'scale'>): number {
+  const s = table.scale;
+  return s && s > 0 ? Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, s)) : 1;
+}
+
+/** A table's world-space footprint (including its display scale). */
 export function tableRect(table: TableModel): Rect {
+  const s = tableDisplayScale(table);
   return {
     x: table.x,
     y: table.y,
-    w: estimateTableWidth(table.name, table.columns, table.width),
-    h: estimateTableHeight(table.columns.length),
+    w: Math.round(estimateTableWidth(table.name, table.columns, table.width) * s),
+    h: estimateTableHeight(table.columns.length) * s,
   };
 }
 

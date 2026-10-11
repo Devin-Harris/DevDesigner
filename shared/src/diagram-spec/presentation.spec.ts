@@ -86,6 +86,29 @@ describe('buildPresentationFile', () => {
   });
 });
 
+describe('slide background', () => {
+  it('fills the slide frame and defaults ink to white on dark backgrounds', () => {
+    const built = buildPresentationFile(
+      [
+        { title: 'Dark', background: 'ink', content: [{ type: 'code', code: 'x', backgroundColor: 'charcoal' }] },
+        { title: 'Light', background: 'blue-soft' },
+        { title: 'Bad', background: 'nope' },
+      ],
+      { presentation: 'P', frame },
+    );
+    const frames = built.file.schema.elements.filter((e) => e.type === 'frame');
+    expect(frames[0]).toMatchObject({ backgroundColor: '#1e293b', fillStyle: 'solid' });
+    expect(frames[1]).toMatchObject({ backgroundColor: '#dbeafe', fillStyle: 'solid' });
+    expect(frames[2].backgroundColor).toBeUndefined();
+    expect(built.warnings.some((w) => /unknown background "nope"/.test(w))).toBe(true);
+    const text = built.file.schema.elements.filter((e) => e.type === 'text');
+    expect(text[0].strokeColor).toBe('#ffffff');
+    expect(text[1].strokeColor).toBe('#1e1e1e');
+    const code = built.file.schema.elements.find((e) => e.type === 'code');
+    expect(code?.backgroundColor).toBe('#334155');
+  });
+});
+
 describe('default transition', () => {
   it('gives every slide a 300ms morph unless it says otherwise', () => {
     const built = buildPresentationFile(

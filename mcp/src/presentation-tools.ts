@@ -19,6 +19,7 @@ import {
   buildSlideContent,
   contentFile,
   findFreeSpot,
+  inkOn,
   isSoloTag,
   matchDiagrams,
   matchLifelines,
@@ -212,6 +213,12 @@ const slideItem = z.discriminatedUnion('type', [
       .optional()
       .describe('Optional file name (e.g. "user.service.ts") shown in a title bar, as if the code lived in that file.'),
     fontSize: z.number().optional(),
+    backgroundColor: z
+      .string()
+      .optional()
+      .describe(
+        'Card surface: palette name (e.g. "ink", "charcoal" for a dark editor look, "slate-soft") or #hex. Default: light grey. Token colors switch to a light palette on dark surfaces.',
+      ),
     ...morph,
     ...at,
   }),
@@ -275,6 +282,12 @@ const slideSpec = z.object({
   title: z.string().optional().describe('Big heading at the top of the slide.'),
   notes: z.string().optional().describe('Speaker notes.'),
   hidden: z.boolean().optional().describe('Skipped when presenting.'),
+  background: z
+    .string()
+    .optional()
+    .describe(
+      'Slide background: palette name (e.g. "ink", "blue-soft") or #hex, set on the slide itself (never draw a rectangle for this). On a dark background, text/outlines without an explicit color default to white. Change later with set_slide_background.',
+    ),
   transition: transitionSchema
     .optional()
     .describe(
@@ -325,13 +338,13 @@ async function resolveImages<T extends { content?: unknown[] }>(slides: readonly
   return out;
 }
 
-type Frame = CanvasElementModel & { slide: SlideConfig };
+export type Frame = CanvasElementModel & { slide: SlideConfig };
 
-function slideFrames(schema: SchemaModel): Frame[] {
+export function slideFrames(schema: SchemaModel): Frame[] {
   return schema.elements.filter((e): e is Frame => e.type === 'frame' && e.slide !== undefined);
 }
 
-function resolvePresentation(schema: SchemaModel, name: string | undefined): string {
+export function resolvePresentation(schema: SchemaModel, name: string | undefined): string {
   const names = presentationNames(slideFrames(schema));
   if (names.length === 0) {
     throw new UserError('This project has no presentations yet. Use create_presentation.');
@@ -346,7 +359,7 @@ function resolvePresentation(schema: SchemaModel, name: string | undefined): str
 }
 
 /** A slide by frame id, or by 1-based number within a presentation. */
-function resolveSlide(schema: SchemaModel, ref: string, presentation?: string): Frame {
+export function resolveSlide(schema: SchemaModel, ref: string, presentation?: string): Frame {
   const frames = slideFrames(schema);
   const byId = frames.find((f) => f.id === ref);
   if (byId) return byId;
@@ -648,6 +661,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         idPrefix: 'a_',
         startY: contentBottom(schema, frame),
         label: 'Slide',
+        defaultInk: inkOn(frame.fillStyle !== 'none' ? frame.backgroundColor : undefined),
       });
       const mutations = await importFile(id, contentFile(built));
       // Image elements are created by the import, so count them like any other element.

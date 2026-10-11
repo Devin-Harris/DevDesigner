@@ -40,6 +40,7 @@ import { ApiError, type DbDesignerApi } from './api';
 import { applySpec } from './apply';
 import { colorArg, describePalette } from './colors';
 import { loadImage } from './images';
+import { registerLayoutTools } from './layout-tools';
 import { applyLayoutDiff, registerPresentationTools } from './presentation-tools';
 import {
   UserError,
@@ -1080,6 +1081,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
   );
 
   registerPresentationTools(tool, api);
+  registerLayoutTools(tool, api);
 }
 
 // --- Resources & prompts ---------------------------------------------------------
