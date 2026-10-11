@@ -87,6 +87,8 @@ export const ICON_PATHS: Record<string, string> = {
   format_size:'<path d="M4 7V5h9v2M8.5 5v13M6.5 18h4M14 12v-1.5h6V12M17 10.5V18M15.5 18h3"/>',
   font_download: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 16l3-8 3 8M9.4 13.5h4.2"/>',
   format_bold: '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>',
+  format_list_bulleted: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  format_list_numbered: '<path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.8 13.5a1.4 1.4 0 0 1 2.6.6c0 1-2.6 1.8-2.6 2.9h2.8"/>',
   format_underlined: '<path d="M7 5v7a5 5 0 0 0 10 0V5M5 20h14"/>',
   format_line_spacing: '<path d="M3 7l2-2 2 2M5 5v14M3 17l2 2 2-2M10 7h11M10 12h11M10 17h11"/>',
   wrap_text: '<path d="M4 6h16M4 12h12a3 3 0 0 1 0 6h-4M4 18h4M13 16l-2 2 2 2"/>',

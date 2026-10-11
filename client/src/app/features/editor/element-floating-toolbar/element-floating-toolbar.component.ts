@@ -17,7 +17,18 @@ import {
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { RichTextSessionService } from '../../../core/services/rich-text-session.service';
-import { clearRunKeys, isPlainRuns, patchRuns, runsOrPlain } from '../canvas/helpers/rich-text.helper';
+import {
+  clearRunKeys,
+  isPlainRuns,
+  patchRuns,
+  plainOf,
+  runsOrPlain,
+} from '../canvas/helpers/rich-text.helper';
+import {
+  listKindOver,
+  toggleList as toggleListRuns,
+  type ListKind,
+} from '../canvas/helpers/rich-list.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
@@ -299,6 +310,35 @@ export class ElementFloatingToolbarComponent {
       const text = el.text ?? '';
       const runs = patchRuns(runsOrPlain(text, el.runs), 0, text.length, { underline: on });
       void this.store.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
+    }
+  }
+
+  /** The list kind of the selected lines (editing) or of the whole block. */
+  protected readonly listKind = computed<ListKind | null>(() => {
+    if (this.editingRich()) {
+      return this.rich.selection()?.list ?? null;
+    }
+    const text = this.element().text ?? '';
+    return listKindOver(text, 0, text.length);
+  });
+
+  /** Make the selected lines (or every line of the selected text blocks) a list, or undo it. */
+  protected toggleList(kind: ListKind): void {
+    if (this.editingRich() && this.rich.toggleList(kind)) {
+      return;
+    }
+    const ids = this.store.selectedElementIds();
+    for (const id of ids.length ? ids : [this.element().id]) {
+      const el = this.store.elements().find((e) => e.id === id);
+      if (el?.type !== 'text') {
+        continue;
+      }
+      const text = el.text ?? '';
+      const { runs } = toggleListRuns(runsOrPlain(text, el.runs), 0, text.length, kind);
+      void this.store.updateElement(
+        id,
+        withTextFit(el, { text: plainOf(runs), runs: isPlainRuns(runs) ? null : runs }),
+      );
     }
   }
 

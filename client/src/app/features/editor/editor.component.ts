@@ -115,6 +115,17 @@ import {
   type RunBase,
   type RunPatch,
 } from './canvas/helpers/rich-text.helper';
+import {
+  listAutoformat,
+  listBackspace,
+  listEnter,
+  listKindOver,
+  normalizeLists,
+  shiftListIndent,
+  toggleList,
+  type ListKind,
+  type ListResult,
+} from './canvas/helpers/rich-list.helper';
 import { RichTextSessionService } from '../../core/services/rich-text-session.service';
 import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
@@ -2695,13 +2706,36 @@ export class EditorComponent {
       return;
     }
     const { start, end } = this.richSel;
-    const style = styleOver(
-      runs ?? this.readRichRuns(root),
-      Math.min(start, end),
-      Math.max(start, end),
-      this.richBase(el),
-    );
-    this.richSession.selection.set({ ...style, hasRange: start !== end });
+    const current = runs ?? this.readRichRuns(root);
+    const style = styleOver(current, Math.min(start, end), Math.max(start, end), this.richBase(el));
+    this.richSession.selection.set({
+      ...style,
+      hasRange: start !== end,
+      list: listKindOver(plainOf(current), start, end),
+    });
+  }
+
+  /** Show a list edit's runs in the editor, keeping the (remapped) selection. */
+  private commitListResult(root: HTMLElement, res: ListResult): void {
+    const { start, end } = this.richSel;
+    const total = plainOf(res.runs).length;
+    this.renderRichRuns(root, res.runs);
+    root.focus();
+    this.setRichSelection(root, Math.min(res.map(start), total), Math.min(res.map(end), total));
+    this.captureRichSelection(root);
+    this.syncRichModel(res.runs);
+    this.publishRichSelection(res.runs);
+  }
+
+  /** Toolbar / shortcut: toggle a bulleted or numbered list on the selected lines. */
+  private toggleRichList(kind: ListKind): void {
+    const root = this.richEditorRef()?.nativeElement;
+    if (!root) {
+      return;
+    }
+    this.captureRichSelection(root);
+    const { start, end } = this.richSel;
+    this.commitListResult(root, toggleList(this.readRichRuns(root), start, end, kind));
   }
 
   /** Push the editor's runs into the store (live) with the refit box. */
@@ -2717,12 +2751,19 @@ export class EditorComponent {
     this.store.patchElementLocal(id, { text, runs: stored, width: size.width, height: size.height });
   }
 
-  protected onRichInput(): void {
+  protected onRichInput(event?: Event): void {
     const root = this.richEditorRef()?.nativeElement;
     if (!root) {
       return;
     }
     const runs = this.readRichRuns(root);
+    this.captureRichSelection(root);
+    // Keep list numbering/bullets right after deletes and pastes (not mid-composition).
+    const fixed = (event as InputEvent | undefined)?.isComposing ? null : normalizeLists(runs);
+    if (fixed) {
+      this.commitListResult(root, fixed);
+      return;
+    }
     this.syncRichModel(runs);
     this.captureRichSelection(root);
     this.publishRichSelection(runs);
@@ -2770,7 +2811,11 @@ export class EditorComponent {
     root.focus();
     this.setRichSelection(root, text.length, text.length);
     this.richSel = { start: text.length, end: text.length };
-    this.richSession.open(id, (patch) => this.applyRichPatch(patch));
+    this.richSession.open(
+      id,
+      (patch) => this.applyRichPatch(patch),
+      (kind) => this.toggleRichList(kind),
+    );
     this.publishRichSelection();
 
     const onSelection = (): void => {
@@ -2811,6 +2856,10 @@ export class EditorComponent {
       (event.target as HTMLElement).blur();
       return;
     }
+    const root = this.richEditorRef()?.nativeElement;
+    if (root && !event.isComposing && this.onRichListKey(event, root)) {
+      return;
+    }
     if (event.key === 'Enter' && !event.isComposing) {
       // A plain line break keeps the content flat (no nested block elements).
       event.preventDefault();
@@ -2826,6 +2875,63 @@ export class EditorComponent {
         this.applyRichPatch({ [flag]: !(current?.[flag] ?? false) });
       }
     }
+  }
+
+  /** List behaviour of the rich editor's keys; true when the key was handled. */
+  private onRichListKey(event: KeyboardEvent, root: HTMLElement): boolean {
+    const mod = event.ctrlKey || event.metaKey;
+    // Ctrl+Shift+7 / +8 toggle numbered / bulleted lists (as in Google Docs).
+    if (mod && event.shiftKey && !event.altKey && (event.code === 'Digit7' || event.code === 'Digit8')) {
+      event.preventDefault();
+      this.toggleRichList(event.code === 'Digit7' ? 'number' : 'bullet');
+      return true;
+    }
+    if (mod || event.altKey) {
+      return false;
+    }
+    const key = event.key;
+    if (key !== 'Enter' && key !== 'Backspace' && key !== 'Tab' && key !== ' ') {
+      return false;
+    }
+    this.captureRichSelection(root);
+    const { start, end } = this.richSel;
+    const runs = this.readRichRuns(root);
+    const collapsed = start === end;
+    if (key === 'Tab') {
+      event.preventDefault();
+      const shifted = shiftListIndent(runs, start, end, event.shiftKey ? -1 : 1);
+      if (shifted) {
+        this.commitListResult(root, shifted);
+      } else if (!event.shiftKey) {
+        document.execCommand('insertText', false, ' '.repeat(4));
+      }
+      return true;
+    }
+    if (!collapsed || event.shiftKey) {
+      return false;
+    }
+    if (key === 'Enter') {
+      const result = listEnter(runs, start);
+      if (!result) {
+        return false;
+      }
+      event.preventDefault();
+      if ('exit' in result) {
+        this.commitListResult(root, result.exit);
+      } else {
+        // Native edits keep the browser's undo stack.
+        document.execCommand('insertLineBreak');
+        document.execCommand('insertText', false, result.insert.slice(1));
+      }
+      return true;
+    }
+    const result = key === 'Backspace' ? listBackspace(runs, start) : listAutoformat(runs, start);
+    if (!result) {
+      return false;
+    }
+    event.preventDefault();
+    this.commitListResult(root, result);
+    return true;
   }
 
   protected onRichPaste(event: ClipboardEvent): void {

@@ -242,6 +242,8 @@
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
           <text
+            xml:space="preserve"
+            style="white-space: pre"
             [attr.visibility]="s.id === editingId() ? 'hidden' : null"
             [attr.fill]="t.color"
             [attr.font-size]="t.fontSize"
@@ -269,6 +271,8 @@
         @if (s.label; as l) {
           <text
             class="label"
+            xml:space="preserve"
+            style="white-space: pre"
             [attr.visibility]="s.id === editingId() ? 'hidden' : null"
             [attr.fill]="l.color"
             [attr.font-size]="l.fontSize"

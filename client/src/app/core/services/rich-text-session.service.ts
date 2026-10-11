@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import type { ListKind } from '../../features/editor/canvas/helpers/rich-list.helper';
 import type { RunPatch } from '../../features/editor/canvas/helpers/rich-text.helper';
 
 /** What the toolbar needs to know about the selection inside the rich-text editor. */
@@ -12,6 +13,8 @@ export interface RichSelectionState {
   morph: string;
   /** True when characters are selected (otherwise a patch targets the whole block). */
   hasRange: boolean;
+  /** The list kind shared by the selected lines, or null. */
+  list: ListKind | null;
 }
 
 /**
@@ -26,16 +29,28 @@ export class RichTextSessionService {
   readonly editingId = signal<string | null>(null);
   readonly selection = signal<RichSelectionState | null>(null);
   private applier: ((patch: RunPatch) => void) | null = null;
+  private listApplier: ((kind: ListKind) => void) | null = null;
 
-  open(id: string, apply: (patch: RunPatch) => void): void {
+  open(id: string, apply: (patch: RunPatch) => void, list?: (kind: ListKind) => void): void {
     this.editingId.set(id);
     this.applier = apply;
+    this.listApplier = list ?? null;
   }
 
   close(): void {
     this.editingId.set(null);
     this.selection.set(null);
     this.applier = null;
+    this.listApplier = null;
+  }
+
+  /** Toggle a bulleted/numbered list on the selected lines. */
+  toggleList(kind: ListKind): boolean {
+    if (!this.listApplier) {
+      return false;
+    }
+    this.listApplier(kind);
+    return true;
   }
 
   /** Style the selected characters (or the whole block when nothing is selected). */

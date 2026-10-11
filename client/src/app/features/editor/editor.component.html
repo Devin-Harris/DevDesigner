@@ -281,7 +281,7 @@
         [style.color]="t.color"
         (pointerdown)="$event.stopPropagation()"
         (keydown)="onRichKeydown($event)"
-        (input)="onRichInput()"
+        (input)="onRichInput($event)"
         (paste)="onRichPaste($event)"
         (drop)="$event.preventDefault()"
         (blur)="onRichBlur()"
