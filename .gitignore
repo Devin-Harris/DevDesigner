@@ -33,3 +33,6 @@ Thumbs.db
 # testing / coverage
 coverage/
 **/coverage/
+
+# MCP client config (contains an API token)
+.mcp.json

@@ -60,7 +60,7 @@ Parse an existing `.sql` schema file or a DBML definition and reconstruct it as 
 
 ## Project Structure
 
-DBDesigner is an npm-workspaces monorepo with three packages:
+DBDesigner is an npm-workspaces monorepo with four packages:
 
 - **`client/`** the Angular frontend (Material + CDK, NgRx Signal Store, CDK/SVG canvas).
 - **`server/`** the NestJS backend, layered as controller / policy / service / repository, using TypeORM over SQLite.
@@ -93,6 +93,31 @@ npm run dev            # runs server + client together
 VS Code users can instead launch the **Dev: All**, **Dev: Server**, or **Dev: Client** tasks from the task runner.
 
 Then open the app at `http://localhost:4242`.
+
+## MCP server
+
+The `mcp/` package exposes DBDesigner to AI assistants (Claude Desktop, Claude Code, any MCP client) so you can say "design a schema for a blog" and watch it appear live.
+
+1. Run the app, sign in, open **Account → API tokens** and create a token (read & write, or read only). Copy the token and the generated config.
+2. Build the server once: `npm run build:mcp`.
+3. Register it with your client, e.g. Claude Desktop / Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "dbdesigner": {
+      "command": "node",
+      "args": ["<path to DBDesigner>/mcp/dist/index.js"],
+      "env": {
+        "DBDESIGNER_API_URL": "http://localhost:3000/api",
+        "DBDESIGNER_API_TOKEN": "dbd_..."
+      }
+    }
+  }
+}
+```
+
+The server talks only to the REST API as the token's owner, so permissions, validation and realtime collaboration are the same as in the UI. Tools cover projects, tables/columns/relationships, sequence diagrams, drawing shapes/text/arrows, bulk `apply_diagram_spec` (atomic, auto-laid-out), import/export, `auto_layout`, `validate_project` and `generate_sql`, images and SVGs (`add_image`: inline `<svg>`, base64, a file path or a URL; slides take image items too), a named color palette (`list_colors`: strong header colors, soft tints, neutrals; every color argument takes a name or hex), and presentations (`create_presentation`, `add_slides`, `add_to_slide`, `update_slide`, `reorder_slides`, `delete_slide`, morph tags via `set_morph_tag` / `update_participant` / `update_message` / `preview_morph`...). Morph transitions can animate text by character, word or object (`transition.morphBy`), individual words can be tagged (`runs[].morph`), and sequence participants/messages/diagrams pair across slides by name and wording or by an explicit tag; `delete_*` tools require `confirm: true`. Tokens are rate limited (`API_TOKEN_RATE_LIMIT`, default 600 requests/min).
 
 ## Roadmap
 

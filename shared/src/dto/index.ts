@@ -47,6 +47,30 @@ export interface CurrentUserResponse {
   displayName: string | null;
 }
 
+// --- API tokens (MCP / automation) ---
+/** read = GET only; write = full access as the owning user. */
+export type ApiTokenScope = 'read' | 'write';
+export const API_TOKEN_SCOPES: readonly ApiTokenScope[] = ['read', 'write'] as const;
+export interface CreateApiTokenDto {
+  name: string;
+  scope?: ApiTokenScope;
+}
+/** A token as listed in account settings. The secret itself is never returned again. */
+export interface ApiTokenResponse {
+  id: string;
+  name: string;
+  scope: ApiTokenScope;
+  /** First characters of the token, to recognise it in a list. */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+/** Returned once, on creation: the only time the full secret is visible. */
+export interface CreatedApiTokenResponse extends ApiTokenResponse {
+  token: string;
+}
+
 // --- Projects ---
 export interface CreateProjectDto {
   name: string;
@@ -352,6 +376,9 @@ export interface CreateSequenceDiagramDto {
   zIndex?: number;
   /** The slide (frame id) the diagram is created on. */
   slideId?: string;
+  title?: string;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 export interface UpdateSequenceDiagramDto {
   lifelineSpacing?: number;
@@ -366,6 +393,10 @@ export interface UpdateSequenceDiagramDto {
   slideId?: string | null;
   /** Box background (hex); empty string clears back to the theme surface. */
   backgroundColor?: string;
+  /** Diagram title; empty string clears it. */
+  title?: string;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 
 // --- Lifelines (sequence diagram participant columns) ---
@@ -377,12 +408,16 @@ export interface CreateLifelineDto {
   x: number;
   width?: number;
   order?: number;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 export interface UpdateLifelineDto {
   label?: string;
   color?: string;
   lineColor?: string;
   width?: number;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 export interface UpdateLifelinePositionDto {
   x: number;
@@ -399,6 +434,8 @@ export interface CreateSequenceMessageDto {
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
   color?: string;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 export interface UpdateSequenceMessageDto {
   fromLifelineId?: string;
@@ -408,6 +445,8 @@ export interface UpdateSequenceMessageDto {
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
   color?: string;
+  /** Morph tag (`tag:<name>`); empty string clears it. */
+  morphId?: string;
 }
 export interface UpdateSequenceMessagePositionDto {
   y: number;

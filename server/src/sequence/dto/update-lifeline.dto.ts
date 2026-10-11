@@ -21,4 +21,9 @@ export class UpdateLifelineDto implements IUpdateLifelineDto {
   @IsOptional()
   @IsNumber()
   width?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
 }

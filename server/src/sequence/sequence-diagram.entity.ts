@@ -50,4 +50,12 @@ export class SequenceDiagramEntity {
   /** Box background color (hex); null = theme surface. */
   @Column({ type: 'varchar', nullable: true })
   backgroundColor!: string | null;
+
+  /** Title drawn at the diagram's top-left; null = untitled. */
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  title!: string | null;
+
+  /** Morph tag (`tag:<name>`) pairing this diagram across slides; null = matched by participants. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  morphId!: string | null;
 }

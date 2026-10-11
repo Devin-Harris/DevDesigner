@@ -108,6 +108,7 @@
           @if (user.email) {
             <div class="menu-email">{{ user.email }}</div>
           }
+          <button class="dbd-menu-item" (click)="openApiTokens(); close()"><dbd-icon name="key" />API tokens</button>
           <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
         </div>
       </ng-template>

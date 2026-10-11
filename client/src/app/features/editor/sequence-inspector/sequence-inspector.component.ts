@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { SequenceMessageModel } from '@dbdesigner/shared';
+import {
+  HEADER_SWATCHES,
+  SOFT_SWATCHES,
+  morphIdForTag,
+  morphTagOf,
+  type SequenceMessageModel,
+} from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
@@ -44,15 +50,12 @@ export class SequenceInspectorComponent {
       this.store.sequenceMessages().filter((m) => m.diagramId === this.activeDiagram()?.id).length,
   );
 
-  protected readonly swatches = [
-    '#e5484d',
-    '#f5a623',
-    '#12b76a',
-    '#0ea5e9',
-    '#2f6bff',
-    '#7c5cff',
-    '#ec4899',
-  ];
+  protected readonly swatches = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
+
+  /** Morph tags (a name shared across slides) of the selected participant / message / diagram. */
+  protected readonly lifelineTag = computed(() => morphTagOf(this.lifeline()?.morphId) ?? '');
+  protected readonly messageTag = computed(() => morphTagOf(this.message()?.morphId) ?? '');
+  protected readonly diagramTag = computed(() => morphTagOf(this.diagram()?.morphId) ?? '');
 
   protected readonly lifelineOptions = computed<SelectOption[]>(() =>
     this.store
@@ -70,18 +73,22 @@ export class SequenceInspectorComponent {
     const l = this.lifeline();
     if (l) void this.store.updateLifeline(l.id, { color });
   }
-  protected readonly bgSwatches = [
-    '#ffffff',
-    '#f1f5f9',
-    '#fef3c7',
-    '#dcfce7',
-    '#dbeafe',
-    '#fce7f3',
-    '#1e293b',
-  ];
+  protected readonly bgSwatches = ['#ffffff', ...SOFT_SWATCHES, '#1e293b'];
   protected setBackground(backgroundColor: string): void {
     const d = this.activeDiagram();
     if (d) void this.store.updateSequenceConfig(d.id, { backgroundColor });
+  }
+  protected setLifelineTag(tag: string | number): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { morphId: morphIdForTag(String(tag)) ?? '' });
+  }
+  protected setMessageTag(tag: string | number): void {
+    const m = this.message();
+    if (m) void this.store.updateMessage(m.id, { morphId: morphIdForTag(String(tag)) ?? '' });
+  }
+  protected setDiagramTag(tag: string | number): void {
+    const d = this.diagram();
+    if (d) void this.store.updateSequenceConfig(d.id, { morphId: morphIdForTag(String(tag)) ?? '' });
   }
   protected setLineColor(lineColor: string): void {
     const l = this.lifeline();

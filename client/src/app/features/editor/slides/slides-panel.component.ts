@@ -14,8 +14,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import {
   effectiveTransition,
+  morphIdForTag,
+  morphTagOf,
   presentationSlides,
   type CanvasElementModel,
+  type MorphBy,
   type SlideConfig,
   type SlideDirection,
   type SlideEasing,
@@ -56,6 +59,11 @@ const DIRECTION_OPTIONS: SelectOption<SlideDirection>[] = [
 const STEP_OPTIONS: SelectOption<number>[] = [
   { value: 0, label: 'Slide start (always visible)' },
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: n, label: `Step ${n}` })),
+];
+const MORPH_BY_SELECT: SelectOption<MorphBy>[] = [
+  { value: 'character', label: 'Characters' },
+  { value: 'word', label: 'Words' },
+  { value: 'object', label: 'Objects' },
 ];
 const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
   { value: 'ease-in-out', label: 'Ease in-out' },
@@ -144,7 +152,12 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
     </div>
 
     <!-- Only the slide cards scroll; the controls above and the details below stay put. -->
-    <div class="cards">
+    <div
+      class="cards"
+      tabindex="0"
+      (keydown.arrowUp)="stepSlide(-1, $event)"
+      (keydown.arrowDown)="stepSlide(1, $event)"
+    >
       <ol class="list" [class.reordering]="draggingIndex() !== null">
         @for (f of shown(); track f.id; let i = $index) {
           <li
@@ -160,11 +173,11 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
             (click)="onRowClick(f, $event)"
             title="Drag to reorder · Alt-drag to duplicate"
           >
+            <span class="num">{{ i + 1 }}</span>
             <span class="thumb" [style.aspect-ratio]="f.width + ' / ' + f.height">
               @if (thumbs().get(thumbId(f)); as src) {
                 <img [src]="src" alt="" draggable="false" />
               }
-              <span class="num">{{ i + 1 }}</span>
             </span>
             @if (canEdit() && f.id !== pendingCloneId) {
               <span class="icons" (click)="$event.stopPropagation()">
@@ -209,11 +222,11 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
             [style.height.px]="g.height"
             [style.transform]="'translateY(' + dragDy() + 'px) scale(1.02)'"
           >
+            <span class="num">+</span>
             <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
               @if (thumbs().get(g.id); as src) {
                 <img [src]="src" alt="" draggable="false" />
               }
-              <span class="num">+</span>
             </span>
           </li>
         }
@@ -325,6 +338,21 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
                       </label>
                     </div>
                   }
+                  @if (transition().type === 'morph') {
+                    <label class="field">
+                      <span>Animate text by</span>
+                      <dbd-select
+                        [options]="morphByOptions"
+                        [ngModel]="transition().morphBy ?? 'character'"
+                        [disabled]="!canEdit()"
+                        (ngModelChange)="setTransition({ morphBy: $event })"
+                      />
+                    </label>
+                    <p class="hint">
+                      Characters: letters and words glide. Words: whole words glide. Objects: text
+                      moves as one piece and cross-fades.
+                    </p>
+                  }
                   @if (canEdit() && frames().length > 2) {
                     <button class="link" (click)="applyToAll()">Apply to all slides</button>
                   }
@@ -379,6 +407,22 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
                     (ngModelChange)="setBuildStep($event)"
                   />
                 </label>
+              }
+              @if (buildable() > 0) {
+                <label class="field">
+                  <span>Morph tag</span>
+                  <input
+                    type="text"
+                    maxlength="80"
+                    placeholder="e.g. hero — same tag morphs across slides"
+                    [value]="morphTag()"
+                    (change)="setMorphTag($any($event.target).value)"
+                  />
+                </label>
+                <p class="hint">
+                  Tagged objects only morph into the object with the same tag on the next slide;
+                  they are never matched to look-alikes.
+                </p>
               }
               @if (pairable()) {
                 <button class="btn wide" (click)="pairSelected()">
@@ -592,6 +636,9 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         line-height: 1.45;
         font-size: 12px;
       }
+      .cards:focus {
+        outline: none;
+      }
       .list {
         list-style: none;
         margin: 0;
@@ -604,7 +651,7 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
       .card {
         position: relative;
         display: grid;
-        grid-template-columns: 148px 1fr;
+        grid-template-columns: 18px 148px 1fr;
         justify-content: stretch;
         align-items: stretch;
         gap: 6px;
@@ -685,17 +732,14 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         opacity: 0.45;
       }
       .num {
-        position: absolute;
-        left: 6px;
-        top: 5px;
-        min-width: 18px;
-        padding: 1px 5px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.55);
-        color: #fff;
+        padding-top: 2px;
+        color: var(--dbd-text-muted);
         font-size: 11px;
         font-weight: 700;
         text-align: center;
+      }
+      .card.current .num {
+        color: var(--dbd-primary);
       }
       .thumb {
         position: relative;
@@ -833,6 +877,7 @@ export class SlidesPanelComponent {
   protected readonly typeOptions = TYPE_OPTIONS;
   protected readonly directionOptions = DIRECTION_OPTIONS;
   protected readonly easingOptions = EASING_OPTIONS;
+  protected readonly morphByOptions = MORPH_BY_SELECT;
   protected readonly stepOptions = STEP_OPTIONS;
 
   protected readonly canEdit = this.store.canEdit;
@@ -989,6 +1034,11 @@ export class SlidesPanelComponent {
     const steps = new Set(this.buildTargets().map((e) => e.step ?? 0));
     return steps.size === 1 ? [...steps][0] : 0;
   });
+  /** The morph tag shared by the selection ('' when none or they differ). */
+  protected readonly morphTag = computed(() => {
+    const tags = new Set(this.buildTargets().map((e) => morphTagOf(e.morphId) ?? ''));
+    return tags.size === 1 ? [...tags][0] : '';
+  });
   /** How many selected non-frame elements could be linked as one object (2+). */
   protected readonly pairable = computed(() => {
     const n = this.buildTargets().length;
@@ -1092,6 +1142,24 @@ export class SlidesPanelComponent {
 
   protected selectAll(): void {
     this.store.setSelection([], [], this.frames().map((f) => f.id));
+  }
+
+  /** Up/Down arrows move to the previous/next slide. */
+  protected stepSlide(delta: number, event: Event): void {
+    const t = event.target as HTMLElement;
+    if (t.closest('input, textarea, select, [contenteditable]')) {
+      return;
+    }
+    event.preventDefault();
+    const list = this.shown().filter((f) => f.id !== this.pendingCloneId);
+    if (!list.length) {
+      return;
+    }
+    const cur = list.findIndex((f) => f.id === this.activeId());
+    const next = list[Math.min(list.length - 1, Math.max(0, cur < 0 ? 0 : cur + delta))];
+    if (next && next.id !== this.activeId()) {
+      this.command.emit({ kind: 'focus', id: next.id });
+    }
   }
 
   /** Plain click shows that slide; Ctrl/Cmd/Shift-click toggles it in the selection. */
@@ -1379,6 +1447,22 @@ export class SlidesPanelComponent {
     void this.store.batchHistory(async () => {
       for (const e of targets) {
         await this.store.updateElement(e.id, { step: step || null });
+      }
+    });
+  }
+
+  /** Tag the selected elements (blank clears it) so only same-tagged objects morph together. */
+  protected setMorphTag(value: string): void {
+    const morphId = morphIdForTag(value);
+    const targets = this.buildTargets().filter((e) =>
+      morphId === null ? morphTagOf(e.morphId) !== null : e.morphId !== morphId,
+    );
+    if (!targets.length) {
+      return;
+    }
+    void this.store.batchHistory(async () => {
+      for (const e of targets) {
+        await this.store.updateElement(e.id, { morphId });
       }
     });
   }

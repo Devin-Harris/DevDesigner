@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { TableModel } from '@dbdesigner/shared';
+import { HEADER_SWATCHES, SOFT_SWATCHES, type TableModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 
-const HEADER_COLORS = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
+const HEADER_COLORS = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
 /**
  * Floating action bar shown above the selected table (mirrors the shape/connector

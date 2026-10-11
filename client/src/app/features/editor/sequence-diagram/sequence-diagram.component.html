@@ -12,6 +12,48 @@
     ></div>
   }
 
+  <!-- Title: top-left of the box, in its top padding. Double-click to edit. -->
+  @if (box(); as b) {
+    @if (editingTitle()) {
+      <input
+        class="seq-title-edit"
+        appAutofocus
+        [style.left.px]="b.left + 10"
+        [style.top.px]="b.top + 4"
+        [style.width.px]="b.width - 20"
+        [value]="editValue()"
+        placeholder="Diagram title"
+        (pointerdown)="$event.stopPropagation()"
+        (input)="onEditInput($any($event.target).value)"
+        (keydown.enter)="commitTitle()"
+        (keydown.escape)="editingTitle.set(false)"
+        (blur)="commitTitle()"
+        maxlength="200"
+      />
+    } @else if (title()) {
+      <div
+        class="seq-title"
+        [style.left.px]="b.left + 14"
+        [style.top.px]="b.top + 5"
+        [style.max-width.px]="b.width - 28"
+        (pointerdown)="onBoxDown($event)"
+        (dblclick)="startEditTitle($event)"
+      >
+        {{ title() }}
+      </div>
+    } @else if (canEdit() && sequenceSelected()) {
+      <div
+        class="seq-title placeholder"
+        [style.left.px]="b.left + 14"
+        [style.top.px]="b.top + 5"
+        (pointerdown)="onBoxDown($event)"
+        (dblclick)="startEditTitle($event)"
+      >
+        Add title
+      </div>
+    }
+  }
+
   @if (marqueeRect(); as q) {
     <div
       class="seq-marquee"
@@ -51,6 +93,7 @@
       class="ll-head"
       [class.selected]="selectedLifelineIds().has(l.id)"
       [class.colored]="!!l.color"
+      [class.light]="isLight(l.color)"
       [style.left.px]="headerLeft(l)"
       [style.top.px]="originY()"
       [style.width.px]="l.width"
@@ -121,7 +164,7 @@
             [class.selected]="m.selected"
             (pointerdown)="onMessageDown($event, m)"
             (dblclick)="startEditMessage($event, m)"
-            >{{ m.label }}</span
+            >{{ m.displayLabel }}</span
           >
         }
       </div>
@@ -181,7 +224,7 @@
             [class.selected]="m.selected"
             (pointerdown)="onMessageDown($event, m)"
             (dblclick)="startEditMessage($event, m)"
-            >{{ m.label }}</span
+            >{{ m.displayLabel }}</span
           >
         }
       </div>

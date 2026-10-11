@@ -902,6 +902,7 @@ export const ProjectStore = signalStore(
               direction: m.direction,
               arrowhead: m.arrowhead,
               color: m.color,
+              morphId: m.morphId,
             }),
           ),
         );
@@ -919,6 +920,7 @@ export const ProjectStore = signalStore(
               label: l.label,
               color: l.color,
               lineColor: l.lineColor,
+              morphId: l.morphId,
               x: l.x,
               width: l.width,
               order: l.order,
@@ -942,6 +944,8 @@ export const ProjectStore = signalStore(
                 rowSpacing: d.rowSpacing,
                 headerHeight: d.headerHeight,
                 backgroundColor: d.backgroundColor,
+                title: d.title,
+                morphId: d.morphId,
                 zIndex: d.zIndex,
                 slideId: d.slideId,
               }),
@@ -1796,6 +1800,9 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
+          if (fromLifelineId === toLifelineId) {
+            return; // a message needs two different participants
+          }
           const diagram = store.sequenceDiagrams().find((d) => d.id === diagramId);
           if (!diagram) {
             return;
@@ -1847,6 +1854,8 @@ export const ProjectStore = signalStore(
                 rowSpacing: src.rowSpacing,
                 headerHeight: src.headerHeight,
                 backgroundColor: src.backgroundColor,
+                title: src.title,
+                morphId: src.morphId,
                 zIndex: src.zIndex,
                 slideId: src.slideId,
               }),
@@ -1874,6 +1883,7 @@ export const ProjectStore = signalStore(
                   label: l.label,
                   color: l.color,
                   lineColor: l.lineColor,
+                  morphId: l.morphId,
                   x: l.x + dx,
                   width: l.width,
                   order: l.order,
@@ -1902,6 +1912,7 @@ export const ProjectStore = signalStore(
                   direction: m.direction,
                   arrowhead: m.arrowhead,
                   color: m.color,
+                  morphId: m.morphId,
                 }),
               ),
             );
@@ -1926,6 +1937,7 @@ export const ProjectStore = signalStore(
                 label: src.label,
                 color: src.color,
                 lineColor: src.lineColor,
+                morphId: src.morphId,
                 x: src.x + dx,
                 width: src.width,
                 order,
@@ -2042,7 +2054,7 @@ export const ProjectStore = signalStore(
           // Move/resize gestures record their own layout step; only the appearance
           // settings are recorded here.
           const keys = Object.keys(patch).filter((k) =>
-            ['backgroundColor', 'lifelineSpacing', 'headerHeight'].includes(k),
+            ['backgroundColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(k),
           );
           const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
           const before = current && keys.length ? pickKeys(current, keys) : null;

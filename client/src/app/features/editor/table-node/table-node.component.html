@@ -8,6 +8,7 @@
 <header
   class="node-head"
   [class.colored]="!!table().color"
+  [class.light]="isLight(table().color)"
   [style.--tbl-color]="table().color || null"
   [style.height.px]="headerH"
 >

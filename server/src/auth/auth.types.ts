@@ -20,4 +20,6 @@ export interface JwtPayload {
 export interface AuthUser {
   id: string;
   email: string | null;
+  /** Set when the caller authenticated with an API token instead of a session cookie. */
+  viaToken?: { id: string; scope: 'read' | 'write' };
 }

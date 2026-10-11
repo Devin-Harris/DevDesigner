@@ -16,6 +16,8 @@ export interface TextSpanView {
   fontStyle: 'normal' | 'italic';
   underline: boolean;
   color: string;
+  /** Morph tag of these characters (rendered as `data-morph` so morphs can pair them). */
+  morph?: string;
 }
 
 /** A laid-out text block (a text element's content, or a shape's centered label). */

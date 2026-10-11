@@ -36,4 +36,9 @@ export class UpdateSequenceMessageDto implements IUpdateSequenceMessageDto {
   @IsString()
   @MaxLength(20)
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
 }

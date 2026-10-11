@@ -1,0 +1,80 @@
+<h2 mat-dialog-title class="dlg-title">API tokens</h2>
+
+<mat-dialog-content class="dlg-body">
+  <p class="lead">
+    Tokens let the MCP server (Claude Desktop, Claude Code, ...) create and edit diagrams as you.
+    Keep them secret; revoke any you no longer use.
+  </p>
+
+  @if (created(); as c) {
+    <div class="secret" role="status">
+      <div class="secret-head">
+        <strong>{{ c.name }}</strong>
+        <span class="hint">Copy it now - it won't be shown again.</span>
+      </div>
+      <code class="secret-value">{{ c.token }}</code>
+      <div class="row">
+        <button class="btn" (click)="copy('token')">
+          <dbd-icon [name]="copied() === 'token' ? 'check' : 'content_copy'" />
+          {{ copied() === 'token' ? 'Copied' : 'Copy token' }}
+        </button>
+        <button class="btn" (click)="copy('config')">
+          <dbd-icon [name]="copied() === 'config' ? 'check' : 'content_copy'" />
+          {{ copied() === 'config' ? 'Copied' : 'Copy MCP config' }}
+        </button>
+        <button class="btn ghost" (click)="dismissCreated()">Done</button>
+      </div>
+      <pre class="snippet">{{ configSnippet() }}</pre>
+    </div>
+  }
+
+  <div class="create">
+    <label class="field-label">New token</label>
+    <div class="row">
+      <dbd-input
+        class="grow"
+        type="text"
+        placeholder="e.g. Claude Desktop"
+        [ngModel]="name()"
+        (ngModelChange)="set(name, $event)"
+        (keydown.enter)="create()"
+      />
+      <dbd-segmented [options]="scopeOptions" [ngModel]="scope()" (ngModelChange)="setScope($event)" />
+      <button class="btn primary" [disabled]="!canCreate()" (click)="create()">
+        <dbd-icon name="add" />Create
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="err">{{ error() }}</p>
+  }
+
+  <div class="list">
+    @if (loading()) {
+      <p class="hint">Loading...</p>
+    } @else if (active().length === 0) {
+      <p class="hint">No active tokens.</p>
+    } @else {
+      @for (t of active(); track t.id) {
+        <div class="token">
+          <dbd-icon name="key" />
+          <div class="meta">
+            <span class="tname">{{ t.name }}</span>
+            <span class="hint">
+              {{ t.prefix }}... · {{ t.scope === 'read' ? 'read only' : 'read & write' }} ·
+              {{ t.lastUsedAt ? 'used ' + (t.lastUsedAt | date: 'mediumDate') : 'never used' }}
+            </span>
+          </div>
+          <button class="icon-btn" (click)="revoke(t)" aria-label="Revoke token" title="Revoke">
+            <dbd-icon name="delete" />
+          </button>
+        </div>
+      }
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions class="dlg-actions">
+  <button class="btn" mat-dialog-close>Close</button>
+</mat-dialog-actions>

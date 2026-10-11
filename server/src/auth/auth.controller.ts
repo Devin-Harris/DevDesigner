@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -8,15 +9,22 @@ import {
   Param,
   Post,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Response } from 'express';
-import type { CurrentUserResponse } from '@dbdesigner/shared';
+import type {
+  ApiTokenResponse,
+  CreatedApiTokenResponse,
+  CurrentUserResponse,
+} from '@dbdesigner/shared';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { CurrentUserId } from './current-user.decorator';
-import { AUTH_COOKIE, SESSION_MAX_AGE_MS } from './auth.types';
+import { CurrentUser, CurrentUserId } from './current-user.decorator';
+import { ApiTokenService } from './api-token.service';
+import { CreateApiTokenDto } from './dto/create-api-token.dto';
+import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
 
 /**
  * Auth routes (BUILD_INSTRUCTIONS.md section 5). Register and login issue a JWT
@@ -28,6 +36,7 @@ import { AUTH_COOKIE, SESSION_MAX_AGE_MS } from './auth.types';
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly apiTokens: ApiTokenService,
     private readonly config: ConfigService,
   ) {}
 
@@ -60,6 +69,38 @@ export class AuthController {
   @Get('me')
   me(@CurrentUserId() userId: string | null): Promise<CurrentUserResponse | null> {
     return this.auth.me(userId);
+  }
+
+  // --- API tokens (for the MCP server / automation) ---
+  // Managed only from a signed-in browser session: a token cannot mint or list tokens.
+
+  @Get('api-tokens')
+  listApiTokens(@CurrentUser() user: AuthUser | null): Promise<ApiTokenResponse[]> {
+    return this.apiTokens.list(this.requireSessionUser(user));
+  }
+
+  @Post('api-tokens')
+  createApiToken(
+    @Body() dto: CreateApiTokenDto,
+    @CurrentUser() user: AuthUser | null,
+  ): Promise<CreatedApiTokenResponse> {
+    return this.apiTokens.create(this.requireSessionUser(user), dto);
+  }
+
+  @Delete('api-tokens/:tokenId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokeApiToken(
+    @Param('tokenId') tokenId: string,
+    @CurrentUser() user: AuthUser | null,
+  ): Promise<void> {
+    return this.apiTokens.revoke(this.requireSessionUser(user), tokenId);
+  }
+
+  private requireSessionUser(user: AuthUser | null): string {
+    if (!user || user.viaToken) {
+      throw new UnauthorizedException('Sign in to manage API tokens.');
+    }
+    return user.id;
   }
 
   // --- OAuth (stubbed now, implemented in Phase 8) ---

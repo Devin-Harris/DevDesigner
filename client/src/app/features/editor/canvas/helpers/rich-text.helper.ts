@@ -6,6 +6,8 @@ export interface RunPatch {
   italic?: boolean | null;
   underline?: boolean | null;
   color?: string | null;
+  /** Morph tag for the characters (empty/null clears it). */
+  morph?: string | null;
 }
 
 /** The element-level style runs inherit when they have no override of their own. */
@@ -16,14 +18,15 @@ export interface RunBase {
   color: string;
 }
 
-const KEYS = ['bold', 'italic', 'underline', 'color'] as const;
+const KEYS = ['bold', 'italic', 'underline', 'color', 'morph'] as const;
 
 function sameStyle(a: TextRun, b: TextRun): boolean {
   return (
     a.bold === b.bold &&
     a.italic === b.italic &&
     a.underline === b.underline &&
-    a.color === b.color
+    a.color === b.color &&
+    a.morph === b.morph
   );
 }
 
@@ -91,7 +94,7 @@ export function patchRuns(
         continue;
       }
       const v = patch[k];
-      if (v === null || v === undefined) {
+      if (v === null || v === undefined || v === '') {
         delete next[k];
       } else {
         (next as unknown as Record<string, unknown>)[k] = v;
@@ -126,11 +129,12 @@ export function styleOver(
   start: number,
   end: number,
   base: RunBase,
-): { bold: boolean; italic: boolean; underline: boolean; color: string | null } {
+): { bold: boolean; italic: boolean; underline: boolean; color: string | null; morph: string } {
   let bold = true;
   let italic = true;
   let underline = true;
   let color: string | null | undefined;
+  let morph: string | null | undefined;
   let offset = 0;
   let seen = false;
   for (const run of runs) {
@@ -148,11 +152,19 @@ export function styleOver(
     underline &&= run.underline ?? base.underline;
     const c = run.color ?? base.color;
     color = color === undefined ? c : color === c ? c : null;
+    const m = run.morph ?? '';
+    morph = morph === undefined ? m : morph === m ? m : null;
   }
   if (!seen) {
-    return { bold: base.bold, italic: base.italic, underline: base.underline, color: base.color };
+    return {
+      bold: base.bold,
+      italic: base.italic,
+      underline: base.underline,
+      color: base.color,
+      morph: '',
+    };
   }
-  return { bold, italic, underline, color: color ?? null };
+  return { bold, italic, underline, color: color ?? null, morph: morph ?? '' };
 }
 
 /** Split runs into lines at `\n`; every line keeps at least one (possibly empty) run. */

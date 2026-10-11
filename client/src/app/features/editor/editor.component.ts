@@ -2570,6 +2570,9 @@ export class EditorComponent {
         span.style.color = run.color;
         span.dataset['color'] = run.color;
       }
+      if (run.morph) {
+        span.dataset['morph'] = run.morph;
+      }
       root.appendChild(span);
     }
     if (plainOf(runs).endsWith('\n')) {
@@ -2606,6 +2609,9 @@ export class EditorComponent {
       const color = el.dataset['color'] ?? el.style.color;
       if (color) {
         s.color = color;
+      }
+      if (el.dataset['morph']) {
+        s.morph = el.dataset['morph'];
       }
       return s;
     };
@@ -3995,6 +4001,12 @@ export class EditorComponent {
       elements.some((e) => e.slideId === id) ||
       tables.some((t) => t.slideId === id) ||
       diagrams.some((d) => d.slideId === id);
+    // A slide that already owns content but sits away from its presentation's spot (a
+    // file or tool laid the slides out side by side) moves back, taking its contents.
+    const misplaced = frames.filter((f) => {
+      const anchor = anchors.get(presentationOf(f))!;
+      return owns(f.id) && (f.x !== anchor.x || f.y !== anchor.y);
+    });
     // Only slides still sitting elsewhere (saved side by side) are legacy: a slide on
     // the shared spot gets its content through adoption of the shown slide instead.
     const work = frames
@@ -4024,12 +4036,16 @@ export class EditorComponent {
       // Only slides with something to claim; an empty slide is left where it is (the
       // move lock keeps it with the others from then on).
       .filter((w) => w.geo.elementIds.size || w.geo.tableIds.size || w.geo.diagramIds.size);
-    if (!work.length && !claimedFrames.length) {
+    if (!work.length && !claimedFrames.length && !misplaced.length) {
       return;
     }
     this.migratingSlides = true;
     try {
       await this.store.batchHistory(async () => {
+        for (const f of misplaced) {
+          const anchor = anchors.get(presentationOf(f))!;
+          this.shiftSlide(f.id, anchor.x - f.x, anchor.y - f.y);
+        }
         for (const fr of claimedFrames) {
           await this.store.updateElement(fr.id, { slideId: null });
         }

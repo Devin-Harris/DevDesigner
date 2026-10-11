@@ -87,7 +87,7 @@ export class ElementFloatingToolbarComponent {
   protected readonly isText = computed(() => this.element().type === 'text');
 
   /** True while this text element is open in the inline rich-text editor. */
-  private readonly editingRich = computed(() => this.rich.editingId() === this.element().id);
+  protected readonly editingRich = computed(() => this.rich.editingId() === this.element().id);
   /** Styling state shown by the toolbar: the selected characters while editing. */
   protected readonly boldOn = computed(() =>
     this.editingRich() ? !!this.rich.selection()?.bold : !!this.element().bold,
@@ -103,6 +103,8 @@ export class ElementFloatingToolbarComponent {
     const runs = runsOrPlain(el.text ?? '', el.runs);
     return runs.length > 0 && runs.every((r) => r.underline);
   });
+  /** The morph tag of the words selected in the rich editor ('' = none). */
+  protected readonly runMorphTag = computed(() => this.rich.selection()?.morph ?? '');
   protected readonly strokeSwatch = computed(
     () => (this.editingRich() ? this.rich.selection()?.color : null) ?? this.element().strokeColor,
   );
@@ -298,6 +300,11 @@ export class ElementFloatingToolbarComponent {
       const runs = patchRuns(runsOrPlain(text, el.runs), 0, text.length, { underline: on });
       void this.store.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
     }
+  }
+
+  /** Tag the selected words so they glide into the same-tagged words of the next slide. */
+  protected setRunMorphTag(tag: string): void {
+    this.rich.apply({ morph: tag.trim().slice(0, 80) || null });
   }
 
   protected toggleItalic(): void {

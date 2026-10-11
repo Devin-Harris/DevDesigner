@@ -8,6 +8,7 @@ import type {
   CodeLanguage,
   ElementType,
   FillStyle,
+  MorphBy,
   RelationshipType,
   SlideDirection,
   SlideEasing,
@@ -109,6 +110,11 @@ export interface TextRun {
   underline?: boolean;
   /** CSS color overriding the element's stroke color for this run. */
   color?: string;
+  /**
+   * Morph tag (a name): while morphing between slides, runs with the same tag are the
+   * same words and glide into each other; tagged runs only ever pair by tag.
+   */
+  morph?: string;
 }
 
 /** How a slide is entered: type, direction (for `slide`), duration (ms) and easing. */
@@ -118,6 +124,8 @@ export interface SlideTransition {
   /** Duration in milliseconds. */
   duration: number;
   easing: SlideEasing;
+  /** Morph only: animate whole objects, words, or characters of changed text (default characters). */
+  morphBy?: MorphBy;
 }
 
 /**
@@ -245,6 +253,8 @@ export interface LifelineModel {
   width: number;
   /** Creation order (ties broken left-to-right by x). */
   order: number;
+  /** Morph tag (`tag:<name>`): pairs this participant with the same tag on the next slide. */
+  morphId?: string;
 }
 
 /** A horizontal message (row) between two lifelines in a sequence diagram. */
@@ -265,6 +275,8 @@ export interface SequenceMessageModel {
   arrowhead: 'arrow' | 'open' | 'none';
   /** Line + arrowhead color (hex); absent = theme connector color. */
   color?: string;
+  /** Morph tag (`tag:<name>`): pairs this message with the same tag on the next slide. */
+  morphId?: string;
 }
 
 /**
@@ -292,6 +304,10 @@ export interface SequenceDiagramModel {
   slideId?: string;
   /** Background fill of the diagram box (hex); absent = theme surface. */
   backgroundColor?: string;
+  /** What the diagram represents; drawn at its top-left. Absent = untitled. */
+  title?: string;
+  /** Morph tag (`tag:<name>`): pairs this diagram with the same tag on the next slide. */
+  morphId?: string;
 }
 
 /**

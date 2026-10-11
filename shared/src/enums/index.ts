@@ -192,6 +192,15 @@ export const SLIDE_TRANSITION_TYPES: readonly SlideTransitionType[] = [
   'morph',
 ] as const;
 
+/**
+ * What a morph transition animates text by (PowerPoint's Morph "Effect Options"):
+ * whole objects, words, or individual characters.
+ */
+export type MorphBy = 'object' | 'word' | 'character';
+export const MORPH_BY_OPTIONS: readonly MorphBy[] = ['object', 'word', 'character'] as const;
+/** Used when a morph transition does not say: words glide as units, letters only where words differ. */
+export const DEFAULT_MORPH_BY: MorphBy = 'character';
+
 /** Which way a `slide` transition travels (the new slide arrives from the opposite side). */
 export type SlideDirection = 'left' | 'right' | 'up' | 'down';
 export const SLIDE_DIRECTIONS: readonly SlideDirection[] = ['left', 'right', 'up', 'down'] as const;

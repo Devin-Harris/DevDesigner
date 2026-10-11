@@ -1,14 +1,18 @@
 import {
+  matchDiagrams,
+  matchLifelines,
+  matchMessages,
   matchMorphItems,
   type CanvasElementModel,
   type LifelineModel,
+  type MorphBy,
   type PointModel,
   type RelationshipModel,
   type SequenceDiagramModel,
   type SequenceMessageModel,
   type TableModel,
 } from '@dbdesigner/shared';
-import { buildDiagramSvg } from '../export/diagram-svg.helper';
+import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../export/diagram-svg.helper';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -136,33 +140,28 @@ function blendElement(
   };
 }
 
-/** Fraction of lifeline labels two sequence diagrams share (0..1). */
-function diagramSimilarity(
-  a: RenderedSlide['sequences'],
-  b: RenderedSlide['sequences'],
-  da: SequenceDiagramModel,
-  db: SequenceDiagramModel,
-): number {
-  const la = a.lifelines.filter((l) => l.diagramId === da.id).map((l) => l.label);
-  const lb = b.lifelines.filter((l) => l.diagramId === db.id).map((l) => l.label);
-  if (!la.length || !lb.length) {
-    return 0;
-  }
-  const pool = [...lb];
-  let hit = 0;
-  for (const label of la) {
-    const k = pool.indexOf(label);
-    if (k >= 0) {
-      pool.splice(k, 1);
-      hit += 1;
-    }
-  }
-  return hit / Math.max(la.length, lb.length);
-}
-
+/**
+ * Two paired sequence diagrams and how their parts pair up: participants (by tag,
+ * then name) and messages (by tag, then wording and endpoints).
+ */
 interface SeqPair {
   a: SequenceDiagramModel;
   b: SequenceDiagramModel;
+  llA: LifelineModel[];
+  llB: LifelineModel[];
+  msA: SequenceMessageModel[];
+  msB: SequenceMessageModel[];
+  lifelines: Array<[LifelineModel, LifelineModel]>;
+  messages: Array<[SequenceMessageModel, SequenceMessageModel]>;
+}
+
+/** A piece of sequence text (title, participant label, message label) animated glyph by glyph. */
+interface SeqTextJob {
+  kind: 'title' | 'lifeline' | 'message';
+  pair: SeqPair;
+  /** Ids of the text on slide A / slide B (data-seq-title / data-lid / data-mid). */
+  aId: string;
+  bId: string;
 }
 
 interface Glyph {
@@ -179,13 +178,21 @@ interface Glyph {
   style: string;
   /** Index of the word (run of non-space characters) this glyph belongs to. */
   w: number;
+  /** Morph tag of the run this glyph is in ('' = untagged): tagged glyphs pair only by tag. */
+  tag: string;
 }
 
-/** One animated character: moves from `a` to `b`, or fades out (b null) / in (a null). */
+/**
+ * One animated character: moves from `a` to `b`, or fades out (b null) / in (a null).
+ * (dx, dy) is how far its text block moves overall: a character with no partner rides
+ * along with it, so it stays with its object instead of being left behind.
+ */
 interface CharMove {
   el: SVGTextElement;
   a: Glyph | null;
   b: Glyph | null;
+  dx: number;
+  dy: number;
 }
 
 interface SpanStyle {
@@ -194,6 +201,7 @@ interface SpanStyle {
   underline: boolean;
   fill: string;
   line: Element | null;
+  morph: string;
 }
 
 /** The rich-text style in effect at `node` (innermost tspan attribute wins). */
@@ -227,6 +235,7 @@ function spanStyle(node: Node, text: SVGTextElement): SpanStyle {
     underline: (attr('text-decoration') ?? '').includes('underline'),
     fill: attr('fill') ?? '#000',
     line,
+    morph: attr('data-morph') ?? '',
   };
 }
 
@@ -280,8 +289,9 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
       weight: st.weight,
       italic: st.italic,
       underline: st.underline,
-      style: `${st.weight}|${st.italic ? 'i' : ''}|${st.underline ? 'u' : ''}|${st.fill}`,
+      style: `${st.weight}|${st.italic ? 'i' : ''}|${st.underline ? 'u' : ''}|${st.fill}|${st.morph}`,
       w: word,
+      tag: st.morph,
     });
   }
   return out;
@@ -300,7 +310,43 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
  * 3. Only the words left over in between are matched letter by letter, and only
  *    within the same gap, so a letter never jumps into an unrelated word.
  */
-function matchGlyphs(ga: readonly Glyph[], gb: readonly Glyph[]): Array<[number, number]> {
+function matchGlyphs(
+  ga: readonly Glyph[],
+  gb: readonly Glyph[],
+  by: MorphBy,
+): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  // Tagged words pair only with the same tag (an explicit "these are the same"), and
+  // untagged characters never trade with them. Inside a tagged run letters glide too.
+  const tags = new Set(ga.map((g) => g.tag).filter((t) => t !== ''));
+  for (const tag of tags) {
+    const ia = ga.flatMap((g, i) => (g.tag === tag ? [i] : []));
+    const ib = gb.flatMap((g, j) => (g.tag === tag ? [j] : []));
+    if (ib.length) {
+      matchWords(ga, gb, ia, ib, out, true);
+    }
+  }
+  // "By object": the rest of the text moves as one piece and cross-fades.
+  if (by !== 'object') {
+    const ua = ga.flatMap((g, i) => (g.tag === '' ? [i] : []));
+    const ub = gb.flatMap((g, j) => (g.tag === '' ? [j] : []));
+    for (const [i, j] of matchUntaggedGlyphs(
+      ua.map((i) => ga[i]),
+      ub.map((j) => gb[j]),
+      by === 'character',
+    )) {
+      out.push([ua[i], ub[j]]);
+    }
+  }
+  return out;
+}
+
+/** Style-run, then word, then (optionally) letter pairing of two untagged glyph lists. */
+function matchUntaggedGlyphs(
+  ga: readonly Glyph[],
+  gb: readonly Glyph[],
+  letters: boolean,
+): Array<[number, number]> {
   const runsOf = (g: readonly Glyph[]): number[][] => {
     const runs: number[][] = [];
     g.forEach((x, i) => {
@@ -349,7 +395,7 @@ function matchGlyphs(ga: readonly Glyph[], gb: readonly Glyph[]): Array<[number,
 
   const out: Array<[number, number]> = [];
   for (const [i, j] of runPairs) {
-    matchWords(ga, gb, ra[i], rb[j], out);
+    matchWords(ga, gb, ra[i], rb[j], out, letters);
   }
   return out;
 }
@@ -361,6 +407,7 @@ function matchWords(
   idxA: readonly number[],
   idxB: readonly number[],
   out: Array<[number, number]>,
+  letters = true,
 ): void {
   const group = (g: readonly Glyph[], idx: readonly number[]): number[][] => {
     const words = new Map<number, number[]>();
@@ -382,6 +429,9 @@ function matchWords(
     wb.map((w) => text(gb, w)),
   );
   const gap = (fromA: number, toA: number, fromB: number, toB: number): void => {
+    if (!letters) {
+      return;
+    }
     const ia = wa.slice(fromA, toA).flat();
     const ib = wb.slice(fromB, toB).flat();
     for (const [i, j] of lcsPairs(
@@ -467,6 +517,14 @@ export class MorphStage {
   private readonly seqPairs: SeqPair[] = [];
   private readonly fromSeq: RenderedSlide['sequences'];
   private readonly toSeq: RenderedSlide['sequences'];
+  /** What morphed text animates by: whole objects, words, or characters. */
+  private readonly by: MorphBy;
+  /** Sequence text whose wording changes (animated glyph by glyph once measured). */
+  private readonly seqTexts: SeqTextJob[] = [];
+  /** Slide-B ids of messages / participants / diagram titles drawn by the glyph layer. */
+  private readonly hideMsg = new Set<string>();
+  private readonly hideLl = new Set<string>();
+  private readonly hideTitle = new Set<string>();
   private codeSeq = 0;
   private readonly liveRels: RelationshipModel[] = [];
   private readonly outgoing: SVGGElement[] = [];
@@ -485,6 +543,7 @@ export class MorphStage {
 
   constructor(from: RenderedSlide, to: RenderedSlide) {
     this.to = to;
+    this.by = to.transition.morphBy ?? 'character';
     this.fromSeq = from.sequences;
     this.toSeq = to.sequences;
     this.offA = { x: from.originX, y: from.originY };
@@ -575,25 +634,41 @@ export class MorphStage {
     const ridB = liveRelIds(to.relationships, to.items, matchedB);
     this.liveRels.push(...to.relationships.filter((r) => ridB.has(r.id)));
 
-    // Sequence diagrams on both slides are paired by their participants and drawn
-    // live (lifelines and messages glide, the box grows); others cross-fade.
+    // Sequence diagrams on both slides are paired by morph tag, else by their
+    // participants, and drawn live: participants and messages glide (matched by tag,
+    // name and wording), new ones fade in, changed wording morphs glyph by glyph and
+    // the box grows. Diagrams with no partner cross-fade.
     const usedSeqA = new Set<string>();
     const usedSeqB = new Set<string>();
-    const cands: Array<{ da: SequenceDiagramModel; db: SequenceDiagramModel; score: number }> = [];
-    for (const da of from.sequences.diagrams) {
-      for (const db of to.sequences.diagrams) {
-        const score = diagramSimilarity(from.sequences, to.sequences, da, db);
-        if (score >= 0.5) {
-          cands.push({ da, db, score });
+    const diagramsA = from.sequences.diagrams;
+    const diagramsB = to.sequences.diagrams;
+    const like = (seq: RenderedSlide['sequences'], d: SequenceDiagramModel) => ({
+      id: d.id,
+      title: d.title,
+      morphId: d.morphId,
+      lifelines: seq.lifelines.filter((l) => l.diagramId === d.id),
+    });
+    for (const [i, j] of matchDiagrams(
+      diagramsA.map((d) => like(from.sequences, d)),
+      diagramsB.map((d) => like(to.sequences, d)),
+    )) {
+      usedSeqA.add(diagramsA[i].id);
+      usedSeqB.add(diagramsB[j].id);
+      this.seqPairs.push(this.pairSequence(diagramsA[i], diagramsB[j]));
+    }
+    for (const p of this.seqPairs) {
+      if (p.a.title && p.b.title && p.a.title !== p.b.title) {
+        this.seqTexts.push({ kind: 'title', pair: p, aId: p.a.id, bId: p.b.id });
+      }
+      for (const [la, lb] of p.lifelines) {
+        if (la.label && lb.label && la.label !== lb.label) {
+          this.seqTexts.push({ kind: 'lifeline', pair: p, aId: la.id, bId: lb.id });
         }
       }
-    }
-    cands.sort((x, y) => y.score - x.score);
-    for (const c of cands) {
-      if (!usedSeqA.has(c.da.id) && !usedSeqB.has(c.db.id)) {
-        usedSeqA.add(c.da.id);
-        usedSeqB.add(c.db.id);
-        this.seqPairs.push({ a: c.da, b: c.db });
+      for (const [ma, mb] of p.messages) {
+        if (ma.label && mb.label && ma.label !== mb.label) {
+          this.seqTexts.push({ kind: 'message', pair: p, aId: ma.id, bId: mb.id });
+        }
       }
     }
 
@@ -651,9 +726,28 @@ export class MorphStage {
 
     // Changed text keeps hidden static copies so its glyph positions can be measured.
     const textPairs = this.textPairs();
-    if (textPairs.length) {
+    if (textPairs.length || this.seqTexts.length) {
       const m = document.createElementNS(SVG_NS, 'g') as SVGGElement;
       m.setAttribute('opacity', '0');
+      for (const p of this.seqPairs) {
+        if (!this.seqTexts.some((j) => j.pair === p)) {
+          continue;
+        }
+        const ea = a.rest.find((el) => el.getAttribute('data-seq') === p.a.id);
+        const eb = b.rest.find((el) => el.getAttribute('data-seq') === p.b.id);
+        if (!ea || !eb) {
+          continue;
+        }
+        const ga = shell(a);
+        ga.setAttribute('data-side', 'a');
+        ga.setAttribute('data-seq', p.a.id);
+        ga.appendChild(document.importNode(ea, true));
+        const gb = shell(b);
+        gb.setAttribute('data-side', 'b');
+        gb.setAttribute('data-seq', p.b.id);
+        gb.appendChild(document.importNode(eb, true));
+        m.append(ga, gb);
+      }
       for (const p of textPairs) {
         const ga = shell(a);
         ga.setAttribute('data-side', 'a');
@@ -779,6 +873,80 @@ export class MorphStage {
     return out;
   }
 
+  /** Pair the diagram parts of two sequence diagrams (participants, then messages). */
+  private pairSequence(da: SequenceDiagramModel, db: SequenceDiagramModel): SeqPair {
+    const llA = this.fromSeq.lifelines.filter((l) => l.diagramId === da.id);
+    const llB = this.toSeq.lifelines.filter((l) => l.diagramId === db.id);
+    const msA = this.fromSeq.messages.filter((m) => m.diagramId === da.id);
+    const msB = this.toSeq.messages.filter((m) => m.diagramId === db.id);
+    const lp = matchLifelines(llA, llB);
+    const bOfA = new Map(lp.map(([i, j]) => [llA[i].id, llB[j].id] as const));
+    // A message only glides when both of its ends are the same participants on both
+    // slides; a re-targeted one (it was matched by tag or wording) cross-fades.
+    const messages = matchMessages(msA, msB, lp, llA, llB)
+      .map(([i, j]): [SequenceMessageModel, SequenceMessageModel] => [msA[i], msB[j]])
+      .filter(
+        ([ma, mb]) =>
+          bOfA.get(ma.fromLifelineId) === mb.fromLifelineId &&
+          bOfA.get(ma.toLifelineId) === mb.toLifelineId,
+      );
+    return {
+      a: da,
+      b: db,
+      llA,
+      llB,
+      msA,
+      msB,
+      lifelines: lp.map(([i, j]): [LifelineModel, LifelineModel] => [llA[i], llB[j]]),
+      messages,
+    };
+  }
+
+  /**
+   * Animate one piece of text from `ga` to `gb`: paired glyphs glide, the rest fade
+   * out / in while riding along with the text block's overall movement.
+   */
+  private addGlyphMoves(layer: SVGGElement, ga: Glyph[], gb: Glyph[]): void {
+    const matched = matchGlyphs(ga, gb, this.by);
+    const usedA = new Set(matched.map((m) => m[0]));
+    const usedB = new Set(matched.map((m) => m[1]));
+    const center = (g: readonly Glyph[]): { x: number; y: number } => {
+      if (!g.length) {
+        return { x: 0, y: 0 };
+      }
+      const xs = g.flatMap((q) => [q.x, q.x + q.size * 0.55]);
+      const ys = g.flatMap((q) => [q.y - q.size * 0.8, q.y + q.size * 0.2]);
+      return {
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        y: (Math.min(...ys) + Math.max(...ys)) / 2,
+      };
+    };
+    const ca = center(ga);
+    const cb = center(gb);
+    const dx = cb.x - ca.x;
+    const dy = cb.y - ca.y;
+    const make = (g: Glyph): SVGTextElement => {
+      const el = document.createElementNS(SVG_NS, 'text') as SVGTextElement;
+      el.setAttribute('font-family', g.family);
+      el.textContent = g.ch;
+      layer.appendChild(el);
+      return el;
+    };
+    for (const [i, j] of matched) {
+      this.chars.push({ el: make(ga[i]), a: ga[i], b: gb[j], dx, dy });
+    }
+    ga.forEach((g, i) => {
+      if (!usedA.has(i)) {
+        this.chars.push({ el: make(g), a: g, b: null, dx, dy });
+      }
+    });
+    gb.forEach((g, j) => {
+      if (!usedB.has(j)) {
+        this.chars.push({ el: make(g), a: null, b: g, dx, dy });
+      }
+    });
+  }
+
   private textPairs(): Pair[] {
     return this.elementPairs.filter(
       (p) =>
@@ -811,46 +979,53 @@ export class MorphStage {
       /* measure with whatever font is available */
     }
     const layer = document.createElementNS(SVG_NS, 'g') as SVGGElement;
-    for (const p of this.textPairs()) {
+    const read = (find: () => [SVGTextElement | null, SVGTextElement | null]): [Glyph[], Glyph[]] | null => {
       let ga: Glyph[] | null = null;
       let gb: Glyph[] | null = null;
       try {
-        const find = (side: 'a' | 'b', id: string): SVGTextElement | null =>
-          measure.querySelector(`g[data-side="${side}"][data-id="${CSS.escape(id)}"] text`);
-        const ta = find('a', p.a.id);
-        const tb = find('b', p.b.id);
+        const [ta, tb] = find();
         ga = ta ? readGlyphs(ta, this.offA) : null;
         gb = tb ? readGlyphs(tb, this.offB) : null;
       } catch (err) {
         console.warn('morph: could not measure text', err);
       }
       if (!ga || !gb || ga.length > MAX_CHAR_MORPH || gb.length > MAX_CHAR_MORPH) {
+        return null;
+      }
+      return [ga, gb];
+    };
+    for (const p of this.textPairs()) {
+      const glyphs = read(() => {
+        const find = (side: 'a' | 'b', id: string): SVGTextElement | null =>
+          measure.querySelector(`g[data-side="${side}"][data-id="${CSS.escape(id)}"] text`);
+        return [find('a', p.a.id), find('b', p.b.id)];
+      });
+      if (glyphs) {
+        this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
+        this.glyphIds.add(p.b.id);
+      }
+    }
+    // Sequence text: titles, participant names and message wording.
+    for (const job of this.seqTexts) {
+      const attr =
+        job.kind === 'title' ? 'data-seq-title' : job.kind === 'lifeline' ? 'data-lid' : 'data-mid';
+      const glyphs = read(() => {
+        const find = (side: 'a' | 'b', seqId: string, id: string): SVGTextElement | null =>
+          measure.querySelector(
+            `g[data-side="${side}"][data-seq="${CSS.escape(seqId)}"] text[${attr}="${CSS.escape(id)}"]`,
+          );
+        return [
+          find('a', job.pair.a.id, job.aId),
+          find('b', job.pair.b.id, job.bId),
+        ];
+      });
+      if (!glyphs) {
         continue;
       }
-      const matched = matchGlyphs(ga, gb);
-      const usedA = new Set(matched.map((m) => m[0]));
-      const usedB = new Set(matched.map((m) => m[1]));
-      const make = (g: Glyph): SVGTextElement => {
-        const el = document.createElementNS(SVG_NS, 'text') as SVGTextElement;
-        el.setAttribute('font-family', g.family);
-        el.textContent = g.ch;
-        layer.appendChild(el);
-        return el;
-      };
-      for (const [i, j] of matched) {
-        this.chars.push({ el: make(ga[i]), a: ga[i], b: gb[j] });
-      }
-      ga.forEach((g, i) => {
-        if (!usedA.has(i)) {
-          this.chars.push({ el: make(g), a: g, b: null });
-        }
-      });
-      gb.forEach((g, j) => {
-        if (!usedB.has(j)) {
-          this.chars.push({ el: make(g), a: null, b: g });
-        }
-      });
-      this.glyphIds.add(p.b.id);
+      this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
+      (job.kind === 'title' ? this.hideTitle : job.kind === 'lifeline' ? this.hideLl : this.hideMsg).add(
+        job.bId,
+      );
     }
     measure.remove();
     this.measure = null;
@@ -933,8 +1108,12 @@ export class MorphStage {
       const from = c.a ?? only;
       const to = c.b ?? only;
       const f = single ? 0 : t;
-      c.el.setAttribute('x', String(lerp(from.x, to.x, f)));
-      c.el.setAttribute('y', String(lerp(from.y, to.y, f)));
+      // A character without a partner travels with its text block (fading out toward
+      // where the block ends up, or in from where it was) instead of staying put.
+      const x = single ? (c.a ? only.x + c.dx * t : only.x - c.dx * (1 - t)) : lerp(from.x, to.x, f);
+      const y = single ? (c.a ? only.y + c.dy * t : only.y - c.dy * (1 - t)) : lerp(from.y, to.y, f);
+      c.el.setAttribute('x', String(x));
+      c.el.setAttribute('y', String(y));
       c.el.setAttribute('font-size', String(lerp(from.size, to.size, f)));
       c.el.setAttribute('fill', mixColor(from.fill, to.fill, f));
       // Weight / italic / underline can't be blended: they switch halfway.
@@ -950,22 +1129,45 @@ export class MorphStage {
     }
   }
 
-  /** The live sequence diagrams at progress `t`, in slide-local coordinates. */
+  /**
+   * The live sequence diagrams at progress `t`, in slide-local coordinates.
+   * Participants and messages that are on both slides glide (rows and columns
+   * interpolate, colors blend); ones on only one slide fade out or in where they
+   * are, and the box grows or shrinks between the two boxes. Text that changes is
+   * left out here when the glyph layer animates it.
+   */
   private blendSequences(t: number): {
     diagrams: SequenceDiagramModel[];
     lifelines: LifelineModel[];
     messages: SequenceMessageModel[];
     smooth: boolean;
+    fade: { lifelines: Map<string, number>; messages: Map<string, number> };
+    hideText: {
+      messages: ReadonlySet<string>;
+      lifelines: ReadonlySet<string>;
+      titles: ReadonlySet<string>;
+    };
+    boxes: Map<string, SequenceBox>;
   } {
     const diagrams: SequenceDiagramModel[] = [];
     const lifelines: LifelineModel[] = [];
     const messages: SequenceMessageModel[] = [];
+    const fadeLl = new Map<string, number>();
+    const fadeMs = new Map<string, number>();
+    const boxes = new Map<string, SequenceBox>();
     const offA = this.offA;
     const offB = this.offB;
     const row = (m: SequenceMessageModel, d: SequenceDiagramModel): number =>
       Math.max(1, Math.round((m.y - (d.originY + d.headerHeight)) / d.rowSpacing));
+    const shifted = (b: SequenceBox, off: Offset): SequenceBox => ({
+      x0: b.x0 - off.x,
+      y0: b.y0 - off.y,
+      x1: b.x1 - off.x,
+      y1: b.y1 - off.y,
+    });
 
-    for (const { a: da, b: db } of this.seqPairs) {
+    for (const p of this.seqPairs) {
+      const { a: da, b: db } = p;
       const originY = lerp(da.originY - offA.y, db.originY - offB.y, t);
       const headerHeight = lerp(da.headerHeight, db.headerHeight, t);
       const rowSpacing = lerp(da.rowSpacing, db.rowSpacing, t);
@@ -976,79 +1178,102 @@ export class MorphStage {
         rowSpacing,
         lifelineSpacing: lerp(da.lifelineSpacing, db.lifelineSpacing, t),
         backgroundColor: mixOptionalColor(da.backgroundColor, db.backgroundColor, t),
+        title: t < 0.5 ? da.title : db.title,
       });
       const hb = originY + headerHeight;
 
-      // Participants: the same label is the same participant.
-      const llA = this.fromSeq.lifelines.filter((l) => l.diagramId === da.id);
-      const llB = this.toSeq.lifelines.filter((l) => l.diagramId === db.id);
-      const takenA = new Set<string>();
+      const boxA = sequenceBounds(da, this.fromSeq.lifelines, this.fromSeq.messages);
+      const boxB = sequenceBounds(db, this.toSeq.lifelines, this.toSeq.messages);
+      if (boxA && boxB) {
+        const a = shifted(boxA, offA);
+        const b = shifted(boxB, offB);
+        boxes.set(db.id, {
+          x0: lerp(a.x0, b.x0, t),
+          y0: lerp(a.y0, b.y0, t),
+          x1: lerp(a.x1, b.x1, t),
+          y1: lerp(a.y1, b.y1, t),
+        });
+      }
+
+      // Participants.
       const idOfA = new Map<string, string>();
-      const labelOf = new Map<string, string>();
-      for (const lb of llB) {
-        labelOf.set(lb.id, lb.label);
-        const la = llA.find((l) => !takenA.has(l.id) && l.label === lb.label);
-        if (la) {
-          takenA.add(la.id);
-          idOfA.set(la.id, lb.id);
-          lifelines.push({
-            ...lb,
-            x: lerp(la.x - offA.x, lb.x - offB.x, t),
-            width: lerp(la.width, lb.width, t),
-            color: mixOptionalColor(la.color, lb.color, t),
-          });
-        } else if (t >= 0.5) {
-          lifelines.push({ ...lb, x: lb.x - offB.x });
+      const pairedA = new Set<string>();
+      const pairedB = new Set<string>();
+      for (const [la, lb] of p.lifelines) {
+        pairedA.add(la.id);
+        pairedB.add(lb.id);
+        idOfA.set(la.id, lb.id);
+        lifelines.push({
+          ...lb,
+          diagramId: db.id,
+          label: t < 0.5 ? la.label : lb.label,
+          x: lerp(la.x - offA.x, lb.x - offB.x, t),
+          width: lerp(la.width, lb.width, t),
+          color: mixOptionalColor(la.color, lb.color, t),
+          lineColor: mixOptionalColor(la.lineColor, lb.lineColor, t),
+        });
+      }
+      for (const la of p.llA) {
+        if (!pairedA.has(la.id)) {
+          idOfA.set(la.id, la.id);
+          lifelines.push({ ...la, diagramId: db.id, x: la.x - offA.x });
+          fadeLl.set(la.id, 1 - t);
         }
       }
-      for (const la of llA) {
-        labelOf.set(la.id, la.label);
-        if (!takenA.has(la.id) && t < 0.5) {
-          idOfA.set(la.id, la.id);
-          lifelines.push({ ...la, x: la.x - offA.x, diagramId: db.id });
+      for (const lb of p.llB) {
+        if (!pairedB.has(lb.id)) {
+          lifelines.push({ ...lb, x: lb.x - offB.x });
+          fadeLl.set(lb.id, t);
         }
       }
 
-      // Messages: the same participants and wording is the same message.
-      const msA = this.fromSeq.messages.filter((m) => m.diagramId === da.id);
-      const msB = this.toSeq.messages.filter((m) => m.diagramId === db.id);
-      const key = (m: SequenceMessageModel): string =>
-        `${labelOf.get(m.fromLifelineId)}|${labelOf.get(m.toLifelineId)}|${m.label ?? ''}|${m.style}`;
-      const usedA = new Set<string>();
-      for (const mb of msB) {
-        const ma = msA.find((m) => !usedA.has(m.id) && key(m) === key(mb));
-        if (ma) {
-          usedA.add(ma.id);
+      // Messages.
+      const doneA = new Set<string>();
+      const doneB = new Set<string>();
+      for (const [ma, mb] of p.messages) {
+        doneA.add(ma.id);
+        doneB.add(mb.id);
+        messages.push({
+          ...mb,
+          diagramId: db.id,
+          label: t < 0.5 ? ma.label : mb.label,
+          y: hb + rowSpacing * lerp(row(ma, da), row(mb, db), t),
+          color: mixOptionalColor(ma.color, mb.color, t),
+        });
+      }
+      for (const ma of p.msA) {
+        if (doneA.has(ma.id)) {
+          continue;
+        }
+        const from = idOfA.get(ma.fromLifelineId);
+        const to = idOfA.get(ma.toLifelineId);
+        if (from && to) {
           messages.push({
-            ...mb,
+            ...ma,
             diagramId: db.id,
-            y: hb + rowSpacing * lerp(row(ma, da), row(mb, db), t),
-            color: mixOptionalColor(ma.color, mb.color, t),
+            fromLifelineId: from,
+            toLifelineId: to,
+            y: hb + rowSpacing * row(ma, da),
           });
-        } else if (t >= 0.5) {
-          messages.push({ ...mb, diagramId: db.id, y: hb + rowSpacing * row(mb, db) });
+          fadeMs.set(ma.id, 1 - t);
         }
       }
-      if (t < 0.5) {
-        for (const ma of msA) {
-          if (usedA.has(ma.id)) {
-            continue;
-          }
-          const from = idOfA.get(ma.fromLifelineId);
-          const to = idOfA.get(ma.toLifelineId);
-          if (from && to) {
-            messages.push({
-              ...ma,
-              diagramId: db.id,
-              fromLifelineId: from,
-              toLifelineId: to,
-              y: hb + rowSpacing * row(ma, da),
-            });
-          }
+      for (const mb of p.msB) {
+        if (!doneB.has(mb.id)) {
+          messages.push({ ...mb, diagramId: db.id, y: hb + rowSpacing * row(mb, db) });
+          fadeMs.set(mb.id, t);
         }
       }
     }
-    return { diagrams, lifelines, messages, smooth: true };
+    return {
+      diagrams,
+      lifelines,
+      messages,
+      smooth: true,
+      fade: { lifelines: fadeLl, messages: fadeMs },
+      hideText: { messages: this.hideMsg, lifelines: this.hideLl, titles: this.hideTitle },
+      boxes,
+    };
   }
 
   /** Number of objects that glide between the slides (0 = it is just a cross-fade). */

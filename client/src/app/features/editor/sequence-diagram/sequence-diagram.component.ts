@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { isLightFill, messageLabelLines } from '@dbdesigner/shared';
 import type { LifelineModel, SequenceDiagramModel } from '@dbdesigner/shared';
 import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
@@ -23,6 +24,8 @@ interface MessageView {
   dirRight: boolean;
   mid: number;
   label: string;
+  /** The label as drawn: wrapped so it never hides the arrow (the stored label is unchanged). */
+  displayLabel: string;
   dashed: boolean;
   isBreak: boolean;
   spanLeft: number;
@@ -139,6 +142,8 @@ const MIN_HEADER_W = 60;
 })
 export class SequenceDiagramComponent {
   protected readonly store = inject(ProjectStore);
+  /** True for pale participant colors, which take dark text instead of white. */
+  protected readonly isLight = isLightFill;
 
   /** The id of the diagram this instance renders. */
   readonly diagramId = input.required<string>();
@@ -235,6 +240,11 @@ export class SequenceDiagramComponent {
         dirRight: headX >= otherX,
         mid: isBreak ? (minX + maxX) / 2 : (fromX + toX) / 2,
         label: m.label ?? '',
+        displayLabel: messageLabelLines(
+          m.label ?? '',
+          isBreak ? maxX - minX : Math.abs(toX - fromX),
+          isBreak,
+        ).join('\n'),
         dashed: m.style === 'dashed',
         isBreak,
         spanLeft: minX,
@@ -347,6 +357,9 @@ export class SequenceDiagramComponent {
   protected readonly editingLifelineId = signal<string | null>(null);
   protected readonly editingMessageId = signal<string | null>(null);
   protected readonly editValue = signal('');
+  /** The diagram title is being edited inline (draft lives in `editValue`). */
+  protected readonly editingTitle = signal(false);
+  protected readonly title = computed(() => this.diagram().title ?? '');
 
   private drag: Drag | null = null;
   /** Alt-drag duplication state: set once the drag has switched to a copy. */
@@ -875,7 +888,10 @@ export class SequenceDiagramComponent {
       const fn = this.toWorld();
       const w = fn ? fn(event.clientX, event.clientY) : this.tempTo();
       const target = w ? this.nearestLifeline(w.x) : null;
-      if (target) {
+      // Both ends on one participant would leave no arrow, so that drop is ignored.
+      const msg = this.msgs().find((x) => x.id === d.id);
+      const otherId = d.which === 'from' ? msg?.toLifelineId : msg?.fromLifelineId;
+      if (target && target.id !== otherId) {
         void this.store.updateMessage(
           d.id,
           d.which === 'from' ? { fromLifelineId: target.id } : { toLifelineId: target.id },
@@ -966,6 +982,28 @@ export class SequenceDiagramComponent {
     const l = this.lls();
     if (!l.length) return null;
     return l.reduce((best, cur) => (Math.abs(cur.x - x) < Math.abs(best.x - x) ? cur : best));
+  }
+
+  // ----- Inline edit: diagram title (top-left of the box) -----
+  protected startEditTitle(event: Event): void {
+    event.stopPropagation();
+    if (this.groupLocked()) {
+      this.store.enterGroup('diagram', this.diagram().id);
+      return;
+    }
+    if (!this.canEdit()) return;
+    this.editValue.set(this.title());
+    this.editingLifelineId.set(null);
+    this.editingMessageId.set(null);
+    this.editingTitle.set(true);
+  }
+  protected commitTitle(): void {
+    if (!this.editingTitle()) return;
+    this.editingTitle.set(false);
+    const next = this.editValue().trim();
+    if (next !== this.title()) {
+      void this.store.updateSequenceConfig(this.diagram().id, { title: next });
+    }
   }
 
   // ----- Inline label edit: lifeline -----

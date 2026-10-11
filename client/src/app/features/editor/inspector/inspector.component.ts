@@ -8,6 +8,8 @@ import {
   type IndexModel,
   type TableModel,
   type UpdateColumnDto,
+  HEADER_SWATCHES,
+  SOFT_SWATCHES,
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -41,7 +43,7 @@ export class InspectorComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly typeOptions: SelectOption[] = DATA_TYPE_NAMES.map((n) => ({ value: n, label: n }));
   // Saturated category tints (shared look with the table node + floating toolbar).
-  protected readonly swatches = ['', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
+  protected readonly swatches = ['', ...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   readonly table = input.required<TableModel>();
 

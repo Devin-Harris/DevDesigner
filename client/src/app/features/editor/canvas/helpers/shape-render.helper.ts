@@ -220,7 +220,8 @@ function wrapRunLines(
         last.bold === run.bold &&
         last.italic === run.italic &&
         last.underline === run.underline &&
-        last.color === run.color
+        last.color === run.color &&
+        last.morph === run.morph
       ) {
         last.text += text;
       } else {
@@ -345,6 +346,7 @@ function layoutTextBlock(
         fontStyle: (r.italic ?? !!opts.italic) ? 'italic' : 'normal',
         underline: !!r.underline,
         color: r.color ? (opts.resolveColor?.(r.color) ?? r.color) : opts.color,
+        ...(r.morph ? { morph: r.morph } : {}),
       }));
     }
     return view;

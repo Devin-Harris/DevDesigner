@@ -315,7 +315,13 @@ export async function writeSchemaInto(
         ? { ...e.slide, order: e.slide.order + slideShift }
         : undefined,
     // Lineage ids are remapped as a set so copies still match each other after import.
-    morphId: e.morphId ? (morphIds.get(e.morphId) ?? morphIds.mint(e.morphId)) : undefined,
+    // Named morph tags ("tag:...") are kept as written so slides added by a later import
+    // still pair with earlier ones.
+    morphId: e.morphId
+      ? e.morphId.startsWith('tag:')
+        ? e.morphId
+        : (morphIds.get(e.morphId) ?? morphIds.mint(e.morphId))
+      : undefined,
   }));
   await insertAll(
     manager,
@@ -387,6 +393,8 @@ export async function writeSchemaInto(
       groupId: d.groupId ?? null,
       slideId: d.slideId ?? null,
       backgroundColor: d.backgroundColor ?? null,
+      title: d.title ?? null,
+      morphId: d.morphId ?? null,
     })),
   );
 
@@ -406,6 +414,7 @@ export async function writeSchemaInto(
       label: l.label,
       color: l.color ?? null,
       lineColor: l.lineColor ?? null,
+      morphId: l.morphId ?? null,
       x: l.x,
       width: l.width,
       orderIndex: l.order,
@@ -418,6 +427,8 @@ export async function writeSchemaInto(
     const fromLifelineId = lifelineIds.get(m.fromLifelineId);
     const toLifelineId = lifelineIds.get(m.toLifelineId);
     if (!diagramId || !fromLifelineId || !toLifelineId) continue;
+    // A message needs two different participants (a break has no arrow, so it may share).
+    if (m.style !== 'break' && fromLifelineId === toLifelineId) continue;
     messageModels.push({
       ...m,
       id: messageIds.get(m.id)!,
@@ -442,6 +453,7 @@ export async function writeSchemaInto(
       direction: m.direction,
       arrowhead: m.arrowhead,
       color: m.color ?? null,
+      morphId: m.morphId ?? null,
     })),
   );
 

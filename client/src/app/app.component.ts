@@ -13,6 +13,7 @@ import { RealtimeService } from './core/services/realtime.service';
 import { ProjectsStore } from './stores/projects.store';
 import { ProjectStore } from './stores/project.store';
 import { AuthDialogComponent } from './features/auth/auth-dialog.component';
+import { ApiTokensDialogComponent } from './features/auth/api-tokens-dialog.component';
 import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from './shared/ui/popover/popover-trigger.directive';
@@ -116,6 +117,10 @@ export class AppComponent {
         this.refreshForIdentity();
       }
     });
+  }
+
+  protected openApiTokens(): void {
+    this.dialog.open(ApiTokensDialogComponent, { width: '560px', maxWidth: '94vw' });
   }
 
   protected async signOut(): Promise<void> {

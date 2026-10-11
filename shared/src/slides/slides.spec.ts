@@ -1,6 +1,8 @@
 import {
   effectiveTransition,
   matchMorphItems,
+  morphIdForTag,
+  morphTagOf,
   nextCopyName,
   presentableSlides,
   presentationNames,
@@ -120,6 +122,44 @@ describe('morph matching', () => {
     ];
     expect(matchMorphItems(from, to)).toEqual([[0, 1]]);
   });
+
+  describe('morph tags', () => {
+    it('round-trips a tag through the morphId', () => {
+      expect(morphIdForTag('  hero ')).toBe('tag:hero');
+      expect(morphIdForTag('   ')).toBeNull();
+      expect(morphTagOf('tag:hero')).toBe('hero');
+      expect(morphTagOf('some-uuid')).toBeNull();
+      expect(morphTagOf(null)).toBeNull();
+    });
+
+    it('pairs same-tagged items even when a nearer look-alike exists', () => {
+      const from = [item('tag:hero', 'rectangle', '', 0, 0)];
+      const to = [item('x', 'rectangle', '', 5, 5), item('tag:hero', 'rectangle', '', 900, 900)];
+      expect(matchMorphItems(from, to)).toEqual([[0, 1]]);
+    });
+
+    it('does not pair a tagged item with an untagged look-alike or another tag', () => {
+      expect(
+        matchMorphItems(
+          [item('tag:hero', 'rectangle', '', 0, 0)],
+          [item('x', 'rectangle', '', 5, 5)],
+        ),
+      ).toEqual([]);
+      expect(
+        matchMorphItems(
+          [item('tag:a', 'rectangle', '', 0, 0)],
+          [item('tag:b', 'rectangle', '', 5, 5)],
+        ),
+      ).toEqual([]);
+      // ...and an untagged item does not grab a tagged one either.
+      expect(
+        matchMorphItems(
+          [item('x', 'rectangle', '', 0, 0)],
+          [item('tag:hero', 'rectangle', '', 5, 5)],
+        ),
+      ).toEqual([]);
+    });
+  });
 });
 
 describe('nextCopyName', () => {
@@ -146,5 +186,31 @@ describe('presentations', () => {
     expect(presentationNames(frames)).toEqual(['Presentation 1', 'Demo']);
     expect(presentationSlides(frames, 'Demo').map((f) => f.id)).toEqual(['b', 'd']);
     expect(presentationSlides(frames, 'Presentation 1').map((f) => f.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('matchMorphItems: word-level tags', () => {
+  const text = (key: string, t: string, runTags: string[], cx = 100, cy = 100): MorphItem => ({
+    key,
+    kind: 'element',
+    type: 'text',
+    text: t,
+    runTags,
+    cx,
+    cy,
+    w: 200,
+    h: 30,
+  });
+
+  it('pairs two otherwise unrelated text objects that share a tagged word', () => {
+    const a = [text('tag:solo-a', 'Revenue: $4M', ['total'])];
+    const b = [text('tag:solo-b', 'This quarter we made $5M in sales', ['total'], 600, 300)];
+    expect(matchMorphItems(a, b)).toEqual([[0, 0]]);
+  });
+
+  it('does not pair solo-tagged look-alikes without a shared word tag', () => {
+    const a = [text('tag:solo-a', 'Same text', [])];
+    const b = [text('tag:solo-b', 'Same text', [])];
+    expect(matchMorphItems(a, b)).toEqual([]);
   });
 });

@@ -23,4 +23,9 @@ export class TextRunDto implements TextRun {
   @IsString()
   @MaxLength(64)
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  morph?: string;
 }

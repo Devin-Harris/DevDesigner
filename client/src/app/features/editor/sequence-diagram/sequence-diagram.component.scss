@@ -13,6 +13,43 @@
 
 // Rounded bounding box: behind participants/messages (they keep their own
 // clicks); its empty interior + border select and move the whole diagram.
+.seq-title,
+.seq-title-edit {
+  position: absolute;
+  font-family: var(--dbd-display, inherit);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--seq-fg, var(--dbd-text));
+}
+
+.seq-title {
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: move;
+  pointer-events: auto;
+
+  &.placeholder {
+    font-weight: 500;
+    font-style: italic;
+    color: var(--dbd-text-muted);
+    opacity: 0.7;
+  }
+}
+
+.seq-title-edit {
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  outline: 1.5px solid var(--dbd-primary);
+  background: var(--seq-bg, var(--dbd-surface));
+  pointer-events: auto;
+}
+
 .seq-box {
   position: absolute;
   box-sizing: border-box;
@@ -78,6 +115,10 @@
     background: var(--ll-color);
     color: #fff;
     border-color: transparent;
+
+    &.light {
+      color: #0f172a;
+    }
   }
 
   &.selected {

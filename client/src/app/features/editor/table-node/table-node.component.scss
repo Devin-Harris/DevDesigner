@@ -97,6 +97,25 @@
     .icon-btn {
       color: #fff;
     }
+
+    // A pale header color (e.g. blue-soft) takes dark text instead of white.
+    &.light {
+      color: #0f172a;
+      border-bottom-color: color-mix(in srgb, var(--tbl-color) 70%, #000);
+
+      .title,
+      .count,
+      .icon-btn {
+        color: #0f172a;
+      }
+      .count {
+        background: color-mix(in srgb, #fff 45%, transparent);
+        border-color: color-mix(in srgb, #000 20%, transparent);
+      }
+      .color-dot {
+        border-color: color-mix(in srgb, #000 35%, transparent);
+      }
+    }
   }
 }
 

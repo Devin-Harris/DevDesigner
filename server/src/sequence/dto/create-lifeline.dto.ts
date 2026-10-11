@@ -32,4 +32,9 @@ export class CreateLifelineDto implements ICreateLifelineDto {
   @IsOptional()
   @IsNumber()
   order?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
 }

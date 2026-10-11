@@ -203,6 +203,7 @@ export class SlideRenderService {
         kind: 'element',
         type: e.type,
         text: e.text ?? '',
+        runTags: [...new Set((e.runs ?? []).flatMap((r) => (r.morph ? [r.morph] : [])))],
         cx: (b.x0 + b.x1) / 2 - fx0,
         cy: (b.y0 + b.y1) / 2 - fy0,
         w: b.x1 - b.x0,

@@ -1,3 +1,4 @@
+import { messageLabelLines, readableTextOn } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -79,7 +80,6 @@ const PK_BG = '#f5a623';
 const PK_TEXT = '#3a2a00';
 const UQ_BG = '#2f6bff';
 const UQ_TEXT = '#ffffff';
-const HEADER_COLORED_TEXT = '#ffffff';
 
 /**
  * Resolve a `var(--token)` expression (including aliases like --dbd-handle that
@@ -222,7 +222,7 @@ function renderTable(table: TableModel, theme: Theme): string {
   const height = nodeHeight(table.columns.length);
   const colored = !!table.color;
   const headerFill = table.color || theme.nodeHeader;
-  const headerText = colored ? HEADER_COLORED_TEXT : theme.text;
+  const headerText = colored ? readableTextOn(table.color!) : theme.text;
 
   const parts: string[] = [`<g transform="translate(${table.x}, ${table.y})">`];
 
@@ -412,7 +412,8 @@ function renderTextBlock(t: TextBlockView): string {
             .map(
               (sp) =>
                 `<tspan font-weight="${sp.fontWeight}" font-style="${sp.fontStyle}" fill="${sp.color}"` +
-                `${sp.underline ? ' text-decoration="underline"' : ''}>${esc(sp.text)}</tspan>`,
+                `${sp.underline ? ' text-decoration="underline"' : ''}` +
+                `${sp.morph ? ` data-morph="${esc(sp.morph)}"` : ''}>${esc(sp.text)}</tspan>`,
             )
             .join('')
         : esc(l.text);
@@ -449,6 +450,66 @@ export interface SequenceExportData {
   messages: readonly SequenceMessageModel[];
   /** Keep message rows fractional (no snapping to the row grid), for animated morphs. */
   smooth?: boolean;
+  /**
+   * Per-part opacity (0..1; absent = 1) so a morph can fade participants and messages
+   * that exist on only one slide in or out while the rest glides.
+   */
+  fade?: {
+    lifelines?: ReadonlyMap<string, number>;
+    messages?: ReadonlyMap<string, number>;
+  };
+  /**
+   * Text another layer draws (a morph's glyph animation): the backing shapes stay, the
+   * text of these messages / participants / diagram titles is left out.
+   */
+  hideText?: {
+    messages?: ReadonlySet<string>;
+    lifelines?: ReadonlySet<string>;
+    titles?: ReadonlySet<string>;
+  };
+  /** Box override per diagram id, so a morph can grow/shrink the box smoothly. */
+  boxes?: ReadonlyMap<string, SequenceBox>;
+}
+
+/** A sequence diagram's rounded box in world coordinates. */
+export interface SequenceBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * The box a sequence diagram is drawn with (same geometry as renderSequence): its
+ * participants' extent padded, down to one row below the last message. Null when it
+ * has no participants.
+ */
+export function sequenceBounds(
+  diagram: SequenceDiagramModel,
+  allLifelines: readonly LifelineModel[],
+  allMessages: readonly SequenceMessageModel[],
+  smooth = false,
+): SequenceBox | null {
+  const lls = allLifelines.filter((l) => l.diagramId === diagram.id);
+  if (!lls.length) {
+    return null;
+  }
+  const headerBottom = diagram.originY + diagram.headerHeight;
+  const gap = diagram.rowSpacing;
+  const rows = allMessages
+    .filter((m) => m.diagramId === diagram.id)
+    .map((m) =>
+      smooth
+        ? Math.max(1, (m.y - headerBottom) / gap)
+        : Math.max(1, Math.round((m.y - headerBottom) / gap)),
+    );
+  const maxRow = rows.length ? Math.max(...rows) : 0;
+  return {
+    x0: Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD,
+    x1: Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD,
+    y0: diagram.originY - SEQ_BOX_PAD,
+    y1: headerBottom + gap * (maxRow + 1) + SEQ_BOX_PAD,
+  };
 }
 
 const SEQ_BOX_PAD = 26;
@@ -474,8 +535,10 @@ function renderSequence(
   allLifelines: readonly LifelineModel[],
   allMessages: readonly SequenceMessageModel[],
   theme: Theme,
-  smooth = false,
-): { box: { x0: number; y0: number; x1: number; y1: number }; svg: string } | null {
+  data: SequenceExportData,
+): { box: SequenceBox; svg: string } | null {
+  const smooth = data.smooth === true;
+  const fade = data.fade;
   const lls = allLifelines.filter((l) => l.diagramId === diagram.id).sort((a, b) => a.x - b.x);
   if (!lls.length) {
     return null;
@@ -486,11 +549,12 @@ function renderSequence(
   const rowIndex = (y: number): number =>
     smooth ? Math.max(1, (y - headerBottom) / gap) : Math.max(1, Math.round((y - headerBottom) / gap));
   const maxRow = msgs.length ? Math.max(...msgs.map((m) => rowIndex(m.y))) : 0;
-  const spineEnd = headerBottom + gap * (maxRow + 1);
+  const override = data.boxes?.get(diagram.id);
+  const spineEnd = override ? override.y1 - SEQ_BOX_PAD : headerBottom + gap * (maxRow + 1);
 
-  const x0 = Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD;
-  const x1 = Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD;
-  const y0 = diagram.originY - SEQ_BOX_PAD;
+  const x0 = override ? override.x0 : Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD;
+  const x1 = override ? override.x1 : Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD;
+  const y0 = override ? override.y0 : diagram.originY - SEQ_BOX_PAD;
   const y1 = spineEnd + SEQ_BOX_PAD;
   const minX = Math.min(...lls.map((l) => l.x));
   const maxX = Math.max(...lls.map((l) => l.x));
@@ -501,18 +565,40 @@ function renderSequence(
   const labelText = fg?.text ?? theme.text;
   const labelMuted = fg?.muted ?? theme.textMuted;
   const out: string[] = [];
+  /** Group everything pushed since `index` under one opacity (a faded message). */
+  const wrapFrom = (index: number, opacity: number | undefined): void => {
+    if (opacity === undefined || opacity >= 1 || out.length <= index) return;
+    const parts = out.splice(index);
+    out.push(`<g opacity="${Math.max(0, opacity)}">${parts.join('\n')}</g>`);
+  };
   out.push(
     `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
       `fill="${bg}" stroke="${theme.border}" stroke-width="1.5" />`,
   );
+  if (diagram.title && !data.hideText?.titles?.has(diagram.id)) {
+    out.push(
+      `<text data-seq-title="${esc(diagram.id)}" x="${x0 + 14}" y="${y0 + 19}" font-family="${FONT}" font-size="12" font-weight="700" fill="${labelText}">` +
+        `${esc(truncate(diagram.title, Math.floor((x1 - x0 - 28) / CW_12)))}</text>`,
+    );
+  }
+  /** Wrap `parts` in a group with the given opacity (no wrapper at full opacity). */
+  const faded = (opacity: number | undefined, ...parts: string[]): string =>
+    opacity === undefined || opacity >= 1
+      ? parts.join('\n')
+      : `<g opacity="${Math.max(0, opacity)}">${parts.join('\n')}</g>`;
+
   for (const l of lls) {
     out.push(
-      `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.muted || theme.border}"${l.lineColor || !fg ? '' : ' stroke-opacity="0.55"'} ` +
-        `stroke-width="1.4" stroke-dasharray="4 4" />`,
+      faded(
+        fade?.lifelines?.get(l.id),
+        `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.muted || theme.border}"${l.lineColor || !fg ? '' : ' stroke-opacity="0.55"'} ` +
+          `stroke-width="1.4" stroke-dasharray="4 4" />`,
+      ),
     );
   }
 
   for (const m of msgs) {
+    const at = out.length;
     const isBreak = m.style === 'break';
     const f = byId.get(m.fromLifelineId);
     const t = byId.get(m.toLifelineId);
@@ -526,16 +612,26 @@ function renderSequence(
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
-        const lines = label.toUpperCase().split(/\r?\n/);
+        const lines = messageLabelLines(label.toUpperCase(), maxX - minX, true);
         const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 30;
         const h = lines.length * SEQ_LINE_H + 14;
         const mid = (minX + maxX) / 2;
         out.push(
           `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(11, h / 2)}" ry="${Math.min(11, h / 2)}" ` +
             `fill="${bg}" stroke="${theme.border}" stroke-width="1" />`,
-          seqText(mid, y, lines, `font-weight="600" letter-spacing="0.44" fill="${labelMuted}"`),
+          ...(data.hideText?.messages?.has(m.id)
+            ? []
+            : [
+                seqText(
+                  mid,
+                  y,
+                  lines,
+                  `data-mid="${esc(m.id)}" font-weight="600" letter-spacing="0.44" fill="${labelMuted}"`,
+                ),
+              ]),
         );
       }
+      wrapFrom(at, fade?.messages?.get(m.id));
       continue;
     }
     if (!f || !t) {
@@ -553,25 +649,33 @@ function renderSequence(
         `stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
     );
     if (label) {
-      const lines = label.split(/\r?\n/);
+      const lines = messageLabelLines(label, Math.abs(t.x - f.x));
       const mid = (f.x + t.x) / 2;
       const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20;
       const h = lines.length * SEQ_LINE_H + 8;
       out.push(
         `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" ry="4" fill="${bg}" />`,
-        seqText(mid, y, lines, `fill="${labelText}"`),
+        ...(data.hideText?.messages?.has(m.id)
+          ? []
+          : [seqText(mid, y, lines, `data-mid="${esc(m.id)}" fill="${labelText}"`)]),
       );
     }
+    wrapFrom(at, fade?.messages?.get(m.id));
   }
 
   for (const l of lls) {
     const colored = !!l.color;
     const maxChars = Math.floor((l.width - 16) / CW_12);
     out.push(
-      `<rect x="${l.x - l.width / 2 + 0.5}" y="${diagram.originY + 0.5}" width="${l.width - 1}" height="${diagram.headerHeight - 1}" ` +
-        `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${colored ? 'none' : theme.nodeBorder}" stroke-width="1" />`,
-      `<text x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
-        `font-size="12" font-weight="600" fill="${colored ? HEADER_COLORED_TEXT : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+      faded(
+        fade?.lifelines?.get(l.id),
+        `<rect x="${l.x - l.width / 2 + 0.5}" y="${diagram.originY + 0.5}" width="${l.width - 1}" height="${diagram.headerHeight - 1}" ` +
+          `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${colored ? 'none' : theme.nodeBorder}" stroke-width="1" />`,
+        data.hideText?.lifelines?.has(l.id)
+          ? ''
+          : `<text data-lid="${esc(l.id)}" x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
+            `font-size="12" font-weight="600" fill="${colored ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+      ),
     );
   }
 
@@ -673,7 +777,7 @@ export function buildDiagramSvg(
         sequences.lifelines,
         sequences.messages,
         theme,
-        sequences.smooth === true,
+        sequences,
       );
       if (laid) {
         extend(laid.box.x0, laid.box.y0);

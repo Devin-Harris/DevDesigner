@@ -11,6 +11,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  MORPH_BY_OPTIONS,
+  type MorphBy,
   SLIDE_DIRECTIONS,
   SLIDE_EASINGS,
   SLIDE_TRANSITION_TYPES,
@@ -37,6 +39,10 @@ export class SlideTransitionDto implements SlideTransition {
 
   @IsIn([...SLIDE_EASINGS])
   easing!: SlideEasing;
+
+  @IsOptional()
+  @IsIn([...MORPH_BY_OPTIONS])
+  morphBy?: MorphBy;
 }
 
 /** A frame's place in the slide sequence plus its transition and notes. */

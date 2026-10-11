@@ -6,7 +6,8 @@
   "workspaces": [
     "shared",
     "server",
-    "client"
+    "client",
+    "mcp"
   ],
   "scripts": {
     "build:shared": "npm run build -w shared",
@@ -18,9 +19,11 @@
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
     "build:server": "npm run build -w shared && npm run build -w server",
     "build:client": "npm run build -w shared && npm run build -w client",
-    "test": "npm run test -w shared && npm run test -w server",
+    "test": "npm run test -w shared && npm run test -w server && npm run test -w mcp",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:mcp": "npm run build -w shared && npm run build -w mcp",
+    "start:mcp": "node mcp/dist/index.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

@@ -54,4 +54,8 @@ export class LifelineEntity {
 
   @Column({ type: 'integer', default: 0 })
   orderIndex!: number;
+
+  /** Morph tag (`tag:<name>`) pairing this participant across slides; null = matched by label. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  morphId!: string | null;
 }

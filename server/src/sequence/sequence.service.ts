@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type {
@@ -87,6 +87,8 @@ export class SequenceService {
       rowSpacing: dto.rowSpacing ?? 48,
       headerHeight: dto.headerHeight ?? 42,
       backgroundColor: dto.backgroundColor ?? null,
+      title: dto.title?.trim() || null,
+      morphId: dto.morphId?.trim() || null,
       slideId: dto.slideId ?? null,
       zIndex: dto.zIndex ?? -1,
     });
@@ -114,6 +116,8 @@ export class SequenceService {
     if (dto.groupId !== undefined) entity.groupId = dto.groupId;
     if (dto.slideId !== undefined) entity.slideId = dto.slideId;
     if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
+    if (dto.title !== undefined) entity.title = dto.title.trim() || null;
+    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.updated', diagram: model });
@@ -154,6 +158,7 @@ export class SequenceService {
       label: dto.label,
       color: dto.color ?? null,
       lineColor: dto.lineColor ?? null,
+      morphId: dto.morphId?.trim() || null,
       x: dto.x,
       width: dto.width ?? 120,
       orderIndex: dto.order ?? 0,
@@ -177,6 +182,7 @@ export class SequenceService {
     if (dto.label !== undefined) entity.label = dto.label;
     if (dto.color !== undefined) entity.color = dto.color;
     if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
+    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
     if (dto.width !== undefined) entity.width = dto.width;
     const saved = await this.lifelines.save(entity);
     const model = toLifelineModel(saved);
@@ -229,6 +235,9 @@ export class SequenceService {
   ): Promise<SequenceMessageModel> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
     await this.diagramOrThrow(projectId, dto.diagramId);
+    if (dto.style !== 'break' && dto.fromLifelineId === dto.toLifelineId) {
+      throw new BadRequestException('A message must go between two different participants.');
+    }
     const entity = this.messages.create({
       projectId,
       diagramId: dto.diagramId,
@@ -240,6 +249,7 @@ export class SequenceService {
       direction: dto.direction ?? 'forward',
       arrowhead: dto.arrowhead ?? 'arrow',
       color: dto.color ?? null,
+      morphId: dto.morphId?.trim() || null,
     });
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
@@ -264,6 +274,10 @@ export class SequenceService {
     if (dto.direction !== undefined) entity.direction = dto.direction;
     if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
     if (dto.color !== undefined) entity.color = dto.color;
+    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
+    if (entity.style !== 'break' && entity.fromLifelineId === entity.toLifelineId) {
+      throw new BadRequestException('A message must go between two different participants.');
+    }
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'message.updated', message: model });

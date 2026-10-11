@@ -12,6 +12,9 @@ import {
   type ColumnModel,
   type TableModel,
   type UpdateColumnDto,
+  HEADER_SWATCHES,
+  SOFT_SWATCHES,
+  isLightFill,
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -55,6 +58,9 @@ export interface HandleEvent {
 export class TableNodeComponent {
   private readonly store = inject(ProjectStore);
 
+  /** True for pale header colors, which take dark text instead of white. */
+  protected readonly isLight = isLightFill;
+
   readonly table = input.required<TableModel>();
   readonly selected = input<boolean>(false);
   readonly editable = input<boolean>(false);
@@ -73,16 +79,8 @@ export class TableNodeComponent {
   protected readonly headerH = HEADER_H;
   protected readonly rowH = ROW_H;
   protected readonly dataTypeNames = DATA_TYPE_NAMES;
-  protected readonly headerColors = [
-    '#e5484d',
-    '#f5a623',
-    '#12b76a',
-    '#0ea5e9',
-    '#2f6bff',
-    '#7c5cff',
-    '#ec4899',
-    '#64748b',
-  ];
+  /** Saturated header colors, then pale tints (the shared palette the MCP server also uses). */
+  protected readonly headerColors = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   protected setColor(color: string): void {
     if (!this.editable()) {

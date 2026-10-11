@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { HEADER_SWATCHES, SOFT_SWATCHES } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -21,16 +22,7 @@ export class SequenceParticipantToolbarComponent {
   protected readonly lifeline = computed(() => this.store.selectedLifeline());
   protected readonly canEdit = computed(() => this.store.canEdit());
 
-  protected readonly swatches = [
-    '',
-    '#e5484d',
-    '#f5a623',
-    '#12b76a',
-    '#0ea5e9',
-    '#2f6bff',
-    '#7c5cff',
-    '#ec4899',
-  ];
+  protected readonly swatches = ['', ...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   protected setColor(color: string): void {
     const l = this.lifeline();

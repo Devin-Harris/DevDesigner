@@ -76,10 +76,31 @@ export interface MorphItem {
   type: string;
   /** Text content, or the table name. */
   text: string;
+  /**
+   * Morph tags of tagged words inside the text. Two text objects that share one are the
+   * same object for the morph, so the tagged words can glide between them.
+   */
+  runTags?: readonly string[];
   cx: number;
   cy: number;
   w: number;
   h: number;
+}
+
+/** Prefix that marks a morph lineage key as a name the user typed (a "morph tag"). */
+export const MORPH_TAG_PREFIX = 'tag:';
+
+/** The morphId that stores a user-chosen tag (blank tag -> null, i.e. no tag). */
+export function morphIdForTag(tag: string): string | null {
+  const t = tag.trim().slice(0, 80);
+  return t ? `${MORPH_TAG_PREFIX}${t}` : null;
+}
+
+/** The tag a morphId carries, or null when it is plain lineage / unset. */
+export function morphTagOf(morphId: string | null | undefined): string | null {
+  return morphId && morphId.startsWith(MORPH_TAG_PREFIX)
+    ? morphId.slice(MORPH_TAG_PREFIX.length)
+    : null;
 }
 
 /** Dice coefficient over character bigrams, 0..1. */
@@ -139,7 +160,10 @@ const FREE_FORM_TYPES: ReadonlySet<string> = new Set([
 /**
  * Pair items of two consecutive slides for a morph. Returns [fromIndex, toIndex]
  * pairs; anything unpaired fades out (from) or in (to). Passes, strongest first:
- *   1. shared lineage key (copied slides, or a manual pairing),
+ *   1. shared lineage key (copied slides, a manual pairing, or a user-typed morph tag;
+ *      tagged items take part in this pass only),
+ *   1b. a shared word-level morph tag (`runTags`): an explicit "these words are the same",
+ *      honoured even for items that opted out of look-alike matching,
  *   2. same type and identical text,
  *   3. same type and similar text,
  *   4. same type, no text, similar size, nearby,
@@ -157,14 +181,21 @@ export function matchMorphItems(
   const usedTo = new Set<number>();
   const pairs: Array<[number, number]> = [];
 
-  const pass = (score: (a: MorphItem, b: MorphItem) => number | null): void => {
+  // Tagged items only ever pair with the same tag (pass 1); they are never matched by
+  // look-alike, and untagged items never grab them.
+  const tagged = (m: MorphItem): boolean => morphTagOf(m.key) !== null;
+
+  const pass = (
+    score: (a: MorphItem, b: MorphItem) => number | null,
+    byLineage = false,
+  ): void => {
     const candidates: Array<{ i: number; j: number; cost: number }> = [];
     from.forEach((a, i) => {
-      if (usedFrom.has(i)) {
+      if (usedFrom.has(i) || (!byLineage && tagged(a))) {
         return;
       }
       to.forEach((b, j) => {
-        if (usedTo.has(j) || a.kind !== b.kind) {
+        if (usedTo.has(j) || a.kind !== b.kind || (!byLineage && tagged(b))) {
           return;
         }
         const cost = score(a, b);
@@ -183,7 +214,14 @@ export function matchMorphItems(
     }
   };
 
-  pass((a, b) => (a.key === b.key ? dist(a, b) : null));
+  pass((a, b) => (a.key === b.key ? dist(a, b) : null), true);
+  pass(
+    (a, b) =>
+      a.runTags?.length && b.runTags?.length && a.runTags.some((t) => b.runTags!.includes(t))
+        ? dist(a, b)
+        : null,
+    true,
+  );
   pass((a, b) =>
     a.type === b.type && a.text.trim() && a.text.trim() === b.text.trim() ? dist(a, b) : null,
   );

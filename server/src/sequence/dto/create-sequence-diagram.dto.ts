@@ -31,4 +31,14 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   @IsString()
   @MaxLength(64)
   slideId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
 }

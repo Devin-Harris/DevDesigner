@@ -7,6 +7,8 @@ import { User } from './user.entity';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { OptionalAuthGuard } from './optional-auth.guard';
+import { ApiToken } from './api-token.entity';
+import { ApiTokenService } from './api-token.service';
 
 /**
  * Owner authentication (BUILD_INSTRUCTIONS.md sections 5 and 6).
@@ -18,7 +20,7 @@ import { OptionalAuthGuard } from './optional-auth.guard';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, ApiToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -29,7 +31,7 @@ import { OptionalAuthGuard } from './optional-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, { provide: APP_GUARD, useClass: OptionalAuthGuard }],
-  exports: [AuthService],
+  providers: [AuthService, ApiTokenService, { provide: APP_GUARD, useClass: OptionalAuthGuard }],
+  exports: [AuthService, ApiTokenService],
 })
 export class AuthModule {}

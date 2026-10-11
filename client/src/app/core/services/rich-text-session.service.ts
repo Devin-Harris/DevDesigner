@@ -8,6 +8,8 @@ export interface RichSelectionState {
   underline: boolean;
   /** The color shared by the selection, or null when it is mixed. */
   color: string | null;
+  /** The morph tag shared by the selection ('' when none or mixed). */
+  morph: string;
   /** True when characters are selected (otherwise a patch targets the whole block). */
   hasRange: boolean;
 }

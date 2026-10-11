@@ -9,6 +9,7 @@ import {
   PROJECT_TYPES,
   RELATIONSHIP_TYPES,
   SLIDE_DIRECTIONS,
+  MORPH_BY_OPTIONS,
   SLIDE_EASINGS,
   SLIDE_TRANSITION_TYPES,
   STROKE_STYLES,
@@ -146,6 +147,7 @@ function textRuns(value: unknown, path: string): TextRun[] | undefined {
       italic: flag('italic'),
       underline: flag('underline'),
       color: optStr(r, 'color', `${path}[${i}]`, 64),
+      morph: optStr(r, 'morph', `${path}[${i}]`, 80),
     };
   });
 }
@@ -174,6 +176,7 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
           direction: optOneOf(t, 'direction', `${path}.transition`, SLIDE_DIRECTIONS),
           duration: Math.min(10_000, Math.max(0, num(t, 'duration', `${path}.transition`, 600))),
           easing: oneOf(t, 'easing', `${path}.transition`, SLIDE_EASINGS, 'ease-in-out'),
+          morphBy: optOneOf(t, 'morphBy', `${path}.transition`, MORPH_BY_OPTIONS),
         }
       : undefined,
   };
@@ -317,6 +320,8 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     groupId: optStr(d, 'groupId', path, 100),
     slideId: optStr(d, 'slideId', path, 100),
     backgroundColor: optStr(d, 'backgroundColor', path, 100),
+    title: optStr(d, 'title', path, 200),
+    morphId: optStr(d, 'morphId', path, 100),
   };
 }
 
@@ -328,6 +333,7 @@ function parseLifeline(raw: unknown, path: string): LifelineModel {
     label: str(l, 'label', path, 255),
     color: optStr(l, 'color', path, 100),
     lineColor: optStr(l, 'lineColor', path, 100),
+    morphId: optStr(l, 'morphId', path, 100),
     x: num(l, 'x', path, 0),
     width: num(l, 'width', path, 120),
     order: num(l, 'order', path, 0),
@@ -347,6 +353,7 @@ function parseMessage(raw: unknown, path: string): SequenceMessageModel {
     direction: oneOf(m, 'direction', path, ['forward', 'reverse'] as const, 'forward'),
     arrowhead: oneOf(m, 'arrowhead', path, ['arrow', 'open', 'none'] as const, 'arrow'),
     color: optStr(m, 'color', path, 100),
+    morphId: optStr(m, 'morphId', path, 100),
   };
 }
 
