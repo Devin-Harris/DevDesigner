@@ -6,6 +6,9 @@
 import { z } from 'zod';
 import {
   MORPH_BY_OPTIONS,
+  SLIDE_ANIMATION_EFFECTS,
+  SLIDE_ANIMATION_KINDS,
+  SLIDE_ANIMATION_TRIGGERS,
   SLIDE_DIRECTIONS,
   SLIDE_EASINGS,
   SLIDE_HEIGHT,
@@ -22,6 +25,8 @@ import {
   matchMessages,
   matchMorphItems,
   morphIdForTag,
+  newAnimation,
+  normalizeAnimations,
   morphTagOf,
   normalizeTransition,
   presentationNames,
@@ -30,6 +35,7 @@ import {
   soloMorphId,
   schemaRects,
   sequenceDiagramRect,
+  slideAnimations,
   stackSlideFrames,
   tableRect,
   type CanvasElementModel,
@@ -38,7 +44,12 @@ import {
   type ProjectGraphResponse,
   type SchemaModel,
   type SchemaMutation,
+  type SlideAnimation,
+  type SlideAnimationEffect,
+  type SlideAnimationKind,
+  type SlideAnimationTrigger,
   type SlideConfig,
+  type SlideDirection,
   type SlideItem,
   type SlideSpec,
 } from '@dbdesigner/shared';
@@ -58,6 +69,30 @@ export type ToolFn = <S extends z.ZodRawShape>(
 
 const projectId = z.string().describe('Project id (from list_projects).');
 const confirm = z.literal(true).describe('Must be true. Destructive: confirm the user wants this deleted.');
+
+const animationSchema = z.object({
+  target: z
+    .string()
+    .describe('Id of an element, table or sequence diagram on the slide (from get_slide).'),
+  kind: z
+    .enum(SLIDE_ANIMATION_KINDS as unknown as [string, ...string[]])
+    .optional()
+    .describe("'enter' (default: hidden until it plays), 'exit' (visible until it plays) or 'emphasis'."),
+  effect: z
+    .enum(SLIDE_ANIMATION_EFFECTS as unknown as [string, ...string[]])
+    .optional()
+    .describe("'fade' (default), 'appear', 'fly', 'wipe', 'zoom'; emphasis only offers 'pulse'."),
+  trigger: z
+    .enum(SLIDE_ANIMATION_TRIGGERS as unknown as [string, ...string[]])
+    .optional()
+    .describe("'click' (default: waits for the presenter), 'with' (together with the entry above) or 'after' (when it ends)."),
+  duration: z.number().min(0).max(10000).optional().describe('Milliseconds (default 500).'),
+  delay: z.number().min(0).max(30000).optional().describe('Milliseconds after the trigger (default 0).'),
+  direction: z
+    .enum(SLIDE_DIRECTIONS as unknown as [string, ...string[]])
+    .optional()
+    .describe("For fly / wipe: the side it comes from (exits: goes to). Default left."),
+});
 
 const transitionSchema = z.object({
   type: z.enum(SLIDE_TRANSITION_TYPES as unknown as [string, ...string[]]),
@@ -657,6 +692,53 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
   );
 
   tool(
+    'set_slide_animations',
+    "Replace a slide's object animations (like PowerPoint's animation pane). `animations` is the PLAY ORDER: each entry animates one element / table / sequence diagram id from get_slide. An 'enter' object is hidden until its entry plays. trigger 'click' waits for the presenter to advance, 'with' starts together with the previous entry, 'after' when the previous ends; leading with/after entries play by themselves when the slide appears. Keep it sparse: reveal list items or steps one click at a time, not everything. Pass [] to clear.",
+    {
+      projectId,
+      slide: z.string().describe('Slide id, or 1-based number (with `presentation`).'),
+      presentation: z.string().optional(),
+      animations: z.array(animationSchema).max(200),
+    },
+    { idempotent: true },
+    async ({ projectId: id, slide, presentation, animations }) => {
+      const { schema } = await graph(id);
+      const frame = resolveSlide(schema, slide, presentation);
+      const own = ownedBy(schema, frame.id);
+      const valid = new Set<string>([
+        ...own.elements.filter((e) => e.type !== 'frame').map((e) => e.id),
+        ...own.tableIds,
+        ...own.diagramIds,
+      ]);
+      for (const a of animations) {
+        if (!valid.has(a.target)) {
+          throw new UserError(
+            `"${a.target}" is not an element, table or sequence diagram on this slide (see get_slide).`,
+          );
+        }
+      }
+      const list: SlideAnimation[] = normalizeAnimations(
+        animations.map((a) =>
+          newAnimation(a.target, {
+            ...(a.kind ? { kind: a.kind as SlideAnimationKind } : {}),
+            ...(a.effect ? { effect: a.effect as SlideAnimationEffect } : {}),
+            ...(a.trigger ? { trigger: a.trigger as SlideAnimationTrigger } : {}),
+            ...(a.duration !== undefined ? { duration: a.duration } : {}),
+            ...(a.delay !== undefined ? { delay: a.delay } : {}),
+            ...(a.direction ? { direction: a.direction as SlideDirection } : {}),
+          }),
+        ),
+      );
+      await api.patch(`/elements/${frame.id}`, { slide: { ...frame.slide, animations: list } });
+      // The explicit list replaces any old per-element build steps.
+      for (const e of own.elements) {
+        if (e.step) await api.patch(`/elements/${e.id}`, { step: null });
+      }
+      return { slide: frame.id, animations: list.length };
+    },
+  );
+
+  tool(
     'set_presentation_transition',
     'Apply one transition to every slide of a presentation (the first slide has no entry transition and is skipped).',
     { projectId, presentation: z.string().optional(), transition: transitionSchema },
@@ -737,7 +819,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
 
   tool(
     'get_slide',
-    "List what is on one slide: elements (id, type, text, slide-local position/size, morph tag, build step), tables and sequence diagrams. Use the element ids with set_morph_tag.",
+    "List what is on one slide: elements (id, type, text, slide-local position/size, morph tag), tables, sequence diagrams and the slide's animations. Use the element ids with set_morph_tag and set_slide_animations.",
     {
       projectId,
       slide: z.string().describe('Slide id, or 1-based number (with `presentation`).'),
@@ -762,7 +844,15 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
           ...(morphTagOf(e.morphId) && !isSoloTag(e.morphId)
             ? { morphTag: morphTagOf(e.morphId) }
             : {}),
-          ...(e.step ? { step: e.step } : {}),
+        })),
+        animations: slideAnimations(frame.slide, own.elements).map((a) => ({
+          target: a.target,
+          kind: a.kind,
+          effect: a.effect,
+          trigger: a.trigger,
+          duration: a.duration,
+          delay: a.delay,
+          ...(a.direction ? { direction: a.direction } : {}),
         })),
         tables: schema.tables
           .filter((t) => own.tableIds.includes(t.id))

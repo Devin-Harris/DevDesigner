@@ -1,6 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import {
   effectiveTransition,
+  hiddenAtStep,
+  planAnimations,
+  slideAnimations,
+  type AnimationPlan,
   type CanvasElementModel,
   type MorphItem,
   type LifelineModel,
@@ -26,8 +30,6 @@ export interface SlideItem extends MorphItem {
   /** The source model (world coordinates), used to re-draw the item mid-morph. */
   element?: CanvasElementModel;
   table?: TableModel;
-  /** Build step the item appears on (0 = from the start). */
-  step: number;
 }
 
 /** One slide, rendered to a self-contained vector image plus what a morph needs. */
@@ -40,12 +42,26 @@ export interface RenderedSlide {
   /** Top-left of the frame in canvas world coordinates (for mapping lasers). */
   originX: number;
   originY: number;
-  /** The finished slide (every build step revealed). */
+  /** The slide with every object shown (thumbnails, export). */
   svg: string;
-  /** Highest build step on the slide (0 = no build steps). */
+  /**
+   * Animation groups on the slide (0 = none). Step 0 is the slide before anything has
+   * played, step k the state after the k-th group; when the first group has no click it
+   * plays by itself as soon as the slide appears.
+   */
   maxStep: number;
-  /** One SVG per step 0..maxStep (the last equals `svg`); empty when there are no steps. */
+  /** One SVG per step 0..maxStep; empty when there are no animations. */
   stepSvgs: string[];
+  /**
+   * `mixSvgs[k]` (k >= 1) shows everything visible before OR after group k, the picture
+   * the changing objects are animated on while moving from step k-1 to k.
+   */
+  mixSvgs: string[];
+  /** Ids hidden at each step (index = step). */
+  hiddenByStep: ReadonlyArray<ReadonlySet<string>>;
+  plan: AnimationPlan;
+  /** relationship id -> its two tables, so connectors follow their tables' animations. */
+  relationshipEnds: ReadonlyMap<string, [string, string]>;
   background: string;
   notes: string;
   /** The transition into this slide. */
@@ -110,21 +126,66 @@ export class SlideRenderService {
       const built = buildDiagramSvg(tables, relationships, elements, sequences, crop, imageData);
       const svg = options.fonts ? await embedFonts(built.svg) : built.svg;
       const items = this.itemsWithin(frame, elements, tables);
-      const maxStep = items.reduce((m, i) => Math.max(m, i.step), 0);
+
+      // Animations: one picture per state (after each click group) plus, for each group, a
+      // "mix" picture holding everything visible before OR after it, which the player
+      // animates the changing objects on top of.
+      const animations = slideAnimations(
+        frame.slide,
+        elements.filter((e) => e.type !== 'frame'),
+      );
+      const targets = new Set<string>([
+        ...elements.filter((e) => e.type !== 'frame').map((e) => e.id),
+        ...tables.map((t) => t.id),
+        ...sequences.diagrams.map((d) => d.id),
+      ]);
+      const plan = planAnimations(animations, targets);
+      const maxStep = plan.groups.length;
+      const hiddenByStep: Array<ReadonlySet<string>> = [];
       const stepSvgs: string[] = [];
+      const mixSvgs: string[] = [''];
       if (maxStep > 0) {
-        for (let k = 0; k < maxStep; k += 1) {
-          const part = elements.filter((e) => (e.step ?? 0) <= k);
-          const v = buildDiagramSvg(tables, relationships, part, sequences, crop, imageData);
-          stepSvgs.push(options.fonts ? await embedFonts(v.svg) : v.svg);
+        const cache = new Map<string, string>();
+        const picture = async (hidden: ReadonlySet<string>): Promise<string> => {
+          const key = [...hidden].sort().join('|');
+          const hit = cache.get(key);
+          if (hit !== undefined) {
+            return hit;
+          }
+          const v = buildDiagramSvg(
+            tables.filter((t) => !hidden.has(t.id)),
+            relationships,
+            elements.filter((e) => !hidden.has(e.id)),
+            {
+              diagrams: sequences.diagrams.filter((d) => !hidden.has(d.id)),
+              lifelines: sequences.lifelines.filter((l) => !hidden.has(l.diagramId)),
+              messages: sequences.messages.filter((m) => !hidden.has(m.diagramId)),
+            },
+            crop,
+            imageData,
+          );
+          const markup = options.fonts ? await embedFonts(v.svg) : v.svg;
+          cache.set(key, markup);
+          return markup;
+        };
+        for (let k = 0; k <= maxStep; k += 1) {
+          hiddenByStep.push(hiddenAtStep(plan, k));
+          stepSvgs.push(await picture(hiddenByStep[k]));
         }
-        stepSvgs.push(svg);
+        for (let k = 1; k <= maxStep; k += 1) {
+          const both = new Set([...hiddenByStep[k - 1]].filter((id) => hiddenByStep[k].has(id)));
+          mixSvgs.push(await picture(both));
+        }
       }
       out.push({
         originX: frame.x,
         originY: frame.y,
         maxStep,
         stepSvgs,
+        mixSvgs,
+        hiddenByStep,
+        plan,
+        relationshipEnds: this.relationshipEnds(relationships, tables),
         id: frame.id,
         // Slides are named by their place in the sequence.
         name: frame.slide ? `Slide ${index + 1}` : frame.text?.trim() || 'Untitled frame',
@@ -146,6 +207,28 @@ export class SlideRenderService {
   /** A `data:` URL for an SVG string (used for <img> thumbnails and slides). */
   static dataUrl(svg: string): string {
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  /** Which two tables each relationship joins (so a connector can follow its tables' animations). */
+  private relationshipEnds(
+    relationships: readonly RelationshipModel[],
+    tables: readonly TableModel[],
+  ): Map<string, [string, string]> {
+    const tableOf = new Map<string, string>();
+    for (const t of tables) {
+      for (const c of t.columns) {
+        tableOf.set(c.id, t.id);
+      }
+    }
+    const ends = new Map<string, [string, string]>();
+    for (const r of relationships) {
+      const a = tableOf.get(r.sourceColumnId);
+      const b = tableOf.get(r.targetColumnId);
+      if (a && b) {
+        ends.set(r.id, [a, b]);
+      }
+    }
+    return ends;
   }
 
   /** The sequence diagrams (with parts) whose box overlaps the frame. */
@@ -209,7 +292,6 @@ export class SlideRenderService {
         w: b.x1 - b.x0,
         h: b.y1 - b.y0,
         angle: e.angle ?? 0,
-        step: e.step ?? 0,
         element: e,
       });
     }
@@ -229,7 +311,6 @@ export class SlideRenderService {
         w: b.x1 - b.x0,
         h: b.y1 - b.y0,
         angle: 0,
-        step: 0,
         table: t,
       });
     }
@@ -257,15 +338,21 @@ export class SlideRenderService {
   }
 }
 
-/** The slide as it looks at a build step: that step's image and the items visible by then. */
+/** The slide as it looks after `step` animation groups: that state's image and what is visible. */
 export function slideAtStep(slide: RenderedSlide, step: number): RenderedSlide {
-  if (slide.maxStep === 0 || step >= slide.maxStep) {
+  if (slide.maxStep === 0) {
     return slide;
   }
-  const k = Math.max(0, step);
+  const k = Math.min(slide.maxStep, Math.max(0, step));
+  const hidden = slide.hiddenByStep[k];
   return {
     ...slide,
     svg: slide.stepSvgs[k],
-    items: slide.items.filter((i) => i.step <= k),
+    items: slide.items.filter((i) => !hidden.has(i.id)),
+    sequences: {
+      diagrams: slide.sequences.diagrams.filter((d) => !hidden.has(d.id)),
+      lifelines: slide.sequences.lifelines.filter((l) => !hidden.has(l.diagramId)),
+      messages: slide.sequences.messages.filter((m) => !hidden.has(m.diagramId)),
+    },
   };
 }

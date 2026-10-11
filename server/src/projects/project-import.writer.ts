@@ -143,6 +143,8 @@ export async function writeSchemaInto(
 
   // Element ids are minted first: tables, diagrams and elements point at their slide frame.
   for (const e of schema.elements) elementIds.mint(e.id);
+  // Diagram ids too: a slide's animations point at its tables, diagrams and elements.
+  for (const d of schema.sequenceDiagrams) diagramIds.mint(d.id);
   const slideOf = (old: string | undefined): string | null =>
     old === undefined ? null : (elementIds.get(old) ?? null);
 
@@ -313,7 +315,18 @@ export async function writeSchemaInto(
     slideId: slideOf(e.slideId) ?? undefined,
     slide:
       e.type === 'frame' && e.slide
-        ? { ...e.slide, order: e.slide.order + slideShift }
+        ? {
+            ...e.slide,
+            order: e.slide.order + slideShift,
+            // Animations follow their objects to the new ids; ones whose object is gone drop.
+            animations: e.slide.animations
+              ?.map((a) => {
+                const target =
+                  elementIds.get(a.target) ?? tableIds.get(a.target) ?? diagramIds.get(a.target);
+                return target ? { ...a, target } : null;
+              })
+              .filter((a): a is NonNullable<typeof a> => a !== null),
+          }
         : undefined,
     // Lineage ids are remapped as a set so copies still match each other after import.
     // Named morph tags ("tag:...") are kept as written so slides added by a later import
@@ -377,7 +390,7 @@ export async function writeSchemaInto(
   // Sequence diagrams -> lifelines -> messages (children of a missing parent are dropped).
   const diagramModels: SequenceDiagramModel[] = schema.sequenceDiagrams.map((d) => ({
     ...d,
-    id: diagramIds.mint(d.id),
+    id: diagramIds.get(d.id)!,
     originY: d.originY + dy,
     groupId: group(d.groupId) ?? undefined,
     slideId: slideOf(d.slideId) ?? undefined,

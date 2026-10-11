@@ -19,6 +19,7 @@ import { RealtimeService } from '../../../core/services/realtime.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { MorphStage } from './morph-stage';
 import { slideAtStep, type RenderedSlide } from './slide-render.service';
+import { playGroup, undoGroup } from './step-animator';
 
 /** CSS cubic-bezier control points per easing name. */
 const BEZIER: Record<SlideEasing, [number, number, number, number] | null> = {
@@ -152,15 +153,15 @@ const TRAVEL: Record<string, [number, number]> = {
         <button
           class="btn"
           (click)="prev()"
-          [disabled]="!!following() || (index() === 0 && step() === 0)"
+          [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
           aria-label="Previous"
         >
           <dbd-icon name="chevron_left" />
         </button>
         <span class="count">
           {{ index() + 1 }} / {{ slides().length }}
-          @if (current().maxStep > 0) {
-            <small>· {{ step() }}/{{ current().maxStep }}</small>
+          @if (clicks() > 0) {
+            <small>· {{ clickStep() }}/{{ clicks() }}</small>
           }
         </span>
         <button
@@ -249,7 +250,8 @@ const TRAVEL: Record<string, [number, number]> = {
         inset: 0;
         will-change: transform, opacity;
       }
-      :host ::ng-deep .overlay .layer img {
+      :host ::ng-deep .overlay .layer img,
+      :host ::ng-deep .overlay .layer svg {
         width: 100%;
         height: 100%;
         object-fit: contain;
@@ -438,6 +440,14 @@ export class PresentModeComponent {
   protected readonly current = computed(
     () => this.slides()[this.index()] ?? { name: '', notes: '', maxStep: 0 },
   );
+  /** Steps of the current slide that wait for a click (a leading automatic group is not one). */
+  protected readonly clicks = computed(() => {
+    const i = this.index();
+    return Math.max(0, this.maxStepOf(i) - this.firstStep(i));
+  });
+  protected readonly clickStep = computed(() =>
+    Math.max(0, this.step() - this.firstStep(this.index())),
+  );
   protected readonly following = computed(() => {
     const id = this.follow();
     return id ? (this.realtime.participants().find((p) => p.id === id)?.name ?? 'presenter') : null;
@@ -499,6 +509,9 @@ export class PresentModeComponent {
           .catch(() => undefined);
       }
       this.wake();
+      if (!this.follow()) {
+        void this.playAutomatic();
+      }
       if (this.autoplay()) {
         setTimeout(() => {
           void this.go(this.index() + 1, 0).then(() => setTimeout(() => this.exit(), 900));
@@ -572,6 +585,14 @@ export class PresentModeComponent {
     return this.slides()[slideIndex]?.maxStep ?? 0;
   }
 
+  /**
+   * The lowest step a slide rests on: 1 when its first animation group plays by itself
+   * (so stepping back never lands on the not-yet-played state), else 0.
+   */
+  protected firstStep(slideIndex: number): number {
+    return this.slides()[slideIndex]?.plan.groups[0]?.auto ? 1 : 0;
+  }
+
   // ---- navigation ----
 
   protected next(): void {
@@ -601,7 +622,7 @@ export class PresentModeComponent {
   private async backward(): Promise<void> {
     this.cancelRun?.();
     const i = this.index();
-    if (this.step() > 0) {
+    if (this.step() > this.firstStep(i)) {
       await this.goStep(this.step() - 1);
     } else {
       await this.go(i - 1, this.maxStepOf(i - 1));
@@ -791,12 +812,39 @@ export class PresentModeComponent {
     await this.go(index, step);
   }
 
-  /** Reveal / hide build steps within the current slide: a short cross-fade. */
+  /**
+   * Move within the current slide's animations. One step forward plays that group's
+   * animations on the objects; one back undoes it quickly; a longer jump cross-fades.
+   */
   private async goStep(target: number): Promise<void> {
     const i = this.index();
     const from = this.step();
     if (target === from) {
       return;
+    }
+    const slide = this.slides()[i];
+    if (slide && slide.maxStep > 0 && Math.abs(target - from) === 1) {
+      const forward = target > from;
+      const k = forward ? target : from;
+      const group = slide.plan.groups[k - 1];
+      const mix = slide.mixSvgs[k];
+      if (group && mix) {
+        await this.runLayers(
+          '',
+          '',
+          0,
+          'linear',
+          () => undefined,
+          () => this.step.set(target),
+          undefined,
+          {
+            markup: mix,
+            play: (svg, add) =>
+              (forward ? playGroup : undoGroup)(svg, slide, group, add).duration,
+          },
+        );
+        return;
+      }
     }
     const dur = 280;
     await this.runLayers(
@@ -815,6 +863,21 @@ export class PresentModeComponent {
    * `instant` skips animation.
    */
   private async go(target: number, toStep: number, instant = false): Promise<void> {
+    await this.goSlide(target, toStep, instant);
+    // A first animation group that needs no click plays as soon as its slide is up.
+    if (toStep === 0 && this.index() === target) {
+      await this.playAutomatic();
+    }
+  }
+
+  /** Play the current slide's leading click-less animations, if it has them and they have not played. */
+  private async playAutomatic(): Promise<void> {
+    if (this.step() === 0 && this.firstStep(this.index()) === 1) {
+      await this.goStep(1);
+    }
+  }
+
+  private async goSlide(target: number, toStep: number, instant = false): Promise<void> {
     const slides = this.slides();
     const from = this.index();
     if (target < 0 || target >= slides.length || target === from) {
@@ -892,6 +955,11 @@ export class PresentModeComponent {
     ) => void,
     commit: () => void,
     morph?: { from: RenderedSlide; to: RenderedSlide; reversed?: boolean },
+    /** Animate objects of a live slide picture; `play` returns the total length (ms). */
+    live?: {
+      markup: string;
+      play: (svg: SVGSVGElement, add: (a: Animation) => void) => number;
+    },
   ): Promise<void> {
     const overlay = this.overlayRef().nativeElement;
     overlay.replaceChildren();
@@ -909,8 +977,14 @@ export class PresentModeComponent {
         }
         done = true;
         cancelAnimationFrame(raf);
+        // A live layer keeps its end state until it is removed, so an object that just left
+        // does not flash back for the frames before the committed picture shows.
         for (const a of animations) {
-          a.cancel();
+          if (live) {
+            a.finish();
+          } else {
+            a.cancel();
+          }
         }
         this.cancelRun = null;
         // Show the result first, and only then take the transition layers away, so
@@ -945,6 +1019,27 @@ export class PresentModeComponent {
         overlay.appendChild(el);
         return el;
       };
+
+      if (live) {
+        const host = document.createElement('div');
+        host.className = 'layer';
+        host.innerHTML = live.markup;
+        overlay.appendChild(host);
+        const svg = host.querySelector('svg');
+        if (!svg) {
+          finish();
+          return;
+        }
+        const total = live.play(svg, (a) => animations.push(a));
+        // Settle when every motion has finished (or after the plan's length, if none ran).
+        const settled = Promise.allSettled(animations.map((a) => a.finished));
+        const timer = setTimeout(finish, total + 400);
+        void settled.then(() => {
+          clearTimeout(timer);
+          finish();
+        });
+        return;
+      }
 
       if (morph) {
         const s = new MorphStage(morph.from, morph.to, morph.reversed);

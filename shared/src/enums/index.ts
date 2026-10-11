@@ -203,6 +203,45 @@ export const DEFAULT_MORPH_BY: MorphBy = 'character';
 export type SlideDirection = 'left' | 'right' | 'up' | 'down';
 export const SLIDE_DIRECTIONS: readonly SlideDirection[] = ['left', 'right', 'up', 'down'] as const;
 
+/** What an object-level slide animation does: bring it in, take it out, or draw attention to it. */
+export type SlideAnimationKind = 'enter' | 'exit' | 'emphasis';
+export const SLIDE_ANIMATION_KINDS: readonly SlideAnimationKind[] = [
+  'enter',
+  'exit',
+  'emphasis',
+] as const;
+
+/** The motion of an animation. `pulse` is an emphasis; the rest are entrances and exits. */
+export type SlideAnimationEffect = 'appear' | 'fade' | 'fly' | 'wipe' | 'zoom' | 'pulse';
+export const SLIDE_ANIMATION_EFFECTS: readonly SlideAnimationEffect[] = [
+  'appear',
+  'fade',
+  'fly',
+  'wipe',
+  'zoom',
+  'pulse',
+] as const;
+
+/** The effects each kind of animation offers. */
+export const SLIDE_ANIMATION_EFFECTS_BY_KIND: Readonly<
+  Record<SlideAnimationKind, readonly SlideAnimationEffect[]>
+> = {
+  enter: ['appear', 'fade', 'fly', 'wipe', 'zoom'],
+  exit: ['appear', 'fade', 'fly', 'wipe', 'zoom'],
+  emphasis: ['pulse'],
+};
+
+/**
+ * When an animation starts: `click` waits for the presenter to advance, `with` starts
+ * together with the animation before it, `after` starts once that one has finished.
+ */
+export type SlideAnimationTrigger = 'click' | 'with' | 'after';
+export const SLIDE_ANIMATION_TRIGGERS: readonly SlideAnimationTrigger[] = [
+  'click',
+  'with',
+  'after',
+] as const;
+
 /** Easing curves a transition can use. */
 export type SlideEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
 export const SLIDE_EASINGS: readonly SlideEasing[] = [

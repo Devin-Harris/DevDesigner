@@ -4,10 +4,16 @@ import {
   CODE_LANGUAGES,
   ELEMENT_TYPES,
   FILL_STYLES,
+  MAX_ANIMATION_DELAY,
+  MAX_ANIMATION_DURATION,
+  MAX_SLIDE_ANIMATIONS,
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
   PROJECT_TYPES,
   RELATIONSHIP_TYPES,
+  SLIDE_ANIMATION_EFFECTS,
+  SLIDE_ANIMATION_KINDS,
+  SLIDE_ANIMATION_TRIGGERS,
   SLIDE_DIRECTIONS,
   MORPH_BY_OPTIONS,
   SLIDE_EASINGS,
@@ -28,6 +34,7 @@ import type {
   SchemaModel,
   SequenceDiagramModel,
   SequenceMessageModel,
+  SlideAnimation,
   SlideConfig,
   TableModel,
   TextRun,
@@ -161,6 +168,28 @@ function binding(value: unknown, path: string): ElementBinding | undefined {
   };
 }
 
+function slideAnimations(value: unknown, path: string): SlideAnimation[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const items = list(value, path);
+  if (items.length > MAX_SLIDE_ANIMATIONS) {
+    fail(path, `has too many animations (max ${MAX_SLIDE_ANIMATIONS})`);
+  }
+  return items.map((raw, i) => {
+    const p = `${path}[${i}]`;
+    const a = obj(raw, p);
+    return {
+      id: str(a, 'id', p, 100),
+      target: str(a, 'target', p, 100),
+      kind: oneOf(a, 'kind', p, SLIDE_ANIMATION_KINDS, 'enter'),
+      effect: oneOf(a, 'effect', p, SLIDE_ANIMATION_EFFECTS, 'fade'),
+      trigger: oneOf(a, 'trigger', p, SLIDE_ANIMATION_TRIGGERS, 'click'),
+      duration: Math.min(MAX_ANIMATION_DURATION, Math.max(0, num(a, 'duration', p, 500))),
+      delay: Math.min(MAX_ANIMATION_DELAY, Math.max(0, num(a, 'delay', p, 0))),
+      direction: optOneOf(a, 'direction', p, SLIDE_DIRECTIONS),
+    };
+  });
+}
+
 function slide(value: unknown, path: string): SlideConfig | undefined {
   if (value === undefined || value === null) return undefined;
   const s = obj(value, path);
@@ -179,6 +208,7 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
           morphBy: optOneOf(t, 'morphBy', `${path}.transition`, MORPH_BY_OPTIONS),
         }
       : undefined,
+    animations: slideAnimations(s['animations'], `${path}.animations`),
   };
 }
 

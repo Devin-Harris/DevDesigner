@@ -10,6 +10,9 @@ import type {
   FillStyle,
   MorphBy,
   RelationshipType,
+  SlideAnimationEffect,
+  SlideAnimationKind,
+  SlideAnimationTrigger,
   SlideDirection,
   SlideEasing,
   SlideTransitionType,
@@ -134,6 +137,27 @@ export interface SlideTransition {
 }
 
 /**
+ * One animation of an object on a slide. A slide's animations are an ordered list (the
+ * animation pane); the list order is the play order, and each entry says when it starts
+ * relative to the one before it.
+ */
+export interface SlideAnimation {
+  /** Unique within the slide. */
+  id: string;
+  /** The element, table or sequence diagram that animates (its id). */
+  target: string;
+  kind: SlideAnimationKind;
+  effect: SlideAnimationEffect;
+  trigger: SlideAnimationTrigger;
+  /** Milliseconds the motion takes (ignored by `appear`). */
+  duration: number;
+  /** Milliseconds to wait after the trigger before starting. */
+  delay: number;
+  /** Where `fly` / `wipe` come from (entrances) or go to (exits). Default `left`. */
+  direction?: SlideDirection;
+}
+
+/**
  * Presentation settings carried by a `frame` element. A frame with a `slide`
  * belongs to the project's slide sequence; the sequence is the frames that have
  * one, sorted by `order`. A frame without it is just a page on the canvas.
@@ -153,6 +177,11 @@ export interface SlideConfig {
   notes?: string;
   /** The transition INTO this slide (ignored for the first slide). */
   transition?: SlideTransition;
+  /**
+   * Object animations in play order. Absent = never edited: slides saved with the old
+   * per-element build `step` derive theirs from it (`slideAnimations`).
+   */
+  animations?: SlideAnimation[];
 }
 
 /**

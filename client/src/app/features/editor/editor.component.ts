@@ -34,6 +34,7 @@ import {
   PROJECT_EXPORT_VERSION,
   presentationOf,
   presentationSlides,
+  remapAnimations,
   type SequenceDiagramModel,
 } from '@dbdesigner/shared';
 import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
@@ -4609,6 +4610,21 @@ export class EditorComponent {
     }
     if (!frames.size) {
       return;
+    }
+    // A copied slide's animations animate the copies of its objects, not the originals.
+    const copyOf = new Map<string, string>();
+    for (const [src, copy] of copies) {
+      copyOf.set(src, copy.id);
+    }
+    for (const [oldId, newId] of [...tables, ...diagrams]) {
+      copyOf.set(oldId, newId);
+    }
+    for (const copy of copies.values()) {
+      if (copy.type === 'frame' && copy.slide?.animations?.length) {
+        await this.store.updateElement(copy.id, {
+          slide: { ...copy.slide, animations: remapAnimations(copy.slide.animations, copyOf) },
+        });
+      }
     }
     for (const [oldId, newId] of tables) {
       const owner = this.store.tables().find((t) => t.id === oldId)?.slideId;

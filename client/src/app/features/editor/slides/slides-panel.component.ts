@@ -30,6 +30,7 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
 import { TagInputComponent } from '../../../shared/ui/tag-input/tag-input.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { FRAME_PRESETS } from '../canvas/constants/frame-presets';
+import { AnimationPaneComponent } from './animation-pane.component';
 import { MorphTagSuggestions } from './morph-tag-suggestions.service';
 import { SlideRenderService } from './slide-render.service';
 
@@ -58,10 +59,6 @@ const DIRECTION_OPTIONS: SelectOption<SlideDirection>[] = [
   { value: 'up', label: 'Upwards' },
   { value: 'down', label: 'Downwards' },
 ];
-const STEP_OPTIONS: SelectOption<number>[] = [
-  { value: 0, label: 'Slide start (always visible)' },
-  ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: n, label: `Step ${n}` })),
-];
 const MORPH_BY_SELECT: SelectOption<MorphBy>[] = [
   { value: 'character', label: 'Characters' },
   { value: 'word', label: 'Words' },
@@ -85,7 +82,7 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
   selector: 'app-slides-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent, SelectComponent, TagInputComponent],
+  imports: [AnimationPaneComponent, FormsModule, IconComponent, SelectComponent, TagInputComponent],
   template: `
     @if (part() === 'list') {
     <header class="head">
@@ -263,9 +260,9 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">
           Notes
         </button>
-        @if (canEdit() && (buildable() > 0 || tagCount() > 0 || pairable())) {
-          <button class="tab" [class.on]="tab() === 'build'" (click)="pick('build')">
-            Build
+        @if (active()) {
+          <button class="tab" [class.on]="tab() === 'animations'" (click)="pick('animations')">
+            Animations
           </button>
         }
         <button
@@ -365,6 +362,36 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
               } @else {
                 <p class="hint">Select a slide to set its transition.</p>
               }
+              @if (canEdit() && morphRelevant()) {
+              @if (tagCount() > 0) {
+                <div class="field">
+                  <span>Morph tag</span>
+                  <dbd-tag-input
+                    [value]="morphTag()"
+                    [suggestions]="morphTagSuggestions()"
+                    [taken]="takenTags()"
+                    [maxlength]="80"
+                    [disabled]="!store.canEdit() || tagCount() > 1"
+                    [placeholder]="
+                      tagCount() > 1
+                        ? 'Select a single object to tag it'
+                        : 'Name it, or pick one from the previous slide'
+                    "
+                    (commit)="setMorphTag($event)"
+                  />
+                </div>
+                <p class="hint">
+                  Tagged objects only morph into the object with the same tag on the next slide;
+                  they are never matched to look-alikes.
+                </p>
+              }
+              @if (pairable()) {
+                <button class="btn wide" (click)="pairSelected()">
+                  Treat the {{ pairable() }} selected items as the same object (morph)
+                </button>
+              }
+            
+              }
             }
             @case ('size') {
               @if (canEdit()) {
@@ -400,45 +427,18 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
                 <p class="hint">Select a slide to edit its notes.</p>
               }
             }
-            @case ('build') {
-              @if (buildable() > 0) {
-                <label class="field">
-                  <span>
-                    Reveal {{ buildable() === 1 ? 'the selected item' : buildable() + ' selected items' }} on
-                  </span>
-                  <dbd-select
-                    [options]="stepOptions"
-                    [ngModel]="buildStep()"
-                    (ngModelChange)="setBuildStep($event)"
+            @case ('animations') {
+              @if (active(); as a) {
+                @if (activeSlides().length <= 1) {
+                  <app-animation-pane
+                    [slide]="a"
+                    (play)="command.emit({ kind: 'present', from: 'current' })"
                   />
-                </label>
-              }
-              @if (tagCount() > 0) {
-                <div class="field">
-                  <span>Morph tag</span>
-                  <dbd-tag-input
-                    [value]="morphTag()"
-                    [suggestions]="morphTagSuggestions()"
-                    [taken]="takenTags()"
-                    [maxlength]="80"
-                    [disabled]="!store.canEdit() || tagCount() > 1"
-                    [placeholder]="
-                      tagCount() > 1
-                        ? 'Select a single object to tag it'
-                        : 'Name it, or pick one from the previous slide'
-                    "
-                    (commit)="setMorphTag($event)"
-                  />
-                </div>
-                <p class="hint">
-                  Tagged objects only morph into the object with the same tag on the next slide;
-                  they are never matched to look-alikes.
-                </p>
-              }
-              @if (pairable()) {
-                <button class="btn wide" (click)="pairSelected()">
-                  Treat the {{ pairable() }} selected items as the same object (morph)
-                </button>
+                } @else {
+                  <p class="hint">Select a single slide to edit its animations.</p>
+                }
+              } @else {
+                <p class="hint">Select a slide to edit its animations.</p>
               }
             }
           }
@@ -932,7 +932,6 @@ export class SlidesPanelComponent {
   protected readonly directionOptions = DIRECTION_OPTIONS;
   protected readonly easingOptions = EASING_OPTIONS;
   protected readonly morphByOptions = MORPH_BY_SELECT;
-  protected readonly stepOptions = STEP_OPTIONS;
 
   protected readonly canEdit = this.store.canEdit;
   /** Slides of this presentation, in order (skipped ones included). */
@@ -1018,9 +1017,9 @@ export class SlidesPanelComponent {
   protected readonly thumbs = signal<ReadonlyMap<string, string>>(new Map());
   protected readonly overIndex = signal<number | null>(null);
   /** The detail tabs of the settings panel. */
-  protected readonly tab = signal<'transition' | 'size' | 'notes' | 'build'>('transition');
+  protected readonly tab = signal<'transition' | 'size' | 'notes' | 'animations'>('transition');
 
-  protected pick(tab: 'transition' | 'size' | 'notes' | 'build'): void {
+  protected pick(tab: 'transition' | 'size' | 'notes' | 'animations'): void {
     this.tab.set(tab);
   }
 
@@ -1077,16 +1076,21 @@ export class SlidesPanelComponent {
     ),
   );
 
-  /** Selected non-frame elements that can be given a build step. */
-  private readonly buildTargets = computed(() => {
+  /** True when a morph is involved: the transition into this slide or into the one before it. */
+  protected readonly morphRelevant = computed(() => {
+    const frames = this.frames();
+    const i = frames.findIndex((f) => f.id === this.activeId());
+    if (i < 0) {
+      return false;
+    }
+    const isMorph = (f: CanvasElementModel | undefined): boolean =>
+      !!f && effectiveTransition(f.slide).type === 'morph';
+    return (i > 0 && isMorph(frames[i])) || (i > 1 && isMorph(frames[i - 1]));
+  });
+  /** Selected non-frame elements (what a morph tag or pairing applies to). */
+  private readonly selectedObjects = computed(() => {
     const ids = new Set(this.store.selectedElementIds());
     return this.store.elements().filter((e) => ids.has(e.id) && e.type !== 'frame');
-  });
-  protected readonly buildable = computed(() => this.buildTargets().length);
-  /** The shared step of the selection (0 when they differ or none is set). */
-  protected readonly buildStep = computed(() => {
-    const steps = new Set(this.buildTargets().map((e) => e.step ?? 0));
-    return steps.size === 1 ? [...steps][0] : 0;
   });
   /**
    * Everything selected that can carry a morph tag: canvas elements plus sequence
@@ -1098,7 +1102,7 @@ export class SlidesPanelComponent {
       id: string;
       morphId?: string;
       slideId?: string;
-    }> = this.buildTargets().map((e) => ({
+    }> = this.selectedObjects().map((e) => ({
       kind: 'element',
       id: e.id,
       morphId: e.morphId,
@@ -1145,7 +1149,7 @@ export class SlidesPanelComponent {
   );
   /** How many selected non-frame elements could be linked as one object (2+). */
   protected readonly pairable = computed(() => {
-    const n = this.buildTargets().length;
+    const n = this.selectedObjects().length;
     return n >= 2 ? n : 0;
   });
 
@@ -1546,18 +1550,6 @@ export class SlidesPanelComponent {
         }
       })
       .finally(() => this.pendingOrder.set(null));
-  }
-
-  protected setBuildStep(step: number): void {
-    const targets = this.buildTargets().filter((e) => (e.step ?? 0) !== step);
-    if (!targets.length) {
-      return;
-    }
-    void this.store.batchHistory(async () => {
-      for (const e of targets) {
-        await this.store.updateElement(e.id, { step: step || null });
-      }
-    });
   }
 
   /**
