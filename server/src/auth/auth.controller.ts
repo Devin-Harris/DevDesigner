@@ -119,12 +119,20 @@ export class AuthController {
     );
   }
 
-  /** httpOnly session cookie attributes. Secure is enabled in production. */
+  /**
+   * httpOnly session cookie attributes. Secure is enabled in production. When the
+   * client and API live on different sites, set COOKIE_SAMESITE=none (browsers
+   * require Secure with it, so it is forced on).
+   */
   private cookieOptions(): CookieOptions {
-    const secure = this.config.get<string>('COOKIE_SECURE', 'false') === 'true';
+    const raw = this.config.get<string>('COOKIE_SAMESITE', 'lax').toLowerCase();
+    const sameSite: CookieOptions['sameSite'] =
+      raw === 'none' || raw === 'strict' ? raw : 'lax';
+    const secure =
+      sameSite === 'none' || this.config.get<string>('COOKIE_SECURE', 'false') === 'true';
     return {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite,
       secure,
       path: '/',
       maxAge: SESSION_MAX_AGE_MS,
