@@ -45,6 +45,7 @@ import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
+import { CodeActionsService } from '../../core/services/code-actions.service';
 import {
   CanvasConnectorsComponent,
   type EndpointDownEvent,
@@ -82,7 +83,7 @@ import { chordNormal } from './canvas/helpers/freedraw-path.helper';
 import {
   buildColumnLocations,
   columnAnchor,
-  nodeHeight,
+  tableHeight,
   snapToGrid,
   tableWidth,
 } from './canvas/helpers/node-metrics.helper';
@@ -92,6 +93,9 @@ import {
   CODE_FONT_SIZE,
   CODE_PADDING,
   codeContentSize,
+  CODE_DOTS_WIDTH,
+  codeHeaderHeight,
+  codeTitle,
   codeLayoutMetrics,
   codeLineCount,
   codePrintWidth,
@@ -130,6 +134,7 @@ import { RichTextSessionService } from '../../core/services/rich-text-session.se
 import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
+import { findLinkSnap, type LinkSnap } from './canvas/helpers/link-snap.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
 import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
@@ -459,7 +464,7 @@ export class EditorComponent {
           x: table.x,
           y: table.y,
           width: tableWidth(table),
-          height: nodeHeight(table.columns.length),
+          height: tableHeight(table),
           color: colors[0],
         });
       }
@@ -888,6 +893,56 @@ export class EditorComponent {
   /** Id of the text element being edited inline (a DOM textarea overlays it). */
   protected readonly editingTextId = signal<string | null>(null);
 
+  private readonly codeActions = inject(CodeActionsService);
+
+  /** Screen-space placement of the inline file-name input over a code block's title bar. */
+  protected readonly fileNameEditor = computed(() => {
+    const id = this.codeActions.fileNameEditId();
+    const el = id ? this.store.elements().find((e) => e.id === id && e.type === 'code') : null;
+    if (!el || !this.store.canEdit()) {
+      return null;
+    }
+    const v = this.store.viewport();
+    const z = v.zoom;
+    const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+    // With no name yet there is no bar; the input shows where it will appear.
+    const height = codeHeaderHeight(fontSize);
+    const view = this.shapeViews().find((s) => s.id === el.id)?.code;
+    return {
+      id: el.id,
+      value: el.fileName ?? '',
+      // Inset from both sides by the dot cluster's width: the dots stay visible and
+      // the centered title keeps its place.
+      left: (el.x + CODE_DOTS_WIDTH) * z + v.x,
+      top: el.y * z + v.y,
+      width: Math.max(40, el.width - CODE_DOTS_WIDTH * 2) * z,
+      height: height * z,
+      fontSize: 12 * z,
+      // The card's own surface, so the title beneath doesn't show through the input.
+      background: view?.background ?? null,
+      color: view?.header.color ?? null,
+    };
+  });
+
+  protected onFileNameKeydown(event: KeyboardEvent, id: string): void {
+    const input = event.target as HTMLInputElement;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      // Revert so the blur below commits nothing.
+      input.value = this.store.elements().find((e) => e.id === id)?.fileName ?? '';
+      input.blur();
+    }
+    event.stopPropagation();
+  }
+
+  protected commitFileName(id: string, value: string): void {
+    this.codeActions.fileNameEditId.set(null);
+    void this.codeActions.setFileName(id, value);
+  }
+
   /** Screen-space placement + value for the inline text editor overlay. */
   protected readonly textEditor = computed(() => {
     const id = this.editingTextId();
@@ -939,12 +994,14 @@ export class EditorComponent {
       // live-highlighted SVG beneath shows through while the caret and selection stay native.
       const fontSize = el.fontSize ?? CODE_FONT_SIZE;
       const m = codeLayoutMetrics(fontSize, codeLineCount(el.text ?? ''));
+      // The file-name title bar (if any) sits above the editable code area.
+      const header = codeHeaderHeight(fontSize);
       return {
         id,
         left: el.x * z + v.x,
-        top: el.y * z + v.y,
+        top: (el.y + header) * z + v.y,
         width: el.width * z,
-        height: el.height * z,
+        height: (el.height - header) * z,
         fontSize: fontSize * z,
         fontFamily: fontStack('code'),
         fontWeight: 400,
@@ -1016,7 +1073,7 @@ export class EditorComponent {
   protected readonly displayConnectors = computed(() => {
     const base = this.connectors();
     const relink = this.relinkState();
-    const cursor = this.linkCursor();
+    const cursor = this.linkSnap()?.anchor ?? this.linkCursor();
     if (!relink || !cursor) {
       return base;
     }
@@ -1074,9 +1131,32 @@ export class EditorComponent {
     () => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment()),
   );
 
+  /**
+   * Column row the in-flight link / re-point would attach to if released now.
+   * Magnetic: the cursor only has to be near a table, not on the tiny handle.
+   */
+  protected readonly linkSnap = computed<LinkSnap | null>(() => {
+    const cursor = this.linkCursor();
+    if (!cursor) {
+      return null;
+    }
+    const relink = this.relinkState();
+    let exclude: string | null = null;
+    if (relink) {
+      const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
+      exclude = (relink.which === 'source' ? rel?.targetColumnId : rel?.sourceColumnId) ?? null;
+    } else {
+      exclude = this.linkSourceColumnId();
+      if (!exclude) {
+        return null;
+      }
+    }
+    return findLinkSnap(this.store.tables(), cursor, exclude, this.store.viewport().zoom);
+  });
+
   /** Dashed preview only for drawing a brand-new relationship (re-point moves the line itself). */
   protected readonly tempLink = computed<string | null>(() => {
-    const cursor = this.linkCursor();
+    const cursor = this.linkSnap()?.anchor ?? this.linkCursor();
     const sourceId = this.linkSourceColumnId();
     if (!cursor || !sourceId || this.relinkState()) {
       return null;
@@ -1764,6 +1844,7 @@ export class EditorComponent {
       endArrowhead: draft.endArrowhead,
       curvature: draft.curvature,
       language: draft.language,
+      fileName: draft.fileName,
     };
   }
 
@@ -2450,7 +2531,7 @@ export class EditorComponent {
     }
     if (el.type === 'code') {
       // The card grows to fit what is typed but never shrinks under a manual resize.
-      const size = codeContentSize(value, el.fontSize ?? CODE_FONT_SIZE);
+      const size = codeContentSize(value, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
       this.store.patchElementLocal(id, {
         text: value,
         width: Math.max(el.width, size.width),
@@ -2970,7 +3051,7 @@ export class EditorComponent {
         return;
       }
       this.freshCodeId = null;
-      const size = codeContentSize(text, el.fontSize ?? CODE_FONT_SIZE);
+      const size = codeContentSize(text, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
       void this.store.updateElement(id, {
         text,
         width: Math.max(el.width, size.width),
@@ -3296,6 +3377,28 @@ export class EditorComponent {
     this.linkCursor.set(null);
   }
 
+  /** Released off a handle but near a table: attach to the snapped row. */
+  private commitLinkSnap(): void {
+    const snap = this.linkSnap();
+    if (!snap) {
+      return;
+    }
+    const relink = this.relinkState();
+    if (relink) {
+      void this.store.updateRelationship(
+        relink.relationshipId,
+        relink.which === 'source'
+          ? { sourceColumnId: snap.columnId }
+          : { targetColumnId: snap.columnId },
+      );
+      return;
+    }
+    const sourceId = this.linkSourceColumnId();
+    if (sourceId && sourceId !== snap.columnId) {
+      void this.store.addRelationship(sourceId, snap.columnId);
+    }
+  }
+
   // --- relationship segment dragging (Miro-style manual routing) ---
 
   protected onSegmentDown(payload: SegmentDownEvent): void {
@@ -3431,6 +3534,7 @@ export class EditorComponent {
       this.releasedWhileDuplicating = true;
       return;
     }
+    this.commitLinkSnap();
     if (this.mode === 'marquee') {
       this.commitMarquee();
     } else if (this.mode === 'draw') {
@@ -3618,7 +3722,7 @@ export class EditorComponent {
     const left = table.x;
     const right = table.x + tableWidth(table);
     const top = table.y;
-    const bottom = table.y + nodeHeight(table.columns.length);
+    const bottom = table.y + tableHeight(table);
     return left <= rect.maxX && right >= rect.minX && top <= rect.maxY && bottom >= rect.minY;
   }
 
@@ -4866,6 +4970,17 @@ export class EditorComponent {
     if (!this.store.canEdit() || !this.store.projectId()) {
       return;
     }
+    // Double-clicking a code block's file-name bar edits the name, not the code.
+    if (hit?.type === 'code') {
+      const header = codeHeaderHeight(hit.fontSize ?? CODE_FONT_SIZE);
+      if (world.y < hit.y + header) {
+        // Double-clicks on the window dots are not an edit gesture.
+        if (world.x >= hit.x + CODE_DOTS_WIDTH) {
+          this.codeActions.editFileName(hit.id);
+        }
+        return;
+      }
+    }
     // Double-clicking a text element edits it; double-clicking a shape edits its
     // centered label; double-clicking empty canvas creates a text block.
     if (hit) {
@@ -5022,7 +5137,7 @@ export class EditorComponent {
         x0: t.x,
         y0: t.y,
         x1: t.x + tableWidth(t),
-        y1: t.y + nodeHeight(t.columns.length),
+        y1: t.y + tableHeight(t),
       });
     }
     for (const d of this.store.sequenceDiagrams()) {
@@ -5487,7 +5602,7 @@ export class EditorComponent {
           x: t.x,
           y: t.y,
           w: tableWidth(t),
-          h: nodeHeight(t.columns.length),
+          h: tableHeight(t),
           shift: (dx, dy) => this.store.moveTable(t.id, Math.round(t.x + dx), Math.round(t.y + dy)),
         });
       }

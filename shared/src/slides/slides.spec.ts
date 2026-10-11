@@ -151,11 +151,24 @@ describe('morph matching', () => {
           [item('tag:b', 'rectangle', '', 5, 5)],
         ),
       ).toEqual([]);
-      // ...and an untagged item does not grab a tagged one either.
+      // ...and an untagged item does not grab a tagged one that the old slide also tags...
+      expect(
+        matchMorphItems(
+          [item('x', 'rectangle', '', 0, 0), item('tag:hero', 'rectangle', '', 300, 300)],
+          [item('tag:hero', 'rectangle', '', 5, 5)],
+        ),
+      ).toEqual([[1, 0]]);
+      // ...but takes one whose tag nothing on the old slide carries (unless it is a solo tag).
       expect(
         matchMorphItems(
           [item('x', 'rectangle', '', 0, 0)],
           [item('tag:hero', 'rectangle', '', 5, 5)],
+        ),
+      ).toEqual([[0, 0]]);
+      expect(
+        matchMorphItems(
+          [item('x', 'rectangle', '', 0, 0)],
+          [item('tag:solo-ab12', 'rectangle', '', 5, 5)],
         ),
       ).toEqual([]);
     });
@@ -212,5 +225,46 @@ describe('matchMorphItems: word-level tags', () => {
     const a = [text('tag:solo-a', 'Same text', [])];
     const b = [text('tag:solo-b', 'Same text', [])];
     expect(matchMorphItems(a, b)).toEqual([]);
+  });
+});
+
+describe('matchMorphItems: tags', () => {
+  const item = (key: string, x: number, extra: Partial<Parameters<typeof matchMorphItems>[0][number]> = {}) =>
+    ({ key, kind: 'element', type: 'rectangle', text: '', x, y: 0, w: 100, h: 60, ...extra }) as Parameters<typeof matchMorphItems>[0][number];
+
+  it('lets an untagged item morph into a tagged one nobody on the old slide claims', () => {
+    expect(matchMorphItems([item('a', 0)], [item('tag:hero', 10)])).toEqual([[0, 0]]);
+  });
+
+  it('keeps a tagged item reserved when the old slide carries its tag', () => {
+    const pairs = matchMorphItems([item('a', 0), item('tag:hero', 400)], [item('tag:hero', 10), item('c', 420)]);
+    expect(pairs).toContainEqual([1, 0]);
+    expect(pairs).toContainEqual([0, 1]);
+  });
+
+  it('never lets two old items morph into the same new item', () => {
+    const pairs = matchMorphItems([item('a', 0), item('b', 20)], [item('tag:x', 10)]);
+    expect(pairs).toHaveLength(1);
+  });
+});
+
+describe('matchMorphItems: reversed (going back)', () => {
+  const item = (key: string, x: number) =>
+    ({ key, kind: 'element', type: 'rectangle', text: '', x, y: 0, w: 100, h: 60 }) as Parameters<typeof matchMorphItems>[0][number];
+
+  it('unanimates an untagged -> tagged morph, and still blocks tagged -> untagged forward', () => {
+    const later = [item('tag:hero', 10)];
+    const earlier = [item('a', 0)];
+    expect(matchMorphItems(earlier, later)).toEqual([[0, 0]]);
+    expect(matchMorphItems(later, earlier, undefined, true)).toEqual([[0, 0]]);
+    expect(matchMorphItems(later, earlier)).toEqual([]);
+  });
+
+  it('keeps a tag reserved when the other slide carries it', () => {
+    const later = [item('tag:hero', 400), item('b', 0)];
+    const earlier = [item('a', 0), item('tag:hero', 420)];
+    const pairs = matchMorphItems(later, earlier, undefined, true);
+    expect(pairs).toContainEqual([0, 1]);
+    expect(pairs).toContainEqual([1, 0]);
   });
 });

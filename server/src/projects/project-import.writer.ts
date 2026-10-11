@@ -183,6 +183,7 @@ export async function writeSchemaInto(
       color: t.color ?? null,
       note: t.note ?? null,
       width: t.width ?? null,
+      scale: t.scale && t.scale > 0 && t.scale !== 1 ? Math.min(8, t.scale) : null,
       groupId,
       slideId: slideOf(t.slideId),
     });
@@ -363,6 +364,8 @@ export async function writeSchemaInto(
       curvature: e.curvature ?? null,
       fileId: e.fileId ?? null,
       language: e.type === 'code' ? (e.language ?? 'typescript') : null,
+      fileName: e.type === 'code' ? (e.fileName?.trim() || null) : null,
+      expandedHeight: e.type === 'code' ? (e.expandedHeight ?? null) : null,
       groupId: e.groupId ?? null,
       slideJson: e.slide ? JSON.stringify(e.slide) : null,
       morphId: e.morphId ?? null,
@@ -453,6 +456,7 @@ export async function writeSchemaInto(
       direction: m.direction,
       arrowhead: m.arrowhead,
       color: m.color ?? null,
+      wrap: m.wrap ?? null,
       morphId: m.morphId ?? null,
     })),
   );

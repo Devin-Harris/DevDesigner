@@ -643,10 +643,11 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       label: z.string().optional(),
       style: z.enum(['solid', 'dashed', 'break']).optional(),
       color: z.string().optional().describe('Arrow color: palette name or #hex.'),
+      wrap: z.boolean().optional().describe('Auto-wrap the label to the message width (default on).'),
       morph: z.string().max(60).optional().describe('Morph tag (see create_presentation).'),
     },
     {},
-    async ({ projectId: id, diagramId, from, to, label, style, color, morph }) => {
+    async ({ projectId: id, diagramId, from, to, label, style, color, wrap, morph }) => {
       const schema = (await graph(id)).schema;
       const diagram = findDiagram(schema, diagramId);
       const a = findLifeline(schema, diagramId, from);
@@ -668,6 +669,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         ...(label !== undefined ? { label } : {}),
         ...(style ? { style, arrowhead: style === 'dashed' ? 'open' : 'arrow' } : {}),
         ...(color ? { color: colorArg(color, 'the message arrow') } : {}),
+        ...(wrap !== undefined ? { wrap } : {}),
         ...(morph?.trim() ? { morphId: morphIdForTag(morph) ?? undefined } : {}),
       });
       return { id: m.id, from: a.label, to: b.label, label: m.label ?? '' };
@@ -685,6 +687,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       from: z.string().optional(),
       to: z.string().optional(),
       color: z.string().optional().describe('Arrow color: palette name or #hex; empty string clears.'),
+      wrap: z.boolean().optional().describe('Auto-wrap the label to the message width (default on).'),
       morph: z
         .string()
         .max(60)
@@ -693,7 +696,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       isolate: z.boolean().optional().describe('Give it a unique tag so it never morphs into a message of the next slide.'),
     },
     { idempotent: true },
-    async ({ projectId: id, messageId, label, style, from, to, color, morph, isolate }) => {
+    async ({ projectId: id, messageId, label, style, from, to, color, wrap, morph, isolate }) => {
       const schema = (await graph(id)).schema;
       const msg = schema.sequenceMessages.find((m) => m.id === messageId);
       if (!msg) throw new UserError(`No message "${messageId}".`);
@@ -708,6 +711,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         ...(from ? { fromLifelineId: findLifeline(schema, msg.diagramId, from).id } : {}),
         ...(to ? { toLifelineId: findLifeline(schema, msg.diagramId, to).id } : {}),
         ...(color !== undefined ? { color: colorArg(color, 'the message arrow') } : {}),
+        ...(wrap !== undefined ? { wrap } : {}),
         ...(isolate
           ? { morphId: soloMorphId() }
           : morph !== undefined

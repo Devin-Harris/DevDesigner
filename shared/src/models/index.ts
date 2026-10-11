@@ -62,8 +62,13 @@ export interface TableModel {
   y: number;
   color?: string;
   note?: string;
-  /** Manual width override in px (stretched/squeezed by the user); absent = auto-fit. */
+  /**
+   * Legacy manual width override in px. No longer set or honoured: tables always
+   * fit their content width and are resized via `scale` instead.
+   */
   width?: number;
+  /** Uniform display scale (1 = natural size); absent = 1. */
+  scale?: number;
   /** Group this table belongs to; absent = ungrouped. */
   groupId?: string;
   /** The slide (frame id) this table belongs to; absent = on every slide / no slide. */
@@ -212,6 +217,10 @@ export interface CanvasElementModel {
   fileId?: string;
   /** Code only: the language the `text` is highlighted as (default typescript). */
   language?: CodeLanguage;
+  /** Code only: optional file name shown in a title bar (simulates the code living in that file). */
+  fileName?: string;
+  /** Code only: set while collapsed to its title bar; the height to restore on expand. */
+  expandedHeight?: number;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */
   groupId?: string;
   /** The slide (frame id) this element belongs to; absent = on every slide / no slide. */
@@ -275,6 +284,8 @@ export interface SequenceMessageModel {
   arrowhead: 'arrow' | 'open' | 'none';
   /** Line + arrowhead color (hex); absent = theme connector color. */
   color?: string;
+  /** Wrap the label to the message span (default on); false = keep only explicit line breaks. */
+  wrap?: boolean;
   /** Morph tag (`tag:<name>`): pairs this message with the same tag on the next slide. */
   morphId?: string;
 }

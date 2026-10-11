@@ -38,6 +38,15 @@ describe('messageLabelLines', () => {
     }
   });
 
+  it('keeps only explicit line breaks when wrap is off', () => {
+    const label = 'a fairly long message label that needs wrapping\nsecond line';
+    expect(messageLabelLines(label, 120, false, false)).toEqual([
+      'a fairly long message label that needs wrapping',
+      'second line',
+    ]);
+    expect(messageLabelLines(label, 120).length).toBeGreaterThan(2);
+  });
+
   it('has a sane minimum on very short spans', () => {
     expect(messageLabelMaxChars(10)).toBeGreaterThanOrEqual(8);
   });

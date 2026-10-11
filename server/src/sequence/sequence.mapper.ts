@@ -49,6 +49,7 @@ export function toSequenceMessageModel(e: SequenceMessageEntity): SequenceMessag
     direction: e.direction,
     arrowhead: e.arrowhead,
     color: e.color ?? undefined,
+    wrap: e.wrap ?? undefined,
     morphId: e.morphId ?? undefined,
   };
 }

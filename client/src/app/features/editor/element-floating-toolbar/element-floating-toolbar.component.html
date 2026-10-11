@@ -114,6 +114,14 @@
       <dbd-icon name="auto_fix" />
     </button>
 
+    <button class="tb" matTooltip="File name" [disabled]="!store.canEdit()" (click)="editFileName()">
+      <dbd-icon name="description" />
+    </button>
+
+    <button class="tb" matTooltip="Fit to content" [disabled]="!store.canEdit()" (click)="fitToContent()">
+      <dbd-icon name="fit_screen" />
+    </button>
+
     <button class="tb" [dbdPopoverTrigger]="codeSizeMenu" placement="below-start" matTooltip="Text size" [disabled]="!store.canEdit()">
       <dbd-icon name="format_size" />
     </button>
@@ -180,7 +188,7 @@
       <button class="tb" [class.on]="listKind() === 'number'" (click)="toggleList('number')" matTooltip="Numbered list (Ctrl+Shift+7)" [disabled]="!store.canEdit()">
         <dbd-icon name="format_list_numbered" />
       </button>
-      @if (editingRich()) {
+      @if (editingRich() && element().slideId) {
         <button class="tb" [class.on]="!!runMorphTag()" [dbdPopoverTrigger]="morphMenu" placement="below-start" matTooltip="Morph tag for the selected words" [disabled]="!store.canEdit()">
           <dbd-icon name="link" />
         </button>

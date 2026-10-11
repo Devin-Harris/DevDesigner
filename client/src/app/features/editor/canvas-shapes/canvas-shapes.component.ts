@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ProjectStore } from '../../../stores/project.store';
+import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import type { ArrowheadType } from '@dbdesigner/shared';
-import type { ShapeView } from '../canvas/models/shape-view.model';
+import type { CodeDotAction, ShapeView } from '../canvas/models/shape-view.model';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
@@ -82,6 +84,8 @@ export class CanvasShapesComponent {
   );
 
   protected readonly images = inject(ElementImagesService);
+  private readonly codeActions = inject(CodeActionsService);
+  private readonly store = inject(ProjectStore);
 
   protected readonly frameTitleW = FRAME_TITLE_W;
   protected readonly frameTitleH = FRAME_TITLE_H;
@@ -95,6 +99,29 @@ export class CanvasShapesComponent {
   /** SVG marker url for an arrowhead type, or null for 'none'. */
   protected markerUrl(type: ArrowheadType): string | null {
     return type === 'none' ? null : `url(#dbd-ah-${type})`;
+  }
+
+  /** A control dot on a code block's title bar. */
+  protected onDot(action: CodeDotAction, id: string, event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    event.preventDefault();
+    if (!this.store.canEdit()) {
+      return;
+    }
+    switch (action) {
+      case 'delete':
+        void this.store.deleteElement(id);
+        break;
+      case 'collapse':
+        void this.codeActions.toggleCollapsed(id);
+        break;
+      case 'fit':
+        void this.codeActions.fitToContent([id]);
+        break;
+    }
   }
 
   protected onBody(id: string, event: PointerEvent): void {

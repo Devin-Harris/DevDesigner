@@ -48,6 +48,10 @@ export class TableEntity {
   @Column({ type: 'float', nullable: true })
   width!: number | null;
 
+  /** Uniform display scale; null = natural size (1). */
+  @Column({ type: 'float', nullable: true })
+  scale!: number | null;
+
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;

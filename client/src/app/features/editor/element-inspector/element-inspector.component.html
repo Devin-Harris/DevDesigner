@@ -113,6 +113,11 @@
     </div>
     <div class="seg-row wrap code-actions">
       <button class="seg text" [disabled]="!store.canEdit() || !canFormat()" (click)="format()" title="Format with Prettier (Shift+Alt+F)">Format code</button>
+      <button class="seg text" [disabled]="!store.canEdit()" (click)="fitToContent()" title="Resize the block to fit its code">Fit to content</button>
+    </div>
+    <div class="field-label">File name <span class="optional">(optional)</span></div>
+    <div class="seg-row">
+      <input class="text-input" type="text" maxlength="120" placeholder="e.g. user.service.ts" [value]="element().fileName ?? ''" [disabled]="!store.canEdit()" (change)="setFileName($any($event.target).value)" (keydown.enter)="$any($event.target).blur()" />
     </div>
     <div class="field-label">Text size</div>
     <div class="seg-row wrap">

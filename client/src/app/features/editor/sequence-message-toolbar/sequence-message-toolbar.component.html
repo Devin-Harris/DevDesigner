@@ -45,6 +45,19 @@
   <button
     type="button"
     class="ico-act"
+    [class.active]="m.wrap !== false"
+    [disabled]="!canEdit()"
+    (click)="toggleWrap()"
+    title="Auto-wrap label"
+    aria-label="Auto-wrap label"
+    [attr.aria-pressed]="m.wrap !== false"
+  >
+    <dbd-icon name="wrap_text" />
+  </button>
+
+  <button
+    type="button"
+    class="ico-act"
     [disabled]="!canEdit()"
     (click)="edit()"
     title="Edit label"

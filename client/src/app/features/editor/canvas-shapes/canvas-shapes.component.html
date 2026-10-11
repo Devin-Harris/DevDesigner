@@ -131,6 +131,18 @@
             [attr.stroke-dasharray]="s.dash"
           ></rect>
           <g [attr.clip-path]="'url(#' + c.clipId + ')'" class="code" pointer-events="none">
+            @if (c.header; as h) {
+              <rect [attr.x]="c.rect.x" [attr.y]="c.rect.y" [attr.width]="c.rect.width"
+                [attr.height]="h.height" [attr.fill]="h.tint" fill-opacity="0.14"></rect>
+              <line [attr.x1]="c.rect.x" [attr.x2]="c.rect.x + c.rect.width"
+                [attr.y1]="c.rect.y + h.height" [attr.y2]="c.rect.y + h.height"
+                [attr.stroke]="h.tint" stroke-opacity="0.35"></line>
+              <text [attr.x]="h.x" [attr.y]="h.y" font-size="12" text-anchor="middle"
+                [attr.font-family]="c.fontFamily" [attr.fill]="h.color">{{ h.text }}</text>
+              @for (d of h.dots; track $index) {
+                <circle [attr.cx]="d.x" [attr.cy]="d.y" [attr.r]="d.r" [attr.fill]="d.color"></circle>
+              }
+            }
             @for (line of c.lines; track $index) {
               <text
                 [attr.x]="c.numberX"
@@ -152,16 +164,6 @@
                 }
               </text>
             }
-            @if (c.label; as l) {
-              <text
-                [attr.x]="l.x"
-                [attr.y]="l.y"
-                text-anchor="end"
-                font-size="10"
-                [attr.font-family]="c.fontFamily"
-                [attr.fill]="l.color"
-              >{{ l.text }}</text>
-            }
           </g>
           <rect
             class="hit"
@@ -171,6 +173,18 @@
             [attr.height]="c.rect.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
+          @if (interactive()) {
+            <!-- Window dots: red deletes, yellow collapses/expands, green fits to content. -->
+            @for (d of c.header.dots; track $index) {
+              <circle
+                class="code-dot"
+                [attr.cx]="d.x"
+                [attr.cy]="d.y"
+                [attr.r]="d.r + 3"
+                (pointerdown)="onDot(d.action, s.id, $event)"
+              ></circle>
+            }
+          }
         }
         @if (s.ellipse) {
           <ellipse

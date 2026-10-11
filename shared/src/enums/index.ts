@@ -95,7 +95,6 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
 export type CodeLanguage =
   | 'plaintext'
   | 'typescript'
-  | 'javascript'
   | 'sql'
   | 'json'
   | 'python'
@@ -108,7 +107,6 @@ export type CodeLanguage =
 export const CODE_LANGUAGES: readonly CodeLanguage[] = [
   'plaintext',
   'typescript',
-  'javascript',
   'sql',
   'json',
   'python',

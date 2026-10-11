@@ -174,6 +174,15 @@ export class CreateElementDto implements ICreateElementDto {
   language?: CodeLanguage;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  fileName?: string;
+
+  @IsOptional()
+  @IsNumber()
+  expandedHeight?: number;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => SlideDto)
   slide?: SlideConfig;

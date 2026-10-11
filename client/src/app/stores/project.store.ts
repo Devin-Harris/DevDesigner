@@ -242,6 +242,8 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     curvature: e.curvature,
     fileId: e.fileId,
     language: e.language,
+    fileName: e.fileName,
+    expandedHeight: e.expandedHeight,
     slide: e.slide,
     morphId: e.morphId,
     step: e.step,
@@ -649,9 +651,12 @@ export const ProjectStore = signalStore(
             key === 'runs' ||
             key === 'morphId' ||
             key === 'step' ||
-            key === 'slideId'
+            key === 'slideId' ||
+            key === 'expandedHeight'
           ) {
             before[key] = element[key] ?? null;
+          } else if (key === 'fileName') {
+            before[key] = element.fileName ?? '';
           } else {
             before[key] = (element as unknown as Record<string, unknown>)[key];
           }
@@ -902,6 +907,7 @@ export const ProjectStore = signalStore(
               direction: m.direction,
               arrowhead: m.arrowhead,
               color: m.color,
+              wrap: m.wrap,
               morphId: m.morphId,
             }),
           ),
@@ -1912,6 +1918,7 @@ export const ProjectStore = signalStore(
                   direction: m.direction,
                   arrowhead: m.arrowhead,
                   color: m.color,
+                  wrap: m.wrap,
                   morphId: m.morphId,
                 }),
               ),
@@ -1973,6 +1980,7 @@ export const ProjectStore = signalStore(
                 direction: src.direction,
                 arrowhead: src.arrowhead,
                 color: src.color,
+                wrap: src.wrap,
               }),
             ),
           );
@@ -2192,9 +2200,9 @@ export const ProjectStore = signalStore(
           });
         },
 
-        /** Live (local-only) width while dragging a table's edge; persist via updateTable. */
-        setTableWidthLocal(tableId: string, width: number | undefined): void {
-          mapTable(tableId, (t) => ({ ...t, width }));
+        /** Live (local-only) scale while dragging a corner; persist via updateTable. */
+        setTableScaleLocal(tableId: string, scale: number | undefined): void {
+          mapTable(tableId, (t) => ({ ...t, scale }));
         },
 
         async updateTable(tableId: string, patch: UpdateTableDto): Promise<void> {
@@ -2238,9 +2246,9 @@ export const ProjectStore = signalStore(
           // Show the copy as soon as the table exists; columns stream in after, so
           // an Alt-drag can grab it immediately instead of waiting on N round trips.
           setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
-          if (source.width) {
-            mapTable(created.id, (t) => ({ ...t, width: source.width }));
-            void tablesApi.update(created.id, { width: source.width }).subscribe();
+          if (source.scale && source.scale !== 1) {
+            mapTable(created.id, (t) => ({ ...t, scale: source.scale }));
+            void tablesApi.update(created.id, { scale: source.scale }).subscribe();
           }
           if (select) {
             patchState(store, {

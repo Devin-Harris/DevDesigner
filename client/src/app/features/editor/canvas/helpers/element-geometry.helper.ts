@@ -1,6 +1,6 @@
 import type { CanvasElementModel, PointModel, TableModel } from '@dbdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
-import { nodeHeight, tableWidth } from './node-metrics.helper';
+import { tableHeight, tableWidth } from './node-metrics.helper';
 
 /** Vertex-based element types whose geometry lives in `points`, not width/height. */
 export function isPathElement(type: CanvasElementModel['type']): boolean {
@@ -49,7 +49,7 @@ export function tableBox(table: TableModel): Box {
     x0: table.x,
     y0: table.y,
     x1: table.x + tableWidth(table),
-    y1: table.y + nodeHeight(table.columns.length),
+    y1: table.y + tableHeight(table),
   };
 }
 

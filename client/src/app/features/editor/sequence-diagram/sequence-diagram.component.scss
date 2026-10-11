@@ -119,6 +119,11 @@
     &.light {
       color: #0f172a;
     }
+
+    // Stock swatches keep the theme's text color (white in dark, dark in light).
+    &.swatch {
+      color: var(--dbd-text);
+    }
   }
 
   &.selected {
@@ -300,6 +305,7 @@
 
 .msg-label-wrap {
   position: absolute;
+  width: max-content; // don't shrink to min-content (one glyph) next to the right edge
   transform: translate(-50%, -50%);
   pointer-events: none;
   display: flex;
@@ -352,6 +358,12 @@
   text-align: center;
   line-height: 1.35;
   white-space: pre;
+
+  // Wrapping labels: wrap at the same width the finished label will.
+  &.wrap {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
 
   // Break rows: match .break-label's pill styling.
   &.break {

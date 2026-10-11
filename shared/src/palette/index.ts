@@ -205,6 +205,16 @@ export function isLightFill(fill: string | undefined | null): boolean {
   return !!fill && !!normalizeHex(fill) && readableTextOn(fill) === DARK_TEXT;
 }
 
+/**
+ * True for the stock strong/soft swatches the pickers offer. These keep the
+ * theme's own text color (white in dark mode, dark in light mode); only custom
+ * colors get the contrast-derived text color.
+ */
+export function isSwatchColor(fill: string | undefined | null): boolean {
+  const hex = fill ? normalizeHex(fill) : null;
+  return !!hex && PALETTE.some((c) => c.tone !== 'neutral' && c.hex === hex);
+}
+
 /** Hex values of the saturated header colors, in palette order (for swatch pickers). */
 export const HEADER_SWATCHES: readonly string[] = PALETTE.filter((c) => c.tone === 'strong').map(
   (c) => c.hex,

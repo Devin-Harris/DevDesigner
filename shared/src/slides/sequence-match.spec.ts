@@ -108,3 +108,44 @@ describe('matchDiagrams', () => {
     expect(pairs).toEqual([[0, 1]]);
   });
 });
+
+describe('matchMessages: grown diagram with edited rows', () => {
+  const lls = (p: string) => [ll(`${p}1`, 'P1', 100), ll(`${p}2`, 'P2', 260), ll(`${p}3`, 'P3', 420), ll(`${p}4`, 'P4', 580)];
+  const la = lls('a');
+  const lb = lls('b');
+  const lp: Array<[number, number]> = [[0, 0], [1, 1], [2, 2], [3, 3]];
+  const d = (id: string, from: string, to: string, label: string, y: number) =>
+    msg(id, from, to, label, y, { style: 'dashed' });
+
+  it('keeps a row in place when its end moved, instead of sliding it below new rows', () => {
+    const a = [
+      msg('a-m1', 'a1', 'a2', '', 10),
+      d('a-m5', 'a3', 'a4', '', 50),
+      msg('a-m6', 'a4', 'a3', '123', 60),
+      d('a-m7', 'a3', 'a4', '', 70),
+      msg('a-m8', 'a4', 'a3', '123', 80),
+    ];
+    const b = [
+      msg('b-m1', 'b1', 'b2', '', 10),
+      d('b-m5', 'b2', 'b4', '', 50),
+      msg('b-m6', 'b4', 'b2', '123', 60),
+      d('b-m7', 'b3', 'b4', '', 70),
+      msg('b-m8', 'b4', 'b3', '123', 80),
+      d('b-m9', 'b3', 'b4', '', 90),
+      msg('b-m10', 'b4', 'b3', 'asdf asdf', 100),
+    ];
+    // m6/m8 are `solid` returns here; styles must agree to pair.
+    a[2] = { ...a[2], style: 'solid' };
+    a[4] = { ...a[4], style: 'solid' };
+    b[2] = { ...b[2], style: 'solid' };
+    b[4] = { ...b[4], style: 'solid' };
+    b[6] = { ...b[6], style: 'solid' };
+    expect(matchMessages(a, b, lp, la, lb).sort((p, q) => p[0] - q[0])).toEqual([
+      [0, 0],
+      [1, 1],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+    ]);
+  });
+});

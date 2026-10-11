@@ -1,4 +1,4 @@
-import { messageLabelLines, readableTextOn } from '@dbdesigner/shared';
+import { isSwatchColor, messageLabelLines, readableTextOn } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -10,7 +10,7 @@ import type {
 } from '@dbdesigner/shared';
 import { contrastText } from '../sequence-diagram/contrast';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
-import { nodeHeight, tableBox, tableWidth } from '../canvas/helpers/node-metrics.helper';
+import { nodeHeight, tableBaseWidth, tableBox, tableScale } from '../canvas/helpers/node-metrics.helper';
 import { computeConnectors } from '../canvas/helpers/connectors.helper';
 import { messageLabelBoxes } from '../canvas/helpers/message-box.helper';
 import { buildShapeViews } from '../canvas/helpers/shape-render.helper';
@@ -218,13 +218,15 @@ const CHIPS_BLOCK_W = 4 * CHIP_W + 3 * CHIP_GAP;
 
 /** Render one table node as an SVG group at its world coordinates. */
 function renderTable(table: TableModel, theme: Theme): string {
-  const width = tableWidth(table);
+  // Drawn at natural size inside a scaled group, so the whole node scales uniformly.
+  const width = tableBaseWidth(table);
   const height = nodeHeight(table.columns.length);
+  const scale = tableScale(table);
   const colored = !!table.color;
   const headerFill = table.color || theme.nodeHeader;
-  const headerText = colored ? readableTextOn(table.color!) : theme.text;
+  const headerText = colored && !isSwatchColor(table.color) ? readableTextOn(table.color!) : theme.text;
 
-  const parts: string[] = [`<g transform="translate(${table.x}, ${table.y})">`];
+  const parts: string[] = [`<g transform="translate(${table.x}, ${table.y})${scale === 1 ? '' : ` scale(${scale})`}">`];
 
   // Node body: rounded surface with a 1px border ring (matches the box-shadow ring).
   parts.push(
@@ -379,6 +381,20 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
       `rx="${rect.rx}" fill="${esc(c.background)}" ${stroke} />`,
     `<g clip-path="url(#${esc(c.clipId)})">`,
   ];
+  {
+    const h = c.header;
+    out.push(
+      `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${h.height}" ` +
+        `fill="${h.tint}" fill-opacity="0.14" />`,
+      `<line x1="${rect.x}" y1="${rect.y + h.height}" x2="${rect.x + rect.width}" ` +
+        `y2="${rect.y + h.height}" stroke="${h.tint}" stroke-opacity="0.35" />`,
+      `<text x="${h.x}" y="${h.y}" text-anchor="middle" font-size="12" ` +
+        `font-family="${esc(c.fontFamily)}" fill="${h.color}">${esc(h.text)}</text>`,
+    );
+    for (const d of h.dots) {
+      out.push(`<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}" />`);
+    }
+  }
   for (const line of c.lines) {
     out.push(
       `<text x="${c.numberX}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.number}</text>`,
@@ -391,12 +407,6 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
       .join('');
     out.push(
       `<text x="${c.textX}" y="${line.y}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
-    );
-  }
-  if (c.label) {
-    out.push(
-      `<text x="${c.label.x}" y="${c.label.y}" text-anchor="end" font-size="10" ` +
-        `font-family="${esc(c.fontFamily)}" fill="${c.label.color}">${esc(c.label.text)}</text>`,
     );
   }
   out.push('</g>');
@@ -467,8 +477,18 @@ export interface SequenceExportData {
     lifelines?: ReadonlySet<string>;
     titles?: ReadonlySet<string>;
   };
+  /**
+   * Participants whose header text stays the theme text color even though their (blended)
+   * fill is no longer a stock swatch, so a morph between two swatches doesn't flip it.
+   */
+  themeHeaderText?: ReadonlySet<string>;
   /** Box override per diagram id, so a morph can grow/shrink the box smoothly. */
   boxes?: ReadonlyMap<string, SequenceBox>;
+  /**
+   * World X of a message's two ends, keyed by message id, overriding the participants'
+   * columns: lets a morph slide one end of an arrow (it grows toward another participant).
+   */
+  ends?: ReadonlyMap<string, { from: number; to: number }>;
 }
 
 /** A sequence diagram's rounded box in world coordinates. */
@@ -612,7 +632,7 @@ function renderSequence(
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
-        const lines = messageLabelLines(label.toUpperCase(), maxX - minX, true);
+        const lines = messageLabelLines(label.toUpperCase(), maxX - minX, true, m.wrap !== false);
         const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 30;
         const h = lines.length * SEQ_LINE_H + 14;
         const mid = (minX + maxX) / 2;
@@ -637,20 +657,23 @@ function renderSequence(
     if (!f || !t) {
       continue;
     }
-    const headX = m.direction === 'forward' ? t.x : f.x;
-    const otherX = headX === f.x ? t.x : f.x;
+    const slid = data.ends?.get(m.id);
+    const fx = slid?.from ?? f.x;
+    const tx = slid?.to ?? t.x;
+    const headX = m.direction === 'forward' ? tx : fx;
+    const otherX = headX === fx ? tx : fx;
     const dir = headX >= otherX ? -8 : 8;
-    const left = Math.min(f.x, t.x);
+    const left = Math.min(fx, tx);
     const dash = m.style === 'dashed' ? ' stroke-dasharray="6 4"' : '';
     out.push(
-      `<line x1="${left}" y1="${y}" x2="${Math.max(f.x, t.x, left + 1)}" y2="${y}" ` +
+      `<line x1="${left}" y1="${y}" x2="${Math.max(fx, tx, left + 1)}" y2="${y}" ` +
         `stroke="${stroke}" stroke-width="1.6"${dash} />`,
       `<path d="M${headX + dir} ${y - 4} L${headX} ${y} L${headX + dir} ${y + 4}" fill="none" ` +
         `stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
     );
     if (label) {
-      const lines = messageLabelLines(label, Math.abs(t.x - f.x));
-      const mid = (f.x + t.x) / 2;
+      const lines = messageLabelLines(label, Math.abs(tx - fx), false, m.wrap !== false);
+      const mid = (fx + tx) / 2;
       const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20;
       const h = lines.length * SEQ_LINE_H + 8;
       out.push(
@@ -674,7 +697,7 @@ function renderSequence(
         data.hideText?.lifelines?.has(l.id)
           ? ''
           : `<text data-lid="${esc(l.id)}" x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
-            `font-size="12" font-weight="600" fill="${colored ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+            `font-size="12" font-weight="600" fill="${colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
       ),
     );
   }

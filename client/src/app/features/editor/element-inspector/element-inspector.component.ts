@@ -121,6 +121,17 @@ export class ElementInspectorComponent {
     void this.codeActions.format(this.store.selectedElementIds());
   }
 
+  protected fitToContent(): void {
+    void this.codeActions.fitToContent(this.store.selectedElementIds());
+  }
+
+  protected setFileName(value: string): void {
+    const ids = this.store.selectedElementIds();
+    for (const id of ids.length ? ids : [this.element().id]) {
+      void this.codeActions.setFileName(id, value);
+    }
+  }
+
   protected setLanguage(language: CodeLanguage): void {
     this.patchCode({ language });
   }

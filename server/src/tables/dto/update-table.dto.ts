@@ -25,6 +25,12 @@ export class UpdateTableDto implements IUpdateTableDto {
   width?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(8)
+  scale?: number;
+
+  @IsOptional()
   @IsString()
   @MaxLength(64)
   groupId?: string | null;

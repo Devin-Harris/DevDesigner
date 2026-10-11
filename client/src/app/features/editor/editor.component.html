@@ -40,6 +40,7 @@
       <app-canvas-connectors
         [connectors]="displayConnectors()"
         [tempLinkPath]="tempLink()"
+        [snapAnchor]="linkSnap()?.anchor ?? null"
         [svgOffset]="svgOffset"
         [dragging]="dragging()"
         (selectConnector)="onConnectorSelect($event)"
@@ -254,6 +255,29 @@
         [follow]="p.follow"
         (closed)="presentation.set(null)"
       ></app-present-mode>
+    }
+
+    @if (fileNameEditor(); as f) {
+      <input
+        appAutofocus
+        class="file-name-editor"
+        type="text"
+        maxlength="120"
+        placeholder="untitled"
+        spellcheck="false"
+        [style.left.px]="f.left"
+        [style.top.px]="f.top"
+        [style.width.px]="f.width"
+        [style.height.px]="f.height"
+        [style.font-size.px]="f.fontSize"
+        [style.background]="f.background"
+        [style.color]="f.color"
+        [value]="f.value"
+        (pointerdown)="$event.stopPropagation()"
+        (dblclick)="$event.stopPropagation()"
+        (keydown)="onFileNameKeydown($event, f.id)"
+        (blur)="commitFileName(f.id, $any($event.target).value)"
+      />
     }
 
     @if (textEditor(); as t) {

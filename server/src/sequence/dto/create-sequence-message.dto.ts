@@ -1,4 +1,4 @@
-import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateSequenceMessageDto as ICreateSequenceMessageDto } from '@dbdesigner/shared';
 
 const STYLES = ['solid', 'dashed', 'break'] as const;
@@ -41,6 +41,10 @@ export class CreateSequenceMessageDto implements ICreateSequenceMessageDto {
   @IsString()
   @MaxLength(20)
   color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  wrap?: boolean;
 
   @IsOptional()
   @IsString()

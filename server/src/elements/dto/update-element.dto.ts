@@ -174,6 +174,16 @@ export class UpdateElementDto implements IUpdateElementDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
+  fileName?: string;
+
+  /** Set = collapsed (height to restore); null = expanded. */
+  @IsOptional()
+  @IsNumber()
+  expandedHeight?: number | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(64)
   groupId?: string | null;
 

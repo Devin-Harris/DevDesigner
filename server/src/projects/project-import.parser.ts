@@ -236,6 +236,7 @@ function parseTable(raw: unknown, path: string): TableModel {
     color: optStr(t, 'color', path, 100),
     note: optStr(t, 'note', path, 10_000),
     width: optNum(t, 'width', path),
+    scale: optNum(t, 'scale', path),
     groupId: optStr(t, 'groupId', path, 100),
     slideId: optStr(t, 'slideId', path, 100),
   };
@@ -290,7 +291,15 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     endArrowhead: optOneOf(e, 'endArrowhead', path, ARROWHEAD_TYPES),
     curvature: optNum(e, 'curvature', path),
     fileId: optStr(e, 'fileId', path, 100),
-    language: optOneOf(e, 'language', path, CODE_LANGUAGES),
+    // 'javascript' was removed; older exports map to TypeScript.
+    language: optOneOf(
+      e['language'] === 'javascript' ? { ...e, language: 'typescript' } : e,
+      'language',
+      path,
+      CODE_LANGUAGES,
+    ),
+    fileName: optStr(e, 'fileName', path, 120),
+    expandedHeight: optNum(e, 'expandedHeight', path),
     groupId: optStr(e, 'groupId', path, 100),
     slide: slide(e['slide'], `${path}.slide`),
     morphId: optStr(e, 'morphId', path, 100),
@@ -353,6 +362,7 @@ function parseMessage(raw: unknown, path: string): SequenceMessageModel {
     direction: oneOf(m, 'direction', path, ['forward', 'reverse'] as const, 'forward'),
     arrowhead: oneOf(m, 'arrowhead', path, ['arrow', 'open', 'none'] as const, 'arrow'),
     color: optStr(m, 'color', path, 100),
+    wrap: m['wrap'] === undefined || m['wrap'] === null ? undefined : bool(m, 'wrap', path, false),
     morphId: optStr(m, 'morphId', path, 100),
   };
 }

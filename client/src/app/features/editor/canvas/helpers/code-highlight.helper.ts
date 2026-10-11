@@ -81,16 +81,6 @@ const LANGUAGES: Record<CodeLanguage, readonly Rule[]> = {
     ...COMMON_TAIL,
   ],
 
-  javascript: [
-    ...C_COMMENTS,
-    ['string', sticky('`(?:\\\\[\\s\\S]|[^`\\\\])*(?:`|$)')],
-    ...C_STRINGS,
-    NUMBER,
-    ['constant', words('true false null undefined NaN Infinity')],
-    ['keyword', words(JS_KEYWORDS)],
-    ...COMMON_TAIL,
-  ],
-
   java: [
     ...C_COMMENTS,
     ...C_STRINGS,
@@ -250,7 +240,6 @@ const INLINE_ELISION = /(?:\.{3}|…)(?=\s*(?:[)\]},;]|\n|$))/y;
 export const CODE_LANGUAGE_LABELS: Record<CodeLanguage, string> = {
   plaintext: 'Plain text',
   typescript: 'TypeScript',
-  javascript: 'JavaScript',
   sql: 'SQL',
   json: 'JSON',
   python: 'Python',
@@ -259,6 +248,20 @@ export const CODE_LANGUAGE_LABELS: Record<CodeLanguage, string> = {
   html: 'HTML',
   css: 'CSS',
   bash: 'Bash',
+};
+
+/** File extension (no dot) a language's code would live under. */
+export const CODE_LANGUAGE_EXTENSIONS: Record<CodeLanguage, string> = {
+  plaintext: 'txt',
+  typescript: 'ts',
+  sql: 'sql',
+  json: 'json',
+  python: 'py',
+  csharp: 'cs',
+  java: 'java',
+  html: 'html',
+  css: 'css',
+  bash: 'sh',
 };
 
 /** Tab stop used when laying out tabs (matches the editor textarea's `tab-size`). */
@@ -282,7 +285,9 @@ export function expandTabs(line: string): string {
  * independent for layout. Always returns at least one (possibly empty) line.
  */
 export function tokenizeCode(code: string, language: CodeLanguage | string | undefined): CodeToken[][] {
-  const rules = LANGUAGES[(language as CodeLanguage) ?? 'plaintext'] ?? LANGUAGES.plaintext;
+  // Legacy blocks saved as 'javascript' render as TypeScript.
+  const id = language === 'javascript' ? 'typescript' : language;
+  const rules = LANGUAGES[(id as CodeLanguage) ?? 'plaintext'] ?? LANGUAGES.plaintext;
   const lines: CodeToken[][] = [[]];
   const push = (text: string, kind: TokenKind): void => {
     const parts = text.split('\n');

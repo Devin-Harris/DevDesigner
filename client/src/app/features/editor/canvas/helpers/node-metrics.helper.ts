@@ -6,8 +6,8 @@ import {
   HEADER_FIXED_W,
   HEADER_H,
   MAX_NAME_CHARS,
-  MAX_TABLE_WIDTH,
-  MIN_TABLE_WIDTH,
+  MAX_TABLE_SCALE,
+  MIN_TABLE_SCALE,
   NAME_CHAR_W,
   NODE_WIDTH,
   ROW_FIXED_W,
@@ -28,14 +28,23 @@ const widthCache = new WeakMap<TableModel, number>();
  * align with the drawn edge.
  */
 export function tableWidth(table: TableModel): number {
+  return Math.round(tableBaseWidth(table) * tableScale(table));
+}
+
+/** Display scale of a table (1 = natural size), clamped to the supported range. */
+export function tableScale(table: TableModel): number {
+  const s = table.scale;
+  return s && s > 0 ? Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, s)) : 1;
+}
+
+/**
+ * Unscaled width: always fits the content (any legacy manual width is ignored).
+ * Cached per table object.
+ */
+export function tableBaseWidth(table: TableModel): number {
   const cached = widthCache.get(table);
   if (cached !== undefined) {
     return cached;
-  }
-  if (table.width) {
-    const manual = Math.round(Math.min(MAX_TABLE_WIDTH, Math.max(MIN_TABLE_WIDTH, table.width)));
-    widthCache.set(table, manual);
-    return manual;
   }
   const chars = (name: string): number => Math.min(name.length, MAX_NAME_CHARS);
   let need = HEADER_FIXED_W + chars(table.name) * HEADER_CHAR_W;
@@ -49,8 +58,13 @@ export function tableWidth(table: TableModel): number {
 }
 
 /** Rendered height of a node (header + rows), for hit-testing and alignment. */
-export function nodeHeight(columnCount: number): number {
-  return HEADER_H + Math.max(1, columnCount) * ROW_H;
+export function nodeHeight(columnCount: number, scale = 1): number {
+  return (HEADER_H + Math.max(1, columnCount) * ROW_H) * scale;
+}
+
+/** Rendered (scaled) height of a table. */
+export function tableHeight(table: TableModel): number {
+  return nodeHeight(table.columns.length, tableScale(table));
 }
 
 /** Snap a coordinate to the grid. */
@@ -67,7 +81,7 @@ export function sideDir(side: Side): 1 | -1 {
 export function columnAnchor(table: TableModel, index: number, side: Side): Point {
   return {
     x: side === 'right' ? table.x + tableWidth(table) + ANCHOR_GAP : table.x - ANCHOR_GAP,
-    y: table.y + HEADER_H + index * ROW_H + ROW_H / 2,
+    y: table.y + (HEADER_H + index * ROW_H + ROW_H / 2) * tableScale(table),
   };
 }
 
@@ -77,7 +91,7 @@ export function tableBox(table: TableModel): Box {
     x0: table.x,
     y0: table.y,
     x1: table.x + tableWidth(table),
-    y1: table.y + nodeHeight(table.columns.length),
+    y1: table.y + nodeHeight(table.columns.length, tableScale(table)),
   };
 }
 

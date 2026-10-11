@@ -80,5 +80,8 @@
     @if (tempLinkPath(); as path) {
       <path class="temp" [attr.d]="path"></path>
     }
+    @if (snapAnchor(); as p) {
+      <circle class="snap" [attr.cx]="p.x" [attr.cy]="p.y" r="8"></circle>
+    }
   </g>
 </svg>

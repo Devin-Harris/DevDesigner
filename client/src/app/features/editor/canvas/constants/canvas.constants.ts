@@ -8,9 +8,9 @@
 // NODE_WIDTH is the default and minimum width; a node grows past it to fit long
 // column/table names (see tableWidth), up to the MAX_NAME_CHARS cap.
 export const NODE_WIDTH = 280;
-/** Narrowest / widest a user can drag a table; names ellipsize when squeezed. */
-export const MIN_TABLE_WIDTH = 240;
-export const MAX_TABLE_WIDTH = 1200;
+/** Smallest / largest uniform scale a table can be resized to. */
+export const MIN_TABLE_SCALE = 0.4;
+export const MAX_TABLE_SCALE = 3;
 export const HEADER_H = 40;
 export const ROW_H = 34;
 

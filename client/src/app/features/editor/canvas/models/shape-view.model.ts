@@ -38,6 +38,9 @@ export interface CodeTokenView {
   italic: boolean;
 }
 
+/** What clicking a code block's title-bar dot does. */
+export type CodeDotAction = 'delete' | 'collapse' | 'fit';
+
 /** A syntax-highlighted code block (code element): card, gutter and colored lines. */
 export interface CodeBlockView {
   rect: { x: number; y: number; width: number; height: number; rx: number };
@@ -51,8 +54,20 @@ export interface CodeBlockView {
   textX: number;
   numberColor: string;
   lines: { y: number; number: string; tokens: CodeTokenView[] }[];
-  /** Language name drawn muted in the top-right corner, when there is room. */
-  label?: { text: string; x: number; y: number; color: string };
+  /** True while collapsed to just the title bar. */
+  collapsed: boolean;
+  /** Window-style title bar across the top of the card (code starts below it). */
+  header: {
+    height: number;
+    /** Title, centered at (x, y) like a window title. */
+    text: string;
+    x: number;
+    y: number;
+    color: string;
+    tint: string;
+    /** Window-style control dots down the left; `action` marks the clickable ones. */
+    dots: { x: number; y: number; r: number; color: string; action: CodeDotAction }[];
+  };
 }
 
 /**

@@ -871,7 +871,7 @@ export class PresentModeComponent {
         }
       },
       commit,
-      isMorph ? { from: fromView, to: toView } : undefined,
+      isMorph ? { from: fromView, to: toView, reversed: !forward } : undefined,
     );
   }
 
@@ -891,7 +891,7 @@ export class PresentModeComponent {
       animate: (el: HTMLElement, frames: Keyframe[]) => void,
     ) => void,
     commit: () => void,
-    morph?: { from: RenderedSlide; to: RenderedSlide },
+    morph?: { from: RenderedSlide; to: RenderedSlide; reversed?: boolean },
   ): Promise<void> {
     const overlay = this.overlayRef().nativeElement;
     overlay.replaceChildren();
@@ -947,7 +947,7 @@ export class PresentModeComponent {
       };
 
       if (morph) {
-        const s = new MorphStage(morph.from, morph.to);
+        const s = new MorphStage(morph.from, morph.to, morph.reversed);
         stage = s;
         const host = document.createElement('div');
         host.className = 'layer';

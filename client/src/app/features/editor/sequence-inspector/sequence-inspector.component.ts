@@ -3,8 +3,6 @@ import { FormsModule } from '@angular/forms';
 import {
   HEADER_SWATCHES,
   SOFT_SWATCHES,
-  morphIdForTag,
-  morphTagOf,
   type SequenceMessageModel,
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
@@ -52,11 +50,6 @@ export class SequenceInspectorComponent {
 
   protected readonly swatches = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
-  /** Morph tags (a name shared across slides) of the selected participant / message / diagram. */
-  protected readonly lifelineTag = computed(() => morphTagOf(this.lifeline()?.morphId) ?? '');
-  protected readonly messageTag = computed(() => morphTagOf(this.message()?.morphId) ?? '');
-  protected readonly diagramTag = computed(() => morphTagOf(this.diagram()?.morphId) ?? '');
-
   protected readonly lifelineOptions = computed<SelectOption[]>(() =>
     this.store
       .lifelines()
@@ -77,18 +70,6 @@ export class SequenceInspectorComponent {
   protected setBackground(backgroundColor: string): void {
     const d = this.activeDiagram();
     if (d) void this.store.updateSequenceConfig(d.id, { backgroundColor });
-  }
-  protected setLifelineTag(tag: string | number): void {
-    const l = this.lifeline();
-    if (l) void this.store.updateLifeline(l.id, { morphId: morphIdForTag(String(tag)) ?? '' });
-  }
-  protected setMessageTag(tag: string | number): void {
-    const m = this.message();
-    if (m) void this.store.updateMessage(m.id, { morphId: morphIdForTag(String(tag)) ?? '' });
-  }
-  protected setDiagramTag(tag: string | number): void {
-    const d = this.diagram();
-    if (d) void this.store.updateSequenceConfig(d.id, { morphId: morphIdForTag(String(tag)) ?? '' });
   }
   protected setLineColor(lineColor: string): void {
     const l = this.lifeline();
@@ -134,6 +115,10 @@ export class SequenceInspectorComponent {
   protected setStyle(style: SequenceMessageModel['style']): void {
     const m = this.message();
     if (m) void this.store.updateMessage(m.id, { style });
+  }
+  protected toggleWrap(): void {
+    const m = this.message();
+    if (m) void this.store.updateMessage(m.id, { wrap: m.wrap === false });
   }
   protected flipDirection(): void {
     const m = this.message();

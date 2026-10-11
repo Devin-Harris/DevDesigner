@@ -249,6 +249,7 @@ export class SequenceService {
       direction: dto.direction ?? 'forward',
       arrowhead: dto.arrowhead ?? 'arrow',
       color: dto.color ?? null,
+      wrap: dto.wrap ?? null,
       morphId: dto.morphId?.trim() || null,
     });
     const saved = await this.messages.save(entity);
@@ -274,6 +275,7 @@ export class SequenceService {
     if (dto.direction !== undefined) entity.direction = dto.direction;
     if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
     if (dto.color !== undefined) entity.color = dto.color;
+    if (dto.wrap !== undefined) entity.wrap = dto.wrap;
     if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
     if (entity.style !== 'break' && entity.fromLifelineId === entity.toLifelineId) {
       throw new BadRequestException('A message must go between two different participants.');

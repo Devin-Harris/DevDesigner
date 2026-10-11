@@ -143,6 +143,14 @@ export class ElementEntity {
   @Column({ type: 'varchar', nullable: true })
   language!: CodeLanguage | null;
 
+  /** Code elements: optional file name shown in a title bar. */
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  fileName!: string | null;
+
+  /** Code elements: while collapsed to the title bar, the height to restore on expand. */
+  @Column({ type: 'float', nullable: true })
+  expandedHeight!: number | null;
+
   /** Group membership (shared id across tables/elements/diagrams); null = ungrouped. */
   @Column({ type: 'varchar', nullable: true })
   groupId!: string | null;

@@ -169,8 +169,13 @@ const slideItem = z.discriminatedUnion('type', [
     type: z.literal('code'),
     code: z.string(),
     language: z
-      .enum(['plaintext', 'typescript', 'javascript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'bash'])
+      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'bash'])
       .optional(),
+    fileName: z
+      .string()
+      .max(120)
+      .optional()
+      .describe('Optional file name (e.g. "user.service.ts") shown in a title bar, as if the code lived in that file.'),
     fontSize: z.number().optional(),
     ...morph,
     ...at,

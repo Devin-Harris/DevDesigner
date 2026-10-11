@@ -75,6 +75,13 @@
   }
 }
 
+.snap {
+  fill: var(--dbd-primary-weak);
+  stroke: var(--dbd-connector-selected);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
 .temp {
   fill: none;
   stroke: var(--dbd-connector-selected);

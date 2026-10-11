@@ -232,6 +232,145 @@ function sharedFrameBounds(sBox: Box, tBox: Box, frames: readonly Box[]): Box | 
   };
 }
 
+/** Spacing between parallel lines that would otherwise share a channel. */
+const LANE_GAP = 8;
+const MAX_LANES = 3;
+
+interface LaneRoute {
+  /** Mutated in place: interior runs are nudged sideways into free lanes. */
+  route: Point[];
+  /** Anchor the line ends at. Lines sharing one may merge; others must not overlap. */
+  destination: string;
+  /** User-routed (waypoints): never moved, but others avoid it. */
+  locked: boolean;
+}
+
+interface Run {
+  owner: number;
+  index: number;
+  /** Position across the run (x for vertical runs, y for horizontal). */
+  pos: number;
+}
+
+function runExtent(route: readonly Point[], index: number, vertical: boolean): [number, number] {
+  const p = route[index];
+  const q = route[index + 1];
+  const a = vertical ? p.y : p.x;
+  const b = vertical ? q.y : q.x;
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
+/**
+ * Lane assignment: connectors that head to different destinations but share a
+ * channel (same column of x for vertical runs, same y for horizontal runs, with
+ * overlapping extent) are offset by LANE_GAP so each stays distinguishable.
+ * Only interior runs move, so anchors and their exit stubs never change, and a
+ * nudge is rejected if it would reverse a neighbouring run or push the line
+ * further into a table than it already was.
+ */
+function spreadOverlaps(lines: readonly LaneRoute[], obstacles: readonly Box[]): void {
+  for (const vertical of [true, false]) {
+    // Buckets of already-settled runs, keyed by position / LANE_GAP.
+    const placed = new Map<number, Run[]>();
+    const settle = (run: Run): void => {
+      const key = Math.floor(run.pos / LANE_GAP);
+      const bucket = placed.get(key);
+      if (bucket) {
+        bucket.push(run);
+      } else {
+        placed.set(key, [run]);
+      }
+    };
+    const conflicts = (run: Run, pos: number): boolean => {
+      const line = lines[run.owner];
+      const [lo, hi] = runExtent(line.route, run.index, vertical);
+      const key = Math.floor(pos / LANE_GAP);
+      for (let k = key - 1; k <= key + 1; k += 1) {
+        for (const other of placed.get(k) ?? []) {
+          if (other.owner === run.owner || Math.abs(other.pos - pos) >= LANE_GAP / 2) {
+            continue;
+          }
+          const o = lines[other.owner];
+          if (o.destination === line.destination) {
+            continue;
+          }
+          const [olo, ohi] = runExtent(o.route, other.index, vertical);
+          if (lo < ohi - 1 && olo < hi - 1) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    // Interior runs only (the first and last run belong to the anchors).
+    const runs: Run[] = [];
+    lines.forEach((line, owner) => {
+      for (let i = 1; i < line.route.length - 2; i += 1) {
+        const p = line.route[i];
+        const q = line.route[i + 1];
+        if (vertical ? p.x === q.x && p.y !== q.y : p.y === q.y && p.x !== q.x) {
+          runs.push({ owner, index: i, pos: vertical ? p.x : p.y });
+        }
+      }
+    });
+    // Locked lines claim their channel first; the rest are placed around them.
+    runs.sort((r, s) => Number(lines[s.owner].locked) - Number(lines[r.owner].locked));
+
+    for (const run of runs) {
+      const line = lines[run.owner];
+      if (line.locked || !conflicts(run, run.pos)) {
+        settle(run);
+        continue;
+      }
+      for (let step = 1; step <= MAX_LANES * 2; step += 1) {
+        const lane = Math.ceil(step / 2) * (step % 2 === 1 ? 1 : -1);
+        const pos = run.pos + lane * LANE_GAP;
+        if (!conflicts(run, pos) && nudge(line.route, run.index, vertical, pos, obstacles)) {
+          run.pos = pos;
+          break;
+        }
+      }
+      settle(run);
+    }
+  }
+}
+
+/** Move one run to `pos` if its neighbours keep their direction and no new table is cut. */
+function nudge(
+  route: Point[],
+  index: number,
+  vertical: boolean,
+  pos: number,
+  obstacles: readonly Box[],
+): boolean {
+  const before = route[index - 1];
+  const after = route[index + 2];
+  const p = route[index];
+  const q = route[index + 1];
+  const old = vertical ? p.x : p.y;
+  const dirOk = (neighbour: Point): boolean => {
+    const axis = vertical ? neighbour.x : neighbour.y;
+    return Math.sign(old - axis) === Math.sign(pos - axis) && pos !== axis;
+  };
+  if (!dirOk(before) || !dirOk(after)) {
+    return false;
+  }
+  const moved: Point[] = vertical
+    ? [before, { x: pos, y: p.y }, { x: pos, y: q.y }, after]
+    : [before, { x: p.x, y: pos }, { x: q.x, y: pos }, after];
+  const original = [before, p, q, after];
+  for (const box of obstacles) {
+    const fat = inflate(box, 2);
+    if (crossings(moved, fat, 0) > crossings(original, fat, 0)) {
+      return false;
+    }
+  }
+  p[vertical ? 'x' : 'y'] = pos;
+  q[vertical ? 'x' : 'y'] = pos;
+  return true;
+}
+
 /** Build the SVG connectors for the current schema. */
 export function computeConnectors(
   tables: readonly TableModel[],
@@ -292,6 +431,16 @@ export function computeConnectors(
     const route = orthogonalize(resolved.route);
     pending.push({ rel, a: resolved.a, b: resolved.b, route });
   }
+
+  // Keep lines headed to different destinations from running on top of each other.
+  spreadOverlaps(
+    pending.map((pc) => ({
+      route: pc.route,
+      destination: `${pc.b.x},${pc.b.y}`,
+      locked: !!pc.rel.waypoints?.length,
+    })),
+    [...boxes.values()],
+  );
 
   // Second pass: draw each route, hopping its horizontal runs over other
   // connectors' vertical runs so overlapping lines stay readable (line-jumps).

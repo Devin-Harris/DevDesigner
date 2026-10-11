@@ -98,6 +98,8 @@ export class ElementsService {
       curvature: dto.curvature ?? null,
       fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
       language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
+      fileName: dto.type === 'code' ? dto.fileName?.trim() || null : null,
+      expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
       step: dto.step ?? null,
@@ -226,6 +228,12 @@ export class ElementsService {
     // Nullable fields: a present value sets it, an explicit clear is handled below.
     if (dto.backgroundColor !== undefined) {
       element.backgroundColor = dto.backgroundColor;
+    }
+    if (dto.expandedHeight !== undefined && element.type === 'code') {
+      element.expandedHeight = dto.expandedHeight;
+    }
+    if (dto.fileName !== undefined && element.type === 'code') {
+      element.fileName = dto.fileName.trim() || null;
     }
     if (dto.text !== undefined) {
       element.text = dto.text;

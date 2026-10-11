@@ -181,6 +181,8 @@ export interface UpdateTableDto {
   note?: string;
   /** Manual width in px; 0 clears the override back to auto-fit. */
   width?: number;
+  /** Uniform display scale; 1 (or 0) resets to natural size. */
+  scale?: number;
   /** Group membership; null clears it. */
   groupId?: string | null;
   /** Owning slide (frame id); null clears it. */
@@ -303,6 +305,10 @@ export interface CreateElementDto {
   fileId?: string;
   /** Code only: the highlight language of `text`. */
   language?: CodeLanguage;
+  /** Code only: optional file name title bar. */
+  fileName?: string;
+  /** Code only: collapsed state (see CanvasElementModel.expandedHeight). */
+  expandedHeight?: number;
   /** Frame only: slide-sequence membership + transition. */
   slide?: SlideConfig;
   /** Morph lineage (set on copies so they morph with their source). */
@@ -344,6 +350,10 @@ export interface UpdateElementDto {
   endArrowhead?: ArrowheadType;
   curvature?: number;
   language?: CodeLanguage;
+  /** Code only: file name title bar; empty string clears it. */
+  fileName?: string;
+  /** Code only: height to restore when expanding; set = collapsed, null = expanded. */
+  expandedHeight?: number | null;
   /** Group membership; null clears it. */
   groupId?: string | null;
   /** Frame only: slide config; null removes the frame from the sequence. */
@@ -434,6 +444,7 @@ export interface CreateSequenceMessageDto {
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
   color?: string;
+  wrap?: boolean;
   /** Morph tag (`tag:<name>`); empty string clears it. */
   morphId?: string;
 }
@@ -445,6 +456,7 @@ export interface UpdateSequenceMessageDto {
   direction?: 'forward' | 'reverse';
   arrowhead?: 'arrow' | 'open' | 'none';
   color?: string;
+  wrap?: boolean;
   /** Morph tag (`tag:<name>`); empty string clears it. */
   morphId?: string;
 }

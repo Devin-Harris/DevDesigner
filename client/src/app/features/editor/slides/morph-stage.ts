@@ -1,4 +1,5 @@
 import {
+  isSwatchColor,
   matchDiagrams,
   matchLifelines,
   matchMessages,
@@ -98,6 +99,9 @@ function mixOptionalColor(
   }
   return t < 0.5 ? a : b;
 }
+
+/** A header color that takes the theme text: unset or a stock swatch. */
+const isStockHeader = (c: string | undefined): boolean => !c || isSwatchColor(c);
 
 type Offset = { x: number; y: number };
 
@@ -540,8 +544,14 @@ export class MorphStage {
   /** Hidden static copies of changed text, kept only so their glyphs can be measured. */
   private measure: SVGGElement | null = null;
   private lastT = 0;
+  private readonly reversed: boolean;
 
-  constructor(from: RenderedSlide, to: RenderedSlide) {
+  /**
+   * `reversed`: the transition plays backwards (`from` is the later slide), so the tag
+   * rules mirror the forward ones: whatever could morph forward unanimates the same way.
+   */
+  constructor(from: RenderedSlide, to: RenderedSlide, reversed = false) {
+    this.reversed = reversed;
     this.to = to;
     this.by = to.transition.morphBy ?? 'character';
     this.fromSeq = from.sequences;
@@ -590,7 +600,7 @@ export class MorphStage {
     const toItems = to.items.filter((i) => b.items.has(i.id));
     const matchedA = new Set<string>();
     const matchedB = new Set<string>();
-    for (const [i, j] of matchMorphItems(fromItems, toItems)) {
+    for (const [i, j] of matchMorphItems(fromItems, toItems, undefined, this.reversed)) {
       const pair: Pair = { a: fromItems[i], b: toItems[j] };
       if (pair.a.element && pair.b.element) {
         this.elementPairs.push(pair);
@@ -651,6 +661,7 @@ export class MorphStage {
     for (const [i, j] of matchDiagrams(
       diagramsA.map((d) => like(from.sequences, d)),
       diagramsB.map((d) => like(to.sequences, d)),
+      this.reversed,
     )) {
       usedSeqA.add(diagramsA[i].id);
       usedSeqB.add(diagramsB[j].id);
@@ -879,17 +890,12 @@ export class MorphStage {
     const llB = this.toSeq.lifelines.filter((l) => l.diagramId === db.id);
     const msA = this.fromSeq.messages.filter((m) => m.diagramId === da.id);
     const msB = this.toSeq.messages.filter((m) => m.diagramId === db.id);
-    const lp = matchLifelines(llA, llB);
-    const bOfA = new Map(lp.map(([i, j]) => [llA[i].id, llB[j].id] as const));
-    // A message only glides when both of its ends are the same participants on both
-    // slides; a re-targeted one (it was matched by tag or wording) cross-fades.
-    const messages = matchMessages(msA, msB, lp, llA, llB)
-      .map(([i, j]): [SequenceMessageModel, SequenceMessageModel] => [msA[i], msB[j]])
-      .filter(
-        ([ma, mb]) =>
-          bOfA.get(ma.fromLifelineId) === mb.fromLifelineId &&
-          bOfA.get(ma.toLifelineId) === mb.toLifelineId,
-      );
+    const lp = matchLifelines(llA, llB, this.reversed);
+    // Every matched message glides; an end that moved to another participant slides
+    // there (see `ends` in blendSequences), so the arrow grows or shrinks.
+    const messages = matchMessages(msA, msB, lp, llA, llB, this.reversed).map(
+      ([i, j]): [SequenceMessageModel, SequenceMessageModel] => [msA[i], msB[j]],
+    );
     return {
       a: da,
       b: db,
@@ -1147,7 +1153,9 @@ export class MorphStage {
       lifelines: ReadonlySet<string>;
       titles: ReadonlySet<string>;
     };
+    themeHeaderText: ReadonlySet<string>;
     boxes: Map<string, SequenceBox>;
+    ends: Map<string, { from: number; to: number }>;
   } {
     const diagrams: SequenceDiagramModel[] = [];
     const lifelines: LifelineModel[] = [];
@@ -1155,6 +1163,8 @@ export class MorphStage {
     const fadeLl = new Map<string, number>();
     const fadeMs = new Map<string, number>();
     const boxes = new Map<string, SequenceBox>();
+    const ends = new Map<string, { from: number; to: number }>();
+    const themeHeaderText = new Set<string>();
     const offA = this.offA;
     const offB = this.offB;
     const row = (m: SequenceMessageModel, d: SequenceDiagramModel): number =>
@@ -1203,6 +1213,9 @@ export class MorphStage {
         pairedA.add(la.id);
         pairedB.add(lb.id);
         idOfA.set(la.id, lb.id);
+        if (isStockHeader(la.color) && isStockHeader(lb.color)) {
+          themeHeaderText.add(lb.id);
+        }
         lifelines.push({
           ...lb,
           diagramId: db.id,
@@ -1230,9 +1243,18 @@ export class MorphStage {
       // Messages.
       const doneA = new Set<string>();
       const doneB = new Set<string>();
+      const xA = new Map(p.llA.map((l) => [l.id, l.x - offA.x] as const));
+      const xB = new Map(p.llB.map((l) => [l.id, l.x - offB.x] as const));
       for (const [ma, mb] of p.messages) {
         doneA.add(ma.id);
         doneB.add(mb.id);
+        const fa = xA.get(ma.fromLifelineId);
+        const ta = xA.get(ma.toLifelineId);
+        const fb = xB.get(mb.fromLifelineId);
+        const tb = xB.get(mb.toLifelineId);
+        if (fa !== undefined && ta !== undefined && fb !== undefined && tb !== undefined) {
+          ends.set(mb.id, { from: lerp(fa, fb, t), to: lerp(ta, tb, t) });
+        }
         messages.push({
           ...mb,
           diagramId: db.id,
@@ -1272,7 +1294,9 @@ export class MorphStage {
       smooth: true,
       fade: { lifelines: fadeLl, messages: fadeMs },
       hideText: { messages: this.hideMsg, lifelines: this.hideLl, titles: this.hideTitle },
+      themeHeaderText,
       boxes,
+      ends,
     };
   }
 

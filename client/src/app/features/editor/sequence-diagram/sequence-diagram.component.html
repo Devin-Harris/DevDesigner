@@ -94,6 +94,7 @@
       [class.selected]="selectedLifelineIds().has(l.id)"
       [class.colored]="!!l.color"
       [class.light]="isLight(l.color)"
+      [class.swatch]="isSwatch(l.color)"
       [style.left.px]="headerLeft(l)"
       [style.top.px]="originY()"
       [style.width.px]="l.width"
@@ -148,6 +149,8 @@
         @if (editingMessageId() === m.id) {
           <textarea
             class="msg-edit break"
+            [class.wrap]="m.editMaxPx !== null"
+            [style.max-width.px]="m.editMaxPx"
             appAutofocus
             [rows]="editRows()"
             [value]="editValue()"
@@ -208,6 +211,8 @@
         @if (editingMessageId() === m.id) {
           <textarea
             class="msg-edit"
+            [class.wrap]="m.editMaxPx !== null"
+            [style.max-width.px]="m.editMaxPx"
             appAutofocus
             [rows]="editRows()"
             [value]="editValue()"

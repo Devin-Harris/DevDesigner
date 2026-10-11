@@ -83,6 +83,8 @@ export const ICON_PATHS: Record<string, string> = {
   line_weight: '<path d="M4 6h16M4 12h16M4 18h16" stroke-width="1"/><path d="M4 12h16" stroke-width="2"/><path d="M4 18h16" stroke-width="3.2"/>',
   opacity: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 3v18" opacity="0"/>',
   auto_fix: '<path d="M5 19L17 7M14.5 4.5l5 5M6 4v3M4.5 5.5h3M19 15v3M17.5 16.5h3"/>',
+  description: '<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5zM14 3.5V8h4M9 12h6M9 15.5h6"/>',
+  fit_screen: '<path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4M9 10h6v4H9z"/>',
   code: '<path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14"/>',
   format_size:'<path d="M4 7V5h9v2M8.5 5v13M6.5 18h4M14 12v-1.5h6V12M17 10.5V18M15.5 18h3"/>',
   font_download: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 16l3-8 3 8M9.4 13.5h4.2"/>',

@@ -27,8 +27,10 @@ import {
 } from '@dbdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+import { TagInputComponent } from '../../../shared/ui/tag-input/tag-input.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { FRAME_PRESETS } from '../canvas/constants/frame-presets';
+import { MorphTagSuggestions } from './morph-tag-suggestions.service';
 import { SlideRenderService } from './slide-render.service';
 
 /** What the panel asks the editor to do (things that need canvas knowledge). */
@@ -83,7 +85,7 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
   selector: 'app-slides-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent, SelectComponent],
+  imports: [FormsModule, IconComponent, SelectComponent, TagInputComponent],
   template: `
     @if (part() === 'list') {
     <header class="head">
@@ -111,23 +113,26 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
     </header>
 
     <div class="actions">
-      <button
-        class="btn primary"
-        [disabled]="!playable()"
-        (click)="command.emit({ kind: 'present', from: 'start' })"
-      >
-        <dbd-icon name="play_arrow" />Present
-      </button>
-      <button
-        class="btn"
-        [disabled]="!playable()"
-        (click)="command.emit({ kind: 'present', from: 'current' })"
-        title="Present from the selected slide"
-      >
-        From here
-      </button>
+      <div class="split">
+        <button
+          class="main"
+          [disabled]="!playable()"
+          (click)="command.emit({ kind: 'present', from: 'start' })"
+          title="Present from the first slide"
+        >
+          <dbd-icon name="play_arrow" />Present
+        </button>
+        <button
+          class="from"
+          [disabled]="!playable()"
+          (click)="command.emit({ kind: 'present', from: 'current' })"
+          title="Present from the selected slide"
+        >
+          From here
+        </button>
+      </div>
       @if (canEdit()) {
-        <button class="btn" (click)="command.emit({ kind: 'add' })" title="Add a new 16:9 slide">
+        <button class="btn new" (click)="command.emit({ kind: 'add' })" title="Add a new 16:9 slide">
           <dbd-icon name="add" />New
         </button>
       }
@@ -258,7 +263,7 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">
           Notes
         </button>
-        @if (canEdit() && (buildable() > 0 || pairable())) {
+        @if (canEdit() && (buildable() > 0 || tagCount() > 0 || pairable())) {
           <button class="tab" [class.on]="tab() === 'build'" (click)="pick('build')">
             Build
           </button>
@@ -408,17 +413,23 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
                   />
                 </label>
               }
-              @if (buildable() > 0) {
-                <label class="field">
+              @if (tagCount() > 0) {
+                <div class="field">
                   <span>Morph tag</span>
-                  <input
-                    type="text"
-                    maxlength="80"
-                    placeholder="e.g. hero — same tag morphs across slides"
+                  <dbd-tag-input
                     [value]="morphTag()"
-                    (change)="setMorphTag($any($event.target).value)"
+                    [suggestions]="morphTagSuggestions()"
+                    [taken]="takenTags()"
+                    [maxlength]="80"
+                    [disabled]="!store.canEdit() || tagCount() > 1"
+                    [placeholder]="
+                      tagCount() > 1
+                        ? 'Select a single object to tag it'
+                        : 'Name it, or pick one from the previous slide'
+                    "
+                    (commit)="setMorphTag($event)"
                   />
-                </label>
+                </div>
                 <p class="hint">
                   Tagged objects only morph into the object with the same tag on the next slide;
                   they are never matched to look-alikes.
@@ -495,7 +506,51 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         display: flex;
         gap: 6px;
         padding: 6px 12px 10px;
-        flex-wrap: wrap;
+        align-items: center;
+      }
+      .split {
+        display: inline-flex;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .split button {
+        height: 32px;
+        border: 1px solid var(--dbd-border);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+      }
+      .split .main {
+        flex: 1 1 auto;
+        gap: 6px;
+        padding: 0 12px;
+        border-radius: 8px 0 0 8px;
+        background: var(--dbd-primary);
+        border-color: var(--dbd-primary);
+        color: #fff;
+      }
+      .split .from {
+        flex: none;
+        padding: 0 12px;
+        border-radius: 0 8px 8px 0;
+        border-left: none;
+        background: var(--dbd-surface-2);
+        color: var(--dbd-text);
+      }
+      .split button:hover:not(:disabled) {
+        filter: brightness(1.12);
+      }
+      .split button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .btn.new {
+        flex: none;
+        height: 32px;
       }
       .btn {
         display: inline-flex;
@@ -651,9 +706,8 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
       .card {
         position: relative;
         display: grid;
-        grid-template-columns: 18px 148px 1fr;
-        justify-content: stretch;
-        align-items: stretch;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        align-items: center;
         gap: 6px;
         padding: 4px 6px;
         border-radius: 10px;
@@ -709,7 +763,7 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: center;
         gap: 2px;
       }
       .icons .icon {
@@ -732,7 +786,6 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
         opacity: 0.45;
       }
       .num {
-        padding-top: 2px;
         color: var(--dbd-text-muted);
         font-size: 11px;
         font-weight: 700;
@@ -872,6 +925,7 @@ export class SlidesPanelComponent {
 
   protected readonly store = inject(ProjectStore);
   private readonly render = inject(SlideRenderService);
+  private readonly tagSuggestions = inject(MorphTagSuggestions);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly typeOptions = TYPE_OPTIONS;
@@ -1034,11 +1088,61 @@ export class SlidesPanelComponent {
     const steps = new Set(this.buildTargets().map((e) => e.step ?? 0));
     return steps.size === 1 ? [...steps][0] : 0;
   });
+  /**
+   * Everything selected that can carry a morph tag: canvas elements plus sequence
+   * participants, messages and diagrams (which the element selection doesn't hold).
+   */
+  private readonly tagTargets = computed(() => {
+    const out: Array<{
+      kind: 'element' | 'lifeline' | 'message' | 'diagram';
+      id: string;
+      morphId?: string;
+      slideId?: string;
+    }> = this.buildTargets().map((e) => ({
+      kind: 'element',
+      id: e.id,
+      morphId: e.morphId,
+      slideId: e.slideId,
+    }));
+    const diagrams = new Map(this.store.sequenceDiagrams().map((d) => [d.id, d] as const));
+    const lifelines = new Set(this.store.selectedLifelineIds());
+    const messages = new Set(this.store.selectedMessageIds());
+    const boxes = new Set(this.store.selectedDiagramIds());
+    for (const l of this.store.lifelines()) {
+      if (lifelines.has(l.id)) {
+        out.push({ kind: 'lifeline', id: l.id, morphId: l.morphId, slideId: diagrams.get(l.diagramId)?.slideId });
+      }
+    }
+    for (const m of this.store.sequenceMessages()) {
+      if (messages.has(m.id)) {
+        out.push({ kind: 'message', id: m.id, morphId: m.morphId, slideId: diagrams.get(m.diagramId)?.slideId });
+      }
+    }
+    for (const d of diagrams.values()) {
+      if (boxes.has(d.id)) {
+        out.push({ kind: 'diagram', id: d.id, morphId: d.morphId, slideId: d.slideId });
+      }
+    }
+    return out;
+  });
+  protected readonly tagCount = computed(() => this.tagTargets().length);
+  /** Tags other objects on this slide already carry: one tag names one object per slide. */
+  protected readonly takenTags = computed(() => {
+    const targets = this.tagTargets();
+    const slideId = targets.find((e) => e.slideId)?.slideId ?? this.store.activeSlideId();
+    return this.tagSuggestions.tagsTakenOn(slideId, new Set(targets.map((t) => t.id)));
+  });
   /** The morph tag shared by the selection ('' when none or they differ). */
   protected readonly morphTag = computed(() => {
-    const tags = new Set(this.buildTargets().map((e) => morphTagOf(e.morphId) ?? ''));
+    const tags = new Set(this.tagTargets().map((e) => morphTagOf(e.morphId) ?? ''));
     return tags.size === 1 ? [...tags][0] : '';
   });
+  /** Tags used on the slide before the selection's, offered while typing a tag. */
+  protected readonly morphTagSuggestions = computed(() =>
+    this.tagSuggestions.previousSlideTags(
+      this.tagTargets().find((e) => e.slideId)?.slideId ?? this.store.activeSlideId(),
+    ),
+  );
   /** How many selected non-frame elements could be linked as one object (2+). */
   protected readonly pairable = computed(() => {
     const n = this.buildTargets().length;
@@ -1159,6 +1263,11 @@ export class SlidesPanelComponent {
     const next = list[Math.min(list.length - 1, Math.max(0, cur < 0 ? 0 : cur + delta))];
     if (next && next.id !== this.activeId()) {
       this.command.emit({ kind: 'focus', id: next.id });
+      const cards = event.currentTarget as HTMLElement | null;
+      const index = this.shown().findIndex((f) => f.id === next.id);
+      requestAnimationFrame(() => {
+        cards?.querySelectorAll('li.card')[index]?.scrollIntoView({ block: 'nearest' });
+      });
     }
   }
 
@@ -1451,18 +1560,29 @@ export class SlidesPanelComponent {
     });
   }
 
-  /** Tag the selected elements (blank clears it) so only same-tagged objects morph together. */
+  /**
+   * Tag the selected objects (elements and sequence parts; blank clears it) so only
+   * same-tagged objects morph together.
+   */
   protected setMorphTag(value: string): void {
     const morphId = morphIdForTag(value);
-    const targets = this.buildTargets().filter((e) =>
+    const targets = this.tagTargets().filter((e) =>
       morphId === null ? morphTagOf(e.morphId) !== null : e.morphId !== morphId,
     );
     if (!targets.length) {
       return;
     }
     void this.store.batchHistory(async () => {
-      for (const e of targets) {
-        await this.store.updateElement(e.id, { morphId });
+      for (const t of targets) {
+        if (t.kind === 'element') {
+          await this.store.updateElement(t.id, { morphId });
+        } else if (t.kind === 'lifeline') {
+          await this.store.updateLifeline(t.id, { morphId: morphId ?? '' });
+        } else if (t.kind === 'message') {
+          await this.store.updateMessage(t.id, { morphId: morphId ?? '' });
+        } else {
+          await this.store.updateSequenceConfig(t.id, { morphId: morphId ?? '' });
+        }
       }
     });
   }

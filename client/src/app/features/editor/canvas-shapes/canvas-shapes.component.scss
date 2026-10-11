@@ -25,6 +25,13 @@
 }
 
 // Code card text: keep runs of spaces and never offer it for selection.
+.code-dot {
+  fill: transparent;
+  // The layer is click-through; the dots opt back in.
+  pointer-events: all;
+  cursor: pointer;
+}
+
 .code text {
   white-space: pre;
   user-select: none;

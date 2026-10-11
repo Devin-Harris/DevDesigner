@@ -170,12 +170,17 @@ const FREE_FORM_TYPES: ReadonlySet<string> = new Set([
  *   5. leftover plain shapes (rectangle, ellipse, arrow...) of the same type, however
  *      far apart or different in size, so a shape redrawn on the next slide still
  *      glides (and resizes) instead of fading out and back in.
- * Within a pass the closest candidates win; each item is used at most once.
+ * Within a pass the closest candidates win; each item is used at most once, so two
+ * objects can never both morph into the same one. A tagged item on the new slide that
+ * no item of the old slide carries the tag of is open to untagged look-alikes; with
+ * `reversed` (playing a transition backwards: `from` is the later slide) it is the
+ * tagged items of `from` that are open.
  */
 export function matchMorphItems(
   from: readonly MorphItem[],
   to: readonly MorphItem[],
   maxDistance = 160,
+  reversed = false,
 ): Array<[number, number]> {
   const usedFrom = new Set<number>();
   const usedTo = new Set<number>();
@@ -184,6 +189,15 @@ export function matchMorphItems(
   // Tagged items only ever pair with the same tag (pass 1); they are never matched by
   // look-alike, and untagged items never grab them.
   const tagged = (m: MorphItem): boolean => morphTagOf(m.key) !== null;
+  // ...except on the slide being moved TO (`from` when `reversed`: going back replays
+  // the forward transition backwards): a tagged item whose tag nothing on the other
+  // slide carries is open to untagged look-alikes. Solo tags (diagram-spec
+  // `newSoloTag`) mean "never morph", so they stay reserved.
+  const otherTags = new Set((reversed ? to : from).filter(tagged).map((m) => m.key));
+  const solo = (m: MorphItem): boolean => (morphTagOf(m.key) ?? '').startsWith('solo-');
+  const reserved = (m: MorphItem): boolean => tagged(m) && (solo(m) || otherTags.has(m.key));
+  const taggedFrom = reversed ? reserved : tagged;
+  const taggedTo = reversed ? tagged : reserved;
 
   const pass = (
     score: (a: MorphItem, b: MorphItem) => number | null,
@@ -191,11 +205,11 @@ export function matchMorphItems(
   ): void => {
     const candidates: Array<{ i: number; j: number; cost: number }> = [];
     from.forEach((a, i) => {
-      if (usedFrom.has(i) || (!byLineage && tagged(a))) {
+      if (usedFrom.has(i) || (!byLineage && taggedFrom(a))) {
         return;
       }
       to.forEach((b, j) => {
-        if (usedTo.has(j) || a.kind !== b.kind || (!byLineage && tagged(b))) {
+        if (usedTo.has(j) || a.kind !== b.kind || (!byLineage && taggedTo(b))) {
           return;
         }
         const cost = score(a, b);

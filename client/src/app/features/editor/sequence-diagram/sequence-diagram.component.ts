@@ -7,7 +7,14 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { isLightFill, messageLabelLines } from '@dbdesigner/shared';
+import {
+  breakLabelMaxChars,
+  isLightFill,
+  isSwatchColor,
+  messageLabelLines,
+  messageLabelMaxChars,
+  SEQ_LABEL_CHAR_W,
+} from '@dbdesigner/shared';
 import type { LifelineModel, SequenceDiagramModel } from '@dbdesigner/shared';
 import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
@@ -24,6 +31,8 @@ interface MessageView {
   dirRight: boolean;
   mid: number;
   label: string;
+  /** Max content width (px) of the inline editor so it wraps where the label will; null = no limit. */
+  editMaxPx: number | null;
   /** The label as drawn: wrapped so it never hides the arrow (the stored label is unchanged). */
   displayLabel: string;
   dashed: boolean;
@@ -142,8 +151,9 @@ const MIN_HEADER_W = 60;
 })
 export class SequenceDiagramComponent {
   protected readonly store = inject(ProjectStore);
-  /** True for pale participant colors, which take dark text instead of white. */
-  protected readonly isLight = isLightFill;
+  /** True for custom pale participant colors, which take dark text instead of white. Stock swatches use the theme text. */
+  protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
+  protected readonly isSwatch = isSwatchColor;
 
   /** The id of the diagram this instance renders. */
   readonly diagramId = input.required<string>();
@@ -240,10 +250,16 @@ export class SequenceDiagramComponent {
         dirRight: headX >= otherX,
         mid: isBreak ? (minX + maxX) / 2 : (fromX + toX) / 2,
         label: m.label ?? '',
+        editMaxPx: this.editMaxPx(
+          m.wrap !== false,
+          isBreak,
+          isBreak ? maxX - minX : Math.abs(toX - fromX),
+        ),
         displayLabel: messageLabelLines(
           m.label ?? '',
           isBreak ? maxX - minX : Math.abs(toX - fromX),
           isBreak,
+          m.wrap !== false,
         ).join('\n'),
         dashed: m.style === 'dashed',
         isBreak,
@@ -255,6 +271,14 @@ export class SequenceDiagramComponent {
     });
     return out;
   });
+
+  /** Width the inline editor wraps at, mirroring how the finished label wraps. */
+  private editMaxPx(wrap: boolean, isBreak: boolean, span: number): number | null {
+    if (!wrap) return null;
+    return isBreak
+      ? breakLabelMaxChars(span) * (SEQ_LABEL_CHAR_W + 0.44)
+      : messageLabelMaxChars(span) * SEQ_LABEL_CHAR_W;
+  }
 
   /** Highest occupied row, for sizing the spines and box. */
   protected readonly maxRow = computed(() => {

@@ -13,7 +13,13 @@ import { isElisionLine } from './code-highlight.helper';
  *    wrapped in a class and unwrapped again.
  */
 
-const FORMATTABLE: readonly CodeLanguage[] = ['typescript', 'javascript', 'json', 'html', 'css'];
+const FORMATTABLE: readonly CodeLanguage[] = [
+  'typescript',
+  'json',
+  'html',
+  'css',
+  'sql',
+];
 
 export function canFormatCode(language: CodeLanguage | undefined): boolean {
   return FORMATTABLE.includes(language ?? 'typescript');
@@ -30,13 +36,15 @@ function lineMarker(language: CodeLanguage): string {
       return `/* ${LINE_MARK} */`;
     case 'html':
       return `<!-- ${LINE_MARK} -->`;
+    case 'sql':
+      return `-- ${LINE_MARK}`;
     default:
       return `// ${LINE_MARK}`;
   }
 }
 
 const RESTORE_LINE = new RegExp(
-  `^([ \\t]*)(?:// ${LINE_MARK}|/\\* ${LINE_MARK} \\*/|<!-- ${LINE_MARK} -->)[ \\t]*$`,
+  `^([ \\t]*)(?:// ${LINE_MARK}|/\\* ${LINE_MARK} \\*/|<!-- ${LINE_MARK} -->|-- ${LINE_MARK})[ \\t]*$`,
   'gm',
 );
 
@@ -46,7 +54,7 @@ function protect(text: string, language: CodeLanguage): string {
     if (isElisionLine(line)) {
       return `${/^\s*/.exec(line)?.[0] ?? ''}${marker}`;
     }
-    return language === 'typescript' || language === 'javascript'
+    return language === 'typescript'
       ? line.replace(INLINE_ELISION, INLINE_MARK)
       : line;
   });
@@ -71,7 +79,6 @@ async function optionsFor(language: CodeLanguage): Promise<PrettierOptions> {
       ]);
       return { parser: 'typescript', plugins: [ts, estree] };
     }
-    case 'javascript':
     case 'json': {
       const [babel, estree] = await Promise.all([
         import('prettier/plugins/babel'),
@@ -118,6 +125,9 @@ export async function formatCode(
   if (!canFormatCode(lang)) {
     throw new Error('Formatting is not available for this language.');
   }
+  if (lang === 'sql') {
+    return formatSql(text, printWidth);
+  }
   const prettier = await import('prettier/standalone');
   const options = await optionsFor(lang);
   const base = {
@@ -134,7 +144,7 @@ export async function formatCode(
   try {
     out = await run(source);
   } catch (err) {
-    if (lang !== 'typescript' && lang !== 'javascript') {
+    if (lang !== 'typescript') {
       throw cleanError(err);
     }
     // A bare method/property is only valid inside a class body.
@@ -145,6 +155,23 @@ export async function formatCode(
     }
   }
   return restore(out.replace(/\n+$/, ''));
+}
+
+/** SQL is not a Prettier language; `sql-formatter` handles it (also lazy-loaded). */
+async function formatSql(text: string, printWidth: number): Promise<string> {
+  const { format } = await import('sql-formatter');
+  const source = protect(text.replace(/\r\n?/g, '\n'), 'sql');
+  try {
+    const out = format(source, {
+      language: 'sql',
+      tabWidth: 2,
+      keywordCase: 'upper',
+      expressionWidth: Math.max(printWidth, 20),
+    });
+    return restore(out.replace(/\n+$/, ''));
+  } catch (err) {
+    throw cleanError(err);
+  }
 }
 
 function cleanError(err: unknown): Error {

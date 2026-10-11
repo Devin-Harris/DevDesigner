@@ -63,6 +63,10 @@ export class SequenceMessageEntity {
   @Column({ type: 'varchar', nullable: true })
   color!: string | null;
 
+  /** Wrap the label to the message span (null = no wrapping). */
+  @Column({ type: 'boolean', nullable: true })
+  wrap!: boolean | null;
+
   /** Morph tag (`tag:<name>`) pairing this message across slides; null = matched by wording. */
   @Column({ type: 'varchar', length: 100, nullable: true })
   morphId!: string | null;

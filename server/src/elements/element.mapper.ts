@@ -77,6 +77,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     curvature: entity.curvature ?? undefined,
     fileId: entity.fileId ?? undefined,
     language: entity.language ?? undefined,
+    fileName: entity.fileName ?? undefined,
+    expandedHeight: entity.expandedHeight ?? undefined,
     groupId: entity.groupId ?? undefined,
     slide: toSlide(entity.slideJson),
     morphId: entity.morphId ?? undefined,

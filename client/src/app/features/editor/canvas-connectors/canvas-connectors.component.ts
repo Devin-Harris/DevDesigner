@@ -32,6 +32,8 @@ export interface SegmentDownEvent {
 export class CanvasConnectorsComponent {
   readonly connectors = input.required<Connector[]>();
   readonly tempLinkPath = input<string | null>(null);
+  /** Anchor the in-flight link would snap to, drawn as a ring. */
+  readonly snapAnchor = input<{ x: number; y: number } | null>(null);
   readonly svgOffset = input.required<number>();
   readonly dragging = input<boolean>(false);
 

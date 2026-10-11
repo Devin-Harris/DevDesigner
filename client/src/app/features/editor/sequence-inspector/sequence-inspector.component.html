@@ -44,8 +44,6 @@
       }
     </div>
 
-    <div class="field-label">Morph tag</div>
-    <dbd-input [ngModel]="lifelineTag()" (commit)="setLifelineTag($event)" [maxlength]="80" placeholder="Same tag on the next slide morphs into this" [disabled]="!store.canEdit()" />
 
     <div class="field-label">Width</div>
     <div class="flag-chips">
@@ -99,8 +97,11 @@
       }
     </div>
 
-    <div class="field-label">Morph tag</div>
-    <dbd-input [ngModel]="messageTag()" (commit)="setMessageTag($event)" [maxlength]="80" placeholder="Same tag on the next slide morphs into this" [disabled]="!store.canEdit()" />
+    <div class="field-label">Label</div>
+    <div class="flag-chips">
+      <button class="flag" [class.on]="m.wrap !== false" [disabled]="!store.canEdit()" (click)="toggleWrap()">Auto wrap</button>
+    </div>
+
 
     @if (m.style !== 'break') {
       <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
@@ -131,8 +132,6 @@
       }
     </div>
 
-    <div class="field-label">Morph tag</div>
-    <dbd-input [ngModel]="diagramTag()" (commit)="setDiagramTag($event)" [maxlength]="80" placeholder="Pair this diagram with the same tag" [disabled]="!store.canEdit()" />
 
     <div class="field-label">Arrange</div>
     <div class="flag-chips">

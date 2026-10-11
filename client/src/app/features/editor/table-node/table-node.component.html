@@ -1,14 +1,19 @@
-<div
-  class="width-grip"
-  title="Drag to resize width · double-click to auto-fit"
-  (pointerdown)="onResizeDown($event)"
-  (dblclick)="resetWidth($event)"
-></div>
+@if (selected() && editable()) {
+  @for (c of corners; track c) {
+    <span
+      [class]="'scale-handle ' + c"
+      title="Drag to scale - double-click to reset"
+      (pointerdown)="onScaleDown($event, c)"
+      (dblclick)="resetScale($event)"
+    ></span>
+  }
+}
 
 <header
   class="node-head"
   [class.colored]="!!table().color"
   [class.light]="isLight(table().color)"
+  [class.stock]="isSwatch(table().color)"
   [style.--tbl-color]="table().color || null"
   [style.height.px]="headerH"
 >

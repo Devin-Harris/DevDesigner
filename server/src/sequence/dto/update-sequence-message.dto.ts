@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { UpdateSequenceMessageDto as IUpdateSequenceMessageDto } from '@dbdesigner/shared';
 
 const STYLES = ['solid', 'dashed', 'break'] as const;
@@ -36,6 +36,10 @@ export class UpdateSequenceMessageDto implements IUpdateSequenceMessageDto {
   @IsString()
   @MaxLength(20)
   color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  wrap?: boolean;
 
   @IsOptional()
   @IsString()

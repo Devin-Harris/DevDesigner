@@ -63,6 +63,10 @@
     background: var(--dbd-surface-2);
   }
 
+  &.active {
+    color: var(--dbd-primary);
+  }
+
   &:disabled {
     opacity: 0.5;
     cursor: default;

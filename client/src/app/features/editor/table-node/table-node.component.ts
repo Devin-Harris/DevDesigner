@@ -15,6 +15,7 @@ import {
   HEADER_SWATCHES,
   SOFT_SWATCHES,
   isLightFill,
+  isSwatchColor,
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -22,11 +23,15 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
 import { ProjectStore } from '../../../stores/project.store';
 import {
   HEADER_H,
-  MAX_TABLE_WIDTH,
-  MIN_TABLE_WIDTH,
+  MAX_TABLE_SCALE,
+  MIN_TABLE_SCALE,
   ROW_H,
 } from '../canvas/constants/canvas.constants';
-import { tableWidth } from '../canvas/helpers/node-metrics.helper';
+import {
+  nodeHeight,
+  tableBaseWidth,
+  tableScale,
+} from '../canvas/helpers/node-metrics.helper';
 
 export interface HandleEvent {
   event: PointerEvent;
@@ -50,6 +55,8 @@ export interface HandleEvent {
     '[style.left.px]': 'table().x',
     '[style.top.px]': 'table().y',
     '[style.width.px]': 'nodeWidth()',
+    '[style.transform]': 'transform()',
+    '[style.--inv-scale]': 'inverseScale()',
     '[class.selected]': 'selected()',
     '(pointerdown)': 'nodePointerDown.emit($event)',
     '(dblclick)': 'onDblClick($event)',
@@ -58,8 +65,9 @@ export interface HandleEvent {
 export class TableNodeComponent {
   private readonly store = inject(ProjectStore);
 
-  /** True for pale header colors, which take dark text instead of white. */
-  protected readonly isLight = isLightFill;
+  /** True for custom pale header colors, which take dark text instead of white. Stock swatches use the theme text. */
+  protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
+  protected readonly isSwatch = isSwatchColor;
 
   readonly table = input.required<TableModel>();
   readonly selected = input<boolean>(false);
@@ -74,8 +82,14 @@ export class TableNodeComponent {
   readonly handleDown = output<HandleEvent>();
   readonly handleUp = output<HandleEvent>();
 
-  /** Width grows to fit the widest name, matching the connector geometry. */
-  protected readonly nodeWidth = computed(() => tableWidth(this.table()));
+  /** Natural width: grows to fit the widest name; the scale is applied as a transform. */
+  protected readonly nodeWidth = computed(() => tableBaseWidth(this.table()));
+  private readonly scale = computed(() => tableScale(this.table()));
+  protected readonly transform = computed(() =>
+    this.scale() === 1 ? null : `scale(${this.scale()})`,
+  );
+  /** Counter-scale so the corner handles keep a constant on-screen size. */
+  protected readonly inverseScale = computed(() => 1 / this.scale());
   protected readonly headerH = HEADER_H;
   protected readonly rowH = ROW_H;
   protected readonly dataTypeNames = DATA_TYPE_NAMES;
@@ -92,37 +106,51 @@ export class TableNodeComponent {
   protected readonly editingName = signal(false);
   protected readonly editingColumnId = signal<string | null>(null);
 
-  // --- width resize (drag the right edge; double-click resets to auto-fit) ---
+  // --- scale (drag a corner of the selection box; the opposite corner stays put) ---
 
-  protected onResizeDown(event: PointerEvent): void {
+  protected readonly corners = ['nw', 'ne', 'sw', 'se'] as const;
+
+  protected onScaleDown(event: PointerEvent, corner: 'nw' | 'ne' | 'sw' | 'se'): void {
     event.stopPropagation();
     event.preventDefault();
     if (!this.editable() || event.button !== 0) {
       return;
     }
     const table = this.table();
-    const startX = event.clientX;
-    const startWidth = tableWidth(table);
-    const hadWidth = table.width;
+    const startScale = tableScale(table);
+    const baseW = tableBaseWidth(table);
+    const baseH = nodeHeight(table.columns.length);
+    const west = corner === 'nw' || corner === 'sw';
+    const north = corner === 'nw' || corner === 'ne';
+    // World position of the fixed (opposite) corner and the grabbed corner.
+    const fx = west ? table.x + baseW * startScale : table.x;
+    const fy = north ? table.y + baseH * startScale : table.y;
+    const gx = west ? table.x : table.x + baseW * startScale;
+    const gy = north ? table.y : table.y + baseH * startScale;
+    const vx = gx - fx;
+    const vy = gy - fy;
+    const len2 = vx * vx + vy * vy;
+    const startClientX = event.clientX;
+    const startClientY = event.clientY;
     const zoom = this.store.viewport().zoom;
-    let latest = startWidth;
+    let latest = startScale;
     const move = (e: PointerEvent): void => {
-      let right = table.x + startWidth + (e.clientX - startX) / zoom;
-      const snap = this.snap();
-      if (snap && !e.altKey) {
-        right = snap(right);
-      }
-      latest = Math.round(Math.min(MAX_TABLE_WIDTH, Math.max(MIN_TABLE_WIDTH, right - table.x)));
-      this.store.setTableWidthLocal(table.id, latest);
+      const px = gx + (e.clientX - startClientX) / zoom - fx;
+      const py = gy + (e.clientY - startClientY) / zoom - fy;
+      // Project onto the box diagonal so proportions are always preserved.
+      const raw = startScale * ((px * vx + py * vy) / len2);
+      latest = Math.round(Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, raw)) * 100) / 100;
+      const x = west ? fx - baseW * latest : fx;
+      const y = north ? fy - baseH * latest : fy;
+      this.store.setTableScaleLocal(table.id, latest);
+      this.store.moveTable(table.id, Math.round(x), Math.round(y));
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
-      if (latest !== startWidth) {
-        void this.store.updateTable(table.id, { width: latest });
-      } else {
-        this.store.setTableWidthLocal(table.id, hadWidth);
+      if (latest !== startScale) {
+        void this.store.updateTable(table.id, { scale: latest });
       }
     };
     window.addEventListener('pointermove', move);
@@ -130,13 +158,15 @@ export class TableNodeComponent {
     window.addEventListener('pointercancel', up);
   }
 
-  protected resetWidth(event: Event): void {
+  /** Double-click a corner handle to return to natural size. */
+  protected resetScale(event: Event): void {
     event.stopPropagation();
-    if (!this.editable() || !this.table().width) {
+    const table = this.table();
+    if (!this.editable() || tableScale(table) === 1) {
       return;
     }
-    this.store.setTableWidthLocal(this.table().id, undefined);
-    void this.store.updateTable(this.table().id, { width: 0 });
+    this.store.setTableScaleLocal(table.id, undefined);
+    void this.store.updateTable(table.id, { scale: 1 });
   }
 
   // --- connect handles (delegated to the parent canvas) ---

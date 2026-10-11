@@ -139,6 +139,8 @@ export type SlideItem =
       type: 'code';
       code: string;
       language?: CodeLanguage;
+      /** Optional file name shown in a title bar, as if the code lived in that file. */
+      fileName?: string;
       fontSize?: number;
       x?: number;
       y?: number;
@@ -474,8 +476,16 @@ export function buildSlideContent(
         const size = item.fontSize ?? 20;
         const lines = item.code.split('\n');
         const longest = Math.max(...lines.map((l) => l.length), 1);
-        const w = Math.min(inner, Math.max(320, Math.ceil(longest * size * 0.62) + 32));
-        const h = Math.ceil(lines.length * size * 1.5) + 32;
+        const fileName = item.fileName?.trim() || undefined;
+        // Every code card has a window-style title bar (matches the client's
+        // codeHeaderHeight) above the code, with the title centered between its dots.
+        const header = Math.round(size * 1.5 + 14);
+        const nameWidth = fileName ? Math.ceil((fileName.length + 4) * 7.4) + 150 : 0;
+        const w = Math.min(
+          inner,
+          Math.max(320, nameWidth, Math.ceil(longest * size * 0.62) + 32),
+        );
+        const h = header + Math.ceil(lines.length * size * 1.5) + 32;
         const p = place(item, w, h);
         out.elements.push({
           ...baseElement('code', newId(), z++),
@@ -485,6 +495,7 @@ export function buildSlideContent(
           height: h,
           text: item.code,
           language: item.language ?? 'typescript',
+          ...(fileName ? { fileName } : {}),
           fontSize: size,
           backgroundColor: '#f6f8fa',
           fillStyle: 'solid',

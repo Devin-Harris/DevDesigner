@@ -63,6 +63,7 @@ export function messageLabelBoxes(
       m.label,
       isBreak ? Math.max(...xs) - Math.min(...xs) : Math.abs((t?.x ?? 0) - (f?.x ?? 0)),
       isBreak,
+      m.wrap !== false,
     );
     const w = Math.max(...lines.map((s) => s.length)) * CHAR_W + PAD_X * 2;
     const h = lines.length * LINE_H + PAD_Y * 2;

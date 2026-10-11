@@ -1,5 +1,6 @@
 import type {
   CanvasElementModel,
+  CodeLanguage,
   ElementBinding,
   TableModel,
   TextAlign,
@@ -10,12 +11,13 @@ import type { Box, Point } from '../models/geometry.model';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import type {
   CodeBlockView,
+  CodeDotAction,
   ShapeView,
   TextBlockView,
   TextLineView,
 } from '../models/shape-view.model';
 import {
-  CODE_LANGUAGE_LABELS,
+  CODE_LANGUAGE_EXTENSIONS,
   TAB_SIZE,
   codePalette,
   expandTabs,
@@ -370,6 +372,36 @@ export const CODE_PADDING = 12;
 const CODE_GUTTER_GAP = 14;
 const CODE_LINE_HEIGHT = 1.5;
 
+/** Window-style dots on a title bar: close deletes, minimize collapses, zoom fits to content. */
+const TRAFFIC_LIGHT_GAP = 18;
+const TRAFFIC_LIGHTS: { color: string; action: CodeDotAction }[] = [
+  { color: '#ff5f57', action: 'delete' },
+  { color: '#febc2e', action: 'collapse' },
+  { color: '#28c840', action: 'fit' },
+];
+/** Width of the dot cluster from the card's left edge (used to keep the title clear of it). */
+export const CODE_DOTS_WIDTH = CODE_PADDING + 2 + TRAFFIC_LIGHT_GAP * 3;
+
+/** Height of a code card's title bar. */
+export function codeHeaderHeight(fontSize: number): number {
+  return Math.round(fontSize * 1.5 + 14);
+}
+
+/**
+ * The title shown in a code card's bar: the file name, with the language's extension
+ * appended when it has none. Empty when no file name is set.
+ */
+export function codeTitle(el: { fileName?: string; language?: CodeLanguage }): string {
+  const name = el.fileName?.trim();
+  if (!name) {
+    return '';
+  }
+  if (/\.[A-Za-z0-9]+$/.test(name)) {
+    return name;
+  }
+  return `${name}.${CODE_LANGUAGE_EXTENSIONS[el.language ?? 'typescript']}`;
+}
+
 /** Baseline offset inside a code line box; matches how a textarea centers a line. */
 function codeBaseline(fontSize: number): number {
   return (fontSize * CODE_LINE_HEIGHT) / 2 + fontSize * 0.36;
@@ -468,12 +500,19 @@ function layoutCodeRows(
 export function codeContentSize(
   text: string,
   fontSize: number,
+  title = '',
 ): { width: number; height: number } {
   const { rows, metrics } = layoutCodeRows(text, 'plaintext', fontSize);
   const longest = Math.max(1, ...rows.map((r) => r.tokens.reduce((c, t) => c + t.text.length, 0)));
+  const header = codeHeaderHeight(fontSize);
+  // The title bar needs room for the centered title between its dot cluster and an
+  // equal margin on the right, as well as the code.
+  const nameWidth = 2 * CODE_DOTS_WIDTH + title.length * 12 * 0.62 + 8;
   return {
-    width: Math.ceil(metrics.textOffset + longest * metrics.charWidth + CODE_PADDING),
-    height: Math.ceil(rows.length * metrics.lineHeight + CODE_PADDING * 2),
+    width: Math.ceil(
+      Math.max(metrics.textOffset + longest * metrics.charWidth + CODE_PADDING, nameWidth),
+    ),
+    height: Math.ceil(header + rows.length * metrics.lineHeight + CODE_PADDING * 2),
   };
 }
 
@@ -518,21 +557,21 @@ function codeBlockView(
     fontSize,
   );
   const baseline = codeBaseline(fontSize);
-  const top = element.y + CODE_PADDING;
-  const lines = rows.map((row, i) => ({
-    y: top + i * m.lineHeight + baseline,
-    number: row.number,
-    tokens: row.tokens.map((t) => ({
-      // An elision reads as a muted "···" (same width as the "..." typed).
-      text: t.kind === 'elision' ? '\u00b7\u00b7\u00b7' : t.text,
-      color: tokenColor(palette, t.kind),
-      italic: t.kind === 'comment',
-    })),
-  }));
-  const labelText = language === 'plaintext' ? '' : CODE_LANGUAGE_LABELS[language];
-  const firstLineLen = (rows[0]?.tokens ?? []).reduce((n, t) => n + t.text.length, 0);
-  const labelWidth = labelText.length * 10 * 0.62;
-  const room = element.width - (m.textOffset + firstLineLen * m.charWidth) - CODE_PADDING;
+  const header = codeHeaderHeight(fontSize);
+  const collapsed = element.expandedHeight !== undefined;
+  const top = element.y + header + CODE_PADDING;
+  const lines = collapsed
+    ? []
+    : rows.map((row, i) => ({
+        y: top + i * m.lineHeight + baseline,
+        number: row.number,
+        tokens: row.tokens.map((t) => ({
+          // An elision reads as a muted "···" (same width as the "..." typed).
+          text: t.kind === 'elision' ? '···' : t.text,
+          color: tokenColor(palette, t.kind),
+          italic: t.kind === 'comment',
+        })),
+      }));
   return {
     rect: {
       x: element.x,
@@ -549,15 +588,22 @@ function codeBlockView(
     textX: element.x + m.textOffset,
     numberColor: palette.muted,
     lines,
-    label:
-      labelText && room > labelWidth + 12
-        ? {
-            text: labelText,
-            x: element.x + element.width - 10,
-            y: element.y + 15,
-            color: palette.muted,
-          }
-        : undefined,
+    collapsed,
+    header: {
+      height: header,
+      text: codeTitle({ fileName: element.fileName, language }),
+      x: element.x + element.width / 2,
+      y: element.y + header / 2 + 4.5,
+      color: palette.plain,
+      tint: palette.muted,
+      dots: TRAFFIC_LIGHTS.map((d, i) => ({
+        x: element.x + CODE_PADDING + 2 + i * TRAFFIC_LIGHT_GAP,
+        y: element.y + header / 2,
+        r: 5.5,
+        color: d.color,
+        action: d.action,
+      })),
+    },
   };
 }
 

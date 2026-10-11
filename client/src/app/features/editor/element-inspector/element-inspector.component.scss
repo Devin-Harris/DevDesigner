@@ -57,6 +57,12 @@
   }
 }
 
+.field-label .optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
 .field-label {
   font-size: 9.5px;
   font-weight: 600;
@@ -241,5 +247,23 @@
   &:focus-visible {
     outline: 2px solid var(--dbd-primary);
     outline-offset: 1px;
+  }
+}
+
+.text-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--dbd-space-2);
+  border: 1px solid var(--dbd-border);
+  border-radius: 6px;
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  font-family: var(--dbd-mono);
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--dbd-accent, currentColor);
   }
 }

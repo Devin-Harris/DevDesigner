@@ -85,6 +85,9 @@ export class TablesService {
     if (dto.width !== undefined) {
       table.width = dto.width > 0 ? dto.width : null;
     }
+    if (dto.scale !== undefined) {
+      table.scale = dto.scale > 0 && dto.scale !== 1 ? dto.scale : null;
+    }
     if (dto.groupId !== undefined) {
       table.groupId = dto.groupId;
     }

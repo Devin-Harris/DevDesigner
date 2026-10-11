@@ -223,6 +223,14 @@ export class ElementFloatingToolbarComponent {
     void this.codeActions.format(this.store.selectedElementIds());
   }
 
+  protected editFileName(): void {
+    this.codeActions.editFileName(this.element().id);
+  }
+
+  protected fitToContent(): void {
+    void this.codeActions.fitToContent(this.store.selectedElementIds());
+  }
+
   protected setLanguage(language: CodeLanguage): void {
     this.patchCode({ language });
   }

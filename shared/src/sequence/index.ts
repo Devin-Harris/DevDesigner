@@ -64,7 +64,16 @@ export function wrapLabelLines(label: string, maxChars: number): string[] {
   return out;
 }
 
-/** The lines a message label is drawn with when it spans `span` px. */
-export function messageLabelLines(label: string, span: number, isBreak = false): string[] {
+/**
+ * The lines a message label is drawn with when it spans `span` px. With `wrap`
+ * off the label keeps only its explicit line breaks, however long it is.
+ */
+export function messageLabelLines(
+  label: string,
+  span: number,
+  isBreak = false,
+  wrap = true,
+): string[] {
+  if (!wrap) return label.split(/\r?\n/);
   return wrapLabelLines(label, isBreak ? breakLabelMaxChars(span) : messageLabelMaxChars(span));
 }

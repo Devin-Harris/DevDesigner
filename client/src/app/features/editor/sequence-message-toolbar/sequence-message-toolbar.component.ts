@@ -33,6 +33,10 @@ export class SequenceMessageToolbarComponent {
       });
     }
   }
+  protected toggleWrap(): void {
+    const m = this.message();
+    if (m) void this.store.updateMessage(m.id, { wrap: m.wrap === false });
+  }
   protected edit(): void {
     const m = this.message();
     if (m) this.store.requestMessageEdit(m.id);
