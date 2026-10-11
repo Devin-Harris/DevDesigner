@@ -5,6 +5,13 @@
     Tokens let the MCP server (Claude Desktop, Claude Code, ...) create and edit diagrams as you.
     Keep them secret; revoke any you no longer use.
   </p>
+  @if (remoteMcpUrl) {
+    <p class="hint">
+      Remote MCP endpoint: <code>{{ remoteMcpUrl }}</code>. In Claude Code add it as an HTTP server
+      with an <code>Authorization: Bearer &lt;token&gt;</code> header. Claude Desktop only runs local
+      servers, so bridge it with <code>npx mcp-remote</code>.
+    </p>
+  }
 
   @if (created(); as c) {
     <div class="secret" role="status">

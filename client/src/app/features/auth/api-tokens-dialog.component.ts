@@ -46,6 +46,8 @@ export class ApiTokensDialogComponent {
   /** The just-created token (with its secret); cleared when the user dismisses it. */
   protected readonly created = signal<CreatedApiTokenResponse | null>(null);
   protected readonly copied = signal<'token' | 'config' | null>(null);
+  /** The hosted MCP endpoint of this deployment ('' when running locally). */
+  protected readonly remoteMcpUrl = environment.mcpUrl;
 
   protected readonly scopeOptions = [
     { value: 'write', label: 'Read & write' },
@@ -59,6 +61,22 @@ export class ApiTokensDialogComponent {
     const created = this.created();
     if (!created) {
       return '';
+    }
+    if (this.remoteMcpUrl) {
+      // Deployed: point clients at the hosted /mcp endpoint; the token rides in a header.
+      return JSON.stringify(
+        {
+          mcpServers: {
+            dbdesigner: {
+              type: 'http',
+              url: this.remoteMcpUrl,
+              headers: { Authorization: `Bearer ${created.token}` },
+            },
+          },
+        },
+        null,
+        2,
+      );
     }
     const apiUrl = this.absoluteApiUrl();
     return JSON.stringify(
