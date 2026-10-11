@@ -94,8 +94,10 @@ export async function startHttp(options: { port: number; apiUrl: string }): Prom
     }
   });
 
-  await new Promise<void>((resolve) => httpServer.listen(options.port, '0.0.0.0', resolve));
+  // No host: Node binds the dual-stack wildcard (IPv6 + IPv4), which hosts such as Railway
+  // need when their proxy reaches the service over an IPv6 private network.
+  await new Promise<void>((resolve) => httpServer.listen(options.port, resolve));
   console.error(
-    `DBDesigner MCP server ready (HTTP) on :${options.port}/mcp, API ${options.apiUrl}`,
+    `DBDesigner MCP server ready (HTTP) on port ${options.port} (PORT=${process.env.PORT ?? "unset"}), POST /mcp, API ${options.apiUrl}`,
   );
 }
