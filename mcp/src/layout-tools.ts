@@ -727,6 +727,452 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
     },
   );
 
+  // ---- Bulk move / align / distribute ---------------------------------------------------
+
+  type Ref =
+    | { kind: 'table' | 'element' | 'diagram'; id: string; key: string; label: string }
+    | { kind: 'participant'; id: string; diagramId: string; x: number; label: string }
+    | { kind: 'message'; id: string; diagramId: string; y: number; label: string };
+
+  /** Resolve any id (element, diagram, participant, message) or table name/id. */
+  const resolveRef = (schema: SchemaModel, ref: string): Ref => {
+    const e = schema.elements.find((x) => x.id === ref);
+    if (e) {
+      if (e.type === 'frame' && e.slide) {
+        throw new UserError(`"${ref}" is a slide frame; move a presentation with move_element on one of its slides.`);
+      }
+      return { kind: 'element', id: e.id, key: keyOf('element', e.id), label: e.id };
+    }
+    const d = schema.sequenceDiagrams.find((x) => x.id === ref);
+    if (d) return { kind: 'diagram', id: d.id, key: keyOf('diagram', d.id), label: d.title || d.id };
+    const l = schema.lifelines.find((x) => x.id === ref);
+    if (l) return { kind: 'participant', id: l.id, diagramId: l.diagramId, x: l.x, label: l.label };
+    const m = schema.sequenceMessages.find((x) => x.id === ref);
+    if (m) return { kind: 'message', id: m.id, diagramId: m.diagramId, y: m.y, label: m.label ?? m.id };
+    const t = findTable(schema, ref);
+    return { kind: 'table', id: t.id, key: keyOf('table', t.id), label: t.name };
+  };
+
+  /** Rects of tables/elements/diagrams by key (lines included, so arrows can be aligned too). */
+  const rectsOf = (schema: SchemaModel): Map<string, { x: number; y: number; w: number; h: number }> =>
+    new Map(collectItems(schema, { lines: 'all' }).map((i) => [i.key, i.rect]));
+
+  /** Block-level refs (tables, elements, diagrams) with their rects; participants/messages rejected. */
+  const blocksOf = (schema: SchemaModel, refs: string[], tool: string) => {
+    const rects = rectsOf(schema);
+    const seen = new Set<string>();
+    const out: Array<{ ref: Ref & { key: string }; rect: { x: number; y: number; w: number; h: number } }> = [];
+    for (const r of refs) {
+      const ref = resolveRef(schema, r);
+      if (ref.kind === 'participant' || ref.kind === 'message') {
+        throw new UserError(`${tool} works on tables, drawing elements and sequence diagrams; "${r}" is a ${ref.kind} (use move_items).`);
+      }
+      if (seen.has(ref.key)) continue;
+      seen.add(ref.key);
+      const rect = rects.get(ref.key);
+      if (!rect) throw new UserError(`"${r}" has no size to lay out (an empty diagram or stroke?).`);
+      out.push({ ref, rect });
+    }
+    return out;
+  };
+
+  /** Move blocks plus participants (x) and messages (y); rejects moving a part and its diagram together. */
+  const applyAllMoves = async (
+    pid: string,
+    schema: SchemaModel,
+    blocks: Map<string, { dx: number; dy: number }>,
+    parts: Array<{ ref: Ref; d: number }>,
+  ): Promise<number> => {
+    let writes = await applyMoves(pid, schema, blocks);
+    for (const { ref, d } of parts) {
+      if (d === 0) continue;
+      if (ref.kind === 'participant') {
+        await api.patch(`/projects/${pid}/lifelines/${ref.id}/position`, { x: Math.round(ref.x + d) });
+      } else if (ref.kind === 'message') {
+        await api.patch(`/projects/${pid}/messages/${ref.id}/position`, { y: Math.round(ref.y + d) });
+      }
+      writes += 1;
+    }
+    return writes;
+  };
+
+  tool(
+    'move_items',
+    "Move many things in ONE call - tables (name/id), drawing elements, sequence diagrams (the whole box), participants (horizontal only) and messages (vertical only), by id. Either give `items` plus a shared offset (`dx`/`dy`) or a group destination (`x`/`y` = new top-left of the selection's bounding box, spacing kept), or give `moves` with per-item absolute `x`/`y` or relative `dx`/`dy`. Relationship bend points follow when both tables move together. Prefer this over repeated move_element calls.",
+    {
+      projectId,
+      items: z.array(z.string()).optional().describe('Ids / table names moved together by dx/dy or to x/y.'),
+      dx: z.number().optional(),
+      dy: z.number().optional(),
+      x: z.number().optional().describe('With `items`: new left edge of the whole selection.'),
+      y: z.number().optional().describe('With `items`: new top edge of the whole selection.'),
+      moves: z
+        .array(
+          z.object({
+            target: z.string().describe('Id or table name.'),
+            x: z.number().optional().describe('Absolute left (participants: spine center x).'),
+            y: z.number().optional().describe('Absolute top (messages: row y).'),
+            dx: z.number().optional(),
+            dy: z.number().optional(),
+          }),
+        )
+        .optional()
+        .describe('Per-item moves.'),
+    },
+    {},
+    async ({ projectId: id, items, dx, dy, x, y, moves }) => {
+      if (!items?.length && !moves?.length) throw new UserError('Give `items` (with dx/dy or x/y) and/or `moves`.');
+      if (items?.length && dx === undefined && dy === undefined && x === undefined && y === undefined) {
+        throw new UserError('With `items` give dx/dy or x/y.');
+      }
+      const { schema } = await graph(id);
+      const rects = rectsOf(schema);
+      const blocks = new Map<string, { dx: number; dy: number }>();
+      const parts = new Map<string, { ref: Ref; d: number }>();
+      const add = (ref: Ref, mx: number, my: number): void => {
+        if (ref.kind === 'participant' || ref.kind === 'message') {
+          const d = ref.kind === 'participant' ? mx : my;
+          const cur = parts.get(ref.id);
+          parts.set(ref.id, { ref, d: (cur?.d ?? 0) + d });
+          return;
+        }
+        const cur = blocks.get(ref.key) ?? { dx: 0, dy: 0 };
+        blocks.set(ref.key, { dx: cur.dx + mx, dy: cur.dy + my });
+      };
+      // Group move: offset, or translate the selection's bounding box to x/y.
+      if (items?.length) {
+        const refs = items.map((r) => resolveRef(schema, r));
+        let gx = dx ?? 0;
+        let gy = dy ?? 0;
+        if (x !== undefined || y !== undefined) {
+          const pts = refs.flatMap((r) => {
+            if (r.kind === 'participant') return [{ x: r.x, y: Number.NaN, w: 0, h: 0 }];
+            if (r.kind === 'message') return [{ x: Number.NaN, y: r.y, w: 0, h: 0 }];
+            const rect = rects.get(r.key);
+            return rect ? [rect] : [];
+          });
+          const minX = Math.min(...pts.map((p) => p.x).filter((v) => !Number.isNaN(v)));
+          const minY = Math.min(...pts.map((p) => p.y).filter((v) => !Number.isNaN(v)));
+          if (x !== undefined && Number.isFinite(minX)) gx = x - minX;
+          if (y !== undefined && Number.isFinite(minY)) gy = y - minY;
+        }
+        for (const r of refs) add(r, gx, gy);
+      }
+      for (const mv of moves ?? []) {
+        const ref = resolveRef(schema, mv.target);
+        let mx = mv.dx ?? 0;
+        let my = mv.dy ?? 0;
+        if (ref.kind === 'participant') {
+          if (mv.x !== undefined) mx = mv.x - ref.x;
+        } else if (ref.kind === 'message') {
+          if (mv.y !== undefined) my = mv.y - ref.y;
+        } else {
+          const t = ref.kind === 'table' ? schema.tables.find((v) => v.id === ref.id) : undefined;
+          const el = ref.kind === 'element' ? schema.elements.find((v) => v.id === ref.id) : undefined;
+          const rect = rects.get(ref.key);
+          // Absolute positions are the item's own x/y (tables/elements), or the diagram box.
+          const ox = t?.x ?? el?.x ?? (rect ? rect.x + SEQUENCE_BOX_PAD : 0);
+          const oy = t?.y ?? el?.y ?? (rect ? rect.y + SEQUENCE_BOX_PAD : 0);
+          if (mv.x !== undefined) mx = mv.x - ox;
+          if (mv.y !== undefined) my = mv.y - oy;
+        }
+        add(ref, mx, my);
+      }
+      for (const { ref } of parts.values()) {
+        if (blocks.has(keyOf('diagram', (ref as { diagramId: string }).diagramId))) {
+          throw new UserError(`"${ref.label}" belongs to a diagram that is also being moved; move one or the other.`);
+        }
+      }
+      const writes = await applyAllMoves(id, schema, blocks, [...parts.values()]);
+      return { moved: blocks.size + parts.size, writes };
+    },
+  );
+
+  tool(
+    'align_items',
+    "Line up tables, drawing elements and sequence diagrams along an edge or center, like the editor's align buttons. By default aligns to the selection's own extreme (left-most left edge, etc.); give `to` (an item id / table name) to align to that item, or `value` for an exact coordinate.",
+    {
+      projectId,
+      items: z.array(z.string()).min(1).describe('Ids / table names.'),
+      align: enumOf(['left', 'center', 'right', 'top', 'middle', 'bottom']).describe("'center' = horizontal centers, 'middle' = vertical centers."),
+      to: z.string().optional().describe('Reference item that stays put.'),
+      value: z.number().optional().describe('Exact x (left/center/right) or y (top/middle/bottom) to align to.'),
+    },
+    { idempotent: true },
+    async ({ projectId: id, items, align, to, value }) => {
+      const { schema } = await graph(id);
+      const sel = blocksOf(schema, items, 'align_items');
+      const horizontal = align === 'left' || align === 'center' || align === 'right';
+      const at = (r: { x: number; y: number; w: number; h: number }): number =>
+        align === 'left' ? r.x
+        : align === 'right' ? r.x + r.w
+        : align === 'center' ? r.x + r.w / 2
+        : align === 'top' ? r.y
+        : align === 'bottom' ? r.y + r.h
+        : r.y + r.h / 2;
+      let target: number;
+      if (value !== undefined) target = value;
+      else if (to) target = at(blocksOf(schema, [to], 'align_items')[0].rect);
+      else {
+        const vals = sel.map((s) => at(s.rect));
+        target = align === 'right' || align === 'bottom' ? Math.max(...vals)
+          : align === 'left' || align === 'top' ? Math.min(...vals)
+          : vals.reduce((a, b) => a + b, 0) / vals.length;
+      }
+      const moves = new Map<string, { dx: number; dy: number }>();
+      for (const s of sel) {
+        const d = Math.round(target - at(s.rect));
+        if (d !== 0) moves.set(s.ref.key, horizontal ? { dx: d, dy: 0 } : { dx: 0, dy: d });
+      }
+      const writes = await applyMoves(id, schema, moves);
+      return { aligned: sel.length, align, to: Math.round(target), moved: moves.size, writes };
+    },
+  );
+
+  tool(
+    'distribute_items',
+    "Space tables, drawing elements and sequence diagrams out along one axis. With `gap` they are packed edge-to-edge `gap` px apart starting from the first; without it the first and last stay put and the gaps between are made equal (needs 3+ items). Order is by current position unless `keepOrder` uses the order given. Use arrange_grid for rows x columns.",
+    {
+      projectId,
+      items: z.array(z.string()).min(2),
+      axis: enumOf(['x', 'y']).describe("'x' = left to right, 'y' = top to bottom."),
+      gap: z.number().min(0).max(2000).optional(),
+      keepOrder: z.boolean().optional().describe('Use the order of `items` instead of sorting by position.'),
+    },
+    { idempotent: true },
+    async ({ projectId: id, items, axis, gap, keepOrder }) => {
+      const { schema } = await graph(id);
+      const sel = blocksOf(schema, items, 'distribute_items');
+      const pos = (r: { x: number; y: number }): number => (axis === 'x' ? r.x : r.y);
+      const size = (r: { w: number; h: number }): number => (axis === 'x' ? r.w : r.h);
+      if (!keepOrder) sel.sort((a, b) => pos(a.rect) - pos(b.rect));
+      let spacing = gap;
+      if (spacing === undefined) {
+        if (sel.length < 3) throw new UserError('Give `gap`, or at least 3 items to spread between the outer two.');
+        const first = sel[0].rect;
+        const last = sel[sel.length - 1].rect;
+        const span = pos(last) + size(last) - pos(first);
+        spacing = (span - sel.reduce((a, s) => a + size(s.rect), 0)) / (sel.length - 1);
+      }
+      const moves = new Map<string, { dx: number; dy: number }>();
+      let cursor = pos(sel[0].rect);
+      for (const s of sel) {
+        const d = Math.round(cursor - pos(s.rect));
+        if (d !== 0) moves.set(s.ref.key, axis === 'x' ? { dx: d, dy: 0 } : { dx: 0, dy: d });
+        cursor += size(s.rect) + spacing;
+      }
+      const writes = await applyMoves(id, schema, moves);
+      return { distributed: sel.length, axis, gap: Math.round(spacing), moved: moves.size, writes };
+    },
+  );
+
+  tool(
+    'arrange_grid',
+    'Lay tables, drawing elements and sequence diagrams out in a grid, in the order given (row by row). Cells size to the largest item per column/row; items are placed at their cell\'s top-left (or centered with `center`). The grid starts at x/y, or at the selection\'s current top-left.',
+    {
+      projectId,
+      items: z.array(z.string()).min(1),
+      columns: z.number().int().min(1).max(50),
+      gap: z.number().min(0).max(2000).optional().describe('Px between cells (default 48).'),
+      rowGap: z.number().min(0).max(2000).optional().describe('Vertical gap if different from `gap`.'),
+      x: z.number().optional(),
+      y: z.number().optional(),
+      center: z.boolean().optional().describe('Center each item in its cell.'),
+    },
+    { idempotent: true },
+    async ({ projectId: id, items, columns, gap, rowGap, x, y, center }) => {
+      const { schema } = await graph(id);
+      const sel = blocksOf(schema, items, 'arrange_grid');
+      const g = gap ?? 48;
+      const rg = rowGap ?? g;
+      const rows = Math.ceil(sel.length / columns);
+      const colW = Array.from({ length: columns }, (_, c) =>
+        Math.max(0, ...sel.filter((_, i) => i % columns === c).map((s) => s.rect.w)),
+      );
+      const rowH = Array.from({ length: rows }, (_, r) =>
+        Math.max(0, ...sel.slice(r * columns, (r + 1) * columns).map((s) => s.rect.h)),
+      );
+      const bounds = unionOf(sel.map((s) => s.rect)) as { x: number; y: number };
+      const ox = x ?? bounds.x;
+      const oy = y ?? bounds.y;
+      const moves = new Map<string, { dx: number; dy: number }>();
+      sel.forEach((s, i) => {
+        const c = i % columns;
+        const r = Math.floor(i / columns);
+        let cx = ox + colW.slice(0, c).reduce((a, b) => a + b + g, 0);
+        let cy = oy + rowH.slice(0, r).reduce((a, b) => a + b + rg, 0);
+        if (center) {
+          cx += (colW[c] - s.rect.w) / 2;
+          cy += (rowH[r] - s.rect.h) / 2;
+        }
+        const d = { dx: Math.round(cx - s.rect.x), dy: Math.round(cy - s.rect.y) };
+        if (d.dx || d.dy) moves.set(s.ref.key, d);
+      });
+      const writes = await applyMoves(id, schema, moves);
+      return {
+        arranged: sel.length,
+        grid: `${rows}x${columns}`,
+        size: {
+          w: Math.round(colW.reduce((a, b) => a + b, 0) + g * (columns - 1)),
+          h: Math.round(rowH.reduce((a, b) => a + b, 0) + rg * (rows - 1)),
+        },
+        moved: moves.size,
+        writes,
+      };
+    },
+  );
+
+  // ---- Sequence diagram bulk edits ------------------------------------------------------
+
+  tool(
+    'respace_sequence_diagram',
+    "Re-space a sequence diagram in one call - the 'scale' for sequence diagrams: participants evenly `participantSpacing` px apart (left-most stays put), messages evenly `rowSpacing` px apart in their current top-to-bottom order (first row right under the headers), and the diagram's defaults updated so later add_message calls follow. Optionally move the whole diagram to x/y.",
+    {
+      projectId,
+      diagramId: z.string(),
+      participantSpacing: z.number().min(40).max(2000).optional(),
+      rowSpacing: z.number().min(16).max(800).optional(),
+      x: z.number().optional().describe("New center x of the left-most participant's spine."),
+      y: z.number().optional().describe('New top of the diagram (participant headers).'),
+    },
+    { idempotent: true },
+    async ({ projectId: id, diagramId, participantSpacing, rowSpacing, x, y }) => {
+      const { schema } = await graph(id);
+      const d = schema.sequenceDiagrams.find((v) => v.id === diagramId);
+      if (!d) throw new UserError(`No sequence diagram "${diagramId}".`);
+      if (participantSpacing === undefined && rowSpacing === undefined && x === undefined && y === undefined) {
+        throw new UserError('Give participantSpacing, rowSpacing, x or y.');
+      }
+      const lanes = schema.lifelines.filter((l) => l.diagramId === diagramId).sort((a, b) => a.x - b.x);
+      const msgs = schema.sequenceMessages.filter((m) => m.diagramId === diagramId).sort((a, b) => a.y - b.y);
+      const originY = y ?? d.originY;
+      let writes = 0;
+      const startX = x ?? lanes[0]?.x ?? 0;
+      for (const [i, l] of lanes.entries()) {
+        const nx = Math.round(participantSpacing !== undefined ? startX + i * participantSpacing : l.x + (startX - (lanes[0]?.x ?? 0)));
+        if (nx !== Math.round(l.x)) {
+          await api.patch(`/projects/${id}/lifelines/${l.id}/position`, { x: nx });
+          writes += 1;
+        }
+      }
+      for (const [i, m] of msgs.entries()) {
+        const ny = Math.round(
+          rowSpacing !== undefined ? originY + d.headerHeight + rowSpacing * (i + 1) : m.y + (originY - d.originY),
+        );
+        if (ny !== Math.round(m.y)) {
+          await api.patch(`/projects/${id}/messages/${m.id}/position`, { y: ny });
+          writes += 1;
+        }
+      }
+      const patch: Record<string, number> = {};
+      if (participantSpacing !== undefined) patch.lifelineSpacing = participantSpacing;
+      if (rowSpacing !== undefined) patch.rowSpacing = rowSpacing;
+      if (originY !== d.originY) patch.originY = originY;
+      if (Object.keys(patch).length) {
+        await api.patch(`/projects/${id}/sequence-diagrams/${diagramId}`, patch);
+        writes += 1;
+      }
+      return { diagramId, participants: lanes.length, messages: msgs.length, writes };
+    },
+  );
+
+  tool(
+    'update_messages',
+    'Edit many sequence messages in one call (label, style, color, wrap) - e.g. restyle every reply as dashed. Use update_message to change endpoints or morph tags.',
+    {
+      projectId,
+      updates: z
+        .array(
+          z.object({
+            messageId: z.string(),
+            label: z.string().optional(),
+            style: z.enum(['solid', 'dashed', 'break']).optional(),
+            color: z.string().optional().describe('Palette name or #hex; empty string clears.'),
+            wrap: z.boolean().optional(),
+          }),
+        )
+        .min(1),
+    },
+    { idempotent: true },
+    async ({ projectId: id, updates }) => {
+      const { schema } = await graph(id);
+      const missing = updates.filter((u) => !schema.sequenceMessages.some((m) => m.id === u.messageId));
+      if (missing.length) throw new UserError(`No message(s): ${missing.map((u) => u.messageId).join(', ')}.`);
+      for (const u of updates) {
+        const m = schema.sequenceMessages.find((v) => v.id === u.messageId);
+        if (u.style && u.style !== 'break' && m && m.fromLifelineId === m.toLifelineId) {
+          throw new UserError(`Message ${u.messageId} has the same participant at both ends; it can only be a 'break'.`);
+        }
+      }
+      for (const u of updates) {
+        await api.patch(`/projects/${id}/messages/${u.messageId}`, {
+          ...(u.label !== undefined ? { label: u.label } : {}),
+          ...(u.style ? { style: u.style, arrowhead: u.style === 'dashed' ? 'open' : 'arrow' } : {}),
+          ...(u.color !== undefined ? { color: colorArg(u.color, 'the message arrow') } : {}),
+          ...(u.wrap !== undefined ? { wrap: u.wrap } : {}),
+        });
+      }
+      return { updated: updates.length };
+    },
+  );
+
+  // ---- Bulk delete ----------------------------------------------------------------------
+
+  tool(
+    'delete_items',
+    'Permanently delete many things in one call: drawing elements, tables (name/id, their relationships go too), relationships, sequence diagrams, participants and messages, all by id. Slide frames are refused (use delete_slide). Everything is validated before anything is deleted.',
+    {
+      projectId,
+      items: z.array(z.string()).min(1).describe('Ids (or table names).'),
+      confirm: z.literal(true).describe('Must be true. Destructive: confirm the user actually wants these deleted.'),
+    },
+    { destructive: true },
+    async ({ projectId: id, items }) => {
+      const { schema } = await graph(id);
+      const plan: Array<{ path: string; label: string; diagramId?: string; tableId?: string; kind: string }> = [];
+      for (const ref of new Set(items)) {
+        const rel = schema.relationships.find((r) => r.id === ref);
+        if (rel) {
+          plan.push({ kind: 'relationship', path: `/relationships/${rel.id}`, label: `relationship ${rel.id}` });
+          continue;
+        }
+        const r = resolveRef(schema, ref);
+        if (r.kind === 'element') plan.push({ kind: r.kind, path: `/elements/${r.id}`, label: r.id });
+        else if (r.kind === 'table') plan.push({ kind: r.kind, path: `/tables/${r.id}`, label: r.label, tableId: r.id });
+        else if (r.kind === 'diagram') plan.push({ kind: r.kind, path: `/projects/${id}/sequence-diagrams/${r.id}`, label: r.label, diagramId: r.id });
+        else if (r.kind === 'participant') plan.push({ kind: r.kind, path: `/projects/${id}/lifelines/${r.id}`, label: r.label, diagramId: r.diagramId });
+        else plan.push({ kind: r.kind, path: `/projects/${id}/messages/${r.id}`, label: r.label, diagramId: (r as { diagramId: string }).diagramId });
+      }
+      // Skip children whose parent is deleted anyway (cascade), so no 404s mid-way.
+      const goneDiagrams = new Set(plan.filter((p) => p.kind === 'diagram').map((p) => p.diagramId));
+      const goneTables = new Set(plan.filter((p) => p.kind === 'table').map((p) => p.tableId));
+      const tableOf = new Map<string, string>();
+      for (const t of schema.tables) for (const c of t.columns) tableOf.set(c.id, t.id);
+      const steps = plan.filter((p) => {
+        if (p.kind !== 'diagram' && p.diagramId && goneDiagrams.has(p.diagramId)) return false;
+        if (p.kind === 'relationship') {
+          const rel = schema.relationships.find((r) => `/relationships/${r.id}` === p.path);
+          if (rel && (goneTables.has(tableOf.get(rel.sourceColumnId)) || goneTables.has(tableOf.get(rel.targetColumnId)))) return false;
+        }
+        return true;
+      });
+      // Messages before participants (a participant's delete removes its messages).
+      const rank: Record<string, number> = { relationship: 0, message: 1, participant: 2, element: 3, diagram: 4, table: 5 };
+      steps.sort((a, b) => rank[a.kind] - rank[b.kind]);
+      const deleted: string[] = [];
+      const failed: Array<{ item: string; error: string }> = [];
+      for (const s of steps) {
+        try {
+          await api.delete(s.path);
+          deleted.push(`${s.kind} ${s.label}`);
+        } catch (err) {
+          failed.push({ item: `${s.kind} ${s.label}`, error: (err as Error).message });
+        }
+      }
+      return { deleted: deleted.length, items: deleted, ...(failed.length ? { failed } : {}) };
+    },
+  );
+
   // ---- Checks --------------------------------------------------------------------------
 
   tool(

@@ -917,7 +917,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
   tool(
     'move_element',
-    'Move a drawing element (by id) or a table (by name or id) so its top-left is at x,y.',
+    'Move ONE drawing element (by id) or table (by name or id) so its top-left is at x,y. To move several things use move_items; to line them up use align_items / distribute_items / arrange_grid.',
     { projectId, target: z.string(), x: z.number(), y: z.number() },
     { idempotent: true },
     async ({ projectId: id, target, x, y }) => {
