@@ -13,6 +13,7 @@ import {
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
   contrastRatio,
+  estimateTextSize,
   presentationSlides,
   readableTextOn,
   type CanvasElementModel,
@@ -21,6 +22,7 @@ import {
   type SchemaModel,
 } from '@dbdesigner/shared';
 import type { DbDesignerApi } from './api';
+import { Batch } from './batch';
 import { colorArg } from './colors';
 import {
   SEQUENCE_BOX_PAD,
@@ -44,6 +46,37 @@ import {
 } from './layout';
 import { UserError, findTable } from './model';
 import { resolvePresentation, resolveSlide, slideFrames, type ToolFn } from './presentation-tools';
+
+type Rect = { x: number; y: number; w: number; h: number };
+
+/** Slide layouts: named regions on a 1280x720 slide (scaled for other frame sizes). */
+export const SLIDE_LAYOUTS = {
+  title: { title: { x: 64, y: 230, w: 1152, h: 140 }, subtitle: { x: 64, y: 390, w: 1152, h: 90 } },
+  section: { title: { x: 64, y: 280, w: 1152, h: 160 } },
+  'title-content': { title: { x: 64, y: 40, w: 1152, h: 96 }, body: { x: 64, y: 160, w: 1152, h: 512 } },
+  'two-column': {
+    title: { x: 64, y: 40, w: 1152, h: 96 },
+    left: { x: 64, y: 160, w: 560, h: 512 },
+    right: { x: 656, y: 160, w: 560, h: 512 },
+  },
+  'three-column': {
+    title: { x: 64, y: 40, w: 1152, h: 96 },
+    col1: { x: 64, y: 160, w: 357, h: 512 },
+    col2: { x: 461, y: 160, w: 358, h: 512 },
+    col3: { x: 859, y: 160, w: 357, h: 512 },
+  },
+  'content-sidebar': {
+    title: { x: 64, y: 40, w: 1152, h: 96 },
+    main: { x: 64, y: 160, w: 744, h: 512 },
+    side: { x: 840, y: 160, w: 376, h: 512 },
+  },
+  'title-diagram-caption': {
+    title: { x: 64, y: 40, w: 1152, h: 96 },
+    diagram: { x: 64, y: 152, w: 1152, h: 440 },
+    caption: { x: 64, y: 608, w: 1152, h: 72 },
+  },
+  full: { body: { x: 48, y: 48, w: 1184, h: 624 } },
+} as const;
 
 const projectId = z.string().describe('Project id (from list_projects).');
 const slideRef = z
@@ -77,53 +110,45 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   // ---- Write helpers -------------------------------------------------------------------
 
-  /** Shift a sequence diagram: its participants' X, its rows' Y and its origin. */
-  const shiftDiagram = async (pid: string, schema: SchemaModel, diagramId: string, dx: number, dy: number): Promise<number> => {
-    let writes = 0;
+  /** Queue a sequence diagram shift: its participants' X, its rows' Y and its origin. */
+  const shiftDiagram = (batch: Batch, schema: SchemaModel, diagramId: string, dx: number, dy: number): void => {
     const d = schema.sequenceDiagrams.find((x) => x.id === diagramId);
-    if (!d) return 0;
+    if (!d) return;
     if (dx !== 0) {
       for (const l of schema.lifelines.filter((x) => x.diagramId === diagramId)) {
-        await api.patch(`/projects/${pid}/lifelines/${l.id}/position`, { x: l.x + dx });
-        writes += 1;
+        batch.set('lifelines', l.id, { x: Math.round(l.x + dx) });
       }
     }
     if (dy !== 0) {
       for (const m of schema.sequenceMessages.filter((x) => x.diagramId === diagramId)) {
-        await api.patch(`/projects/${pid}/messages/${m.id}/position`, { y: m.y + dy });
-        writes += 1;
+        batch.set('messages', m.id, { y: Math.round(m.y + dy) });
       }
-      await api.patch(`/projects/${pid}/sequence-diagrams/${diagramId}`, { originY: d.originY + dy });
-      writes += 1;
+      batch.set('diagrams', diagramId, { originY: Math.round(d.originY + dy) });
     }
-    return writes;
   };
 
-  /** Move items by per-key (dx, dy); keeps relationship bend points consistent. */
-  const applyMoves = async (
-    pid: string,
+  /** Queue moves by per-key (dx, dy); keeps relationship bend points consistent. */
+  const queueMoves = (
+    batch: Batch,
     schema: SchemaModel,
     moves: ReadonlyMap<string, { dx: number; dy: number }>,
-  ): Promise<number> => {
-    let writes = 0;
+  ): void => {
     const tableMove = new Map<string, { dx: number; dy: number }>();
     for (const t of schema.tables) {
       const m = moves.get(keyOf('table', t.id));
       if (!m || (m.dx === 0 && m.dy === 0)) continue;
-      await api.patch(`/tables/${t.id}/position`, { x: Math.round(t.x + m.dx), y: Math.round(t.y + m.dy) });
+      batch.set('tables', t.id, { x: Math.round(t.x + m.dx), y: Math.round(t.y + m.dy) });
       tableMove.set(t.id, m);
-      writes += 1;
     }
     for (const e of schema.elements) {
       const m = moves.get(keyOf('element', e.id));
       if (!m || (m.dx === 0 && m.dy === 0)) continue;
-      await api.patch(`/elements/${e.id}/position`, { x: Math.round(e.x + m.dx), y: Math.round(e.y + m.dy) });
-      writes += 1;
+      batch.set('elements', e.id, { x: Math.round(e.x + m.dx), y: Math.round(e.y + m.dy) });
     }
     for (const d of schema.sequenceDiagrams) {
       const m = moves.get(keyOf('diagram', d.id));
       if (!m || (m.dx === 0 && m.dy === 0)) continue;
-      writes += await shiftDiagram(pid, schema, d.id, m.dx, m.dy);
+      shiftDiagram(batch, schema, d.id, m.dx, m.dy);
     }
     // Bend points are world coordinates: carry them along when both ends moved the same
     // way, otherwise drop them so the connector re-routes by itself.
@@ -138,44 +163,43 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         a && b && a.dx === b.dx && a.dy === b.dy
           ? r.waypoints.map((w) => ({ x: w.x + a.dx, y: w.y + a.dy }))
           : [];
-      await api.patch(`/relationships/${r.id}`, { waypoints });
-      writes += 1;
+      batch.set('relationships', r.id, { waypoints });
     }
-    return writes;
   };
 
-  /** Persist a ScalePlan (table scales, element sizes, positions, bend points). */
-  const applyScalePlan = async (pid: string, schema: SchemaModel, plan: ScalePlan): Promise<number> => {
-    let writes = 0;
+  /** Move items by per-key (dx, dy) in one atomic batch. */
+  const applyMoves = (
+    pid: string,
+    schema: SchemaModel,
+    moves: ReadonlyMap<string, { dx: number; dy: number }>,
+  ): Promise<number> => {
+    const batch = new Batch();
+    queueMoves(batch, schema, moves);
+    return batch.send(api, pid);
+  };
+
+  /** Persist a ScalePlan (table scales, element sizes, positions, bend points) atomically. */
+  const applyScalePlan = (pid: string, schema: SchemaModel, plan: ScalePlan): Promise<number> => {
+    const batch = new Batch();
+    queueScalePlan(batch, schema, plan);
+    return batch.send(api, pid);
+  };
+
+  /** Queue a ScalePlan (table scales, element sizes, positions, bend points) on a batch. */
+  function queueScalePlan(batch: Batch, schema: SchemaModel, plan: ScalePlan): void {
     for (const t of plan.tables) {
       const cur = schema.tables.find((x) => x.id === t.id);
       if (!cur) continue;
-      await api.patch(`/tables/${t.id}`, { scale: t.scale });
-      writes += 1;
-      if (Math.round(cur.x) !== t.x || Math.round(cur.y) !== t.y) {
-        await api.patch(`/tables/${t.id}/position`, { x: t.x, y: t.y });
-        writes += 1;
-      }
+      batch.set('tables', t.id, { scale: t.scale });
+      if (Math.round(cur.x) !== t.x || Math.round(cur.y) !== t.y) batch.set('tables', t.id, { x: t.x, y: t.y });
     }
     for (const e of plan.elements) {
-      if (Object.keys(e.patch).length) {
-        await api.patch(`/elements/${e.id}`, e.patch);
-        writes += 1;
-      }
-      if (e.position) {
-        await api.patch(`/elements/${e.id}/position`, e.position);
-        writes += 1;
-      }
+      if (Object.keys(e.patch).length) batch.set('elements', e.id, e.patch);
+      if (e.position) batch.set('elements', e.id, e.position);
     }
-    for (const s of plan.diagramShifts) {
-      writes += await shiftDiagram(pid, schema, s.id, s.dx, s.dy);
-    }
-    for (const w of plan.waypoints) {
-      await api.patch(`/relationships/${w.id}`, { waypoints: w.waypoints });
-      writes += 1;
-    }
-    return writes;
-  };
+    for (const s of plan.diagramShifts) shiftDiagram(batch, schema, s.id, s.dx, s.dy);
+    for (const w of plan.waypoints) batch.set('relationships', w.id, { waypoints: w.waypoints });
+  }
 
   const summarizePlan = (plan: ScalePlan, writes: number | null): Record<string, unknown> => ({
     factor: plan.applied,
@@ -217,11 +241,9 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         frames = [resolveSlide(schema, slide, presentation)];
       }
       const results = [];
+      const batch = new Batch();
       for (const frame of frames) {
-        await api.patch(
-          `/elements/${frame.id}`,
-          hex ? { backgroundColor: hex, fillStyle: 'solid' } : { fillStyle: 'none' },
-        );
+        batch.set('elements', frame.id, hex ? { backgroundColor: hex, fillStyle: 'solid' } : { fillStyle: 'none' });
         const lowContrast: Array<{ id: string; label: string; color: string; ratio: number }> = [];
         let recolored = 0;
         if (hex) {
@@ -241,7 +263,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
               ratio: Math.round(ratio * 10) / 10,
             });
             if (recolorText) {
-              await api.patch(`/elements/${e.id}`, { strokeColor: ink });
+              batch.set('elements', e.id, { strokeColor: ink });
               recolored += 1;
             }
           }
@@ -253,6 +275,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
           ...(recolorText ? { recolored } : {}),
         });
       }
+      await batch.send(api, id);
       return {
         updated: results.length,
         slides: results,
@@ -339,6 +362,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         throw new UserError('`text` can only be set on one element at a time.');
       }
       const done: string[] = [];
+      const batch = new Batch();
       const missing = (elements ?? []).filter((eid) => !schema.elements.some((e) => e.id === eid));
       if (missing.length) {
         throw new UserError(`No drawing element(s): ${missing.join(', ')}. Tables go in \`tables\`.`);
@@ -352,7 +376,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         }
         if (body.text !== undefined && el.runs?.length) body.runs = null;
         if (Object.keys(body).length === 0) continue;
-        await api.patch(`/elements/${eid}`, body);
+        batch.set('elements', eid, body);
         done.push(eid);
       }
       const doneTables: string[] = [];
@@ -360,12 +384,13 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         const c = colorArg(headerColor, 'the table header');
         for (const ref of tables ?? []) {
           const t = findTable(schema, ref);
-          await api.patch(`/tables/${t.id}`, { color: c ?? '' });
+          batch.set('tables', t.id, { color: c ?? '' });
           doneTables.push(t.name);
         }
       } else if (tables?.length) {
         throw new UserError('Tables only take `headerColor`.');
       }
+      await batch.send(api, id);
       return { styledElements: done.length, ...(doneTables.length ? { styledTables: doneTables } : {}) };
     },
   );
@@ -614,13 +639,12 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         await api.patch(`/projects/${id}/elements/reorder`, { orderedElementIds: elementOrder });
         writes += 1;
       }
+      const batch = new Batch();
       for (const [did, z] of diagramZ) {
         const cur = schema.sequenceDiagrams.find((d) => d.id === did);
-        if (cur && cur.zIndex !== z) {
-          await api.patch(`/projects/${id}/sequence-diagrams/${did}`, { zIndex: z });
-          writes += 1;
-        }
+        if (cur && cur.zIndex !== z) batch.set('diagrams', did, { zIndex: z });
       }
+      writes += await batch.send(api, id);
       return {
         arranged: items.length,
         op,
@@ -753,47 +777,73 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
     return { kind: 'table', id: t.id, key: keyOf('table', t.id), label: t.name };
   };
 
+  /** Members of a group id (tables, elements, diagrams sharing that groupId), or null. */
+  const groupMembers = (schema: SchemaModel, ref: string): Ref[] | null => {
+    const members: Ref[] = [
+      ...schema.tables.filter((t) => t.groupId === ref).map((t) => ({ kind: 'table' as const, id: t.id, key: keyOf('table', t.id), label: t.name })),
+      ...schema.elements.filter((e) => e.groupId === ref).map((e) => ({ kind: 'element' as const, id: e.id, key: keyOf('element', e.id), label: e.id })),
+      ...schema.sequenceDiagrams.filter((d) => d.groupId === ref).map((d) => ({ kind: 'diagram' as const, id: d.id, key: keyOf('diagram', d.id), label: d.title || d.id })),
+    ];
+    return members.length ? members : null;
+  };
+
+  /** Resolve refs, expanding group ids (from group_items) to their members. */
+  const resolveRefs = (schema: SchemaModel, refs: string[]): Ref[] =>
+    refs.flatMap((r) => groupMembers(schema, r) ?? [resolveRef(schema, r)]);
+
   /** Rects of tables/elements/diagrams by key (lines included, so arrows can be aligned too). */
   const rectsOf = (schema: SchemaModel): Map<string, { x: number; y: number; w: number; h: number }> =>
     new Map(collectItems(schema, { lines: 'all' }).map((i) => [i.key, i.rect]));
 
-  /** Block-level refs (tables, elements, diagrams) with their rects; participants/messages rejected. */
+  /**
+   * Layout blocks: each table / element / diagram ref is one block; a group id is ONE
+   * block (its members keep their arrangement). Participants/messages are rejected.
+   */
   const blocksOf = (schema: SchemaModel, refs: string[], tool: string) => {
     const rects = rectsOf(schema);
     const seen = new Set<string>();
-    const out: Array<{ ref: Ref & { key: string }; rect: { x: number; y: number; w: number; h: number } }> = [];
+    const out: Array<{ keys: string[]; label: string; rect: { x: number; y: number; w: number; h: number } }> = [];
     for (const r of refs) {
-      const ref = resolveRef(schema, r);
-      if (ref.kind === 'participant' || ref.kind === 'message') {
-        throw new UserError(`${tool} works on tables, drawing elements and sequence diagrams; "${r}" is a ${ref.kind} (use move_items).`);
+      const members = groupMembers(schema, r) ?? [resolveRef(schema, r)];
+      const keys: string[] = [];
+      const boxes: Array<{ x: number; y: number; w: number; h: number }> = [];
+      for (const ref of members) {
+        if (ref.kind === 'participant' || ref.kind === 'message') {
+          throw new UserError(`${tool} works on tables, drawing elements, sequence diagrams and groups; "${r}" is a ${ref.kind} (use move_items).`);
+        }
+        if (seen.has(ref.key)) continue;
+        seen.add(ref.key);
+        const rect = rects.get(ref.key);
+        if (!rect) continue;
+        keys.push(ref.key);
+        boxes.push(rect);
       }
-      if (seen.has(ref.key)) continue;
-      seen.add(ref.key);
-      const rect = rects.get(ref.key);
-      if (!rect) throw new UserError(`"${r}" has no size to lay out (an empty diagram or stroke?).`);
-      out.push({ ref, rect });
+      if (!keys.length) {
+        if (members.length === 1 && !rects.get((members[0] as { key: string }).key)) {
+          throw new UserError(`"${r}" has no size to lay out (an empty diagram or stroke?).`);
+        }
+        continue;
+      }
+      out.push({ keys, label: r, rect: unionOf(boxes) as { x: number; y: number; w: number; h: number } });
     }
     return out;
   };
 
-  /** Move blocks plus participants (x) and messages (y); rejects moving a part and its diagram together. */
-  const applyAllMoves = async (
+  /** Move blocks plus participants (x) and messages (y) in one atomic batch. */
+  const applyAllMoves = (
     pid: string,
     schema: SchemaModel,
     blocks: Map<string, { dx: number; dy: number }>,
     parts: Array<{ ref: Ref; d: number }>,
   ): Promise<number> => {
-    let writes = await applyMoves(pid, schema, blocks);
+    const batch = new Batch();
+    queueMoves(batch, schema, blocks);
     for (const { ref, d } of parts) {
       if (d === 0) continue;
-      if (ref.kind === 'participant') {
-        await api.patch(`/projects/${pid}/lifelines/${ref.id}/position`, { x: Math.round(ref.x + d) });
-      } else if (ref.kind === 'message') {
-        await api.patch(`/projects/${pid}/messages/${ref.id}/position`, { y: Math.round(ref.y + d) });
-      }
-      writes += 1;
+      if (ref.kind === 'participant') batch.set('lifelines', ref.id, { x: Math.round(ref.x + d) });
+      else if (ref.kind === 'message') batch.set('messages', ref.id, { y: Math.round(ref.y + d) });
     }
-    return writes;
+    return batch.send(api, pid);
   };
 
   tool(
@@ -841,7 +891,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       };
       // Group move: offset, or translate the selection's bounding box to x/y.
       if (items?.length) {
-        const refs = items.map((r) => resolveRef(schema, r));
+        const refs = resolveRefs(schema, items);
         let gx = dx ?? 0;
         let gy = dy ?? 0;
         if (x !== undefined || y !== undefined) {
@@ -893,7 +943,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
     "Line up tables, drawing elements and sequence diagrams along an edge or center, like the editor's align buttons. By default aligns to the selection's own extreme (left-most left edge, etc.); give `to` (an item id / table name) to align to that item, or `value` for an exact coordinate.",
     {
       projectId,
-      items: z.array(z.string()).min(1).describe('Ids / table names.'),
+      items: z.array(z.string()).min(1).describe('Ids / table names / group ids (a group aligns as one block).'),
       align: enumOf(['left', 'center', 'right', 'top', 'middle', 'bottom']).describe("'center' = horizontal centers, 'middle' = vertical centers."),
       to: z.string().optional().describe('Reference item that stays put.'),
       value: z.number().optional().describe('Exact x (left/center/right) or y (top/middle/bottom) to align to.'),
@@ -922,7 +972,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       const moves = new Map<string, { dx: number; dy: number }>();
       for (const s of sel) {
         const d = Math.round(target - at(s.rect));
-        if (d !== 0) moves.set(s.ref.key, horizontal ? { dx: d, dy: 0 } : { dx: 0, dy: d });
+        if (d !== 0) for (const k of s.keys) moves.set(k, horizontal ? { dx: d, dy: 0 } : { dx: 0, dy: d });
       }
       const writes = await applyMoves(id, schema, moves);
       return { aligned: sel.length, align, to: Math.round(target), moved: moves.size, writes };
@@ -958,7 +1008,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       let cursor = pos(sel[0].rect);
       for (const s of sel) {
         const d = Math.round(cursor - pos(s.rect));
-        if (d !== 0) moves.set(s.ref.key, axis === 'x' ? { dx: d, dy: 0 } : { dx: 0, dy: d });
+        if (d !== 0) for (const k of s.keys) moves.set(k, axis === 'x' ? { dx: d, dy: 0 } : { dx: 0, dy: d });
         cursor += size(s.rect) + spacing;
       }
       const writes = await applyMoves(id, schema, moves);
@@ -1006,7 +1056,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
           cy += (rowH[r] - s.rect.h) / 2;
         }
         const d = { dx: Math.round(cx - s.rect.x), dy: Math.round(cy - s.rect.y) };
-        if (d.dx || d.dy) moves.set(s.ref.key, d);
+        if (d.dx || d.dy) for (const k of s.keys) moves.set(k, d);
       });
       const writes = await applyMoves(id, schema, moves);
       return {
@@ -1019,6 +1069,116 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         moved: moves.size,
         writes,
       };
+    },
+  );
+
+  // ---- Slide layouts ---------------------------------------------------------------------
+
+  tool(
+    'apply_slide_layout',
+    `Arrange what is already on a slide into a standard slide layout in one call: give the layout and which items go in which region; each region's items are scaled down to fit (never up unless allowEnlarge) and placed in the region as a group (their arrangement inside the region is kept). Layouts and regions (1280x720 slide, 64px margins):\n${Object.entries(SLIDE_LAYOUTS)
+      .map(([name, regions]) => `- ${name}: ${Object.keys(regions).join(', ')}`)
+      .join('\n')}\nRegions you leave out are left alone. Use dryRun to get the region rectangles (world coordinates) without changing anything.`,
+    {
+      projectId,
+      slide: z.string().describe('Slide id, or 1-based number (with `presentation`).'),
+      presentation: presentationRef,
+      layout: enumOf(Object.keys(SLIDE_LAYOUTS)),
+      regions: z
+        .record(z.string(), z.array(z.string()))
+        .optional()
+        .describe('Region name -> item ids / table names / group ids, e.g. {"title": ["<textId>"], "left": ["users", "orders"]}.'),
+      align: enumOf(['center', 'start']).optional().describe("Place each region's content centered (default) or at its top-left."),
+      allowEnlarge: z.boolean().optional().describe('Scale small content up to fill its region (default false; titles usually should not).'),
+      dryRun: z.boolean().optional(),
+    },
+    {},
+    async ({ projectId: id, slide, presentation, layout, regions, align, allowEnlarge, dryRun }) => {
+      const { schema } = await graph(id);
+      const frame = resolveSlide(schema, slide, presentation);
+      const spec = SLIDE_LAYOUTS[layout as keyof typeof SLIDE_LAYOUTS] as Record<string, Rect>;
+      const sx = frame.width / 1280;
+      const sy = frame.height / 720;
+      const world = Object.fromEntries(
+        Object.entries(spec).map(([name, r]) => [
+          name,
+          { x: Math.round(frame.x + r.x * sx), y: Math.round(frame.y + r.y * sy), w: Math.round(r.w * sx), h: Math.round(r.h * sy) },
+        ]),
+      ) as Record<string, Rect>;
+      if (dryRun || !regions || Object.keys(regions).length === 0) {
+        return { slide: frame.id, layout, regions: world, ...(dryRun ? { dryRun: true } : { note: 'Give `regions` to place items.' }) };
+      }
+      const unknownRegion = Object.keys(regions).filter((r) => !world[r]);
+      if (unknownRegion.length) {
+        throw new UserError(`Layout "${layout}" has no region(s) ${unknownRegion.join(', ')}; it has ${Object.keys(world).join(', ')}.`);
+      }
+      const batch = new Batch();
+      const placed: Record<string, unknown>[] = [];
+      const used = new Set<string>();
+      // Text boxes wider than their region re-wrap to the region width instead of
+      // shrinking their font (the scale step below then only handles real overflow).
+      const fitted: SchemaModel = { ...schema, elements: schema.elements.map((e) => ({ ...e })) };
+      for (const [name, refs] of Object.entries(regions)) {
+        const region = world[name];
+        for (const ref of refs) {
+          const e = fitted.elements.find((x) => x.id === ref);
+          if (!e || e.type !== 'text' || e.width <= region.w) continue;
+          const size = e.fontSize ?? 20;
+          const text = e.runs?.length ? e.runs.map((r) => r.text).join('') : (e.text ?? '');
+          const lines = text
+            .split('\n')
+            .reduce((n, para) => n + Math.max(1, Math.ceil(estimateTextSize(para, size).width / region.w)), 0);
+          e.width = region.w;
+          e.height = Math.max(e.height, Math.ceil(lines * size * (e.lineHeight ?? 1.25)) + 4);
+          batch.set('elements', e.id, { width: e.width, height: e.height });
+        }
+      }
+      for (const [name, refs] of Object.entries(regions)) {
+        if (!refs.length) continue;
+        const blocks = blocksOf(fitted, refs, 'apply_slide_layout');
+        const keys = blocks.flatMap((b) => b.keys);
+        const dup = keys.find((k) => used.has(k));
+        if (dup) throw new UserError(`An item is listed in two regions (${dup}).`);
+        keys.forEach((k) => used.add(k));
+        const sel = {
+          tableIds: new Set(keys.filter((k) => k.startsWith('table:')).map((k) => k.slice(6))),
+          elementIds: new Set(keys.filter((k) => k.startsWith('element:')).map((k) => k.slice(8))),
+          diagramIds: new Set(keys.filter((k) => k.startsWith('diagram:')).map((k) => k.slice(8))),
+        };
+        const bounds = unionOf(blocks.map((b) => b.rect)) as Rect;
+        const region = world[name];
+        const wanted = Math.min(region.w / Math.max(1, bounds.w), region.h / Math.max(1, bounds.h));
+        const factor = allowEnlarge ? wanted : Math.min(1, wanted);
+        const first = planScale(fitted, sel, { factor });
+        const w = bounds.w * first.applied;
+        const h = bounds.h * first.applied;
+        const tx = align === 'start' ? region.x : region.x + Math.max(0, (region.w - w) / 2);
+        const ty = align === 'start' ? region.y : region.y + Math.max(0, (region.h - h) / 2);
+        const plan = planScale(fitted, sel, {
+          factor,
+          translate: { dx: Math.round(tx - bounds.x), dy: Math.round(ty - bounds.y) },
+        });
+        queueScalePlan(batch, fitted, plan);
+        placed.push({
+          region: name,
+          items: keys.length,
+          factor: Math.round(plan.applied * 100) / 100,
+          ...(w > region.w + 1 || h > region.h + 1 ? { warning: 'still larger than the region (tables cannot shrink further)' } : {}),
+        });
+      }
+      // Items moved onto the slide should belong to it.
+      for (const k of used) {
+        const [kind, iid] = [k.slice(0, k.indexOf(':')), k.slice(k.indexOf(':') + 1)];
+        const owner =
+          kind === 'table' ? schema.tables.find((t) => t.id === iid)?.slideId
+          : kind === 'element' ? schema.elements.find((e) => e.id === iid)?.slideId
+          : schema.sequenceDiagrams.find((d) => d.id === iid)?.slideId;
+        if (owner !== frame.id) {
+          batch.set(kind === 'table' ? 'tables' : kind === 'element' ? 'elements' : 'diagrams', iid, { slideId: frame.id });
+        }
+      }
+      const writes = await batch.send(api, id);
+      return { slide: frame.id, layout, placed, writes };
     },
   );
 
@@ -1046,32 +1206,24 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       const lanes = schema.lifelines.filter((l) => l.diagramId === diagramId).sort((a, b) => a.x - b.x);
       const msgs = schema.sequenceMessages.filter((m) => m.diagramId === diagramId).sort((a, b) => a.y - b.y);
       const originY = y ?? d.originY;
-      let writes = 0;
+      const batch = new Batch();
       const startX = x ?? lanes[0]?.x ?? 0;
       for (const [i, l] of lanes.entries()) {
         const nx = Math.round(participantSpacing !== undefined ? startX + i * participantSpacing : l.x + (startX - (lanes[0]?.x ?? 0)));
-        if (nx !== Math.round(l.x)) {
-          await api.patch(`/projects/${id}/lifelines/${l.id}/position`, { x: nx });
-          writes += 1;
-        }
+        if (nx !== Math.round(l.x)) batch.set('lifelines', l.id, { x: nx });
       }
       for (const [i, m] of msgs.entries()) {
         const ny = Math.round(
           rowSpacing !== undefined ? originY + d.headerHeight + rowSpacing * (i + 1) : m.y + (originY - d.originY),
         );
-        if (ny !== Math.round(m.y)) {
-          await api.patch(`/projects/${id}/messages/${m.id}/position`, { y: ny });
-          writes += 1;
-        }
+        if (ny !== Math.round(m.y)) batch.set('messages', m.id, { y: ny });
       }
       const patch: Record<string, number> = {};
       if (participantSpacing !== undefined) patch.lifelineSpacing = participantSpacing;
       if (rowSpacing !== undefined) patch.rowSpacing = rowSpacing;
       if (originY !== d.originY) patch.originY = originY;
-      if (Object.keys(patch).length) {
-        await api.patch(`/projects/${id}/sequence-diagrams/${diagramId}`, patch);
-        writes += 1;
-      }
+      if (Object.keys(patch).length) batch.set('diagrams', diagramId, patch);
+      const writes = await batch.send(api, id);
       return { diagramId, participants: lanes.length, messages: msgs.length, writes };
     },
   );
@@ -1104,14 +1256,16 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
           throw new UserError(`Message ${u.messageId} has the same participant at both ends; it can only be a 'break'.`);
         }
       }
+      const batch = new Batch();
       for (const u of updates) {
-        await api.patch(`/projects/${id}/messages/${u.messageId}`, {
+        batch.set('messages', u.messageId, {
           ...(u.label !== undefined ? { label: u.label } : {}),
           ...(u.style ? { style: u.style, arrowhead: u.style === 'dashed' ? 'open' : 'arrow' } : {}),
           ...(u.color !== undefined ? { color: colorArg(u.color, 'the message arrow') } : {}),
           ...(u.wrap !== undefined ? { wrap: u.wrap } : {}),
         });
       }
+      await batch.send(api, id);
       return { updated: updates.length };
     },
   );
@@ -1120,7 +1274,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   tool(
     'delete_items',
-    'Permanently delete many things in one call: drawing elements, tables (name/id, their relationships go too), relationships, sequence diagrams, participants and messages, all by id. Slide frames are refused (use delete_slide). Everything is validated before anything is deleted.',
+    'Permanently delete many things in one call: drawing elements, tables (name/id, their relationships go too), relationships, sequence diagrams, participants and messages, all by id. Slide frames are refused (use delete_slide). Atomic: one transaction, so either everything is deleted or nothing is.',
     {
       projectId,
       items: z.array(z.string()).min(1).describe('Ids (or table names).'),
@@ -1129,47 +1283,24 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
     { destructive: true },
     async ({ projectId: id, items }) => {
       const { schema } = await graph(id);
-      const plan: Array<{ path: string; label: string; diagramId?: string; tableId?: string; kind: string }> = [];
+      const batch = new Batch();
+      const labels: string[] = [];
+      const section = { element: 'elements', table: 'tables', diagram: 'diagrams', participant: 'lifelines', message: 'messages' } as const;
       for (const ref of new Set(items)) {
         const rel = schema.relationships.find((r) => r.id === ref);
         if (rel) {
-          plan.push({ kind: 'relationship', path: `/relationships/${rel.id}`, label: `relationship ${rel.id}` });
+          batch.delete('relationships', rel.id);
+          labels.push(`relationship ${rel.id}`);
           continue;
         }
-        const r = resolveRef(schema, ref);
-        if (r.kind === 'element') plan.push({ kind: r.kind, path: `/elements/${r.id}`, label: r.id });
-        else if (r.kind === 'table') plan.push({ kind: r.kind, path: `/tables/${r.id}`, label: r.label, tableId: r.id });
-        else if (r.kind === 'diagram') plan.push({ kind: r.kind, path: `/projects/${id}/sequence-diagrams/${r.id}`, label: r.label, diagramId: r.id });
-        else if (r.kind === 'participant') plan.push({ kind: r.kind, path: `/projects/${id}/lifelines/${r.id}`, label: r.label, diagramId: r.diagramId });
-        else plan.push({ kind: r.kind, path: `/projects/${id}/messages/${r.id}`, label: r.label, diagramId: (r as { diagramId: string }).diagramId });
-      }
-      // Skip children whose parent is deleted anyway (cascade), so no 404s mid-way.
-      const goneDiagrams = new Set(plan.filter((p) => p.kind === 'diagram').map((p) => p.diagramId));
-      const goneTables = new Set(plan.filter((p) => p.kind === 'table').map((p) => p.tableId));
-      const tableOf = new Map<string, string>();
-      for (const t of schema.tables) for (const c of t.columns) tableOf.set(c.id, t.id);
-      const steps = plan.filter((p) => {
-        if (p.kind !== 'diagram' && p.diagramId && goneDiagrams.has(p.diagramId)) return false;
-        if (p.kind === 'relationship') {
-          const rel = schema.relationships.find((r) => `/relationships/${r.id}` === p.path);
-          if (rel && (goneTables.has(tableOf.get(rel.sourceColumnId)) || goneTables.has(tableOf.get(rel.targetColumnId)))) return false;
-        }
-        return true;
-      });
-      // Messages before participants (a participant's delete removes its messages).
-      const rank: Record<string, number> = { relationship: 0, message: 1, participant: 2, element: 3, diagram: 4, table: 5 };
-      steps.sort((a, b) => rank[a.kind] - rank[b.kind]);
-      const deleted: string[] = [];
-      const failed: Array<{ item: string; error: string }> = [];
-      for (const s of steps) {
-        try {
-          await api.delete(s.path);
-          deleted.push(`${s.kind} ${s.label}`);
-        } catch (err) {
-          failed.push({ item: `${s.kind} ${s.label}`, error: (err as Error).message });
+        for (const r of groupMembers(schema, ref) ?? [resolveRef(schema, ref)]) {
+          batch.delete(section[r.kind], r.id);
+          labels.push(`${r.kind} ${r.label}`);
         }
       }
-      return { deleted: deleted.length, items: deleted, ...(failed.length ? { failed } : {}) };
+      // One transaction: everything goes, or (on any error) nothing does.
+      await batch.send(api, id);
+      return { deleted: labels.length, items: labels };
     },
   );
 

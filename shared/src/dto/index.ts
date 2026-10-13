@@ -157,6 +157,11 @@ export interface ImportIntoProjectDto {
   file: ProjectExportFile;
   /** World point to place the content's top-left corner at (e.g. the visible canvas). */
   anchor?: { x: number; y: number };
+  /**
+   * Keep slide ownership and arrow bindings that point at items already in this
+   * project (normally they are dropped). For duplicating content in place.
+   */
+  linkExisting?: boolean;
 }
 /**
  * What the merge added, as the same mutations broadcast to collaborators. The
@@ -477,4 +482,32 @@ export interface ShareLinkResponse {
   createdAt: string;
   expiresAt: string | null;
   revokedAt: string | null;
+}
+
+// --- Batch (PATCH /projects/:projectId/batch) ---
+/**
+ * Many granular edits applied atomically in one transaction (all or nothing), then
+ * broadcast as ordinary realtime mutations. Each entry is `{ id, ...patch }` using the
+ * same fields as the matching granular PATCH; tables also take x/y, participants x and
+ * messages y. Relationships take everything but endpoint re-pointing.
+ */
+export interface BatchUpdateDto {
+  tables?: Array<{ id: string; x?: number; y?: number } & UpdateTableDto>;
+  elements?: Array<{ id: string } & UpdateElementDto>;
+  diagrams?: Array<{ id: string } & UpdateSequenceDiagramDto>;
+  lifelines?: Array<{ id: string; x?: number } & UpdateLifelineDto>;
+  messages?: Array<{ id: string; y?: number } & UpdateSequenceMessageDto>;
+  relationships?: Array<{ id: string } & Omit<UpdateRelationshipDto, 'sourceColumnId' | 'targetColumnId'>>;
+  /** Ids to delete (children of a deleted parent go with it). */
+  deletes?: {
+    tables?: string[];
+    elements?: string[];
+    relationships?: string[];
+    diagrams?: string[];
+    lifelines?: string[];
+    messages?: string[];
+  };
+}
+export interface BatchUpdateResponse {
+  mutations: SchemaMutation[];
 }

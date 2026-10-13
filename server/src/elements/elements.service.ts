@@ -120,7 +120,7 @@ export class ElementsService {
   ): Promise<CanvasElementModel> {
     const projectId = await this.access.assertCanWriteElement(elementId, userId, shareToken);
     const element = await this.findOrThrow(elementId);
-    this.applyPatch(element, dto);
+    applyElementPatch(element, dto);
     await this.elements.save(element);
     const model = toElementModel(element);
     this.realtime.emit(projectId, clientId, { kind: 'element.updated', element: model });
@@ -191,84 +191,6 @@ export class ElementsService {
     this.realtime.emit(projectId, clientId, { kind: 'element.deleted', elementId });
   }
 
-  /** Apply an update DTO onto an entity, translating points/bindings to columns. */
-  private applyPatch(element: ElementEntity, dto: UpdateElementDto): void {
-    const scalarKeys = [
-      'x',
-      'y',
-      'width',
-      'height',
-      'angle',
-      'strokeColor',
-      'strokeWidth',
-      'strokeStyle',
-      'fillStyle',
-      'opacity',
-      'zIndex',
-      'cornerRadius',
-      'fontSize',
-      'fontFamily',
-      'bold',
-      'italic',
-      'lineHeight',
-      'wrap',
-      'textAlign',
-      'verticalAlign',
-      'startArrowhead',
-      'endArrowhead',
-      'curvature',
-      'language',
-    ] as const;
-    for (const key of scalarKeys) {
-      if (dto[key] !== undefined) {
-        // Each key maps to an identically-named column of the matching type.
-        (element as unknown as Record<string, unknown>)[key] = dto[key];
-      }
-    }
-    // Nullable fields: a present value sets it, an explicit clear is handled below.
-    if (dto.backgroundColor !== undefined) {
-      element.backgroundColor = dto.backgroundColor;
-    }
-    if (dto.expandedHeight !== undefined && element.type === 'code') {
-      element.expandedHeight = dto.expandedHeight;
-    }
-    if (dto.fileName !== undefined && element.type === 'code') {
-      element.fileName = dto.fileName.trim() || null;
-    }
-    if (dto.text !== undefined) {
-      element.text = dto.text;
-    }
-    if (dto.points !== undefined) {
-      element.pointsJson = JSON.stringify(dto.points);
-    }
-    if (dto.runs !== undefined) {
-      element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;
-    }
-    if (dto.groupId !== undefined) {
-      element.groupId = dto.groupId;
-    }
-    if (dto.slide !== undefined && element.type === 'frame') {
-      element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
-    }
-    if (dto.morphId !== undefined) {
-      element.morphId = dto.morphId;
-    }
-    if (dto.step !== undefined) {
-      element.step = dto.step;
-    }
-    if (dto.slideId !== undefined) {
-      element.slideId = dto.slideId;
-    }
-    if (dto.startBinding !== undefined) {
-      element.startBindingKind = dto.startBinding?.targetKind ?? null;
-      element.startBindingId = dto.startBinding?.targetId ?? null;
-    }
-    if (dto.endBinding !== undefined) {
-      element.endBindingKind = dto.endBinding?.targetKind ?? null;
-      element.endBindingId = dto.endBinding?.targetId ?? null;
-    }
-  }
-
   /** Next stacking index for a project (max existing + 1, or 0). */
   private async nextZIndex(projectId: string): Promise<number> {
     const top = await this.elements.findOne({
@@ -285,5 +207,83 @@ export class ElementsService {
       throw new NotFoundException(`Element ${elementId} not found.`);
     }
     return element;
+  }
+}
+
+/** Apply an update DTO onto an entity, translating points/bindings to columns. */
+export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto): void {
+  const scalarKeys = [
+    'x',
+    'y',
+    'width',
+    'height',
+    'angle',
+    'strokeColor',
+    'strokeWidth',
+    'strokeStyle',
+    'fillStyle',
+    'opacity',
+    'zIndex',
+    'cornerRadius',
+    'fontSize',
+    'fontFamily',
+    'bold',
+    'italic',
+    'lineHeight',
+    'wrap',
+    'textAlign',
+    'verticalAlign',
+    'startArrowhead',
+    'endArrowhead',
+    'curvature',
+    'language',
+  ] as const;
+  for (const key of scalarKeys) {
+    if (dto[key] !== undefined) {
+      // Each key maps to an identically-named column of the matching type.
+      (element as unknown as Record<string, unknown>)[key] = dto[key];
+    }
+  }
+  // Nullable fields: a present value sets it, an explicit clear is handled below.
+  if (dto.backgroundColor !== undefined) {
+    element.backgroundColor = dto.backgroundColor;
+  }
+  if (dto.expandedHeight !== undefined && element.type === 'code') {
+    element.expandedHeight = dto.expandedHeight;
+  }
+  if (dto.fileName !== undefined && element.type === 'code') {
+    element.fileName = dto.fileName.trim() || null;
+  }
+  if (dto.text !== undefined) {
+    element.text = dto.text;
+  }
+  if (dto.points !== undefined) {
+    element.pointsJson = JSON.stringify(dto.points);
+  }
+  if (dto.runs !== undefined) {
+    element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;
+  }
+  if (dto.groupId !== undefined) {
+    element.groupId = dto.groupId;
+  }
+  if (dto.slide !== undefined && element.type === 'frame') {
+    element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
+  }
+  if (dto.morphId !== undefined) {
+    element.morphId = dto.morphId;
+  }
+  if (dto.step !== undefined) {
+    element.step = dto.step;
+  }
+  if (dto.slideId !== undefined) {
+    element.slideId = dto.slideId;
+  }
+  if (dto.startBinding !== undefined) {
+    element.startBindingKind = dto.startBinding?.targetKind ?? null;
+    element.startBindingId = dto.startBinding?.targetId ?? null;
+  }
+  if (dto.endBinding !== undefined) {
+    element.endBindingKind = dto.endBinding?.targetKind ?? null;
+    element.endBindingId = dto.endBinding?.targetId ?? null;
   }
 }

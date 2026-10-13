@@ -18,7 +18,12 @@ export const INSTRUCTIONS = [
   "Morph: text animates by character by default; set transition.morphBy to word or object to coarsen it. Tag single words with runs[].morph, and sequence participants/messages/diagrams with a morph tag, only when automatic matching (by name and wording) pairs them wrongly; check with preview_morph.",
   "Presentations: every slide uses a 300ms morph transition by default (leave transitions unset). Objects get unique morph ids, so only items you deliberately share a `morph` tag between slides animate; share sparingly, and check with preview_morph.",
   "Slide backgrounds: set `background` on a slide (create_presentation / add_slides) or use set_slide_background - never draw a rectangle behind the content. Recolor existing shapes, text, code blocks and table headers with style_elements (palette swatches).",
-  "Layout: after building or editing, run check_layout (overlaps, content past the slide edge, text that does not fit). Fix with fit_to_bounds (slides), scale_tables / scale_items (sizes), compact_layout (tighten gaps), move_items / align_items / distribute_items / arrange_grid (many items in one call; never loop move_element), respace_sequence_diagram, and arrange_layers (front/back; list_layers shows the order)."
+  "Layout: after building or editing, run check_layout (overlaps, content past the slide edge, text that does not fit). Fix with fit_to_bounds (slides), scale_tables / scale_items (sizes), compact_layout (tighten gaps), move_items / align_items / distribute_items / arrange_grid (many items in one call; never loop move_element), respace_sequence_diagram, and arrange_layers (front/back; list_layers shows the order).",
+  "See your work: render_preview returns a PNG of a slide, region or the canvas (showIds labels items) - look at it after building or rearranging. find_items gives ids WITH positions; get_items_detail gives full properties.",
+  "Batch over loops: move_items, delete_items, update_messages, connect_items (many arrows), duplicate_items, group_items/ungroup_items each take many items in one call. Group ids work wherever items are accepted.",
+  "Slides: duplicate_slide copies a slide (keeping morph pairing) for step-by-step builds; apply_slide_layout places existing items into named regions (title, two-column, ...).",
+  "Schemas from SQL: diff_schema / apply_schema_changes read CREATE TABLE / ALTER TABLE DDL (Postgres, MySQL, SQLite, SQL Server).",
+  "Mistakes: undo_last_change reverts the most recent change(s) this session made (list_changes shows them)."
 ].join('\n');
 
 export function createServer(api: DbDesignerApi): McpServer {

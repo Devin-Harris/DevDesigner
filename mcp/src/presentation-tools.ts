@@ -55,6 +55,7 @@ import {
   type SlideSpec,
 } from '@dbdesigner/shared';
 import type { DbDesignerApi } from './api';
+import { Batch } from './batch';
 import { loadImage } from './images';
 import { UserError } from './model';
 
@@ -405,8 +406,8 @@ function contentBottom(schema: SchemaModel, frame: Frame): number {
 
 /**
  * Persist the differences between two versions of a schema (positions, slide
- * ownership, slide frame size) through the granular endpoints. Used to move slides
- * back onto their presentation's spot.
+ * ownership, slide frame size) as one atomic batch. Used to move slides back onto
+ * their presentation's spot. Returns how many items were written.
  */
 export async function applyLayoutDiff(
   api: DbDesignerApi,
@@ -414,76 +415,49 @@ export async function applyLayoutDiff(
   before: SchemaModel,
   after: SchemaModel,
 ): Promise<number> {
-  let changed = 0;
+  const batch = new Batch();
   const was = <T extends { id: string }>(list: readonly T[]): Map<string, T> =>
     new Map(list.map((x) => [x.id, x]));
   const els = was(before.elements);
   for (const e of after.elements) {
     const b = els.get(e.id);
     if (!b) continue;
-    if ((e.slideId ?? null) !== (b.slideId ?? null)) {
-      await api.patch(`/elements/${e.id}`, { slideId: e.slideId ?? null });
-      changed += 1;
-    }
-    if (e.width !== b.width || e.height !== b.height) {
-      await api.patch(`/elements/${e.id}`, { width: e.width, height: e.height });
-      changed += 1;
-    }
-    if (e.x !== b.x || e.y !== b.y) {
-      await api.patch(`/elements/${e.id}/position`, { x: e.x, y: e.y });
-      changed += 1;
-    }
+    if ((e.slideId ?? null) !== (b.slideId ?? null)) batch.set('elements', e.id, { slideId: e.slideId ?? null });
+    if (e.width !== b.width || e.height !== b.height) batch.set('elements', e.id, { width: e.width, height: e.height });
+    if (e.x !== b.x || e.y !== b.y) batch.set('elements', e.id, { x: e.x, y: e.y });
   }
   const tables = was(before.tables);
   for (const t of after.tables) {
     const b = tables.get(t.id);
     if (!b) continue;
-    if ((t.slideId ?? null) !== (b.slideId ?? null)) {
-      await api.patch(`/tables/${t.id}`, { slideId: t.slideId ?? null });
-      changed += 1;
-    }
-    if (t.x !== b.x || t.y !== b.y) {
-      await api.patch(`/tables/${t.id}/position`, { x: t.x, y: t.y });
-      changed += 1;
-    }
+    if ((t.slideId ?? null) !== (b.slideId ?? null)) batch.set('tables', t.id, { slideId: t.slideId ?? null });
+    if (t.x !== b.x || t.y !== b.y) batch.set('tables', t.id, { x: t.x, y: t.y });
   }
   const diagrams = was(before.sequenceDiagrams);
   for (const d of after.sequenceDiagrams) {
     const b = diagrams.get(d.id);
     if (!b) continue;
-    const patch: Record<string, unknown> = {};
-    if ((d.slideId ?? null) !== (b.slideId ?? null)) patch.slideId = d.slideId ?? null;
-    if (d.originY !== b.originY) patch.originY = d.originY;
-    if (Object.keys(patch).length) {
-      await api.patch(`/projects/${projectId}/sequence-diagrams/${d.id}`, patch);
-      changed += 1;
-    }
+    if ((d.slideId ?? null) !== (b.slideId ?? null)) batch.set('diagrams', d.id, { slideId: d.slideId ?? null });
+    if (d.originY !== b.originY) batch.set('diagrams', d.id, { originY: d.originY });
   }
   const lifelines = was(before.lifelines);
   for (const l of after.lifelines) {
     const b = lifelines.get(l.id);
-    if (b && l.x !== b.x) {
-      await api.patch(`/projects/${projectId}/lifelines/${l.id}/position`, { x: l.x });
-      changed += 1;
-    }
+    if (b && l.x !== b.x) batch.set('lifelines', l.id, { x: l.x });
   }
   const messages = was(before.sequenceMessages);
   for (const m of after.sequenceMessages) {
     const b = messages.get(m.id);
-    if (b && m.y !== b.y) {
-      await api.patch(`/projects/${projectId}/messages/${m.id}/position`, { y: m.y });
-      changed += 1;
-    }
+    if (b && m.y !== b.y) batch.set('messages', m.id, { y: m.y });
   }
   const rels = was(before.relationships);
   for (const r of after.relationships) {
     const b = rels.get(r.id);
     if (b && JSON.stringify(r.waypoints ?? []) !== JSON.stringify(b.waypoints ?? [])) {
-      await api.patch(`/relationships/${r.id}`, { waypoints: r.waypoints ?? [] });
-      changed += 1;
+      batch.set('relationships', r.id, { waypoints: r.waypoints ?? [] });
     }
   }
-  return changed;
+  return batch.send(api, projectId);
 }
 
 export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): void {
@@ -494,14 +468,14 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
     (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file })).mutations;
 
   /** Write the new slide order (0..n-1) for slides given in presentation order. */
-  const applyOrder = async (orderedIds: string[], schema: SchemaModel): Promise<void> => {
+  const applyOrder = async (pid: string, orderedIds: string[], schema: SchemaModel): Promise<void> => {
+    const batch = new Batch();
     for (const [i, frameId] of orderedIds.entries()) {
       const f = schema.elements.find((e) => e.id === frameId);
       const slide = f?.slide;
-      if (slide && slide.order !== i) {
-        await api.patch(`/elements/${frameId}`, { slide: { ...slide, order: i } });
-      }
+      if (slide && slide.order !== i) batch.set('elements', frameId, { slide: { ...slide, order: i } });
     }
+    await batch.send(api, pid);
   };
 
   tool(
@@ -633,7 +607,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         const rest = presentationSlides(slideFrames(fresh), name).filter((f) => !createdIds.has(f.id));
         const at = rest.findIndex((f) => f.id === after.id) + 1;
         const ordered = [...rest.slice(0, at), ...created, ...rest.slice(at)].map((f) => f.id);
-        await applyOrder(ordered, fresh);
+        await applyOrder(id, ordered, fresh);
       }
       return {
         presentation: name,
@@ -783,22 +757,22 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       if (!same) {
         throw new UserError(`orderedSlideIds must list exactly: ${own.map((f) => f.id).join(', ')}.`);
       }
-      await applyOrder(orderedSlideIds, schema);
+      await applyOrder(id, orderedSlideIds, schema);
       return { presentation: name, reordered: own.length };
     },
   );
 
   const deleteSlideFrames = async (id: string, schema: SchemaModel, frames: Frame[]): Promise<number> => {
-    let removed = 0;
+    // One atomic batch: the slides and everything they own go together.
+    const batch = new Batch();
     for (const frame of frames) {
       const own = ownedBy(schema, frame.id);
-      for (const e of own.elements) await api.delete(`/elements/${e.id}`);
-      for (const t of own.tableIds) await api.delete(`/tables/${t}`);
-      for (const d of own.diagramIds) await api.delete(`/projects/${id}/sequence-diagrams/${d}`);
-      await api.delete(`/elements/${frame.id}`);
-      removed += own.elements.length + own.tableIds.length + own.diagramIds.length + 1;
+      for (const e of own.elements) batch.delete('elements', e.id);
+      for (const t of own.tableIds) batch.delete('tables', t);
+      for (const d of own.diagramIds) batch.delete('diagrams', d);
+      batch.delete('elements', frame.id);
     }
-    return removed;
+    return batch.send(api, id);
   };
 
   tool(

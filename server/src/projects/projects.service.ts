@@ -18,6 +18,8 @@ import { ElementsService } from '../elements/elements.service';
 import { SequenceService } from '../sequence/sequence.service';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
+import { ElementEntity } from '../elements/element.entity';
+import { TableEntity } from '../tables/table.entity';
 import { Project } from './project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -253,21 +255,38 @@ export class ProjectsService {
     clientId: string | null,
   ): Promise<ImportIntoProjectResponse> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
-    const { file, anchor } = (body ?? {}) as { file?: unknown; anchor?: { x?: unknown; y?: unknown } };
+    const { file, anchor, linkExisting } = (body ?? {}) as {
+      file?: unknown;
+      anchor?: { x?: unknown; y?: unknown };
+      linkExisting?: unknown;
+    };
     const parsed = parseProjectExport(file);
     const { dx, dy } =
       anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)
         ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
         : { dx: 0, dy: 0 };
     const images = this.decodeImages(parsed.images);
-    const added = await this.dataSource.transaction((manager) =>
-      writeSchemaInto(manager, projectId, parsed.schema, {
+    const added = await this.dataSource.transaction(async (manager) => {
+      // Optionally let slide ownership / arrow bindings point at content already here.
+      const linked =
+        linkExisting === true
+          ? {
+              elementIds: new Set(
+                (await manager.find(ElementEntity, { where: { projectId }, select: { id: true } })).map((e) => e.id),
+              ),
+              tableIds: new Set(
+                (await manager.find(TableEntity, { where: { projectId }, select: { id: true } })).map((t) => t.id),
+              ),
+            }
+          : undefined;
+      return writeSchemaInto(manager, projectId, parsed.schema, {
         dx,
         dy,
         stackAboveExisting: true,
         images,
-      }),
-    );
+        linkExisting: linked,
+      });
+    });
     // Parents before children so peers never see a dangling reference.
     const mutations: SchemaMutation[] = [
       ...added.tables.map((table): SchemaMutation => ({ kind: 'table.created', table })),

@@ -73,27 +73,7 @@ export class TablesService {
   ): Promise<TableModel> {
     const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.findOrThrow(tableId);
-    if (dto.name !== undefined) {
-      table.name = dto.name;
-    }
-    if (dto.color !== undefined) {
-      table.color = dto.color;
-    }
-    if (dto.note !== undefined) {
-      table.note = dto.note;
-    }
-    if (dto.width !== undefined) {
-      table.width = dto.width > 0 ? dto.width : null;
-    }
-    if (dto.scale !== undefined) {
-      table.scale = dto.scale > 0 && dto.scale !== 1 ? dto.scale : null;
-    }
-    if (dto.groupId !== undefined) {
-      table.groupId = dto.groupId;
-    }
-    if (dto.slideId !== undefined) {
-      table.slideId = dto.slideId;
-    }
+    applyTablePatch(table, dto);
     await this.tables.save(table);
     const model = await this.getModel(tableId);
     this.realtime.emit(projectId, clientId, { kind: 'table.updated', table: model });
@@ -152,5 +132,30 @@ export class TablesService {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
     return table;
+  }
+}
+
+/** Apply an update DTO onto a table entity (shared with the batch endpoint). */
+export function applyTablePatch(table: TableEntity, dto: UpdateTableDto): void {
+  if (dto.name !== undefined) {
+    table.name = dto.name;
+  }
+  if (dto.color !== undefined) {
+    table.color = dto.color;
+  }
+  if (dto.note !== undefined) {
+    table.note = dto.note;
+  }
+  if (dto.width !== undefined) {
+    table.width = dto.width > 0 ? dto.width : null;
+  }
+  if (dto.scale !== undefined) {
+    table.scale = dto.scale > 0 && dto.scale !== 1 ? dto.scale : null;
+  }
+  if (dto.groupId !== undefined) {
+    table.groupId = dto.groupId;
+  }
+  if (dto.slideId !== undefined) {
+    table.slideId = dto.slideId;
   }
 }

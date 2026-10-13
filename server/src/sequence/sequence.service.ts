@@ -108,16 +108,7 @@ export class SequenceService {
   ): Promise<SequenceDiagramModel> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.diagramOrThrow(projectId, diagramId);
-    if (dto.lifelineSpacing !== undefined) entity.lifelineSpacing = dto.lifelineSpacing;
-    if (dto.rowSpacing !== undefined) entity.rowSpacing = dto.rowSpacing;
-    if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
-    if (dto.originY !== undefined) entity.originY = dto.originY;
-    if (dto.zIndex !== undefined) entity.zIndex = dto.zIndex;
-    if (dto.groupId !== undefined) entity.groupId = dto.groupId;
-    if (dto.slideId !== undefined) entity.slideId = dto.slideId;
-    if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
-    if (dto.title !== undefined) entity.title = dto.title.trim() || null;
-    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
+    applyDiagramPatch(entity, dto);
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.updated', diagram: model });
@@ -179,11 +170,7 @@ export class SequenceService {
   ): Promise<LifelineModel> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.lifelineOrThrow(projectId, lifelineId);
-    if (dto.label !== undefined) entity.label = dto.label;
-    if (dto.color !== undefined) entity.color = dto.color;
-    if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
-    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
-    if (dto.width !== undefined) entity.width = dto.width;
+    applyLifelinePatch(entity, dto);
     const saved = await this.lifelines.save(entity);
     const model = toLifelineModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'lifeline.updated', lifeline: model });
@@ -268,18 +255,7 @@ export class SequenceService {
   ): Promise<SequenceMessageModel> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.messageOrThrow(projectId, messageId);
-    if (dto.fromLifelineId !== undefined) entity.fromLifelineId = dto.fromLifelineId;
-    if (dto.toLifelineId !== undefined) entity.toLifelineId = dto.toLifelineId;
-    if (dto.label !== undefined) entity.label = dto.label;
-    if (dto.style !== undefined) entity.style = dto.style;
-    if (dto.direction !== undefined) entity.direction = dto.direction;
-    if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
-    if (dto.color !== undefined) entity.color = dto.color;
-    if (dto.wrap !== undefined) entity.wrap = dto.wrap;
-    if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
-    if (entity.style !== 'break' && entity.fromLifelineId === entity.toLifelineId) {
-      throw new BadRequestException('A message must go between two different participants.');
-    }
+    applyMessagePatch(entity, dto);
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
     this.realtime.emit(projectId, clientId, { kind: 'message.updated', message: model });
@@ -339,5 +315,42 @@ export class SequenceService {
       throw new NotFoundException(`Message ${id} not found.`);
     }
     return entity;
+  }
+}
+
+/** Patch helpers shared with the batch endpoint. */
+export function applyDiagramPatch(entity: SequenceDiagramEntity, dto: UpdateSequenceDiagramDto): void {
+  if (dto.lifelineSpacing !== undefined) entity.lifelineSpacing = dto.lifelineSpacing;
+  if (dto.rowSpacing !== undefined) entity.rowSpacing = dto.rowSpacing;
+  if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
+  if (dto.originY !== undefined) entity.originY = dto.originY;
+  if (dto.zIndex !== undefined) entity.zIndex = dto.zIndex;
+  if (dto.groupId !== undefined) entity.groupId = dto.groupId;
+  if (dto.slideId !== undefined) entity.slideId = dto.slideId;
+  if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
+  if (dto.title !== undefined) entity.title = dto.title.trim() || null;
+  if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
+}
+
+export function applyLifelinePatch(entity: LifelineEntity, dto: UpdateLifelineDto): void {
+  if (dto.label !== undefined) entity.label = dto.label;
+  if (dto.color !== undefined) entity.color = dto.color;
+  if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
+  if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
+  if (dto.width !== undefined) entity.width = dto.width;
+}
+
+export function applyMessagePatch(entity: SequenceMessageEntity, dto: UpdateSequenceMessageDto): void {
+  if (dto.fromLifelineId !== undefined) entity.fromLifelineId = dto.fromLifelineId;
+  if (dto.toLifelineId !== undefined) entity.toLifelineId = dto.toLifelineId;
+  if (dto.label !== undefined) entity.label = dto.label;
+  if (dto.style !== undefined) entity.style = dto.style;
+  if (dto.direction !== undefined) entity.direction = dto.direction;
+  if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
+  if (dto.color !== undefined) entity.color = dto.color;
+  if (dto.wrap !== undefined) entity.wrap = dto.wrap;
+  if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
+  if (entity.style !== 'break' && entity.fromLifelineId === entity.toLifelineId) {
+    throw new BadRequestException('A message must go between two different participants.');
   }
 }

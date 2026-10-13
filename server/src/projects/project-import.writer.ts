@@ -104,6 +104,12 @@ export interface WriteOptions {
   dy?: number;
   /** Merging into a project that already has elements: stack the new ones above them. */
   stackAboveExisting?: boolean;
+  /**
+   * Ids already in the target project that unresolved references may keep pointing at
+   * (slide ownership, arrow bindings), instead of being dropped. Used when content is
+   * duplicated inside the same project.
+   */
+  linkExisting?: { elementIds: ReadonlySet<string>; tableIds: ReadonlySet<string> };
 }
 
 /** The content written by `writeSchemaInto`, as models carrying the NEW ids. */
@@ -145,8 +151,11 @@ export async function writeSchemaInto(
   for (const e of schema.elements) elementIds.mint(e.id);
   // Diagram ids too: a slide's animations point at its tables, diagrams and elements.
   for (const d of schema.sequenceDiagrams) diagramIds.mint(d.id);
+  const linked = options.linkExisting;
   const slideOf = (old: string | undefined): string | null =>
-    old === undefined ? null : (elementIds.get(old) ?? null);
+    old === undefined
+      ? null
+      : (elementIds.get(old) ?? (linked?.elementIds.has(old) ? old : null));
 
   // Tables, their columns and indexes.
   const tableModels: TableModel[] = [];
@@ -300,7 +309,12 @@ export async function writeSchemaInto(
     const map =
       b.targetKind === 'table' ? tableIds : b.targetKind === 'message' ? messageIds : elementIds;
     const id = map.get(b.targetId);
-    return id ? { targetKind: b.targetKind, targetId: id } : undefined;
+    if (id) return { targetKind: b.targetKind, targetId: id };
+    const keep =
+      b.targetKind === 'table'
+        ? linked?.tableIds.has(b.targetId)
+        : b.targetKind === 'element' && linked?.elementIds.has(b.targetId);
+    return keep ? { targetKind: b.targetKind, targetId: b.targetId } : undefined;
   };
   const elementModels: CanvasElementModel[] = sourceElements.map((e) => ({
     ...e,

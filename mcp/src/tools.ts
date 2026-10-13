@@ -40,6 +40,9 @@ import { ApiError, type DbDesignerApi } from './api';
 import { applySpec } from './apply';
 import { colorArg, describePalette } from './colors';
 import { loadImage } from './images';
+import { Batch } from './batch';
+import { isRich, registerAgentTools, type RichResult } from './agent-tools';
+import { Journal, schemaChanged } from './journal';
 import { registerLayoutTools } from './layout-tools';
 import { applyLayoutDiff, registerPresentationTools } from './presentation-tools';
 import {
@@ -172,13 +175,17 @@ interface Hints {
   idempotent?: boolean;
 }
 
+/** Tools whose writes are not recorded for undo (undo itself; new projects). */
+const UNJOURNALED = new Set(['undo_last_change', 'create_project']);
+
 export function registerTools(server: McpServer, api: DbDesignerApi): void {
+  const journal = new Journal();
   function tool<S extends z.ZodRawShape>(
     name: string,
     description: string,
     shape: S,
     hints: Hints,
-    run: (args: z.infer<z.ZodObject<S>>) => Promise<Json | string>,
+    run: (args: z.infer<z.ZodObject<S>>) => Promise<Json | string | RichResult>,
   ): void {
     server.registerTool(
       name,
@@ -193,10 +200,27 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         },
       },
       (async (args: unknown) => {
+        // Record before/after of every write for undo_last_change (per project).
+        const pid = (args as { projectId?: unknown })?.projectId;
+        const track = !hints.readOnly && typeof pid === 'string' && !UNJOURNALED.has(name);
+        let before: ProjectGraphResponse['schema'] | undefined;
         try {
-          return text(await run(args as z.infer<z.ZodObject<S>>));
+          if (track) before = (await graph(pid as string)).schema;
+          const result = await run(args as z.infer<z.ZodObject<S>>);
+          return isRich(result) ? { content: result.__rich } : text(result);
         } catch (err) {
           return failure(err);
+        } finally {
+          if (track && before) {
+            try {
+              const after = (await graph(pid as string)).schema;
+              if (schemaChanged(before, after)) {
+                journal.push(pid as string, { tool: name, at: new Date().toISOString(), before, after });
+              }
+            } catch {
+              // journaling is best-effort
+            }
+          }
         }
       }) as never,
     );
@@ -741,9 +765,9 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         );
       }
       const slots = own.map((m) => m.y).sort((a, b) => a - b);
-      for (const [i, mid] of orderedMessageIds.entries()) {
-        await api.patch(`/projects/${id}/messages/${mid}/position`, { y: slots[i] });
-      }
+      const batch = new Batch();
+      for (const [i, mid] of orderedMessageIds.entries()) batch.set('messages', mid, { y: slots[i] });
+      await batch.send(api, id);
       return { reordered: orderedMessageIds.length };
     },
   );
@@ -1082,6 +1106,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
   registerPresentationTools(tool, api);
   registerLayoutTools(tool, api);
+  registerAgentTools(tool, api, journal);
 }
 
 // --- Resources & prompts ---------------------------------------------------------

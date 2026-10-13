@@ -58,6 +58,23 @@ export class DbDesignerApi {
     return this.request<void>('DELETE', path);
   }
 
+  /** Raw bytes of a binary resource (e.g. an uploaded image) plus its content type. */
+  async getBytes(path: string): Promise<{ mimeType: string; data: Buffer }> {
+    let response: Response;
+    try {
+      response = await fetch(`${this.config.baseUrl}${path}`, {
+        headers: { Authorization: `Bearer ${this.config.token}`, 'X-Client-Id': 'mcp-server' },
+      });
+    } catch (err) {
+      throw new ApiError(0, `Cannot reach the DBDesigner API at ${this.config.baseUrl} (${(err as Error).message}).`);
+    }
+    if (!response.ok) throw new ApiError(response.status, await describeFailure(response));
+    return {
+      mimeType: (response.headers.get('content-type') ?? 'application/octet-stream').split(';')[0].trim(),
+      data: Buffer.from(await response.arrayBuffer()),
+    };
+  }
+
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response: Response;
     try {

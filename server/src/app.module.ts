@@ -17,6 +17,7 @@ import { NotesModule } from './notes/notes.module';
 import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { BatchModule } from './batch/batch.module';
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -32,6 +33,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     HealthModule,
     AuthModule,
     ProjectsModule,
+    BatchModule,
     TablesModule,
     ColumnsModule,
     IndexesModule,
