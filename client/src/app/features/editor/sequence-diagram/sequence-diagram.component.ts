@@ -634,7 +634,10 @@ export class SequenceDiagramComponent {
     if (d.kind === 'diagram') {
       // Put the original back (it only moved locally), then clone it in place.
       this.store.shiftSequence(d.diagramId, d.startXs, 0, d.startOriginY, 0, d.startRows);
-      const id = await this.store.duplicateSequence(d.diagramId, 0, 0);
+      const id = this.store.cloneItems(new Set(), new Set([d.diagramId]), [], 0, 0).diagrams.get(
+        d.diagramId,
+      );
+      if (id) this.store.setSelection([], [], [], [], [], [id]);
       const copy = this.store.sequenceDiagrams().find((x) => x.id === id);
       if (id && copy) {
         const base = copy.originY + copy.headerHeight;

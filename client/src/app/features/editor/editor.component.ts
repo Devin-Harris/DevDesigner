@@ -34,7 +34,6 @@ import {
   PROJECT_EXPORT_VERSION,
   presentationOf,
   presentationSlides,
-  remapAnimations,
   type SequenceDiagramModel,
 } from '@dbdesigner/shared';
 import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
@@ -3204,7 +3203,9 @@ export class EditorComponent {
         .elements()
         .filter((e) => frameIds.has(e.id) || inner.elementIds.has(e.id));
       // One optimistic clone: the copies show at once and undo removes them in one step.
-      const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, name);
+      const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, {
+        presentation: name,
+      });
       created = [...cloned.copies.values()].map((c) => c.id);
       const grabbed = cloned.copies.get(slideFrame.id);
       if (grabbed) {
@@ -3224,30 +3225,21 @@ export class EditorComponent {
       // Duplicating a frame duplicates what's inside it too (tables, sequence
       // diagrams, and elements), and the copies travel with the copied frame.
       const inner = this.carriedByFrames(selected);
-      const tableCopies: string[] = [];
-      const tablePairs: Array<[string, string]> = [];
-      for (const id of inner?.tables.keys() ?? []) {
-        const copy = await this.store.duplicateTable(id, 0, 0, false, false);
-        if (copy) {
-          tableCopies.push(copy);
-          tablePairs.push([id, copy]);
-        }
-      }
-      const sequenceCopies: string[] = [];
-      const diagramPairs: Array<[string, string]> = [];
-      for (const id of inner?.sequences.keys() ?? []) {
-        const copy = await this.store.duplicateSequence(id, 0, 0);
-        if (copy) {
-          sequenceCopies.push(copy);
-          diagramPairs.push([id, copy]);
-        }
-      }
-      // One call for selected + inner elements so bindings between copies remap.
+      // One optimistic clone of selected + inner items: shows at once, one undo step,
+      // bindings between copies remap and a copied slide's contents follow its copy.
       const sources = this.store
         .elements()
         .filter((e) => selected.has(e.id) || inner?.elements.has(e.id));
-      const copies = await this.store.duplicateElements(sources, 0, 0);
-      await this.adoptCopies(copies, tablePairs, diagramPairs);
+      const cloned = this.store.cloneItems(
+        new Set(inner?.tables.keys() ?? []),
+        new Set(inner?.sequences.keys() ?? []),
+        sources,
+        0,
+        0,
+      );
+      const copies = cloned.copies;
+      const tableCopies = [...cloned.tables.values()];
+      const sequenceCopies = [...cloned.diagrams.values()];
       created = [...copies.values()].map((c) => c.id);
       // An Alt-dragged slide becomes the one shown (only one slide is on the canvas).
       const slideCopy = [...copies.values()].find((c) => c.type === 'frame' && c.slide);
@@ -3270,33 +3262,18 @@ export class EditorComponent {
         };
       }
     } else {
-      const sources = this.store
-        .tables()
-        .filter((t) => this.store.selectedTableIds().includes(t.id));
-      const ids = new Map<string, string>();
-      // Selected relationships between cloned tables are cloned too, which needs
-      // the copies' column ids, so wait for the columns in that case.
-      const relSources = this.store
-        .relationships()
-        .filter((r) => this.store.selectedRelationshipIds().includes(r.id));
-      const columnMap = new Map<string, string>();
-      for (const src of sources) {
-        const id = await this.store.duplicateTable(
-          src.id,
-          0,
-          0,
-          false,
-          relSources.length > 0,
-          columnMap,
-        );
-        if (id) {
-          ids.set(src.id, id);
-        }
-      }
+      const cloned = this.store.cloneItems(
+        new Set(this.store.selectedTableIds()),
+        new Set(),
+        [],
+        0,
+        0,
+        // Only selected relationships between the copied tables are copied.
+        { relationshipIds: new Set(this.store.selectedRelationshipIds()) },
+      );
+      const ids = cloned.tables;
       created = [...ids.values()];
-      const relCopies = relSources.length
-        ? await this.store.duplicateRelationships(relSources, columnMap)
-        : [];
+      const relCopies = cloned.relationships;
       this.store.setSelection(created, relCopies, []);
       const grabbed = (grabbedTable && ids.get(grabbedTable)) || created[0];
       if (grabbed) {
@@ -4674,86 +4651,12 @@ export class EditorComponent {
     dx: number,
     dy: number,
   ): Promise<{ copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] }> {
-    const columnMap = new Map<string, string>();
-    const locs = this.columnLocations();
-    const relSources = this.store.relationships().filter((r) => {
-      const st = locs.get(r.sourceColumnId)?.table.id;
-      const tt = locs.get(r.targetColumnId)?.table.id;
-      return !!st && !!tt && tableIds.has(st) && tableIds.has(tt);
-    });
-    const newTables: string[] = [];
-    const tablePairs: Array<[string, string]> = [];
-    for (const id of tableIds) {
-      const copy = await this.store.duplicateTable(id, dx, dy, false, relSources.length > 0, columnMap);
-      if (copy) {
-        newTables.push(copy);
-        tablePairs.push([id, copy]);
-      }
-    }
-    if (relSources.length) {
-      await this.store.duplicateRelationships(relSources, columnMap);
-    }
-    const newDiagrams: string[] = [];
-    const diagramPairs: Array<[string, string]> = [];
-    for (const id of diagramIds) {
-      const copy = await this.store.duplicateSequence(id, dx, dy);
-      if (copy) {
-        newDiagrams.push(copy);
-        diagramPairs.push([id, copy]);
-      }
-    }
-    const copies = await this.store.duplicateElements([...elements], dx, dy);
-    await this.adoptCopies(copies, tablePairs, diagramPairs);
-    return { copies, tableIds: newTables, diagramIds: newDiagrams };
-  }
-
-  /**
-   * Tables and sequence diagrams copied together with a slide frame belong to the
-   * copy of that slide, not the original (elements are re-pointed on creation).
-   */
-  private async adoptCopies(
-    copies: ReadonlyMap<string, CanvasElementModel>,
-    tables: ReadonlyArray<readonly [string, string]>,
-    diagrams: ReadonlyArray<readonly [string, string]>,
-  ): Promise<void> {
-    const frames = new Map<string, string>();
-    for (const [src, copy] of copies) {
-      if (copy.type === 'frame') {
-        frames.set(src, copy.id);
-      }
-    }
-    if (!frames.size) {
-      return;
-    }
-    // A copied slide's animations animate the copies of its objects, not the originals.
-    const copyOf = new Map<string, string>();
-    for (const [src, copy] of copies) {
-      copyOf.set(src, copy.id);
-    }
-    for (const [oldId, newId] of [...tables, ...diagrams]) {
-      copyOf.set(oldId, newId);
-    }
-    for (const copy of copies.values()) {
-      if (copy.type === 'frame' && copy.slide?.animations?.length) {
-        await this.store.updateElement(copy.id, {
-          slide: { ...copy.slide, animations: remapAnimations(copy.slide.animations, copyOf) },
-        });
-      }
-    }
-    for (const [oldId, newId] of tables) {
-      const owner = this.store.tables().find((t) => t.id === oldId)?.slideId;
-      const target = owner ? frames.get(owner) : undefined;
-      if (target) {
-        await this.store.updateTable(newId, { slideId: target });
-      }
-    }
-    for (const [oldId, newId] of diagrams) {
-      const owner = this.store.sequenceDiagrams().find((d) => d.id === oldId)?.slideId;
-      const target = owner ? frames.get(owner) : undefined;
-      if (target) {
-        await this.store.updateSequenceConfig(newId, { slideId: target });
-      }
-    }
+    const cloned = this.store.cloneItems(tableIds, diagramIds, elements, dx, dy);
+    return {
+      copies: cloned.copies,
+      tableIds: [...cloned.tables.values()],
+      diagramIds: [...cloned.diagrams.values()],
+    };
   }
 
   /**

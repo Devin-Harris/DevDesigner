@@ -2957,7 +2957,8 @@ export const ProjectStore = signalStore(
          * shows at once, a single POST /clone persists them in one transaction (all
          * copies are removed again if it fails), and one undo step removes them.
          * Content of a copied slide belongs to the copied slide. `presentation` moves
-         * copied slides into that presentation (keeping their order).
+         * copied slides into that presentation (keeping their order). Relationships
+         * between copied tables are copied too (only `relationshipIds` when given).
          */
         cloneItems(
           tableIds: ReadonlySet<string>,
@@ -2965,15 +2966,17 @@ export const ProjectStore = signalStore(
           sources: readonly CanvasElementModel[],
           dx: number,
           dy: number,
-          presentation?: string,
+          opts: { presentation?: string; relationshipIds?: ReadonlySet<string> } = {},
         ): {
           copies: Map<string, CanvasElementModel>;
           tables: Map<string, string>;
           diagrams: Map<string, string>;
+          relationships: string[];
         } {
+          const { presentation, relationshipIds } = opts;
           const projectId = store.projectId();
           const schema = store.schema();
-          const empty = { copies: new Map(), tables: new Map(), diagrams: new Map() };
+          const empty = { copies: new Map(), tables: new Map(), diagrams: new Map(), relationships: [] };
           if (!projectId || !schema) {
             return empty;
           }
@@ -3032,6 +3035,7 @@ export const ProjectStore = signalStore(
             const sourceColumnId = columnMap.get(r.sourceColumnId);
             const targetColumnId = columnMap.get(r.targetColumnId);
             if (!sourceColumnId || !targetColumnId) continue;
+            if (relationshipIds && !relationshipIds.has(r.id)) continue;
             const id = uid();
             body.relationships!.push({ sourceId: r.id, id });
             relationships.push({
@@ -3217,6 +3221,7 @@ export const ProjectStore = signalStore(
             copies,
             tables: new Map(srcTables.map((t) => [t.id, copyOf.get(t.id)!])),
             diagrams: new Map(srcDiagrams.map((d) => [d.id, copyOf.get(d.id)!])),
+            relationships: ids.relationships,
           };
         },
 
