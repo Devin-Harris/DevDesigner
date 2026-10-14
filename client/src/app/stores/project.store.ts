@@ -116,6 +116,21 @@ interface ElementStyleState {
 }
 
 /** A reversible element operation: closures that reuse the granular store methods. */
+/** A table's scale and position, for scale-gesture undo. */
+export interface TableGeometry {
+  scale: number;
+  x: number;
+  y: number;
+}
+
+/** A column as it was before removal, with its slot and relationships (for undo). */
+interface ColumnSnapshot {
+  tableId: string;
+  column: ColumnModel;
+  index: number;
+  relationships: RelationshipModel[];
+}
+
 interface HistoryEntry {
   undo: () => void | Promise<void>;
   redo: () => void | Promise<void>;
@@ -1179,6 +1194,107 @@ export const ProjectStore = signalStore(
       function aliasTo(oldId: string, newId: string): void {
         idAlias.set(rid(oldId), newId);
         idAlias.set(oldId, newId);
+      }
+
+      // ---- Column undo/redo ----
+      // A re-created column gets a new id; history refers to the original id via rid().
+      function captureColumn(tableId: string, columnId: string): ColumnSnapshot | null {
+        const table = store.tables().find((t) => t.id === tableId);
+        const index = table?.columns.findIndex((c) => c.id === columnId) ?? -1;
+        if (!table || index < 0) return null;
+        const relationships = (store.schema()?.relationships ?? []).filter(
+          (r) => r.sourceColumnId === columnId || r.targetColumnId === columnId,
+        );
+        return { tableId, column: { ...table.columns[index] }, index, relationships };
+      }
+
+      async function removeColumnRaw(tableId: string, columnId: string): Promise<void> {
+        flushTimers(`reorder:${tableId}`, `patch:col:${columnId}`);
+        await optimistic(
+          `table:${tableId}`,
+          () => {
+            mapTable(tableId, (t) => ({
+              ...t,
+              columns: t.columns.filter((c) => c.id !== columnId),
+            }));
+            // The server cascades the column's relationships; mirror that locally.
+            setSchema((s) => ({
+              ...s,
+              relationships: s.relationships.filter(
+                (r) => r.sourceColumnId !== columnId && r.targetColumnId !== columnId,
+              ),
+            }));
+          },
+          () => firstValueFrom(columnsApi.remove(columnId)),
+          'delete the column',
+        );
+      }
+
+      async function restoreColumn(snap: ColumnSnapshot): Promise<void> {
+        const projectId = store.projectId();
+        const { tableId, column: col } = snap;
+        if (!projectId || !store.tables().some((t) => t.id === tableId)) return;
+        const created = await runSave(() =>
+          firstValueFrom(
+            columnsApi.create(tableId, {
+              name: col.name,
+              dataType: col.dataType,
+              isPrimaryKey: col.isPrimaryKey,
+              isNullable: col.isNullable,
+              isUnique: col.isUnique,
+              isAutoIncrement: col.isAutoIncrement,
+              isUnsigned: col.isUnsigned,
+              defaultValue: col.defaultValue,
+            }),
+          ),
+        );
+        let restored = created;
+        if (col.note) {
+          restored = { ...created, note: col.note };
+          void runSave(() => firstValueFrom(columnsApi.update(created.id, { note: col.note })));
+        }
+        aliasTo(col.id, created.id);
+        let order: string[] = [];
+        mapTable(tableId, (t) => {
+          const columns = [...t.columns];
+          const at = snap.index < 0 ? columns.length : Math.min(snap.index, columns.length);
+          columns.splice(at, 0, restored);
+          order = columns.map((c) => c.id);
+          return { ...t, columns };
+        });
+        if (snap.index >= 0 && order[order.length - 1] !== created.id) {
+          await runSave(() =>
+            firstValueFrom(columnsApi.reorder(tableId, { orderedColumnIds: order })),
+          );
+        }
+        for (const rel of snap.relationships) {
+          const sourceColumnId = rid(rel.sourceColumnId);
+          const targetColumnId = rid(rel.targetColumnId);
+          const exists = store
+            .tables()
+            .some((t) => t.columns.some((c) => c.id === sourceColumnId))
+            && store.tables().some((t) => t.columns.some((c) => c.id === targetColumnId));
+          if (!exists) continue;
+          let rc = await runSave(() =>
+            firstValueFrom(
+              relationshipsApi.create(projectId, {
+                sourceColumnId,
+                targetColumnId,
+                type: rel.type,
+                onDelete: rel.onDelete,
+                onUpdate: rel.onUpdate,
+                sourceSide: rel.sourceSide,
+                targetSide: rel.targetSide,
+                autoRoute: rel.autoRoute,
+              }),
+            ),
+          );
+          if (rel.waypoints?.length) {
+            const waypoints = rel.waypoints.map((w) => ({ ...w }));
+            rc = await runSave(() => firstValueFrom(relationshipsApi.update(rc.id, { waypoints })));
+          }
+          setSchema((s) => ({ ...s, relationships: [...s.relationships, rc] }));
+        }
       }
 
       type SeqKind = 'message' | 'lifeline' | 'diagram';
@@ -2634,9 +2750,41 @@ export const ProjectStore = signalStore(
           return created.id;
         },
 
+        /** Record a finished table scale gesture (scale + position, already applied). */
+        recordTableScale(
+          changes: { id: string; before: TableGeometry; after: TableGeometry }[],
+        ): void {
+          const moved = changes.filter(
+            (c) =>
+              c.before.scale !== c.after.scale ||
+              c.before.x !== c.after.x ||
+              c.before.y !== c.after.y,
+          );
+          if (!moved.length) return;
+          const apply = (which: 'before' | 'after'): void => {
+            for (const c of moved) {
+              const g = c[which];
+              if (store.tables().some((t) => t.id === c.id)) {
+                patchTableLocal(c.id, { scale: g.scale });
+                this.moveTable(c.id, g.x, g.y);
+              }
+            }
+          };
+          pushHistory({ undo: () => apply('before'), redo: () => apply('after') });
+        },
+
         async addColumn(tableId: string, dto: CreateColumnDto): Promise<void> {
           const created = await runSave(() => firstValueFrom(columnsApi.create(tableId, dto)));
           mapTable(tableId, (t) => ({ ...t, columns: [...t.columns, created] }));
+          const snap: ColumnSnapshot = { tableId, column: created, index: -1, relationships: [] };
+          pushHistory({
+            undo: async () => {
+              const s = captureColumn(tableId, rid(created.id));
+              if (s) Object.assign(snap, s, { column: { ...s.column, id: created.id } });
+              await removeColumnRaw(tableId, rid(created.id));
+            },
+            redo: () => restoreColumn(snap),
+          });
         },
 
         async updateColumn(
@@ -2661,17 +2809,19 @@ export const ProjectStore = signalStore(
         },
 
         async deleteColumn(tableId: string, columnId: string): Promise<void> {
-          flushTimers(`reorder:${tableId}`, `patch:col:${columnId}`);
-          await optimistic(
-            `table:${tableId}`,
-            () =>
-              mapTable(tableId, (t) => ({
-                ...t,
-                columns: t.columns.filter((c) => c.id !== columnId),
-              })),
-            () => firstValueFrom(columnsApi.remove(columnId)),
-            'delete the column',
-          );
+          const snap = captureColumn(tableId, columnId);
+          await removeColumnRaw(tableId, columnId);
+          if (!snap || store.tables().find((t) => t.id === tableId)?.columns.some((c) => c.id === columnId)) {
+            return; // rolled back
+          }
+          pushHistory({
+            undo: () => restoreColumn(snap),
+            redo: async () => {
+              const s = captureColumn(tableId, rid(columnId));
+              if (s) Object.assign(snap, s, { column: { ...s.column, id: columnId } });
+              await removeColumnRaw(tableId, rid(columnId));
+            },
+          });
         },
 
         /** Reorder columns optimistically; persist the new order (debounced). */

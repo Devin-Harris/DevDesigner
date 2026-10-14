@@ -22,7 +22,7 @@ import {
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore, type TableGeometry } from '../../../stores/project.store';
 import {
   HEADER_H,
   MAX_TABLE_SCALE,
@@ -238,24 +238,44 @@ export class TableNodeComponent {
     const startClientX = event.clientX;
     const startClientY = event.clientY;
     const zoom = this.store.viewport().zoom;
+    // Every selected table takes the same scale (so their text sizes match),
+    // each keeping its own opposite corner fixed.
+    const targets = this.scaleTargets().map((t) => {
+      const s = tableScale(t);
+      const w = tableBaseWidth(t);
+      const h = nodeHeight(t.columns.length);
+      return {
+        id: t.id,
+        w,
+        h,
+        before: { scale: s, x: t.x, y: t.y },
+        fx: west ? t.x + w * s : t.x,
+        fy: north ? t.y + h * s : t.y,
+      };
+    });
     let latest = startScale;
+    const apply = (scale: number): void => {
+      for (const t of targets) {
+        const x = west ? t.fx - t.w * scale : t.fx;
+        const y = north ? t.fy - t.h * scale : t.fy;
+        this.store.setTableScaleLocal(t.id, scale);
+        this.store.moveTable(t.id, Math.round(x), Math.round(y));
+      }
+    };
     const move = (e: PointerEvent): void => {
       const px = gx + (e.clientX - startClientX) / zoom - fx;
       const py = gy + (e.clientY - startClientY) / zoom - fy;
       // Project onto the box diagonal so proportions are always preserved.
       const raw = startScale * ((px * vx + py * vy) / len2);
       latest = Math.round(Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, raw)) * 100) / 100;
-      const x = west ? fx - baseW * latest : fx;
-      const y = north ? fy - baseH * latest : fy;
-      this.store.setTableScaleLocal(table.id, latest);
-      this.store.moveTable(table.id, Math.round(x), Math.round(y));
+      apply(latest);
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
-      if (latest !== startScale) {
-        void this.store.updateTable(table.id, { scale: latest });
+      if (targets.some((t) => t.before.scale !== latest)) {
+        this.commitScale(targets);
       }
     };
     window.addEventListener('pointermove', move);
@@ -263,15 +283,44 @@ export class TableNodeComponent {
     window.addEventListener('pointercancel', up);
   }
 
-  /** Double-click a corner handle to return to natural size. */
+  /** This table plus, when it is part of a multi-selection, the other selected tables. */
+  private scaleTargets(): TableModel[] {
+    const table = this.table();
+    const ids = this.store.selectedTableIds();
+    if (!ids.includes(table.id) || ids.length < 2) {
+      return [table];
+    }
+    const others = this.store.tables().filter((t) => t.id !== table.id && ids.includes(t.id));
+    return [table, ...others];
+  }
+
+  /** Persist the scale gesture's result and record it as one undo step. */
+  private commitScale(targets: { id: string; before: TableGeometry }[]): void {
+    const changes = targets.flatMap((t) => {
+      const now = this.store.tables().find((x) => x.id === t.id);
+      if (!now) return [];
+      const after = { scale: tableScale(now), x: now.x, y: now.y };
+      void this.store.updateTable(t.id, { scale: after.scale });
+      return [{ id: t.id, before: t.before, after }];
+    });
+    this.store.recordTableScale(changes);
+  }
+
+  /** Double-click a corner handle to return to natural size (all selected tables). */
   protected resetScale(event: Event): void {
     event.stopPropagation();
-    const table = this.table();
-    if (!this.editable() || tableScale(table) === 1) {
+    const targets = this.scaleTargets().filter((t) => tableScale(t) !== 1);
+    if (!this.editable() || !targets.length) {
       return;
     }
-    this.store.setTableScaleLocal(table.id, undefined);
-    void this.store.updateTable(table.id, { scale: 1 });
+    const before = targets.map((t) => ({
+      id: t.id,
+      before: { scale: tableScale(t), x: t.x, y: t.y },
+    }));
+    for (const t of targets) {
+      this.store.setTableScaleLocal(t.id, 1);
+    }
+    this.commitScale(before);
   }
 
   // --- connect handles (delegated to the parent canvas) ---
