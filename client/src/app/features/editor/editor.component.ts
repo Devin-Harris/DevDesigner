@@ -344,7 +344,9 @@ export class EditorComponent {
   private static readonly PANEL_GAP = 8;
   private static readonly PANEL_PAD = 6;
   /** Smallest outline padding on screen, so the dashed border clears the panels at any zoom. */
-  private static readonly PANEL_MIN_PAD_PX = 8;
+  private static readonly PANEL_MIN_PAD_PX = 2;
+  /** The panels' own corner radius (world units); the outline's is concentric with it. */
+  private static readonly PANEL_RADIUS = 14;
   private static readonly LIST_W = 296;
   private static readonly SETTINGS_W = 296;
   private static readonly FOLDED_W = 44;
@@ -389,9 +391,11 @@ export class EditorComponent {
         height,
         scale: v.zoom,
       };
-      // The border and its corner radius are fixed screen px, so zoomed far out the scaled
-      // padding would shrink below them and the panels would poke through the outline.
+      // Padding and corner radius scale with the panels so the outline keeps the same
+      // shape at every zoom; only the hairline border stays in screen px, so keep just
+      // enough padding for it to clear the panels.
       const pad = Math.max(EditorComponent.PANEL_PAD * v.zoom, EditorComponent.PANEL_MIN_PAD_PX);
+      const radius = EditorComponent.PANEL_RADIUS * v.zoom + pad;
       const bottom = top + height * v.zoom;
       return [
         {
@@ -404,6 +408,7 @@ export class EditorComponent {
             top: top - pad,
             width: settings.left + settings.width * v.zoom - list.left + pad * 2,
             height: bottom - top + pad * 2,
+            radius,
           },
         },
       ];
@@ -1246,6 +1251,19 @@ export class EditorComponent {
   private lastCursorSent = 0;
 
   constructor() {
+    // Ctrl/Cmd+wheel (and trackpad pinch) anywhere over the editor — canvas,
+    // slides panel, side panels — must never zoom the browser page. Capture
+    // phase so panels that stopPropagation() on wheel are still covered; the
+    // canvas's own (wheel) handler still runs and does the canvas zoom.
+    const host = inject(ElementRef<HTMLElement>).nativeElement as HTMLElement;
+    const blockPageZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
+    };
+    host.addEventListener('wheel', blockPageZoom, { capture: true, passive: false });
+    this.destroyRef.onDestroy(() =>
+      host.removeEventListener('wheel', blockPageZoom, { capture: true }),
+    );
+
     // Initialise the contenteditable once per editing session (the DOM owns the
     // content while typing, so it is never re-rendered from the store).
     effect(() => {
@@ -1269,15 +1287,11 @@ export class EditorComponent {
     // A presentation stays selected as a whole only while its shown slide alone is selected.
     effect(() => {
       const ids = this.store.selectedElementIds();
-      const tables = this.store.selectedTableIds();
-      const diagrams = this.store.selectedDiagramIds();
       const shown = this.store.shownByPresentation();
       untracked(() => {
         const set = this.selectedSlideSet();
-        if (
-          set &&
-          (ids.length !== 1 || ids[0] !== shown.get(set) || tables.length || diagrams.length)
-        ) {
+        // Still selected while its shown frame is (a marquee can take it with other items).
+        if (set && !ids.includes(shown.get(set) ?? '')) {
           this.selectedSlideSet.set(null);
         }
       });
@@ -3673,10 +3687,57 @@ export class EditorComponent {
       (id) => !hit.has(this.store.lifelines().find((l) => l.id === id)?.diagramId ?? ''),
     );
 
+    // A marquee that fully encloses a presentation's outline selects that presentation
+    // as a whole (like grabbing its border): its shown frame stands in for everything
+    // inside the outline, and whatever else the marquee caught stays selected too.
+    const sx0 = Math.min(s.x, c.x);
+    const sy0 = Math.min(s.y, c.y);
+    const sx1 = Math.max(s.x, c.x);
+    const sy1 = Math.max(s.y, c.y);
+    const enclosed = this.slideSets().filter(
+      (set) =>
+        set.outline.left >= sx0 &&
+        set.outline.top >= sy0 &&
+        set.outline.left + set.outline.width <= sx1 &&
+        set.outline.top + set.outline.height <= sy1,
+    );
+    let tableSel = tableIds;
+    let elementSel = elementIds;
+    if (enclosed.length) {
+      const boxes = enclosed.map((set) => {
+        const o = toW({ x: set.outline.left, y: set.outline.top });
+        return {
+          x0: o.x,
+          y0: o.y,
+          x1: o.x + set.outline.width / v.zoom,
+          y1: o.y + set.outline.height / v.zoom,
+        };
+      });
+      const inside = (b: { x0: number; y0: number; x1: number; y1: number }) =>
+        boxes.some((o) => b.x0 >= o.x0 && b.y0 >= o.y0 && b.x1 <= o.x1 && b.y1 <= o.y1);
+      const frameIds = enclosed.map((set) => set.frameId);
+      tableSel = this.visibleTables()
+        .filter(
+          (t) =>
+            tableIds.includes(t.id) &&
+            !inside({ x0: t.x, y0: t.y, x1: t.x + tableWidth(t), y1: t.y + tableHeight(t) }),
+        )
+        .map((t) => t.id);
+      elementSel = [
+        ...frameIds,
+        ...this.shownElements()
+          .filter(
+            (e) => elementIds.includes(e.id) && !frameIds.includes(e.id) && !inside(elementBox(e)),
+          )
+          .map((e) => e.id),
+      ];
+      this.store.selectPresentation(enclosed[0].name);
+    }
+
     if (this.marqueeAdditive) {
-      const nextTables = new Set([...this.store.selectedTableIds(), ...tableIds]);
+      const nextTables = new Set([...this.store.selectedTableIds(), ...tableSel]);
       const nextRels = new Set([...this.store.selectedRelationshipIds(), ...relIds]);
-      const nextEls = new Set([...this.store.selectedElementIds(), ...elementIds]);
+      const nextEls = new Set([...this.store.selectedElementIds(), ...elementSel]);
       const nextMsgs = new Set([...this.store.selectedMessageIds(), ...looseMessages]);
       const nextLls = new Set([...this.store.selectedLifelineIds(), ...looseLifelines]);
       const nextDiagrams = new Set([...this.store.selectedDiagramIds(), ...diagramIds]);
@@ -3690,13 +3751,16 @@ export class EditorComponent {
       );
     } else {
       this.store.setSelection(
-        tableIds,
+        tableSel,
         relIds,
-        elementIds,
+        elementSel,
         looseMessages,
         looseLifelines,
         diagramIds,
       );
+    }
+    if (enclosed.length) {
+      this.selectedSlideSet.set(enclosed[0].name);
     }
   }
 
@@ -3895,9 +3959,28 @@ export class EditorComponent {
       const set = this.selectedSlideSet();
       if (set) {
         event.preventDefault();
+        const frameId = this.store.shownByPresentation().get(set);
         this.selectedSlideSet.set(null);
         this.onSlidesCommand({ kind: 'deletePresentation' }, set);
-        return;
+        const rest = this.store.selectedElementIds().filter((id) => id !== frameId);
+        this.store.setSelection(
+          [...this.store.selectedTableIds()],
+          [...this.store.selectedRelationshipIds()],
+          rest,
+          [...this.store.selectedMessageIds()],
+          [...this.store.selectedLifelineIds()],
+          [...this.store.selectedDiagramIds()],
+        );
+        if (
+          !rest.length &&
+          !this.store.selectedTableIds().length &&
+          !this.store.selectedRelationshipIds().length &&
+          !this.store.selectedMessageIds().length &&
+          !this.store.selectedLifelineIds().length &&
+          !this.store.selectedDiagramIds().length
+        ) {
+          return;
+        }
       }
       const relIds = [...this.store.selectedRelationshipIds()];
       const tableIds = [...this.store.selectedTableIds()];
