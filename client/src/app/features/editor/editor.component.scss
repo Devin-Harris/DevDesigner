@@ -368,7 +368,7 @@
   pointer-events: none;
   border: 1px dashed var(--dbd-border-strong);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--dbd-surface) 22%, transparent);
+  // No fill: this outline stacks above the canvas world, so any tint would wash over the slides.
 }
 
 .slide-bounds.selected {
