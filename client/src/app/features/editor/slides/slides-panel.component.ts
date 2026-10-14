@@ -30,6 +30,8 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
 import { TagInputComponent } from '../../../shared/ui/tag-input/tag-input.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { FRAME_PRESETS } from '../canvas/constants/frame-presets';
+import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
+import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
 import { AnimationPaneComponent } from './animation-pane.component';
 import { MorphTagSuggestions } from './morph-tag-suggestions.service';
 import { SlideRenderService } from './slide-render.service';
@@ -1180,14 +1182,78 @@ export class SlidesPanelComponent {
     this.destroyRef.onDestroy(() => (this.renderToken += 1));
   }
 
+  /**
+   * Re-render only the slides whose content changed. Store rows are immutable, so a
+   * slide is unchanged when its frame and every row drawn on it are the same object
+   * references as at its last render; edits elsewhere on the canvas render nothing.
+   */
   private async refreshThumbs(frames: readonly CanvasElementModel[]): Promise<void> {
+    const ids = new Set(frames.map((f) => f.id));
+    const deps = new Map(frames.map((f) => [f.id, this.thumbInputs(f)]));
+    const dirty = frames.filter((f) => !sameRefs(this.thumbDeps.get(f.id), deps.get(f.id)!));
+    const removed = [...this.thumbs().keys()].some((id) => !ids.has(id));
+    if (!dirty.length && !removed) {
+      return;
+    }
     const token = (this.renderToken += 1);
-    const rendered = await this.render.render(frames, { fonts: false });
+    const rendered = dirty.length ? await this.render.render(dirty, { fonts: false }) : [];
     if (token !== this.renderToken) {
       return;
     }
-    this.thumbs.set(new Map(rendered.map((r) => [r.id, SlideRenderService.dataUrl(r.svg)])));
+    const next = new Map([...this.thumbs()].filter(([id]) => ids.has(id)));
+    for (const r of rendered) {
+      next.set(r.id, SlideRenderService.dataUrl(r.svg));
+      this.thumbDeps.set(r.id, deps.get(r.id)!);
+    }
+    for (const id of [...this.thumbDeps.keys()]) {
+      if (!ids.has(id)) this.thumbDeps.delete(id);
+    }
+    this.thumbs.set(next);
   }
+
+  /** Everything a slide's thumbnail is drawn from (the rows `SlideRenderService` uses). */
+  private thumbInputs(frame: CanvasElementModel): readonly unknown[] {
+    const mine = contentForFrame(
+      frame.id,
+      !!frame.slide,
+      this.store.elements(),
+      this.store.tables(),
+      this.store.sequenceDiagrams(),
+      this.store.lifelines(),
+      this.store.sequenceMessages(),
+    );
+    // Rows not assigned to any slide are offered to every frame and cropped away when
+    // outside it, so only those overlapping the frame affect its picture.
+    const f = { x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height };
+    const overlaps = (b: { x0: number; y0: number; x1: number; y1: number } | null): boolean =>
+      !!b && b.x1 >= f.x0 && b.x0 <= f.x1 && b.y1 >= f.y0 && b.y0 <= f.y1;
+    const elements = mine.elements.filter(
+      (e) => e.id === frame.id || e.slideId === frame.id || overlaps(elementBox(e)),
+    );
+    const tables = mine.tables.filter((t) => t.slideId === frame.id || overlaps(tableBox(t)));
+    const diagrams = mine.diagrams.filter(
+      (d) =>
+        d.slideId === frame.id ||
+        overlaps(sequenceDiagramBox(d, mine.lifelines, mine.messages)),
+    );
+    const diagramIds = new Set(diagrams.map((d) => d.id));
+    const columns = new Set(tables.flatMap((t) => t.columns.map((c) => c.id)));
+    const relationships = this.store
+      .relationships()
+      .filter((r) => columns.has(r.sourceColumnId) || columns.has(r.targetColumnId));
+    return [
+      frame,
+      ...elements,
+      ...tables,
+      ...diagrams,
+      ...mine.lifelines.filter((l) => diagramIds.has(l.diagramId)),
+      ...mine.messages.filter((m) => diagramIds.has(m.diagramId)),
+      ...relationships,
+    ];
+  }
+
+  /** Inputs each thumbnail was last rendered from. */
+  private readonly thumbDeps = new Map<string, readonly unknown[]>();
 
   // ---- edits ----
 
@@ -1603,4 +1669,8 @@ export class SlidesPanelComponent {
       }
     });
   }
+}
+
+function sameRefs(a: readonly unknown[] | undefined, b: readonly unknown[]): boolean {
+  return !!a && a.length === b.length && a.every((v, i) => v === b[i]);
 }

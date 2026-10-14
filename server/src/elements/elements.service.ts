@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { CanvasElementModel } from '@dbdesigner/shared';
@@ -62,7 +67,12 @@ export class ElementsService {
         throw new BadRequestException('Image elements need an image uploaded to this project.');
       }
     }
+    // A client-chosen id must be new: `save` would otherwise update the existing row.
+    if (dto.id && (await this.elements.exists({ where: { id: dto.id } }))) {
+      throw new ConflictException(`Element ${dto.id} already exists.`);
+    }
     const element = this.elements.create({
+      ...(dto.id ? { id: dto.id } : {}),
       projectId,
       type: dto.type,
       x: dto.x,

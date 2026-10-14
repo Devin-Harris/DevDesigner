@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
+  BatchUpdateDto,
+  BatchUpdateResponse,
   CreateProjectDto,
   ImportIntoProjectDto,
   ImportIntoProjectResponse,
@@ -76,5 +78,10 @@ export class ProjectsService {
   /** PATCH /projects/:id/viewport : persist pan/zoom (debounced client-side). */
   updateViewport(id: string, dto: UpdateViewportDto): Observable<void> {
     return this.api.patch<void>(`/projects/${id}/viewport`, dto);
+  }
+
+  /** Apply many row patches atomically (PATCH /projects/:id/batch). */
+  batch(id: string, dto: BatchUpdateDto): Observable<BatchUpdateResponse> {
+    return this.api.patch<BatchUpdateResponse>(`/projects/${id}/batch`, dto);
   }
 }

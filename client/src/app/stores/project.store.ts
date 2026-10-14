@@ -1,5 +1,6 @@
 import { computed, inject } from '@angular/core';
 import type {
+  BatchUpdateDto,
   ProjectExportFile,
   AccessLevel,
   CanvasElementModel,
@@ -37,6 +38,7 @@ import {
   slideSequence,
 } from '@dbdesigner/shared';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { ColumnsService } from '../core/services/columns.service';
 import { IndexesService } from '../core/services/indexes.service';
@@ -486,8 +488,10 @@ export const ProjectStore = signalStore(
       sequenceApi = inject(SequenceService),
       shareLinksApi = inject(ShareLinksService),
       shareSession = inject(ShareSessionService),
+      snackBar = inject(MatSnackBar),
     ) => {
       const timers = new Map<string, ReturnType<typeof setTimeout>>();
+      const timerFns = new Map<string, () => void>();
 
       // Element undo/redo. Entries reuse the granular element methods so an undo is
       // itself a persisted, broadcast mutation (collaboration-safe). Remote edits
@@ -604,37 +608,75 @@ export const ProjectStore = signalStore(
                 ...dto,
                 slideId: shownSlideAt(dto.x + dto.width / 2, dto.y + dto.height / 2),
               };
-        const created = await runSave(() =>
-          firstValueFrom(elementsApi.create(projectId, withSlide)),
-        );
-        setSchema((s) => ({ ...s, elements: [...s.elements, created] }));
-        return created;
+        // The id is generated here so the element shows (and can be moved, edited
+        // or deleted) at once; those follow-ups queue behind the create request.
+        const id = dto.id ?? crypto.randomUUID();
+        const zIndex =
+          withSlide.zIndex ??
+          (store.schema()?.elements ?? []).reduce((m, e) => Math.max(m, e.zIndex + 1), 0);
+        const body: CreateElementDto = { ...withSlide, id, zIndex };
+        const local = { angle: 0, ...body, id, zIndex } as CanvasElementModel;
+        setSchema((s) => ({ ...s, elements: [...s.elements, local] }));
+        const key = `element:${id}`;
+        void enqueue(key, () => runSave(() => firstValueFrom(elementsApi.create(projectId, body))))
+          .then((created) => {
+            // Local edits made since (staged or in flight) are newer than this copy.
+            if (!queueSettling(key) || isStaged('elements', id)) return;
+            mapElement(id, () => created);
+          })
+          .catch(() => {
+            failedCreates.add(id);
+            setSchema((s) => ({
+              ...s,
+              elements: clearBindingsTo(
+                s.elements.filter((e) => e.id !== id),
+                id,
+              ),
+            }));
+            patchState(store, {
+              selectedElementIds: store.selectedElementIds().filter((x) => x !== id),
+            });
+            notifyFailure('add the element');
+          });
+        return local;
       }
 
+      /** Local-first element patch; the save is merged and debounced per element. */
       async function updateElementRaw(elementId: string, patch: UpdateElementDto): Promise<void> {
-        const updated = await runSave(() => firstValueFrom(elementsApi.update(elementId, patch)));
-        // A drag's position save is debounced, so the response may still carry the
-        // pre-drag position; the local one is newer while that save is pending.
-        const positionPending = timers.has(`pos:elem:${elementId}`);
-        mapElement(elementId, (cur) =>
-          positionPending && patch.x === undefined && patch.y === undefined
-            ? { ...updated, x: cur.x, y: cur.y }
-            : updated,
-        );
+        stage('elements', elementId, patch);
+        mapElement(elementId, (e) => {
+          const { startBinding, endBinding, ...rest } = patch;
+          const next = { ...e, ...(rest as Partial<CanvasElementModel>) };
+          if ('startBinding' in patch) next.startBinding = startBinding ?? undefined;
+          if ('endBinding' in patch) next.endBinding = endBinding ?? undefined;
+          return next;
+        });
       }
 
-      async function deleteElementRaw(elementId: string): Promise<void> {
-        await runSave(() => firstValueFrom(elementsApi.remove(elementId)));
-        setSchema((s) => ({
-          ...s,
-          elements: clearBindingsTo(
-            s.elements.filter((e) => e.id !== elementId),
-            elementId,
-          ),
-        }));
-        patchState(store, {
-          selectedElementIds: store.selectedElementIds().filter((id) => id !== elementId),
-        });
+      /** Local-first delete; the request is queued and the element restored if it fails. */
+      async function deleteElementRaw(elementId: string): Promise<boolean> {
+        if (failedCreates.has(elementId)) {
+          return false;
+        }
+        flushTimers(`pos:elem:${elementId}`, `pts:elem:${elementId}`, `patch:elem:${elementId}`);
+        void optimistic(
+          `element:${elementId}`,
+          () => {
+            setSchema((s) => ({
+              ...s,
+              elements: clearBindingsTo(
+                s.elements.filter((e) => e.id !== elementId),
+                elementId,
+              ),
+            }));
+            patchState(store, {
+              selectedElementIds: store.selectedElementIds().filter((id) => id !== elementId),
+            });
+          },
+          () => firstValueFrom(elementsApi.remove(elementId)),
+          'delete the element',
+        );
+        return true;
       }
 
       /** Capture the current values of the keys a patch will change (for undo). */
@@ -822,16 +864,304 @@ export const ProjectStore = signalStore(
         await applyGroupAssignments(after);
       }
 
+      let savesInFlight = 0;
+      let saveFailed = false;
+
       async function runSave<T>(action: () => Promise<T>): Promise<T> {
+        savesInFlight++;
         patchState(store, { saveStatus: 'saving' });
         try {
-          const result = await action();
-          patchState(store, { saveStatus: 'saved' });
-          return result;
+          return await action();
         } catch (err) {
-          patchState(store, { saveStatus: 'error' });
+          saveFailed = true;
           throw err;
+        } finally {
+          savesInFlight--;
+          if (!savesInFlight) {
+            patchState(store, { saveStatus: saveFailed ? 'error' : 'saved' });
+            saveFailed = false;
+          }
         }
+      }
+
+      // ---- Optimistic writes ----
+      // Deletes and moves apply to the local schema immediately; the request is
+      // queued per entity (so a move, an edit and a delete of the same row reach the
+      // server in order) and the local change is rolled back if the server rejects it.
+      const queues = new Map<string, Promise<unknown>>();
+      // All writes chain here (a staged batch, a delete and a create of the same
+      // row must land in order); `queues` only tracks per-row pending work.
+      let writeChain: Promise<unknown> = Promise.resolve();
+      // Optimistically created elements the server rejected; later queued ops on
+      // them fail too, and their rollbacks must not bring them back.
+      const failedCreates = new Set<string>();
+      const queueDepth = new Map<string, number>();
+
+      function enqueue<T>(key: string, fn: () => Promise<T>): Promise<T> {
+        const run = writeChain.catch(() => undefined).then(fn);
+        const tail = run.catch(() => undefined);
+        writeChain = tail;
+        queues.set(key, tail);
+        queueDepth.set(key, (queueDepth.get(key) ?? 0) + 1);
+        void tail.then(() => {
+          const depth = (queueDepth.get(key) ?? 1) - 1;
+          if (depth) {
+            queueDepth.set(key, depth);
+          } else {
+            queueDepth.delete(key);
+            queues.delete(key);
+          }
+        });
+        return run;
+      }
+
+      /** True when no request other than the one now finishing is queued for `key`. */
+      function queueSettling(key: string): boolean {
+        return (queueDepth.get(key) ?? 0) <= 1;
+      }
+
+      type Collection =
+        | 'tables'
+        | 'relationships'
+        | 'elements'
+        | 'sequenceDiagrams'
+        | 'lifelines'
+        | 'sequenceMessages';
+      const COLLECTIONS: Collection[] = [
+        'tables',
+        'relationships',
+        'elements',
+        'sequenceDiagrams',
+        'lifelines',
+        'sequenceMessages',
+      ];
+      type Row = { id: string };
+
+      /**
+       * Snapshot the schema before a local change. The returned `seal` diffs the
+       * snapshot against the current schema and returns a rollback that restores
+       * the rows the change touched (re-inserting removed ones at their old index),
+       * leaving unrelated rows alone. `onlyId` limits it to one row, reverted only
+       * while it still exists (a move must not resurrect a since-deleted row).
+       */
+      function checkpoint(onlyId?: string): () => () => void {
+        const before = store.schema();
+        return () => {
+          const after = store.schema();
+          if (!before || !after || before === after) {
+            return () => undefined;
+          }
+          const reverts = COLLECTIONS.map((k) => {
+            const prev = before[k] as Row[];
+            const done = after[k] as Row[];
+            const doneById = new Map(done.map((r) => [r.id, r]));
+            const rows =
+              prev === done
+                ? []
+                : prev
+                    .map((row, index) => ({ row, index }))
+                    .filter(
+                      ({ row }) =>
+                        doneById.get(row.id) !== row &&
+                        (!onlyId || (row.id === onlyId && doneById.has(row.id))),
+                    );
+            return { k, rows };
+          }).filter((r) => r.rows.length);
+          return () =>
+            setSchema((s) => {
+              let next = s;
+              for (const { k, rows } of reverts) {
+                const cur = [...(next[k] as Row[])];
+                for (const { row, index } of rows) {
+                  const at = cur.findIndex((r) => r.id === row.id);
+                  if (at >= 0) cur[at] = row;
+                  else if (!onlyId && !failedCreates.has(row.id)) cur.splice(Math.min(index, cur.length), 0, row);
+                }
+                next = { ...next, [k]: cur };
+              }
+              return next;
+            });
+        };
+      }
+
+      function notifyFailure(what: string): void {
+        snackBar.open(`Couldn't ${what}; the change was reverted.`, 'Dismiss', { duration: 5000 });
+      }
+
+      /**
+       * Apply `apply` locally now, then persist through the entity's queue. On
+       * failure the local change is rolled back and the user told; resolves to
+       * `{ value }` on success, `null` on failure.
+       */
+      async function optimistic<T>(
+        queueKey: string,
+        apply: () => void,
+        persist: () => Promise<T>,
+        what: string,
+      ): Promise<{ value: T } | null> {
+        const seal = checkpoint();
+        apply();
+        const rollback = seal();
+        try {
+          return { value: await enqueue(queueKey, () => runSave(persist)) };
+        } catch {
+          rollback();
+          notifyFailure(what);
+          return null;
+        }
+      }
+
+      /** Send (instead of waiting out) pending debounced saves, e.g. before a delete. */
+      function flushTimers(...keys: string[]): void {
+        for (const key of ['batch', ...keys]) {
+          const handle = timers.get(key);
+          const fn = timerFns.get(key);
+          if (handle && fn) {
+            clearTimeout(handle);
+            timers.delete(key);
+            timerFns.delete(key);
+            fn();
+          }
+        }
+      }
+
+      // Checkpoints for debounced saves, sealed when the save fires: a rejected
+      // save restores the row to its state before the window's first local change.
+      const debouncedCheckpoints = new Map<string, () => () => void>();
+
+      /** Debounced optimistic save whose request is built (`take`) when the window closes. */
+      function debouncedCommit(
+        key: string,
+        queueKey: string,
+        rowId: string,
+        take: () => () => Promise<unknown>,
+        what: string,
+        ms: number,
+      ): void {
+        if (!debouncedCheckpoints.has(key)) {
+          debouncedCheckpoints.set(key, checkpoint(rowId));
+        }
+        debounce(
+          key,
+          () => {
+            const seal = debouncedCheckpoints.get(key);
+            debouncedCheckpoints.delete(key);
+            const rollback = seal ? seal() : () => undefined;
+            const persist = take();
+            void enqueue(queueKey, () => runSave(persist)).catch(() => {
+              rollback();
+              notifyFailure(what);
+            });
+          },
+          ms,
+        );
+      }
+
+      // Field patches waiting out their debounce window, merged per row.
+      const pendingPatches = new Map<string, Record<string, unknown>>();
+
+      /**
+       * Local-first edit: the caller has already applied `patch` to the local model
+       * (or does so right after); rapid patches to the same row are merged and sent
+       * as one request once edits pause. A rejected request restores the row.
+       */
+      function commitPatch<P extends object>(
+        key: string,
+        queueKey: string,
+        rowId: string,
+        patch: P,
+        send: (merged: P) => Promise<unknown>,
+        what: string,
+        ms = 300,
+      ): void {
+        pendingPatches.set(key, { ...(pendingPatches.get(key) ?? {}), ...patch });
+        debouncedCommit(
+          key,
+          queueKey,
+          rowId,
+          () => {
+            const merged = (pendingPatches.get(key) ?? {}) as P;
+            pendingPatches.delete(key);
+            return () => send(merged);
+          },
+          what,
+          ms,
+        );
+      }
+
+      // ---- Staged batch ----
+      // Moves and field edits are staged here, merged per row, and sent as ONE
+      // atomic PATCH /projects/:id/batch once edits pause, so dragging a diagram
+      // (its participants, messages, tables and shapes) is a single request. A
+      // rejected batch restores every row it carried.
+      type BatchSection =
+        | 'tables'
+        | 'elements'
+        | 'diagrams'
+        | 'lifelines'
+        | 'messages'
+        | 'relationships';
+      const BATCH_SECTIONS: BatchSection[] = [
+        'tables',
+        'elements',
+        'diagrams',
+        'lifelines',
+        'messages',
+        'relationships',
+      ];
+      const staged = new Map<BatchSection, Map<string, Record<string, unknown>>>(
+        BATCH_SECTIONS.map((k) => [k, new Map()]),
+      );
+      const stagedCheckpoints = new Map<string, () => () => void>();
+
+      /** True while a row has edits staged but not yet sent. */
+      function isStaged(section: BatchSection, id: string): boolean {
+        return staged.get(section)!.has(id);
+      }
+
+      /** Stage a patch for a row. Call BEFORE applying it locally (checkpoints the row). */
+      function stage(section: BatchSection, id: string, patch: object, ms = 400): void {
+        const ck = `${section}:${id}`;
+        if (!stagedCheckpoints.has(ck)) {
+          stagedCheckpoints.set(ck, checkpoint(id));
+        }
+        const rows = staged.get(section)!;
+        rows.set(id, { ...(rows.get(id) ?? {}), ...patch });
+        debounce('batch', flushBatch, ms);
+      }
+
+      function flushBatch(): void {
+        const projectId = store.projectId();
+        const body: BatchUpdateDto = {};
+        let count = 0;
+        for (const section of BATCH_SECTIONS) {
+          const rows = staged.get(section)!;
+          if (rows.size) {
+            (body as Record<string, unknown>)[section] = [...rows].map(([id, p]) => ({ id, ...p }));
+            count += rows.size;
+            rows.clear();
+          }
+        }
+        const rollbacks = [...stagedCheckpoints.values()].map((seal) => seal());
+        stagedCheckpoints.clear();
+        if (!count || !projectId) {
+          return;
+        }
+        void enqueue('batch', () => runSave(() => firstValueFrom(projectsApi.batch(projectId, body))))
+          .catch(() => {
+            rollbacks.forEach((rollback) => rollback());
+            notifyFailure('save your changes');
+          });
+      }
+
+      function patchTableLocal(tableId: string, patch: UpdateTableDto): void {
+        stage('tables', tableId, patch);
+        mapTable(tableId, (t) => ({ ...t, ...(patch as Partial<TableModel>) }));
+      }
+
+      function patchDiagramLocal(diagramId: string, patch: UpdateSequenceDiagramDto): void {
+        stage('diagrams', diagramId, patch);
+        mapDiagram(diagramId, (d) => ({ ...d, ...(patch as Partial<SequenceDiagramModel>) }));
       }
 
       // ---- Sequence undo/redo ----
@@ -968,44 +1298,69 @@ export const ProjectStore = signalStore(
         }
       }
 
-      async function removeSeq(kind: SeqKind, id: string): Promise<void> {
+      /** Optimistic delete; resolves false (rows restored) when the server rejects it. */
+      async function removeSeq(kind: SeqKind, id: string): Promise<boolean> {
         const projectId = store.projectId();
-        if (!projectId) return;
+        if (!projectId) return false;
         if (kind === 'message') {
-          await runSave(() => firstValueFrom(sequenceApi.deleteMessage(projectId, id)));
-          setSchema((s) => ({
-            ...s,
-            sequenceMessages: s.sequenceMessages.filter((m) => m.id !== id),
-          }));
-          patchState(store, {
-            selectedMessageIds: store.selectedMessageIds().filter((x) => x !== id),
-          });
-        } else if (kind === 'lifeline') {
-          await runSave(() => firstValueFrom(sequenceApi.deleteLifeline(projectId, id)));
-          setSchema((s) => ({
-            ...s,
-            lifelines: s.lifelines.filter((l) => l.id !== id),
-            sequenceMessages: s.sequenceMessages.filter(
-              (m) => m.fromLifelineId !== id && m.toLifelineId !== id,
-            ),
-          }));
-          patchState(store, {
-            selectedLifelineIds: store.selectedLifelineIds().filter((x) => x !== id),
-          });
-        } else {
-          await runSave(() => firstValueFrom(sequenceApi.deleteDiagram(projectId, id)));
-          setSchema((s) => ({
-            ...s,
-            sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== id),
-            lifelines: s.lifelines.filter((l) => l.diagramId !== id),
-            sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== id),
-          }));
-          patchState(store, {
-            selectedDiagramIds: store.selectedDiagramIds().filter((x) => x !== id),
-            selectedLifelineIds: [],
-            selectedMessageIds: [],
-          });
+          flushTimers(`msgpos:${id}`, `patch:message:${id}`);
+          void optimistic(
+            `message:${id}`,
+            () => {
+              setSchema((s) => ({
+                ...s,
+                sequenceMessages: s.sequenceMessages.filter((m) => m.id !== id),
+              }));
+              patchState(store, {
+                selectedMessageIds: store.selectedMessageIds().filter((x) => x !== id),
+              });
+            },
+            () => firstValueFrom(sequenceApi.deleteMessage(projectId, id)),
+            'delete the message',
+          );
+          return true;
         }
+        if (kind === 'lifeline') {
+          flushTimers(`llpos:${id}`, `patch:lifeline:${id}`);
+          void optimistic(
+            `lifeline:${id}`,
+            () => {
+              setSchema((s) => ({
+                ...s,
+                lifelines: s.lifelines.filter((l) => l.id !== id),
+                sequenceMessages: s.sequenceMessages.filter(
+                  (m) => m.fromLifelineId !== id && m.toLifelineId !== id,
+                ),
+              }));
+              patchState(store, {
+                selectedLifelineIds: store.selectedLifelineIds().filter((x) => x !== id),
+              });
+            },
+            () => firstValueFrom(sequenceApi.deleteLifeline(projectId, id)),
+            'delete the participant',
+          );
+          return true;
+        }
+        flushTimers(`patch:diagram:${id}`);
+        void optimistic(
+          `diagram:${id}`,
+          () => {
+            setSchema((s) => ({
+              ...s,
+              sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== id),
+              lifelines: s.lifelines.filter((l) => l.diagramId !== id),
+              sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== id),
+            }));
+            patchState(store, {
+              selectedDiagramIds: store.selectedDiagramIds().filter((x) => x !== id),
+              selectedLifelineIds: [],
+              selectedMessageIds: [],
+            });
+          },
+          () => firstValueFrom(sequenceApi.deleteDiagram(projectId, id)),
+          'delete the sequence diagram',
+        );
+        return true;
       }
 
       /** Undo = remove it again; redo = bring it back (state re-captured at undo time). */
@@ -1026,7 +1381,9 @@ export const ProjectStore = signalStore(
         const id = seqRootId(snap);
         pushHistory({
           undo: () => restoreSeq(snap),
-          redo: () => removeSeq(snap.kind, rid(id)),
+          redo: async () => {
+            await removeSeq(snap.kind, rid(id));
+          },
         });
       }
 
@@ -1051,10 +1408,12 @@ export const ProjectStore = signalStore(
         if (existing) {
           clearTimeout(existing);
         }
+        timerFns.set(key, fn);
         timers.set(
           key,
           setTimeout(() => {
             timers.delete(key);
+            timerFns.delete(key);
             fn();
           }, ms),
         );
@@ -1750,11 +2109,9 @@ export const ProjectStore = signalStore(
             : current
               ? pickKeys(current, keys)
               : null;
-          const updated = await runSave(() =>
-            firstValueFrom(sequenceApi.updateLifeline(projectId, lifelineId, patch)),
-          );
-          mapLifeline(lifelineId, () => updated);
-          const after = pickKeys(updated, keys);
+          stage('lifelines', lifelineId, patch);
+          mapLifeline(lifelineId, (l) => ({ ...l, ...(patch as Partial<LifelineModel>) }));
+          const after = pickKeys({ ...current, ...patch }, keys);
           if (before && !sameValues(before, after)) {
             pushHistory({
               undo: () => this.updateLifeline(rid(lifelineId), before as UpdateLifelineDto),
@@ -1769,10 +2126,8 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
+          stage('lifelines', lifelineId, { x });
           mapLifeline(lifelineId, (l) => ({ ...l, x }));
-          debounce(`llpos:${lifelineId}`, () => {
-            void runSave(() => firstValueFrom(sequenceApi.moveLifeline(projectId, lifelineId, { x })));
-          });
         },
 
         /** Live (local-only) header width while dragging its edge; persist via updateLifeline. */
@@ -1786,8 +2141,7 @@ export const ProjectStore = signalStore(
             return;
           }
           const snap = captureSeq('lifeline', lifelineId);
-          await removeSeq('lifeline', lifelineId);
-          if (snap) recordSeqDelete(snap);
+          if ((await removeSeq('lifeline', lifelineId)) && snap) recordSeqDelete(snap);
         },
 
         /**
@@ -2001,8 +2355,7 @@ export const ProjectStore = signalStore(
             return;
           }
           const snap = captureSeq('diagram', diagramId);
-          await removeSeq('diagram', diagramId);
-          if (snap) recordSeqDelete(snap);
+          if ((await removeSeq('diagram', diagramId)) && snap) recordSeqDelete(snap);
         },
 
         async updateMessage(messageId: string, patch: UpdateSequenceMessageDto): Promise<void> {
@@ -2013,11 +2366,9 @@ export const ProjectStore = signalStore(
           const keys = Object.keys(patch);
           const current = store.sequenceMessages().find((m) => m.id === messageId);
           const before = current ? pickKeys(current, keys) : null;
-          const updated = await runSave(() =>
-            firstValueFrom(sequenceApi.updateMessage(projectId, messageId, patch)),
-          );
-          mapMessage(messageId, () => updated);
-          const after = pickKeys(updated, keys);
+          stage('messages', messageId, patch);
+          mapMessage(messageId, (m) => ({ ...m, ...(patch as Partial<SequenceMessageModel>) }));
+          const after = pickKeys({ ...current, ...patch }, keys);
           if (before && !sameValues(before, after)) {
             pushHistory({
               undo: () =>
@@ -2034,10 +2385,8 @@ export const ProjectStore = signalStore(
           if (!projectId) {
             return;
           }
+          stage('messages', messageId, { y });
           mapMessage(messageId, (m) => ({ ...m, y }));
-          debounce(`msgpos:${messageId}`, () => {
-            void runSave(() => firstValueFrom(sequenceApi.moveMessage(projectId, messageId, { y })));
-          });
         },
 
         async deleteMessage(messageId: string): Promise<void> {
@@ -2046,8 +2395,7 @@ export const ProjectStore = signalStore(
             return;
           }
           const snap = captureSeq('message', messageId);
-          await removeSeq('message', messageId);
-          if (snap) recordSeqDelete(snap);
+          if ((await removeSeq('message', messageId)) && snap) recordSeqDelete(snap);
         },
 
         /** Update one diagram's layout config (spacing / origin), persisted. */
@@ -2066,11 +2414,8 @@ export const ProjectStore = signalStore(
           );
           const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
           const before = current && keys.length ? pickKeys(current, keys) : null;
-          const updated = await runSave(() =>
-            firstValueFrom(sequenceApi.updateDiagram(projectId, diagramId, patch)),
-          );
-          mapDiagram(diagramId, () => updated);
-          const after = before ? pickKeys(updated, keys) : null;
+          patchDiagramLocal(diagramId, patch);
+          const after = before ? pickKeys({ ...current, ...patch }, keys) : null;
           if (before && after && !sameValues(before, after)) {
             pushHistory({
               undo: () =>
@@ -2194,10 +2539,8 @@ export const ProjectStore = signalStore(
 
         /** Optimistic local move; the position PATCH is debounced per table. */
         moveTable(tableId: string, x: number, y: number): void {
+          stage('tables', tableId, { x, y });
           mapTable(tableId, (t) => ({ ...t, x, y }));
-          debounce(`pos:${tableId}`, () => {
-            void runSave(() => firstValueFrom(tablesApi.updatePosition(tableId, { x, y })));
-          });
         },
 
         /** Live (local-only) scale while dragging a corner; persist via updateTable. */
@@ -2206,16 +2549,22 @@ export const ProjectStore = signalStore(
         },
 
         async updateTable(tableId: string, patch: UpdateTableDto): Promise<void> {
-          const updated = await runSave(() => firstValueFrom(tablesApi.update(tableId, patch)));
-          mapTable(tableId, () => updated);
+          patchTableLocal(tableId, patch);
         },
 
         async deleteTable(tableId: string): Promise<void> {
-          await runSave(() => firstValueFrom(tablesApi.remove(tableId)));
-          setSchema((s) => ({ ...s, tables: s.tables.filter((t) => t.id !== tableId) }));
-          patchState(store, {
-            selectedTableIds: store.selectedTableIds().filter((id) => id !== tableId),
-          });
+          flushTimers(`pos:${tableId}`, `patch:table:${tableId}`);
+          await optimistic(
+            `table:${tableId}`,
+            () => {
+              setSchema((s) => ({ ...s, tables: s.tables.filter((t) => t.id !== tableId) }));
+              patchState(store, {
+                selectedTableIds: store.selectedTableIds().filter((id) => id !== tableId),
+              });
+            },
+            () => firstValueFrom(tablesApi.remove(tableId)),
+            'delete the table',
+          );
         },
 
         /** Duplicate a table (offset copy) with all its columns; selects the copy. */
@@ -2292,19 +2641,34 @@ export const ProjectStore = signalStore(
           columnId: string,
           patch: UpdateColumnDto,
         ): Promise<void> {
-          const updated = await runSave(() => firstValueFrom(columnsApi.update(columnId, patch)));
+          commitPatch(
+            `patch:col:${columnId}`,
+            `table:${tableId}`,
+            tableId,
+            patch,
+            (p) => firstValueFrom(columnsApi.update(columnId, p)),
+            'save the column',
+          );
           mapTable(tableId, (t) => ({
             ...t,
-            columns: t.columns.map((c) => (c.id === columnId ? updated : c)),
+            columns: t.columns.map((c) =>
+              c.id === columnId ? { ...c, ...(patch as Partial<ColumnModel>) } : c,
+            ),
           }));
         },
 
         async deleteColumn(tableId: string, columnId: string): Promise<void> {
-          await runSave(() => firstValueFrom(columnsApi.remove(columnId)));
-          mapTable(tableId, (t) => ({
-            ...t,
-            columns: t.columns.filter((c) => c.id !== columnId),
-          }));
+          flushTimers(`reorder:${tableId}`, `patch:col:${columnId}`);
+          await optimistic(
+            `table:${tableId}`,
+            () =>
+              mapTable(tableId, (t) => ({
+                ...t,
+                columns: t.columns.filter((c) => c.id !== columnId),
+              })),
+            () => firstValueFrom(columnsApi.remove(columnId)),
+            'delete the column',
+          );
         },
 
         /** Reorder columns optimistically; persist the new order (debounced). */
@@ -2331,19 +2695,34 @@ export const ProjectStore = signalStore(
           indexId: string,
           patch: UpdateIndexDto,
         ): Promise<void> {
-          const updated = await runSave(() => firstValueFrom(indexesApi.update(indexId, patch)));
+          commitPatch(
+            `patch:index:${indexId}`,
+            `table:${tableId}`,
+            tableId,
+            patch,
+            (p) => firstValueFrom(indexesApi.update(indexId, p)),
+            'save the index',
+          );
           mapTable(tableId, (t) => ({
             ...t,
-            indexes: (t.indexes ?? []).map((i) => (i.id === indexId ? updated : i)),
+            indexes: (t.indexes ?? []).map((i) =>
+              i.id === indexId ? ({ ...i, ...patch } as typeof i) : i,
+            ),
           }));
         },
 
         async deleteIndex(tableId: string, indexId: string): Promise<void> {
-          await runSave(() => firstValueFrom(indexesApi.remove(indexId)));
-          mapTable(tableId, (t) => ({
-            ...t,
-            indexes: (t.indexes ?? []).filter((i) => i.id !== indexId),
-          }));
+          flushTimers(`patch:index:${indexId}`);
+          await optimistic(
+            `table:${tableId}`,
+            () =>
+              mapTable(tableId, (t) => ({
+                ...t,
+                indexes: (t.indexes ?? []).filter((i) => i.id !== indexId),
+              })),
+            () => firstValueFrom(indexesApi.remove(indexId)),
+            'delete the index',
+          );
         },
 
         /** Optimistic local viewport; the viewport PATCH is debounced. */
@@ -2424,37 +2803,55 @@ export const ProjectStore = signalStore(
         },
 
         async updateRelationship(id: string, patch: UpdateRelationshipDto): Promise<void> {
-          const updated = await runSave(() => firstValueFrom(relationshipsApi.update(id, patch)));
+          if (patch.sourceColumnId !== undefined || patch.targetColumnId !== undefined) {
+            commitPatch(
+              `patch:rel:${id}`,
+              `rel:${id}`,
+              id,
+              patch,
+              (p) => firstValueFrom(relationshipsApi.update(id, p)),
+              'save the relationship',
+            );
+          } else {
+            stage('relationships', id, patch);
+          }
           setSchema((s) => ({
             ...s,
             relationships: s.relationships.map((r: RelationshipModel) =>
-              r.id === id ? updated : r,
+              r.id === id ? ({ ...r, ...patch } as RelationshipModel) : r,
             ),
           }));
         },
 
         /** Optimistic local routing; the waypoints PATCH is debounced per relationship. */
         setWaypoints(id: string, waypoints: PointModel[]): void {
+          stage('relationships', id, { waypoints });
           setSchema((s) => ({
             ...s,
             relationships: s.relationships.map((r: RelationshipModel) =>
               r.id === id ? { ...r, waypoints } : r,
             ),
           }));
-          debounce(`wp:${id}`, () => {
-            void runSave(() => firstValueFrom(relationshipsApi.update(id, { waypoints })));
-          });
         },
 
         async deleteRelationship(id: string): Promise<void> {
-          await runSave(() => firstValueFrom(relationshipsApi.remove(id)));
-          setSchema((s) => ({
-            ...s,
-            relationships: s.relationships.filter((r: RelationshipModel) => r.id !== id),
-          }));
-          patchState(store, {
-            selectedRelationshipIds: store.selectedRelationshipIds().filter((rid) => rid !== id),
-          });
+          flushTimers(`wp:${id}`, `patch:rel:${id}`);
+          await optimistic(
+            `rel:${id}`,
+            () => {
+              setSchema((s) => ({
+                ...s,
+                relationships: s.relationships.filter((r: RelationshipModel) => r.id !== id),
+              }));
+              patchState(store, {
+                selectedRelationshipIds: store
+                  .selectedRelationshipIds()
+                  .filter((rid) => rid !== id),
+              });
+            },
+            () => firstValueFrom(relationshipsApi.remove(id)),
+            'delete the relationship',
+          );
         },
 
         // --- Canvas elements (excalidraw-style drawing layer) ---
@@ -2475,18 +2872,14 @@ export const ProjectStore = signalStore(
         ): Promise<void> {
           const projectId = store.projectId();
           for (const id of items.elements) {
-            await updateElementRaw(id, { slideId });
+            void updateElementRaw(id, { slideId });
           }
           for (const id of items.tables) {
-            const updated = await runSave(() => firstValueFrom(tablesApi.update(id, { slideId })));
-            mapTable(id, () => updated);
+            patchTableLocal(id, { slideId });
           }
           if (projectId) {
             for (const id of items.diagrams) {
-              const updated = await runSave(() =>
-                firstValueFrom(sequenceApi.updateDiagram(projectId, id, { slideId })),
-              );
-              mapDiagram(id, () => updated);
+              patchDiagramLocal(id, { slideId });
             }
           }
         },
@@ -2543,7 +2936,9 @@ export const ProjectStore = signalStore(
           // Undo removes it; redo re-creates from the creation snapshot (new id).
           const ref = { id: created.id };
           pushHistory({
-            undo: () => deleteElementRaw(ref.id),
+            undo: async () => {
+              await deleteElementRaw(ref.id);
+            },
             redo: async () => {
               const again = await createElementRaw(elementToCreateDto(created));
               if (again) {
@@ -2781,34 +3176,32 @@ export const ProjectStore = signalStore(
 
         /** Optimistic local move; the position PATCH is debounced per element. */
         moveElement(elementId: string, x: number, y: number): void {
+          stage('elements', elementId, { x, y });
           mapElement(elementId, (e) => ({ ...e, x, y }));
-          debounce(`pos:elem:${elementId}`, () => {
-            void runSave(() => firstValueFrom(elementsApi.updatePosition(elementId, { x, y })));
-          });
         },
 
         /** Optimistic local reshape (vertices); the position PATCH is debounced. */
         setElementPoints(elementId: string, points: PointModel[]): void {
+          stage('elements', elementId, { points });
           mapElement(elementId, (e) => ({ ...e, points }));
-          debounce(`pts:elem:${elementId}`, () => {
-            void runSave(() => firstValueFrom(elementsApi.updatePosition(elementId, { points })));
-          });
         },
 
         async deleteElement(elementId: string): Promise<void> {
           const snapshot = store.schema()?.elements.find((e) => e.id === elementId);
-          await deleteElementRaw(elementId);
-          if (snapshot) {
+          if ((await deleteElementRaw(elementId)) && snapshot) {
             // Undo re-creates it (new id); redo deletes the re-created element.
             const ref = { id: elementId };
             pushHistory({
               undo: async () => {
+                if (store.schema()?.elements.some((e) => e.id === ref.id)) return;
                 const again = await createElementRaw(elementToCreateDto(snapshot));
                 if (again) {
                   ref.id = again.id;
                 }
               },
-              redo: () => deleteElementRaw(ref.id),
+              redo: async () => {
+                await deleteElementRaw(ref.id);
+              },
             });
           }
         },

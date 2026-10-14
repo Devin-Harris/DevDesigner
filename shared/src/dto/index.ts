@@ -280,6 +280,8 @@ export interface UpdateNoteDto {
 
 // --- Canvas elements (excalidraw-style drawing layer) ---
 export interface CreateElementDto {
+  /** Client-generated UUID, so the canvas can show the element before the save returns. */
+  id?: string;
   type: ElementType;
   x: number;
   y: number;

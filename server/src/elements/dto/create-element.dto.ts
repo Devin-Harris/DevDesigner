@@ -7,6 +7,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsUUID,
   IsString,
   Max,
   MaxLength,
@@ -41,6 +42,10 @@ import { TextRunDto } from './text-run.dto';
 
 /** Body for POST /projects/:projectId/elements. */
 export class CreateElementDto implements ICreateElementDto {
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsIn([...ELEMENT_TYPES])
   type!: ElementType;
 
