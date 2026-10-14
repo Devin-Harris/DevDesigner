@@ -60,6 +60,9 @@ export class RelationshipsService {
       type: dto.type,
       onDelete: dto.onDelete ?? null,
       onUpdate: dto.onUpdate ?? null,
+      sourceSide: dto.sourceSide ?? null,
+      targetSide: dto.targetSide ?? null,
+      autoRoute: dto.autoRoute ?? null,
     });
     const saved = await this.relationships.save(relationship);
     const model = toRelationshipModel(saved);
@@ -106,6 +109,15 @@ export class RelationshipsService {
     }
     if (dto.waypoints !== undefined) {
       relationship.waypointsJson = dto.waypoints.length ? JSON.stringify(dto.waypoints) : null;
+    }
+    if (dto.sourceSide !== undefined) {
+      relationship.sourceSide = dto.sourceSide;
+    }
+    if (dto.targetSide !== undefined) {
+      relationship.targetSide = dto.targetSide;
+    }
+    if (dto.autoRoute !== undefined) {
+      relationship.autoRoute = dto.autoRoute;
     }
     const saved = await this.relationships.save(relationship);
     const model = toRelationshipModel(saved);

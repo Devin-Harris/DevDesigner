@@ -95,12 +95,51 @@ export function cleanElbow(
     }
     return simplifyRoute([a, { x: extentX, y: a.y }, { x: extentX, y: b.y }, b]);
   }
+  // Opposite sides that don't face each other (the tables overlap horizontally,
+  // e.g. a right exit into a left entry that sits behind it): a plain elbow would
+  // fold back through the source table. Wrap around instead.
+  if (Math.sign(b.x - a.x) !== Math.sign(dirA) || Math.abs(b.x - a.x) < 2 * MIN_STUB) {
+    return wrapElbow(a, b, dirA, dirB, sBox, tBox, bounds);
+  }
   const gap = Math.abs(b.x - a.x);
   const off = Math.min(EXIT_STUB, Math.max(MIN_STUB, gap / 2));
   const sx = a.x + Math.sign(dirA) * off;
   const tx = b.x + Math.sign(dirB) * off;
   const midX = (sx + tx) / 2;
   return simplifyRoute([a, { x: midX, y: a.y }, { x: midX, y: b.y }, b]);
+}
+
+/**
+ * S-shaped route for opposite-side anchors that face away from each other: out
+ * a stub from each anchor, joined by a horizontal run through the vertical gap
+ * between the tables, or around the top/bottom of both when they overlap.
+ */
+function wrapElbow(
+  a: Point,
+  b: Point,
+  dirA: number,
+  dirB: number,
+  sBox: Box,
+  tBox: Box,
+  bounds?: Box,
+): Point[] {
+  const sx = a.x + Math.sign(dirA) * EXIT_STUB;
+  const tx = b.x + Math.sign(dirB) * EXIT_STUB;
+  let midY: number;
+  if (sBox.y1 + 2 * MIN_STUB <= tBox.y0) {
+    midY = (sBox.y1 + tBox.y0) / 2;
+  } else if (tBox.y1 + 2 * MIN_STUB <= sBox.y0) {
+    midY = (tBox.y1 + sBox.y0) / 2;
+  } else {
+    const below = Math.max(sBox.y1, tBox.y1) + EXIT_STUB;
+    const above = Math.min(sBox.y0, tBox.y0) - EXIT_STUB;
+    const cost = (y: number): number => Math.abs(a.y - y) + Math.abs(b.y - y);
+    midY = cost(below) <= cost(above) ? below : above;
+  }
+  if (bounds) {
+    midY = Math.min(bounds.y1, Math.max(bounds.y0, midY));
+  }
+  return simplifyRoute([a, { x: sx, y: a.y }, { x: sx, y: midY }, { x: tx, y: midY }, { x: tx, y: b.y }, b]);
 }
 
 interface Edge {

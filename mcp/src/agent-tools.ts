@@ -10,6 +10,7 @@ import {
   PROJECT_EXPORT_VERSION,
   edgePoint,
   elementRect,
+  isUnsignedType,
   parseDataType,
   presentationOf,
   presentationSlides,
@@ -196,6 +197,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         isNullable: c.isNullable,
         isUnique: c.isUnique,
         isAutoIncrement: c.isAutoIncrement,
+        ...(c.isUnsigned ? { isUnsigned: true } : {}),
         ...(c.defaultValue !== undefined ? { defaultValue: c.defaultValue } : {}),
       });
       colMap.set(c.id, nc.id);
@@ -874,6 +876,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         await api.post(`/tables/${a.tableId}/columns`, {
           name: a.column.name,
           dataType: parseDataType(a.column.type),
+          ...(isUnsignedType(a.column.type) ? { isUnsigned: true } : {}),
           isPrimaryKey: !!a.column.primaryKey,
           isNullable: a.column.primaryKey ? false : (a.column.nullable ?? true),
           isUnique: !!a.column.unique,

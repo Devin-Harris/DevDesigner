@@ -58,6 +58,11 @@
   padding: 5px;
   --dbd-icon-size: 17px;
 
+  &.active {
+    background: var(--dbd-primary-weak);
+    color: var(--dbd-primary);
+  }
+
   &:hover:not(:disabled) {
     color: var(--dbd-text);
     background: var(--dbd-surface-2);

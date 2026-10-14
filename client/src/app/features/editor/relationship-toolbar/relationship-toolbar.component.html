@@ -31,9 +31,22 @@
 <button
   type="button"
   class="ico-act"
+  [class.active]="autoRoute()"
+  [disabled]="!canEdit()"
+  (click)="toggleAutoRoute.emit()"
+  [matTooltip]="autoRoute() ? 'Auto-route on: best path, avoids tables' : 'Auto-route off: line stays where you put it (double-click the line to auto-route)'"
+  [attr.aria-pressed]="autoRoute()"
+  aria-label="Auto-route"
+>
+  <dbd-icon name="auto_fix" />
+</button>
+
+<button
+  type="button"
+  class="ico-act"
   [disabled]="!canEdit()"
   (click)="resetRoute.emit()"
-  matTooltip="Reset route"
+  [matTooltip]="autoRoute() ? 'Reset route' : 'Straighten (remove bends)'"
   aria-label="Reset route"
 >
   <dbd-icon name="timeline" />

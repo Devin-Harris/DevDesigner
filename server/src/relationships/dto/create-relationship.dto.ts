@@ -1,6 +1,8 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
+  CONNECTOR_SIDES,
   RELATIONSHIP_TYPES,
+  type ConnectorSide,
   type CreateRelationshipDto as ICreateRelationshipDto,
   type RelationshipType,
 } from '@dbdesigner/shared';
@@ -27,4 +29,16 @@ export class CreateRelationshipDto implements ICreateRelationshipDto {
   @IsString()
   @MaxLength(32)
   onUpdate?: string;
+
+  @IsOptional()
+  @IsIn([...CONNECTOR_SIDES])
+  sourceSide?: ConnectorSide;
+
+  @IsOptional()
+  @IsIn([...CONNECTOR_SIDES])
+  targetSide?: ConnectorSide;
+
+  @IsOptional()
+  @IsBoolean()
+  autoRoute?: boolean;
 }

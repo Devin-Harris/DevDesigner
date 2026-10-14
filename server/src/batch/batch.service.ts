@@ -221,6 +221,9 @@ export class BatchService {
         if (p.dto.waypoints !== undefined) {
           r.waypointsJson = p.dto.waypoints.length ? JSON.stringify(p.dto.waypoints) : null;
         }
+        if (p.dto.sourceSide !== undefined) r.sourceSide = p.dto.sourceSide;
+        if (p.dto.targetSide !== undefined) r.targetSide = p.dto.targetSide;
+        if (p.dto.autoRoute !== undefined) r.autoRoute = p.dto.autoRoute;
       }
       await save(m, RelationshipEntity, [...relRows.values()]);
 

@@ -31,6 +31,9 @@ interface Resolved {
   a: Point;
   b: Point;
   route: Point[];
+  /** Sides the line actually attaches to (pinned or chosen by the router). */
+  ss: Side;
+  ts: Side;
 }
 
 /**
@@ -53,11 +56,12 @@ function cacheKey(
   tIndex: number,
   obstacles: readonly Box[],
   waypoints: readonly Point[],
+  mode: string,
   bounds?: Box,
 ): string {
   const obs = obstacles.map(boxKey).sort().join(';');
   const wps = waypoints.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(';');
-  return `${boxKey(sBox)}#${sIndex}|${boxKey(tBox)}#${tIndex}|${obs}|${wps}|${bounds ? boxKey(bounds) : ''}`;
+  return `${mode}|${boxKey(sBox)}#${sIndex}|${boxKey(tBox)}#${tIndex}|${obs}|${wps}|${bounds ? boxKey(bounds) : ''}`;
 }
 
 function remember(key: string, value: Resolved): Resolved {
@@ -138,7 +142,7 @@ function autoRoute(
 
   const winner = best as NonNullable<typeof best>; // combos is non-empty
   if (winner.blocked === 0) {
-    return { a: winner.a, b: winner.b, route: winner.elbow };
+    return { a: winner.a, b: winner.b, route: winner.elbow, ss: winner.ss, ts: winner.ts };
   }
   // A table sits in the way: route around it with the A* search.
   const route = routeOrthogonal(
@@ -150,7 +154,56 @@ function autoRoute(
     OBSTACLE_GAP,
     bounds,
   );
-  return { a: winner.a, b: winner.b, route };
+  return { a: winner.a, b: winner.b, route, ss: winner.ss, ts: winner.ts };
+}
+
+/** The side of `table` that faces `other` (by center x). */
+function nearSide(table: TableModel, other: TableModel): Side {
+  const c = table.x + tableWidth(table) / 2;
+  const o = other.x + tableWidth(other) / 2;
+  return o >= c ? 'right' : 'left';
+}
+
+/** The side to use given the nearest bend: flips only once it is beyond the opposite edge. */
+function flipSide(side: Side, box: Box, bend: Point | undefined): Side {
+  if (!bend) {
+    return side;
+  }
+  if (side === 'right' && bend.x < box.x0) {
+    return 'left';
+  }
+  if (side === 'left' && bend.x > box.x1) {
+    return 'right';
+  }
+  return side;
+}
+
+/**
+ * Manual routing: the line attaches to its pinned sides and follows the user's
+ * bend points exactly. No side flipping and no obstacle search, so the line only
+ * changes shape when the user changes it (or moves a table).
+ */
+function manualRoute(
+  rel: RelationshipModel,
+  source: TableModel,
+  sIndex: number,
+  target: TableModel,
+  tIndex: number,
+  sBox: Box,
+  tBox: Box,
+  bounds?: Box,
+): Resolved {
+  const waypoints = rel.waypoints ?? [];
+  // Dragging the line's first/last bend past the far edge of its table moves
+  // that end's connection point to the other side.
+  const ss = flipSide(rel.sourceSide ?? nearSide(source, target), sBox, waypoints[0]);
+  const ts = flipSide(rel.targetSide ?? nearSide(target, source), tBox, waypoints[waypoints.length - 1]);
+  const a = columnAnchor(source, sIndex, ss);
+  const b = columnAnchor(target, tIndex, ts);
+  const route = waypoints.length
+    ? simplifyRoute(manhattanRoute(a, b, waypoints))
+    : cleanElbow(a, b, sideDir(ss), sideDir(ts), sBox, tBox, bounds);
+  return { a, b, route, ss, ts };
 }
 
 /** Resolve one relationship to its anchors + route, using the cache when possible. */
@@ -166,10 +219,16 @@ function resolveConnector(
   const sBox = tableBox(source);
   const tBox = tableBox(target);
   const waypoints = rel.waypoints ?? [];
-  const key = cacheKey(sBox, sIndex, tBox, tIndex, obstacles, waypoints, bounds);
+  const manual = rel.autoRoute === false;
+  const mode = manual ? `m:${rel.sourceSide ?? ''}:${rel.targetSide ?? ''}` : 'a';
+  // Manual lines ignore other tables, so neighbours moving never invalidate them.
+  const key = cacheKey(sBox, sIndex, tBox, tIndex, manual ? [] : obstacles, waypoints, mode, bounds);
   const cached = routeCache.get(key);
   if (cached) {
     return cached;
+  }
+  if (manual) {
+    return remember(key, manualRoute(rel, source, sIndex, target, tIndex, sBox, tBox, bounds));
   }
 
   // With manual waypoints the connector follows them (dodging tables) but never
@@ -199,7 +258,7 @@ function resolveConnector(
       OBSTACLE_GAP,
       bounds,
     );
-    resolved = { a, b, route };
+    resolved = { a, b, route, ss, ts };
   } else {
     resolved = autoRoute(source, sIndex, target, tIndex, sBox, tBox, obstacles, bounds);
   }
@@ -371,6 +430,41 @@ function nudge(
   return true;
 }
 
+/** Straight run each end keeps before its first bend: the marker (20px) plus a little air. */
+const END_CLEAR = 26;
+
+/**
+ * Push the bend nearest each anchor out to at least END_CLEAR along the exit
+ * direction, sliding the adjoining vertical run with it. Otherwise a line that
+ * turns right at the table edge draws its corner (and any line-jump) inside the
+ * crow's-foot / bar marker and the end reads as a tangle.
+ */
+function clearEnds(route: Point[], dirA: number, dirB: number): void {
+  const n = route.length;
+  if (n < 4) {
+    return;
+  }
+  const push = (anchor: Point, corner: Point, next: Point, dir: number): void => {
+    if (corner.y !== anchor.y || next.x !== corner.x) {
+      return; // not a horizontal exit followed by a vertical run
+    }
+    if ((corner.x - anchor.x) * dir < END_CLEAR) {
+      corner.x = anchor.x + dir * END_CLEAR;
+      next.x = corner.x;
+    }
+  };
+  if (n === 4) {
+    // One shared vertical run: only move it if both ends can get their clearance.
+    const lo = route[0].x + dirA * END_CLEAR;
+    const hi = route[3].x + dirB * END_CLEAR;
+    if ((hi - lo) * dirA < 0) {
+      return; // anchors too close together; keep the midpoint
+    }
+  }
+  push(route[0], route[1], route[2], dirA);
+  push(route[n - 1], route[n - 2], route[n - 3], dirB);
+}
+
 /** Build the SVG connectors for the current schema. */
 export function computeConnectors(
   tables: readonly TableModel[],
@@ -390,6 +484,8 @@ export function computeConnectors(
     a: Point;
     b: Point;
     route: Point[];
+    ss: Side;
+    ts: Side;
   }[] = [];
   for (const rel of relationships) {
     const source = locations.get(rel.sourceColumnId);
@@ -429,7 +525,7 @@ export function computeConnectors(
     );
     // Final guard: every segment stored and drawn is strictly horizontal/vertical.
     const route = orthogonalize(resolved.route);
-    pending.push({ rel, a: resolved.a, b: resolved.b, route });
+    pending.push({ rel, a: resolved.a, b: resolved.b, route, ss: resolved.ss, ts: resolved.ts });
   }
 
   // Keep lines headed to different destinations from running on top of each other.
@@ -437,17 +533,22 @@ export function computeConnectors(
     pending.map((pc) => ({
       route: pc.route,
       destination: `${pc.b.x},${pc.b.y}`,
-      locked: !!pc.rel.waypoints?.length,
+      locked: !!pc.rel.waypoints?.length || pc.rel.autoRoute === false,
     })),
     [...boxes.values()],
   );
+
+  // Keep the first/last bend clear of the crow's-foot markers.
+  for (const pc of pending) {
+    clearEnds(pc.route, sideDir(pc.ss), sideDir(pc.ts));
+  }
 
   // Second pass: draw each route, hopping its horizontal runs over other
   // connectors' vertical runs so overlapping lines stay readable (line-jumps).
   const verticalsPer = pending.map((pc) => verticalSegments(pc.route));
   const result: Connector[] = [];
   for (let k = 0; k < pending.length; k += 1) {
-    const { rel, a, b, route } = pending[k];
+    const { rel, a, b, route, ss, ts } = pending[k];
 
     const hops: number[][] = [];
     for (let i = 0; i < route.length - 1; i += 1) {
@@ -465,7 +566,9 @@ export function computeConnectors(
           continue;
         }
         for (const v of verticalsPer[j]) {
-          if (v.x > xa && v.x < xb && p.y > v.y0 && p.y < v.y1) {
+          const nearEnd =
+            Math.hypot(v.x - a.x, p.y - a.y) < END_CLEAR || Math.hypot(v.x - b.x, p.y - b.y) < END_CLEAR;
+          if (!nearEnd && v.x > xa && v.x < xb && p.y > v.y0 && p.y < v.y1) {
             xs.push(v.x);
           }
         }
@@ -499,6 +602,9 @@ export function computeConnectors(
       selected: selectedIds.has(rel.id),
       routePoints: route,
       segments,
+      sourceSide: ss,
+      targetSide: ts,
+      autoRoute: rel.autoRoute !== false,
     });
   }
   return result;

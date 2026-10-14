@@ -38,6 +38,10 @@ export class UpdateColumnDto implements IUpdateColumnDto {
   isAutoIncrement?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isUnsigned?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(255)
   defaultValue?: string;

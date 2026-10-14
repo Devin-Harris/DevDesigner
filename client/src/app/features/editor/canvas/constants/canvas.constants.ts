@@ -24,6 +24,8 @@ export const NAME_CHAR_W = 8;
 export const HEADER_CHAR_W = 8.5;
 export const ROW_FIXED_W = 220;
 export const VARCHAR_FIXED_W = 50;
+/** The UN (unsigned) chip, shown only on numeric columns. */
+export const UNSIGNED_CHIP_W = 24;
 export const HEADER_FIXED_W = 92;
 
 // Viewport / world.

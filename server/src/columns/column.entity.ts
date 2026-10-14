@@ -53,6 +53,9 @@ export class ColumnEntity {
   @Column({ type: 'boolean', default: false })
   isAutoIncrement!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  isUnsigned!: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   defaultValue!: string | null;
 

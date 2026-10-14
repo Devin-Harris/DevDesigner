@@ -1,4 +1,4 @@
-import { isSwatchColor, messageLabelLines, readableTextOn } from '@dbdesigner/shared';
+import { isNumericType, isSwatchColor, messageLabelLines, readableTextOn } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -170,7 +170,8 @@ function typeLabel(column: ColumnModel): string {
   if (name === 'VARCHAR' && column.dataType.length) {
     return `${name}(${column.dataType.length})`;
   }
-  return name;
+  // The canvas shows UNSIGNED as a chip; the static export folds it into the label.
+  return column.isUnsigned && isNumericType(name) ? `${name} UNSIGNED` : name;
 }
 
 interface Chip {

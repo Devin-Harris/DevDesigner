@@ -1130,6 +1130,8 @@ export class EditorComponent {
 
   // Linking / re-pointing
   private readonly linkSourceColumnId = signal<string | null>(null);
+  /** Edge handle the in-flight link started from; the new line is pinned there. */
+  private readonly linkSourceSide = signal<Side>('right');
   private readonly relinkState = signal<RelinkState | null>(null);
   private readonly linkCursor = signal<{ x: number; y: number } | null>(null);
 
@@ -1181,9 +1183,7 @@ export class EditorComponent {
     if (!loc) {
       return null;
     }
-    const center = loc.table.x + tableWidth(loc.table) / 2;
-    const side: Side = cursor.x >= center ? 'right' : 'left';
-    const a = columnAnchor(loc.table, loc.index, side);
+    const a = columnAnchor(loc.table, loc.index, this.linkSourceSide());
     // Orthogonal elbow, never a diagonal, to match the finished connectors.
     return elbowPath(a, cursor);
   });
@@ -3402,9 +3402,10 @@ export class EditorComponent {
     payload.event.preventDefault();
     this.relinkState.set(null);
     this.linkSourceColumnId.set(payload.columnId);
+    this.linkSourceSide.set(payload.side);
     const loc = this.columnLocations().get(payload.columnId);
     if (loc) {
-      const a = columnAnchor(loc.table, loc.index, 'right');
+      const a = columnAnchor(loc.table, loc.index, payload.side);
       this.linkCursor.set({ x: a.x, y: a.y });
     }
   }
@@ -3425,18 +3426,17 @@ export class EditorComponent {
       const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
       const opposite = relink.which === 'source' ? rel?.targetColumnId : rel?.sourceColumnId;
       if (payload.columnId !== opposite) {
-        void this.store.updateRelationship(
-          relink.relationshipId,
-          relink.which === 'source'
-            ? { sourceColumnId: payload.columnId }
-            : { targetColumnId: payload.columnId },
-        );
+        this.repoint(relink, payload.columnId, payload.side);
       }
     } else {
       const sourceId = this.linkSourceColumnId();
       if (sourceId && sourceId !== payload.columnId) {
         payload.event.stopPropagation();
-        void this.store.addRelationship(sourceId, payload.columnId);
+        void this.store.addRelationship(sourceId, payload.columnId, undefined, {
+          sourceSide: this.linkSourceSide(),
+          targetSide: payload.side,
+          autoRoute: false,
+        });
       }
     }
     this.clearLinking();
@@ -3456,18 +3456,39 @@ export class EditorComponent {
     }
     const relink = this.relinkState();
     if (relink) {
-      void this.store.updateRelationship(
-        relink.relationshipId,
-        relink.which === 'source'
-          ? { sourceColumnId: snap.columnId }
-          : { targetColumnId: snap.columnId },
-      );
+      this.repoint(relink, snap.columnId, snap.side);
       return;
     }
     const sourceId = this.linkSourceColumnId();
     if (sourceId && sourceId !== snap.columnId) {
-      void this.store.addRelationship(sourceId, snap.columnId);
+      void this.store.addRelationship(sourceId, snap.columnId, undefined, {
+        sourceSide: this.linkSourceSide(),
+        targetSide: snap.side,
+        autoRoute: false,
+      });
     }
+  }
+
+  /**
+   * Re-point one end of a line to a column + side. Dropping an end is an explicit
+   * routing choice, so the line switches to manual with both sides pinned (the
+   * other end keeps the side it currently uses) and its old bends are dropped.
+   */
+  private repoint(relink: RelinkState, columnId: string, side: Side): void {
+    const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
+    const connector = this.connectors().find((c) => c.id === relink.relationshipId);
+    if (!rel) {
+      return;
+    }
+    const source = relink.which === 'source';
+    const sameColumn = (source ? rel.sourceColumnId : rel.targetColumnId) === columnId;
+    void this.store.updateRelationship(rel.id, {
+      ...(sameColumn ? {} : source ? { sourceColumnId: columnId } : { targetColumnId: columnId }),
+      sourceSide: source ? side : (connector?.sourceSide ?? rel.sourceSide),
+      targetSide: source ? (connector?.targetSide ?? rel.targetSide) : side,
+      autoRoute: false,
+      waypoints: [],
+    });
   }
 
   // --- relationship segment dragging (Miro-style manual routing) ---
@@ -3479,6 +3500,14 @@ export class EditorComponent {
     const connector = this.connectors().find((c) => c.id === payload.relationshipId);
     if (!connector) {
       return;
+    }
+    // Hand-shaping a line takes it off auto: pin the sides it uses right now.
+    if (connector.autoRoute) {
+      void this.store.updateRelationship(connector.id, {
+        autoRoute: false,
+        sourceSide: connector.sourceSide,
+        targetSide: connector.targetSide,
+      });
     }
     this.activeSegment.set({
       relationshipId: payload.relationshipId,
@@ -3492,6 +3521,30 @@ export class EditorComponent {
   protected onResetRoute(relationshipId: string): void {
     if (this.store.canEdit()) {
       this.store.setWaypoints(relationshipId, []);
+    }
+  }
+
+  /**
+   * After a segment drag, store any side the line flipped to (the renderer flips
+   * it live once a bend crosses past the far edge of its table), so the side
+   * sticks even if the bends are later cleared.
+   */
+  private persistFlippedSides(): void {
+    const active = this.activeSegment();
+    if (!active) {
+      return;
+    }
+    const rel = this.store.relationships().find((r) => r.id === active.relationshipId);
+    const c = this.connectors().find((x) => x.id === active.relationshipId);
+    if (rel && c && (c.sourceSide !== rel.sourceSide || c.targetSide !== rel.targetSide)) {
+      void this.store.updateRelationship(rel.id, { sourceSide: c.sourceSide, targetSide: c.targetSide });
+    }
+  }
+
+  /** Double-clicking a line hands it back to best-path routing. */
+  protected onAutoRoute(relationshipId: string): void {
+    if (this.store.canEdit()) {
+      void this.store.updateRelationship(relationshipId, { autoRoute: true, waypoints: [] });
     }
   }
 
@@ -3636,6 +3689,7 @@ export class EditorComponent {
     this.waypointDragStart.clear();
     this.marqueeStart.set(null);
     this.marqueeCurrent.set(null);
+    this.persistFlippedSides();
     this.activeSegment.set(null);
     this.clearLinking();
   }
@@ -5681,6 +5735,31 @@ export class EditorComponent {
     const rel = this.store.selectedRelationship();
     if (rel && this.store.canEdit()) {
       void this.store.updateRelationship(rel.id, { type });
+    }
+  }
+
+  /**
+   * Toggle best-path routing for every selected line (the toolbar's state is the
+   * primary selection's). Turning it on drops manual bends; turning it off pins
+   * the sides each line uses now so nothing jumps.
+   */
+  protected onToggleAutoRoute(): void {
+    const primary = this.store.selectedRelationship();
+    if (!primary || !this.store.canEdit()) {
+      return;
+    }
+    const enable = primary.autoRoute === false;
+    const ids = new Set(this.store.selectedRelationshipIds());
+    for (const c of this.connectors()) {
+      if (!ids.has(c.id)) {
+        continue;
+      }
+      void this.store.updateRelationship(
+        c.id,
+        enable
+          ? { autoRoute: true, waypoints: [] }
+          : { autoRoute: false, sourceSide: c.sourceSide, targetSide: c.targetSide },
+      );
     }
   }
 

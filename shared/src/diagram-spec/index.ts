@@ -443,9 +443,20 @@ export interface BuiltSpec {
   warnings: string[];
 }
 
-/** Parse "VARCHAR(255)" / "DECIMAL(10,2)" / "ENUM('a','b')" into a DataType. */
+const UNSIGNED_SUFFIX = /\s+(UN)?SIGNED(\s+ZEROFILL)?\s*$/i;
+
+/** True when a raw SQL type carries the UNSIGNED modifier ("INT UNSIGNED", "BIGINT(20) unsigned"). */
+export function isUnsignedType(input: string | undefined): boolean {
+  return /\s+UNSIGNED(\s+ZEROFILL)?\s*$/i.test(input ?? '');
+}
+
+/**
+ * Parse "VARCHAR(255)" / "DECIMAL(10,2)" / "ENUM('a','b')" into a DataType. A
+ * trailing SIGNED/UNSIGNED modifier is dropped: it is a column flag
+ * (`isUnsigned`, see isUnsignedType), not part of the type name.
+ */
 export function parseDataType(input: string | undefined): DataType {
-  const raw = (input ?? 'VARCHAR(255)').trim();
+  const raw = (input ?? 'VARCHAR(255)').trim().replace(UNSIGNED_SUFFIX, '');
   const m = /^([A-Za-z_ ]+?)\s*(?:\((.*)\))?$/.exec(raw);
   if (!m) {
     return { name: raw.toUpperCase() };
@@ -545,6 +556,7 @@ export function buildSpecFile(
         isNullable: c.nullable ?? !(c.primaryKey ?? false),
         isUnique: c.unique ?? false,
         isAutoIncrement: c.autoIncrement ?? false,
+        ...(isUnsignedType(c.type) ? { isUnsigned: true } : {}),
         defaultValue: c.default,
         note: c.note,
       });

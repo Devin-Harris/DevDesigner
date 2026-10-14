@@ -292,7 +292,9 @@
 // appear on hover/select).
 .keyslot {
   flex: 0 0 auto;
-  width: 14px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 14px;
 }
 
 .keyglyph {
@@ -306,6 +308,43 @@
   &.fk {
     color: var(--dbd-teal);
   }
+
+  // Unique: a red key; hovering it highlights the rest of its unique set(s).
+  &.uq {
+    color: var(--dbd-danger);
+    cursor: help;
+  }
+}
+
+.row.uq-peer {
+  background: color-mix(in srgb, var(--dbd-danger) 10%, transparent);
+}
+
+// "[" bracket in the left gutter joining the rows of one multi-column unique set.
+.uq-bracket {
+  position: absolute;
+  z-index: 1;
+  width: 4px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--dbd-danger);
+  border-right: none;
+  border-radius: 2px 0 0 2px;
+  pointer-events: none;
+}
+
+.uq-dot {
+  position: absolute;
+  left: -3.5px;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--dbd-danger);
+}
+
+.ix-cols {
+  color: var(--dbd-text-muted);
+  font-size: 11.5px;
 }
 
 .chips {
@@ -404,6 +443,15 @@
   &.pk.on {
     background: color-mix(in srgb, var(--dbd-amber) 22%, transparent);
     color: var(--dbd-amber);
+  }
+
+  &.uq.on {
+    background: color-mix(in srgb, var(--dbd-danger) 18%, transparent);
+    color: var(--dbd-danger);
+  }
+
+  &:disabled {
+    cursor: default;
   }
 }
 

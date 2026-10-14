@@ -38,6 +38,10 @@ export class CreateColumnDto implements ICreateColumnDto {
   isAutoIncrement?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isUnsigned?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(255)
   defaultValue?: string;

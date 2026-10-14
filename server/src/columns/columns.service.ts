@@ -49,6 +49,7 @@ export class ColumnsService {
       isNullable: dto.isNullable ?? true,
       isUnique: dto.isUnique ?? false,
       isAutoIncrement: dto.isAutoIncrement ?? false,
+      isUnsigned: dto.isUnsigned ?? false,
       defaultValue: dto.defaultValue ?? null,
       orderIndex: count,
     });
@@ -87,6 +88,9 @@ export class ColumnsService {
     }
     if (dto.isAutoIncrement !== undefined) {
       column.isAutoIncrement = dto.isAutoIncrement;
+    }
+    if (dto.isUnsigned !== undefined) {
+      column.isUnsigned = dto.isUnsigned;
     }
     if (dto.defaultValue !== undefined) {
       column.defaultValue = dto.defaultValue;

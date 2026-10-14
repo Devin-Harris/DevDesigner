@@ -209,6 +209,7 @@ export async function writeSchemaInto(
         isNullable: c.isNullable,
         isUnique: c.isUnique,
         isAutoIncrement: c.isAutoIncrement,
+        isUnsigned: c.isUnsigned ?? false,
         defaultValue: c.defaultValue ?? null,
         note: c.note ?? null,
         orderIndex,
@@ -248,6 +249,9 @@ export async function writeSchemaInto(
       onDelete: r.onDelete ?? null,
       onUpdate: r.onUpdate ?? null,
       waypointsJson: waypoints?.length ? JSON.stringify(waypoints) : null,
+      sourceSide: r.sourceSide ?? null,
+      targetSide: r.targetSide ?? null,
+      autoRoute: r.autoRoute ?? null,
     });
   }
   await insertAll(manager, RelationshipEntity, relationshipRows);

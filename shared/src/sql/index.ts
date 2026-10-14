@@ -131,11 +131,22 @@ function mapDataType(dataType: DataType): string {
   }
 }
 
+/** Numeric types MySQL accepts the UNSIGNED modifier on. */
+const NUMERIC_TYPES = new Set(['INT', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT', 'DECIMAL', 'FLOAT', 'DOUBLE']);
+
+/** True for a type name that can be UNSIGNED. */
+export function isNumericType(name: string | undefined): boolean {
+  return NUMERIC_TYPES.has((name ?? '').toUpperCase());
+}
+
 // --- Column + table rendering ------------------------------------------------
 
 /** Render a single column definition line (without trailing comma). */
 function renderColumn(column: ColumnModel): string {
   const parts: string[] = [quoteIdent(column.name), mapDataType(column.dataType)];
+  if (column.isUnsigned && isNumericType(column.dataType.name)) {
+    parts.push('UNSIGNED');
+  }
 
   // Primary-key columns are implicitly NOT NULL in MySQL; make it explicit.
   const notNull = column.isPrimaryKey || !column.isNullable;

@@ -3,6 +3,7 @@ import {
   estimateTableHeight,
   findFreeSpot,
   layoutGraph,
+  isUnsignedType,
   parseDataType,
   type Rect,
 } from './index';
@@ -15,6 +16,13 @@ describe('parseDataType', () => {
     expect(parseDataType("ENUM('a','b')")).toEqual({ name: 'ENUM', args: ['a', 'b'] });
     expect(parseDataType('int')).toEqual({ name: 'INT' });
     expect(parseDataType(undefined)).toEqual({ name: 'VARCHAR', length: 255 });
+  });
+
+  it('drops the UNSIGNED modifier (it is a column flag)', () => {
+    expect(parseDataType('INT UNSIGNED')).toEqual({ name: 'INT' });
+    expect(parseDataType('bigint(20) unsigned')).toEqual({ name: 'BIGINT', args: ['20'] });
+    expect(isUnsignedType('INT UNSIGNED')).toBe(true);
+    expect(isUnsignedType('INT')).toBe(false);
   });
 });
 

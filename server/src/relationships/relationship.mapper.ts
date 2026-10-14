@@ -13,5 +13,8 @@ export function toRelationshipModel(entity: RelationshipEntity): RelationshipMod
     waypoints: entity.waypointsJson
       ? (JSON.parse(entity.waypointsJson) as PointModel[])
       : undefined,
+    sourceSide: entity.sourceSide ?? undefined,
+    targetSide: entity.targetSide ?? undefined,
+    autoRoute: entity.autoRoute ?? undefined,
   };
 }

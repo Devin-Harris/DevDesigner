@@ -1,5 +1,6 @@
 import { computed, inject } from '@angular/core';
 import type {
+  CreateRelationshipDto,
   BatchUpdateDto,
   CloneItemsDto,
   ProjectExportFile,
@@ -2747,6 +2748,7 @@ export const ProjectStore = signalStore(
           sourceColumnId: string,
           targetColumnId: string,
           type: RelationshipType = 'ONE_TO_MANY',
+          routing: Pick<CreateRelationshipDto, 'sourceSide' | 'targetSide' | 'autoRoute'> = {},
         ): Promise<void> {
           const projectId = store.projectId();
           if (!projectId) {
@@ -2754,7 +2756,12 @@ export const ProjectStore = signalStore(
           }
           const created = await runSave(() =>
             firstValueFrom(
-              relationshipsApi.create(projectId, { sourceColumnId, targetColumnId, type }),
+              relationshipsApi.create(projectId, {
+                sourceColumnId,
+                targetColumnId,
+                type,
+                ...routing,
+              }),
             ),
           );
           setSchema((s) => ({ ...s, relationships: [...s.relationships, created] }));
@@ -2789,6 +2796,9 @@ export const ProjectStore = signalStore(
                   type: rel.type,
                   onDelete: rel.onDelete,
                   onUpdate: rel.onUpdate,
+                  sourceSide: rel.sourceSide,
+                  targetSide: rel.targetSide,
+                  autoRoute: rel.autoRoute,
                 }),
               ),
             );

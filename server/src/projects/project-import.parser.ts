@@ -10,6 +10,7 @@ import {
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
   PROJECT_TYPES,
+  CONNECTOR_SIDES,
   RELATIONSHIP_TYPES,
   SLIDE_ANIMATION_EFFECTS,
   SLIDE_ANIMATION_KINDS,
@@ -231,6 +232,7 @@ function parseColumn(raw: unknown, path: string): ColumnModel {
     isNullable: bool(c, 'isNullable', path, true),
     isUnique: bool(c, 'isUnique', path, false),
     isAutoIncrement: bool(c, 'isAutoIncrement', path, false),
+    isUnsigned: bool(c, 'isUnsigned', path, false),
     defaultValue: optStr(c, 'defaultValue', path, 1000),
     note: optStr(c, 'note', path, 10_000),
   };
@@ -283,6 +285,9 @@ function parseRelationship(raw: unknown, path: string): RelationshipModel {
     onDelete: optStr(r, 'onDelete', path, 50),
     onUpdate: optStr(r, 'onUpdate', path, 50),
     waypoints: points(r['waypoints'], `${path}.waypoints`),
+    sourceSide: r['sourceSide'] === undefined ? undefined : oneOf(r, 'sourceSide', path, CONNECTOR_SIDES),
+    targetSide: r['targetSide'] === undefined ? undefined : oneOf(r, 'targetSide', path, CONNECTOR_SIDES),
+    autoRoute: r['autoRoute'] === undefined ? undefined : bool(r, 'autoRoute', path, true),
   };
 }
 

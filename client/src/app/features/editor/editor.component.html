@@ -46,7 +46,7 @@
         (selectConnector)="onConnectorSelect($event)"
         (endpointDown)="onEndpointDown($event)"
         (segmentDown)="onSegmentDown($event)"
-        (resetRoute)="onResetRoute($event)"
+        (resetRoute)="onAutoRoute($event)"
       ></app-canvas-connectors>
 
       <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
@@ -396,8 +396,10 @@
         [style.left.px]="info.x"
         [style.top.px]="info.y"
         [type]="info.rel.type"
+        [autoRoute]="info.rel.autoRoute !== false"
         [canEdit]="store.canEdit()"
         (pointerdown)="$event.stopPropagation()"
+        (toggleAutoRoute)="onToggleAutoRoute()"
         (setType)="onSetRelType($event)"
         (resetRoute)="onResetRoute(info.rel.id)"
         (deleteRelationship)="onDeleteRel()"

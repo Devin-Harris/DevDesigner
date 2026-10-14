@@ -9,7 +9,9 @@ import {
 } from '@angular/core';
 import {
   DATA_TYPE_NAMES,
+  isNumericType,
   type ColumnModel,
+  type IndexModel,
   type TableModel,
   type UpdateColumnDto,
   HEADER_SWATCHES,
@@ -36,6 +38,8 @@ import {
 export interface HandleEvent {
   event: PointerEvent;
   columnId: string;
+  /** Which edge handle was used; new and re-pointed lines attach there. */
+  side: 'left' | 'right';
 }
 
 /**
@@ -93,6 +97,107 @@ export class TableNodeComponent {
   protected readonly headerH = HEADER_H;
   protected readonly rowH = ROW_H;
   protected readonly dataTypeNames = DATA_TYPE_NAMES;
+  protected readonly isNumeric = isNumericType;
+
+  // --- unique keys ---
+
+  /** The table's unique indexes (single- or multi-column). */
+  protected readonly uniqueIndexes = computed(() =>
+    (this.table().indexes ?? []).filter((ix) => ix.isUnique),
+  );
+
+  /** Column id -> the unique indexes it belongs to. */
+  protected readonly uniqueSets = computed(() => {
+    const map = new Map<string, IndexModel[]>();
+    for (const ix of this.uniqueIndexes()) {
+      for (const id of ix.columnIds) {
+        map.set(id, [...(map.get(id) ?? []), ix]);
+      }
+    }
+    return map;
+  });
+
+  /** Column whose unique key is hovered: its sets' members light up. */
+  protected readonly hoverUnique = signal<string | null>(null);
+
+  private readonly hoveredSets = computed(() => {
+    const id = this.hoverUnique();
+    return id ? (this.uniqueSets().get(id) ?? []) : [];
+  });
+
+  protected readonly uniqueHighlight = computed(
+    () => new Set(this.hoveredSets().flatMap((ix) => ix.columnIds)),
+  );
+
+  /**
+   * One bracket per hovered multi-column set, each in its own lane in the left
+   * gutter so a column in several sets shows every grouping without overlap.
+   */
+  protected readonly uniqueBrackets = computed(() => {
+    const order = new Map(this.table().columns.map((c, i) => [c.id, i] as const));
+    return this.hoveredSets()
+      .filter((ix) => ix.columnIds.length > 1)
+      .map((ix, lane) => {
+        const rows = ix.columnIds
+          .map((id) => order.get(id))
+          .filter((i): i is number => i !== undefined)
+          .sort((p, q) => p - q);
+        const first = rows[0] ?? 0;
+        const top = HEADER_H + first * ROW_H + ROW_H / 2;
+        return {
+          id: ix.id,
+          name: `${ix.name}: ${this.indexColumnNames(ix)}`,
+          top,
+          height: ((rows[rows.length - 1] ?? first) - first) * ROW_H,
+          left: 2 + lane * 5,
+          dots: rows.map((i) => (i - first) * ROW_H),
+        };
+      });
+  });
+
+  /** Tooltip for the red unique key, or null when the column isn't unique. */
+  protected uniqueTitle(column: ColumnModel): string | null {
+    const sets = this.uniqueSets().get(column.id) ?? [];
+    const lines = sets.map((ix) => `Unique ${ix.name}: ${this.indexColumnNames(ix)}`);
+    if (column.isUnique && !column.isPrimaryKey) {
+      lines.unshift('Unique');
+    }
+    return lines.length ? lines.join('\n') : null;
+  }
+
+  protected indexColumnNames(ix: IndexModel): string {
+    const byId = new Map(this.table().columns.map((c) => [c.id, c.name] as const));
+    return ix.columnIds.map((id) => byId.get(id) ?? '?').join(', ');
+  }
+
+  protected toggleIndexMember(ix: IndexModel, column: ColumnModel): void {
+    if (!this.editable()) {
+      return;
+    }
+    const tableId = this.table().id;
+    const columnIds = ix.columnIds.includes(column.id)
+      ? ix.columnIds.filter((id) => id !== column.id)
+      : [...ix.columnIds, column.id];
+    if (columnIds.length === 0) {
+      void this.store.deleteIndex(tableId, ix.id);
+    } else {
+      void this.store.updateIndex(tableId, ix.id, { columnIds });
+    }
+  }
+
+  /** Start a new unique set with this column; add the others from their UQ menus. */
+  protected newUniqueIndex(column: ColumnModel): void {
+    if (!this.editable()) {
+      return;
+    }
+    const table = this.table();
+    const taken = new Set((table.indexes ?? []).map((ix) => ix.name));
+    let name = `uq_${table.name}_${column.name}`;
+    for (let i = 2; taken.has(name); i += 1) {
+      name = `uq_${table.name}_${column.name}_${i}`;
+    }
+    void this.store.addIndex(table.id, { name, columnIds: [column.id], isUnique: true });
+  }
   /** Saturated header colors, then pale tints (the shared palette the MCP server also uses). */
   protected readonly headerColors = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
@@ -171,13 +276,13 @@ export class TableNodeComponent {
 
   // --- connect handles (delegated to the parent canvas) ---
 
-  protected onHandleDown(event: PointerEvent, columnId: string): void {
+  protected onHandleDown(event: PointerEvent, columnId: string, side: 'left' | 'right'): void {
     event.stopPropagation();
-    this.handleDown.emit({ event, columnId });
+    this.handleDown.emit({ event, columnId, side });
   }
 
-  protected onHandleUp(event: PointerEvent, columnId: string): void {
-    this.handleUp.emit({ event, columnId });
+  protected onHandleUp(event: PointerEvent, columnId: string, side: 'left' | 'right'): void {
+    this.handleUp.emit({ event, columnId, side });
   }
 
   // --- inline table name ---
@@ -252,7 +357,10 @@ export class TableNodeComponent {
       return;
     }
     const length = name === 'VARCHAR' ? (column.dataType.length ?? 255) : undefined;
-    void this.store.updateColumn(this.table().id, column.id, { dataType: { name, length } });
+    void this.store.updateColumn(this.table().id, column.id, {
+      dataType: { name, length },
+      ...(column.isUnsigned && !isNumericType(name) ? { isUnsigned: false } : {}),
+    });
   }
 
   protected setLength(column: ColumnModel, event: Event): void {
@@ -280,6 +388,10 @@ export class TableNodeComponent {
 
   protected toggleAuto(column: ColumnModel): void {
     this.editColumn(column, { isAutoIncrement: !column.isAutoIncrement });
+  }
+
+  protected toggleUnsigned(column: ColumnModel): void {
+    this.editColumn(column, { isUnsigned: !column.isUnsigned });
   }
 
   private editColumn(column: ColumnModel, patch: UpdateColumnDto): void {

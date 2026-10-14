@@ -156,6 +156,7 @@ export function summarizeProject(graph: ProjectGraphResponse): Record<string, un
           !c.isNullable && !c.isPrimaryKey && 'NOT NULL',
           c.isUnique && 'UNIQUE',
           c.isAutoIncrement && 'AUTO_INCREMENT',
+          c.isUnsigned && 'UNSIGNED',
         ].filter(Boolean),
       })),
     })),

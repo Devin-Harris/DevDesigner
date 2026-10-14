@@ -19,8 +19,11 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
 export class RelationshipToolbarComponent {
   readonly type = input.required<RelationshipType>();
   readonly canEdit = input<boolean>(true);
+  /** Best-path routing on; off = manual line with pinned sides. */
+  readonly autoRoute = input<boolean>(false);
 
   readonly setType = output<RelationshipType>();
   readonly resetRoute = output<void>();
+  readonly toggleAutoRoute = output<void>();
   readonly deleteRelationship = output<void>();
 }

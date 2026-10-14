@@ -42,6 +42,8 @@ export interface ColumnModel {
   isNullable: boolean;
   isUnique: boolean;
   isAutoIncrement: boolean;
+  /** Numeric column restricted to non-negative values (MySQL UNSIGNED). */
+  isUnsigned?: boolean;
   defaultValue?: string;
   note?: string;
 }
@@ -89,7 +91,20 @@ export interface RelationshipModel {
   onUpdate?: string;
   /** Optional bend points (world coords) for manual line routing. */
   waypoints?: PointModel[];
+  /** Pinned side of the source table the line leaves from (manual routing). */
+  sourceSide?: ConnectorSide;
+  /** Pinned side of the target table the line enters (manual routing). */
+  targetSide?: ConnectorSide;
+  /**
+   * Best-path routing: pick sides and dodge tables automatically. Absent means
+   * auto (legacy lines); lines drawn in the editor are created with `false`.
+   */
+  autoRoute?: boolean;
 }
+
+/** A side of a table node a relationship line can attach to. */
+export type ConnectorSide = 'left' | 'right';
+export const CONNECTOR_SIDES: readonly ConnectorSide[] = ['left', 'right'] as const;
 
 export interface NoteModel {
   id: string;

@@ -18,6 +18,7 @@ import {
   soloMorphId,
   estimateTableHeight,
   estimateTableWidth,
+  isUnsignedType,
   parseDataType,
   presentationOf,
   schemaRects,
@@ -421,6 +422,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       const column = await api.post<ColumnModel>(`/tables/${t.id}/columns`, {
         name,
         dataType: parseDataType(rest.type),
+        ...(isUnsignedType(rest.type) ? { isUnsigned: true } : {}),
         ...(rest.primaryKey !== undefined ? { isPrimaryKey: rest.primaryKey } : {}),
         ...(rest.nullable !== undefined ? { isNullable: rest.nullable } : {}),
         ...(rest.unique !== undefined ? { isUnique: rest.unique } : {}),
@@ -456,7 +458,9 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       const c = findColumnIn(t, column);
       const updated = await api.patch<ColumnModel>(`/columns/${c.id}`, {
         ...(newName !== undefined ? { name: newName } : {}),
-        ...(rest.type !== undefined ? { dataType: parseDataType(rest.type) } : {}),
+        ...(rest.type !== undefined
+          ? { dataType: parseDataType(rest.type), isUnsigned: isUnsignedType(rest.type) }
+          : {}),
         ...(rest.primaryKey !== undefined ? { isPrimaryKey: rest.primaryKey } : {}),
         ...(rest.nullable !== undefined ? { isNullable: rest.nullable } : {}),
         ...(rest.unique !== undefined ? { isUnique: rest.unique } : {}),

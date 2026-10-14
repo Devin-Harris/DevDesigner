@@ -19,6 +19,7 @@ import type {
   VerticalAlign,
 } from '../enums';
 import type {
+  ConnectorSide,
   DataType,
   ElementBinding,
   PointModel,
@@ -210,6 +211,7 @@ export interface CreateColumnDto {
   isNullable?: boolean;
   isUnique?: boolean;
   isAutoIncrement?: boolean;
+  isUnsigned?: boolean;
   defaultValue?: string;
 }
 export interface UpdateColumnDto {
@@ -219,6 +221,7 @@ export interface UpdateColumnDto {
   isNullable?: boolean;
   isUnique?: boolean;
   isAutoIncrement?: boolean;
+  isUnsigned?: boolean;
   defaultValue?: string;
   note?: string;
 }
@@ -248,6 +251,9 @@ export interface CreateRelationshipDto {
   type: RelationshipType;
   onDelete?: string;
   onUpdate?: string;
+  sourceSide?: ConnectorSide;
+  targetSide?: ConnectorSide;
+  autoRoute?: boolean;
 }
 export interface UpdateRelationshipDto {
   type?: RelationshipType;
@@ -258,6 +264,9 @@ export interface UpdateRelationshipDto {
   onUpdate?: string;
   // Manual line routing bend points (world coords); empty array clears routing.
   waypoints?: PointModel[];
+  sourceSide?: ConnectorSide;
+  targetSide?: ConnectorSide;
+  autoRoute?: boolean;
 }
 
 // --- Notes ---

@@ -12,8 +12,10 @@ import {
   NODE_WIDTH,
   ROW_FIXED_W,
   ROW_H,
+  UNSIGNED_CHIP_W,
   VARCHAR_FIXED_W,
 } from '../constants/canvas.constants';
+import { isNumericType } from '@dbdesigner/shared';
 import type { Box, ColumnLocation, Point, Side } from '../models/geometry.model';
 
 // Memoize by table reference: the store hands the same object to the renderer
@@ -49,7 +51,10 @@ export function tableBaseWidth(table: TableModel): number {
   const chars = (name: string): number => Math.min(name.length, MAX_NAME_CHARS);
   let need = HEADER_FIXED_W + chars(table.name) * HEADER_CHAR_W;
   for (const column of table.columns) {
-    const fixed = ROW_FIXED_W + (column.dataType.name === 'VARCHAR' ? VARCHAR_FIXED_W : 0);
+    const fixed =
+      ROW_FIXED_W +
+      (column.dataType.name === 'VARCHAR' ? VARCHAR_FIXED_W : 0) +
+      (isNumericType(column.dataType.name) ? UNSIGNED_CHIP_W : 0);
     need = Math.max(need, fixed + chars(column.name) * NAME_CHAR_W);
   }
   const width = Math.max(NODE_WIDTH, Math.ceil(need));

@@ -1,10 +1,12 @@
-import type { ColumnModel, DataType } from '@dbdesigner/shared';
+import { isUnsignedType, parseDataType, type ColumnModel, type DataType } from '@dbdesigner/shared';
 import { ColumnEntity } from './column.entity';
 
 /** Map a Column entity to the shared ColumnModel consumed by client + SQL/validation. */
 export function toColumnModel(entity: ColumnEntity): ColumnModel {
+  // Older rows (MCP / SQL import) stored the modifier in the name ("INT UNSIGNED").
+  const legacyUnsigned = isUnsignedType(entity.dataTypeName);
   const dataType: DataType = {
-    name: entity.dataTypeName,
+    name: legacyUnsigned ? parseDataType(entity.dataTypeName).name : entity.dataTypeName,
     length: entity.dataTypeLength ?? undefined,
     args: entity.dataTypeArgs ? (JSON.parse(entity.dataTypeArgs) as string[]) : undefined,
   };
@@ -16,6 +18,7 @@ export function toColumnModel(entity: ColumnEntity): ColumnModel {
     isNullable: entity.isNullable,
     isUnique: entity.isUnique,
     isAutoIncrement: entity.isAutoIncrement,
+    ...(entity.isUnsigned || legacyUnsigned ? { isUnsigned: true } : {}),
     defaultValue: entity.defaultValue ?? undefined,
     note: entity.note ?? undefined,
   };

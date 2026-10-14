@@ -1,4 +1,4 @@
-import type { Point } from './geometry.model';
+import type { Point, Side } from './geometry.model';
 
 /** A draggable straight segment of a connector route (midpoint + orientation). */
 export interface RouteSegment {
@@ -28,4 +28,9 @@ export interface Connector {
   routePoints: Point[];
   /** Draggable segments between consecutive route points. */
   segments: RouteSegment[];
+  /** Sides the line attaches to (pinned when manual, router-chosen when auto). */
+  sourceSide: Side;
+  targetSide: Side;
+  /** Best-path routing on (false = manual, pinned sides). */
+  autoRoute: boolean;
 }

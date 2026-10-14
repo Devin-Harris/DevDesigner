@@ -181,6 +181,10 @@ function readColumn(def: Tok[], table: string, fks: Fk[]): SpecColumn | null {
     } else if (w === 'NULL') {
       col.nullable = true;
       i += 1;
+    } else if (w === 'UNSIGNED') {
+      // Kept on the type string; buildSpec turns it into the column's isUnsigned flag.
+      col.type = `${col.type} UNSIGNED`;
+      i += 1;
     } else if (w === 'PRIMARY') {
       col.primaryKey = true;
       i += 2;
