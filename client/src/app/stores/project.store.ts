@@ -2240,6 +2240,7 @@ export const ProjectStore = signalStore(
                 y: source.y + dy,
                 color: source.color ?? undefined,
                 slideId: source.slideId,
+                morphId: source.morphId,
               }),
             ),
           );

@@ -371,6 +371,10 @@
   background: color-mix(in srgb, var(--dbd-surface) 22%, transparent);
 }
 
+.slide-bounds.selected {
+  border: 2px solid var(--dbd-primary);
+}
+
 // The border strips are the slide's grab handles (the rest stays click-through).
 .slide-edge {
   position: absolute;

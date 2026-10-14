@@ -11,7 +11,7 @@ import { ProjectStore } from '../../../stores/project.store';
 export class MorphTagSuggestions {
   private readonly store = inject(ProjectStore);
 
-  /** tag -> ids of the objects (elements, diagrams, participants, messages) of `slideId` carrying it. */
+  /** tag -> ids of the objects (elements, tables, diagrams, participants, messages) of `slideId` carrying it. */
   private tagsOn(slideId: string): Map<string, string[]> {
     const out = new Map<string, string[]>();
     const add = (id: string, morphId: string | undefined): void => {
@@ -20,6 +20,9 @@ export class MorphTagSuggestions {
     };
     for (const e of this.store.elements()) {
       if (e.slideId === slideId) add(e.id, e.morphId);
+    }
+    for (const t of this.store.tables()) {
+      if (t.slideId === slideId) add(t.id, t.morphId);
     }
     const diagrams = new Set<string>();
     for (const d of this.store.sequenceDiagrams()) {

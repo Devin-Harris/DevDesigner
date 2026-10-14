@@ -403,7 +403,8 @@ export class PresentModeComponent {
   readonly autoplay = input<boolean>(false);
   /** Follow another participant's presentation (their participant id). */
   readonly follow = input<string | null>(null);
-  readonly closed = output<void>();
+  /** Emits the id of the slide that was showing when the presenter closed. */
+  readonly closed = output<string | null>();
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly realtime = inject(RealtimeService);
@@ -642,7 +643,7 @@ export class PresentModeComponent {
       return;
     }
     this.closing = true;
-    this.closed.emit();
+    this.closed.emit(this.slides()[this.index()]?.id ?? null);
   }
 
   protected wake(): void {

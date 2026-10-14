@@ -60,6 +60,10 @@ export class TableEntity {
   @Column({ type: 'varchar', nullable: true })
   slideId!: string | null;
 
+  /** Morph tag (`tag:<name>`) pairing this table across slides; null = untagged. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  morphId!: string | null;
+
   @OneToMany(() => ColumnEntity, (column) => column.table)
   columns!: ColumnEntity[];
 

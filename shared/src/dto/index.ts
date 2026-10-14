@@ -179,6 +179,8 @@ export interface CreateTableDto {
   color?: string;
   /** The slide (frame id) the table is created on. */
   slideId?: string;
+  /** Morph tag (`tag:<name>`), e.g. kept by a copied slide. */
+  morphId?: string;
 }
 export interface UpdateTableDto {
   name?: string;
@@ -192,6 +194,8 @@ export interface UpdateTableDto {
   groupId?: string | null;
   /** Owning slide (frame id); null clears it. */
   slideId?: string | null;
+  /** Morph tag (`tag:<name>`); '' clears it. */
+  morphId?: string;
 }
 export interface UpdatePositionDto {
   x: number;

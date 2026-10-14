@@ -76,6 +76,8 @@ export interface TableModel {
   groupId?: string;
   /** The slide (frame id) this table belongs to; absent = on every slide / no slide. */
   slideId?: string;
+  /** Morph tag (`tag:<name>`) pairing this table across slides; absent = untagged. */
+  morphId?: string;
 }
 
 export interface RelationshipModel {

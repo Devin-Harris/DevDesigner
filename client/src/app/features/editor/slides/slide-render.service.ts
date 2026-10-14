@@ -302,7 +302,7 @@ export class SlideRenderService {
       }
       items.push({
         id: t.id,
-        key: t.id,
+        key: t.morphId ?? t.id,
         kind: 'table',
         type: 'table',
         text: t.name,

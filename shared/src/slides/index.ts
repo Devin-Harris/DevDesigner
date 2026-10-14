@@ -69,7 +69,7 @@ export function presentableSlides<T extends SlideFrameLike>(frames: readonly T[]
 
 /** One element or table on a slide, in slide-local coordinates. */
 export interface MorphItem {
-  /** Lineage key: the element's morphId, else its own id (tables: own id). */
+  /** Lineage key: the element's morphId, else its own id (tables: their morph tag, else own id). */
   key: string;
   kind: 'element' | 'table';
   /** Element type (rectangle/text/...) or 'table'. */

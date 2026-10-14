@@ -411,13 +411,24 @@ export class EditorComponent {
     });
   });
 
-  /** Pointer down on a slide set's outer border: grab its slide frame (it carries its contents). */
-  protected onSlideBorderDown(frameId: string, event: PointerEvent): void {
+  /**
+   * The presentation selected as a whole (its outer border was clicked): drawn with a
+   * selected outline, and Delete removes every slide of it. Null otherwise.
+   */
+  protected readonly selectedSlideSet = signal<string | null>(null);
+
+  /**
+   * Pointer down on a slide set's outer border: select the whole presentation and grab
+   * its shown slide frame (it carries its contents; the other slides follow it).
+   */
+  protected onSlideBorderDown(name: string, frameId: string, event: PointerEvent): void {
     if (event.button !== 0 || !this.shapesInteractive()) {
       return;
     }
     event.stopPropagation();
+    this.store.selectPresentation(name);
     this.onElementPointerDown({ id: frameId, event });
+    this.selectedSlideSet.set(name);
   }
 
   /** Touching a presentation's panels makes it the selected one (F5, export). */
@@ -1256,6 +1267,22 @@ export class EditorComponent {
       const timer = setTimeout(() => this.syncSlideMoves(), 160);
       onCleanup(() => clearTimeout(timer));
     });
+    // A presentation stays selected as a whole only while its shown slide alone is selected.
+    effect(() => {
+      const ids = this.store.selectedElementIds();
+      const tables = this.store.selectedTableIds();
+      const diagrams = this.store.selectedDiagramIds();
+      const shown = this.store.shownByPresentation();
+      untracked(() => {
+        const set = this.selectedSlideSet();
+        if (
+          set &&
+          (ids.length !== 1 || ids[0] !== shown.get(set) || tables.length || diagrams.length)
+        ) {
+          this.selectedSlideSet.set(null);
+        }
+      });
+    });
     // Things dropped or moved into the shown slide's frame become part of that slide.
     effect((onCleanup) => {
       this.store.elements();
@@ -1884,6 +1911,7 @@ export class EditorComponent {
   }
 
   protected onElementPointerDown(payload: ShapePointerEvent): void {
+    this.selectedSlideSet.set(null);
     const clicked = this.store.elements().find((e) => e.id === payload.id);
     if (!clicked) {
       return;
@@ -3845,6 +3873,13 @@ export class EditorComponent {
       return;
     }
     if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
+      const set = this.selectedSlideSet();
+      if (set) {
+        event.preventDefault();
+        this.selectedSlideSet.set(null);
+        this.onSlidesCommand({ kind: 'deletePresentation' }, set);
+        return;
+      }
       const relIds = [...this.store.selectedRelationshipIds()];
       const tableIds = [...this.store.selectedTableIds()];
       const elementIds = [...this.store.selectedElementIds()];
@@ -3969,6 +4004,8 @@ export class EditorComponent {
   }
 
   private migratingSlides = false;
+  /** Project whose misplaced slides stackLegacySlides already gathered (once per load). */
+  private misplacedCheckedFor: string | null = null;
   /** Where each slide frame was last seen, to notice which one the user moved. */
   private slideBounds = new Map<string, { x: number; y: number; w: number; h: number }>();
 
@@ -4168,17 +4205,26 @@ export class EditorComponent {
       if (d.slideId !== frameId) {
         continue;
       }
+      // Move the whole diagram locally in one step (originY included) before saving:
+      // originY only lands after the server answers, so shifting lifelines/messages
+      // and originY separately let a second shift read a stale originY and tear the
+      // header away from its messages.
+      const start = this.sequenceStart(d.id);
+      if (!start) {
+        continue;
+      }
+      this.store.shiftSequence(d.id, start.xs, dx, start.originY, dy, start.rows);
       for (const l of this.store.lifelines()) {
         if (l.diagramId === d.id) {
-          this.store.moveLifeline(l.id, l.x + dx);
+          this.store.moveLifeline(l.id, l.x);
         }
       }
       for (const msg of this.store.sequenceMessages()) {
         if (msg.diagramId === d.id) {
-          this.store.moveMessage(msg.id, msg.y + dy);
+          this.store.moveMessage(msg.id, msg.y);
         }
       }
-      void this.store.updateSequenceConfig(d.id, { originY: d.originY + dy });
+      void this.store.updateSequenceConfig(d.id, { originY: start.originY + dy });
     }
   }
 
@@ -4214,7 +4260,12 @@ export class EditorComponent {
       diagrams.some((d) => d.slideId === id);
     // A slide that already owns content but sits away from its presentation's spot (a
     // file or tool laid the slides out side by side) moves back, taking its contents.
-    const misplaced = frames.filter((f) => {
+    // Checked once per loaded project only: this runs on every edit, and mid-drag the
+    // dragged slide is briefly away from the others until syncSlideMoves catches them
+    // up; snapping it back then fought the drag and double-shifted slide contents.
+    const checkMisplaced = this.misplacedCheckedFor !== this.store.projectId();
+    this.misplacedCheckedFor = this.store.projectId();
+    const misplaced = !checkMisplaced ? [] : frames.filter((f) => {
       const anchor = anchors.get(presentationOf(f))!;
       return owns(f.id) && (f.x !== anchor.x || f.y !== anchor.y);
     });
@@ -4363,6 +4414,27 @@ export class EditorComponent {
     }
     this.store.setActiveSlide(id);
     this.store.setSelection([], [], [id]);
+  }
+
+  /** Leave the presenter, selecting the slide it was on (not for one-transition previews). */
+  protected onPresentationClosed(frameId: string | null): void {
+    const preview = this.presentation()?.preview;
+    this.presentation.set(null);
+    if (!preview && frameId) {
+      this.focusFrame(frameId);
+      // Center it once fullscreen has been left, so the canvas has its real size again.
+      const reveal = (): void => {
+        const f = this.store.elements().find((e) => e.id === frameId);
+        if (f) {
+          this.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
+        }
+      };
+      if (document.fullscreenElement) {
+        document.addEventListener('fullscreenchange', () => requestAnimationFrame(reveal), { once: true });
+      } else {
+        reveal();
+      }
+    }
   }
 
   /** The slide the view is on: the selected slide, else the one under the view center. */

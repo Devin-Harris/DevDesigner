@@ -39,4 +39,9 @@ export class UpdateTableDto implements IUpdateTableDto {
   @IsString()
   @MaxLength(64)
   slideId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphId?: string;
 }

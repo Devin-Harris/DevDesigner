@@ -57,6 +57,7 @@ export class TablesService {
       y: dto.y,
       color: dto.color ?? null,
       slideId: dto.slideId ?? null,
+      morphId: dto.morphId?.trim() || null,
     });
     const saved = await this.tables.save(table);
     const model = toTableModel({ ...saved, columns: [], indexes: [] });
@@ -157,5 +158,8 @@ export function applyTablePatch(table: TableEntity, dto: UpdateTableDto): void {
   }
   if (dto.slideId !== undefined) {
     table.slideId = dto.slideId;
+  }
+  if (dto.morphId !== undefined) {
+    table.morphId = dto.morphId.trim() || null;
   }
 }

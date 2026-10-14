@@ -269,6 +269,7 @@ function parseTable(raw: unknown, path: string): TableModel {
     scale: optNum(t, 'scale', path),
     groupId: optStr(t, 'groupId', path, 100),
     slideId: optStr(t, 'slideId', path, 100),
+    morphId: optStr(t, 'morphId', path, 100),
   };
 }
 

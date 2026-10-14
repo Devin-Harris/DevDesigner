@@ -197,6 +197,7 @@ export async function writeSchemaInto(
       scale: t.scale && t.scale > 0 && t.scale !== 1 ? Math.min(8, t.scale) : null,
       groupId,
       slideId: slideOf(t.slideId),
+      morphId: t.morphId?.startsWith('tag:') ? t.morphId : null,
     });
     columns.forEach((c, orderIndex) => {
       columnRows.push({

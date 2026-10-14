@@ -201,12 +201,13 @@
         [style.width.px]="set.outline.width"
         [style.height.px]="set.outline.height"
         [class.grabbable]="shapesInteractive()"
+        [class.selected]="selectedSlideSet() === set.name"
       >
-        <!-- Grab the outer border to move the whole presentation, contents and panels with it. -->
-        <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
-        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
-        <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
-        <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.frameId, $event)"></span>
+        <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
+        <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
+        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
+        <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
+        <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
       </div>
       <app-slides-panel
         class="slides-panel"
@@ -253,7 +254,7 @@
         [startIndex]="p.start"
         [autoplay]="p.preview"
         [follow]="p.follow"
-        (closed)="presentation.set(null)"
+        (closed)="onPresentationClosed($event)"
       ></app-present-mode>
     }
 

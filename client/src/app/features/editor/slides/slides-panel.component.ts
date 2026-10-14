@@ -1098,7 +1098,7 @@ export class SlidesPanelComponent {
    */
   private readonly tagTargets = computed(() => {
     const out: Array<{
-      kind: 'element' | 'lifeline' | 'message' | 'diagram';
+      kind: 'element' | 'table' | 'lifeline' | 'message' | 'diagram';
       id: string;
       morphId?: string;
       slideId?: string;
@@ -1108,6 +1108,12 @@ export class SlidesPanelComponent {
       morphId: e.morphId,
       slideId: e.slideId,
     }));
+    const tables = new Set(this.store.selectedTableIds());
+    for (const t of this.store.tables()) {
+      if (tables.has(t.id)) {
+        out.push({ kind: 'table', id: t.id, morphId: t.morphId, slideId: t.slideId });
+      }
+    }
     const diagrams = new Map(this.store.sequenceDiagrams().map((d) => [d.id, d] as const));
     const lifelines = new Set(this.store.selectedLifelineIds());
     const messages = new Set(this.store.selectedMessageIds());
@@ -1568,6 +1574,8 @@ export class SlidesPanelComponent {
       for (const t of targets) {
         if (t.kind === 'element') {
           await this.store.updateElement(t.id, { morphId });
+        } else if (t.kind === 'table') {
+          await this.store.updateTable(t.id, { morphId: morphId ?? '' });
         } else if (t.kind === 'lifeline') {
           await this.store.updateLifeline(t.id, { morphId: morphId ?? '' });
         } else if (t.kind === 'message') {

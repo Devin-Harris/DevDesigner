@@ -24,5 +24,6 @@ export function toTableModel(entity: TableEntity): TableModel {
     scale: entity.scale ?? undefined,
     groupId: entity.groupId ?? undefined,
     slideId: entity.slideId ?? undefined,
+    morphId: entity.morphId ?? undefined,
   };
 }
