@@ -2271,6 +2271,10 @@ export class EditorComponent {
     if (!g?.others) {
       return;
     }
+    // Don't snap an unaligned item to the grid on a plain click.
+    if (this.belowDragThreshold(clientX, clientY)) {
+      return;
+    }
     const { dx, dy } = this.dragDelta(clientX, clientY);
     const snap = this.gridSnap();
     for (const [id, start] of g.others) {
@@ -3318,6 +3322,11 @@ export class EditorComponent {
    * Pointer displacement (world units) of a move drag. While Shift is held (moving
    * or Alt-duplicating), movement locks to the dominant axis relative to the start.
    */
+  /** True while the pointer is still within click-jitter range of where the drag began. */
+  private belowDragThreshold(clientX: number, clientY: number): boolean {
+    return Math.hypot(clientX - this.startClientX, clientY - this.startClientY) < 3;
+  }
+
   private dragDelta(clientX: number, clientY: number): { dx: number; dy: number } {
     const zoom = this.store.viewport().zoom;
     let dx = (clientX - this.startClientX) / zoom;
@@ -3551,6 +3560,9 @@ export class EditorComponent {
       const v = this.store.viewport();
       this.store.setViewport(this.startViewportX + dx, this.startViewportY + dy, v.zoom);
     } else if (this.mode === 'node' && this.dragTableId) {
+      if (this.belowDragThreshold(event.clientX, event.clientY)) {
+        return;
+      }
       const { dx, dy } = this.dragDelta(event.clientX, event.clientY);
       const snap = this.gridSnap();
       for (const [id, start] of this.multiDragStart) {

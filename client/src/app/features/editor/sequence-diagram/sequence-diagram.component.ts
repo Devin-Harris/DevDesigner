@@ -745,6 +745,8 @@ export class SequenceDiagramComponent {
 
   /** Shift the whole diagram, snapping the block to the grid when grid-snap is on. */
   private shiftDiagram(d: Extract<Drag, { kind: 'diagram' }>, event: PointerEvent): void {
+    // A plain click (pointer within jitter range) must not snap an unaligned diagram.
+    if (Math.hypot(event.clientX - d.startX, event.clientY - d.startY) < 3) return;
     let dx = (event.clientX - d.startX) / this.zoom();
     let dy = (event.clientY - d.startY) / this.zoom();
     const snap = this.snap();
