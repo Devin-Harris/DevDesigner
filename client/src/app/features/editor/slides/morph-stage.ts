@@ -86,7 +86,12 @@ function mixColor(a: string, b: string, t: number): string {
   if (!ca || !cb) {
     return t < 0.5 ? a : b;
   }
-  return `rgb(${ca.map((v, i) => Math.round(lerp(v, cb[i], t))).join(',')})`;
+  // Hex, not rgb(): the contrast helpers (contrastText, readableTextOn, isSwatchColor)
+  // only parse hex, and an unparsed blend made text fall back to the theme color mid-morph.
+  const hex = ca.map((v, i) =>
+    Math.max(0, Math.min(255, Math.round(lerp(v, cb[i], t)))).toString(16).padStart(2, '0'),
+  );
+  return `#${hex.join('')}`;
 }
 
 function mixOptionalColor(

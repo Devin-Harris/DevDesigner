@@ -64,6 +64,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     fontSize: entity.fontSize ?? undefined,
     fontFamily: entity.fontFamily ?? undefined,
     bold: entity.bold ?? undefined,
+    aboveTables: entity.aboveTables ?? undefined,
     italic: entity.italic ?? undefined,
     lineHeight: entity.lineHeight ?? undefined,
     wrap: entity.wrap ?? undefined,

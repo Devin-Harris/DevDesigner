@@ -314,6 +314,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     fontSize: optNum(e, 'fontSize', path),
     fontFamily: optStr(e, 'fontFamily', path, 100),
     bold: e['bold'] === undefined || e['bold'] === null ? undefined : bool(e, 'bold', path, false),
+    aboveTables: e['aboveTables'] === true ? true : undefined,
     italic:
       e['italic'] === undefined || e['italic'] === null ? undefined : bool(e, 'italic', path, false),
     lineHeight: optNum(e, 'lineHeight', path),

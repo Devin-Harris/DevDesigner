@@ -310,6 +310,7 @@ export interface CreateElementDto {
   fontSize?: number;
   fontFamily?: string;
   bold?: boolean;
+  aboveTables?: boolean;
   italic?: boolean;
   lineHeight?: number;
   wrap?: boolean;
@@ -356,6 +357,7 @@ export interface UpdateElementDto {
   fontSize?: number;
   fontFamily?: string;
   bold?: boolean;
+  aboveTables?: boolean;
   italic?: boolean;
   lineHeight?: number;
   wrap?: boolean;

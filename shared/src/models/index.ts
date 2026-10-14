@@ -228,6 +228,8 @@ export interface CanvasElementModel {
   opacity: number;
   /** Stacking order within the element layer. */
   zIndex: number;
+  /** Draws above the ERD table nodes (brought to front past them). */
+  aboveTables?: boolean;
   /** Corner radius (px) for rectangles. Undefined = auto (min(12, 15% of side)). */
   cornerRadius?: number;
   /** Vertices for line/arrow/freedraw, relative to `x`/`y`. */

@@ -92,6 +92,9 @@ export class ElementEntity {
   bold!: boolean | null;
 
   @Column({ type: 'boolean', nullable: true })
+  aboveTables!: boolean | null;
+
+  @Column({ type: 'boolean', nullable: true })
   italic!: boolean | null;
 
   /** Line height as a multiple of the font size; null = default (1.25). */

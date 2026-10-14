@@ -120,6 +120,10 @@ export class CreateElementDto implements ICreateElementDto {
 
   @IsOptional()
   @IsBoolean()
+  aboveTables?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   italic?: boolean;
 
   @IsOptional()

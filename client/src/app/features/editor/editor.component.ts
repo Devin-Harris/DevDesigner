@@ -689,7 +689,8 @@ export class EditorComponent {
    * Stacking of sequence diagrams against drawing elements. A diagram with a
    * zIndex at or below the topmost element sits among the content shapes (the
    * content layer is split into slices around each such diagram); one above
-   * every element also clears the table nodes. Table nodes stay at z 400.
+   * every element also clears the table nodes. Table nodes stay at z 400;
+   * elements flagged `aboveTables` draw in their own slice at z 401.
    */
   protected readonly diagramLayers = computed(() => {
     const els = this.store.elements().filter((e) => e.type !== 'frame');
@@ -698,9 +699,14 @@ export class EditorComponent {
     const among = sorted.filter((d) => d.zIndex <= maxZ);
     const z = new Map<string, number>();
     among.forEach((d, i) => z.set(d.id, 11 + 2 * i));
-    sorted.filter((d) => d.zIndex > maxZ).forEach((d, i) => z.set(d.id, 401 + i));
+    // 401 is the above-tables content slice (elements brought in front of the ERD).
+    sorted.filter((d) => d.zIndex > maxZ).forEach((d, i) => z.set(d.id, 402 + i));
     const segmentOf = new Map<string, number>();
     for (const e of els) {
+      if (e.aboveTables) {
+        segmentOf.set(e.id, among.length + 1);
+        continue;
+      }
       let s = 0;
       while (s < among.length && among[s].zIndex < e.zIndex) s++;
       segmentOf.set(e.id, s);
@@ -711,9 +717,10 @@ export class EditorComponent {
   /** One content-layer slice per gap between diagrams (a single one without diagrams). */
   protected readonly contentSegments = computed(() => {
     const { segmentOf, segments } = this.diagramLayers();
-    return Array.from({ length: segments }, (_, index) => ({
+    // One extra slice above the table nodes for elements flagged `aboveTables`.
+    return Array.from({ length: segments + 1 }, (_, index) => ({
       index,
-      z: 10 + 2 * index,
+      z: index === segments ? 401 : 10 + 2 * index,
       // Anything unknown (the in-progress draft) is newest, so it draws on top.
       accept: (id: string): boolean => (segmentOf.get(id) ?? segments - 1) === index,
     }));
@@ -3618,11 +3625,16 @@ export class EditorComponent {
       }
       const { dx, dy } = this.dragDelta(event.clientX, event.clientY);
       const snap = this.gridSnap();
+      // The tables' actual (snapped) move, so routes carried with them stay attached.
+      let moved: { x: number; y: number } | null = null;
       for (const [id, start] of this.multiDragStart) {
         const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
         const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
         this.store.moveTable(id, nx, ny);
+        if (id === this.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
       }
+      const mx = moved?.x ?? dx;
+      const my = moved?.y ?? dy;
       this.moveNodeExtras();
       // Keep manual routes attached as their tables move. Both endpoints moving
       // together: translate the whole route rigidly. A single endpoint moving:
@@ -3636,7 +3648,7 @@ export class EditorComponent {
         if (start.both) {
           this.store.setWaypoints(
             relId,
-            start.wp.map((w) => ({ x: Math.round(w.x + dx), y: Math.round(w.y + dy) })),
+            start.wp.map((w) => ({ x: Math.round(w.x + mx), y: Math.round(w.y + my) })),
           );
           continue;
         }
@@ -3645,7 +3657,7 @@ export class EditorComponent {
           relId,
           start.wp.map((w, i) => ({
             x: Math.round(w.x),
-            y: Math.round(i === near ? w.y + dy : w.y),
+            y: Math.round(i === near ? w.y + my : w.y),
           })),
         );
       }
@@ -5802,6 +5814,7 @@ export class EditorComponent {
     };
     const members: Member[] = [];
     const tableIds = this.store.selectedTableIds();
+    const tableStart = new Map(this.store.tables().map((t) => [t.id, { x: t.x, y: t.y }]));
     for (const t of this.store.tables()) {
       if (tableIds.includes(t.id)) {
         members.push({
@@ -5938,6 +5951,7 @@ export class EditorComponent {
         break;
       }
     }
+    this.followRoutes(tableStart);
     this.store.recordElementMove(moves);
     for (const { id, before } of seqMoves) {
       const after = this.layoutSnapshot(id);
@@ -5948,6 +5962,47 @@ export class EditorComponent {
         originY: after.originY,
       });
       this.store.recordSequenceLayout(id, before, after);
+    }
+  }
+
+  /**
+   * Keep manual relationship routes in place relative to their tables after the
+   * tables moved from `start`. Both ends moved alike: the route translates rigidly.
+   * Otherwise each waypoint takes a blend of the two ends' moves (nearer end
+   * weighs more), and waypoint pairs that shared an x or y keep sharing it so the
+   * route stays orthogonal.
+   */
+  private followRoutes(start: Map<string, { x: number; y: number }>): void {
+    const now = new Map(this.store.tables().map((t) => [t.id, t] as const));
+    const delta = (id: string | undefined): { x: number; y: number } => {
+      const a = id ? start.get(id) : undefined;
+      const b = id ? now.get(id) : undefined;
+      return a && b ? { x: b.x - a.x, y: b.y - a.y } : { x: 0, y: 0 };
+    };
+    const locs = this.columnLocations();
+    for (const rel of this.store.relationships()) {
+      const wp = rel.waypoints;
+      if (!wp?.length) continue;
+      const ds = delta(locs.get(rel.sourceColumnId)?.table.id);
+      const dt = delta(locs.get(rel.targetColumnId)?.table.id);
+      if (!ds.x && !ds.y && !dt.x && !dt.y) continue;
+      const n = wp.length;
+      const next = wp.map((w, i) => {
+        const f = (i + 1) / (n + 1);
+        return { x: w.x + ds.x + (dt.x - ds.x) * f, y: w.y + ds.y + (dt.y - ds.y) * f };
+      });
+      for (let i = 0; i + 1 < n; i++) {
+        if (Math.abs(wp[i].x - wp[i + 1].x) < 0.5) {
+          next[i].x = next[i + 1].x = (next[i].x + next[i + 1].x) / 2;
+        }
+        if (Math.abs(wp[i].y - wp[i + 1].y) < 0.5) {
+          next[i].y = next[i + 1].y = (next[i].y + next[i + 1].y) / 2;
+        }
+      }
+      this.store.setWaypoints(
+        rel.id,
+        next.map((w) => ({ x: Math.round(w.x), y: Math.round(w.y) })),
+      );
     }
   }
 

@@ -381,6 +381,7 @@ export async function writeSchemaInto(
       fontSize: e.fontSize ?? null,
       fontFamily: e.fontFamily ?? null,
       bold: e.bold ?? null,
+      aboveTables: e.aboveTables ?? null,
       italic: e.italic ?? null,
       lineHeight: e.lineHeight ?? null,
       wrap: e.wrap ?? null,

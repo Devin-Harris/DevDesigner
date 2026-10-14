@@ -249,6 +249,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     fontSize: e.fontSize,
     fontFamily: e.fontFamily,
     bold: e.bold,
+    aboveTables: e.aboveTables,
     italic: e.italic,
     lineHeight: e.lineHeight,
     wrap: e.wrap,
@@ -3743,6 +3744,25 @@ export const ProjectStore = signalStore(
             const cur = diagrams.find((d) => d.id === it.id);
             if (cur && cur.zIndex !== z) changes.push({ id: it.id, zIndex: z });
           }
+
+          // Content elements pass the ERD table nodes at the extremes: to the front
+          // (or forward from the top of the under-tables stack) lifts them above the
+          // tables; to the back (or backward from the bottom of the above stack) drops them.
+          const byId = new Map(elements.map((e) => [e.id, e]));
+          const content = next.filter((i) => !i.diagram && i.cls === 'content');
+          const above = (it: Item): boolean => !!byId.get(it.id)?.aboveTables;
+          content.forEach((it, idx) => {
+            if (!isSel(it)) return;
+            const cur = above(it);
+            let want = cur;
+            if (op === 'front') want = true;
+            else if (op === 'back') want = false;
+            else if (op === 'forward' && !cur)
+              want = !content.slice(idx + 1).some((o) => !isSel(o) && !above(o));
+            else if (op === 'backward' && cur)
+              want = content.slice(0, idx).some((o) => !isSel(o) && above(o));
+            if (want !== cur) void this.updateElement(it.id, { aboveTables: want });
+          });
 
           const currentIds = elements.map((e) => e.id);
           if (orderedIds.some((id, i) => id !== currentIds[i])) {

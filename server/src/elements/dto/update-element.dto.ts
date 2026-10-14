@@ -119,6 +119,10 @@ export class UpdateElementDto implements IUpdateElementDto {
 
   @IsOptional()
   @IsBoolean()
+  aboveTables?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   italic?: boolean;
 
   @IsOptional()
