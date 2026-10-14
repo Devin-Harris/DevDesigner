@@ -517,3 +517,40 @@ export interface BatchUpdateDto {
 export interface BatchUpdateResponse {
   mutations: SchemaMutation[];
 }
+
+/**
+ * POST /projects/:id/clone - copy existing rows in ONE transaction under ids the
+ * client chose (so the copies can show locally before the server answers). Every
+ * copy is offset by (dx, dy); maps pair each source child id with its copy's id.
+ */
+export interface CloneItemsDto {
+  dx: number;
+  dy: number;
+  tables?: Array<{
+    sourceId: string;
+    id: string;
+    slideId: string | null;
+    columns: Record<string, string>;
+    indexes: Record<string, string>;
+  }>;
+  /** Source and target columns are mapped through the tables' column maps. */
+  relationships?: Array<{ sourceId: string; id: string }>;
+  diagrams?: Array<{
+    sourceId: string;
+    id: string;
+    slideId: string | null;
+    lifelines: Record<string, string>;
+    messages: Record<string, string>;
+  }>;
+  elements?: Array<{
+    sourceId: string;
+    id: string;
+    slideId: string | null;
+    slide: SlideConfig | null;
+    morphId: string | null;
+    zIndex: number;
+    text: string | null;
+    startBinding: ElementBinding | null;
+    endBinding: ElementBinding | null;
+  }>;
+}

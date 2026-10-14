@@ -3177,7 +3177,49 @@ export class EditorComponent {
     this.mode = 'duplicating';
     let resume: (() => void) | null = null;
     let created: string[] = [];
-    if (kind === 'element') {
+    const selectedIds = this.store.selectedElementIds();
+    const slideFrame =
+      kind === 'element' && selectedIds.length === 1
+        ? this.store.slideFrames().find((f) => f.id === selectedIds[0])
+        : undefined;
+    if (slideFrame) {
+      // Alt-dragging a presentation's slide copies the whole presentation: every
+      // slide with its contents, under a new name, dragged off as one set.
+      // The original was put back above; bring its other (hidden) slides back with it
+      // now, before copies exist that the catch-up could mistake for its own slides.
+      this.syncSlideMoves();
+      const frames = presentationSlides(this.store.slideFrames(), presentationOf(slideFrame));
+      const frameIds = new Set(frames.map((f) => f.id));
+      const inner = frameContents(
+        frameIds,
+        this.store.elements(),
+        this.store.tables(),
+        this.store.sequenceDiagrams(),
+        this.store.lifelines(),
+        this.store.sequenceMessages(),
+        this.store.shownSlideIds(),
+      );
+      const name = this.newPresentationName();
+      const sources = this.store
+        .elements()
+        .filter((e) => frameIds.has(e.id) || inner.elementIds.has(e.id));
+      // One optimistic clone: the copies show at once and undo removes them in one step.
+      const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, name);
+      created = [...cloned.copies.values()].map((c) => c.id);
+      const grabbed = cloned.copies.get(slideFrame.id);
+      if (grabbed) {
+        this.store.setActiveSlide(grabbed.id);
+        resume = () => {
+          this.store.setSelection([], [], [grabbed.id]);
+          this.beginElementDrag(grabbed);
+          this.attachCarried(
+            created.filter((id) => id !== grabbed.id),
+            [...cloned.tables.values()],
+            [...cloned.diagrams.values()],
+          );
+        };
+      }
+    } else if (kind === 'element') {
       const selected = new Set(this.store.selectedElementIds());
       // Duplicating a frame duplicates what's inside it too (tables, sequence
       // diagrams, and elements), and the copies travel with the copied frame.

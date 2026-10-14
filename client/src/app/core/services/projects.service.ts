@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import type {
   BatchUpdateDto,
   BatchUpdateResponse,
+  CloneItemsDto,
   CreateProjectDto,
   ImportIntoProjectDto,
   ImportIntoProjectResponse,
@@ -83,5 +84,10 @@ export class ProjectsService {
   /** Apply many row patches atomically (PATCH /projects/:id/batch). */
   batch(id: string, dto: BatchUpdateDto): Observable<BatchUpdateResponse> {
     return this.api.patch<BatchUpdateResponse>(`/projects/${id}/batch`, dto);
+  }
+
+  /** Copy rows under client-chosen ids in one transaction (POST /projects/:id/clone). */
+  clone(id: string, dto: CloneItemsDto): Observable<BatchUpdateResponse> {
+    return this.api.post<BatchUpdateResponse>(`/projects/${id}/clone`, dto);
   }
 }

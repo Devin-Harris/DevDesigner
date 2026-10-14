@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BatchController } from './batch.controller';
 import { BatchService } from './batch.service';
+import { CloneService } from './clone.service';
 
 /**
  * Batch edits: PATCH /projects/:projectId/batch applies many table / element /
@@ -9,6 +10,6 @@ import { BatchService } from './batch.service';
  */
 @Module({
   controllers: [BatchController],
-  providers: [BatchService],
+  providers: [BatchService, CloneService],
 })
 export class BatchModule {}
