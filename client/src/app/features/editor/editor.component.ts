@@ -5394,6 +5394,11 @@ export class EditorComponent {
     const selectedMessageIds = new Set(ignoreSelection ? [] : this.store.selectedMessageIds());
     const selectedLifelineIds = new Set(ignoreSelection ? [] : this.store.selectedLifelineIds());
     const selectedDiagramIds = new Set(ignoreSelection ? [] : this.store.selectedDiagramIds());
+    // A presentation selected as a whole brings every one of its slides, not just the shown one.
+    const set = ignoreSelection ? null : this.selectedSlideSet();
+    if (set) {
+      for (const f of presentationSlides(this.store.slideFrames(), set)) selectedElementIds.add(f.id);
+    }
     // A selected slide frame brings along everything it owns.
     const selectedFrameIds = new Set(
       this.store
