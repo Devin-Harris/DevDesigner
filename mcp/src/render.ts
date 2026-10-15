@@ -9,6 +9,10 @@ import {
   TABLE_ROW_H,
   edgePoint,
   elementRect,
+  gridEdges,
+  gridMergeAt,
+  gridSizes,
+  parseGrid,
   readableTextOn,
   tableRect,
   type CanvasElementModel,
@@ -212,6 +216,39 @@ function drawElement(
         (e.fileName ? textBlock([e.fileName], e.x + e.width / 2, e.y + 4, 12, ink, { anchor: 'middle' }) : '') +
         textBlock(lines.slice(0, max), e.x + 14, e.y + bar + 2, size, ink, { mono: true, lineHeight: 1.45 }) +
         `</g>`;
+    }
+    case 'grid': {
+      const g = parseGrid(e.text);
+      const { cols, rows } = gridSizes(g, e.width, e.height);
+      const ce = gridEdges(cols).map((v) => e.x + v);
+      const re = gridEdges(rows).map((v) => e.y + v);
+      const bg = e.fillStyle !== 'none' && e.backgroundColor && e.backgroundColor !== 'surface' ? e.backgroundColor : '#ffffff';
+      const size = e.fontSize ?? 14;
+      let out = `<g${op}><rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" fill="${bg}"/>`;
+      g.cells.forEach((row, r) =>
+        row.forEach((txt, c) => {
+          const m = gridMergeAt(g, r, c);
+          if (m && (m.r !== r || m.c !== c)) return;
+          const x0 = ce[c];
+          const x1 = ce[c + (m?.cs ?? 1)];
+          const y0 = re[r];
+          const y1 = re[r + (m?.rs ?? 1)];
+          const st = g.styles?.[`${r},${c}`] ?? {};
+          if (st.fill) out += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="${st.fill === 'surface' ? '#ffffff' : st.fill}"/>`;
+          out += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="none" stroke="${stroke}" stroke-opacity="0.55" stroke-width="${sw * 0.75}"/>`;
+          if (!txt) return;
+          const ta = st.align ?? e.textAlign ?? 'left';
+          const tx = ta === 'center' ? (x0 + x1) / 2 : ta === 'right' ? x1 - 8 : x0 + 8;
+          const lines = wrapLines(txt, Math.max(10, x1 - x0 - 16), size);
+          out += textBlock(lines, tx, y0 + 8 - size * 0.15, size, st.color ?? stroke, {
+            anchor: ta === 'center' ? 'middle' : ta === 'right' ? 'end' : 'start',
+            bold: st.bold ?? ((g.header && r === 0) || !!e.bold),
+            italic: st.italic ?? !!e.italic,
+            lineHeight: e.lineHeight,
+          });
+        }),
+      );
+      return `${out}<rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" rx="${e.cornerRadius ?? 4}" fill="none" stroke="${stroke}" stroke-width="${sw}"${ds}/></g>`;
     }
     case 'image': {
       const uri = e.fileId ? images?.get(e.fileId) : undefined;

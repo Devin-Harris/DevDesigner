@@ -133,8 +133,20 @@ export class ElementFloatingToolbarComponent {
   });
   /** The morph tag of the words selected in the rich editor ('' = none). */
   protected readonly runMorphTag = computed(() => this.rich.selection()?.morph ?? '');
+  /** The fill the toolbar shows: the anchor cell's while cells are selected, else the element's. */
+  protected readonly fillShown = computed<{ none: boolean; color: string | undefined }>(() => {
+    const cell = this.cellStyle();
+    if (cell) {
+      return cell.fill ? { none: false, color: cell.fill } : { none: true, color: undefined };
+    }
+    const el = this.element();
+    return { none: el.fillStyle === 'none' || !el.backgroundColor, color: el.backgroundColor };
+  });
   protected readonly strokeSwatch = computed(
-    () => (this.editingRich() ? this.rich.selection()?.color : null) ?? this.element().strokeColor,
+    () =>
+      this.cellStyle()?.color ??
+      (this.editingRich() ? this.rich.selection()?.color : null) ??
+      this.element().strokeColor,
   );
   protected readonly currentLineHeight = computed(
     () => this.element().lineHeight ?? DEFAULT_LINE_HEIGHT,
@@ -283,13 +295,13 @@ export class ElementFloatingToolbarComponent {
 
   /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
   protected fillCss(color: string | undefined): string {
-    return color || '#ffffff';
+    return color === SURFACE_FILL ? 'var(--dbd-surface)' : color || '#ffffff';
   }
 
   protected setFill(color: string): void {
     if (this.cellsOn()) {
       void this.grids.styleSelected({
-        fill: color === 'transparent' ? undefined : color === SURFACE_FILL ? 'var(--dbd-surface)' : color,
+        fill: color === 'transparent' ? undefined : color,
       });
       return;
     }

@@ -4,6 +4,7 @@
 // unit-tests. The tools in layout-tools.ts turn these plans into REST writes.
 
 import {
+  gridSummary,
   MAX_TABLE_SCALE,
   MIN_TABLE_SCALE,
   sequenceDiagramRect,
@@ -68,7 +69,7 @@ function strokeRect(e: CanvasElementModel): Rect | null {
 }
 
 export function elementLabel(e: CanvasElementModel): string {
-  const text = e.text?.replace(/\s+/g, ' ').trim();
+  const text = (e.type === 'grid' ? gridSummary(e.text, 40) : e.text)?.replace(/\s+/g, ' ').trim();
   return text ? `${e.type} "${text.length > 36 ? `${text.slice(0, 33)}...` : text}" (${e.id})` : `${e.type} ${e.id}`;
 }
 

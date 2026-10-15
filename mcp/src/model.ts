@@ -1,7 +1,8 @@
 // Pure helpers over the shared schema model: name resolution and the compact
 // summaries returned to the model. No network, no MCP types, so they unit-test.
 
-import { colorName, isSoloTag, morphTagOf } from '@dbdesigner/shared';
+import {
+  gridSummary, colorName, isSoloTag, morphTagOf } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -125,7 +126,11 @@ export function summarizeProject(graph: ProjectGraphResponse): Record<string, un
   const elements = schema.elements.slice(0, 60).map((e) => ({
     id: e.id,
     type: e.type,
-    ...(e.text ? { text: e.text.length > 80 ? `${e.text.slice(0, 77)}...` : e.text } : {}),
+    ...(e.type === 'grid'
+      ? { text: gridSummary(e.text) }
+      : e.text
+        ? { text: e.text.length > 80 ? `${e.text.slice(0, 77)}...` : e.text }
+        : {}),
     ...(e.type === 'image' && e.fileId ? { fileId: e.fileId } : {}),
     x: Math.round(e.x),
     y: Math.round(e.y),

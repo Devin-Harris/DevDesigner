@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import {
+  gridSummary,
   CODE_LANGUAGES,
   FILL_STYLES,
   MAX_TABLE_SCALE,
@@ -258,7 +259,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
             if (ratio >= 3) continue;
             lowContrast.push({
               id: e.id,
-              label: e.text ? `${e.type} "${e.text.slice(0, 30)}"` : e.type,
+              label: e.type === 'grid' ? gridSummary(e.text, 40) : e.text ? `${e.type} "${e.text.slice(0, 30)}"` : e.type,
               color: e.strokeColor,
               ratio: Math.round(ratio * 10) / 10,
             });
@@ -375,6 +376,9 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
           body.runs = el.runs.map((r) => ({ ...r, color: undefined }));
         }
         if (body.text !== undefined && el.runs?.length) body.runs = null;
+        if (body.text !== undefined && el.type === 'grid') {
+          throw new UserError(`${eid} is a grid table: change its cells with edit_grid_table.`);
+        }
         if (Object.keys(body).length === 0) continue;
         batch.set('elements', eid, body);
         done.push(eid);

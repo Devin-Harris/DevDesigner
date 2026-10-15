@@ -759,9 +759,8 @@ function gridTableView(
   return {
     rect: { x: x0, y: y0, width: element.width, height: element.height, rx: element.cornerRadius ?? 4 },
     background: fill,
-    header: g.header
-      ? { x: x0, y: y0, width: element.width, height: rowEdges[1] - y0, fill: stroke }
-      : null,
+    // The header row is marked by bold text only, no tinted band.
+    header: null,
     lines,
     cells,
     fills,

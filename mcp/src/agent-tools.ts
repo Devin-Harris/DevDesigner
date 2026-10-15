@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Resvg } from '@resvg/resvg-js';
 import {
+  gridSummary,
+  parseGrid,
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
   edgePoint,
@@ -310,7 +312,9 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         type: e.type,
         label: isSlide
           ? `slide ${(e.slide?.order ?? 0) + 1} of "${presentationOf(e as never)}"`
-          : (e.text ?? e.runs?.map((r) => r.text).join('') ?? '').replace(/\s+/g, ' ').slice(0, 80) || e.type,
+          : e.type === 'grid'
+            ? gridSummary(e.text)
+            : (e.text ?? e.runs?.map((r) => r.text).join('') ?? '').replace(/\s+/g, ' ').slice(0, 80) || e.type,
         rect: round(it?.rect ?? { x: e.x, y: e.y, w: e.width, h: e.height }),
         ...(e.slideId ? { slide: e.slideId } : {}),
         ...(e.groupId ? { group: e.groupId } : {}),
@@ -409,7 +413,11 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
       for (const ref of items) {
         const e = schema.elements.find((x) => x.id === ref);
         if (e) {
-          out.push({ kind: 'element', ...e, text: clip(e.text), box: boxes.get(`element:${e.id}`) });
+          out.push(
+            e.type === 'grid'
+              ? { kind: 'element', ...e, text: gridSummary(e.text), gridRows: parseGrid(e.text).cells, box: boxes.get(`element:${e.id}`) }
+              : { kind: 'element', ...e, text: clip(e.text), box: boxes.get(`element:${e.id}`) },
+          );
           continue;
         }
         const d = schema.sequenceDiagrams.find((x) => x.id === ref);

@@ -13,3 +13,4 @@ export * from './slides/sequence-match';
 export * from './slides/animations';
 export * from './palette';
 export * from './images';
+export * from './grid';

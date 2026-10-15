@@ -21,8 +21,8 @@
     <button class="tb" [dbdPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill color" [disabled]="!store.canEdit()">
       <span
         class="swatch"
-        [class.none]="element().fillStyle === 'none'"
-        [style.background-color]="element().fillStyle === 'none' ? 'transparent' : fillCss(element().backgroundColor)"
+        [class.none]="fillShown().none"
+        [style.background-color]="fillShown().none ? 'transparent' : fillCss(fillShown().color)"
       ></span>
     </button>
     <ng-template #fillMenu let-close>
@@ -32,14 +32,14 @@
             class="swatch-btn"
             [class.none]="c === 'transparent'"
             [class.surface]="c === 'surface'"
-            [class.active]="c === 'transparent' ? element().fillStyle === 'none' : (element().fillStyle !== 'none' && c === element().backgroundColor)"
+            [class.active]="c === 'transparent' ? fillShown().none : (!fillShown().none && c === fillShown().color)"
             [style.background-color]="c === 'transparent' ? c : fillCss(c)"
             (click)="setFill(c); close()"
           ></button>
         }
         <label class="swatch-btn custom">
           <dbd-icon name="colorize" />
-          <input type="color" [value]="element().backgroundColor === 'surface' ? '#ffffff' : (element().backgroundColor || '#ffffff')" (change)="setFill($any($event.target).value)" />
+          <input type="color" [value]="fillShown().color && fillShown().color !== 'surface' ? fillShown().color : '#ffffff'" (change)="setFill($any($event.target).value)" />
         </label>
       </div>
     </ng-template>
