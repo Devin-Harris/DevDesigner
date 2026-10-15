@@ -1039,6 +1039,19 @@ export class SlidesPanelComponent {
       null,
   );
   protected readonly activeId = computed(() => this.active()?.id ?? null);
+  /** Keep the active slide's card in view (e.g. after leaving the presenter on another slide). */
+  private readonly revealActive = effect(() => {
+    const id = this.activeId();
+    if (this.part() !== 'list' || !id) {
+      return;
+    }
+    const index = this.shown().findIndex((f) => f.id === id);
+    requestAnimationFrame(() => {
+      (this.host.nativeElement as HTMLElement)
+        .querySelectorAll('li.card')
+        [index]?.scrollIntoView({ block: 'nearest' });
+    });
+  });
   protected readonly activeNumber = computed(() => {
     const id = this.activeId();
     return id ? this.frames().findIndex((f) => f.id === id) + 1 : 0;
