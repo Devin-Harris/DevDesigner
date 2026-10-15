@@ -128,3 +128,54 @@
 .rotate {
   cursor: grab;
 }
+
+// Spreadsheet-style grid: draggable column/row borders and the active cell.
+.grid-border {
+  fill: transparent;
+  pointer-events: all;
+  &.col {
+    cursor: col-resize;
+  }
+  &.row {
+    cursor: row-resize;
+  }
+}
+
+.grid-active {
+  fill: color-mix(in srgb, var(--dbd-primary) 10%, transparent);
+  stroke: var(--dbd-primary);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+// On a selected table the body picks cells rather than moving it.
+.hit.cells {
+  cursor: cell;
+}
+
+.grid-ctl {
+  pointer-events: all;
+  cursor: pointer;
+  circle {
+    fill: var(--dbd-surface);
+    stroke: var(--dbd-border-strong);
+    stroke-width: 1;
+  }
+  path {
+    stroke: var(--dbd-text-muted);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    fill: none;
+  }
+  &.add:hover circle {
+    fill: var(--dbd-primary);
+    stroke: var(--dbd-primary);
+  }
+  &.del:hover circle {
+    fill: #e5484d;
+    stroke: #e5484d;
+  }
+  &:hover path {
+    stroke: #fff;
+  }
+}

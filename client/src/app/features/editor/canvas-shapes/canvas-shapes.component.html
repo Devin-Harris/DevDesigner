@@ -34,6 +34,12 @@
           <line x1="0" y1="0" x2="0" y2="7" [attr.stroke]="h.color" stroke-width="1.3" />
         </pattern>
       }
+      @if (s.grid; as g) {
+        <clipPath [attr.id]="g.clipId">
+          <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
+            [attr.height]="g.rect.height" [attr.rx]="g.rect.rx"></rect>
+        </clipPath>
+      }
       @if (s.code; as c) {
         <!-- Keeps code that outgrows a resized card inside it. -->
         <clipPath [attr.id]="c.clipId">
@@ -117,6 +123,87 @@
             [attr.height]="img.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
+        }
+        @if (s.grid; as g) {
+          <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
+            [attr.height]="g.rect.height" [attr.rx]="g.rect.rx" [attr.fill]="g.background"
+            [attr.fill-opacity]="s.fillOpacity" stroke="none"></rect>
+          <g [attr.clip-path]="'url(#' + g.clipId + ')'" pointer-events="none">
+            @if (g.header; as h) {
+              <rect [attr.x]="h.x" [attr.y]="h.y" [attr.width]="h.width" [attr.height]="h.height"
+                [attr.fill]="h.fill" fill-opacity="0.12"></rect>
+            }
+            @for (f of g.fills; track $index) {
+              <rect [attr.x]="f.x" [attr.y]="f.y" [attr.width]="f.width" [attr.height]="f.height"
+                [attr.fill]="f.fill"></rect>
+            }
+            @if (cellRangeRect(s.id, g); as a) {
+              <rect class="grid-active" [attr.x]="a.x" [attr.y]="a.y" [attr.width]="a.width"
+                [attr.height]="a.height"></rect>
+            }
+            @for (l of g.lines; track $index) {
+              <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2"
+                [attr.stroke]="s.stroke" [attr.stroke-width]="s.strokeWidth * 0.75"
+                [attr.stroke-dasharray]="s.dash" stroke-opacity="0.55"></line>
+            }
+            @for (t of g.cells; track $index) {
+              @for (line of t.lines; track $index) {
+                <text [attr.x]="line.x" [attr.y]="line.y" [attr.font-size]="t.fontSize"
+                  [attr.font-family]="t.fontFamily" [attr.font-weight]="t.fontWeight"
+                  [attr.font-style]="t.fontStyle" [attr.fill]="t.color" [attr.text-anchor]="t.anchor"
+                  xml:space="preserve">{{ line.text }}</text>
+              }
+            }
+          </g>
+          <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
+            [attr.height]="g.rect.height" [attr.rx]="g.rect.rx" fill="none" [attr.stroke]="s.stroke"
+            [attr.stroke-width]="s.strokeWidth" [attr.stroke-dasharray]="s.dash" pointer-events="none"></rect>
+          <rect class="hit" [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
+            [attr.height]="g.rect.height" [class.cells]="s.selected" (pointerdown)="onBody(s.id, $event)"></rect>
+          @if (s.selected && interactive() && s.id !== editingId()) {
+            <!-- Drag a border to resize its column/row; the last ones grow the table. -->
+            @for (x of g.colEdges; track $index; let i = $index) {
+              @if (i > 0) {
+                <rect class="grid-border col" [attr.x]="x - 4" [attr.y]="g.rect.y" width="8"
+                  [attr.height]="g.rect.height" (pointerdown)="onGridBorder(s.id, 'col', i - 1, $event)"></rect>
+              }
+            }
+            @for (y of g.rowEdges; track $index; let i = $index) {
+              @if (i > 0) {
+                <rect class="grid-border row" [attr.x]="g.rect.x" [attr.y]="y - 4"
+                  [attr.width]="g.rect.width" height="8" (pointerdown)="onGridBorder(s.id, 'row', i - 1, $event)"></rect>
+              }
+            }
+            <!-- Structure controls on the edges: + on a border inserts there, - on a column/row removes it. -->
+            @for (x of g.colEdges; track $index; let i = $index) {
+              <g class="grid-ctl add" [attr.transform]="'translate(' + x + ' ' + (g.rect.y - 14) + ')'"
+                (pointerdown)="onGridCtl(s.id, 'addCol', i, $event)">
+                <title>Insert column</title>
+                <circle r="7"></circle><path d="M-3.5 0h7M0 -3.5v7"></path>
+              </g>
+              @if (i < g.colEdges.length - 1 && g.colEdges.length > 2) {
+                <g class="grid-ctl del" [attr.transform]="'translate(' + (x + g.colEdges[i + 1]) / 2 + ' ' + (g.rect.y - 14) + ')'"
+                  (pointerdown)="onGridCtl(s.id, 'delCol', i, $event)">
+                  <title>Delete column</title>
+                  <circle r="7"></circle><path d="M-3.5 0h7"></path>
+                </g>
+              }
+            }
+            @for (y of g.rowEdges; track $index; let i = $index) {
+              <g class="grid-ctl add" [attr.transform]="'translate(' + (g.rect.x - 14) + ' ' + y + ')'"
+                (pointerdown)="onGridCtl(s.id, 'addRow', i, $event)">
+                <title>Insert row</title>
+                <circle r="7"></circle><path d="M-3.5 0h7M0 -3.5v7"></path>
+              </g>
+              @if (i < g.rowEdges.length - 1 && g.rowEdges.length > 2) {
+                <g class="grid-ctl del" [attr.transform]="'translate(' + (g.rect.x - 14) + ' ' + (y + g.rowEdges[i + 1]) / 2 + ')'"
+                  (pointerdown)="onGridCtl(s.id, 'delRow', i, $event)">
+                  <title>Delete row</title>
+                  <circle r="7"></circle><path d="M-3.5 0h7"></path>
+                </g>
+              }
+            }
+          }
         }
         @if (s.code; as c) {
           <rect
@@ -350,6 +437,7 @@
               [attr.width]="s.bbox.width"
               [attr.height]="s.bbox.height"
             ></rect>
+            @if (s.type !== 'grid') {
             <line
               class="rotate-stem"
               [attr.x1]="s.bbox.x + s.bbox.width / 2"
@@ -364,6 +452,7 @@
               r="6"
               (pointerdown)="onRotate(s.id, $event)"
             ></circle>
+            }
             <rect
               class="handle"
               [attr.x]="s.bbox.x - 5"

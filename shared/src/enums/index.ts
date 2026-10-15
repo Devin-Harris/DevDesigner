@@ -76,7 +76,8 @@ export type ElementType =
   | 'text'
   | 'frame'
   | 'image'
-  | 'code';
+  | 'code'
+  | 'grid';
 
 export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
@@ -89,6 +90,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'frame',
   'image',
   'code',
+  'grid',
 ] as const;
 
 /** Languages a `code` element can be syntax-highlighted as (highlighting is render-only). */

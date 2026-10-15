@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { GridTableService } from '../../../core/services/grid-table.service';
+import { parseGrid } from '../canvas/helpers/grid-table.helper';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import {
@@ -81,6 +83,7 @@ export class ElementFloatingToolbarComponent {
   protected readonly store = inject(ProjectStore);
   private readonly editorActions = inject(EditorActionsService);
   private readonly codeActions = inject(CodeActionsService);
+  protected readonly grids = inject(GridTableService);
   private readonly rich = inject(RichTextSessionService);
   protected readonly strokeColors = STROKE_COLORS;
   protected readonly fillColors = FILL_COLORS;
@@ -99,11 +102,25 @@ export class ElementFloatingToolbarComponent {
 
   /** True while this text element is open in the inline rich-text editor. */
   protected readonly editingRich = computed(() => this.rich.editingId() === this.element().id);
-  /** Styling state shown by the toolbar: the selected characters while editing. */
+  /** The anchor cell's style while a cell block of this table is selected. */
+  private readonly cellStyle = computed(() => {
+    const r = this.grids.range();
+    return r && r.id === this.element().id ? this.grids.anchorStyle() : null;
+  });
+  /** Alignment shown in the align menu (the anchor cell's while cells are selected). */
+  protected readonly alignOn = computed(
+    () => this.cellStyle()?.align ?? this.element().textAlign,
+  );
+  protected readonly vAlignOn = computed(
+    () => this.cellStyle()?.vAlign ?? this.element().verticalAlign,
+  );
+  /** Styling state shown by the toolbar: the selected cells, or the selected characters while editing. */
   protected readonly boldOn = computed(() =>
+    this.cellStyle() ? (this.cellStyle()!.bold ?? !!this.element().bold) :
     this.editingRich() ? !!this.rich.selection()?.bold : !!this.element().bold,
   );
   protected readonly italicOn = computed(() =>
+    this.cellStyle() ? (this.cellStyle()!.italic ?? !!this.element().italic) :
     this.editingRich() ? !!this.rich.selection()?.italic : !!this.element().italic,
   );
   protected readonly underlineOn = computed(() => {
@@ -125,6 +142,10 @@ export class ElementFloatingToolbarComponent {
   /** Pictures have no stroke/fill styling, only opacity and layering. */
   protected readonly isImage = computed(() => this.element().type === 'image');
   protected readonly isCode = computed(() => this.element().type === 'code');
+  protected readonly isGrid = computed(() => this.element().type === 'grid');
+  protected readonly gridHeaderOn = computed(
+    () => this.isGrid() && parseGrid(this.element().text).header,
+  );
   protected readonly languages = CODE_LANGUAGES.map((id) => ({
     id,
     label: CODE_LANGUAGE_LABELS[id],
@@ -139,7 +160,7 @@ export class ElementFloatingToolbarComponent {
   /** Text/label controls apply to text elements and to shapes (which have labels). */
   protected readonly canHaveText = computed(() => {
     const t = this.element().type;
-    return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond';
+    return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'grid';
   });
   protected readonly hasFill = computed(
     () =>
@@ -231,6 +252,16 @@ export class ElementFloatingToolbarComponent {
     void this.codeActions.fitToContent(this.store.selectedElementIds());
   }
 
+  protected toggleGridHeader(): void {
+    void this.grids.toggleHeader(this.store.selectedElementIds());
+  }
+
+  /** Selected cells of this table, when styling should target them instead of the whole table. */
+  private cellsOn(): boolean {
+    const r = this.grids.range();
+    return !!r && r.id === this.element().id;
+  }
+
   protected setLanguage(language: CodeLanguage): void {
     this.patchCode({ language });
   }
@@ -240,6 +271,10 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected setStroke(color: string): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({ color });
+      return;
+    }
     if (this.editingRich() && this.rich.apply({ color })) {
       return;
     }
@@ -248,10 +283,16 @@ export class ElementFloatingToolbarComponent {
 
   /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
   protected fillCss(color: string | undefined): string {
-    return color === SURFACE_FILL ? 'var(--dbd-surface)' : color || '#ffffff';
+    return color || '#ffffff';
   }
 
   protected setFill(color: string): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({
+        fill: color === 'transparent' ? undefined : color === SURFACE_FILL ? 'var(--dbd-surface)' : color,
+      });
+      return;
+    }
     this.patchAll(
       color === 'transparent'
         ? { fillStyle: 'none' }
@@ -285,6 +326,10 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected toggleBold(): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({ bold: !this.boldOn() });
+      return;
+    }
     if (this.editingRich() && this.rich.apply({ bold: !this.boldOn() })) {
       return;
     }
@@ -356,6 +401,10 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected toggleItalic(): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({ italic: !this.italicOn() });
+      return;
+    }
     if (this.editingRich() && this.rich.apply({ italic: !this.italicOn() })) {
       return;
     }
@@ -367,10 +416,18 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected setTextAlign(align: TextAlign): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({ align });
+      return;
+    }
     this.patchAll({ textAlign: align });
   }
 
   protected setVerticalAlign(align: VerticalAlign): void {
+    if (this.cellsOn()) {
+      void this.grids.styleSelected({ vAlign: align });
+      return;
+    }
     this.patchAll({ verticalAlign: align });
   }
 

@@ -25,6 +25,7 @@ export type EditorTool =
   | 'frame'
   | 'slide'
   | 'code'
+  | 'grid'
   | 'laser';
 
 /** Shape tools grouped behind the dock's Shape flyout. */

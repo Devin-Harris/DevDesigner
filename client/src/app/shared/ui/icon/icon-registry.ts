@@ -37,6 +37,8 @@ export const ICON_PATHS: Record<string, string> = {
   center_focus_strong: '<circle cx="12" cy="12" r="3"/><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/>',
   home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-9"/>',
   map: '<path d="M9 4L3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4z"/><path d="M9 4v13M15 7v13"/>',
+  merge_cells: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v4M12 16v4M7 12h3.5M8.5 10l2 2-2 2M17 12h-3.5M15.5 10l-2 2 2 2"/>',
+  split_cells: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M10 12H6M7.5 10l-2 2 2 2M14 12h4M16.5 10l2 2-2 2"/>',
   grid_4x4: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
 
   // ---- export ----

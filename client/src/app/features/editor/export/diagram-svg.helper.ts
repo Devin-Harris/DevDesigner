@@ -331,6 +331,8 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
   const body: string[] = [];
   if (view.code) {
     body.push(renderCodeBlock(view.code, stroke));
+  } else if (view.grid) {
+    body.push(renderGridTable(view, dash));
   } else if (view.image) {
     // Embedded as a data: URI so the exported file is self-contained.
     const href = imageData.get(view.image.fileId);
@@ -369,6 +371,45 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
     body.push(renderTextBlock(view.label));
   }
   return `${open}${body.join('')}</g>`;
+}
+
+/** Render a spreadsheet-style grid table: surface, header tint, cell borders and text. */
+function renderGridTable(view: ShapeView, dash: string): string {
+  const g = view.grid!;
+  const { rect } = g;
+  const out: string[] = [
+    `<clipPath id="${esc(g.clipId)}"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" ` +
+      `height="${rect.height}" rx="${rect.rx}" /></clipPath>`,
+    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
+      `fill="${esc(g.background)}" fill-opacity="${view.fillOpacity}" stroke="none" />`,
+    `<g clip-path="url(#${esc(g.clipId)})">`,
+  ];
+  if (g.header) {
+    const h = g.header;
+    out.push(
+      `<rect x="${h.x}" y="${h.y}" width="${h.width}" height="${h.height}" fill="${esc(h.fill)}" fill-opacity="0.12" />`,
+    );
+  }
+  for (const f of g.fills) {
+    out.push(
+      `<rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="${esc(f.fill)}" />`,
+    );
+  }
+  for (const l of g.lines) {
+    out.push(
+      `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${view.stroke}" ` +
+        `stroke-width="${view.strokeWidth * 0.75}" stroke-opacity="0.55"${dash} />`,
+    );
+  }
+  for (const t of g.cells) {
+    out.push(renderTextBlock(t));
+  }
+  out.push(
+    '</g>',
+    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
+      `fill="none" stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash} />`,
+  );
+  return out.join('');
 }
 
 /** Render a code card: surface, line-number gutter and colored tokens, clipped to the card. */

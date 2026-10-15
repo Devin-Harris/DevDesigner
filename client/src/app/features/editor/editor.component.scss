@@ -412,3 +412,11 @@
     right: -5px;
   }
 }
+
+// A grid cell's editor covers the cell exactly (opaque, so the rendered text
+// beneath does not double up) and wraps like the rendered cell.
+.grid-cell-editor {
+  border-radius: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}

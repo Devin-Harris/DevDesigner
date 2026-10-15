@@ -38,7 +38,7 @@
     [class.on]="tool() === 'table'"
     [disabled]="disabled()"
     (click)="onChange('table')"
-    matTooltip="Table (E)"
+    matTooltip="ERD table (E)"
     matTooltipPosition="right"
     aria-label="Table"
   >
@@ -61,6 +61,21 @@
       <rect x="4" y="3.5" width="5.5" height="3.5" rx="1" />
       <rect x="14.5" y="3.5" width="5.5" height="3.5" rx="1" />
       <path d="M6.75 7v13.5M17.25 7v13.5M6.75 12h9M15.75 12l-2.5-2M15.75 12l-2.5 2" />
+    </svg>
+  </button>
+
+  <button
+    class="dock-btn"
+    [class.on]="tool() === 'grid'"
+    [disabled]="disabled()"
+    (click)="onChange('grid')"
+    matTooltip="Table (G)"
+    matTooltipPosition="right"
+    aria-label="Table"
+  >
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M15 4.5v15" />
     </svg>
   </button>
 

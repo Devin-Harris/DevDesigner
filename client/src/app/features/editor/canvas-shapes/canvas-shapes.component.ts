@@ -3,7 +3,8 @@ import { ProjectStore } from '../../../stores/project.store';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import type { ArrowheadType } from '@dbdesigner/shared';
-import type { CodeDotAction, ShapeView } from '../canvas/models/shape-view.model';
+import { GridTableService, type GridStructureAction } from '../../../core/services/grid-table.service';
+import type { CodeDotAction, GridTableView, ShapeView } from '../canvas/models/shape-view.model';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
@@ -85,6 +86,7 @@ export class CanvasShapesComponent {
 
   protected readonly images = inject(ElementImagesService);
   private readonly codeActions = inject(CodeActionsService);
+  private readonly grids = inject(GridTableService);
   private readonly store = inject(ProjectStore);
 
   protected readonly frameTitleW = FRAME_TITLE_W;
@@ -122,6 +124,43 @@ export class CanvasShapesComponent {
         void this.codeActions.fitToContent([id]);
         break;
     }
+  }
+
+  /** World box of the selected cell block, when it belongs to this (selected) grid. */
+  protected cellRangeRect(
+    id: string,
+    g: GridTableView,
+  ): { x: number; y: number; width: number; height: number } | null {
+    const r = this.grids.range();
+    if (!r || r.id !== id || !this.interactive()) {
+      return null;
+    }
+    const x0 = g.colEdges[r.c0];
+    const x1 = g.colEdges[r.c1 + 1];
+    const y0 = g.rowEdges[r.r0];
+    const y1 = g.rowEdges[r.r1 + 1];
+    if (x1 === undefined || y1 === undefined) {
+      return null;
+    }
+    return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  }
+
+  protected onGridCtl(id: string, action: GridStructureAction, index: number, event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    event.preventDefault();
+    void this.grids.structure(id, action, index);
+  }
+
+  protected onGridBorder(id: string, axis: 'col' | 'row', index: number, event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    event.preventDefault();
+    this.grids.beginBorderDrag(id, axis, index, event);
   }
 
   protected onBody(id: string, event: PointerEvent): void {

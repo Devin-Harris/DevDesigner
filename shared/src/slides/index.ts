@@ -152,6 +152,7 @@ function sizeRatioOk(a: MorphItem, b: MorphItem): boolean {
 const FREE_FORM_TYPES: ReadonlySet<string> = new Set([
   'text',
   'code',
+  'grid',
   'image',
   'freedraw',
   'frame',

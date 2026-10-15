@@ -134,6 +134,23 @@
     </ng-template>
   }
 
+  <!-- Grid table: header row (rows/columns are added and removed on the table's edges) -->
+  @if (isGrid()) {
+    @if (grids.canMerge()) {
+      <button class="tb" matTooltip="Merge cells (Ctrl+M)" [disabled]="!store.canEdit()" (click)="grids.mergeSelected()">
+        <dbd-icon name="merge_cells" />
+      </button>
+    }
+    @if (grids.canUnmerge()) {
+      <button class="tb" matTooltip="Unmerge cells" [disabled]="!store.canEdit()" (click)="grids.unmergeSelected()">
+        <dbd-icon name="split_cells" />
+      </button>
+    }
+    <button class="tb" [class.on]="gridHeaderOn()" matTooltip="Header row" [disabled]="!store.canEdit()" (click)="toggleGridHeader()">
+      <dbd-icon name="table_chart" />
+    </button>
+  }
+
   <!-- Text / label: font + size + bold/italic + alignment -->
   @if (canHaveText()) {
     <button class="tb wide" [dbdPopoverTrigger]="fontMenu" placement="below-start" matTooltip="Font" [disabled]="!store.canEdit()">
@@ -218,15 +235,15 @@
       <div class="picker col">
         <div class="head-row">
           <span class="head-label">Horiz.</span>
-          <button class="tb sm" [class.on]="element().textAlign === 'left'" matTooltip="Left" (click)="setTextAlign('left')"><dbd-icon name="format_align_left" /></button>
-          <button class="tb sm" [class.on]="element().textAlign === 'center'" matTooltip="Center" (click)="setTextAlign('center')"><dbd-icon name="format_align_center" /></button>
-          <button class="tb sm" [class.on]="element().textAlign === 'right'" matTooltip="Right" (click)="setTextAlign('right')"><dbd-icon name="format_align_right" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'left'" matTooltip="Left" (click)="setTextAlign('left')"><dbd-icon name="format_align_left" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'center'" matTooltip="Center" (click)="setTextAlign('center')"><dbd-icon name="format_align_center" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'right'" matTooltip="Right" (click)="setTextAlign('right')"><dbd-icon name="format_align_right" /></button>
         </div>
         <div class="head-row">
           <span class="head-label">Vert.</span>
-          <button class="tb sm" [class.on]="element().verticalAlign === 'top'" matTooltip="Top" (click)="setVerticalAlign('top')"><dbd-icon name="vertical_align_top" /></button>
-          <button class="tb sm" [class.on]="element().verticalAlign === 'middle'" matTooltip="Middle" (click)="setVerticalAlign('middle')"><dbd-icon name="vertical_align_center" /></button>
-          <button class="tb sm" [class.on]="element().verticalAlign === 'bottom'" matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><dbd-icon name="vertical_align_bottom" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'top'" matTooltip="Top" (click)="setVerticalAlign('top')"><dbd-icon name="vertical_align_top" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'middle'" matTooltip="Middle" (click)="setVerticalAlign('middle')"><dbd-icon name="vertical_align_center" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'bottom'" matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><dbd-icon name="vertical_align_bottom" /></button>
         </div>
       </div>
     </ng-template>

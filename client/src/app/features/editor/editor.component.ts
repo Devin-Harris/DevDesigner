@@ -46,6 +46,19 @@ import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
 import { CodeActionsService } from '../../core/services/code-actions.service';
+import { GridTableService } from '../../core/services/grid-table.service';
+import {
+  GRID_CELL_PAD,
+  GRID_MIN_CELL,
+  defaultGrid,
+  gridInPixels,
+  edges as gridEdges,
+  gridCellAt,
+  gridSizes,
+  mergeAt,
+  parseGrid,
+  serializeGrid,
+} from './canvas/helpers/grid-table.helper';
 import {
   CanvasConnectorsComponent,
   type EndpointDownEvent,
@@ -101,6 +114,9 @@ import {
   codePrintWidth,
   fontStack,
   fontWeightFor,
+  gridFont,
+  gridRowNeeds,
+  SURFACE_FILL,
 } from './canvas/helpers/shape-render.helper';
 import {
   DEFAULT_LINE_HEIGHT,
@@ -920,6 +936,96 @@ export class EditorComponent {
   protected readonly editingTextId = signal<string | null>(null);
 
   private readonly codeActions = inject(CodeActionsService);
+  protected readonly grids = inject(GridTableService);
+
+  /** Screen-space placement of the inline editor over a grid table's cell. */
+  protected readonly gridCellEditor = computed(() => {
+    const cell = this.grids.editingCell();
+    const el = cell ? this.store.elements().find((e) => e.id === cell.id && e.type === 'grid') : null;
+    if (!cell || !el) {
+      return null;
+    }
+    const g = parseGrid(el.text);
+    if (cell.row >= g.rows.length || cell.col >= g.cols.length) {
+      return null;
+    }
+    const { cols, rows } = gridSizes(g, el.width, el.height);
+    const ce = gridEdges(cols);
+    const re = gridEdges(rows);
+    const v = this.store.viewport();
+    const z = v.zoom;
+    const f = gridFont(el);
+    const isHeader = g.header && cell.row === 0;
+    const span = mergeAt(g, cell.row, cell.col);
+    const st = g.styles?.[`${cell.row},${cell.col}`] ?? {};
+    const bg = (st.fill === SURFACE_FILL ? undefined : st.fill) ?? this.shapeViews().find((s) => s.id === el.id)?.grid?.background;
+    return {
+      key: `${cell.id}:${cell.row}:${cell.col}`,
+      left: (el.x + ce[cell.col]) * z + v.x,
+      top: (el.y + re[cell.row]) * z + v.y,
+      width: (ce[cell.col + (span?.cs ?? 1)] - ce[cell.col]) * z,
+      height: (re[cell.row + (span?.rs ?? 1)] - re[cell.row]) * z,
+      fontSize: f.fontSize * z,
+      fontFamily: f.family,
+      fontWeight: (st.bold ?? (isHeader || !!el.bold)) ? 700 : 400,
+      italic: st.italic ?? !!el.italic,
+      lineHeight: f.lineHeight * z,
+      padding: GRID_CELL_PAD * z,
+      color: st.color ?? el.strokeColor,
+      align: st.align ?? el.textAlign ?? 'left',
+      background: bg && bg !== 'none' && !bg.startsWith('url(') ? bg : 'var(--dbd-surface)',
+      value: g.cells[cell.row][cell.col],
+    };
+  });
+
+  private readonly gridCellArea = viewChild<ElementRef<HTMLTextAreaElement>>('gridCellArea');
+  private gridCellKey: string | null = null;
+  /** Load the cell's text into the (reused) editor and focus it whenever the edited cell changes. */
+  private readonly gridCellFocus = effect(() => this.syncGridCellArea());
+
+  private syncGridCellArea(): void {
+    const gc = this.gridCellEditor();
+    const area = this.gridCellArea()?.nativeElement;
+    if (!gc || !area) {
+      this.gridCellKey = null;
+      return;
+    }
+    if (gc.key === this.gridCellKey) {
+      return;
+    }
+    this.gridCellKey = gc.key;
+    area.value = gc.value;
+    area.focus();
+    area.setSelectionRange(area.value.length, area.value.length);
+  }
+
+  /** Keys inside a grid cell editor: Tab/Shift+Tab move across, Enter moves down (Shift+Enter = newline), Esc reverts. */
+  protected onGridCellKeydown(event: KeyboardEvent): void {
+    if (event.isComposing) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.grids.endEdit(true);
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      // Swap the editor's text right away so keys typed before the next render land in the new cell.
+      void this.grids.moveEdit(0, event.shiftKey ? -1 : 1).then(() => this.syncGridCellArea());
+      this.syncGridCellArea();
+    } else if (event.key === 'Enter' && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      void this.grids.moveEdit(1, 0).then(() => this.syncGridCellArea());
+      this.syncGridCellArea();
+    }
+  }
+
+  protected onGridCellBlur(key: string): void {
+    const cell = this.grids.editingCell();
+    // Moving to another cell re-creates the editor; only a real blur of this cell ends it.
+    if (cell && `${cell.id}:${cell.row}:${cell.col}` === key && document.hasFocus()) {
+      this.grids.endEdit();
+    }
+  }
 
   /** Screen-space placement of the inline file-name input over a code block's title bar. */
   protected readonly fileNameEditor = computed(() => {
@@ -1491,6 +1597,10 @@ export class EditorComponent {
   // --- canvas pointer (pan / marquee) ---
 
   protected onCanvasPointerDown(event: PointerEvent): void {
+    // Clicking away closes a grid cell editor even when the click does not move focus.
+    if (this.grids.editingCell()) {
+      this.grids.endEdit();
+    }
     if (
       event.button === 1 ||
       (event.button === 0 && (this.spaceDown || this.activeTool() === 'hand'))
@@ -1673,6 +1783,18 @@ export class EditorComponent {
             fontFamily: 'code',
             fontSize: CODE_FONT_SIZE,
           }
+        : type === 'grid'
+          ? {
+              // A table: opaque surface, hairline borders, readable body text.
+              ...sticky,
+              strokeColor: this.defaultStroke(),
+              backgroundColor: SURFACE_FILL,
+              fillStyle: 'solid' as const,
+              strokeWidth: 1,
+              strokeStyle: 'solid' as const,
+              opacity: 100,
+              cornerRadius: 4,
+            }
         : type === 'frame'
           ? {
               ...sticky,
@@ -1712,6 +1834,9 @@ export class EditorComponent {
           }
         : {}),
       ...(type === 'freedraw' ? { points: [{ x: 0, y: 0 }] } : {}),
+      ...(type === 'grid'
+        ? { text: serializeGrid(defaultGrid()), fontSize: 14, fontFamily: 'normal' }
+        : {}),
       ...(type === 'code'
         ? {
             text: '',
@@ -1841,6 +1966,10 @@ export class EditorComponent {
       if (created && selectAfter && created.type === 'text') {
         this.editingTextId.set(created.id);
       }
+      if (created && created.type === 'grid') {
+        // A fresh table opens its first cell for typing.
+        this.grids.beginEdit({ id: created.id, row: 0, col: 0 });
+      }
       if (created && created.type === 'code') {
         // A fresh code card opens straight into its editor; an untouched one is discarded on exit.
         this.freshCodeId = created.id;
@@ -1858,6 +1987,21 @@ export class EditorComponent {
         width = 120;
         height = 80;
       }
+    }
+    if (draft.type === 'grid' && (width < 40 || height < 24)) {
+      const g = parseGrid(draft.text);
+      width = g.cols.reduce((a, b) => a + b, 0);
+      height = g.rows.reduce((a, b) => a + b, 0);
+    }
+    let fontSize = draft.fontSize;
+    if (draft.type === 'grid') {
+      // A table drawn bigger than the default starts with proportionally bigger
+      // text (the same diagonal measure a resize uses), so it reads as drawn.
+      const g = parseGrid(draft.text);
+      const w0 = g.cols.reduce((a, b) => a + b, 0);
+      const h0 = g.rows.reduce((a, b) => a + b, 0);
+      const k = (width * w0 + height * h0) / (w0 * w0 + h0 * h0);
+      fontSize = Math.round(Math.min(96, Math.max(10, (draft.fontSize ?? 14) * k)) * 2) / 2;
     }
     if (draft.type === 'code' && (width < 40 || height < 40)) {
       width = 360;
@@ -1889,7 +2033,7 @@ export class EditorComponent {
       cornerRadius: draft.cornerRadius,
       points,
       text,
-      fontSize: draft.fontSize,
+      fontSize,
       fontFamily: draft.fontFamily,
       textAlign: draft.textAlign,
       startArrowhead: draft.startArrowhead,
@@ -1935,12 +2079,34 @@ export class EditorComponent {
   }
 
   protected onElementPointerDown(payload: ShapePointerEvent): void {
+    if (this.grids.editingCell()) {
+      this.grids.endEdit();
+    }
     const clicked = this.store.elements().find((e) => e.id === payload.id);
     if (!clicked) {
       this.selectedSlideSets.set([]);
       return;
     }
     const el = this.pickInnermostAt(clicked, payload.event);
+    // A click inside an already-selected table works on its cells: click selects a
+    // cell, Shift+click or a drag extends the selection (the table does not move).
+    const sel = this.store.selectedElementIds();
+    const ev = payload.event;
+    if (
+      el.type === 'grid' &&
+      sel.length === 1 &&
+      sel[0] === el.id &&
+      !ev.ctrlKey &&
+      !ev.metaKey &&
+      !this.store.groupIdOf(el.id)
+    ) {
+      const cell = gridCellAt(el, this.toWorld(ev.clientX, ev.clientY));
+      if (cell) {
+        this.grids.selectCell({ id: el.id, ...cell }, ev.shiftKey);
+        this.beginCellDragSelect(el.id);
+        return;
+      }
+    }
     // Dragging part of the selection keeps whole-selected presentations selected.
     if (
       EditorComponent.additive(payload.event) ||
@@ -1955,6 +2121,10 @@ export class EditorComponent {
     if (!this.store.selectedElementIds().includes(el.id)) {
       this.store.selectElement(el.id, false);
     }
+    if (el.type === 'grid') {
+      // First click selects the whole table (styling applies to all of it).
+      this.grids.clearCellSelection();
+    }
     if (!this.store.canEdit()) {
       return;
     }
@@ -1966,6 +2136,23 @@ export class EditorComponent {
     if (payload.event.altKey) {
       void this.duplicateAndDrag();
     }
+  }
+
+  /** Extend a grid's cell selection to whatever cell the pointer is dragged over. */
+  private beginCellDragSelect(id: string): void {
+    const move = (e: PointerEvent): void => {
+      const el = this.store.elements().find((x) => x.id === id);
+      const cell = el ? gridCellAt(el, this.toWorld(e.clientX, e.clientY)) : null;
+      if (cell) {
+        this.grids.selectCell({ id, ...cell }, true);
+      }
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   /** Start moving the current element selection, grabbed by `el`. */
@@ -2434,6 +2621,34 @@ export class EditorComponent {
       return;
     }
 
+    if (el?.type === 'grid') {
+      // Columns share the new width proportionally; rows scale too but never
+      // shrink below what their text needs, so cell content is never clipped.
+      const start = gridInPixels(g.snapshot);
+      const sx = width / Math.max(1, s.width);
+      const sy = height / Math.max(1, s.height);
+      const cols = start.cols.map((c) => Math.max(GRID_MIN_CELL, c * sx));
+      // Text scales with the table like a text box does: by the drag projected onto
+      // the box diagonal, so a corner drag in any direction grows/shrinks it evenly.
+      const startFont = g.snapshot.fontSize ?? 14;
+      const diag = s.width * s.width + s.height * s.height;
+      const k = diag > 0 ? (width * s.width + height * s.height) / diag : 1;
+      const fontSize = Math.round(Math.min(96, Math.max(6, startFont * k)) * 2) / 2;
+      const needs = gridRowNeeds({ ...g.snapshot, fontSize }, start, cols);
+      const rows = start.rows.map((r, i) => Math.max(GRID_MIN_CELL, needs[i], r * sy));
+      const w = cols.reduce((a, b) => a + b, 0);
+      const h = rows.reduce((a, b) => a + b, 0);
+      this.store.patchElementLocal(g.id, {
+        x: ev.altKey ? cx - w / 2 : left ? s.x + s.width - w : s.x,
+        y: ev.altKey ? cy - h / 2 : top ? s.y + s.height - h : s.y,
+        width: w,
+        height: h,
+        text: serializeGrid({ ...start, cols, rows }),
+        fontSize,
+      });
+      return;
+    }
+
     this.store.patchElementLocal(g.id, { x, y, width, height });
   }
 
@@ -2547,6 +2762,7 @@ export class EditorComponent {
           width: snap.width,
           height: snap.height,
           ...(scaled ? { fontSize: snap.fontSize, wrap: snap.wrap ?? false } : {}),
+          ...(el.type === 'grid' ? { text: snap.text ?? '', fontSize: snap.fontSize } : {}),
         },
         {
           x: el.x,
@@ -2554,6 +2770,7 @@ export class EditorComponent {
           width: el.width,
           height: el.height,
           ...(scaled ? { fontSize: el.fontSize, wrap: el.wrap ?? false } : {}),
+          ...(el.type === 'grid' ? { text: el.text ?? '', fontSize: el.fontSize } : {}),
         },
       );
     } else if (this.mode === 'element-rotate') {
@@ -4091,6 +4308,30 @@ export class EditorComponent {
       );
       return;
     }
+    // Keys on a table's cell selection: Delete clears the cells, Enter/F2 edits, Esc drops back to the table.
+    const cells = this.grids.range();
+    if (cells && mod && event.key.toLowerCase() === 'm' && this.store.canEdit()) {
+      event.preventDefault();
+      void (this.grids.canMerge() ? this.grids.mergeSelected() : this.grids.unmergeSelected());
+      return;
+    }
+    if (cells && !mod) {
+      if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
+        event.preventDefault();
+        void this.grids.clearSelectedText();
+        return;
+      }
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault();
+        this.grids.beginEdit({ id: cells.id, row: cells.r0, col: cells.c0 });
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.grids.clearCellSelection();
+        return;
+      }
+    }
     const tool = mod ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
     // The laser pointer is a presenting tool, so view-only guests may use it too.
     if (tool && (this.store.canEdit() || tool === 'laser')) {
@@ -4953,6 +5194,7 @@ export class EditorComponent {
     f: 'frame',
     s: 'slide',
     c: 'code',
+    g: 'grid',
     k: 'laser',
   };
 
@@ -5236,6 +5478,15 @@ export class EditorComponent {
       return;
     }
     if (!this.store.canEdit() || !this.store.projectId()) {
+      return;
+    }
+    // Double-clicking a grid table edits the cell under the pointer.
+    if (hit?.type === 'grid') {
+      const cell = gridCellAt(hit, world);
+      if (cell) {
+        this.store.selectElement(hit.id);
+        this.grids.beginEdit({ id: hit.id, ...cell });
+      }
       return;
     }
     // Double-clicking a code block's file-name bar edits the name, not the code.

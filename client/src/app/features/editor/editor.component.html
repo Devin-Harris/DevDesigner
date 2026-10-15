@@ -343,6 +343,31 @@
      }
     }
 
+    @if (gridCellEditor(); as gc) {
+      <textarea
+        #gridCellArea
+        class="text-editor wrap grid-cell-editor"
+        spellcheck="false"
+        [style.left.px]="gc.left"
+        [style.top.px]="gc.top"
+        [style.width.px]="gc.width"
+        [style.height.px]="gc.height"
+        [style.font-size.px]="gc.fontSize"
+        [style.font-family]="gc.fontFamily"
+        [style.font-weight]="gc.fontWeight"
+        [style.font-style]="gc.italic ? 'italic' : 'normal'"
+        [style.line-height.px]="gc.lineHeight"
+        [style.padding.px]="gc.padding"
+        [style.text-align]="gc.align"
+        [style.color]="gc.color"
+        [style.background]="gc.background"
+        (pointerdown)="$event.stopPropagation()"
+        (keydown)="onGridCellKeydown($event)"
+        (input)="grids.setEditingText($any($event.target).value)"
+        (blur)="onGridCellBlur(gc.key)"
+      ></textarea>
+    }
+
     @if (elementToolbar(); as et) {
       <app-element-floating-toolbar
         [style.left.px]="et.left"

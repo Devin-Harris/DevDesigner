@@ -70,6 +70,24 @@ export interface CodeBlockView {
   };
 }
 
+/** A spreadsheet-style table (grid element): outer frame, header tint, cell lines and text. */
+export interface GridTableView {
+  rect: { x: number; y: number; width: number; height: number; rx: number };
+  /** Cell surface fill ('none' = transparent). */
+  background: string;
+  /** Tinted header-row band, or null when the grid has no header row. */
+  header: { x: number; y: number; width: number; height: number; fill: string } | null;
+  /** Inner cell borders (world coords). */
+  lines: { x1: number; y1: number; x2: number; y2: number }[];
+  cells: TextBlockView[];
+  /** Per-cell background fills (cells with a fill override). */
+  fills: { x: number; y: number; width: number; height: number; fill: string }[];
+  clipId: string;
+  /** Absolute world x of every column edge / y of every row edge (first = left/top). */
+  colEdges: number[];
+  rowEdges: number[];
+}
+
 /**
  * Fully-resolved render data for one canvas element, produced by buildShapeViews
  * and consumed by CanvasShapesComponent. All coordinates are world-space; the SVG
@@ -101,6 +119,8 @@ export interface ShapeView {
   image?: { x: number; y: number; width: number; height: number; fileId: string };
   /** A syntax-highlighted code block (code element). */
   code?: CodeBlockView;
+  /** A spreadsheet-style table (grid element). */
+  grid?: GridTableView;
   path?: string;
   /** True for a freehand stroke: `path` is a filled outline (fill = stroke color). */
   freehand: boolean;
