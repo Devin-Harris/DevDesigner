@@ -12,6 +12,7 @@ import type {
   SequenceMessageModel,
   TableModel,
 } from '@dbdesigner/shared';
+import { DEFAULT_PRESENTATION } from '@dbdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
 import { fromDataType } from '../columns/column.mapper';
 import { ElementEntity } from '../elements/element.entity';
@@ -292,19 +293,36 @@ export async function writeSchemaInto(
   }
   // New slides go after the project's existing ones rather than interleaving.
   let slideShift = 0;
+  // An import is a clone: its slides form their own presentation(s), never joining
+  // an existing one of the same name.
+  const presentationName = new Map<string, string>();
   if (options.stackAboveExisting && sourceElements.some((e) => e.slide)) {
     const existing = await manager.find(ElementEntity, {
       where: { projectId, type: 'frame' },
       select: { id: true, slideJson: true },
     });
     let top = -1;
+    const taken = new Set<string>();
     for (const row of existing) {
       try {
-        const o = row.slideJson ? (JSON.parse(row.slideJson) as { order?: number }) : null;
+        const o = row.slideJson
+          ? (JSON.parse(row.slideJson) as { order?: number; presentation?: string })
+          : null;
         if (typeof o?.order === 'number') top = Math.max(top, o.order);
+        if (o) taken.add(o.presentation?.trim() || DEFAULT_PRESENTATION);
       } catch {
         /* ignore a corrupt value */
       }
+    }
+    for (const e of sourceElements) {
+      if (!e.slide) continue;
+      const name = e.slide.presentation?.trim() || DEFAULT_PRESENTATION;
+      if (presentationName.has(name) || !taken.has(name)) continue;
+      let n = 1;
+      let next = `${name} (copy)`;
+      while (taken.has(next)) next = `${name} (copy ${++n})`;
+      taken.add(next);
+      presentationName.set(name, next);
     }
     const lowest = Math.min(...sourceElements.filter((e) => e.slide).map((e) => e.slide!.order));
     slideShift = top + 1 - lowest;
@@ -336,6 +354,9 @@ export async function writeSchemaInto(
       e.type === 'frame' && e.slide
         ? {
             ...e.slide,
+            presentation:
+              presentationName.get(e.slide.presentation?.trim() || DEFAULT_PRESENTATION) ??
+              e.slide.presentation,
             order: e.slide.order + slideShift,
             // Animations follow their objects to the new ids; ones whose object is gone drop.
             animations: e.slide.animations

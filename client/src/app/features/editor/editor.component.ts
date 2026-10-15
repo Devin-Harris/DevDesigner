@@ -5484,16 +5484,8 @@ export class EditorComponent {
     // claiming whatever canvas content they landed on) until they are in place.
     this.migratingSlides = true;
     try {
+      // An import is a clone: the server gives its slides their own presentation.
       const count = await this.store.importFile(file, anchor);
-      // Imported slides of a presentation that already exists join its stacked spot.
-      const frames = this.store.slideFrames();
-      for (const f of frames) {
-        if (before.has(f.id)) continue;
-        const home = frames.find((o) => before.has(o.id) && presentationOf(o) === presentationOf(f));
-        if (home && (home.x !== f.x || home.y !== f.y)) {
-          this.shiftSlide(f.id, home.x - f.x, home.y - f.y);
-        }
-      }
       // Only the shown slide of a stack is drawn: show the first imported slide.
       const added = this.store
         .slideFrames()
