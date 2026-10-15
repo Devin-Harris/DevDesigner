@@ -128,9 +128,8 @@ export function registerTableTools(tool: ToolFn, api: DbDesignerApi): void {
     async (a) => {
       if (!a.rows.length) throw new UserError('rows must have at least one row.');
       const fontSize = a.fontSize ?? 14;
-      let edit = gridFromRows(a.rows, { header: a.header, fontSize, columnWidths: a.columnWidths });
+      let edit = gridFromRows(a.rows, { header: a.header, fontSize, columnWidths: a.columnWidths, merges: a.merges });
       const ops: z.infer<typeof opSchema>[] = [
-        ...(a.merges ?? []).map((m) => ({ op: 'merge' as const, ...m })),
         ...(a.cellStyles ?? []).map((s) => ({ op: 'style' as const, ...s })),
       ];
       if (ops.length) {

@@ -149,7 +149,21 @@ const TRAVEL: Record<string, [number, number]> = {
         </aside>
       }
 
-      <div class="bar" (click)="$event.stopPropagation()">
+      <div
+        class="bar"
+        [class.dragging]="barDrag !== null"
+        [style.transform]="barTransform()"
+        (click)="$event.stopPropagation()"
+      >
+        <span
+          class="grip"
+          title="Drag to move · double-click to reset"
+          (pointerdown)="onBarDown($event)"
+          (pointermove)="onBarMove($event)"
+          (pointerup)="onBarUp($event)"
+          (pointercancel)="onBarUp($event)"
+          (dblclick)="barOffset.set({ x: 0, y: 0 })"
+        ></span>
         <button
           class="btn"
           (click)="prev()"
@@ -299,6 +313,20 @@ const TRAVEL: Record<string, [number, number]> = {
         border: 1px solid rgba(255, 255, 255, 0.14);
         font-size: 13px;
         transition: opacity 0.2s ease;
+        touch-action: none;
+      }
+      .grip {
+        width: 10px;
+        height: 22px;
+        margin-right: 2px;
+        border-radius: 3px;
+        cursor: grab;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1.5px);
+        background-size: 5px 5px;
+        background-position: center;
+      }
+      .bar.dragging .grip {
+        cursor: grabbing;
       }
       .idle .bar {
         opacity: 0;
@@ -421,6 +449,13 @@ export class PresentModeComponent {
   protected readonly barVisible = signal(true);
   protected readonly laserOn = signal(false);
   protected readonly resized = signal(0);
+  /** How far the user has dragged the control bar from its bottom-centre home. */
+  protected readonly barOffset = signal({ x: 0, y: 0 });
+  protected readonly barTransform = computed(() => {
+    const o = this.barOffset();
+    return `translate(calc(-50% + ${o.x}px), ${o.y}px)`;
+  });
+  protected barDrag: { id: number; sx: number; sy: number; ox: number; oy: number } | null = null;
   private readonly seconds = signal(0);
 
   /** Object URLs per slide per build step (one entry for slides without steps), revoked on destroy. */
@@ -654,6 +689,37 @@ export class PresentModeComponent {
     this.idleTimer = setTimeout(() => this.barVisible.set(false), 2600);
   }
 
+  protected onBarDown(event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    } catch {
+      /* synthetic pointers can refuse capture */
+    }
+    const o = this.barOffset();
+    this.barDrag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, ox: o.x, oy: o.y };
+  }
+
+  protected onBarMove(event: PointerEvent): void {
+    const d = this.barDrag;
+    if (!d || d.id !== event.pointerId) {
+      return;
+    }
+    // Keep the bar on screen: centre stays within the viewport horizontally, and it can
+    // travel from its bottom spot up to the top edge.
+    const halfW = window.innerWidth / 2 - 40;
+    const x = Math.max(-halfW, Math.min(halfW, d.ox + event.clientX - d.sx));
+    const y = Math.max(-(window.innerHeight - 70), Math.min(0, d.oy + event.clientY - d.sy));
+    this.barOffset.set({ x, y });
+  }
+
+  protected onBarUp(event: PointerEvent): void {
+    if (this.barDrag?.id === event.pointerId) {
+      this.barDrag = null;
+    }
+  }
+
   protected onFullscreenChange(): void {
     // Leaving fullscreen with Esc (the browser eats the key) ends the show.
     if (this.fullscreen && !document.fullscreenElement) {
@@ -665,10 +731,11 @@ export class PresentModeComponent {
     if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
+    // Keys never reveal the control bar (only the mouse does), so stepping through
+    // slides keeps the picture clear.
     const handled = (): void => {
       event.preventDefault();
       event.stopPropagation();
-      this.wake();
     };
     switch (event.key) {
       case 'ArrowRight':

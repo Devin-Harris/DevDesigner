@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   effectiveTransition,
   hiddenAtStep,
+  parseGrid,
   planAnimations,
   slideAnimations,
   type AnimationPlan,
@@ -20,6 +21,14 @@ import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper'
 import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../export/diagram-svg.helper';
 import { embedFonts } from '../export/font-embed.helper';
+
+/** A grid's cell text in reading order, for morph matching (its `text` is JSON). */
+function gridCellsText(text: string | undefined): string {
+  return parseGrid(text)
+    .cells.flat()
+    .filter((c) => c.trim())
+    .join(' ');
+}
 
 /** An element or table that appears on a slide, in slide-local coordinates. */
 export interface SlideItem extends MorphItem {
@@ -285,7 +294,8 @@ export class SlideRenderService {
         key: e.morphId ?? e.id,
         kind: 'element',
         type: e.type,
-        text: e.text ?? '',
+        // Grids are matched by what their cells say, not by their JSON.
+        text: e.type === 'grid' ? gridCellsText(e.text) : (e.text ?? ''),
         runTags: [...new Set((e.runs ?? []).flatMap((r) => (r.morph ? [r.morph] : [])))],
         cx: (b.x0 + b.x1) / 2 - fx0,
         cy: (b.y0 + b.y1) / 2 - fy0,

@@ -25,6 +25,7 @@ import {
   matchLifelines,
   matchMessages,
   matchMorphItems,
+  parseGrid,
   morphIdForTag,
   newAnimation,
   normalizeAnimations,
@@ -737,30 +738,43 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       // Target spot: a slide that stays put, else the first moved slide's own.
       const anchor = rest[0] ?? moving[0];
       const after = JSON.parse(JSON.stringify(schema)) as SchemaModel;
-      const shift = new Map(moving.map((f) => [f.id, { dx: anchor.x - f.x, dy: anchor.y - f.y }]));
+      // Map each slide onto the anchor: positions keep their place relative to the slide
+      // (proportionally, when the anchor is a different size); sizes stay as they are.
+      const shift = new Map(
+        moving.map((f) => {
+          const sx = f.width ? anchor.width / f.width : 1;
+          const sy = f.height ? anchor.height / f.height : 1;
+          return [f.id, { X: (x: number) => anchor.x + (x - f.x) * sx, Y: (y: number) => anchor.y + (y - f.y) * sy }];
+        }),
+      );
       for (const e of after.elements) {
-        const d = shift.get(e.id) ?? (e.slideId ? shift.get(e.slideId) : undefined);
-        if (!d) continue;
-        e.x += d.dx;
-        e.y += d.dy;
         if (shift.has(e.id)) {
+          e.x = anchor.x;
+          e.y = anchor.y;
           e.width = anchor.width;
           e.height = anchor.height;
+          continue;
         }
+        const d = e.slideId ? shift.get(e.slideId) : undefined;
+        if (!d) continue;
+        e.x = d.X(e.x);
+        e.y = d.Y(e.y);
       }
       for (const t of after.tables) {
         const d = t.slideId ? shift.get(t.slideId) : undefined;
         if (d) {
-          t.x += d.dx;
-          t.y += d.dy;
+          t.x = d.X(t.x);
+          t.y = d.Y(t.y);
         }
       }
       for (const dg of after.sequenceDiagrams) {
         const d = dg.slideId ? shift.get(dg.slideId) : undefined;
         if (!d) continue;
-        dg.originY += d.dy;
-        for (const l of after.lifelines) if (l.diagramId === dg.id) l.x += d.dx;
-        for (const m of after.sequenceMessages) if (m.diagramId === dg.id) m.y += d.dy;
+        const oy = dg.originY;
+        dg.originY = d.Y(oy);
+        for (const l of after.lifelines) if (l.diagramId === dg.id) l.x = d.X(l.x);
+        // Message y is kept relative to the diagram origin (only the origin moves proportionally).
+        for (const m of after.sequenceMessages) if (m.diagramId === dg.id) m.y += dg.originY - oy;
       }
       const contentWrites = await applyLayoutDiff(api, id, schema, after);
       const batch = new Batch();
@@ -809,7 +823,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const patch: Record<string, unknown> = Object.fromEntries(
         Object.entries(fields).filter(([, v]) => v !== undefined),
       );
-      if (morph !== undefined) patch.morphId = morph;
+      if (morph !== undefined) patch.morphId = morphIdForTag(morph) ?? soloMorphId();
       if (!Object.keys(patch).length) throw new UserError('Nothing to change.');
       // New plain text replaces rich runs that no longer match it.
       if (patch.text !== undefined && patch.runs === undefined && el.runs?.length) patch.runs = null;
@@ -1158,7 +1172,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
             key: e.morphId ?? e.id,
             kind: 'element',
             type: e.type,
-            text: e.text ?? '',
+            text: e.type === 'grid' ? parseGrid(e.text).cells.flat().filter((c) => c.trim()).join(' ') : (e.text ?? ''),
             runTags: [...new Set((e.runs ?? []).flatMap((r) => (r.morph ? [r.morph] : [])))],
             cx: e.x + e.width / 2 - frame.x,
             cy: e.y + e.height / 2 - frame.y,

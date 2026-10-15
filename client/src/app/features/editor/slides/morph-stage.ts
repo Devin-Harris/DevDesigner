@@ -1,10 +1,14 @@
 import {
+  gridMergeAt,
   isSwatchColor,
   matchDiagrams,
   matchLifelines,
   matchMessages,
   matchMorphItems,
+  parseGrid,
+  serializeGrid,
   type CanvasElementModel,
+  type GridData,
   type LifelineModel,
   type MorphBy,
   type PointModel,
@@ -507,6 +511,217 @@ interface CodeMorph {
 }
 
 /**
+ * A matched pair of grid tables. The table itself is drawn live without cell text
+ * (rows and columns interpolate when the structure is the same, else the two
+ * layouts cross-fade); cells with the same text glide to their new place, cells
+ * whose text changed in place morph glyph by glyph, the rest fade out / in.
+ */
+interface GridMorph {
+  pair: Pair;
+  clip: SVGRectElement;
+  /** Same number of rows and columns on both slides. */
+  sameShape: boolean;
+  moves: Array<{ el: SVGGElement; dx: number; dy: number }>;
+  fadeOut: SVGGElement[];
+  fadeIn: SVGGElement[];
+  /** Cells whose text changed in place: glyph-morphed once measured, else cross-faded. */
+  changed: Array<{ a: SVGGElement; b: SVGGElement }>;
+}
+
+/** One drawn grid cell: its position in the grid and its text. */
+interface GridCellRef {
+  r: number;
+  c: number;
+  text: string;
+}
+
+/** The cells a grid draws, in the order the renderer emits their `<text>` (non-empty merge origins). */
+function gridDrawnCells(text: string | undefined): GridCellRef[] {
+  const g = parseGrid(text);
+  const out: GridCellRef[] = [];
+  g.cells.forEach((row, r) =>
+    row.forEach((cell, c) => {
+      const m = gridMergeAt(g, r, c);
+      if ((m && (m.r !== r || m.c !== c)) || !cell) {
+        return;
+      }
+      out.push({ r, c, text: cell });
+    }),
+  );
+  return out;
+}
+
+interface GridBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** One live piece of a morphing grid: a table drawn at `box` with `opacity` (0..1). */
+interface GridPiece {
+  key: string;
+  box: GridBox;
+  grid: GridData;
+  opacity: number;
+}
+
+/** A grid with rows and columns swapped (so column changes can reuse the row logic). */
+function transposeGrid(g: GridData): GridData {
+  const styles: GridData['styles'] = {};
+  for (const [k, v] of Object.entries(g.styles ?? {})) {
+    const [r, c] = k.split(',');
+    styles[`${c},${r}`] = v;
+  }
+  return {
+    ...g,
+    cols: g.rows,
+    rows: g.cols,
+    cells: g.cols.map((_v, c) => g.rows.map((_w, r) => g.cells[r]?.[c] ?? '')),
+    styles,
+    merges: (g.merges ?? []).map((m) => ({ r: m.c, c: m.r, rs: m.cs, cs: m.rs })),
+  };
+}
+
+/**
+ * Two grids with the same columns but a different number of rows, at progress `t`.
+ * Rows are paired by content (then in order inside the gaps): paired rows glide to
+ * their new height, unpaired rows inside the table collapse / open while fading,
+ * and unpaired rows at the top or bottom just fade where they are. Cell text is
+ * left blank (the grid text layer draws it).
+ */
+function blendGridRows(
+  ga: GridData,
+  gb: GridData,
+  boxA: GridBox,
+  boxB: GridBox,
+  t: number,
+): GridPiece[] {
+  const sig = (g: GridData, r: number): string => (g.cells[r] ?? []).join('\u0001');
+  const entries: Array<{ a?: number; b?: number }> = [];
+  let i = 0;
+  let j = 0;
+  const gap = (ie: number, je: number): void => {
+    while (i < ie && j < je) {
+      entries.push({ a: i++, b: j++ });
+    }
+    while (i < ie) {
+      entries.push({ a: i++ });
+    }
+    while (j < je) {
+      entries.push({ b: j++ });
+    }
+  };
+  // Rows pair by position unless their content clearly shows rows were inserted or
+  // removed (more rows line up by content than by position). Empty rows never count.
+  const sa = ga.rows.map((_v, r) => (sig(ga, r).replace(/\u0001/g, '').trim() ? sig(ga, r) : `\u0000a${r}`));
+  const sb = gb.rows.map((_v, r) => (sig(gb, r).replace(/\u0001/g, '').trim() ? sig(gb, r) : `\u0000b${r}`));
+  const byContent = lcsPairs(sa, sb);
+  let byIndex = 0;
+  for (let k = 0; k < Math.min(sa.length, sb.length); k += 1) {
+    if (sa[k] === sb[k]) {
+      byIndex += 1;
+    }
+  }
+  for (const [pi, pj] of byContent.length > byIndex ? byContent : []) {
+    gap(pi, pj);
+    entries.push({ a: pi, b: pj });
+    i = pi + 1;
+    j = pj + 1;
+  }
+  gap(ga.rows.length, gb.rows.length);
+
+  const ha = fractions(ga.rows).map((f) => f * boxA.height);
+  const hb = fractions(gb.rows).map((f) => f * boxB.height);
+  const first = entries.findIndex((e) => e.a !== undefined && e.b !== undefined);
+  let last = first;
+  entries.forEach((e, k) => {
+    if (e.a !== undefined && e.b !== undefined) {
+      last = k;
+    }
+  });
+  const fa = fractions(ga.cols);
+  const fb = fractions(gb.cols);
+  const cols = fa.map((v, k) => lerp(v, fb[k] ?? v, t) * 1000);
+  const x = lerp(boxA.x, boxB.x, t);
+  const width = lerp(boxA.width, boxB.width, t);
+  const pickA = t < 0.5;
+  const styleOf = (g: GridData, src: number | undefined, k: number, out: NonNullable<GridData['styles']>) => {
+    if (src === undefined) {
+      return;
+    }
+    g.cols.forEach((_v, c) => {
+      const st = g.styles?.[`${src},${c}`];
+      if (st) {
+        out[`${k},${c}`] = st;
+      }
+    });
+  };
+  const grid = (rows: number[], styles: NonNullable<GridData['styles']>): GridData => ({
+    cols,
+    rows,
+    cells: rows.map(() => cols.map(() => '')),
+    header: false,
+    styles,
+    merges: [],
+  });
+
+  // The paired span (with any rows that come and go inside it) is one table.
+  const span = entries.slice(first, last + 1);
+  const mainStyles: NonNullable<GridData['styles']> = {};
+  const rows = span.map((e, k) => {
+    styleOf(pickA ? ga : gb, pickA ? (e.a ?? undefined) : (e.b ?? undefined), k, mainStyles);
+    if (e.a !== undefined && e.b !== undefined) {
+      return lerp(ha[e.a], hb[e.b], t);
+    }
+    return e.a !== undefined ? ha[e.a] * (1 - t) : hb[e.b!] * t;
+  });
+  const sum = (xs: number[]): number => xs.reduce((p, q) => p + q, 0);
+  const leadA = entries.slice(0, first).flatMap((e) => (e.a !== undefined ? [e.a] : []));
+  const leadB = entries.slice(0, first).flatMap((e) => (e.b !== undefined ? [e.b] : []));
+  const tailA = entries.slice(last + 1).flatMap((e) => (e.a !== undefined ? [e.a] : []));
+  const tailB = entries.slice(last + 1).flatMap((e) => (e.b !== undefined ? [e.b] : []));
+  const top = lerp(boxA.y + sum(leadA.map((r) => ha[r])), boxB.y + sum(leadB.map((r) => hb[r])), t);
+  const height = Math.max(1, sum(rows));
+  const out: GridPiece[] = [
+    { key: '', box: { x, y: top, width, height }, grid: grid(rows.map((h) => Math.max(h, 0.001)), mainStyles), opacity: 1 },
+  ];
+
+  // Rows above / below the paired span: the whole table of that side (its extra rows
+  // plus the span, so the outline and corners stay its own) fades over the steady span.
+  const whole = (key: string, g: GridData, lead: number[], tail: number[], h: number[], side: 'a' | 'b', opacity: number): void => {
+    if (!lead.length && !tail.length) {
+      return;
+    }
+    const styles: NonNullable<GridData['styles']> = {};
+    const rs: number[] = [];
+    const add = (src: number | undefined, height: number): void => {
+      styleOf(g, src, rs.length, styles);
+      rs.push(Math.max(height, 0.001));
+    };
+    lead.forEach((r) => add(r, h[r]));
+    span.forEach((e, k) => add(e[side], rows[k]));
+    tail.forEach((r) => add(r, h[r]));
+    const above = sum(lead.map((r) => h[r]));
+    out.push({
+      key,
+      box: { x, y: top - above, width, height: sum(rs) },
+      grid: grid(rs, styles),
+      opacity,
+    });
+  };
+  whole('~a', ga, leadA, tailA, ha, 'a', fadeOut(t));
+  whole('~b', gb, leadB, tailB, hb, 'b', fadeIn(t));
+  return out;
+}
+
+/** Relative weights as fractions of their sum. */
+function fractions(w: readonly number[]): number[] {
+  const sum = w.reduce((x, y) => x + y, 0) || 1;
+  return w.map((x) => x / sum);
+}
+
+/**
  * The morph transition between two slides, as a live SVG, behaving like
  * PowerPoint's Morph: an object that is on both slides is drawn ONCE and glides
  * from its first state to its second (position, size, rotation, colors, line
@@ -523,6 +738,7 @@ export class MorphStage {
   private readonly elementPairs: Pair[] = [];
   private readonly tablePairs: Pair[] = [];
   private readonly codes: CodeMorph[] = [];
+  private readonly grids: GridMorph[] = [];
   private readonly seqPairs: SeqPair[] = [];
   private readonly fromSeq: RenderedSlide['sequences'];
   private readonly toSeq: RenderedSlide['sequences'];
@@ -789,6 +1005,12 @@ export class MorphStage {
           this.codes.push(code);
         }
       }
+      if (p.a.type === 'grid' && p.b.type === 'grid') {
+        const grid = this.buildGridMorph(p, a, b, shell);
+        if (grid) {
+          this.grids.push(grid);
+        }
+      }
     }
     this.update(0);
   }
@@ -889,6 +1111,180 @@ export class MorphStage {
     return out;
   }
 
+  private buildGridMorph(
+    p: Pair,
+    a: Side,
+    b: Side,
+    shell: (side: Side) => SVGGElement,
+  ): GridMorph | null {
+    const ga = a.items.get(p.a.id);
+    const gb = b.items.get(p.b.id);
+    if (!ga || !gb) {
+      return null;
+    }
+    const ta = Array.from(ga.querySelectorAll('text')) as unknown as SVGTextElement[];
+    const tb = Array.from(gb.querySelectorAll('text')) as unknown as SVGTextElement[];
+    const ca = gridDrawnCells(p.a.element!.text);
+    const cb = gridDrawnCells(p.b.element!.text);
+    if (ta.length !== ca.length || tb.length !== cb.length) {
+      return null; // not the layout we expect: the plain live grid snaps its text halfway
+    }
+    const da = parseGrid(p.a.element!.text);
+    const db = parseGrid(p.b.element!.text);
+
+    const clipId = `dbd-morph-clip-${(this.codeSeq += 1)}`;
+    const clipPath = document.createElementNS(SVG_NS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clip = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
+    clipPath.appendChild(clip);
+    this.svg.querySelector('defs')?.appendChild(clipPath);
+    const layer = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+    layer.setAttribute('clip-path', `url(#${clipId})`);
+    this.svg.appendChild(layer);
+
+    const out: GridMorph = {
+      pair: p,
+      clip,
+      sameShape: da.rows.length === db.rows.length && da.cols.length === db.cols.length,
+      moves: [],
+      fadeOut: [],
+      fadeIn: [],
+      changed: [],
+    };
+    const place = (side: Side, t: SVGTextElement): SVGGElement => {
+      const holder = shell(side);
+      holder.appendChild(t.cloneNode(true));
+      const g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+      g.appendChild(holder);
+      layer.appendChild(g);
+      return g;
+    };
+    const anchor = (t: SVGTextElement): { x: number; y: number } => {
+      const first = t.querySelector('tspan');
+      return {
+        x: Number(first?.getAttribute('x')) || 0,
+        y: Number(first?.getAttribute('y')) || 0,
+      };
+    };
+
+    // 1. The same text (in reading order) glides to wherever its cell went.
+    const pairs = lcsPairs(
+      ca.map((c) => c.text),
+      cb.map((c) => c.text),
+    );
+    const usedA = new Set(pairs.map((x) => x[0]));
+    const usedB = new Set(pairs.map((x) => x[1]));
+    // 2. A cell at the same row/column whose text changed morphs in place.
+    const inPlace: Array<[number, number]> = [];
+    ca.forEach((x, i) => {
+      if (usedA.has(i)) {
+        return;
+      }
+      const j = cb.findIndex((y, k) => !usedB.has(k) && y.r === x.r && y.c === x.c);
+      if (j >= 0) {
+        usedA.add(i);
+        usedB.add(j);
+        inPlace.push([i, j]);
+      }
+    });
+    for (const [i, j] of pairs) {
+      const g = place(b, tb[j]);
+      const pa = anchor(ta[i]);
+      const pb = anchor(tb[j]);
+      out.moves.push({
+        el: g,
+        dx: pa.x - this.offA.x - (pb.x - this.offB.x),
+        dy: pa.y - this.offA.y - (pb.y - this.offB.y),
+      });
+    }
+    for (const [i, j] of inPlace) {
+      const ea = place(a, ta[i]);
+      const eb = place(b, tb[j]);
+      out.fadeOut.push(ea);
+      out.fadeIn.push(eb);
+      out.changed.push({ a: ea, b: eb });
+    }
+    // 3. Everything else fades out / in where it is.
+    ta.forEach((t, i) => {
+      if (!usedA.has(i)) {
+        out.fadeOut.push(place(a, t));
+      }
+    });
+    tb.forEach((t, j) => {
+      if (!usedB.has(j)) {
+        out.fadeIn.push(place(b, t));
+      }
+    });
+    return out;
+  }
+
+  /**
+   * The live grid table(s) of a pair at progress `t`, without cell text (the grid
+   * layer animates it): one table with interpolated rows/columns when both slides
+   * have the same shape, else both layouts cross-faded on the blended frame.
+   */
+  private blendGrid(gm: GridMorph, blended: CanvasElementModel, t: number): CanvasElementModel[] {
+    const ea = gm.pair.a.element!;
+    const eb = gm.pair.b.element!;
+    const blank = (text: string | undefined) => {
+      const g = parseGrid(text);
+      return { ...g, cells: g.cells.map((row) => row.map(() => '')) };
+    };
+    if (gm.sameShape) {
+      const ga = parseGrid(ea.text);
+      const gb = parseGrid(eb.text);
+      const mix = (x: number[], y: number[]): number[] => {
+        const fy = fractions(y);
+        return fractions(x).map((v, i) => lerp(v, fy[i], t) * 1000);
+      };
+      const g = blank(t < 0.5 ? ea.text : eb.text);
+      return [
+        { ...blended, text: serializeGrid({ ...g, cols: mix(ga.cols, gb.cols), rows: mix(ga.rows, gb.rows) }) },
+      ];
+    }
+    const ga = parseGrid(ea.text);
+    const gb = parseGrid(eb.text);
+    const rowsDiffer = ga.rows.length !== gb.rows.length;
+    const colsDiffer = ga.cols.length !== gb.cols.length;
+    if (rowsDiffer !== colsDiffer && !ga.merges?.length && !gb.merges?.length) {
+      // Only rows (or only columns) changed: shared ones glide, the extra ones fade.
+      const flip = colsDiffer;
+      const boxOf = (e: CanvasElementModel, off: Offset): GridBox =>
+        flip
+          ? { x: e.y - off.y, y: e.x - off.x, width: e.height, height: e.width }
+          : { x: e.x - off.x, y: e.y - off.y, width: e.width, height: e.height };
+      const pieces = blendGridRows(
+        flip ? transposeGrid(ga) : ga,
+        flip ? transposeGrid(gb) : gb,
+        boxOf(ea, this.offA),
+        boxOf(eb, this.offB),
+        t,
+      );
+      return pieces.map((pc) => {
+        const box = flip
+          ? { x: pc.box.y, y: pc.box.x, width: pc.box.height, height: pc.box.width }
+          : pc.box;
+        return {
+          ...blended,
+          id: `${blended.id}${pc.key}`,
+          ...box,
+          angle: 0,
+          text: serializeGrid(flip ? transposeGrid(pc.grid) : pc.grid),
+          opacity: blended.opacity * pc.opacity,
+        };
+      });
+    }
+    return [
+      { ...blended, text: serializeGrid(blank(ea.text)), opacity: ea.opacity * fadeOut(t) },
+      {
+        ...blended,
+        id: `${blended.id}~b`,
+        text: serializeGrid(blank(eb.text)),
+        opacity: eb.opacity * fadeIn(t),
+      },
+    ];
+  }
+
   /** Pair the diagram parts of two sequence diagrams (participants, then messages). */
   private pairSequence(da: SequenceDiagramModel, db: SequenceDiagramModel): SeqPair {
     const llA = this.fromSeq.lifelines.filter((l) => l.diagramId === da.id);
@@ -963,6 +1359,8 @@ export class MorphStage {
       (p) =>
         p.a.type !== 'code' &&
         p.b.type !== 'code' &&
+        p.a.type !== 'grid' &&
+        p.b.type !== 'grid' &&
         !!p.a.text.trim() &&
         !!p.b.text.trim() &&
         (p.a.text !== p.b.text ||
@@ -978,7 +1376,7 @@ export class MorphStage {
    */
   async prepare(): Promise<void> {
     const measure = this.measure;
-    if (!measure) {
+    if (!measure && !this.grids.some((g) => g.changed.length)) {
       return;
     }
     try {
@@ -1008,12 +1406,24 @@ export class MorphStage {
     for (const p of this.textPairs()) {
       const glyphs = read(() => {
         const find = (side: 'a' | 'b', id: string): SVGTextElement | null =>
-          measure.querySelector(`g[data-side="${side}"][data-id="${CSS.escape(id)}"] text`);
+          measure?.querySelector(`g[data-side="${side}"][data-id="${CSS.escape(id)}"] text`) ?? null;
         return [find('a', p.a.id), find('b', p.b.id)];
       });
       if (glyphs) {
         this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
         this.glyphIds.add(p.b.id);
+      }
+    }
+    // Grid cells whose text changed in place.
+    for (const gm of this.grids) {
+      for (const c of gm.changed) {
+        const glyphs = read(() => [c.a.querySelector('text'), c.b.querySelector('text')]);
+        if (!glyphs) {
+          continue; // stays a cross-fade
+        }
+        this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
+        c.a.remove();
+        c.b.remove();
       }
     }
     // Sequence text: titles, participant names and message wording.
@@ -1022,9 +1432,9 @@ export class MorphStage {
         job.kind === 'title' ? 'data-seq-title' : job.kind === 'lifeline' ? 'data-lid' : 'data-mid';
       const glyphs = read(() => {
         const find = (side: 'a' | 'b', seqId: string, id: string): SVGTextElement | null =>
-          measure.querySelector(
+          measure?.querySelector(
             `g[data-side="${side}"][data-seq="${CSS.escape(seqId)}"] text[${attr}="${CSS.escape(id)}"]`,
-          );
+          ) ?? null;
         return [
           find('a', job.pair.a.id, job.aId),
           find('b', job.pair.b.id, job.bId),
@@ -1038,7 +1448,7 @@ export class MorphStage {
         job.bId,
       );
     }
-    measure.remove();
+    measure?.remove();
     this.measure = null;
     if (this.chars.length) {
       this.svg.appendChild(layer);
@@ -1069,6 +1479,21 @@ export class MorphStage {
       }
       const blended = blendElement(p.a.element!, p.b.element!, t, this.offA, this.offB);
       const isCode = this.codes.some((c) => c.pair === p);
+      const grid = this.grids.find((g) => g.pair === p);
+      if (grid) {
+        const pieces = this.blendGrid(grid, blended, t);
+        elements.push(...pieces);
+        // Cell text is clipped to everything the grid draws (fading rows included).
+        const x0 = Math.min(...pieces.map((e) => e.x));
+        const y0 = Math.min(...pieces.map((e) => e.y));
+        const x1 = Math.max(...pieces.map((e) => e.x + e.width));
+        const y1 = Math.max(...pieces.map((e) => e.y + e.height));
+        grid.clip.setAttribute('x', String(x0));
+        grid.clip.setAttribute('y', String(y0));
+        grid.clip.setAttribute('width', String(Math.max(0, x1 - x0)));
+        grid.clip.setAttribute('height', String(Math.max(0, y1 - y0)));
+        continue;
+      }
       // A shape's label (or a changing code block's lines) is drawn by its own layer.
       elements.push(glyphs || isCode ? { ...blended, text: '' } : blended);
       if (isCode) {
@@ -1101,7 +1526,7 @@ export class MorphStage {
       this.live.innerHTML = '';
     }
 
-    for (const c of this.codes) {
+    for (const c of [...this.codes, ...this.grids]) {
       for (const m of c.moves) {
         m.el.setAttribute('transform', `translate(${m.dx * (1 - t)} ${m.dy * (1 - t)})`);
       }

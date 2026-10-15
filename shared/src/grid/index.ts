@@ -459,7 +459,14 @@ export function gridEstimateRowHeights(g: GridData, fontSize: number, lineHeight
  */
 export function gridFromRows(
   rows: string[][],
-  opts: { header?: boolean; fontSize?: number; columnWidths?: number[]; maxColumnWidth?: number } = {},
+  opts: {
+    header?: boolean;
+    fontSize?: number;
+    columnWidths?: number[];
+    maxColumnWidth?: number;
+    /** Blocks merged before rows are sized, so a spanning cell is measured across its full width. */
+    merges?: { r0: number; c0: number; r1: number; c1: number }[];
+  } = {},
 ): GridEdit {
   const fontSize = opts.fontSize ?? 14;
   const nCols = Math.max(1, ...rows.map((r) => r.length));
@@ -473,7 +480,7 @@ export function gridFromRows(
     return Math.round(Math.min(maxW, Math.max(80, longest * charW(fontSize) + GRID_CELL_PAD * 2 + 4)));
   });
   const lineH = fontSize * 1.25;
-  const g: GridData = {
+  let g: GridData = {
     cols,
     rows: cells.map(() => Math.max(GRID_DEFAULT_ROW_H * (fontSize / 14), lineH + GRID_CELL_PAD * 2)),
     cells,
@@ -481,6 +488,11 @@ export function gridFromRows(
     styles: {},
     merges: [],
   };
+  for (const m of opts.merges ?? []) {
+    const r0 = Math.max(0, Math.min(m.r0, m.r1)), r1 = Math.min(cells.length - 1, Math.max(m.r0, m.r1));
+    const c0 = Math.max(0, Math.min(m.c0, m.c1)), c1 = Math.min(nCols - 1, Math.max(m.c0, m.c1));
+    if (r0 <= r1 && c0 <= c1) g = gridMergeBlock(g, { r0, c0, r1, c1 });
+  }
   g.rows = gridEstimateRowHeights(g, fontSize);
   return finish(g);
 }
