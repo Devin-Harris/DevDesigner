@@ -111,6 +111,11 @@ export interface WriteOptions {
    * duplicated inside the same project.
    */
   linkExisting?: { elementIds: ReadonlySet<string>; tableIds: ReadonlySet<string> };
+  /**
+   * Slides join an existing presentation of the same name instead of forming a
+   * renamed "(copy)" clone. Used when slides are added to a deck (MCP add_slides).
+   */
+  joinPresentations?: boolean;
 }
 
 /** The content written by `writeSchemaInto`, as models carrying the NEW ids. */
@@ -317,7 +322,7 @@ export async function writeSchemaInto(
     for (const e of sourceElements) {
       if (!e.slide) continue;
       const name = e.slide.presentation?.trim() || DEFAULT_PRESENTATION;
-      if (presentationName.has(name) || !taken.has(name)) continue;
+      if (options.joinPresentations || presentationName.has(name) || !taken.has(name)) continue;
       let n = 1;
       let next = `${name} (copy)`;
       while (taken.has(next)) next = `${name} (copy ${++n})`;

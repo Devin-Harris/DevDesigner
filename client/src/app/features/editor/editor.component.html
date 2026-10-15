@@ -202,7 +202,7 @@
         [style.height.px]="set.outline.height"
         [style.border-radius.px]="set.outline.radius"
         [class.grabbable]="shapesInteractive()"
-        [class.selected]="selectedSlideSet() === set.name"
+        [class.selected]="selectedSlideSets().includes(set.name)"
       >
         <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
         <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>

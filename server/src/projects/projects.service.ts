@@ -255,8 +255,9 @@ export class ProjectsService {
     clientId: string | null,
   ): Promise<ImportIntoProjectResponse> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
-    const { file, anchor, linkExisting } = (body ?? {}) as {
+    const { file, anchor, linkExisting, joinPresentations } = (body ?? {}) as {
       file?: unknown;
+      joinPresentations?: unknown;
       anchor?: { x?: unknown; y?: unknown };
       linkExisting?: unknown;
     };
@@ -285,6 +286,7 @@ export class ProjectsService {
         stackAboveExisting: true,
         images,
         linkExisting: linked,
+        joinPresentations: joinPresentations === true,
       });
     });
     // Parents before children so peers never see a dangling reference.

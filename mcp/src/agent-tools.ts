@@ -74,7 +74,7 @@ function emptyFile(schema: Partial<SchemaModel>, images: ProjectExportImage[] = 
 export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Journal): void {
   const graph = (id: string): Promise<ProjectGraphResponse> => api.get<ProjectGraphResponse>(`/projects/${id}`);
   const importFile = async (id: string, file: ProjectExportFile, linkExisting = false): Promise<SchemaMutation[]> =>
-    (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file, ...(linkExisting ? { linkExisting } : {}) }))
+    (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file, joinPresentations: true, ...(linkExisting ? { linkExisting } : {}) }))
       .mutations;
 
   /** Base64 of the image files behind these elements (missing files are skipped). */
@@ -733,10 +733,14 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
       });
       await batch.send(api, id);
       const created = createdIds(mutations);
+      // Read back where the copy really is.
+      const stored = slideFrames((await graph(id)).schema);
+      const copy = stored.find((f) => f.id === newFrame.id);
+      const storedName = copy ? presentationOf(copy) : name;
       return {
         slide: newFrame.id,
-        number: at + 1,
-        presentation: name,
+        number: presentationSlides(stored, storedName).findIndex((f) => f.id === newFrame.id) + 1,
+        presentation: storedName,
         copied: { tables: created.tables.length, elements: created.elements.length - 1, diagrams: created.diagrams.length },
       };
     },

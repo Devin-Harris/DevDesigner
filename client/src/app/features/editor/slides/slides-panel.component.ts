@@ -1190,7 +1190,7 @@ export class SlidesPanelComponent {
   private async refreshThumbs(frames: readonly CanvasElementModel[]): Promise<void> {
     const ids = new Set(frames.map((f) => f.id));
     const deps = new Map(frames.map((f) => [f.id, this.thumbInputs(f)]));
-    const dirty = frames.filter((f) => !sameRefs(this.thumbDeps.get(f.id), deps.get(f.id)!));
+    const dirty = frames.filter((f) => !sameInputs(this.thumbDeps.get(f.id), deps.get(f.id)!));
     const removed = [...this.thumbs().keys()].some((id) => !ids.has(id));
     if (!dirty.length && !removed) {
       return;
@@ -1203,7 +1203,10 @@ export class SlidesPanelComponent {
     const next = new Map([...this.thumbs()].filter(([id]) => ids.has(id)));
     for (const r of rendered) {
       next.set(r.id, SlideRenderService.dataUrl(r.svg));
-      this.thumbDeps.set(r.id, deps.get(r.id)!);
+    }
+    // Clean slides adopt the new rows too, so later comparisons stay cheap ref checks.
+    for (const f of frames) {
+      this.thumbDeps.set(f.id, deps.get(f.id)!);
     }
     for (const id of [...this.thumbDeps.keys()]) {
       if (!ids.has(id)) this.thumbDeps.delete(id);
@@ -1671,6 +1674,35 @@ export class SlidesPanelComponent {
   }
 }
 
-function sameRefs(a: readonly unknown[] | undefined, b: readonly unknown[]): boolean {
-  return !!a && a.length === b.length && a.every((v, i) => v === b[i]);
+/**
+ * Whether a slide's thumbnail inputs are unchanged. `[0]` is the frame; rows that are
+ * not the same reference still match when they differ only by the frame's own move
+ * (the picture is cropped to the frame, so dragging a whole slide looks identical).
+ */
+function sameInputs(a: readonly unknown[] | undefined, b: readonly unknown[]): boolean {
+  if (!a || a.length !== b.length) {
+    return false;
+  }
+  const fa = a[0] as CanvasElementModel;
+  const fb = b[0] as CanvasElementModel;
+  const dx = fb.x - fa.x;
+  const dy = fb.y - fa.y;
+  return a.every((v, i) => v === b[i] || shiftedKey(v, 0, 0) === shiftedKey(b[i], dx, dy));
+}
+
+/** A row's JSON with its world-space position fields shifted back by (dx, dy). */
+function shiftedKey(row: unknown, dx: number, dy: number): string {
+  const r = row as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...r };
+  if (typeof r['x'] === 'number') out['x'] = (r['x'] as number) - dx;
+  if (typeof r['y'] === 'number') out['y'] = (r['y'] as number) - dy;
+  if (typeof r['originY'] === 'number') out['originY'] = (r['originY'] as number) - dy;
+  if (Array.isArray(r['waypoints'])) {
+    out['waypoints'] = (r['waypoints'] as { x: number; y: number }[]).map((p) => ({
+      ...p,
+      x: p.x - dx,
+      y: p.y - dy,
+    }));
+  }
+  return JSON.stringify(out);
 }

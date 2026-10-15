@@ -416,10 +416,10 @@ export class EditorComponent {
   });
 
   /**
-   * The presentation selected as a whole (its outer border was clicked): drawn with a
-   * selected outline, and Delete removes every slide of it. Null otherwise.
+   * The presentations selected as a whole (outer border clicked, or enclosed by a
+   * marquee): drawn with a selected outline, and Delete removes every slide of them.
    */
-  protected readonly selectedSlideSet = signal<string | null>(null);
+  protected readonly selectedSlideSets = signal<string[]>([]);
 
   /**
    * Pointer down on a slide set's outer border: select the whole presentation and grab
@@ -431,8 +431,11 @@ export class EditorComponent {
     }
     event.stopPropagation();
     this.store.selectPresentation(name);
+    // Grabbing one of several selected presentations moves them all, still selected.
+    const sets = this.selectedSlideSets();
+    const keep = sets.includes(name) && !EditorComponent.additive(event);
     this.onElementPointerDown({ id: frameId, event });
-    this.selectedSlideSet.set(name);
+    this.selectedSlideSets.set(keep ? sets : [name]);
   }
 
   /** Touching a presentation's panels makes it the selected one (F5, export). */
@@ -1296,10 +1299,11 @@ export class EditorComponent {
       const ids = this.store.selectedElementIds();
       const shown = this.store.shownByPresentation();
       untracked(() => {
-        const set = this.selectedSlideSet();
+        const sets = this.selectedSlideSets();
         // Still selected while its shown frame is (a marquee can take it with other items).
-        if (set && !ids.includes(shown.get(set) ?? '')) {
-          this.selectedSlideSet.set(null);
+        const kept = sets.filter((set) => ids.includes(shown.get(set) ?? ''));
+        if (kept.length !== sets.length) {
+          this.selectedSlideSets.set(kept);
         }
       });
     });
@@ -1377,7 +1381,7 @@ export class EditorComponent {
       exportImage: (format) => void this.onExportImage(format),
       exportFramesPdf: () => void this.exportAllFramesPdf(),
       exportSlidesPdf: () => void this.exportAllSlidesPdf(),
-      exportSelectionFile: () => this.exportSelectionFile(),
+      exportSelectionFile: () => void this.exportSelectionFile(),
       importFile: (file) => this.importProjectFile(file),
       deleteSelection: () => this.deleteSelection(),
     });
@@ -1931,12 +1935,19 @@ export class EditorComponent {
   }
 
   protected onElementPointerDown(payload: ShapePointerEvent): void {
-    this.selectedSlideSet.set(null);
     const clicked = this.store.elements().find((e) => e.id === payload.id);
     if (!clicked) {
+      this.selectedSlideSets.set([]);
       return;
     }
     const el = this.pickInnermostAt(clicked, payload.event);
+    // Dragging part of the selection keeps whole-selected presentations selected.
+    if (
+      EditorComponent.additive(payload.event) ||
+      !this.store.selectedElementIds().includes(el.id)
+    ) {
+      this.selectedSlideSets.set([]);
+    }
     if (EditorComponent.additive(payload.event)) {
       this.store.selectElement(el.id, true);
       return;
@@ -3202,47 +3213,99 @@ export class EditorComponent {
     let resume: (() => void) | null = null;
     let created: string[] = [];
     const selectedIds = this.store.selectedElementIds();
-    const slideFrame =
-      kind === 'element' && selectedIds.length === 1
-        ? this.store.slideFrames().find((f) => f.id === selectedIds[0])
-        : undefined;
-    if (slideFrame) {
-      // Alt-dragging a presentation's slide copies the whole presentation: every
-      // slide with its contents, under a new name, dragged off as one set.
-      // The original was put back above; bring its other (hidden) slides back with it
-      // now, before copies exist that the catch-up could mistake for its own slides.
+    const slideNames =
+      kind === 'element'
+        ? [
+            ...new Set(
+              this.store
+                .slideFrames()
+                .filter((f) => selectedIds.includes(f.id))
+                .map((f) => presentationOf(f)),
+            ),
+          ]
+        : [];
+    if (slideNames.length) {
+      // Alt-dragging presentations' slides copies each whole presentation: every slide
+      // with its contents, under a new name, dragged off as one set. Anything else
+      // selected is copied alongside.
+      // The originals were put back above; bring their other (hidden) slides back with
+      // them now, before copies exist that the catch-up could mistake for their own slides.
       this.syncSlideMoves();
-      const frames = presentationSlides(this.store.slideFrames(), presentationOf(slideFrame));
-      const frameIds = new Set(frames.map((f) => f.id));
-      const inner = frameContents(
-        frameIds,
-        this.store.elements(),
-        this.store.tables(),
-        this.store.sequenceDiagrams(),
-        this.store.lifelines(),
-        this.store.sequenceMessages(),
-        this.store.shownSlideIds(),
-      );
-      const name = this.newPresentationName();
-      const sources = this.store
-        .elements()
-        .filter((e) => frameIds.has(e.id) || inner.elementIds.has(e.id));
-      // One optimistic clone: the copies show at once and undo removes them in one step.
-      const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, {
-        presentation: name,
-      });
-      created = [...cloned.copies.values()].map((c) => c.id);
-      const grabbed = cloned.copies.get(slideFrame.id);
+      const copied = new Set<string>();
+      const allCopies = new Map<string, CanvasElementModel>();
+      const tableCopies: string[] = [];
+      const sequenceCopies: string[] = [];
+      const selectedCopies: string[] = [];
+      const names: string[] = [];
+      for (const presentation of slideNames) {
+        const frames = presentationSlides(this.store.slideFrames(), presentation);
+        const frameIds = new Set(frames.map((f) => f.id));
+        const inner = frameContents(
+          frameIds,
+          this.store.elements(),
+          this.store.tables(),
+          this.store.sequenceDiagrams(),
+          this.store.lifelines(),
+          this.store.sequenceMessages(),
+          this.store.shownSlideIds(),
+        );
+        const name = this.newPresentationName();
+        names.push(name);
+        const sources = this.store
+          .elements()
+          .filter((e) => frameIds.has(e.id) || inner.elementIds.has(e.id));
+        sources.forEach((e) => copied.add(e.id));
+        // One optimistic clone per presentation: the copies show at once.
+        const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, {
+          presentation: name,
+        });
+        cloned.copies.forEach((c, id) => allCopies.set(id, c));
+        tableCopies.push(...cloned.tables.values());
+        sequenceCopies.push(...cloned.diagrams.values());
+        const shown = frames.find((f) => selectedIds.includes(f.id));
+        const shownCopy = shown && cloned.copies.get(shown.id);
+        if (shownCopy) {
+          this.store.setActiveSlide(shownCopy.id);
+          selectedCopies.push(shownCopy.id);
+        }
+      }
+      // The rest of the selection (not part of a copied presentation) is copied too.
+      const rest = new Set(selectedIds.filter((id) => !copied.has(id)));
+      if (rest.size) {
+        const inner = this.carriedByFrames(rest);
+        const sources = this.store
+          .elements()
+          .filter((e) => rest.has(e.id) || inner?.elements.has(e.id));
+        const cloned = this.store.cloneItems(
+          new Set(inner?.tables.keys() ?? []),
+          new Set(inner?.sequences.keys() ?? []),
+          sources,
+          0,
+          0,
+        );
+        cloned.copies.forEach((c, id) => allCopies.set(id, c));
+        tableCopies.push(...cloned.tables.values());
+        sequenceCopies.push(...cloned.diagrams.values());
+        for (const id of rest) {
+          const c = cloned.copies.get(id);
+          if (c) selectedCopies.push(c.id);
+        }
+      }
+      created = [...allCopies.values()].map((c) => c.id);
+      const grabbed =
+        (grabbedElement && allCopies.get(grabbedElement)) ||
+        allCopies.get(selectedIds.find((id) => allCopies.has(id)) ?? '');
       if (grabbed) {
-        this.store.setActiveSlide(grabbed.id);
         resume = () => {
-          this.store.setSelection([], [], [grabbed.id]);
+          this.store.setSelection([], [], selectedCopies);
           this.beginElementDrag(grabbed);
+          // Everything copied but not selected rides along with the drag.
           this.attachCarried(
-            created.filter((id) => id !== grabbed.id),
-            [...cloned.tables.values()],
-            [...cloned.diagrams.values()],
+            created.filter((id) => !selectedCopies.includes(id)),
+            tableCopies,
+            sequenceCopies,
           );
+          this.selectedSlideSets.set(names);
         };
       }
     } else if (kind === 'element') {
@@ -3837,9 +3900,10 @@ export class EditorComponent {
         diagramIds,
       );
     }
-    if (enclosed.length) {
-      this.selectedSlideSet.set(enclosed[0].name);
-    }
+    const names = enclosed.map((set) => set.name);
+    this.selectedSlideSets.set(
+      this.marqueeAdditive ? [...new Set([...this.selectedSlideSets(), ...names])] : names,
+    );
   }
 
   /** Sequence messages whose snapped row line crosses the marquee rect. */
@@ -4034,21 +4098,22 @@ export class EditorComponent {
       return;
     }
     if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
-      const set = this.selectedSlideSet();
-      if (set) {
+      const sets = this.selectedSlideSets();
+      if (sets.length) {
         event.preventDefault();
-        const frameId = this.store.shownByPresentation().get(set);
-        this.selectedSlideSet.set(null);
-        this.onSlidesCommand({ kind: 'deletePresentation' }, set);
-        const rest = this.store.selectedElementIds().filter((id) => id !== frameId);
-        this.store.setSelection(
+        const shown = this.store.shownByPresentation();
+        const frameIds = new Set(sets.map((set) => shown.get(set)));
+        const rest = this.store.selectedElementIds().filter((id) => !frameIds.has(id));
+        const others = [
           [...this.store.selectedTableIds()],
           [...this.store.selectedRelationshipIds()],
-          rest,
           [...this.store.selectedMessageIds()],
           [...this.store.selectedLifelineIds()],
           [...this.store.selectedDiagramIds()],
-        );
+        ];
+        this.selectedSlideSets.set([]);
+        for (const set of sets) this.onSlidesCommand({ kind: 'deletePresentation' }, set);
+        this.store.setSelection(others[0], others[1], rest, others[2], others[3], others[4]);
         if (
           !rest.length &&
           !this.store.selectedTableIds().length &&
@@ -5395,8 +5460,7 @@ export class EditorComponent {
     const selectedLifelineIds = new Set(ignoreSelection ? [] : this.store.selectedLifelineIds());
     const selectedDiagramIds = new Set(ignoreSelection ? [] : this.store.selectedDiagramIds());
     // A presentation selected as a whole brings every one of its slides, not just the shown one.
-    const set = ignoreSelection ? null : this.selectedSlideSet();
-    if (set) {
+    for (const set of ignoreSelection ? [] : this.selectedSlideSets()) {
       for (const f of presentationSlides(this.store.slideFrames(), set)) selectedElementIds.add(f.id);
     }
     // A selected slide frame brings along everything it owns.
@@ -5514,9 +5578,22 @@ export class EditorComponent {
    * project; references that leave the selection (e.g. an arrow bound to an
    * unselected table) are dropped by the importer.
    */
-  protected exportSelectionFile(): void {
+  protected async exportSelectionFile(): Promise<void> {
     const { tables, relationships, elements, sequences, selectionOnly } = this.exportScope();
     if (!selectionOnly) return;
+    // Embed the files behind image elements; the importer drops images without one.
+    const fileIds = [
+      ...new Set(elements.flatMap((e) => (e.type === 'image' && e.fileId ? [e.fileId] : []))),
+    ];
+    const images = (
+      await Promise.all(
+        fileIds.map(async (id) => {
+          const url = await this.images.dataUrl(id);
+          const match = url && /^data:([^;,]+);base64,(.*)$/s.exec(url);
+          return match ? { id, mimeType: match[1], data: match[2] } : null;
+        }),
+      )
+    ).filter((img) => img !== null);
     const current = this.projectsStore.selected();
     const baseName = (current?.name ?? 'project').slice(0, 100);
     this.projectFile.save(
@@ -5539,6 +5616,7 @@ export class EditorComponent {
           sequenceMessages: [...sequences.messages],
           viewport: this.store.viewport(),
         },
+        ...(images.length ? { images } : {}),
       },
       `${baseName}-selection`,
     );

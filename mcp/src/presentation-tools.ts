@@ -283,6 +283,12 @@ const slideSpec = z.object({
   title: z.string().optional().describe('Big heading at the top of the slide.'),
   notes: z.string().optional().describe('Speaker notes.'),
   hidden: z.boolean().optional().describe('Skipped when presenting.'),
+  template: z
+    .string()
+    .optional()
+    .describe(
+      'add_slides only: an existing slide id to copy the look from - its background, title styling/position and decorative shapes (accent bars etc.); the content is still yours.',
+    ),
   background: z
     .string()
     .optional()
@@ -465,7 +471,74 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
     api.get<ProjectGraphResponse>(`/projects/${id}`);
 
   const importFile = async (id: string, file: unknown): Promise<SchemaMutation[]> =>
-    (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file })).mutations;
+    (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file, joinPresentations: true })).mutations;
+
+  /** Where slides actually are, read back from storage (not echoed from the request). */
+  const receipts = (schema: SchemaModel, ids: readonly string[]) => {
+    const frames = slideFrames(schema);
+    return ids.map((sid) => {
+      const f = frames.find((x) => x.id === sid);
+      if (!f) return { id: sid, missing: true };
+      const pres = presentationOf(f);
+      return {
+        id: sid,
+        presentation: pres,
+        number: presentationSlides(frames, pres).findIndex((x) => x.id === sid) + 1,
+        items: schema.elements.filter((e) => e.slideId === sid).length,
+      };
+    });
+  };
+
+  /** Topmost text element a slide owns (its title, by convention). */
+  const titleOf = (schema: SchemaModel, frameId: string): CanvasElementModel | undefined =>
+    schema.elements.filter((e) => e.slideId === frameId && e.type === 'text').sort((a, b) => a.y - b.y)[0];
+
+  const DECOR_TYPES = new Set(['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw']);
+
+  /** Give templated slides the template's title styling and its decorative (text-less) shapes. */
+  const applyTemplates = async (
+    pid: string,
+    schema: SchemaModel,
+    list: ReadonlyArray<{ frame: CanvasElementModel; template: Frame; titled: boolean }>,
+  ): Promise<void> => {
+    const batch = new Batch();
+    const decor: CanvasElementModel[] = [];
+    for (const { frame, template, titled } of list) {
+      const dx = frame.x - template.x;
+      const dy = frame.y - template.y;
+      const tTitle = titleOf(schema, template.id);
+      const nTitle = titled ? titleOf(schema, frame.id) : undefined;
+      if (tTitle && nTitle) {
+        const style: Record<string, unknown> = { x: tTitle.x + dx, y: tTitle.y + dy, width: tTitle.width };
+        for (const k of ['fontSize', 'fontFamily', 'strokeColor', 'bold', 'italic', 'textAlign', 'lineHeight', 'wrap'] as const) {
+          if (tTitle[k] !== undefined) style[k] = tTitle[k];
+        }
+        batch.set('elements', nTitle.id, style);
+      }
+      for (const e of schema.elements) {
+        if (e.slideId !== template.id || !DECOR_TYPES.has(e.type) || e.text?.trim() || e.startBinding || e.endBinding) continue;
+        decor.push({ ...e, id: `tpl_${decor.length}`, x: e.x + dx, y: e.y + dy, slideId: frame.id, morphId: undefined, groupId: undefined });
+      }
+    }
+    await batch.send(api, pid);
+    if (decor.length) {
+      const file = contentFile({
+        elements: decor,
+        tables: [],
+        relationships: [],
+        sequenceDiagrams: [],
+        lifelines: [],
+        sequenceMessages: [],
+        images: [],
+        warnings: [],
+      });
+      await api.post<ImportIntoProjectResponse>(`/projects/${pid}/import-content`, {
+        file,
+        joinPresentations: true,
+        linkExisting: true,
+      });
+    }
+  };
 
   /** Write the new slide order (0..n-1) for slides given in presentation order. */
   const applyOrder = async (pid: string, orderedIds: string[], schema: SchemaModel): Promise<void> => {
@@ -592,7 +665,15 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const existing = presentationSlides(slideFrames(schema), name);
       const anchor = existing[0];
       const after = afterSlide ? resolveSlide(schema, afterSlide, name) : null;
-      const built = buildPresentationFile((await resolveImages(slides)) as SlideSpec[], {
+      // Templates resolve up front so a bad id fails before anything is written.
+      const templates = slides.map((sl) => (sl.template ? resolveSlide(schema, sl.template) : null));
+      const specs = slides.map(({ template: _t, ...sl }, i) => {
+        const t = templates[i];
+        return t && sl.background === undefined && t.fillStyle !== 'none' && t.backgroundColor
+          ? { ...sl, background: t.backgroundColor }
+          : sl;
+      });
+      const built = buildPresentationFile((await resolveImages(specs)) as SlideSpec[], {
         presentation: name,
         frame: { x: anchor.x, y: anchor.y, width: anchor.width, height: anchor.height },
         defaultTransition: defaultTransition as never,
@@ -601,19 +682,146 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const created = mutations
         .flatMap((m) => (m.kind === 'element.created' && m.element.type === 'frame' ? [m.element] : []))
         .sort((a, b) => (a.slide?.order ?? 0) - (b.slide?.order ?? 0));
+      let fresh = (await graph(id)).schema;
       if (after) {
-        const fresh = (await graph(id)).schema;
         const createdIds = new Set(created.map((f) => f.id));
         const rest = presentationSlides(slideFrames(fresh), name).filter((f) => !createdIds.has(f.id));
         const at = rest.findIndex((f) => f.id === after.id) + 1;
         const ordered = [...rest.slice(0, at), ...created, ...rest.slice(at)].map((f) => f.id);
         await applyOrder(id, ordered, fresh);
       }
-      return {
-        presentation: name,
-        added: created.map((f) => ({ id: f.id })),
-        warnings: built.warnings,
-      };
+      const templated = created.flatMap((f, i) => {
+        const t = templates[i];
+        return t ? [{ frame: f, template: t, titled: !!slides[i].title }] : [];
+      });
+      if (templated.length) await applyTemplates(id, fresh, templated);
+      if (after || templated.length) fresh = (await graph(id)).schema;
+      return { presentation: name, added: receipts(fresh, created.map((f) => f.id)), warnings: built.warnings };
+    },
+  );
+
+  tool(
+    'move_slides',
+    "Move slides (with everything on them) into another presentation, or to a new spot in their own. They land on the target presentation's stacked spot and size; a target name that does not exist yet creates that presentation. Returns where each slide ended up.",
+    {
+      projectId,
+      slideIds: z.array(z.string()).min(1).describe('Slide ids, in the order they should appear.'),
+      toPresentation: z.string().describe('Target presentation name.'),
+      afterSlide: z
+        .string()
+        .optional()
+        .describe('Slide id or 1-based number in the target to insert after; "0" = at the start; default append.'),
+    },
+    {},
+    async ({ projectId: id, slideIds, toPresentation, afterSlide }) => {
+      const { schema } = await graph(id);
+      const moving = slideIds.map((ref) => resolveSlide(schema, ref));
+      const movingIds = new Set(moving.map((f) => f.id));
+      const frames = slideFrames(schema);
+      const target =
+        presentationNames(frames).find((n) => n.toLowerCase() === toPresentation.trim().toLowerCase()) ??
+        toPresentation.trim();
+      if (!target) throw new UserError('Give a `toPresentation` name.');
+      const rest = presentationSlides(frames, target).filter((f) => !movingIds.has(f.id));
+      let at = rest.length;
+      if (afterSlide !== undefined) {
+        const ref = afterSlide.trim();
+        if (ref === '0') at = 0;
+        else {
+          const a = /^\d+$/.test(ref) ? rest[Number(ref) - 1] : rest.find((f) => f.id === ref);
+          if (!a) throw new UserError(`No slide "${afterSlide}" in "${target}" (other than the ones being moved).`);
+          at = rest.indexOf(a) + 1;
+        }
+      }
+      const ordered = [...rest.slice(0, at), ...moving, ...rest.slice(at)];
+      // Target spot: a slide that stays put, else the first moved slide's own.
+      const anchor = rest[0] ?? moving[0];
+      const after = JSON.parse(JSON.stringify(schema)) as SchemaModel;
+      const shift = new Map(moving.map((f) => [f.id, { dx: anchor.x - f.x, dy: anchor.y - f.y }]));
+      for (const e of after.elements) {
+        const d = shift.get(e.id) ?? (e.slideId ? shift.get(e.slideId) : undefined);
+        if (!d) continue;
+        e.x += d.dx;
+        e.y += d.dy;
+        if (shift.has(e.id)) {
+          e.width = anchor.width;
+          e.height = anchor.height;
+        }
+      }
+      for (const t of after.tables) {
+        const d = t.slideId ? shift.get(t.slideId) : undefined;
+        if (d) {
+          t.x += d.dx;
+          t.y += d.dy;
+        }
+      }
+      for (const dg of after.sequenceDiagrams) {
+        const d = dg.slideId ? shift.get(dg.slideId) : undefined;
+        if (!d) continue;
+        dg.originY += d.dy;
+        for (const l of after.lifelines) if (l.diagramId === dg.id) l.x += d.dx;
+        for (const m of after.sequenceMessages) if (m.diagramId === dg.id) m.y += d.dy;
+      }
+      const contentWrites = await applyLayoutDiff(api, id, schema, after);
+      const batch = new Batch();
+      ordered.forEach((f, i) => {
+        if (movingIds.has(f.id) || f.slide.order !== i) {
+          batch.set('elements', f.id, { slide: { ...f.slide, presentation: target, order: i } });
+        }
+      });
+      await batch.send(api, id);
+      // Close the gaps the moved slides left in their old presentations.
+      const fresh = (await graph(id)).schema;
+      for (const src of new Set(moving.map((f) => presentationOf(f)).filter((n) => n !== target))) {
+        await applyOrder(id, presentationSlides(slideFrames(fresh), src).map((f) => f.id), fresh);
+      }
+      return { moved: receipts((await graph(id)).schema, moving.map((f) => f.id)), contentWrites };
+    },
+  );
+
+  tool(
+    'update_element',
+    'Edit fields of ONE element by id in one call: text, runs (rich text), x/y/width/height (world coords), fontSize, lineHeight, wrap, language, fileName, morph tag. For colors/fill/stroke (or many elements at once) use style_elements. Returns each changed field before and after, read back from storage.',
+    {
+      projectId,
+      id: z.string(),
+      text: z.string().max(50000).optional(),
+      runs: z
+        .array(z.record(z.string(), z.unknown()))
+        .optional()
+        .describe('Rich-text runs ({text, bold?, italic?, color?, ...}); their texts must concatenate to the text.'),
+      x: z.number().optional(),
+      y: z.number().optional(),
+      width: z.number().min(1).optional(),
+      height: z.number().min(1).optional(),
+      fontSize: z.number().min(6).max(400).optional(),
+      lineHeight: z.number().min(0.5).max(4).optional(),
+      wrap: z.boolean().optional(),
+      language: z.string().optional().describe('Code blocks only.'),
+      fileName: z.string().max(120).optional().describe('Code blocks only.'),
+      morph: z.string().optional().describe('Morph tag.'),
+    },
+    { idempotent: true },
+    async ({ projectId: pid, id: elId, morph, ...fields }) => {
+      const { schema } = await graph(pid);
+      const el = schema.elements.find((e) => e.id === elId);
+      if (!el) throw new UserError(`No element "${elId}". Use get_slide for ids.`);
+      const patch: Record<string, unknown> = Object.fromEntries(
+        Object.entries(fields).filter(([, v]) => v !== undefined),
+      );
+      if (morph !== undefined) patch.morphId = morph;
+      if (!Object.keys(patch).length) throw new UserError('Nothing to change.');
+      // New plain text replaces rich runs that no longer match it.
+      if (patch.text !== undefined && patch.runs === undefined && el.runs?.length) patch.runs = null;
+      if (Array.isArray(patch.runs)) {
+        const joined = (patch.runs as Array<{ text?: string }>).map((r) => r.text ?? '').join('');
+        if (joined !== (patch.text ?? el.text ?? '')) throw new UserError('`runs` texts must concatenate to the text.');
+      }
+      await api.patch(`/elements/${elId}`, patch);
+      const stored = (await graph(pid)).schema.elements.find((e) => e.id === elId);
+      const pick = (o: unknown) =>
+        Object.fromEntries(Object.keys(patch).map((k) => [k, (o as Record<string, unknown>)[k] ?? null]));
+      return { id: elId, before: pick(el), after: stored ? pick(stored) : null };
     },
   );
 
