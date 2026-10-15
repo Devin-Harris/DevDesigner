@@ -5494,6 +5494,15 @@ export class EditorComponent {
           this.shiftSlide(f.id, home.x - f.x, home.y - f.y);
         }
       }
+      // Only the shown slide of a stack is drawn: show the first imported slide.
+      const added = this.store
+        .slideFrames()
+        .filter((f) => !before.has(f.id))
+        .sort((a, b) => (a.slide?.order ?? 0) - (b.slide?.order ?? 0))[0];
+      if (added) {
+        this.focusFrame(added.id);
+        this.panToWorld({ x: added.x + added.width / 2, y: added.y + added.height / 2 });
+      }
       return count;
     } finally {
       this.migratingSlides = false;
