@@ -4251,6 +4251,8 @@ export class EditorComponent {
   private migratingSlides = false;
   /** Project whose misplaced slides stackLegacySlides already gathered (once per load). */
   private misplacedCheckedFor: string | null = null;
+  /** Project whose stacked presentations separateStackedPresentations already spread out (once per load). */
+  private separatedFor: string | null = null;
   /** Where each slide frame was last seen, to notice which one the user moved. */
   private slideBounds = new Map<string, { x: number; y: number; w: number; h: number }>();
 
@@ -4620,13 +4622,20 @@ export class EditorComponent {
   /**
    * Presentations used to share one spot. Each presentation now has its own set of
    * panels, so one that sits exactly on top of an earlier presentation moves down
-   * (with its slides and their contents) to free canvas.
+   * (with its slides and their contents) to free canvas. Checked once per loaded
+   * project only: a presentation Alt-dragged off as a copy starts exactly on its
+   * original, and spreading them then pushed the original away.
    */
   private separateStackedPresentations(): void {
-    if (this.migratingSlides || !this.store.canEdit() || !this.store.projectId()) {
+    const projectId = this.store.projectId();
+    if (this.migratingSlides || !this.store.canEdit() || !projectId) {
       return;
     }
     const frames = this.store.slideFrames();
+    if (!frames.length || this.separatedFor === projectId) {
+      return;
+    }
+    this.separatedFor = projectId;
     const placed: Array<{ x: number; y: number }> = [];
     for (const name of this.store.presentations()) {
       const slides = presentationSlides(frames, name);
