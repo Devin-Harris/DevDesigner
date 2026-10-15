@@ -5394,6 +5394,24 @@ export class EditorComponent {
     const selectedMessageIds = new Set(ignoreSelection ? [] : this.store.selectedMessageIds());
     const selectedLifelineIds = new Set(ignoreSelection ? [] : this.store.selectedLifelineIds());
     const selectedDiagramIds = new Set(ignoreSelection ? [] : this.store.selectedDiagramIds());
+    // A selected slide frame brings along everything it owns.
+    const selectedFrameIds = new Set(
+      this.store
+        .elements()
+        .filter((e) => e.type === 'frame' && selectedElementIds.has(e.id))
+        .map((e) => e.id),
+    );
+    if (selectedFrameIds.size) {
+      for (const e of this.store.elements()) {
+        if (e.slideId && selectedFrameIds.has(e.slideId)) selectedElementIds.add(e.id);
+      }
+      for (const t of this.store.tables()) {
+        if (t.slideId && selectedFrameIds.has(t.slideId)) selectedTableIds.add(t.id);
+      }
+      for (const d of this.store.sequenceDiagrams()) {
+        if (d.slideId && selectedFrameIds.has(d.slideId)) selectedDiagramIds.add(d.id);
+      }
+    }
     const selectionOnly =
       selectedTableIds.size > 0 ||
       selectedElementIds.size > 0 ||
@@ -5453,7 +5471,7 @@ export class EditorComponent {
   }
 
   /** Merge a project file into this project, landing in the visible part of the canvas. */
-  protected importProjectFile(file: unknown): Promise<number> {
+  protected async importProjectFile(file: unknown): Promise<number> {
     const rect = this.canvasRect();
     const v = this.store.viewport();
     // Top-left of the content goes a little in from the canvas's top-left corner.
@@ -5461,7 +5479,28 @@ export class EditorComponent {
       x: Math.round((rect.width * 0.1 - v.x) / v.zoom),
       y: Math.round((rect.height * 0.15 - v.y) / v.zoom),
     };
-    return this.store.importFile(file, anchor);
+    const before = new Set(this.store.slideFrames().map((f) => f.id));
+    // Keep the slide migrations from treating the new slides as legacy ones (and
+    // claiming whatever canvas content they landed on) until they are in place.
+    this.migratingSlides = true;
+    try {
+      const count = await this.store.importFile(file, anchor);
+      // Imported slides of a presentation that already exists join its stacked spot.
+      const frames = this.store.slideFrames();
+      for (const f of frames) {
+        if (before.has(f.id)) continue;
+        const home = frames.find((o) => before.has(o.id) && presentationOf(o) === presentationOf(f));
+        if (home && (home.x !== f.x || home.y !== f.y)) {
+          this.shiftSlide(f.id, home.x - f.x, home.y - f.y);
+        }
+      }
+      return count;
+    } finally {
+      this.migratingSlides = false;
+      this.slideBounds = new Map(
+        this.store.slideFrames().map((f) => [f.id, { x: f.x, y: f.y, w: f.width, h: f.height }]),
+      );
+    }
   }
 
   /**
