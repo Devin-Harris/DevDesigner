@@ -23,7 +23,7 @@
       <!-- Frames sit at the very back so their fills never cover connectors. -->
       <app-canvas-shapes
         layer="frames"
-        [shapes]="shapeViews()"
+        [shapes]="outerShapeViews()"
         [svgOffset]="svgOffset"
         [dragging]="dragging()"
         [interactive]="shapesInteractive()"
@@ -35,10 +35,100 @@
         (bendDown)="onElementBendDown($event)"
       ></app-canvas-shapes>
 
+      <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
+           items, scaled about the frame's centre and clipped to the block (not while
+           dragging, so an item can be carried out of it). -->
+      @for (z of slideViewLayers(); track z.view.frameId) {
+        <div
+          class="slide-zoom"
+          [class.clipped]="!dragging()"
+          [style.left.px]="z.left"
+          [style.top.px]="z.top"
+          [style.width.px]="z.width"
+          [style.height.px]="z.height"
+        >
+          <div class="slide-zoom-inner" [style.transform]="z.transform">
+            <app-canvas-shapes
+              layer="frames"
+              [shapes]="z.shapes"
+              [svgOffset]="svgOffset"
+              [dragging]="dragging()"
+              [interactive]="shapesInteractive()"
+              [editingId]="editingTextId()"
+              (elementPointerDown)="onElementPointerDown($event)"
+              (resizeDown)="onElementResizeDown($event)"
+              (rotateDown)="onElementRotateDown($event)"
+              (endpointDown)="onElementEndpointDown($event)"
+              (bendDown)="onElementBendDown($event)"
+            ></app-canvas-shapes>
+            <app-canvas-connectors
+              [connectors]="z.connectors"
+              [tempLinkPath]="null"
+              [snapAnchor]="null"
+              [svgOffset]="svgOffset"
+              [dragging]="dragging()"
+              (selectConnector)="onConnectorSelect($event)"
+              (endpointDown)="onEndpointDown($event)"
+              (segmentDown)="onSegmentDown($event)"
+              (resetRoute)="onAutoRoute($event)"
+            ></app-canvas-connectors>
+            @for (seg of contentSegments(); track seg.index) {
+              <app-canvas-shapes
+                layer="content"
+                [hostZ]="seg.z"
+                [accept]="seg.accept"
+                [shapes]="z.shapes"
+                [svgOffset]="svgOffset"
+                [dragging]="dragging()"
+                [interactive]="shapesInteractive()"
+                [editingId]="editingTextId()"
+                (elementPointerDown)="onElementPointerDown($event)"
+                (resizeDown)="onElementResizeDown($event)"
+                (rotateDown)="onElementRotateDown($event)"
+                (endpointDown)="onElementEndpointDown($event)"
+                (bendDown)="onElementBendDown($event)"
+              ></app-canvas-shapes>
+            }
+            @for (table of z.tables; track table.id) {
+              <app-table-node
+                [table]="table"
+                [selected]="store.selectedTableIds().includes(table.id)"
+                [editable]="store.canEdit()"
+                [fkColumnIds]="store.foreignKeyColumnIds()"
+                [snap]="snapWorld"
+                (nodePointerDown)="onNodePointerDown($event, table)"
+                (handleDown)="onHandleDown($event)"
+                (handleUp)="onHandleUp($event)"
+              ></app-table-node>
+            }
+            <app-canvas-sequence
+              [toWorld]="z.toWorld"
+              [snap]="snapWorld"
+              [hiddenIds]="z.hiddenDiagramIds"
+              [layerZ]="diagramLayers().z"
+            ></app-canvas-sequence>
+            <app-canvas-shapes
+              layer="lines"
+              [shapes]="z.shapes"
+              [svgOffset]="svgOffset"
+              [dragging]="dragging()"
+              [interactive]="shapesInteractive()"
+              [editingId]="editingTextId()"
+              [bindHighlight]="bindHighlight()"
+              (elementPointerDown)="onElementPointerDown($event)"
+              (resizeDown)="onElementResizeDown($event)"
+              (rotateDown)="onElementRotateDown($event)"
+              (endpointDown)="onElementEndpointDown($event)"
+              (bendDown)="onElementBendDown($event)"
+            ></app-canvas-shapes>
+          </div>
+        </div>
+      }
+
       <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
       <app-canvas-connectors
-        [connectors]="displayConnectors()"
+        [connectors]="outerConnectors()"
         [tempLinkPath]="tempLink()"
         [snapAnchor]="linkSnap()?.anchor ?? null"
         [svgOffset]="svgOffset"
@@ -56,7 +146,7 @@
           layer="content"
           [hostZ]="seg.z"
           [accept]="seg.accept"
-          [shapes]="shapeViews()"
+          [shapes]="outerShapeViews()"
           [svgOffset]="svgOffset"
           [dragging]="dragging()"
           [interactive]="shapesInteractive()"
@@ -69,7 +159,7 @@
         ></app-canvas-shapes>
       }
 
-      @for (table of visibleTables(); track table.id) {
+      @for (table of outerTables(); track table.id) {
         <app-table-node
           [table]="table"
           [selected]="store.selectedTableIds().includes(table.id)"
@@ -86,7 +176,7 @@
       <app-canvas-sequence
         [toWorld]="toWorldPoint"
         [snap]="snapWorld"
-        [hiddenIds]="hiddenDiagramIds()"
+        [hiddenIds]="outerHiddenDiagramIds()"
         [layerZ]="diagramLayers().z"
       ></app-canvas-sequence>
 
@@ -94,7 +184,7 @@
            to message labels. -->
       <app-canvas-shapes
         layer="lines"
-        [shapes]="shapeViews()"
+        [shapes]="outerShapeViews()"
         [svgOffset]="svgOffset"
         [dragging]="dragging()"
         [interactive]="shapesInteractive()"

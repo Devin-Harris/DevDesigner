@@ -31,7 +31,9 @@ import {
   buildUnits,
   collectItems,
   compactUnits,
+  findOffSlide,
   findOutOfBounds,
+  placement,
   findOverlaps,
   findTextOverflow,
   findUnattached,
@@ -401,8 +403,13 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   // ---- Scaling -------------------------------------------------------------------------
 
-  const ownedKeys = (schema: SchemaModel, frameId: string): LayoutItem[] =>
-    collectItems(schema, { lines: 'free' }).filter((i) => i.slideId === frameId);
+  /** What the slide owns and shows: items staged wholly off the frame are left where they are. */
+  const ownedKeys = (schema: SchemaModel, frameId: string): LayoutItem[] => {
+    const f = slideFramesOf(schema).find((s) => s.id === frameId);
+    return collectItems(schema, { lines: 'free' }).filter(
+      (i) => i.slideId === frameId && (!f || placement(i.rect, f.rect) !== 'offslide'),
+    );
+  };
 
   const selectionOf = (
     schema: SchemaModel,
@@ -680,7 +687,8 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       let items = collectItems(schema, { lines: 'free' });
       let skippedOnFrames = 0;
       if (frame) {
-        items = items.filter((i) => i.slideId === frame.id);
+        const owned = new Set(ownedKeys(schema, frame.id).map((i) => i.key));
+        items = items.filter((i) => owned.has(i.key));
       } else {
         items = items.filter((i) => !i.slideId);
         const before = items.length;
@@ -1312,7 +1320,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   tool(
     'check_layout',
-    "Find layout problems without changing anything: (1) overlaps - items that partly cover each other (a label fully inside a box is intentional nesting and ignored; items on different slides are never compared); (2) outOfBounds - slide content sticking out past its slide frame, with how far per side; (3) unattached - free items that sit on a slide but are not part of it; (4) textOverflow - shape labels / code cards whose text probably does not fit. Positions are estimates of the rendered size. Check one slide, or everything. Fix with fit_to_bounds, compact_layout, move_element or style_elements.",
+    "Find layout problems without changing anything: (1) overlaps - items that partly cover each other (a label fully inside a box is intentional nesting and ignored; items on different slides are never compared); (2) outOfBounds - slide content sticking out past its slide frame, with how far per side (items wholly outside the frame are staging for morph entrances/exits: listed under offSlide, not counted as problems); (3) unattached - free items that sit on a slide but are not part of it; (4) textOverflow - shape labels / code cards whose text probably does not fit. Positions are estimates of the rendered size. Check one slide, or everything. Fix with fit_to_bounds, compact_layout, move_element or style_elements.",
     {
       projectId,
       slide: slideRef,
@@ -1367,6 +1375,15 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
           ...c,
           ...(rows.length ? { fix: 'fit_to_bounds (scales to fit) or move_element / scale_items for single items' } : {}),
         };
+        // Wholly outside the frame = staged for a morph entrance/exit: listed, not a problem.
+        const staged = findOffSlide(items, frames);
+        if (staged.length) {
+          out.offSlide = {
+            count: staged.length,
+            ...capped(staged.map((i) => ({ item: brief(i), slide: i.slideId }))),
+            note: 'Staged outside the frame (never shown; morph slides them in/out). Layout tools leave them alone.',
+          };
+        }
       }
       if (want.has('unattached') && !frame) {
         const rows = findUnattached(items, frames);

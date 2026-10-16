@@ -11,7 +11,9 @@
 .canvas {
   position: relative;
   flex: 1;
-  overflow: hidden;
+  // clip, not hidden: a hidden box can still be scrolled (focus / scrollIntoView on a
+  // panel panned off screen), which drags the toolbars and minimap off screen.
+  overflow: clip;
   background: var(--dbd-canvas-bg);
   touch-action: none;
   user-select: none;
@@ -28,6 +30,24 @@
 }
 
 .world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+// A slide zoomed out inside its block: sized to the block (the frame's spot), above the
+// grid and frames, below free content. Its layers are drawn in the slide's coordinates.
+.slide-zoom {
+  position: absolute;
+  z-index: 1;
+}
+
+.slide-zoom.clipped {
+  overflow: clip;
+}
+
+.slide-zoom-inner {
   position: absolute;
   left: 0;
   top: 0;

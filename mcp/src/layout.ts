@@ -230,7 +230,35 @@ export interface BoundsIssue {
   fullyOutside: boolean;
 }
 
-/** Slide-owned items that are not fully inside their slide's frame. */
+export type FramePlacement = 'inside' | 'partial' | 'offslide';
+
+/**
+ * Where an item sits relative to a slide frame. `offslide` items are staged outside
+ * the frame on purpose (morph entrances/exits): never shown, never laid out.
+ */
+export function placement(r: Rect, f: Rect, tolerance = 1): FramePlacement {
+  if (!intersection(f, r)) return 'offslide';
+  const inside =
+    r.x >= f.x - tolerance &&
+    r.y >= f.y - tolerance &&
+    r.x + r.w <= f.x + f.w + tolerance &&
+    r.y + r.h <= f.y + f.h + tolerance;
+  return inside ? 'inside' : 'partial';
+}
+
+/** Slide-owned items staged wholly outside their slide's frame. */
+export function findOffSlide(items: readonly LayoutItem[], frames: readonly SlideFrame[]): LayoutItem[] {
+  const byId = new Map(frames.map((f) => [f.id, f]));
+  return items.filter((i) => {
+    const f = i.slideId ? byId.get(i.slideId) : undefined;
+    return !!f && placement(i.rect, f.rect) === 'offslide';
+  });
+}
+
+/**
+ * Slide-owned items that stick out past their slide's frame. Items wholly outside are
+ * staging (see `placement`), not a problem, and are left out.
+ */
 export function findOutOfBounds(
   items: readonly LayoutItem[],
   frames: readonly SlideFrame[],
@@ -240,7 +268,7 @@ export function findOutOfBounds(
   const out: BoundsIssue[] = [];
   for (const item of items) {
     const frame = item.slideId ? byId.get(item.slideId) : undefined;
-    if (!frame) continue;
+    if (!frame || placement(item.rect, frame.rect) === 'offslide') continue;
     const f = frame.rect;
     const r = item.rect;
     const overflow = {

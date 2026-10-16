@@ -36,6 +36,17 @@ import {
   presentationSlides,
   type SequenceDiagramModel,
 } from '@dbdesigner/shared';
+import {
+  boxToOuter,
+  inBlock,
+  MIN_SLIDE_ZOOM,
+  slideView,
+  slideViewRegion,
+  slideViewTransform,
+  type SlideView,
+  toInner,
+  toOuter,
+} from './canvas/helpers/slide-zoom.helper';
 import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
@@ -353,6 +364,174 @@ export class EditorComponent {
     () => this.focusHidden()?.diagramIds ?? null,
   );
 
+  /**
+   * Slides zoomed out inside their block (Ctrl + scroll over a shown slide). Their frame
+   * and items are drawn in a layer of their own, scaled about the frame's centre and
+   * clipped to the block, so the staging room around the frame shows.
+   */
+  protected readonly slideViews = computed<SlideView[]>(() => {
+    // Every shown slide is drawn through its block, also at scale 1: the block is a
+    // window onto the slide, so items staged outside the frame only show zoomed out.
+    const zoom = this.store.slideZoom();
+    const frames = this.store.slideFrames();
+    return [...this.store.shownByPresentation()].flatMap(([name, id]) => {
+      const frame = frames.find((f) => f.id === id);
+      return frame ? [slideView(frame, name, zoom[name] ?? 1)] : [];
+    });
+  });
+
+  /** Which zoomed slide view draws each item (frame + what the slide owns), by kind. */
+  private readonly zoomedItems = computed(() => {
+    const views = new Map(this.slideViews().map((v) => [v.frameId, v]));
+    const elements = new Map<string, SlideView>();
+    const tables = new Map<string, SlideView>();
+    const diagrams = new Map<string, SlideView>();
+    // A shape being drawn inside a zoomed slide is drawn there before it is saved.
+    const draft = this.draft();
+    const draftView = draft ? views.get(this.drawSlideId() ?? '') : undefined;
+    if (draft && draftView) elements.set(draft.id, draftView);
+    if (views.size) {
+      for (const e of this.store.elements()) {
+        // The frame joins its layer only zoomed out: at scale 1 its title strip and
+        // handles sit on or past the block's edge, where the layer clips.
+        const own = views.get(e.id);
+        const v = own && own.scale < 1 ? own : e.slideId ? views.get(e.slideId) : undefined;
+        if (v) elements.set(e.id, v);
+      }
+      for (const t of this.store.tables()) {
+        const v = t.slideId ? views.get(t.slideId) : undefined;
+        if (v) tables.set(t.id, v);
+      }
+      for (const d of this.store.sequenceDiagrams()) {
+        const v = d.slideId ? views.get(d.slideId) : undefined;
+        if (v) diagrams.set(d.id, v);
+      }
+    }
+    return { elements, tables, diagrams };
+  });
+
+  /** The zoomed-out slide the current drawing gesture started in (its draft is drawn there). */
+  private readonly drawSlideId = signal<string | null>(null);
+
+  /** The zoomed slide view an item is drawn in, if any. */
+  private viewOf(id: string): SlideView | undefined {
+    const z = this.zoomedItems();
+    return z.elements.get(id) ?? z.tables.get(id) ?? z.diagrams.get(id);
+  }
+
+  /**
+   * Slide zoom an item is drawn at (1 on the plain canvas). The slide frame itself is
+   * the block: moving it moves the whole presentation at canvas scale.
+   */
+  private itemScale(id: string): number {
+    const v = this.viewOf(id);
+    return v && v.frameId !== id ? v.scale : 1;
+  }
+
+  /**
+   * The viewport an item is effectively drawn through: the canvas viewport, composed
+   * with its slide's zoom when it sits in a zoomed-out slide. For overlays placed in
+   * screen px over an item (inline text / cell editors).
+   */
+  private viewportFor(id: string): { x: number; y: number; zoom: number } {
+    const v = this.store.viewport();
+    const view = this.viewOf(id);
+    if (!view) return v;
+    return {
+      x: v.x + view.cx * (1 - view.scale) * v.zoom,
+      y: v.y + view.cy * (1 - view.scale) * v.zoom,
+      zoom: v.zoom * view.scale,
+    };
+  }
+
+  /** An item's box as drawn on the canvas (through its slide's zoom, if any). */
+  private drawnBox(id: string, box: Box): Box {
+    const view = this.viewOf(id);
+    return view ? boxToOuter(view, box) : box;
+  }
+
+  /**
+   * A canvas rect as seen through a slide's block: clipped to the block and mapped into
+   * the slide's coordinates; null when it misses the block (nothing there is visible).
+   */
+  private rectThrough(view: SlideView, rect: Rect): Rect | null {
+    const k = view.block;
+    const x0 = Math.max(rect.minX, k.x0);
+    const y0 = Math.max(rect.minY, k.y0);
+    const x1 = Math.min(rect.maxX, k.x1);
+    const y1 = Math.min(rect.maxY, k.y1);
+    if (x0 > x1 || y0 > y1) return null;
+    const p = toInner(view, { x: x0, y: y0 });
+    const q = toInner(view, { x: x1, y: y1 });
+    return { minX: p.x, minY: p.y, maxX: q.x, maxY: q.y };
+  }
+
+  /** Tables drawn on the canvas itself (not inside a zoomed slide). */
+  protected readonly outerTables = computed(() => {
+    const z = this.zoomedItems().tables;
+    const all = this.visibleTables();
+    return z.size ? all.filter((t) => !z.has(t.id)) : all;
+  });
+
+  protected readonly outerShapeViews = computed(() => {
+    const z = this.zoomedItems().elements;
+    const all = this.shapeViews();
+    return z.size ? all.filter((v) => !z.has(v.id)) : all;
+  });
+
+  /** Relationship lines between two tables of the same zoomed slide are drawn inside it. */
+  private readonly zoomedConnectorIds = computed(() => {
+    const out = new Map<string, SlideView>();
+    const z = this.zoomedItems().tables;
+    if (!z.size) return out;
+    const tableOf = new Map<string, string>();
+    for (const t of this.store.tables()) for (const c of t.columns) tableOf.set(c.id, t.id);
+    for (const r of this.store.relationships()) {
+      const a = z.get(tableOf.get(r.sourceColumnId) ?? '');
+      const b = z.get(tableOf.get(r.targetColumnId) ?? '');
+      if (a && a === b) out.set(r.id, a);
+    }
+    return out;
+  });
+
+  protected readonly outerConnectors = computed(() => {
+    const z = this.zoomedConnectorIds();
+    const all = this.displayConnectors();
+    return z.size ? all.filter((c) => !z.has(c.id)) : all;
+  });
+
+  protected readonly outerHiddenDiagramIds = computed<ReadonlySet<string> | null>(() => {
+    const z = this.zoomedItems().diagrams;
+    const hidden = this.hiddenDiagramIds();
+    return z.size ? new Set([...(hidden ?? []), ...z.keys()]) : hidden;
+  });
+
+  /** Everything each zoomed slide view draws, for its own set of layers. */
+  protected readonly slideViewLayers = computed(() => {
+    const z = this.zoomedItems();
+    const conn = this.zoomedConnectorIds();
+    const shapes = this.shapeViews();
+    const tables = this.visibleTables();
+    const connectors = this.displayConnectors();
+    const hidden = this.hiddenDiagramIds();
+    const diagrams = this.store.sequenceDiagrams();
+    return this.slideViews().map((v) => ({
+      view: v,
+      transform: slideViewTransform(v),
+      left: v.block.x0,
+      top: v.block.y0,
+      width: v.block.x1 - v.block.x0,
+      height: v.block.y1 - v.block.y0,
+      shapes: shapes.filter((s) => z.elements.get(s.id) === v),
+      tables: tables.filter((t) => z.tables.get(t.id) === v),
+      connectors: connectors.filter((c) => conn.get(c.id) === v),
+      hiddenDiagramIds: new Set(
+        diagrams.filter((d) => z.diagrams.get(d.id) !== v || hidden?.has(d.id)).map((d) => d.id),
+      ) as ReadonlySet<string>,
+      toWorld: (clientX: number, clientY: number) => toInner(v, this.toWorldRaw(clientX, clientY)),
+    }));
+  });
+
   /** The settings panel is folded to a narrow strip (it folds sideways, toward the frame's edge). */
   protected readonly settingsFolded = signal(false);
 
@@ -614,7 +793,7 @@ export class EditorComponent {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const e of els) {
-      const b = elementBox(e);
+      const b = this.drawnBox(e.id, elementBox(e));
       minX = Math.min(minX, b.x0);
       minY = Math.min(minY, b.y0);
       maxX = Math.max(maxX, b.x1);
@@ -755,13 +934,29 @@ export class EditorComponent {
     const elements = draft ? [...all, draft] : all;
     // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
     this.theme.dark();
-    return buildShapeViews(
+    const views = buildShapeViews(
       elements,
       this.visibleTables(),
       new Set(this.store.selectedElementIds()),
       this.themeColors(),
       this.messageBoxes(),
     );
+    // Slide items staged wholly outside their frame (morph entrances/exits) are dimmed:
+    // they are part of the slide but never shown when presenting.
+    const frames = new Map(this.store.slideFrames().map((f) => [f.id, f]));
+    const offSlide = new Set(
+      elements
+        .filter((e) => {
+          const f = e.slideId ? frames.get(e.slideId) : undefined;
+          if (!f || e.type === 'frame') return false;
+          const b = elementBox(e);
+          return b.x1 <= f.x || b.x0 >= f.x + f.width || b.y1 <= f.y || b.y0 >= f.y + f.height;
+        })
+        .map((e) => e.id),
+    );
+    return offSlide.size
+      ? views.map((v) => (offSlide.has(v.id) ? { ...v, opacity: v.opacity * 0.5 } : v))
+      : views;
   });
 
   /** Resolved canvas background + text color for the render-time contrast guard. */
@@ -952,7 +1147,7 @@ export class EditorComponent {
     const { cols, rows } = gridSizes(g, el.width, el.height);
     const ce = gridEdges(cols);
     const re = gridEdges(rows);
-    const v = this.store.viewport();
+    const v = this.viewportFor(el.id);
     const z = v.zoom;
     const f = gridFont(el);
     const isHeader = g.header && cell.row === 0;
@@ -1095,7 +1290,7 @@ export class EditorComponent {
     if (!el || !editable) {
       return null;
     }
-    const v = this.store.viewport();
+    const v = this.viewportFor(id);
     const z = v.zoom;
     if (el.type === 'frame') {
       // The frame's name is edited in place on the strip above its top-left corner.
@@ -1421,6 +1616,11 @@ export class EditorComponent {
       this.store.lifelines();
       this.store.sequenceMessages();
       this.store.shownSlideIds();
+      this.slideViews();
+      // Never mid-drag: adopting re-maps items into a zoomed slide, which would jump them.
+      if (this.gestureActive()) {
+        return;
+      }
       const timer = setTimeout(() => void this.adoptIntoShownSlide(), 350);
       onCleanup(() => clearTimeout(timer));
     });
@@ -1568,7 +1768,19 @@ export class EditorComponent {
     return this.canvasRef().nativeElement.getBoundingClientRect();
   }
 
+  /**
+   * Screen -> world. Over a zoomed-out slide this is the slide's own coordinates (what
+   * is drawn under the pointer there), so drawing, dropping and picking work inside it.
+   */
   private toWorld(clientX: number, clientY: number): { x: number; y: number } {
+    const p = this.toWorldRaw(clientX, clientY);
+    const view = this.slideViews().find((v) => inBlock(v, p));
+    this.store.setPointerSlide(view?.frameId ?? null);
+    return view ? toInner(view, p) : p;
+  }
+
+  /** Screen -> canvas world, ignoring slide zoom. */
+  private toWorldRaw(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this.canvasRect();
     const v = this.store.viewport();
     return { x: (clientX - rect.left - v.x) / v.zoom, y: (clientY - rect.top - v.y) / v.zoom };
@@ -1857,6 +2069,9 @@ export class EditorComponent {
         : {}),
     };
     this.draft.set(draft);
+    // Started inside a zoomed-out slide: the whole stroke is drawn in its coordinates.
+    const raw = this.toWorldRaw(event.clientX, event.clientY);
+    this.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
     this.drawAnchor = { x, y };
     this.lastDrawPointer = { x: event.clientX, y: event.clientY };
     this.startClientX = event.clientX;
@@ -1877,7 +2092,10 @@ export class EditorComponent {
       return;
     }
     this.lastDrawPointer = { x: clientX, y: clientY };
-    const world = this.toWorld(clientX, clientY);
+    // Stay in the space the stroke started in, even when the pointer crosses a block edge.
+    const view = this.slideViews().find((v) => v.frameId === this.drawSlideId());
+    const raw = this.toWorldRaw(clientX, clientY);
+    const world = view ? toInner(view, raw) : raw;
     const snap = this.gridSnap();
     if (draft.type === 'freedraw') {
       const pt = toRelative(draft, world);
@@ -1938,10 +2156,15 @@ export class EditorComponent {
   private async commitDraft(selectAfter: boolean): Promise<void> {
     const draft = this.draft();
     this.draft.set(null);
+    const drawSlide = this.drawSlideId();
+    this.drawSlideId.set(null);
     if (!draft) {
       return;
     }
     const dto = this.draftToDto(draft);
+    if (drawSlide && draft.type !== 'frame') {
+      dto.slideId = drawSlide;
+    }
     // Auto-bind an arrow/line whose endpoint was drawn on top of a shape or table,
     // so it behaves as a flowchart connector and re-routes when the target moves.
     if ((draft.type === 'arrow' || draft.type === 'line') && draft.points?.length) {
@@ -2130,6 +2353,7 @@ export class EditorComponent {
     }
     this.startClientX = payload.event.clientX;
     this.startClientY = payload.event.clientY;
+    this.gestureScale = this.itemScale(payload.id);
     this.gestureActive.set(true);
     this.dragCopied = false;
     this.beginElementDrag(el);
@@ -2321,6 +2545,7 @@ export class EditorComponent {
     this.gestureActive.set(true);
     this.startClientX = payload.event.clientX;
     this.startClientY = payload.event.clientY;
+    this.gestureScale = this.itemScale(el.id);
     this.elementGesture = {
       id: el.id,
       handle: payload.handle,
@@ -2518,7 +2743,7 @@ export class EditorComponent {
       return;
     }
     const s = g.start;
-    const zoom = this.store.viewport().zoom;
+    const zoom = this.store.viewport().zoom * this.gestureScale;
     const dx = (ev.clientX - this.startClientX) / zoom;
     const dy = (ev.clientY - this.startClientY) / zoom;
     const left = g.handle === 'nw' || g.handle === 'sw' || g.handle === 'w';
@@ -3378,6 +3603,7 @@ export class EditorComponent {
     }
     this.startClientX = event.clientX;
     this.startClientY = event.clientY;
+    this.gestureScale = this.itemScale(table.id);
     this.dragCopied = false;
     this.beginNodeDrag(table.id);
     if (event.altKey) {
@@ -3614,8 +3840,14 @@ export class EditorComponent {
     return Math.hypot(clientX - this.startClientX, clientY - this.startClientY) < 3;
   }
 
+  /**
+   * Screen px -> world units factor of the current move/resize beyond the canvas zoom:
+   * the slide zoom of the slide the grabbed item is drawn in (1 on the plain canvas).
+   */
+  private gestureScale = 1;
+
   private dragDelta(clientX: number, clientY: number): { dx: number; dy: number } {
-    const zoom = this.store.viewport().zoom;
+    const zoom = this.store.viewport().zoom * this.gestureScale;
     let dx = (clientX - this.startClientX) / zoom;
     let dy = (clientY - this.startClientY) / zoom;
     if (this.shiftHeld) {
@@ -3954,6 +4186,10 @@ export class EditorComponent {
       return;
     }
     this.commitLinkSnap();
+    const moved =
+      this.mode === 'element' || this.mode === 'node'
+        ? { elements: [...this.store.selectedElementIds()], tables: [...this.store.selectedTableIds()] }
+        : null;
     if (this.mode === 'marquee') {
       this.commitMarquee();
     } else if (this.mode === 'draw') {
@@ -3984,6 +4220,10 @@ export class EditorComponent {
     this.persistFlippedSides();
     this.activeSegment.set(null);
     this.clearLinking();
+    this.gestureScale = 1;
+    if (moved) {
+      this.releaseDroppedOutOfSlides(moved);
+    }
   }
 
   private commitMarquee(): void {
@@ -4006,36 +4246,72 @@ export class EditorComponent {
       maxY: Math.max(a.y, b.y),
     };
 
+    // A slide's items are seen only through its block (scaled when zoomed out, clipped at
+    // its edge): test them against the part of the marquee over the block, in the
+    // slide's own coordinates. Items hidden past the edge cannot be picked.
+    const rectIn = (id: string): Rect | null => {
+      const view = this.viewOf(id);
+      return view ? this.rectThrough(view, rect) : rect;
+    };
     const tableIds = this.visibleTables()
-      .filter((t) => this.boxIntersects(t, rect))
+      .filter((t) => {
+        const r = rectIn(t.id);
+        return !!r && this.boxIntersects(t, r);
+      })
       .map((t) => t.id);
+    const zoomedRels = this.zoomedConnectorIds();
     const relIds = this.connectors()
-      .filter(
-        (con) =>
-          con.mx >= rect.minX && con.mx <= rect.maxX && con.my >= rect.minY && con.my <= rect.maxY,
-      )
+      .filter((con) => {
+        const view = zoomedRels.get(con.id);
+        const r = view ? this.rectThrough(view, rect) : rect;
+        return !!r && con.mx >= r.minX && con.mx <= r.maxX && con.my >= r.minY && con.my <= r.maxY;
+      })
       .map((con) => con.id);
     const elementIds = this.shownElements()
-      .filter((e) => elementIntersectsRect(e, rect))
+      .filter((e) => {
+        const r = rectIn(e.id);
+        return !!r && elementIntersectsRect(e, r);
+      })
       .map((e) => e.id);
 
-    const messageIds = this.messagesInRect(rect);
+    // Sequence parts of a slide's diagrams are tested through that slide's block.
+    const viewedDiagrams = this.zoomedItems().diagrams;
+    const diagramRect = (diagramId: string): Rect | null => {
+      const view = viewedDiagrams.get(diagramId);
+      return view ? this.rectThrough(view, rect) : rect;
+    };
+    const sequenceHits = (find: (r: Rect) => string[], diagramOf: (id: string) => string | undefined): string[] => {
+      const out = find(rect).filter((id) => !viewedDiagrams.has(diagramOf(id) ?? ''));
+      for (const view of new Set(viewedDiagrams.values())) {
+        const r = this.rectThrough(view, rect);
+        if (r) out.push(...find(r).filter((id) => viewedDiagrams.get(diagramOf(id) ?? '') === view));
+      }
+      return out;
+    };
+    const messageIds = sequenceHits(
+      (r) => this.messagesInRect(r),
+      (id) => this.store.sequenceMessages().find((m) => m.id === id)?.diagramId,
+    );
     const lifelineIds = this.store
       .lifelines()
       .filter((l) => {
         const d = this.store.sequenceDiagrams().find((x) => x.id === l.diagramId);
-        if (!d) return false;
+        const r = diagramRect(l.diagramId);
+        if (!d || !r) return false;
         const left = l.x - l.width / 2;
         return (
-          left <= rect.maxX &&
-          left + l.width >= rect.minX &&
-          d.originY <= rect.maxY &&
-          d.originY + d.headerHeight >= rect.minY
+          left <= r.maxX &&
+          left + l.width >= r.minX &&
+          d.originY <= r.maxY &&
+          d.originY + d.headerHeight >= r.minY
         );
       })
       .map((l) => l.id);
 
-    const diagramIds = this.diagramsInRect(rect);
+    const diagramIds = sequenceHits(
+      (r) => this.diagramsInRect(r),
+      (id) => id,
+    );
     // A diagram swept up whole is selected as a unit; its parts needn't be listed too.
     const hit = new Set(diagramIds);
     const looseMessages = messageIds.filter(
@@ -4588,72 +4864,122 @@ export class EditorComponent {
   }
 
   private async adoptInto(active: CanvasElementModel): Promise<void> {
-    const inside = (cx: number, cy: number): boolean =>
-      cx >= active.x && cx <= active.x + active.width && cy >= active.y && cy <= active.y + active.height;
-    const elements = this.store
-      .elements()
-      .filter((e) => {
-        if (e.type === 'frame' || e.slideId) {
-          return false;
+    // The block is the frame's spot on the canvas. Free content dropped on it joins the
+    // shown slide; while the slide is zoomed out, it is moved into the slide's own
+    // coordinates so it stays where it was dropped (drawn at the slide's zoom).
+    const view = this.slideViews().find((v) => v.frameId === active.id);
+    const inside = (b: Box): boolean => {
+      const cx = (b.x0 + b.x1) / 2;
+      const cy = (b.y0 + b.y1) / 2;
+      return cx >= active.x && cx <= active.x + active.width && cy >= active.y && cy <= active.y + active.height;
+    };
+    const lifelines = this.store.lifelines();
+    const messages = this.store.sequenceMessages();
+    const diagramBox = (d: SequenceDiagramModel): Box | null => sequenceDiagramBox(d, lifelines, messages);
+    const adopt = {
+      elements: this.store
+        .elements()
+        .filter((e) => e.type !== 'frame' && !e.slideId && inside(elementBox(e))),
+      tables: this.store.tables().filter((t) => !t.slideId && inside(tableBox(t))),
+      diagrams: this.store.sequenceDiagrams().filter((d) => {
+        const b = !d.slideId && diagramBox(d);
+        return !!b && inside(b);
+      }),
+    };
+    if (adopt.elements.length || adopt.tables.length || adopt.diagrams.length) {
+      const ids = {
+        elements: adopt.elements.map((e) => e.id),
+        tables: adopt.tables.map((t) => t.id),
+        diagrams: adopt.diagrams.map((d) => d.id),
+      };
+      if (view) {
+        // Each item keeps its centre under the same spot: shift it by where that centre
+        // lies in the slide's coordinates.
+        const moveTo = (b: Box, one: { elements: string[]; tables: string[]; diagrams: string[] }): void => {
+          const c = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 };
+          const to = toInner(view, c);
+          this.shiftItems(one, to.x - c.x, to.y - c.y);
+        };
+        for (const e of adopt.elements) moveTo(elementBox(e), { elements: [e.id], tables: [], diagrams: [] });
+        for (const t of adopt.tables) moveTo(tableBox(t), { elements: [], tables: [t.id], diagrams: [] });
+        for (const d of adopt.diagrams) {
+          const b = diagramBox(d);
+          if (b) moveTo(b, { elements: [], tables: [], diagrams: [d.id] });
         }
-        const b = elementBox(e);
-        return inside((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
-      })
-      .map((e) => e.id);
-    const tables = this.store
-      .tables()
-      .filter((t) => {
-        if (t.slideId) {
-          return false;
-        }
-        const b = tableBox(t);
-        return inside((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
-      })
-      .map((t) => t.id);
-    const diagrams = this.store
-      .sequenceDiagrams()
-      .filter((d) => {
-        if (d.slideId) {
-          return false;
-        }
-        const b = sequenceDiagramBox(d, this.store.lifelines(), this.store.sequenceMessages());
-        return !!b && inside((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
-      })
-      .map((d) => d.id);
-    if (elements.length || tables.length || diagrams.length) {
-      await this.store.assignSlide({ elements, tables, diagrams }, active.id);
+      }
+      await this.store.assignSlide(ids, active.id);
     }
 
-    // The other way round: what the shown slide owns but now lies wholly outside its
-    // frame (cloned or dragged out) belongs to the normal canvas, whatever slide is shown.
-    const apart = (b: { x0: number; y0: number; x1: number; y1: number }): boolean =>
-      b.x1 < active.x ||
-      b.x0 > active.x + active.width ||
-      b.y1 < active.y ||
-      b.y0 > active.y + active.height;
-    const freeElements = this.store
-      .elements()
-      .filter((e) => e.type !== 'frame' && e.slideId === active.id && apart(elementBox(e)))
-      .map((e) => e.id);
-    const freeTables = this.store
-      .tables()
-      .filter((t) => t.slideId === active.id && apart(tableBox(t)))
-      .map((t) => t.id);
-    const freeDiagrams = this.store
-      .sequenceDiagrams()
-      .filter((d) => {
-        if (d.slideId !== active.id) {
-          return false;
-        }
-        const b = sequenceDiagramBox(d, this.store.lifelines(), this.store.sequenceMessages());
-        return !!b && apart(b);
-      })
-      .map((d) => d.id);
-    if (freeElements.length || freeTables.length || freeDiagrams.length) {
-      await this.store.assignSlide(
-        { elements: freeElements, tables: freeTables, diagrams: freeDiagrams },
-        null,
-      );
+    // Owned content that lies wholly past anything the slide can ever show (cloned or
+    // moved far away, e.g. by another client) belongs to the normal canvas. Items just
+    // outside the frame stay: they are staged for morph entrances/exits. Dragging an
+    // item out of the block releases it on drop (`releaseDroppedOutOfSlides`).
+    const reach = slideViewRegion(active, MIN_SLIDE_ZOOM);
+    const apart = (b: Box): boolean => b.x1 < reach.x0 || b.x0 > reach.x1 || b.y1 < reach.y0 || b.y0 > reach.y1;
+    const free = {
+      elements: this.store
+        .elements()
+        .filter((e) => e.type !== 'frame' && e.slideId === active.id && apart(elementBox(e)))
+        .map((e) => e.id),
+      tables: this.store
+        .tables()
+        .filter((t) => t.slideId === active.id && apart(tableBox(t)))
+        .map((t) => t.id),
+      diagrams: this.store
+        .sequenceDiagrams()
+        .filter((d) => {
+          const b = d.slideId === active.id && diagramBox(d);
+          return !!b && apart(b);
+        })
+        .map((d) => d.id),
+    };
+    if (free.elements.length || free.tables.length || free.diagrams.length) {
+      await this.store.assignSlide(free, null);
+    }
+  }
+
+  /**
+   * After a move: slide items dropped wholly outside their block (as drawn, at the
+   * slide's zoom) become free canvas items. While zoomed out they are moved to where
+   * they appear, so they stay under the pointer.
+   */
+  private releaseDroppedOutOfSlides(ids: { elements: string[]; tables: string[] }): void {
+    if (!this.store.canEdit()) {
+      return;
+    }
+    const frames = new Map(this.store.slideFrames().map((f) => [f.id, f]));
+    const shown = this.store.shownSlideIds();
+    const views = new Map(this.slideViews().map((v) => [v.frameId, v]));
+    const release = { elements: [] as string[], tables: [] as string[], diagrams: [] as string[] };
+    const check = (id: string, slideId: string | undefined, box: Box, kind: 'elements' | 'tables'): void => {
+      const f = slideId ? frames.get(slideId) : undefined;
+      if (!f || !shown.has(f.id)) return;
+      const view = views.get(f.id);
+      const drawn = view ? boxToOuter(view, box) : box;
+      const outside =
+        drawn.x1 < f.x || drawn.x0 > f.x + f.width || drawn.y1 < f.y || drawn.y0 > f.y + f.height;
+      if (!outside) return;
+      if (view) {
+        const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
+        const to = toOuter(view, c);
+        this.shiftItems(
+          { elements: kind === 'elements' ? [id] : [], tables: kind === 'tables' ? [id] : [], diagrams: [] },
+          to.x - c.x,
+          to.y - c.y,
+        );
+      }
+      release[kind].push(id);
+    };
+    const elementIds = new Set(ids.elements);
+    for (const e of this.store.elements()) {
+      if (elementIds.has(e.id) && e.type !== 'frame') check(e.id, e.slideId, elementBox(e), 'elements');
+    }
+    const tableIds = new Set(ids.tables);
+    for (const t of this.store.tables()) {
+      if (tableIds.has(t.id)) check(t.id, t.slideId, tableBox(t), 'tables');
+    }
+    if (release.elements.length || release.tables.length) {
+      void this.store.assignSlide(release, null);
     }
   }
 
@@ -4663,15 +4989,32 @@ export class EditorComponent {
     if (frame) {
       this.store.moveElement(frameId, frame.x + dx, frame.y + dy);
     }
+    this.shiftItems(
+      {
+        elements: this.store.elements().filter((e) => e.slideId === frameId).map((e) => e.id),
+        tables: this.store.tables().filter((t) => t.slideId === frameId).map((t) => t.id),
+        diagrams: this.store.sequenceDiagrams().filter((d) => d.slideId === frameId).map((d) => d.id),
+      },
+      dx,
+      dy,
+    );
+  }
+
+  /** Move elements, tables (with their waypoints) and sequence diagrams by (dx, dy). */
+  private shiftItems(
+    items: { elements: string[]; tables: string[]; diagrams: string[] },
+    dx: number,
+    dy: number,
+  ): void {
+    const elementIds = new Set(items.elements);
     for (const e of this.store.elements()) {
-      if (e.slideId === frameId) {
+      if (elementIds.has(e.id)) {
         this.store.moveElement(e.id, e.x + dx, e.y + dy);
       }
     }
-    const tableIds = new Set<string>();
+    const tableIds = new Set(items.tables);
     for (const t of this.store.tables()) {
-      if (t.slideId === frameId) {
-        tableIds.add(t.id);
+      if (tableIds.has(t.id)) {
         this.store.moveTable(t.id, t.x + dx, t.y + dy);
       }
     }
@@ -4689,8 +5032,9 @@ export class EditorComponent {
         );
       }
     }
+    const diagramIds = new Set(items.diagrams);
     for (const d of this.store.sequenceDiagrams()) {
-      if (d.slideId !== frameId) {
+      if (!diagramIds.has(d.id)) {
         continue;
       }
       // Move the whole diagram locally in one step (originY included) before saving:
@@ -5565,6 +5909,29 @@ export class EditorComponent {
     event.preventDefault();
     const rect = this.canvasRect();
     const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+    // Ctrl + scroll over a shown slide zooms that slide inside its block (the block keeps
+    // its size), revealing the staging room around the frame. View state only.
+    if (event.ctrlKey && !this.presentation()) {
+      const p = this.toWorldRaw(event.clientX, event.clientY);
+      const shown = this.store.shownByPresentation();
+      const frame = this.store
+        .slideFrames()
+        .find(
+          (f) =>
+            shown.get(presentationOf(f)) === f.id &&
+            p.x >= f.x &&
+            p.x <= f.x + f.width &&
+            p.y >= f.y &&
+            p.y <= f.y + f.height,
+        );
+      if (frame) {
+        const name = presentationOf(frame);
+        // Pinch / precision touchpads send small deltas: follow them smoothly.
+        const step = Math.exp(-Math.max(-50, Math.min(50, event.deltaY)) * 0.004);
+        this.store.setSlideZoom(name, (this.store.slideZoom()[name] ?? 1) * step);
+        return;
+      }
+    }
     this.applyZoom(factor, event.clientX - rect.left, event.clientY - rect.top);
   }
 
@@ -5650,8 +6017,21 @@ export class EditorComponent {
   /** Simplified world-space footprint of every element, for the minimap. */
   protected readonly minimapItems = computed<MinimapItem[]>(() => {
     const items: MinimapItem[] = [];
+    // Items of a shown slide are placed as drawn (through its zoom); the ones the block
+    // does not show (staged outside its view) are left out, as on the canvas.
+    const add = (id: string, item: MinimapItem): void => {
+      const view = this.viewOf(id);
+      if (!view) {
+        items.push(item);
+        return;
+      }
+      const b = boxToOuter(view, item);
+      const k = view.block;
+      if (b.x1 < k.x0 || b.x0 > k.x1 || b.y1 < k.y0 || b.y0 > k.y1) return;
+      items.push({ ...item, ...b, points: item.points?.map((p) => toOuter(view, p)) });
+    };
     for (const t of this.store.tables()) {
-      items.push({
+      add(t.id, {
         kind: 'table',
         x0: t.x,
         y0: t.y,
@@ -5662,7 +6042,7 @@ export class EditorComponent {
     for (const d of this.store.sequenceDiagrams()) {
       const b = this.diagramBox(d);
       if (b) {
-        items.push({ kind: 'sequence', x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+        add(d.id, { kind: 'sequence', x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
       }
     }
     for (const el of this.store.elements()) {
@@ -5677,7 +6057,7 @@ export class EditorComponent {
               : el.type === 'code'
                 ? 'text'
                 : 'shape';
-      items.push({
+      add(el.id, {
         kind,
         ...b,
         points: kind === 'line' ? absolutePoints(el) : undefined,

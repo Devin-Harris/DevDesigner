@@ -240,7 +240,7 @@ export class SlideRenderService {
     return ends;
   }
 
-  /** The sequence diagrams (with parts) whose box overlaps the frame. */
+  /** A slide's sequence diagrams (a plain frame's: those overlapping it), with their parts. */
   private sequencesWithin(
     frame: CanvasElementModel,
     all: {
@@ -253,10 +253,12 @@ export class SlideRenderService {
       const b = sequenceDiagramBox(d, all.lifelines, all.messages);
       return (
         !!b &&
-        b.x1 > frame.x &&
-        b.x0 < frame.x + frame.width &&
-        b.y1 > frame.y &&
-        b.y0 < frame.y + frame.height
+        // A slide's own diagrams take part anywhere (off-frame = staged for morph).
+        ((!!frame.slide && d.slideId === frame.id) ||
+          (b.x1 > frame.x &&
+            b.x0 < frame.x + frame.width &&
+            b.y1 > frame.y &&
+            b.y0 < frame.y + frame.height))
       );
     });
     const ids = new Set(diagrams.map((d) => d.id));
@@ -267,7 +269,7 @@ export class SlideRenderService {
     };
   }
 
-  /** Elements and tables that overlap the frame, positioned relative to it. */
+  /** A slide's elements and tables (a plain frame's: those overlapping it), positioned relative to the frame. */
   private itemsWithin(
     frame: CanvasElementModel,
     elements: readonly CanvasElementModel[],
@@ -278,15 +280,23 @@ export class SlideRenderService {
     const fy0 = frame.y;
     const fx1 = frame.x + frame.width;
     const fy1 = frame.y + frame.height;
-    const overlaps = (x0: number, y0: number, x1: number, y1: number): boolean =>
-      x1 > fx0 && x0 < fx1 && y1 > fy0 && y0 < fy1;
+    // What the slide owns takes part wherever it is (items staged off the frame slide in
+    // / out); anything else (free canvas content) only where it overlaps the frame.
+    const takes = (
+      slideId: string | undefined,
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+    ): boolean =>
+      (!!frame.slide && slideId === frame.id) || (x1 > fx0 && x0 < fx1 && y1 > fy0 && y0 < fy1);
 
     for (const e of elements) {
       if (e.type === 'frame') {
         continue;
       }
       const b = elementBox(e);
-      if (!overlaps(b.x0, b.y0, b.x1, b.y1)) {
+      if (!takes(e.slideId, b.x0, b.y0, b.x1, b.y1)) {
         continue;
       }
       items.push({
@@ -307,7 +317,7 @@ export class SlideRenderService {
     }
     for (const t of tables) {
       const b = tableBox(t);
-      if (!overlaps(b.x0, b.y0, b.x1, b.y1)) {
+      if (!takes(t.slideId, b.x0, b.y0, b.x1, b.y1)) {
         continue;
       }
       items.push({
@@ -327,9 +337,7 @@ export class SlideRenderService {
     return items;
   }
 
-  private async imageData(
-    elements: readonly CanvasElementModel[],
-  ): Promise<Map<string, string>> {
+  private async imageData(elements: readonly CanvasElementModel[]): Promise<Map<string, string>> {
     const ids = [
       ...new Set(
         elements.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string),

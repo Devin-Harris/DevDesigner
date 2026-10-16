@@ -53,6 +53,14 @@ function ease(name: SlideEasing, t: number): number {
 }
 
 /** Unit vector (x, y) the slides travel along for a `slide` transition direction. */
+/** A transition layer sized and clipped to a `width` x `height` slide, centred on screen. */
+function framedLayer(width: number, height: number): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'layer framed';
+  el.style.setProperty('--slide-ar', String(width / Math.max(1, height)));
+  return el;
+}
+
 const TRAVEL: Record<string, [number, number]> = {
   left: [-1, 0],
   right: [1, 0],
@@ -257,6 +265,16 @@ const TRAVEL: Record<string, [number, number]> = {
       }
       .overlay {
         pointer-events: none;
+        overflow: hidden;
+        container-type: size;
+      }
+      /* Live slide pictures are clipped to the slide itself: items staged off the
+         frame (for morph entrances/exits) never show in the letterbox bars. */
+      :host ::ng-deep .overlay .layer.framed {
+        inset: 0;
+        margin: auto;
+        width: min(100cqw, calc(100cqh * var(--slide-ar)));
+        height: min(100cqh, calc(100cqw / var(--slide-ar)));
         overflow: hidden;
       }
       :host ::ng-deep .overlay .layer {
@@ -907,6 +925,8 @@ export class PresentModeComponent {
           undefined,
           {
             markup: mix,
+            width: slide.width,
+            height: slide.height,
             play: (svg, add) =>
               (forward ? playGroup : undoGroup)(svg, slide, group, add).duration,
           },
@@ -1026,6 +1046,8 @@ export class PresentModeComponent {
     /** Animate objects of a live slide picture; `play` returns the total length (ms). */
     live?: {
       markup: string;
+      width: number;
+      height: number;
       play: (svg: SVGSVGElement, add: (a: Animation) => void) => number;
     },
   ): Promise<void> {
@@ -1089,8 +1111,7 @@ export class PresentModeComponent {
       };
 
       if (live) {
-        const host = document.createElement('div');
-        host.className = 'layer';
+        const host = framedLayer(live.width, live.height);
         host.innerHTML = live.markup;
         overlay.appendChild(host);
         const svg = host.querySelector('svg');
@@ -1112,8 +1133,7 @@ export class PresentModeComponent {
       if (morph) {
         const s = new MorphStage(morph.from, morph.to, morph.reversed);
         stage = s;
-        const host = document.createElement('div');
-        host.className = 'layer';
+        const host = framedLayer(morph.to.width, morph.to.height);
         host.appendChild(s.svg);
         overlay.appendChild(host);
         void s.prepare().then(() => {

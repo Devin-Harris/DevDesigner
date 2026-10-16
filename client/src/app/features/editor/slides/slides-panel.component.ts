@@ -75,7 +75,31 @@ const EASING_OPTIONS: SelectOption<SlideEasing>[] = [
 ];
 
 /**
- * The slide sorter: the project's presentation as a list of frame thumbnails.
+ * Scroll a slide card into view inside its own scrolling list only. `scrollIntoView`
+ * would also scroll the canvas when the panel is panned off screen, dragging the
+ * toolbars and minimap away with it.
+ */
+function revealCard(card: Element | undefined, within: HTMLElement | null): void {
+  let list = card?.parentElement ?? null;
+  while (list && list !== within && !/(auto|scroll)/.test(getComputedStyle(list).overflowY)) {
+    list = list.parentElement;
+  }
+  if (!card || !list || !/(auto|scroll)/.test(getComputedStyle(list).overflowY)) {
+    return;
+  }
+  const box = list.getBoundingClientRect();
+  const r = card.getBoundingClientRect();
+  // The panel is scaled with the canvas zoom; scrollTop is in unscaled px.
+  const scale = box.height / (list.offsetHeight || 1) || 1;
+  if (r.top < box.top) {
+    list.scrollTop -= (box.top - r.top) / scale;
+  } else if (r.bottom > box.bottom) {
+    list.scrollTop += (r.bottom - box.bottom) / scale;
+  }
+}
+
+/**
+ * The slide sorter:the project's presentation as a list of frame thumbnails.
  * Reorder by dragging, skip/duplicate/remove per slide, and edit the selected
  * slide's transition and speaker notes. All edits are ordinary frame updates, so
  * they sync live and undo/redo like any other change.
@@ -1047,9 +1071,8 @@ export class SlidesPanelComponent {
     }
     const index = this.shown().findIndex((f) => f.id === id);
     requestAnimationFrame(() => {
-      (this.host.nativeElement as HTMLElement)
-        .querySelectorAll('li.card')
-        [index]?.scrollIntoView({ block: 'nearest' });
+      const host = this.host.nativeElement as HTMLElement;
+      revealCard(host.querySelectorAll('li.card')[index], host);
     });
   });
   protected readonly activeNumber = computed(() => {
@@ -1358,7 +1381,7 @@ export class SlidesPanelComponent {
       const cards = event.currentTarget as HTMLElement | null;
       const index = this.shown().findIndex((f) => f.id === next.id);
       requestAnimationFrame(() => {
-        cards?.querySelectorAll('li.card')[index]?.scrollIntoView({ block: 'nearest' });
+        revealCard(cards?.querySelectorAll('li.card')[index], cards);
       });
     }
   }

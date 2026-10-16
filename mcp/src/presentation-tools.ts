@@ -58,6 +58,7 @@ import {
 import type { DbDesignerApi } from './api';
 import { Batch } from './batch';
 import { loadImage } from './images';
+import { collectItems, keyOf, placement, type FramePlacement } from './layout';
 import { UserError } from './model';
 
 export type ToolFn = <S extends z.ZodRawShape>(
@@ -1040,6 +1041,14 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const { schema } = await graph(id);
       const frame = resolveSlide(schema, slide, presentation);
       const own = ownedBy(schema, frame.id);
+      const rects = new Map(collectItems(schema, { lines: 'all' }).map((i) => [i.key, i.rect]));
+      const frameRect = { x: frame.x, y: frame.y, w: frame.width, h: frame.height };
+      /** `partial` / `offslide` (staged outside the frame for morph); omitted when inside. */
+      const where = (key: string): { placement?: FramePlacement } => {
+        const r = rects.get(key);
+        const p = r ? placement(r, frameRect) : 'inside';
+        return p === 'inside' ? {} : { placement: p };
+      };
       return {
         slide: frame.id,
         presentation: presentationOf(frame),
@@ -1051,6 +1060,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
           y: Math.round(e.y - frame.y),
           width: Math.round(e.width),
           height: Math.round(e.height),
+          ...where(keyOf('element', e.id)),
           ...(morphTagOf(e.morphId) && !isSoloTag(e.morphId)
             ? { morphTag: morphTagOf(e.morphId) }
             : {}),
@@ -1066,7 +1076,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         })),
         tables: schema.tables
           .filter((t) => own.tableIds.includes(t.id))
-          .map((t) => ({ id: t.id, name: t.name })),
+          .map((t) => ({ id: t.id, name: t.name, ...where(keyOf('table', t.id)) })),
         sequenceDiagrams: own.diagramIds.map((did) => {
           const d = schema.sequenceDiagrams.find((x) => x.id === did)!;
           const label = new Map(schema.lifelines.map((l) => [l.id, l.label]));

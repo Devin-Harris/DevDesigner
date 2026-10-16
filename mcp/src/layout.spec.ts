@@ -4,7 +4,9 @@ import {
   buildUnits,
   collectItems,
   compactUnits,
+  findOffSlide,
   findOutOfBounds,
+  placement,
   findOverlaps,
   findTextOverflow,
   findUnattached,
@@ -119,6 +121,16 @@ describe('slide bounds', () => {
     expect(rows[0].item.id).toBe('out');
     expect(rows[0].overflow).toEqual({ left: 0, top: 0, right: 120, bottom: 30 });
     expect(rows[0].fullyOutside).toBe(false);
+  });
+
+  it('treats items wholly outside the frame as staging, not overflow', () => {
+    const schema = schemaOf({
+      elements: [frame, el('staged', { x: 1000, y: 600, width: 200, height: 100, slideId: 'f' })],
+    });
+    const items = collectItems(schema);
+    expect(findOutOfBounds(items, slideFramesOf(schema))).toHaveLength(0);
+    expect(findOffSlide(items, slideFramesOf(schema)).map((i) => i.id)).toEqual(['staged']);
+    expect(placement(items[0].rect, slideFramesOf(schema)[0].rect)).toBe('offslide');
   });
 
   it('finds free items sitting on a slide', () => {

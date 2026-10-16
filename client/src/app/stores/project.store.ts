@@ -40,6 +40,7 @@ import {
   remapAnimations,
   slideSequence,
 } from '@dbdesigner/shared';
+import { MIN_SLIDE_ZOOM, slideViewRegion } from '../features/editor/canvas/helpers/slide-zoom.helper';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
@@ -86,6 +87,12 @@ interface EditorState {
   selectedPresentationKey: string | null;
   /** The slide each presentation shows on its own spot (name -> frame id). */
   shownByPresentationKey: Record<string, string>;
+  /**
+   * View-only zoom of each presentation's shown slide inside its block (name -> scale,
+   * 1 = the frame fills the block). Zoomed out, the frame shrinks about its centre and
+   * the staging room around it shows. Never saved.
+   */
+  slideZoom: Record<string, number>;
   /** Transient: a message whose inline label editor should open (toolbar pencil). */
   pendingMessageEditId: string | null;
   /** Transient: a lifeline whose inline label editor should open (toolbar pencil). */
@@ -210,6 +217,7 @@ const initialState: EditorState = {
   activeSlideKey: null,
   selectedPresentationKey: null,
   shownByPresentationKey: {},
+  slideZoom: {},
   pendingMessageEditId: null,
   pendingLifelineEditId: null,
   loading: false,
@@ -599,19 +607,35 @@ export const ProjectStore = signalStore(
 
       // Raw element operations (persist + local update, no history). Both the
       // public methods and the undo/redo closures build on these.
-      /** The shown slide whose frame covers a canvas point (new content there joins it). */
+      /**
+       * The zoomed-out slide the pointer is over (set by the editor), or null. A zoomed
+       * slide's items live in its own coordinates, which overlap the canvas around its
+       * block, so only the pointer can tell which space a new item's point is in.
+       */
+      let pointerSlide: string | null = null;
+
+      /**
+       * The shown slide a new item at a canvas point joins: the zoomed slide under the
+       * pointer (anywhere in what it shows, staging room included), else the shown,
+       * unzoomed slide whose frame covers the point.
+       */
       function shownSlideAt(x: number, y: number): string | undefined {
         const shown = store.shownSlideIds();
-        return store
-          .slideFrames()
-          .find(
-            (f) =>
-              shown.has(f.id) &&
-              x >= f.x &&
-              x <= f.x + f.width &&
-              y >= f.y &&
-              y <= f.y + f.height,
-          )?.id;
+        const zoom = store.slideZoom();
+        const frames = store.slideFrames().filter((f) => shown.has(f.id));
+        if (pointerSlide) {
+          const f = frames.find((x) => x.id === pointerSlide);
+          const b = f && slideViewRegion(f, zoom[presentationOf(f)] ?? 1);
+          return b && x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 ? f.id : undefined;
+        }
+        return frames.find(
+          (f) =>
+            !zoom[presentationOf(f)] &&
+            x >= f.x &&
+            x <= f.x + f.width &&
+            y >= f.y &&
+            y <= f.y + f.height,
+        )?.id;
       }
 
       async function createElementRaw(dto: CreateElementDto): Promise<CanvasElementModel | null> {
@@ -3063,6 +3087,18 @@ export const ProjectStore = signalStore(
                 }
               : {}),
           });
+        },
+
+        /** The zoomed-out slide under the pointer (see `shownSlideAt`). */
+        setPointerSlide(id: string | null): void {
+          pointerSlide = id;
+        },
+
+        /** Zoom a presentation's slide view inside its block (view state, not saved). */
+        setSlideZoom(name: string, scale: number): void {
+          const s = Math.min(1, Math.max(MIN_SLIDE_ZOOM, scale));
+          const { [name]: _old, ...rest } = store.slideZoom();
+          patchState(store, { slideZoom: s >= 0.999 ? rest : { ...rest, [name]: s } });
         },
 
         /** Make a presentation the selected one (F5, export); it keeps the slide it shows. */
