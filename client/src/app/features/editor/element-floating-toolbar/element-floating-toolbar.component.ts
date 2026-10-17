@@ -17,6 +17,16 @@ import {
   type UpdateElementDto,
   type VerticalAlign,
   THEME_STROKE,
+  DEFAULT_THEME,
+  presentationOf,
+  resolveThemeColor,
+  themeSwatchCss,
+  SLIDE_FIELDS,
+  SLIDE_FIELD_LABELS,
+  fieldToken,
+  resolveThemeFont,
+  themeToken,
+  type SlideTheme,
 } from '@dbdesigner/shared';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
@@ -188,6 +198,48 @@ export class ElementFloatingToolbarComponent {
     this.cellsOn() || this.editingRich() ? null : THEME_STROKE,
   );
   protected readonly surfaceFill = SURFACE_FILL;
+
+  /** The deck theme of the slide (or layout) this element is on; null off slides. */
+  protected readonly deckTheme = computed<SlideTheme | null>(() => {
+    const el = this.element();
+    const frames = this.store.slideFrames();
+    const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
+    return f ? (this.store.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
+  });
+  /** On a slide, layout or master: fields can be inserted. */
+  protected readonly onSlide = computed(() => this.deckTheme() !== null);
+  protected readonly slideFields = SLIDE_FIELDS;
+  protected readonly fieldLabels = SLIDE_FIELD_LABELS;
+  protected readonly fieldToken = fieldToken;
+
+  /** Insert a field token at the caret while typing, else append it ("{{slide}}") to the text; it fills in when slides are drawn. */
+  protected insertField(token: string): void {
+    // While typing into the text: at the caret, like any typed text.
+    if (this.editingRich() && this.rich.insert(token)) return;
+    const el = this.element();
+    const sep = el.text && !/\s$/.test(el.text) ? ' ' : '';
+    const runs = el.runs?.length ? [...el.runs, { text: sep + token }] : el.runs;
+    void this.store.updateElement(el.id, withTextFit(el, { text: (el.text ?? '') + sep + token, runs }));
+  }
+
+  /** Grid cell styles are stored inside the grid's JSON, which tokens do not reach. */
+  protected readonly swatchTheme = computed(() => (this.cellsOn() ? null : this.deckTheme()));
+
+  /** A stored color as CSS (theme tokens as their concrete color). */
+  protected colorCss(color: string | undefined): string | undefined {
+    const c = resolveThemeColor(color, this.deckTheme() ?? DEFAULT_THEME);
+    return c && themeSwatchCss(c);
+  }
+
+  protected readonly themeFonts = computed(() => {
+    const t = this.deckTheme();
+    return t
+      ? [
+          { value: themeToken('heading'), label: 'Heading', stack: fontStack(t.fonts.heading) },
+          { value: themeToken('body'), label: 'Body', stack: fontStack(t.fonts.body) },
+        ]
+      : [];
+  });
   /** Corner radius applies to rectangles only. */
   protected readonly isRect = computed(() => this.element().type === 'rectangle');
 
@@ -302,7 +354,7 @@ export class ElementFloatingToolbarComponent {
 
   /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
   protected fillCss(color: string | undefined): string {
-    return color === SURFACE_FILL ? 'var(--dbd-surface)' : color || '#ffffff';
+    return color === SURFACE_FILL ? 'var(--dbd-surface)' : this.colorCss(color) || '#ffffff';
   }
 
   protected setFill(color: string): void {
@@ -333,7 +385,8 @@ export class ElementFloatingToolbarComponent {
 
   protected setFont(font: FontFamily): void {
     // Fonts are downloaded on first use; wait so the box is measured in the real face.
-    void ensureFontLoaded(font).then(() => this.patchAll({ fontFamily: font }));
+    const face = (resolveThemeFont(font, this.deckTheme() ?? DEFAULT_THEME) ?? 'normal') as FontFamily;
+    void ensureFontLoaded(face).then(() => this.patchAll({ fontFamily: font }));
   }
 
   protected setLineHeight(lineHeight: number): void {

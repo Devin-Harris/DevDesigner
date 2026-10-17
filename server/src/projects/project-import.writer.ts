@@ -382,6 +382,8 @@ export async function writeSchemaInto(
           of: e.placeholder.of ? (elementIds.get(e.placeholder.of) ?? undefined) : undefined,
         }
       : undefined,
+    // A slide's or layout's stand-in for a master item; drop the link if it is gone.
+    overrides: e.overrides ? elementIds.get(e.overrides) : undefined,
     // Lineage ids are remapped as a set so copies still match each other after import.
     // Named morph tags ("tag:...") are kept as written so slides added by a later import
     // still pair with earlier ones.
@@ -438,6 +440,7 @@ export async function writeSchemaInto(
       groupId: e.groupId ?? null,
       slideJson: e.slide ? JSON.stringify(e.slide) : null,
       placeholderJson: e.placeholder ? JSON.stringify(e.placeholder) : null,
+      overrides: e.overrides ?? null,
       morphId: e.morphId ?? null,
       step: e.step ?? null,
       slideId: e.slideId ?? null,
@@ -565,6 +568,7 @@ export async function writeImportedProject(
       homeX: schema.home?.x ?? null,
       homeY: schema.home?.y ?? null,
       homeZoom: schema.home?.zoom ?? null,
+      themesJson: schema.themes?.length ? JSON.stringify(schema.themes) : null,
     }),
   );
   await writeSchemaInto(manager, project.id, schema, { images });

@@ -30,11 +30,27 @@ export class RichTextSessionService {
   readonly selection = signal<RichSelectionState | null>(null);
   private applier: ((patch: RunPatch) => void) | null = null;
   private listApplier: ((kind: ListKind) => void) | null = null;
+  private inserter: ((text: string) => void) | null = null;
 
-  open(id: string, apply: (patch: RunPatch) => void, list?: (kind: ListKind) => void): void {
+  open(
+    id: string,
+    apply: (patch: RunPatch) => void,
+    list?: (kind: ListKind) => void,
+    insert?: (text: string) => void,
+  ): void {
     this.editingId.set(id);
     this.applier = apply;
     this.listApplier = list ?? null;
+    this.inserter = insert ?? null;
+  }
+
+  /** Type text at the caret (replacing the selection) in the text being edited. */
+  insert(text: string): boolean {
+    if (!this.inserter) {
+      return false;
+    }
+    this.inserter(text);
+    return true;
   }
 
   close(): void {
@@ -42,6 +58,7 @@ export class RichTextSessionService {
     this.selection.set(null);
     this.applier = null;
     this.listApplier = null;
+    this.inserter = null;
   }
 
   /** Toggle a bulleted/numbered list on the selected lines. */

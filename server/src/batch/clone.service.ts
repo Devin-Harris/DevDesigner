@@ -264,6 +264,7 @@ export class CloneService {
           text: e.text ?? null,
           morphId: e.morphId ?? null,
           placeholderJson: src.placeholderJson,
+          overrides: src.overrides,
           slideJson: src.type === 'frame' && e.slide ? JSON.stringify(e.slide) : null,
           slideId: src.type === 'frame' ? null : (e.slideId ?? null),
           startBindingKind: e.startBinding?.targetKind ?? null,

@@ -65,7 +65,19 @@ export function presentationLayouts<T extends SlideFrameLike>(
   frames: readonly T[],
   name: string | null,
 ): T[] {
-  return slideSequence(frames).filter((f) => !!f.slide?.layout && presentationOf(f) === name);
+  // The master is a layout frame too, but never chosen as a slide's layout.
+  return slideSequence(frames).filter((f) => !!f.slide?.layout && !f.slide.master && presentationOf(f) === name);
+}
+
+/** The master drawn under a frame (its presentation's, unless the frame is the master). */
+export function masterOf<T extends SlideFrameLike>(frame: T, frames: readonly T[]): T | undefined {
+  if (!frame.slide || frame.slide.master) return undefined;
+  return presentationMaster(frames, presentationOf(frame));
+}
+
+/** A presentation's master: drawn under every slide and layout of it. */
+export function presentationMaster<T extends SlideFrameLike>(frames: readonly T[], name: string | null): T | undefined {
+  return frames.find((f) => !!f.slide?.master && presentationOf(f) === name);
 }
 
 /** The layout a slide uses, if it names one that still exists in its presentation. */
@@ -132,9 +144,14 @@ export function matchPlaceholders<
 
 /** A layout's display name (its own, else "Layout N" by position). */
 export function layoutNameOf<T extends SlideFrameLike>(frame: T, frames: readonly T[]): string {
+  // The default layout is the plain, built-in one.
+  if (frame.slide?.master) return 'Master';
+  if (frame.slide?.defaultLayout) return 'Blank';
   const own = frame.slide?.layoutName?.trim();
   if (own) return own;
-  const i = presentationLayouts(frames, presentationOf(frame)).findIndex((f) => f.id === frame.id);
+  const i = presentationLayouts(frames, presentationOf(frame))
+    .filter((f) => !f.slide?.defaultLayout)
+    .findIndex((f) => f.id === frame.id);
   return `Layout ${i + 1}`;
 }
 

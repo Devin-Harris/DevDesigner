@@ -122,7 +122,7 @@ export function frameContents(
  * (the slide's layout frame) adds that layout's elements, drawn beneath the slide's.
  */
 export function contentForFrame<
-  E extends { slideId?: string; zIndex: number; placeholder?: PlaceholderConfig; text?: string },
+  E extends { id?: string; slideId?: string; zIndex: number; placeholder?: PlaceholderConfig; text?: string; overrides?: string },
   T extends { slideId?: string },
   D extends { id: string; slideId?: string },
   L extends { diagramId: string },
@@ -136,6 +136,7 @@ export function contentForFrame<
   lifelines: readonly L[],
   messages: readonly M[],
   layoutId?: string,
+  masterId?: string,
 ): { elements: E[]; tables: T[]; diagrams: D[]; lifelines: L[]; messages: M[] } {
   if (!isSlide) {
     return {
@@ -158,13 +159,30 @@ export function contentForFrame<
       ? ({ ...e, fillStyle: layout.fillStyle, backgroundColor: layout.backgroundColor } as E)
       : e;
   };
+  // Master items the slide or its layout stands in for; the slide's stand-in wins.
+  const bySlide = new Set<string>();
+  const byLayout = new Set<string>();
+  for (const e of elements) {
+    const of = overriddenId(e);
+    if (!of) continue;
+    if (e.slideId === frameId) bySlide.add(of);
+    else if (layoutId && e.slideId === layoutId) byLayout.add(of);
+  }
+  const masterItems = masterId
+    ? layoutElements(elements, masterId, 2).filter((e) => !bySlide.has(e.id!) && !byLayout.has(e.id!))
+    : [];
+  const layoutItems = layoutId
+    ? layoutElements(elements, layoutId).filter((e) => !isMasterDeletion(e) && !bySlide.has(overriddenId(e) ?? ''))
+    : [];
   const ds = diagrams.filter((d) => mine(d.slideId));
   const ids = new Set(ds.map((d) => d.id));
   return {
     elements: [
-      ...(layoutId ? layoutElements(elements, layoutId) : []),
+      // The master's items under the layout's, both under the slide's own.
+      ...masterItems,
+      ...layoutItems,
       // Empty placeholder copies are only prompts for the editor: never in the picture.
-      ...elements.filter((e) => mine(e.slideId) && !isEmptyPlaceholder(e)).map(withLayoutFill),
+      ...elements.filter((e) => mine(e.slideId) && !isEmptyPlaceholder(e) && !isMasterDeletion(e)).map(withLayoutFill),
     ],
     tables: tables.filter((t) => mine(t.slideId)),
     diagrams: ds,
@@ -173,15 +191,31 @@ export function contentForFrame<
   };
 }
 
+/**
+ * A slide's or layout's stand-in for a master item can also delete it there: its
+ * `overrides` then reads `deleted:<master item id>` and the stand-in itself is never drawn.
+ */
+export const MASTER_DELETED = 'deleted:';
+
+/** The master item a stand-in replaces (or deletes), if any. */
+export function overriddenId(e: { overrides?: string }): string | undefined {
+  return e.overrides?.startsWith(MASTER_DELETED) ? e.overrides.slice(MASTER_DELETED.length) : e.overrides;
+}
+
+/** A stand-in that only deletes its master item on its frame. */
+export function isMasterDeletion(e: { overrides?: string }): boolean {
+  return !!e.overrides?.startsWith(MASTER_DELETED);
+}
+
 /** Below every slide item: a layout's elements always draw under the slide's own. */
 export const LAYOUT_Z_OFFSET = 1_000_000;
 
 /** A layout frame's elements, pushed below the slide's own stacking order. */
 export function layoutElements<
   E extends { slideId?: string; zIndex: number; placeholder?: PlaceholderConfig },
->(elements: readonly E[], layoutId: string): E[] {
+>(elements: readonly E[], layoutId: string, depth = 1): E[] {
   // Placeholders are not repeated: each slide has its own copy.
   return elements
     .filter((e) => e.slideId === layoutId && !e.placeholder)
-    .map((e) => ({ ...e, zIndex: e.zIndex - LAYOUT_Z_OFFSET }));
+    .map((e) => ({ ...e, zIndex: e.zIndex - LAYOUT_Z_OFFSET * depth }));
 }

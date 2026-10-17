@@ -11,6 +11,7 @@ import {
   type ProjectSummary,
   type SchemaMutation,
   type SchemaModel,
+  type SlideTheme,
 } from '@dbdesigner/shared';
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
@@ -25,6 +26,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
+import { UpdateThemesDto } from './dto/update-themes.dto';
 import { parseProjectExport } from './project-import.parser';
 import {
   offsetToAnchor,
@@ -128,6 +130,7 @@ export class ProjectsService {
         project.homeX !== null && project.homeY !== null && project.homeZoom !== null
           ? { x: project.homeX, y: project.homeY, zoom: project.homeZoom }
           : null,
+      themes: parseThemes(project.themesJson),
     };
     return {
       project: this.toSummary(project),
@@ -176,6 +179,22 @@ export class ProjectsService {
     this.realtime.emit(id, clientId, { kind: 'home.updated', home });
   }
 
+  /** Replace the project's custom theme library and tell collaborators. */
+  async updateThemes(
+    id: string,
+    dto: UpdateThemesDto,
+    userId: string | null,
+    shareToken: string | null = null,
+    clientId: string | null = null,
+  ): Promise<void> {
+    await this.access.assertCanWrite(id, userId, shareToken);
+    const result = await this.projects.update({ id }, { themesJson: JSON.stringify(dto.themes) });
+    if (!result.affected) {
+      throw new NotFoundException(`Project ${id} not found.`);
+    }
+    this.realtime.emit(id, clientId, { kind: 'themes.updated', themes: dto.themes });
+  }
+
   async update(
     id: string,
     dto: UpdateProjectDto,
@@ -214,6 +233,7 @@ export class ProjectsService {
       homeX: source.homeX,
       homeY: source.homeY,
       homeZoom: source.homeZoom,
+      themesJson: source.themesJson,
     });
     const saved = await this.projects.save(copy);
     // NOTE: deep-copies only the project row for now. Tables, columns,
@@ -359,5 +379,16 @@ export class ProjectsService {
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };
+  }
+}
+
+/** The stored custom theme library (bad or missing JSON reads as none). */
+function parseThemes(json: string | null): SlideTheme[] {
+  if (!json) return [];
+  try {
+    const v: unknown = JSON.parse(json);
+    return Array.isArray(v) ? (v as SlideTheme[]) : [];
+  } catch {
+    return [];
   }
 }

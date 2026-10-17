@@ -47,6 +47,7 @@ import { Journal, schemaChanged } from './journal';
 import { registerLayoutTools } from './layout-tools';
 import { registerTableTools } from './table-tools';
 import { applyLayoutDiff, registerPresentationTools } from './presentation-tools';
+import { registerDesignTools } from './design-tools';
 import {
   UserError,
   findColumn,
@@ -1120,6 +1121,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
   );
 
   registerPresentationTools(tool, api);
+  registerDesignTools(tool, api);
   registerLayoutTools(tool, api);
   registerTableTools(tool, api);
   registerAgentTools(tool, api, journal);

@@ -54,6 +54,9 @@ export class DbDesignerApi {
   patch<T>(path: string, body: unknown): Promise<T> {
     return this.request<T>('PATCH', path, body);
   }
+  put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>('PUT', path, body);
+  }
   delete(path: string): Promise<void> {
     return this.request<void>('DELETE', path);
   }

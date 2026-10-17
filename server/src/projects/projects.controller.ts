@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Put,
   Post,
   Query,
   UnauthorizedException,
@@ -22,6 +23,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
+import { UpdateThemesDto } from './dto/update-themes.dto';
 import { CurrentUser, CurrentUserId } from '../auth/current-user.decorator';
 import { guestOwnerId } from '../auth/guest-id';
 import type { AuthUser } from '../auth/auth.types';
@@ -150,6 +152,18 @@ export class ProjectsController {
     @ClientId() clientId: string | null,
   ): Promise<void> {
     return this.projects.updateHome(projectId, dto, userId, shareToken, clientId);
+  }
+
+  @Put(':projectId/themes')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateThemes(
+    @Param('projectId') projectId: string,
+    @Body() dto: UpdateThemesDto,
+    @CurrentUserId() userId: string | null,
+    @ShareToken() shareToken: string | null,
+    @ClientId() clientId: string | null,
+  ): Promise<void> {
+    return this.projects.updateThemes(projectId, dto, userId, shareToken, clientId);
   }
 
   @Post(':projectId/duplicate')

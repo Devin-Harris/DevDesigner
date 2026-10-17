@@ -170,6 +170,10 @@ export class ElementEntity {
   @Column({ type: 'text', nullable: true })
   placeholderJson!: string | null;
 
+  /** On a slide or layout: the master element this item replaces there; null = none. */
+  @Column({ type: 'varchar', nullable: true })
+  overrides!: string | null;
+
   /** Morph lineage shared with the element this was copied from; null = its own id. */
   @Column({ type: 'varchar', nullable: true })
   morphId!: string | null;

@@ -157,8 +157,8 @@ const CONTRAST_FLOOR = 1.5;
  * colors too (per the design decision).
  */
 export function contrastSafe(color: string, theme: ThemeColors | undefined): string {
-  if (color === THEME_STROKE) {
-    return theme?.text ?? '#1e293b';
+  if (color === THEME_STROKE || color === SURFACE_FILL) {
+    return sentinelColor(color, theme);
   }
   if (!theme) {
     return color;
@@ -172,6 +172,13 @@ export function contrastSafe(color: string, theme: ThemeColors | undefined): str
   const lb = relativeLuminance(bg);
   const ratio = (Math.max(lc, lb) + 0.05) / (Math.min(lc, lb) + 0.05);
   return ratio < CONTRAST_FLOOR ? theme.text : color;
+}
+
+/** The theme sentinels (`surface` / `theme`) as concrete colors; either can be a fill or a stroke. */
+function sentinelColor(color: string, theme: ThemeColors | undefined): string {
+  if (color === SURFACE_FILL) return theme?.surface ?? '#ffffff';
+  if (color === THEME_STROKE) return theme?.text ?? '#1e293b';
+  return color;
 }
 
 /** Text stroke-width maps to font weight (so the width control affects text). */
@@ -559,9 +566,7 @@ function isDarkColor(color: string): boolean {
 /** The surface a code card is drawn on: its own fill, else the theme-matched default. */
 function codeBackground(element: CanvasElementModel, theme: ThemeColors | undefined): string {
   if (element.fillStyle !== 'none' && element.backgroundColor) {
-    return element.backgroundColor === SURFACE_FILL
-      ? (theme?.surface ?? '#ffffff')
-      : element.backgroundColor;
+    return sentinelColor(element.backgroundColor, theme);
   }
   const canvasDark = theme ? isDarkColor(theme.canvasBg) : false;
   return codePalette(canvasDark).background;
@@ -808,9 +813,7 @@ function fillOf(
     return { fill: 'none', fillOpacity: 1 };
   }
   const color =
-    element.backgroundColor === SURFACE_FILL
-      ? (theme?.surface ?? '#ffffff')
-      : element.backgroundColor;
+    sentinelColor(element.backgroundColor, theme);
   // Hachure = real diagonal-line hatching via a per-element SVG <pattern>.
   if (element.fillStyle === 'hachure') {
     const id = `hatch-${element.id}`;
@@ -931,11 +934,19 @@ export function buildShapeViews(
   elements: readonly CanvasElementModel[],
   tables: readonly TableModel[],
   selectedIds: ReadonlySet<string>,
-  theme?: ThemeColors,
+  canvasTheme?: ThemeColors,
   messageBoxes?: ReadonlyMap<string, Box>,
 ): ShapeView[] {
   const tableById = new Map(tables.map((t) => [t.id, t]));
   const elementById = new Map(elements.map((e) => [e.id, e]));
+  // Items on a filled slide are kept readable against the slide, not the canvas
+  // (a deck theme's dark text on a light slide must not flip in dark mode).
+  const guardFor = (element: CanvasElementModel): ThemeColors | undefined => {
+    const frame = element.slideId ? elementById.get(element.slideId) : undefined;
+    return canvasTheme && frame && frame.fillStyle !== 'none' && frame.backgroundColor && frame.backgroundColor !== SURFACE_FILL && frame.backgroundColor !== 'transparent'
+      ? { ...canvasTheme, canvasBg: frame.backgroundColor }
+      : canvasTheme;
+  };
   const targetBox = (binding: ElementBinding): RotatedBox | null => {
     if (binding.targetKind === 'message') {
       return messageBoxes?.get(binding.targetId) ?? null;
@@ -949,6 +960,7 @@ export function buildShapeViews(
   };
 
   const views = elements.map((element) => {
+    const theme = guardFor(element);
     const box = elementBox(element);
     const center = elementCenter(element);
     const stroke = contrastSafe(element.strokeColor, theme);

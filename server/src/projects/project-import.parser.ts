@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   PLACEHOLDER_ROLES,
+  LAYOUT_KINDS,
   type PlaceholderConfig,
   ARROWHEAD_TYPES,
   CODE_LANGUAGES,
@@ -9,6 +10,7 @@ import {
   MAX_ANIMATION_DELAY,
   MAX_ANIMATION_DURATION,
   MAX_SLIDE_ANIMATIONS,
+  THEME_COLOR_TOKENS,
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
   PROJECT_TYPES,
@@ -39,6 +41,7 @@ import type {
   SequenceMessageModel,
   SlideAnimation,
   SlideConfig,
+  SlideTheme,
   TableModel,
   TextRun,
   ProjectExportImage,
@@ -215,6 +218,42 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
     layout: s['layout'] === undefined || s['layout'] === null ? undefined : bool(s, 'layout', path, false),
     layoutName: optStr(s, 'layoutName', path, 120),
     layoutId: optStr(s, 'layoutId', path, 64),
+    defaultLayout:
+      s['defaultLayout'] === undefined || s['defaultLayout'] === null ? undefined : bool(s, 'defaultLayout', path, false),
+    master: s['master'] === undefined || s['master'] === null ? undefined : bool(s, 'master', path, false),
+    layoutKind: optOneOf(s, 'layoutKind', path, LAYOUT_KINDS),
+    designId: optStr(s, 'designId', path, 64),
+    layoutSetId: optStr(s, 'layoutSetId', path, 64),
+    theme: slideTheme(s['theme'], `${path}.theme`),
+  };
+}
+
+function slideTheme(value: unknown, path: string): SlideTheme | undefined {
+  if (value === undefined || value === null) return undefined;
+  const t = obj(value, path);
+  const c = obj(t['colors'], `${path}.colors`);
+  const f = obj(t['fonts'], `${path}.fonts`);
+  const colors = {} as SlideTheme['colors'];
+  for (const k of THEME_COLOR_TOKENS) colors[k] = str(c, k, `${path}.colors`, 32);
+  return {
+    id: optStr(t, 'id', path, 64),
+    kind: optOneOf(t, 'kind', path, ['theme', 'layouts', 'design'] as const),
+    themeId: optStr(t, 'themeId', path, 64),
+    layoutsId: optStr(t, 'layoutsId', path, 64),
+    designId: optStr(t, 'designId', path, 64),
+    name: str(t, 'name', path, 120),
+    colors,
+    fonts: { heading: str(f, 'heading', `${path}.fonts`, 32), body: str(f, 'body', `${path}.fonts`, 32) },
+    layouts:
+      t['layouts'] === undefined || t['layouts'] === null
+        ? undefined
+        : (obj(t['layouts'], `${path}.layouts`) as SlideTheme['layouts']),
+    master:
+      t['master'] === undefined || t['master'] === null ? undefined : (list(t['master'], `${path}.master`) as SlideTheme['master']),
+    extraLayouts:
+      t['extraLayouts'] === undefined || t['extraLayouts'] === null
+        ? undefined
+        : (list(t['extraLayouts'], `${path}.extraLayouts`) as SlideTheme['extraLayouts']),
   };
 }
 
@@ -356,6 +395,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     groupId: optStr(e, 'groupId', path, 100),
     slide: slide(e['slide'], `${path}.slide`),
     placeholder: placeholder(e['placeholder'], `${path}.placeholder`),
+    overrides: optStr(e, 'overrides', path, 100),
     morphId: optStr(e, 'morphId', path, 100),
     step: optNum(e, 'step', path),
     slideId: optStr(e, 'slideId', path, 100),
@@ -493,6 +533,7 @@ export function parseProjectExport(raw: unknown): ParsedProjectImport {
             zoom: num(home, 'zoom', 'schema.home'),
           }
         : null,
+      themes: list(s['themes'], 'schema.themes').map((t, i) => slideTheme(t, `schema.themes[${i}]`)!),
     },
   };
 }

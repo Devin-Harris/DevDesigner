@@ -3,6 +3,8 @@
 // this; the client store is typed against it. Keep this decoupled from any
 // rendering layer (see BUILD_INSTRUCTIONS.md section 4.2).
 
+import type { SlideTheme } from '../slides/themes';
+import type { LayoutKind } from '../slides/layout-kinds';
 import type {
   ArrowheadType,
   CodeLanguage,
@@ -225,6 +227,30 @@ export interface SlideConfig {
   layoutName?: string;
   /** On a slide: the layout frame (id) whose items repeat under it. */
   layoutId?: string;
+  /**
+   * On a layout: the presentation's default layout, which every slide without a
+   * layout of its own uses (created automatically; cannot be deleted).
+   */
+  defaultLayout?: boolean;
+  /**
+   * On a layout frame: the presentation's master, whose items are drawn under every
+   * slide and layout of it (created automatically; never a slide's layout).
+   */
+  master?: boolean;
+  /** On a layout: which standard kind it is (title, two-column, ...), for switching themes. */
+  layoutKind?: LayoutKind;
+  /**
+   * On a layout: the layout set it was made from. Absent = the deck's current set. Slides
+   * may keep a layout of a set the deck no longer uses; the editor flags those.
+   */
+  layoutSetId?: string;
+  /** @deprecated An earlier tag (ignored); kept so frames that carry it still save. */
+  designId?: string;
+  /**
+   * The presentation's theme (tokens `$accent1`, `$heading`, ... resolve against it).
+   * Kept on every frame of the presentation; see `presentationThemes`.
+   */
+  theme?: SlideTheme;
 }
 
 /**
@@ -264,6 +290,11 @@ export interface CanvasElementModel {
   points?: PointModel[];
   /** A layout placeholder, or a slide's copy of one (text boxes only). */
   placeholder?: PlaceholderConfig;
+  /**
+   * On a slide or layout: the master element this item replaces there (the master's
+   * one is hidden on that frame and the frames using it). Deleting it resets to the master.
+   */
+  overrides?: string;
   /** Text content for a text element, or a label on a shape. */
   text?: string;
   fontSize?: number;
@@ -424,4 +455,6 @@ export interface SchemaModel {
   viewport: ViewportModel;
   /** User-defined "home" view that reset-view returns to; null/absent = default. */
   home?: ViewportModel | null;
+  /** The project's custom presentation themes (made on top of the built-in ones). */
+  themes?: SlideTheme[];
 }

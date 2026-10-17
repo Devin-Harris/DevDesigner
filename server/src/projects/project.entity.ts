@@ -59,6 +59,10 @@ export class Project {
   @Column({ type: 'float', nullable: true })
   homeZoom!: number | null;
 
+  // The project's custom presentation themes (JSON array of SlideTheme).
+  @Column({ type: 'text', nullable: true })
+  themesJson!: string | null;
+
   // Sequence-diagram layout config (one row per project; see SequenceConfigModel).
   @Column({ type: 'float', default: 160 })
   seqLifelineSpacing!: number;

@@ -11,6 +11,7 @@ import type {
   ProjectGraphResponse,
   ProjectSummary,
   UpdateHomeDto,
+  UpdateThemesDto,
   UpdateProjectDto,
   UpdateViewportDto,
 } from '@dbdesigner/shared';
@@ -84,6 +85,11 @@ export class ProjectsService {
   /** PATCH /projects/:id/home : set or clear (null) the shared home view. */
   updateHome(id: string, dto: UpdateHomeDto): Observable<void> {
     return this.api.patch<void>(`/projects/${id}/home`, dto);
+  }
+
+  /** PUT /projects/:id/themes : replace the project's custom theme library. */
+  updateThemes(id: string, dto: UpdateThemesDto): Observable<void> {
+    return this.api.put<void>(`/projects/${id}/themes`, dto);
   }
 
   /** PATCH /projects/:id/viewport : persist pan/zoom (debounced client-side). */

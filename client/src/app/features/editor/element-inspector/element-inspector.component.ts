@@ -7,6 +7,11 @@ import {
   type FontFamily,
   type StrokeStyle,
   type UpdateElementDto,
+  DEFAULT_THEME,
+  presentationOf,
+  resolveThemeFont,
+  themeToken,
+  type SlideTheme,
 } from '@dbdesigner/shared';
 import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
@@ -43,8 +48,28 @@ export class ElementInspectorComponent {
   );
   protected readonly widths = [1, 2, 4];
   protected readonly styles: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
-  protected readonly stackOf = fontStack;
   protected readonly fonts = FONT_OPTIONS as { value: FontFamily; label: string }[];
+
+  /** The deck theme of the slide (or layout) this element is on; null off slides. */
+  protected readonly deckTheme = computed<SlideTheme | null>(() => {
+    const el = this.element();
+    const frames = this.store.slideFrames();
+    const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
+    return f ? (this.store.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
+  });
+  protected readonly themeFonts = computed(() => {
+    const t = this.deckTheme();
+    return t
+      ? [
+          { value: themeToken('heading'), label: 'Heading' },
+          { value: themeToken('body'), label: 'Body' },
+        ]
+      : [];
+  });
+  /** CSS font stack for a family key or theme font token. */
+  protected stackOf(key: string): string {
+    return fontStack(resolveThemeFont(key, this.deckTheme() ?? DEFAULT_THEME));
+  }
 
   protected readonly kindLabel = computed(() => {
     const t = this.element().type;

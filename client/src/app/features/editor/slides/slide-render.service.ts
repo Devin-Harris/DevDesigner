@@ -16,6 +16,13 @@ import {
   type SlideTransition,
   type TableModel,
   layoutOf,
+  masterOf,
+  presentableSlides,
+  presentationOf,
+  fieldContext,
+  resolveFields,
+  type FieldContext,
+  resolveThemedElements,
 } from '@dbdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectStore } from '../../../stores/project.store';
@@ -123,10 +130,15 @@ export class SlideRenderService {
         this.store.lifelines(),
         this.store.sequenceMessages(),
         layoutOf(frame, this.store.slideFrames())?.id,
+        masterOf(frame, this.store.slideFrames())?.id,
       );
-      const elements = options.ghosts
-        ? [...mine.elements, ...placeholderGhosts(frame.id, allElements).ghosts]
-        : mine.elements;
+      const themed = resolveThemedElements(
+        options.ghosts ? [...mine.elements, ...placeholderGhosts(frame.id, allElements).ghosts] : mine.elements,
+        allElements,
+      );
+      // Fields ({{slide}}, {{date}}, ...) fill in on slides; layouts keep the tokens.
+      const ctx = frame.slide && !frame.slide.layout ? this.fieldsFor(frame) : null;
+      const elements = ctx ? themed.map((e) => resolveFields(e, ctx)) : themed;
       const tables = mine.tables;
       const sequences = {
         diagrams: mine.diagrams,
@@ -363,6 +375,15 @@ export class SlideRenderService {
     );
     return data;
   }
+
+  /** The field values for one slide of a deck. */
+  private fieldsFor(frame: CanvasElementModel): FieldContext {
+    const name = presentationOf(frame);
+    const ids = presentableSlides(this.store.slideFrames())
+      .filter((f) => presentationOf(f) === name)
+      .map((f) => f.id);
+    return fieldContext(frame.id, ids, name);
+  }
 }
 
 /** The slide as it looks after `step` animation groups: that state's image and what is visible. */
@@ -382,4 +403,6 @@ export function slideAtStep(slide: RenderedSlide, step: number): RenderedSlide {
       messages: slide.sequences.messages.filter((m) => !hidden.has(m.diagramId)),
     },
   };
+
+
 }

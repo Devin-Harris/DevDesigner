@@ -1,4 +1,5 @@
-import { computed, inject } from '@angular/core';
+import { isMasterDeletion, overriddenId } from '../features/editor/canvas/helpers/frame-contents.helper';
+import { computed, inject, untracked } from '@angular/core';
 import type {
   CreateRelationshipDto,
   BatchUpdateDto,
@@ -39,10 +40,17 @@ import {
   presentationSlides,
   presentationLayouts,
   layoutOf,
+  masterOf,
   remapAnimations,
   slideSequence,
+  presentationThemes,
+  resolveThemedElements,
+  resolveThemeFont,
+  DEFAULT_THEME,
+  type SlideTheme,
 } from '@dbdesigner/shared';
 import { MIN_SLIDE_ZOOM, slideViewRegion } from '../features/editor/canvas/helpers/slide-zoom.helper';
+import { setThemeFontResolver } from '../features/editor/canvas/helpers/text-metrics';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
@@ -278,6 +286,7 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     expandedHeight: e.expandedHeight,
     slide: e.slide,
     placeholder: e.placeholder,
+    overrides: e.overrides,
     morphId: e.morphId,
     step: e.step,
     slideId: e.slideId,
@@ -384,10 +393,21 @@ export const ProjectStore = signalStore(
         const shown = shownSlideIds();
         const out = new Set<string>();
         for (const f of frames) {
-          const l = shown.has(f.id) ? layoutOf(f, frames) : undefined;
+          if (!shown.has(f.id)) continue;
+          const l = layoutOf(f, frames);
           if (l && !shown.has(l.id)) out.add(l.id);
+          // The master is drawn under every slide and layout of its deck.
+          const m = masterOf(f, frames);
+          if (m && !shown.has(m.id)) out.add(m.id);
         }
         return out as ReadonlySet<string>;
+      });
+      const themes = computed(() => presentationThemes(schema()?.elements ?? []));
+      // Text measuring resolves `$heading` / `$body` against the item's deck theme.
+      setThemeFontResolver((el) => {
+        const frames = untracked(slideFrames);
+        const f = frames.find((x) => x.id === el.id) ?? frames.find((x) => x.id === el.slideId);
+        return resolveThemeFont(el.fontFamily, (f && untracked(themes).get(presentationOf(f))) || DEFAULT_THEME);
       });
       return {
     slideFrames,
@@ -403,6 +423,13 @@ export const ProjectStore = signalStore(
      * Elements of a layout drawn under a shown slide: on the canvas, but locked (they
      * are edited by showing the layout itself).
      */
+    /** Master items drawn under a shown slide or layout (stacked below layout items). */
+    masterItemIds: computed(() => {
+      const masters = new Set(slideFrames().filter((f) => f.slide?.master).map((f) => f.id));
+      return new Set(
+        masters.size ? (schema()?.elements ?? []).filter((e) => !!e.slideId && masters.has(e.slideId)).map((e) => e.id) : [],
+      ) as ReadonlySet<string>;
+    }),
     layoutItemIds: computed(() => {
       const under = layoutsUnderShown();
       return new Set(
@@ -425,6 +452,10 @@ export const ProjectStore = signalStore(
       return ids as ReadonlySet<string>;
     }),
     elements: computed(() => schema()?.elements ?? []),
+    /** Elements with theme tokens (`$accent1`, `$heading`) resolved per presentation: what renderers draw. */
+    themedElements: computed(() => resolveThemedElements(schema()?.elements ?? [])),
+    /** Each presentation's theme (name -> theme); presentations without one use the default. */
+    presentationThemes: themes,
     /** The slide each presentation shows on the canvas (name -> frame id). */
     shownByPresentation,
     /** The slides shown on the canvas: one per presentation. */
@@ -453,6 +484,25 @@ export const ProjectStore = signalStore(
           elementIds.add(e.id);
         }
       }
+      // Master items a shown slide (or its layout) replaces with its own stand-in; a
+      // slide's stand-in also hides its layout's.
+      const bySlide = new Set<string>();
+      const byLayout = new Set<string>();
+      for (const e of elements) {
+        const of = overriddenId(e);
+        if (!of || !e.slideId) continue;
+        // A deletion marker is never drawn itself.
+        if (isMasterDeletion(e)) elementIds.add(e.id);
+        if (shown.has(e.slideId)) bySlide.add(of);
+        else if (under.has(e.slideId)) byLayout.add(of);
+      }
+      if (bySlide.size || byLayout.size) {
+        for (const e of elements) {
+          if (bySlide.has(e.id) || byLayout.has(e.id) || (e.overrides && e.slideId && under.has(e.slideId) && bySlide.has(overriddenId(e)!))) {
+            elementIds.add(e.id);
+          }
+        }
+      }
       const tableIds = new Set<string>();
       for (const t of schema()?.tables ?? []) {
         if (t.slideId && !shown.has(t.slideId)) {
@@ -474,6 +524,8 @@ export const ProjectStore = signalStore(
     viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
     /** The user-defined home view, or null when none is set. */
     home: computed(() => schema()?.home ?? null),
+    /** The project's custom presentation themes (on top of the built-in ones). */
+    customThemes: computed(() => schema()?.themes ?? []),
     /** The single selected table (only when exactly one is selected), for the inspector. */
     selectedTable: computed(() => {
       const ids = selectedTableIds();
@@ -1876,7 +1928,20 @@ export const ProjectStore = signalStore(
             case 'home.updated':
               setSchema((s) => ({ ...s, home: mutation.home }));
               break;
+            case 'themes.updated':
+              setSchema((s) => ({ ...s, themes: mutation.themes }));
+              break;
           }
+        },
+
+        /** Replace the project's custom theme library (shared with collaborators). */
+        async setCustomThemes(themes: SlideTheme[]): Promise<void> {
+          const projectId = store.projectId();
+          if (!projectId) {
+            return;
+          }
+          setSchema((s) => ({ ...s, themes }));
+          await runSave(() => firstValueFrom(projectsApi.updateThemes(projectId, { themes })));
         },
 
         /** Save (or clear, with null) the shared home view that reset-view returns to. */
@@ -3153,6 +3218,16 @@ export const ProjectStore = signalStore(
           patchState(store, { elementStyle: { ...store.elementStyle(), ...patch } });
         },
 
+        /** Create an element without an undo step or selection (automatic bookkeeping). */
+        async addElementSilently(dto: CreateElementDto): Promise<CanvasElementModel | null> {
+          return createElementRaw(dto);
+        },
+
+        /** Delete an element without an undo step (automatic bookkeeping). */
+        async deleteElementSilently(elementId: string): Promise<void> {
+          await deleteElementRaw(elementId);
+        },
+
         /** Create an element and persist it. Selects it unless `select` is false. */
         async addElement(
           dto: CreateElementDto,
@@ -3699,12 +3774,13 @@ export const ProjectStore = signalStore(
         async deleteElement(elementId: string): Promise<void> {
           const snapshot = store.schema()?.elements.find((e) => e.id === elementId);
           if ((await deleteElementRaw(elementId)) && snapshot) {
-            // Undo re-creates it (new id); redo deletes the re-created element.
+            // Undo re-creates it under the same id, so whatever points at it (a slide's
+            // layout, items on a frame, placeholder copies) still does; redo deletes it.
             const ref = { id: elementId };
             pushHistory({
               undo: async () => {
                 if (store.schema()?.elements.some((e) => e.id === ref.id)) return;
-                const again = await createElementRaw(elementToCreateDto(snapshot));
+                const again = await createElementRaw({ ...elementToCreateDto(snapshot), id: ref.id });
                 if (again) {
                   ref.id = again.id;
                 }

@@ -284,6 +284,17 @@
     ></app-shape-toolbar>
 
     @for (set of slideSets(); track set.name) {
+      @if (set.layoutEdit; as le) {
+        <div
+          class="layout-edit-ring"
+          [style.left.px]="le.left"
+          [style.top.px]="le.top"
+          [style.width.px]="le.width"
+          [style.height.px]="le.height"
+        >
+          <span class="layout-edit-badge"><dbd-icon name="template" />{{ le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name }}</span>
+        </div>
+      }
       <div
         class="slide-bounds"
         [style.left.px]="set.outline.left"

@@ -8,6 +8,7 @@ import {
   type CreateElementDto,
   type UpdateElementDto,
 } from '@dbdesigner/shared';
+import { MASTER_DELETED, isMasterDeletion, overriddenId } from '../canvas/helpers/frame-contents.helper';
 import { elementToCreateDto, type ProjectStore } from '../../../stores/project.store';
 
 type Store = InstanceType<typeof ProjectStore>;
@@ -308,4 +309,119 @@ export function placeholderGhosts(
     });
   }
   return { ghosts, sources };
+}
+
+/**
+ * Master items a frame (a slide or a layout) has replaced with its own stand-in: an
+ * ordinary element of that frame with `overrides` = the master item. Deleting the
+ * stand-in shows the master's (or, on a slide, its layout's stand-in) again.
+ */
+export function masterStandIns(store: Store, frameId: string): CanvasElementModel[] {
+  return store.elements().filter((e) => e.slideId === frameId && !!e.overrides);
+}
+
+/**
+ * Give a frame its own editable copy of an inherited master item (or of its layout's
+ * stand-in for one). `source` is the item as drawn under the frame.
+ */
+export async function standInFor(
+  store: Store,
+  source: CanvasElementModel,
+  frame: CanvasElementModel,
+  silent = false,
+): Promise<CanvasElementModel | null> {
+  const frames = store.slideFrames();
+  const from = frames.find((f) => f.id === source.slideId);
+  const masterId = overriddenId(source) ?? source.id;
+  if (!from || masterStandIns(store, frame.id).some((e) => overriddenId(e) === masterId)) return null;
+  const dto = {
+    ...elementToCreateDto(source),
+      ...moved(source, from, frame),
+      morphId: undefined,
+      step: undefined,
+      groupId: undefined,
+      slideId: frame.id,
+      overrides: masterId,
+    } as CreateElementDto;
+  // A silent copy (made by grabbing the item) leaves no undo step of its own.
+  return silent ? store.addElementSilently(dto) : store.addElement(dto, false);
+}
+
+/**
+ * Deleting a stand-in deletes the master item on its frame: it stays as a marker
+ * (`deleted:` override, never drawn) that "Reset to master" removes.
+ */
+export async function deleteStandIn(store: Store, standIn: CanvasElementModel): Promise<void> {
+  if (isMasterDeletion(standIn)) return;
+  await store.updateElement(standIn.id, { overrides: `${MASTER_DELETED}${overriddenId(standIn)}` });
+}
+
+/** What a stand-in copies: the layout's own stand-in when its slide's layout has one, else the master item. */
+function standInSource(store: Store, standIn: CanvasElementModel): CanvasElementModel | undefined {
+  const of = overriddenId(standIn);
+  const frame = store.slideFrames().find((f) => f.id === standIn.slideId);
+  const layoutId = frame?.slide?.layoutId;
+  const elements = store.elements();
+  return (
+    (layoutId && elements.find((e) => e.slideId === layoutId && overriddenId(e) === of && !isMasterDeletion(e))) ||
+    elements.find((e) => e.id === of)
+  );
+}
+
+/** Whether a stand-in differs from what it copies (deletions always do). */
+export function standInChanged(store: Store, standIn: CanvasElementModel): boolean {
+  if (isMasterDeletion(standIn)) return true;
+  const source = standInSource(store, standIn);
+  const frames = store.slideFrames();
+  const from = source && frames.find((f) => f.id === source.slideId);
+  const frame = frames.find((f) => f.id === standIn.slideId);
+  if (!source || !from || !frame) return true;
+  const at = moved(source, from, frame);
+  if (Math.abs(standIn.x - at.x) > 0.5 || Math.abs(standIn.y - at.y) > 0.5) return true;
+  const skip = new Set(['x', 'y', 'zIndex', 'slideId', 'overrides', 'morphId', 'step', 'groupId']);
+  const a = elementToCreateDto(standIn) as unknown as Record<string, unknown>;
+  const b = elementToCreateDto(source) as unknown as Record<string, unknown>;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].some((k) => !skip.has(k) && JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null));
+}
+
+/** Drop stand-ins so the master's items show again. */
+export async function resetToMaster(store: Store, standIns: readonly CanvasElementModel[]): Promise<void> {
+  for (const e of standIns) await store.deleteElement(e.id);
+}
+
+/**
+ * Before a layout is deleted: each slide using it keeps the layout's look. The layout's
+ * other items (bars, logos, ...) are copied onto the slide under its own content, its
+ * placeholder copies become plain text (empty ones go), and it uses no layout any more.
+ * Call inside a history batch.
+ */
+export async function detachFromLayout(
+  store: Store,
+  layout: CanvasElementModel,
+  /** Frames being deleted too: left alone. */
+  skip?: ReadonlySet<string>,
+): Promise<void> {
+  const items = store
+    .elements()
+    .filter((e) => e.slideId === layout.id && !e.placeholder)
+    .sort((a, b) => a.zIndex - b.zIndex);
+  for (const slide of store
+    .slideFrames()
+    .filter((f) => f.slide?.layoutId === layout.id && !f.slide.layout && !skip?.has(f.id))) {
+    const own = store.elements().filter((e) => e.slideId === slide.id);
+    let z = Math.min(0, ...own.map((e) => e.zIndex)) - items.length - 1;
+    for (const item of items) {
+      await store.addElement(
+        { ...elementToCreateDto(item), ...moved(item, layout, slide), slideId: slide.id, zIndex: ++z } as CreateElementDto,
+        false,
+      );
+    }
+    for (const c of slidePlaceholders(store, slide.id)) {
+      if ((c.text ?? '').trim()) await store.updateElement(c.id, { placeholder: null });
+      else await store.deleteElement(c.id);
+    }
+    const { layoutId: _old, ...rest } = slide.slide!;
+    await store.updateElement(slide.id, { slide: rest });
+  }
 }

@@ -29,6 +29,7 @@ import type {
   TextRun,
 } from '../models';
 import type { SchemaMutation } from '../realtime';
+import type { SlideTheme } from '../slides/themes';
 
 // --- Auth ---
 export interface RegisterDto {
@@ -93,6 +94,10 @@ export interface UpdateViewportDto {
 /** Body for PATCH /projects/:projectId/home; `home: null` clears it. */
 export interface UpdateHomeDto {
   home: { x: number; y: number; zoom: number } | null;
+}
+/** Body for PUT /projects/:projectId/themes: the whole custom theme library. */
+export interface UpdateThemesDto {
+  themes: SlideTheme[];
 }
 export interface ProjectSummary {
   id: string;
@@ -336,6 +341,8 @@ export interface CreateElementDto {
   slide?: SlideConfig;
   /** Text boxes: a layout placeholder, or a slide's copy of one. */
   placeholder?: PlaceholderConfig;
+  /** On a slide or layout: the master element this item stands in for. */
+  overrides?: string;
   /** Morph lineage (set on copies so they morph with their source). */
   morphId?: string;
   step?: number;
@@ -386,6 +393,7 @@ export interface UpdateElementDto {
   /** Frame only: slide config; null removes the frame from the sequence. */
   slide?: SlideConfig | null;
   placeholder?: PlaceholderConfig | null;
+  overrides?: string | null;
   /** Morph lineage; null clears an explicit pairing. */
   morphId?: string | null;
   /** Build step; null clears it. */
@@ -582,4 +590,15 @@ export interface CloneItemsDto {
     startBinding: ElementBinding | null;
     endBinding: ElementBinding | null;
   }>;
+}
+
+/** A theme in the caller's personal library (GET/POST /me/themes). */
+export interface UserThemeResponse {
+  id: string;
+  theme: SlideTheme;
+  createdAt: string;
+}
+/** Body for POST /me/themes. */
+export interface SaveUserThemeDto {
+  theme: SlideTheme;
 }

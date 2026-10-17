@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -18,6 +19,8 @@ import {
   MAX_SLIDE_ANIMATIONS,
   MORPH_BY_OPTIONS,
   PLACEHOLDER_ROLES,
+  LAYOUT_KINDS,
+  type LayoutKind,
   type PlaceholderConfig,
   type PlaceholderRole,
   type MorphBy,
@@ -35,6 +38,7 @@ import {
   type SlideDirection,
   type SlideEasing,
   type SlideTransition,
+  type SlideTheme,
   type SlideTransitionType,
 } from '@dbdesigner/shared';
 
@@ -111,6 +115,109 @@ export class PlaceholderDto implements PlaceholderConfig {
   of?: string;
 }
 
+class SlideThemeColorsDto {
+  @IsString()
+  @MaxLength(32)
+  background!: string;
+
+  @IsString()
+  @MaxLength(32)
+  surface!: string;
+
+  @IsString()
+  @MaxLength(32)
+  heading!: string;
+
+  @IsString()
+  @MaxLength(32)
+  text!: string;
+
+  @IsString()
+  @MaxLength(32)
+  muted!: string;
+
+  @IsString()
+  @MaxLength(32)
+  accent1!: string;
+
+  @IsString()
+  @MaxLength(32)
+  accent2!: string;
+
+  @IsString()
+  @MaxLength(32)
+  accent3!: string;
+
+  @IsString()
+  @MaxLength(32)
+  accent4!: string;
+}
+
+class SlideThemeFontsDto {
+  @IsString()
+  @MaxLength(32)
+  heading!: string;
+
+  @IsString()
+  @MaxLength(32)
+  body!: string;
+}
+
+export class SlideThemeDto implements SlideTheme {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  id?: string;
+
+  @IsOptional()
+  @IsIn(['theme', 'layouts', 'design'])
+  kind?: SlideTheme['kind'];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  themeId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  layoutsId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  designId?: string;
+
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @ValidateNested()
+  @Type(() => SlideThemeColorsDto)
+  colors!: SlideTheme['colors'];
+
+  @ValidateNested()
+  @Type(() => SlideThemeFontsDto)
+  fonts!: SlideTheme['fonts'];
+
+  /** The theme's own layout designs per kind (kept as given). */
+  @IsOptional()
+  @IsObject()
+  layouts?: SlideTheme['layouts'];
+
+  /** The theme's master items (kept as given). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  master?: SlideTheme['master'];
+
+  /** The theme's non-standard layouts (kept as given). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  extraLayouts?: SlideTheme['extraLayouts'];
+}
+
 export class SlideDto implements SlideConfig {
   @IsNumber()
   order!: number;
@@ -154,4 +261,31 @@ export class SlideDto implements SlideConfig {
   @IsString()
   @MaxLength(64)
   layoutId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  defaultLayout?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  master?: boolean;
+
+  @IsOptional()
+  @IsIn(LAYOUT_KINDS)
+  layoutKind?: LayoutKind;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  designId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  layoutSetId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SlideThemeDto)
+  theme?: SlideTheme;
 }

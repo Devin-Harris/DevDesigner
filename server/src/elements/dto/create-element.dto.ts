@@ -209,6 +209,11 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  overrides?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   morphId?: string;
 
   @IsOptional()

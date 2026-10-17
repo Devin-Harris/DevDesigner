@@ -96,6 +96,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     groupId: entity.groupId ?? undefined,
     slide: toSlide(entity.slideJson),
     placeholder: toPlaceholder(entity.placeholderJson),
+    overrides: entity.overrides ?? undefined,
     morphId: entity.morphId ?? undefined,
     step: entity.step ?? undefined,
     slideId: entity.slideId ?? undefined,

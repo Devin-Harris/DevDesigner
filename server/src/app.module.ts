@@ -18,6 +18,7 @@ import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { BatchModule } from './batch/batch.module';
+import { UserThemesModule } from './user-themes/user-themes.module';
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -45,6 +46,7 @@ import { BatchModule } from './batch/batch.module';
     SharingModule,
     ExportModule,
     RealtimeModule,
+    UserThemesModule,
   ],
 })
 export class AppModule {}

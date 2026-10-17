@@ -2,7 +2,7 @@
   <!-- Stroke color -->
   @if (!isImage()) {
   <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
-    <span class="swatch ring" [class.none]="strokeSwatch() === 'transparent'" [style.background-color]="strokeSwatch() === 'theme' ? 'var(--dbd-text)' : strokeSwatch()"></span>
+    <span class="swatch ring" [class.none]="strokeSwatch() === 'transparent'" [style.background-color]="strokeSwatch() === 'theme' ? 'var(--dbd-text)' : colorCss(strokeSwatch())"></span>
   </button>
   <ng-template #strokeMenu let-close>
     <div class="picker">
@@ -12,6 +12,7 @@
         noneValue="transparent"
         noneLabel="No stroke"
         [themeValue]="strokeThemeValue()"
+        [deckTheme]="swatchTheme()"
         (pick)="setStroke($event); close()"
       />
     </div>
@@ -33,6 +34,7 @@
           noneValue="transparent"
           noneLabel="No fill"
           [themeValue]="surfaceFill"
+          [deckTheme]="swatchTheme()"
           (pick)="setFill($event); close()"
         />
       </div>
@@ -151,11 +153,34 @@
 
   <!-- Text / label: font + size + bold/italic + alignment -->
   @if (canHaveText()) {
+    @if (onSlide()) {
+      <button class="tb" [dbdPopoverTrigger]="fieldMenu" placement="below-start" [disabled]="!store.canEdit()"
+        matTooltip="Insert field (slide number, date, ...)">
+        <dbd-icon name="data_object" />
+      </button>
+      <ng-template #fieldMenu let-close>
+        <div class="dbd-menu">
+          <div class="dbd-menu-label">Filled in on every slide</div>
+          <button class="dbd-menu-item" (click)="insertField('Slide {{slide}} of {{total}}'); close()">Slide n of N</button>
+          @for (f of slideFields; track f) {
+            <button class="dbd-menu-item" (click)="insertField(fieldToken(f)); close()">{{ fieldLabels[f] }}</button>
+          }
+        </div>
+      </ng-template>
+    }
     <button class="tb wide" [dbdPopoverTrigger]="fontMenu" placement="below-start" matTooltip="Font" [disabled]="!store.canEdit()">
       <dbd-icon name="font_download" />
     </button>
     <ng-template #fontMenu let-close>
       <div class="dbd-menu">
+        @if (themeFonts().length) {
+          <div class="dbd-menu-label">Theme fonts</div>
+          @for (f of themeFonts(); track f.value) {
+            <button class="dbd-menu-item" [class.on]="f.value === element().fontFamily" [style.font-family]="f.stack" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
+          }
+          <div class="dbd-menu-sep"></div>
+          <div class="dbd-menu-label">Fonts</div>
+        }
         @for (f of fonts; track f.value) {
           <button class="dbd-menu-item" [class.on]="f.value === (element().fontFamily ?? 'normal')" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
         }

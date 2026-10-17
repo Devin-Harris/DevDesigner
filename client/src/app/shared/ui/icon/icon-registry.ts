@@ -143,4 +143,5 @@ export const ICON_PATHS: Record<string, string> = {
   fullscreen: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   notes: '<path d="M5 4h14v16H5zM8.5 9h7M8.5 13h7M8.5 17h4"/>',
   edit_note: '<path d="M4 6h11M4 11h7M4 16h5M14 20l6-6-2.5-2.5-6 6V20z"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
 };

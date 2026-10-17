@@ -12,47 +12,95 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import {
+  BUILT_IN_DESIGNS,
+  BUILT_IN_LAYOUT_SETS,
+  BUILT_IN_THEMES,
+  DEFAULT_DESIGN,
+  DEFAULT_LAYOUT_SET,
+  DEFAULT_THEME,
+  LAYOUT_KINDS,
+  LAYOUT_KIND_LABELS,
+  PLACEHOLDER_ROLES,
+  THEME_COLOR_LABELS,
+  THEME_COLOR_TOKENS,
+  THEME_FILL,
+  THEME_STROKE,
   effectiveTransition,
+  isBuiltInRecord,
+  layoutNameOf,
+  layoutOf,
+  masterOf,
   morphIdForTag,
   morphTagOf,
+  parseThemeFile,
+  presentableSlides,
+  presentationLayouts,
+  presentationMaster,
+  presentationOf,
   presentationSlides,
+  recordKind,
+  themeFile,
+  themeSwatchCss,
+  themeTokensOnly,
+  tokenOf,
   type CanvasElementModel,
+  type FontFamily,
+  type LayoutKind,
   type MorphBy,
+  type ParsedThemeFile,
+  type PlaceholderConfig,
+  type PlaceholderRole,
   type SlideConfig,
   type SlideDirection,
   type SlideEasing,
+  type SlideTheme,
   type SlideTransition,
   type SlideTransitionType,
-  layoutOf,
-  presentationLayouts,
-  layoutNameOf,
-  presentationOf,
-  placeholderPrompt,
-  PLACEHOLDER_ROLES,
-  type PlaceholderRole,
-  type PlaceholderConfig,
+  type ThemeColorToken,
+  type ThemeFilePart,
+  type ThemeFontToken,
 } from '@dbdesigner/shared';
-import {
-  placeholderGhosts,
-  placeholderDrift,
-  resetSlideToLayout,
-  switchLayout,
-  syncLayoutCopies,
-  type PlaceholderDrift,
-} from './layout-placeholders';
 import { ThemeService } from '../../../core/services/theme.service';
+import { UserThemesService } from '../../../core/services/user-themes.service';
 import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+import {
+  SegmentedComponent,
+  type SegmentedOption,
+} from '../../../shared/ui/segmented/segmented.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
 import { TagInputComponent } from '../../../shared/ui/tag-input/tag-input.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { FRAME_PRESETS } from '../canvas/constants/frame-presets';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
+import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
+import { ensureFontLoaded, fitTextElement } from '../canvas/helpers/text-metrics';
 import { AnimationPaneComponent } from './animation-pane.component';
+import {
+  masterStandIns,
+  placeholderDrift,
+  placeholderGhosts,
+  resetSlideToLayout,
+  resetToMaster,
+  standInChanged,
+  switchLayout,
+  syncLayoutCopies,
+  type PlaceholderDrift,
+} from './layout-placeholders';
 import { MorphTagSuggestions } from './morph-tag-suggestions.service';
 import { SlideRenderService } from './slide-render.service';
+import {
+  addStandardLayouts,
+  applyLayoutSet,
+  captureLayoutSet,
+  deckLayouts,
+  isForeignLayout,
+} from './standard-layouts';
 
 /** What the panel asks the editor to do (things that need canvas knowledge). */
 export type SlidesCommand =
@@ -127,514 +175,873 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
   selector: 'app-slides-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnimationPaneComponent, CheckboxComponent, FormsModule, IconComponent, SelectComponent, TagInputComponent],
+  imports: [
+    AnimationPaneComponent,
+    CheckboxComponent,
+    ColorSwatchesComponent,
+    FormsModule,
+    IconComponent,
+    PopoverTriggerDirective,
+    MatTooltipModule,
+    SelectComponent,
+    SegmentedComponent,
+    TagInputComponent,
+  ],
   template: `
     @if (part() === 'list') {
-    <header class="head">
-      <input
-        class="rename"
-        type="text"
-        maxlength="120"
-        aria-label="Presentation name"
-        [value]="presentation()"
-        [disabled]="!canEdit()"
-        (keydown.enter)="$any($event.target).blur()"
-        (keydown.escape)="cancelRename($any($event.target))"
-        (blur)="commitRename($any($event.target))"
-      />
-      @if (canEdit()) {
-        <button
-          class="icon"
-          (click)="command.emit({ kind: 'deletePresentation' })"
-          title="Delete presentation and its slides"
-          aria-label="Delete presentation"
-        >
-          <dbd-icon name="delete" />
-        </button>
-      }
-    </header>
-
-    <div class="actions">
-      <div class="split">
-        <button
-          class="main"
-          [disabled]="!playable()"
-          (click)="command.emit({ kind: 'present', from: 'start' })"
-          title="Present from the first slide"
-        >
-          <dbd-icon name="play_arrow" />Present
-        </button>
-        <button
-          class="from"
-          [disabled]="!playable()"
-          (click)="command.emit({ kind: 'present', from: 'current' })"
-          title="Present from the selected slide"
-        >
-          From here
-        </button>
-      </div>
-      @if (canEdit()) {
-        <div class="newsplit">
-          <button class="btn new" (click)="command.emit({ kind: 'add' })"
-            [title]="newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'">
-            <dbd-icon name="add" />New
-          </button>
-          <button class="btn caret" (click)="newMenu.set(!newMenu())" aria-label="Choose the new slide's layout"
-            title="New slide with a layout…">
-            <dbd-icon name="expand_more" />
-          </button>
-          @if (newMenu()) {
-            <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
-              <button role="menuitem" (click)="addWithLayout(null)">
-                <span class="mthumb blank"></span>Blank slide
-              </button>
-              @for (l of layouts(); track l.id) {
-                <button role="menuitem" (click)="addWithLayout(l.id)">
-                  <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
-                    @if (layoutThumbs().get(l.id); as src) {
-                      <img [src]="src" alt="" draggable="false" />
-                    }
-                  </span>{{ layoutName(l) }}
-                </button>
-              }
-              @if (!layouts().length) {
-                <p class="hint">Add layouts in the settings panel's Layout tab.</p>
-              }
-            </div>
-          }
-        </div>
-      }
-    </div>
-
-    <div class="top">
-      @if (frames().length === 0) {
-        <p class="empty">
-          No slides yet. Press <b>New</b> to add a 16:9 slide, or select a frame and add it here.
-          Only one slide is shown on the canvas at a time; everything inside its frame is part of
-          it.
-        </p>
-      }
-
-      @if (frames().length > 1) {
-        <div class="listbar">
-          <span class="muted">{{ selectedCount() }} selected</span>
-          <button class="link" (click)="selectAll()">Select all</button>
-        </div>
-      }
-
-    </div>
-
-    <!-- Only the slide cards scroll; the controls above and the details below stay put. -->
-    <div
-      class="cards"
-      tabindex="0"
-      (keydown.arrowUp)="stepSlide(-1, $event)"
-      (keydown.arrowDown)="stepSlide(1, $event)"
-    >
-      <ol class="list" [class.reordering]="draggingIndex() !== null">
-        @for (f of shown(); track f.id; let i = $index) {
-          <li
-            class="card"
-            [class.on]="isSelected(f.id)"
-            [class.current]="f.id === (shownLayout() ? lastSlide() : active_())"
-            [class.hidden]="!!f.slide?.hidden"
-            [class.dragging]="draggingIndex() === i && !cloning()"
-            [class.settling]="draggingIndex() === i && !cloning() && settling()"
-            [class.pending]="f.id === pendingCloneId"
-            [style.transform]="cardTransform(i)"
-            (pointerdown)="onCardDown(i, $event)"
-            (click)="onRowClick(f, $event)"
-            title="Drag to reorder · Alt-drag to duplicate"
+      <header class="head">
+        <input
+          class="rename"
+          type="text"
+          maxlength="120"
+          aria-label="Presentation name"
+          [value]="presentation()"
+          [disabled]="!canEdit()"
+          (keydown.enter)="$any($event.target).blur()"
+          (keydown.escape)="cancelRename($any($event.target))"
+          (blur)="commitRename($any($event.target))"
+        />
+        @if (canEdit()) {
+          <button
+            class="icon"
+            (click)="command.emit({ kind: 'deletePresentation' })"
+            title="Delete presentation and its slides"
+            aria-label="Delete presentation"
           >
-            <span class="num">{{ i + 1 }}</span>
-            <span class="thumb" [style.aspect-ratio]="f.width + ' / ' + f.height">
-              @if (thumbs().get(thumbId(f)); as src) {
-                <img [src]="src" alt="" draggable="false" />
-              }
-            </span>
-            @if (canEdit() && f.id !== pendingCloneId) {
-              <span class="icons" (click)="$event.stopPropagation()">
-                <button
-                  class="icon"
-                  (click)="toggleHidden(f)"
-                  [title]="
-                    f.slide?.hidden
-                      ? 'Skipped: include in the presentation'
-                      : 'Skip in the presentation'
-                  "
-                  aria-label="Skip slide"
-                >
-                  <dbd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
-                </button>
-                <button
-                  class="icon"
-                  (click)="command.emit({ kind: 'duplicate', id: f.id })"
-                  title="Duplicate slide"
-                  aria-label="Duplicate slide"
-                >
-                  <dbd-icon name="content_copy" />
-                </button>
-                <button
-                  class="icon"
-                  (click)="command.emit({ kind: 'delete', id: f.id })"
-                  title="Delete slide and its contents"
-                  aria-label="Delete slide"
-                >
-                  <dbd-icon name="delete" />
-                </button>
-              </span>
+            <dbd-icon name="delete" />
+          </button>
+        }
+      </header>
+
+      <div class="actions">
+        <div class="split">
+          <button
+            class="main"
+            [disabled]="!playable()"
+            (click)="command.emit({ kind: 'present', from: 'start' })"
+            title="Present from the first slide"
+          >
+            <dbd-icon name="play_arrow" />Present
+          </button>
+          <button
+            class="from"
+            [disabled]="!playable()"
+            (click)="command.emit({ kind: 'present', from: 'current' })"
+            title="Present from the selected slide"
+          >
+            From here
+          </button>
+        </div>
+        @if (canEdit()) {
+          <div class="newsplit">
+            <button
+              class="btn new"
+              (click)="command.emit({ kind: 'add' })"
+              [title]="
+                newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'
+              "
+            >
+              <dbd-icon name="add" />New
+            </button>
+            <button
+              class="btn caret"
+              (click)="newMenu.set(!newMenu())"
+              aria-label="Choose the new slide's layout"
+              title="New slide with a layout…"
+            >
+              <dbd-icon name="expand_more" />
+            </button>
+            @if (newMenu()) {
+              <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
+                @for (l of menuLayouts(); track l.id) {
+                  <button role="menuitem" (click)="addWithLayout(l.id)">
+                    <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                      @if (layoutThumbs().get(l.id); as src) {
+                        <img [src]="src" alt="" draggable="false" />
+                      }</span
+                    >{{ layoutName(l) }}
+                  </button>
+                }
+                @if (!layouts().length) {
+                  <p class="hint">Add layouts in the settings panel's Design tab.</p>
+                }
+              </div>
             }
-          </li>
+          </div>
         }
-        <!-- Alt-drag: the original stays put while this copy follows the pointer. -->
-        @if (cloneGhost(); as g) {
-          <li
-            class="card dragging ghost"
-            [class.settling]="settling()"
-            [style.top.px]="g.top"
-            [style.height.px]="g.height"
-            [style.transform]="'translateY(' + dragDy() + 'px) scale(1.02)'"
-          >
-            <span class="num">+</span>
-            <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
-              @if (thumbs().get(g.id); as src) {
-                <img [src]="src" alt="" draggable="false" />
-              }
-            </span>
-          </li>
-        }
-      </ol>
-    </div>
+      </div>
 
+      <div class="top">
+        @if (frames().length === 0) {
+          <p class="empty">
+            No slides yet. Press <b>New</b> to add a 16:9 slide, or select a frame and add it here.
+            Only one slide is shown on the canvas at a time; everything inside its frame is part of
+            it.
+          </p>
+        }
+
+        @if (frames().length > 1) {
+          <div class="listbar">
+            <span class="muted">{{ selectedCount() }} selected</span>
+            <button class="link" (click)="selectAll()">Select all</button>
+          </div>
+        }
+      </div>
+
+      <!-- Only the slide cards scroll; the controls above and the details below stay put. -->
+      <div
+        class="cards"
+        tabindex="0"
+        (keydown.arrowUp)="stepSlide(-1, $event)"
+        (keydown.arrowDown)="stepSlide(1, $event)"
+      >
+        <ol class="list" [class.reordering]="draggingIndex() !== null">
+          @for (f of shown(); track f.id; let i = $index) {
+            <li
+              class="card"
+              [class.on]="isSelected(f.id)"
+              [class.current]="f.id === (shownLayout() ? lastSlide() : active_())"
+              [class.hidden]="!!f.slide?.hidden"
+              [class.dragging]="draggingIndex() === i && !cloning()"
+              [class.settling]="draggingIndex() === i && !cloning() && settling()"
+              [class.pending]="f.id === pendingCloneId"
+              [style.transform]="cardTransform(i)"
+              (pointerdown)="onCardDown(i, $event)"
+              (click)="onRowClick(f, $event)"
+              title="Drag to reorder · Alt-drag to duplicate"
+            >
+              <span class="num">{{ i + 1 }}</span>
+              <span class="thumb" [style.aspect-ratio]="f.width + ' / ' + f.height">
+                @if (thumbs().get(thumbId(f)); as src) {
+                  <img [src]="src" alt="" draggable="false" />
+                }
+                @if (slideForeign(f)) {
+                  <dbd-icon
+                    name="warning"
+                    class="foreign"
+                    matTooltip="Its layout is not one of this design's layouts"
+                  />
+                }
+              </span>
+              @if (canEdit() && f.id !== pendingCloneId) {
+                <span class="icons" (click)="$event.stopPropagation()">
+                  <button
+                    class="icon"
+                    (click)="toggleHidden(f)"
+                    [title]="
+                      f.slide?.hidden
+                        ? 'Skipped: include in the presentation'
+                        : 'Skip in the presentation'
+                    "
+                    aria-label="Skip slide"
+                  >
+                    <dbd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
+                  </button>
+                  <button
+                    class="icon"
+                    (click)="command.emit({ kind: 'duplicate', id: f.id })"
+                    title="Duplicate slide"
+                    aria-label="Duplicate slide"
+                  >
+                    <dbd-icon name="content_copy" />
+                  </button>
+                  <button
+                    class="icon"
+                    (click)="command.emit({ kind: 'delete', id: f.id })"
+                    title="Delete slide and its contents"
+                    aria-label="Delete slide"
+                  >
+                    <dbd-icon name="delete" />
+                  </button>
+                </span>
+              }
+            </li>
+          }
+          <!-- Alt-drag: the original stays put while this copy follows the pointer. -->
+          @if (cloneGhost(); as g) {
+            <li
+              class="card dragging ghost"
+              [class.settling]="settling()"
+              [style.top.px]="g.top"
+              [style.height.px]="g.height"
+              [style.transform]="'translateY(' + dragDy() + 'px) scale(1.02)'"
+            >
+              <span class="num">+</span>
+              <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
+                @if (thumbs().get(g.id); as src) {
+                  <img [src]="src" alt="" draggable="false" />
+                }
+              </span>
+            </li>
+          }
+        </ol>
+      </div>
     }
 
     @if (part() === 'settings') {
-    <div class="below" [class.folded]="folded()">
-      @if (folded()) {
-        <button
-          class="strip"
-          (click)="command.emit({ kind: 'fold' })"
-          aria-label="Expand slide settings"
-          title="Expand slide settings"
-        >
-          <dbd-icon name="chevron_left" />
-          <span class="vert">Slide settings</span>
-        </button>
-      } @else {
-      <div class="tabs" role="tablist">
-        <button class="tab" [class.on]="tab() === 'transition'" (click)="pick('transition')">
-          Transition
-        </button>
-        <button class="tab" [class.on]="tab() === 'size'" (click)="pick('size')">
-          Size
-        </button>
-        <button class="tab" [class.on]="tab() === 'layout'" (click)="pick('layout')">
-          Layout
-        </button>
-        <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">
-          Notes
-        </button>
-        @if (active()) {
-          <button class="tab" [class.on]="tab() === 'animations'" (click)="pick('animations')">
-            Animations
+      <div class="below" [class.folded]="folded()">
+        @if (folded()) {
+          <button
+            class="strip"
+            (click)="command.emit({ kind: 'fold' })"
+            aria-label="Expand slide settings"
+            title="Expand slide settings"
+          >
+            <dbd-icon name="chevron_left" />
+            <span class="vert">Slide settings</span>
           </button>
-        }
-        <button
-          class="icon fold"
-          (click)="command.emit({ kind: 'fold' })"
-          aria-label="Collapse slide settings"
-          title="Collapse to the side"
-        >
-          <dbd-icon name="chevron_right" />
-        </button>
-      </div>
+        } @else {
+          <div class="tabs" role="tablist">
+            <button class="tab" [class.on]="tab() === 'transition'" (click)="pick('transition')">
+              Transition
+            </button>
+            <button class="tab" [class.on]="tab() === 'size'" (click)="pick('size')">Size</button>
+            <button class="tab" [class.on]="tab() === 'design'" (click)="pick('design')">
+              Design
+            </button>
+            <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">
+              Notes
+            </button>
+            @if (active()) {
+              <button class="tab" [class.on]="tab() === 'animations'" (click)="pick('animations')">
+                Animations
+              </button>
+            }
+            <button
+              class="icon fold"
+              (click)="command.emit({ kind: 'fold' })"
+              aria-label="Collapse slide settings"
+              title="Collapse to the side"
+            >
+              <dbd-icon name="chevron_right" />
+            </button>
+          </div>
 
-      @if (tab()) {
-        <div class="tabbody">
-          @switch (tab()) {
-            @case ('transition') {
-              @if (active(); as a) {
-                <div class="who">
-                  {{
-                    activeSlides().length > 1
-                      ? activeSlides().length + ' slides'
-                      : 'Slide ' + activeNumber()
-                  }}
-                  @if (activeSlides().length <= 1) {
-                    <button class="link" (click)="command.emit({ kind: 'preview', id: a.id })">
-                      <dbd-icon name="play_arrow" />Preview
-                    </button>
+          @if (tab()) {
+            <div class="tabbody">
+              @switch (tab()) {
+                @case ('transition') {
+                  @if (active(); as a) {
+                    <div class="who">
+                      {{
+                        activeSlides().length > 1
+                          ? activeSlides().length + ' slides'
+                          : 'Slide ' + activeNumber()
+                      }}
+                      @if (activeSlides().length <= 1) {
+                        <button class="link" (click)="command.emit({ kind: 'preview', id: a.id })">
+                          <dbd-icon name="play_arrow" />Preview
+                        </button>
+                      }
+                    </div>
+                    @if (!hasTransitionTarget()) {
+                      <p class="hint">The first slide has no transition into it.</p>
+                    } @else {
+                      <label class="field">
+                        <span
+                          >Transition into
+                          {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span
+                        >
+                        <dbd-select
+                          [options]="typeOptions"
+                          [ngModel]="transition().type"
+                          [disabled]="!canEdit()"
+                          (ngModelChange)="setTransition({ type: $event })"
+                        />
+                      </label>
+                      @if (transition().type === 'slide') {
+                        <label class="field">
+                          <span>Direction</span>
+                          <dbd-select
+                            [options]="directionOptions"
+                            [ngModel]="transition().direction ?? 'left'"
+                            [disabled]="!canEdit()"
+                            (ngModelChange)="setTransition({ direction: $event })"
+                          />
+                        </label>
+                      }
+                      @if (transition().type !== 'none') {
+                        <div class="two">
+                          <label class="field">
+                            <span>Duration (ms)</span>
+                            <input
+                              type="number"
+                              min="100"
+                              max="5000"
+                              step="100"
+                              [ngModel]="transition().duration"
+                              [disabled]="!canEdit()"
+                              (change)="setDuration($any($event.target).value)"
+                            />
+                          </label>
+                          <label class="field">
+                            <span>Easing</span>
+                            <dbd-select
+                              [options]="easingOptions"
+                              [ngModel]="transition().easing"
+                              [disabled]="!canEdit()"
+                              (ngModelChange)="setTransition({ easing: $event })"
+                            />
+                          </label>
+                        </div>
+                      }
+                      @if (transition().type === 'morph') {
+                        <label class="field">
+                          <span>Animate text by</span>
+                          <dbd-select
+                            [options]="morphByOptions"
+                            [ngModel]="transition().morphBy ?? 'character'"
+                            [disabled]="!canEdit()"
+                            (ngModelChange)="setTransition({ morphBy: $event })"
+                          />
+                        </label>
+                        <p class="hint">
+                          Characters: letters and words glide. Words: whole words glide. Objects:
+                          text moves as one piece and cross-fades.
+                        </p>
+                      }
+                      @if (canEdit() && frames().length > 2) {
+                        <button class="link" (click)="applyToAll()">Apply to all slides</button>
+                      }
+                    }
+                  } @else {
+                    <p class="hint">Select a slide to set its transition.</p>
                   }
-                </div>
-                @if (!hasTransitionTarget()) {
-                  <p class="hint">The first slide has no transition into it.</p>
-                } @else {
-                  <label class="field">
-                    <span>Transition into {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span>
-                    <dbd-select
-                      [options]="typeOptions"
-                      [ngModel]="transition().type"
-                      [disabled]="!canEdit()"
-                      (ngModelChange)="setTransition({ type: $event })"
-                    />
-                  </label>
-                  @if (transition().type === 'slide') {
-                    <label class="field">
-                      <span>Direction</span>
-                      <dbd-select
-                        [options]="directionOptions"
-                        [ngModel]="transition().direction ?? 'left'"
-                        [disabled]="!canEdit()"
-                        (ngModelChange)="setTransition({ direction: $event })"
+                  @if (canEdit() && morphRelevant()) {
+                    @if (tagCount() > 0) {
+                      <div class="field">
+                        <span>Morph tag</span>
+                        <dbd-tag-input
+                          [value]="morphTag()"
+                          [suggestions]="morphTagSuggestions()"
+                          [taken]="takenTags()"
+                          [maxlength]="80"
+                          [disabled]="!store.canEdit() || tagCount() > 1"
+                          [placeholder]="
+                            tagCount() > 1
+                              ? 'Select a single object to tag it'
+                              : 'Name it, or pick one from the previous slide'
+                          "
+                          (commit)="setMorphTag($event)"
+                        />
+                      </div>
+                      <p class="hint">
+                        Tagged objects only morph into the object with the same tag on the next
+                        slide; they are never matched to look-alikes.
+                      </p>
+                    }
+                    @if (pairable()) {
+                      <button class="btn wide" (click)="pairSelected()">
+                        Treat the {{ pairable() }} selected items as the same object (morph)
+                      </button>
+                    }
+                  }
+                }
+                @case ('design') {
+                  <input
+                    #designFileInput
+                    type="file"
+                    accept=".json,application/json"
+                    hidden
+                    (change)="importDesign(designFileInput)"
+                  />
+                  <div class="sub">
+                    <span class="subt">
+                      Design
+                      <dbd-icon
+                        name="info"
+                        class="info"
+                        tabindex="0"
+                        matTooltip="A design is one set of layouts plus the theme it uses. The Default design uses the standard layouts and the Default theme; changing a layout, or a theme's colors or fonts, saves a custom design, so the defaults never change."
                       />
-                    </label>
+                    </span>
+                    @if (canEdit()) {
+                      <span class="sub-actions">
+                        <button
+                          class="icon"
+                          (click)="newDesign()"
+                          aria-label="New design"
+                          matTooltip="New design: a copy of this one (its layouts and theme) to change"
+                        >
+                          <dbd-icon name="add" />
+                        </button>
+                        @if (designIsCustom()) {
+                          <button
+                            class="icon"
+                            (click)="deleteDesign()"
+                            aria-label="Delete design"
+                            matTooltip="Delete this design; the deck goes back to the Default layouts"
+                          >
+                            <dbd-icon name="delete" />
+                          </button>
+                        }
+                        <button
+                          class="icon"
+                          (click)="exportDesign('design')"
+                          aria-label="Export design"
+                          matTooltip="Download this design (its layouts and theme) as one file"
+                        >
+                          <dbd-icon name="download" />
+                        </button>
+                        <button
+                          class="icon"
+                          (click)="importPart.set('design'); designFileInput.click()"
+                          aria-label="Import design"
+                          matTooltip="Add a design from a file and use it"
+                        >
+                          <dbd-icon name="upload" />
+                        </button>
+                      </span>
+                    }
+                  </div>
+                  <dbd-select
+                    class="design-pick"
+                    aria-label="Design"
+                    [options]="designOptions()"
+                    [ngModel]="design().id"
+                    [disabled]="!canEdit()"
+                    (ngModelChange)="pickDesign($event)"
+                    (rename)="renameRecord($event.value, $event.label)"
+                  />
+                  @if (themeNote() ?? relayoutNote(); as note) {
+                    <p class="hint">{{ note }}</p>
                   }
-                  @if (transition().type !== 'none') {
+                  <dbd-segmented
+                    class="design-seg"
+                    [options]="designTabOptions"
+                    [ngModel]="designTab()"
+                    (ngModelChange)="designTab.set($event)"
+                  />
+                  @if (designTab() === 'layouts') {
+                    @if (shownLayout(); as l) {
+                      <div class="sub">
+                        <span class="subt">
+                          {{ l.slide?.master ? 'Master' : 'Layout' }}
+                          <dbd-icon
+                            name="info"
+                            class="info"
+                            tabindex="0"
+                            [matTooltip]="
+                              l.slide?.master
+                                ? 'The master is drawn under every slide and layout. Put logos, footers and fields here.'
+                                : 'Items drawn here show, locked, under every slide using this layout. Mark a text box as a placeholder and each slide gets its own empty copy to type into (shown faded until something is typed).'
+                            "
+                          />
+                        </span>
+                      </div>
+                      <label class="field" [hidden]="!!l.slide?.master">
+                        <span>Layout name</span>
+                        <input
+                          class="text-input"
+                          type="text"
+                          maxlength="120"
+                          aria-label="Layout name"
+                          [value]="layoutName(l)"
+                          [disabled]="!canEdit()"
+                          (keydown.enter)="$any($event.target).blur()"
+                          (blur)="renameLayout(l, $any($event.target))"
+                        />
+                      </label>
+                      @if (layoutTextSelection().length; as n) {
+                        <div class="field">
+                          <dbd-checkbox
+                            [ngModel]="!!layoutTextSelection()[0].placeholder"
+                            [disabled]="!canEdit()"
+                            (ngModelChange)="setPlaceholder($event)"
+                          >
+                            {{
+                              n > 1
+                                ? 'Selected text boxes are placeholders'
+                                : 'Selected text box is a placeholder'
+                            }}
+                          </dbd-checkbox>
+                        </div>
+                        @if (layoutTextSelection()[0].placeholder; as ph) {
+                          <label class="field">
+                            <span>Style type</span>
+                            <dbd-select
+                              [options]="roleOptions"
+                              [ngModel]="ph.role ?? ''"
+                              [disabled]="!canEdit()"
+                              (ngModelChange)="setRole($event)"
+                            />
+                          </label>
+                        }
+                      }
+                      <div class="row">
+                        <button class="btn" (click)="backToSlide()">
+                          <dbd-icon name="chevron_left" />Back to slides
+                        </button>
+                        @if (canEdit() && !shownLayout()?.slide?.master) {
+                          <button
+                            class="btn"
+                            (click)="command.emit({ kind: 'add' })"
+                            title="Add a slide that uses this layout"
+                          >
+                            <dbd-icon name="add" />New slide
+                          </button>
+                        }
+                      </div>
+                    }
+                    @if (active() && !shownLayout()) {
+                      <label class="field">
+                        <span
+                          >Layout of
+                          {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span
+                        >
+                        <dbd-select
+                          [options]="layoutOptions()"
+                          [ngModel]="activeLayoutValue()"
+                          [disabled]="!canEdit() || !layouts().length"
+                          (ngModelChange)="setLayout($event)"
+                        />
+                      </label>
+                    }
+                    @if (canEdit() && drift(); as d) {
+                      <div class="field">
+                        <span>{{ driftLabel(d) }}</span>
+                        @if (selectedDrifted().length) {
+                          <button
+                            class="btn wide"
+                            (click)="resetSlide(true)"
+                            title="Put the selected placeholders back where and how the layout has them; keeps the text"
+                          >
+                            <dbd-icon name="undo" />Reset selected to layout
+                          </button>
+                        } @else {
+                          <button
+                            class="btn wide"
+                            (click)="resetSlide(false)"
+                            title="Put every placeholder back where and how the layout has them and bring back deleted ones; keeps the text"
+                          >
+                            <dbd-icon name="undo" />Reset slide to layout
+                          </button>
+                        }
+                      </div>
+                    }
+                    @if (canEdit() && standIns().length) {
+                      <div class="field">
+                        <span
+                          >{{ standIns().length }} master item{{
+                            standIns().length > 1 ? 's' : ''
+                          }}
+                          changed on this {{ shownLayout() ? 'layout' : 'slide' }}</span
+                        >
+                        @if (selectedStandIns().length) {
+                          <button
+                            class="btn wide"
+                            (click)="resetMaster(true)"
+                            title="Show the master's version of the selected items again"
+                          >
+                            <dbd-icon name="undo" />Reset selected to master
+                          </button>
+                        } @else {
+                          <button
+                            class="btn wide"
+                            (click)="resetMaster(false)"
+                            title="Show the master's version of every item changed here again"
+                          >
+                            <dbd-icon name="undo" />Reset to master
+                          </button>
+                        }
+                      </div>
+                    }
+                    <div class="listbar">
+                      <span class="muted subt">
+                        Layouts
+                        <dbd-icon
+                          name="info"
+                          class="info"
+                          tabindex="0"
+                          matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. Standard layouts follow the theme's design; the master shows under all of them."
+                        />
+                      </span>
+                      @if (canEdit()) {
+                        <span class="listbar-actions">
+                          <button
+                            class="icon"
+                            (click)="exportDesign('layouts')"
+                            aria-label="Export layouts"
+                            matTooltip="Download this design's layouts and master as a file"
+                          >
+                            <dbd-icon name="download" />
+                          </button>
+                          <button
+                            class="icon"
+                            (click)="importPart.set('layouts'); designFileInput.click()"
+                            aria-label="Import layouts"
+                            matTooltip="Use layouts from a file in this design (its theme stays)"
+                          >
+                            <dbd-icon name="upload" />
+                          </button>
+                          <button
+                            class="link"
+                            [dbdPopoverTrigger]="standardMenu"
+                            placement="below-end"
+                            matTooltip="Add ready-made layouts that follow the theme"
+                          >
+                            <dbd-icon name="template" />Standard
+                          </button>
+                          <button
+                            class="link"
+                            (click)="command.emit({ kind: 'add', layout: true })"
+                            matTooltip="Add an empty layout"
+                          >
+                            <dbd-icon name="add" />Layout
+                          </button>
+                        </span>
+                        <ng-template #standardMenu let-close>
+                          <div class="dbd-menu">
+                            <button
+                              class="dbd-menu-item"
+                              (click)="addStandard(standardKinds); close()"
+                            >
+                              All standard layouts
+                            </button>
+                            <div class="dbd-menu-sep"></div>
+                            @for (k of standardKinds; track k) {
+                              <button class="dbd-menu-item" (click)="addStandard([k]); close()">
+                                {{ kindLabels[k] }}
+                              </button>
+                            }
+                          </div>
+                        </ng-template>
+                      }
+                    </div>
+                    <ol class="layout-list">
+                      @if (master(); as m) {
+                        <li
+                          class="lcard"
+                          [class.current]="m.id === active_()"
+                          (click)="command.emit({ kind: 'focus', id: m.id })"
+                          title="Edit the master: logos, footers and fields (slide number, date) placed here show on every slide"
+                        >
+                          <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
+                            @if (thumbs().get(m.id); as src) {
+                              <img [src]="src" alt="" draggable="false" />
+                            }
+                          </span>
+                          <span class="lname">Master</span>
+                        </li>
+                      }
+                      @for (l of designLayouts(); track l.id) {
+                        <li
+                          class="lcard"
+                          [class.current]="l.id === active_()"
+                          (click)="command.emit({ kind: 'focus', id: l.id })"
+                          [title]="'Edit layout ' + layoutName(l)"
+                        >
+                          <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                            @if (thumbs().get(l.id); as src) {
+                              <img [src]="src" alt="" draggable="false" />
+                            }
+                          </span>
+                          <span class="lname">{{ layoutName(l) }}</span>
+                          @if (canEdit()) {
+                            <span class="licons">
+                              <button
+                                class="icon"
+                                (click)="
+                                  $event.stopPropagation();
+                                  command.emit({ kind: 'duplicate', id: l.id })
+                                "
+                                title="Duplicate layout"
+                                aria-label="Duplicate layout"
+                              >
+                                <dbd-icon name="content_copy" />
+                              </button>
+                              @if (!l.slide?.defaultLayout) {
+                                <button
+                                  class="icon"
+                                  (click)="
+                                    $event.stopPropagation();
+                                    command.emit({ kind: 'delete', id: l.id })
+                                  "
+                                  title="Delete layout and its items"
+                                  aria-label="Delete layout"
+                                >
+                                  <dbd-icon name="delete" />
+                                </button>
+                              }
+                            </span>
+                          }
+                        </li>
+                      }
+                    </ol>
+                    @if (!designLayouts().length) {
+                      <p class="hint">No layouts yet.</p>
+                    }
+                  } @else {
+                    <div class="sub">
+                      <span class="subt">
+                        Theme
+                        <dbd-icon
+                          name="info"
+                          class="info"
+                          tabindex="0"
+                          matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy."
+                        />
+                      </span>
+                      @if (canEdit()) {
+                        <span class="sub-actions">
+                          @if (themeIsCustom()) {
+                            <button
+                              class="icon"
+                              (click)="deleteTheme()"
+                              aria-label="Delete theme"
+                              matTooltip="Delete this theme; the deck takes the Default theme"
+                            >
+                              <dbd-icon name="delete" />
+                            </button>
+                          }
+                          <button
+                            class="icon"
+                            (click)="exportDesign('theme')"
+                            aria-label="Export theme"
+                            matTooltip="Download this theme's colors and fonts as a file"
+                          >
+                            <dbd-icon name="download" />
+                          </button>
+                          <button
+                            class="icon"
+                            (click)="importPart.set('theme'); designFileInput.click()"
+                            aria-label="Import theme"
+                            matTooltip="Add a theme from a file and use it in this design (its layouts stay)"
+                          >
+                            <dbd-icon name="upload" />
+                          </button>
+                        </span>
+                      }
+                    </div>
+                    <dbd-select
+                      class="design-pick"
+                      aria-label="Theme"
+                      [options]="themeOptions()"
+                      [ngModel]="deckTheme().id ?? 'default'"
+                      [disabled]="!canEdit()"
+                      (ngModelChange)="pickTheme($event)"
+                      (rename)="renameRecord($event.value, $event.label)"
+                    />
+                    <div class="field">
+                      <span>Colors</span>
+                      <div class="token-grid">
+                        @for (k of colorTokens; track k) {
+                          <button
+                            type="button"
+                            class="token"
+                            [dbdPopoverTrigger]="tokenPicker"
+                            placement="below-start"
+                            [disabled]="!canEdit()"
+                            [title]="colorLabels[k]"
+                          >
+                            <span
+                              class="tsw"
+                              [class.none]="deckTheme().colors[k] === 'transparent'"
+                              [class.follow]="isFollow(deckTheme().colors[k])"
+                              [style.background]="
+                                deckTheme().colors[k] === 'transparent' || isFollow(deckTheme().colors[k])
+                                  ? null
+                                  : css(deckTheme().colors[k])
+                              "
+                            >
+                              @if (isFollow(deckTheme().colors[k])) {
+                                <dbd-icon name="contrast" />
+                              }
+                            </span>
+                            <span class="tlabel">{{ colorLabels[k] }}</span>
+                          </button>
+                          <ng-template #tokenPicker let-close>
+                            <div class="picker">
+                              <dbd-color-swatches
+                                [value]="deckTheme().colors[k]"
+                                noneValue="transparent"
+                                noneLabel="None"
+                                [themeValue]="followValue(k)"
+                                (pick)="setThemeColor(k, $event); close()"
+                              />
+                            </div>
+                          </ng-template>
+                        }
+                      </div>
+                    </div>
                     <div class="two">
                       <label class="field">
-                        <span>Duration (ms)</span>
-                        <input
-                          type="number"
-                          min="100"
-                          max="5000"
-                          step="100"
-                          [ngModel]="transition().duration"
+                        <span>Heading font</span>
+                        <dbd-select
+                          [options]="fontOptions"
+                          [ngModel]="deckTheme().fonts.heading"
                           [disabled]="!canEdit()"
-                          (change)="setDuration($any($event.target).value)"
+                          (ngModelChange)="setThemeFont('heading', $event)"
                         />
                       </label>
                       <label class="field">
-                        <span>Easing</span>
+                        <span>Body font</span>
                         <dbd-select
-                          [options]="easingOptions"
-                          [ngModel]="transition().easing"
+                          [options]="fontOptions"
+                          [ngModel]="deckTheme().fonts.body"
                           [disabled]="!canEdit()"
-                          (ngModelChange)="setTransition({ easing: $event })"
+                          (ngModelChange)="setThemeFont('body', $event)"
                         />
                       </label>
                     </div>
                   }
-                  @if (transition().type === 'morph') {
+                }
+                @case ('size') {
+                  @if (canEdit()) {
                     <label class="field">
-                      <span>Animate text by</span>
+                      <span>Size of every slide</span>
                       <dbd-select
-                        [options]="morphByOptions"
-                        [ngModel]="transition().morphBy ?? 'character'"
-                        [disabled]="!canEdit()"
-                        (ngModelChange)="setTransition({ morphBy: $event })"
+                        [options]="sizeOptions()"
+                        [ngModel]="sizeValue()"
+                        (ngModelChange)="setSize($event)"
                       />
                     </label>
+                  } @else {
                     <p class="hint">
-                      Characters: letters and words glide. Words: whole words glide. Objects: text
-                      moves as one piece and cross-fades.
+                      Slides are
+                      {{ sizeValue() === 'custom' ? 'a custom size' : 'sized by preset' }}.
                     </p>
                   }
-                  @if (canEdit() && frames().length > 2) {
-                    <button class="link" (click)="applyToAll()">Apply to all slides</button>
-                  }
                 }
-              } @else {
-                <p class="hint">Select a slide to set its transition.</p>
-              }
-              @if (canEdit() && morphRelevant()) {
-              @if (tagCount() > 0) {
-                <div class="field">
-                  <span>Morph tag</span>
-                  <dbd-tag-input
-                    [value]="morphTag()"
-                    [suggestions]="morphTagSuggestions()"
-                    [taken]="takenTags()"
-                    [maxlength]="80"
-                    [disabled]="!store.canEdit() || tagCount() > 1"
-                    [placeholder]="
-                      tagCount() > 1
-                        ? 'Select a single object to tag it'
-                        : 'Name it, or pick one from the previous slide'
-                    "
-                    (commit)="setMorphTag($event)"
-                  />
-                </div>
-                <p class="hint">
-                  Tagged objects only morph into the object with the same tag on the next slide;
-                  they are never matched to look-alikes.
-                </p>
-              }
-              @if (pairable()) {
-                <button class="btn wide" (click)="pairSelected()">
-                  Treat the {{ pairable() }} selected items as the same object (morph)
-                </button>
-              }
-            
-              }
-            }
-            @case ('layout') {
-              @if (active() && !shownLayout()) {
-                <label class="field">
-                  <span>Layout of {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span>
-                  <dbd-select
-                    [options]="layoutOptions()"
-                    [ngModel]="activeLayoutValue()"
-                    [disabled]="!canEdit() || !layouts().length"
-                    (ngModelChange)="setLayout($event)"
-                  />
-                </label>
-              }
-              @if (canEdit() && drift(); as d) {
-                <div class="field">
-                  <span>{{ driftLabel(d) }}</span>
-                  @if (selectedDrifted().length) {
-                    <button class="btn wide" (click)="resetSlide(true)"
-                      title="Put the selected placeholders back where and how the layout has them; keeps the text">
-                      <dbd-icon name="undo" />Reset selected to layout
-                    </button>
-                  } @else {
-                    <button class="btn wide" (click)="resetSlide(false)"
-                      title="Put every placeholder back where and how the layout has them and bring back deleted ones; keeps the text">
-                      <dbd-icon name="undo" />Reset slide to layout
-                    </button>
-                  }
-                </div>
-              }
-              @if (shownLayout(); as l) {
-                <label class="field">
-                  <span>Layout name</span>
-                  <input
-                    class="text-input"
-                    type="text"
-                    maxlength="120"
-                    aria-label="Layout name"
-                    [value]="layoutName(l)"
-                    [disabled]="!canEdit()"
-                    (keydown.enter)="$any($event.target).blur()"
-                    (blur)="renameLayout(l, $any($event.target))"
-                  />
-                </label>
-                @if (layoutTextSelection().length; as n) {
-                  <div class="field">
-                    <dbd-checkbox
-                      [ngModel]="!!layoutTextSelection()[0].placeholder"
-                      [disabled]="!canEdit()"
-                      (ngModelChange)="setPlaceholder($event)"
-                    >
-                      {{ n > 1 ? 'Selected text boxes are placeholders' : 'Selected text box is a placeholder' }}
-                    </dbd-checkbox>
-                  </div>
-                  @if (layoutTextSelection()[0].placeholder; as ph) {
-                    <label class="field">
-                      <span>Style type</span>
-                      <dbd-select
-                        [options]="roleOptions"
-                        [ngModel]="ph.role ?? ''"
-                        [disabled]="!canEdit()"
-                        (ngModelChange)="setRole($event)"
-                      />
-                    </label>
-                    <p class="hint">Slides show this box's text, faded, until something is typed in.</p>
-                  }
-                }
-                <p class="hint">
-                  Items drawn here show, locked, under every slide using this layout. Mark a text box
-                  as a placeholder and each slide gets its own empty copy to type into.
-                </p>
-                <div class="row">
-                  <button class="btn" (click)="backToSlide()"><dbd-icon name="chevron_left" />Back to slides</button>
-                  @if (canEdit()) {
-                    <button class="btn" (click)="command.emit({ kind: 'add' })" title="Add a slide that uses this layout">
-                      <dbd-icon name="add" />New slide
-                    </button>
-                  }
-                </div>
-              }
-              <div class="listbar">
-                <span class="muted">Layouts</span>
-                @if (canEdit()) {
-                  <button class="link" (click)="command.emit({ kind: 'add', layout: true })" title="Add a layout">
-                    <dbd-icon name="add" />Layout
-                  </button>
-                }
-              </div>
-              @if (!layouts().length) {
-                <p class="hint">No layouts yet. A layout holds the logo, bars and text boxes that repeat on slides.</p>
-              }
-              <ol class="layout-list">
-                @for (l of layouts(); track l.id) {
-                  <li class="lcard" [class.current]="l.id === active_()" (click)="command.emit({ kind: 'focus', id: l.id })"
-                    [title]="'Edit layout ' + layoutName(l)">
-                    <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
-                      @if (thumbs().get(l.id); as src) {
-                        <img [src]="src" alt="" draggable="false" />
-                      }
-                    </span>
-                    <span class="lname">{{ layoutName(l) }}</span>
-                    @if (canEdit()) {
-                      <span class="licons">
-                        <button class="icon" (click)="$event.stopPropagation(); command.emit({ kind: 'duplicate', id: l.id })"
-                          title="Duplicate layout" aria-label="Duplicate layout">
-                          <dbd-icon name="content_copy" />
-                        </button>
-                        <button class="icon" (click)="$event.stopPropagation(); command.emit({ kind: 'delete', id: l.id })"
-                          title="Delete layout and its items" aria-label="Delete layout">
-                          <dbd-icon name="delete" />
-                        </button>
-                      </span>
+                @case ('notes') {
+                  @if (active(); as a) {
+                    @if (activeSlides().length <= 1) {
+                      <label class="field">
+                        <span>Speaker notes for slide {{ activeNumber() }}</span>
+                        <textarea
+                          rows="4"
+                          placeholder="Shown to the presenter (press N while presenting)"
+                          [ngModel]="a.slide?.notes ?? ''"
+                          [disabled]="!canEdit()"
+                          (blur)="setNotes($any($event.target).value)"
+                        ></textarea>
+                      </label>
+                    } @else {
+                      <p class="hint">Select a single slide to edit its notes.</p>
                     }
-                  </li>
+                  } @else {
+                    <p class="hint">Select a slide to edit its notes.</p>
+                  }
                 }
-              </ol>
-            }
-            @case ('size') {
-              @if (canEdit()) {
-                <label class="field">
-                  <span>Size of every slide</span>
-                  <dbd-select
-                    [options]="sizeOptions()"
-                    [ngModel]="sizeValue()"
-                    (ngModelChange)="setSize($event)"
-                  />
-                </label>
-              } @else {
-                <p class="hint">Slides are {{ sizeValue() === 'custom' ? 'a custom size' : 'sized by preset' }}.</p>
-              }
-            }
-            @case ('notes') {
-              @if (active(); as a) {
-                @if (activeSlides().length <= 1) {
-                  <label class="field">
-                    <span>Speaker notes for slide {{ activeNumber() }}</span>
-                    <textarea
-                      rows="4"
-                      placeholder="Shown to the presenter (press N while presenting)"
-                      [ngModel]="a.slide?.notes ?? ''"
-                      [disabled]="!canEdit()"
-                      (blur)="setNotes($any($event.target).value)"
-                    ></textarea>
-                  </label>
-                } @else {
-                  <p class="hint">Select a single slide to edit its notes.</p>
+                @case ('animations') {
+                  @if (active(); as a) {
+                    @if (activeSlides().length <= 1) {
+                      <app-animation-pane
+                        [slide]="a"
+                        (play)="command.emit({ kind: 'present', from: 'current' })"
+                      />
+                    } @else {
+                      <p class="hint">Select a single slide to edit its animations.</p>
+                    }
+                  } @else {
+                    <p class="hint">Select a slide to edit its animations.</p>
+                  }
                 }
-              } @else {
-                <p class="hint">Select a slide to edit its notes.</p>
               }
-            }
-            @case ('animations') {
-              @if (active(); as a) {
-                @if (activeSlides().length <= 1) {
-                  <app-animation-pane
-                    [slide]="a"
-                    (play)="command.emit({ kind: 'present', from: 'current' })"
-                  />
-                } @else {
-                  <p class="hint">Select a single slide to edit its animations.</p>
-                }
-              } @else {
-                <p class="hint">Select a slide to edit its animations.</p>
-              }
-            }
+            </div>
           }
-        </div>
-      }
-      }
-    </div>
+        }
+      </div>
     }
   `,
   styles: [
@@ -919,6 +1326,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         padding: 6px 8px;
         min-width: 0;
       }
+      .design-seg {
+        display: flex;
+        margin: 14px 0 8px;
+      }
       .tab {
         border: none;
         background: transparent;
@@ -1103,6 +1514,20 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         border: 1px solid var(--dbd-border);
         background: var(--dbd-canvas-bg);
       }
+      .thumb .foreign {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        padding: 2px;
+        border-radius: 4px;
+        background: var(--dbd-surface);
+        color: var(--dbd-warning, #d97706);
+        font-size: 14px;
+      }
+      .design-pick {
+        display: block;
+        margin: 0 0 6px;
+      }
       .thumb img {
         display: block;
         width: 100%;
@@ -1126,6 +1551,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .more {
         justify-self: end;
+      }
+      .listbar-actions {
+        display: inline-flex;
+        gap: 10px;
       }
       .listbar {
         display: flex;
@@ -1165,6 +1594,161 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         padding: 2px 0;
         text-transform: none;
         letter-spacing: 0;
+      }
+      .theme-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .theme-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 10px;
+        border: 1px solid var(--dbd-border);
+        border-radius: var(--dbd-radius-sm);
+        cursor: pointer;
+        text-align: left;
+      }
+      .theme-card.on {
+        outline: 2px solid var(--dbd-primary);
+        outline-offset: 1px;
+      }
+      .theme-card:disabled {
+        cursor: default;
+      }
+      .theme-name {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .theme-dots {
+        display: flex;
+        gap: 4px;
+      }
+      .theme-dots .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .sub {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--dbd-text-muted);
+        margin: 4px 0 6px;
+      }
+      .token-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px 8px;
+      }
+      .token {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        padding: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: 11px;
+        color: var(--dbd-text);
+        cursor: pointer;
+        text-align: left;
+      }
+      .token:disabled {
+        cursor: default;
+      }
+      .tsw {
+        flex: none;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid var(--dbd-border);
+      }
+      .subt {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .info {
+        --dbd-icon-size: 13px;
+        color: var(--dbd-text-muted);
+        cursor: help;
+      }
+      .sub-actions {
+        display: inline-flex;
+        gap: 2px;
+        --dbd-icon-size: 15px;
+      }
+      .customize {
+        margin: 2px 0 10px;
+        border: 1px solid var(--dbd-border);
+        border-radius: var(--dbd-radius-sm);
+        padding: 6px 10px;
+      }
+      .customize > summary {
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--dbd-text);
+        padding: 2px 0;
+      }
+      .customize[open] > summary {
+        margin-bottom: 8px;
+      }
+      .mine {
+        position: relative;
+        display: grid;
+      }
+      .mine-x {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        --dbd-icon-size: 14px;
+      }
+      .theme-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 4px 0 10px;
+      }
+      .tsw.follow {
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
+        color: #64748b;
+        --dbd-icon-size: 14px;
+      }
+      .tsw.none {
+        background-image: linear-gradient(
+          45deg,
+          transparent 45%,
+          var(--dbd-danger) 45%,
+          var(--dbd-danger) 55%,
+          transparent 55%
+        );
+      }
+      .token:hover:not(:disabled) .tsw {
+        outline: 2px solid var(--dbd-primary);
+        outline-offset: 1px;
+      }
+      .tlabel {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .picker {
+        display: block;
+        padding: 8px;
+        background: var(--dbd-surface);
+        border: 1px solid var(--dbd-border);
+        border-radius: var(--dbd-radius);
+        box-shadow: var(--dbd-shadow-3);
       }
       .field {
         display: flex;
@@ -1314,13 +1898,50 @@ export class SlidesPanelComponent {
   protected readonly layouts = computed(() =>
     presentationLayouts(this.store.slideFrames(), this.presentation()),
   );
+  /** The layouts shown in the Layout tab: the built-in Blank one is not edited. */
+  /** The presentation's master (drawn under every slide and layout). */
+  protected readonly master = computed(
+    () => presentationMaster(this.store.slideFrames(), this.presentation()) ?? null,
+  );
+  protected readonly editableLayouts = computed(() =>
+    this.layouts().filter((l) => !l.slide?.defaultLayout),
+  );
+  /** The Layouts tab's cards: the design's own layouts (not ones kept from another design). */
+  protected readonly designLayouts = computed(() => this.editableLayouts().filter((l) => !this.foreign(l)));
+  /** The New menu's layouts: standard kinds first in their usual order, then the rest. */
+  protected readonly menuLayouts = computed(() => {
+    const rank = (l: CanvasElementModel): number => {
+      const k = l.slide?.layoutKind;
+      return k ? LAYOUT_KINDS.indexOf(k) : LAYOUT_KINDS.length;
+    };
+    return this.layouts()
+      .filter((l) => !this.foreign(l))
+      .sort((a, b) => rank(a) - rank(b));
+  });
+  protected readonly standardKinds = LAYOUT_KINDS.filter((k) => k !== 'blank');
+  protected readonly kindLabels = LAYOUT_KIND_LABELS;
+  /** Add standard layouts to this presentation and show the first one. */
+  protected async addStandard(kinds: readonly LayoutKind[]): Promise<void> {
+    const anchor = this.active();
+    if (!anchor || !this.canEdit()) return;
+    const ids = await addStandardLayouts(this.store, anchor, kinds);
+    if (ids[0]) this.command.emit({ kind: 'focus', id: ids[0] });
+  }
   /** The layout on the canvas right now (being edited), if one is. */
   protected readonly shownLayout = computed(
-    () => this.layouts().find((l) => l.id === this.active_()) ?? null,
+    () =>
+      this.layouts().find((l) => l.id === this.active_()) ??
+      (this.master()?.id === this.active_() ? this.master() : null),
   );
   /** Showing a layout opens this tab, so its editing tools are at hand. */
+  private readonly shownLayoutId = computed(() => this.shownLayout()?.id ?? null);
   private readonly layoutTab = effect(() => {
-    if (this.shownLayout()) untracked(() => this.tab.set('layout'));
+    if (this.shownLayoutId()) {
+      untracked(() => {
+        this.tab.set('design');
+        this.designTab.set('layouts');
+      });
+    }
   });
   /** Leave the layout: show the first slide using it, else the first slide. */
   protected backToSlide(): void {
@@ -1342,17 +1963,23 @@ export class SlidesPanelComponent {
     }
     void this.store.updateElement(l.id, { slide: { ...l.slide, layoutName: name } });
   }
-  protected readonly layoutOptions = computed<SelectOption<string>[]>(() => [
-    { value: '', label: 'No layout' },
-    ...this.layouts().map((l) => ({ value: l.id, label: this.layoutName(l) })),
-  ]);
+  protected readonly layoutOptions = computed<SelectOption<string>[]>(() =>
+    this.layouts().map((l) => ({
+      value: l.id,
+      label: this.foreign(l) ? `⚠ ${this.layoutName(l)} (not in this design)` : this.layoutName(l),
+    })),
+  );
   /** The selected slides' common layout ('' = none; first slide's when they differ). */
   protected readonly activeLayoutValue = computed(() => {
     const a = this.active();
     return (a && layoutOf(a, this.store.slideFrames())?.id) ?? '';
   });
   protected setLayout(id: string): void {
-    const targets = this.activeSlides().length ? this.activeSlides() : this.active() ? [this.active()!] : [];
+    const targets = this.activeSlides().length
+      ? this.activeSlides()
+      : this.active()
+        ? [this.active()!]
+        : [];
     const layout = this.layouts().find((l) => l.id === id) ?? null;
     void this.store.batchHistory(async () => {
       for (const f of targets) {
@@ -1372,7 +1999,9 @@ export class SlidesPanelComponent {
     const l = this.shownLayout();
     const ids = new Set(this.store.selectedElementIds());
     return l
-      ? this.store.elements().filter((e) => ids.has(e.id) && e.slideId === l.id && e.type === 'text')
+      ? this.store
+          .elements()
+          .filter((e) => ids.has(e.id) && e.slideId === l.id && e.type === 'text')
       : [];
   });
   /** The shown slide (not a layout) when exactly it is what the tab edits. */
@@ -1394,7 +2023,9 @@ export class SlidesPanelComponent {
   });
   protected driftLabel(d: PlaceholderDrift): string {
     const parts = [
-      d.changed.length ? `${d.changed.length} placeholder${d.changed.length > 1 ? 's' : ''} changed` : '',
+      d.changed.length
+        ? `${d.changed.length} placeholder${d.changed.length > 1 ? 's' : ''} changed`
+        : '',
       d.missing.length ? `${d.missing.length} deleted` : '',
     ].filter(Boolean);
     return parts.join(', ') + ' from the layout';
@@ -1404,6 +2035,24 @@ export class SlidesPanelComponent {
     if (!slide) return;
     const only = selectedOnly ? new Set(this.selectedDrifted().map((c) => c.id)) : undefined;
     void this.store.batchHistory(() => resetSlideToLayout(this.store, slide, only));
+  }
+  /** Master items the shown slide or layout replaced with its own (double-click to make). */
+  protected readonly standIns = computed(() => {
+    this.store.elements();
+    // The shown layout when editing one (a layout can change the master too), else the slide.
+    const a = this.shownLayout() ?? (this.activeSlides().length <= 1 ? this.active() : null);
+    // A copy made by just clicking the item, still as the master has it, is not a change.
+    return a && !a.slide?.master
+      ? masterStandIns(this.store, a.id).filter((e) => standInChanged(this.store, e))
+      : [];
+  });
+  protected readonly selectedStandIns = computed(() => {
+    const ids = new Set(this.store.selectedElementIds());
+    return this.standIns().filter((e) => ids.has(e.id));
+  });
+  protected resetMaster(selectedOnly: boolean): void {
+    const items = selectedOnly ? this.selectedStandIns() : this.standIns();
+    void this.store.batchHistory(() => resetToMaster(this.store, items));
   }
   /** Change the selected layout text boxes' placeholders, then bring slides in line. */
   private editPlaceholders(fn: (e: CanvasElementModel) => PlaceholderConfig | null): void {
@@ -1454,7 +2103,8 @@ export class SlidesPanelComponent {
     this.theme.dark();
     let live = true;
     void this.render.render(layouts, { fonts: false }).then((rs) => {
-      if (live) this.layoutThumbs.set(new Map(rs.map((r) => [r.id, SlideRenderService.dataUrl(r.svg)])));
+      if (live)
+        this.layoutThumbs.set(new Map(rs.map((r) => [r.id, SlideRenderService.dataUrl(r.svg)])));
     });
     onCleanup(() => (live = false));
   });
@@ -1471,9 +2121,11 @@ export class SlidesPanelComponent {
   protected readonly thumbs = signal<ReadonlyMap<string, string>>(new Map());
   protected readonly overIndex = signal<number | null>(null);
   /** The detail tabs of the settings panel. */
-  protected readonly tab = signal<'transition' | 'layout' | 'size' | 'notes' | 'animations'>('transition');
+  protected readonly tab = signal<'transition' | 'design' | 'size' | 'notes' | 'animations'>(
+    'transition',
+  );
 
-  protected pick(tab: 'transition' | 'layout' | 'size' | 'notes' | 'animations'): void {
+  protected pick(tab: 'transition' | 'design' | 'size' | 'notes' | 'animations'): void {
     this.tab.set(tab);
   }
 
@@ -1485,10 +2137,7 @@ export class SlidesPanelComponent {
   protected readonly selectedCount = computed(() => this.activeSlides().length);
   /** The slide the details show: the first selected one, else the slide on the canvas. */
   protected readonly active = computed<CanvasElementModel | null>(
-    () =>
-      this.activeSlides()[0] ??
-      this.frames().find((f) => f.id === this.active_()) ??
-      null,
+    () => this.activeSlides()[0] ?? this.frames().find((f) => f.id === this.active_()) ?? null,
   );
   protected readonly activeId = computed(() => this.active()?.id ?? null);
   /** Keep the active slide's card in view (e.g. after leaving the presenter on another slide). */
@@ -1586,12 +2235,22 @@ export class SlidesPanelComponent {
     const boxes = new Set(this.store.selectedDiagramIds());
     for (const l of this.store.lifelines()) {
       if (lifelines.has(l.id)) {
-        out.push({ kind: 'lifeline', id: l.id, morphId: l.morphId, slideId: diagrams.get(l.diagramId)?.slideId });
+        out.push({
+          kind: 'lifeline',
+          id: l.id,
+          morphId: l.morphId,
+          slideId: diagrams.get(l.diagramId)?.slideId,
+        });
       }
     }
     for (const m of this.store.sequenceMessages()) {
       if (messages.has(m.id)) {
-        out.push({ kind: 'message', id: m.id, morphId: m.morphId, slideId: diagrams.get(m.diagramId)?.slideId });
+        out.push({
+          kind: 'message',
+          id: m.id,
+          morphId: m.morphId,
+          slideId: diagrams.get(m.diagramId)?.slideId,
+        });
       }
     }
     for (const d of diagrams.values()) {
@@ -1630,7 +2289,11 @@ export class SlidesPanelComponent {
   constructor() {
     // Re-render thumbnails (debounced) whenever anything that can appear on a slide changes.
     effect((onCleanup) => {
-      const frames = this.part() === 'list' ? [...this.frames()] : [...this.layouts()];
+      const master = this.master();
+      const frames =
+        this.part() === 'list'
+          ? [...this.frames()]
+          : [...(master ? [master] : []), ...this.layouts()];
       this.store.elements();
       this.store.tables();
       this.store.relationships();
@@ -1689,7 +2352,13 @@ export class SlidesPanelComponent {
       this.store.lifelines(),
       this.store.sequenceMessages(),
       layoutOf(frame, this.store.slideFrames())?.id,
+      masterOf(frame, this.store.slideFrames())?.id,
     );
+    // Fields ({{slide}} / {{total}}) change with the deck's order and size.
+    const deckOrder = presentableSlides(this.store.slideFrames())
+      .filter((f) => presentationOf(f) === presentationOf(frame))
+      .map((f) => f.id)
+      .join();
     // Rows not assigned to any slide are offered to every frame and cropped away when
     // outside it, so only those overlapping the frame affect its picture.
     const f = { x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height };
@@ -1701,8 +2370,7 @@ export class SlidesPanelComponent {
     const tables = mine.tables.filter((t) => t.slideId === frame.id || overlaps(tableBox(t)));
     const diagrams = mine.diagrams.filter(
       (d) =>
-        d.slideId === frame.id ||
-        overlaps(sequenceDiagramBox(d, mine.lifelines, mine.messages)),
+        d.slideId === frame.id || overlaps(sequenceDiagramBox(d, mine.lifelines, mine.messages)),
     );
     const diagramIds = new Set(diagrams.map((d) => d.id));
     const columns = new Set(tables.flatMap((t) => t.columns.map((c) => c.id)));
@@ -1715,6 +2383,7 @@ export class SlidesPanelComponent {
       frame,
       // Thumbnails bake in the theme's colors.
       this.theme.dark(),
+      deckOrder,
       ...elements.map((e) => rows.get(e.id) ?? e),
       // Empty placeholders are drawn from their layout slot: redraw when either changes.
       ...placeholderGhosts(frame.id, this.store.elements()).sources,
@@ -1790,12 +2459,619 @@ export class SlidesPanelComponent {
     });
   }
 
+  protected readonly colorTokens = THEME_COLOR_TOKENS;
+  protected readonly accentTokens = [
+    'heading',
+    'accent1',
+    'accent2',
+    'accent3',
+    'accent4',
+  ] as const;
+  protected readonly colorLabels = THEME_COLOR_LABELS;
+  protected readonly css = themeSwatchCss;
+  /** The follow-light/dark-mode choice for a theme color: the surface for fills, text otherwise. */
+  protected followValue(token: ThemeColorToken): string {
+    return token === 'background' || token === 'surface' ? THEME_FILL : THEME_STROKE;
+  }
+  protected isFollow(color: string): boolean {
+    return color === THEME_FILL || color === THEME_STROKE;
+  }
+  protected readonly fontOptions: SelectOption[] = FONT_OPTIONS.map((f) => ({ ...f, font: fontStack(f.value) }));
+  protected stackOf(key: string): string {
+    return fontStack(key);
+  }
+
+  // ---- Designs: one layout set plus a selected theme ----
+  // Built-in themes, layout sets and designs never change: editing one saves a custom copy.
+  // Custom records live in the project (shared with collaborators) and in My designs.
+
+  private readonly userThemes = inject(UserThemesService);
+  private readonly loadMyThemes = effect(() => {
+    if (this.tab() === 'design') untracked(() => void this.userThemes.load());
+  });
+  /** The project's custom records. */
+  protected readonly customThemes = this.store.customThemes;
+  /** Every custom record: the project's, then the rest of My designs. */
+  protected readonly library = computed<SlideTheme[]>(() => {
+    const out = [...this.customThemes()];
+    const ids = new Set(out.map((r) => r.id));
+    for (const row of this.userThemes.themes()) if (!ids.has(row.theme.id)) out.push(row.theme);
+    return out;
+  });
+  private record(id: string | undefined): SlideTheme | undefined {
+    if (!id) return undefined;
+    return (
+      [...BUILT_IN_THEMES, ...BUILT_IN_LAYOUT_SETS, ...BUILT_IN_DESIGNS].find((r) => r.id === id) ??
+      this.library().find((r) => r.id === id)
+    );
+  }
+
+  /** The deck's design and layout set, as its frames record them. */
+  private readonly deckRefs = computed(() => {
+    const name = this.presentation();
+    // Prefer a frame that records the design: frames added later may carry only the theme.
+    const mine = this.store.slideFrames().filter((f) => presentationOf(f) === name && f.slide?.theme);
+    const t = (mine.find((f) => f.slide!.theme!.designId) ?? mine[0])?.slide?.theme;
+    return { designId: t?.designId, layoutsId: t?.layoutsId };
+  });
+  /** The deck's design (Default until another is picked). */
+  protected readonly design = computed<SlideTheme>(() => {
+    const d = this.record(this.deckRefs().designId);
+    return d && recordKind(d) === 'design' ? d : DEFAULT_DESIGN;
+  });
+  protected readonly designIsCustom = computed(() => !isBuiltInRecord(this.design().id));
+  /** The deck's layout set. */
+  protected readonly layoutSetId = computed(
+    () => this.deckRefs().layoutsId ?? this.design().layoutsId ?? DEFAULT_LAYOUT_SET.id!,
+  );
+  protected readonly layoutSet = computed<SlideTheme>(
+    () => this.record(this.layoutSetId()) ?? DEFAULT_LAYOUT_SET,
+  );
+
+  /** The deck's selected theme (the default until one is picked). */
+  protected readonly deckTheme = computed<SlideTheme>(() => {
+    const name = this.presentation();
+    const stored = (name ? this.store.presentationThemes().get(name) : undefined) ?? DEFAULT_THEME;
+    const rec = this.record(stored.id);
+    return rec && recordKind(rec) === 'theme' ? themeTokensOnly(rec) : themeTokensOnly(stored);
+  });
+  protected readonly themeIsCustom = computed(() => {
+    const id = this.deckTheme().id;
+    return !!id && !isBuiltInRecord(id) && this.library().some((r) => r.id === id);
+  });
+
+  protected readonly designOptions = computed<SelectOption<string>[]>(() => [
+    ...BUILT_IN_DESIGNS.map((d) => ({ value: d.id!, label: d.name, group: 'Built-in' })),
+    ...this.library()
+      .filter((r) => recordKind(r) === 'design' && r.id)
+      .map((d) => ({ value: d.id!, label: d.name, group: 'Custom', renamable: this.canEdit() })),
+  ]);
+  protected readonly themeOptions = computed<SelectOption<string>[]>(() => {
+    const opts: SelectOption<string>[] = [
+      ...BUILT_IN_THEMES.map((t) => ({ value: t.id!, label: t.name, group: 'Built-in' })),
+      ...this.library()
+        .filter((r) => recordKind(r) === 'theme' && r.id)
+        .map((t) => ({ value: t.id!, label: t.name, group: 'Custom', renamable: this.canEdit() })),
+    ];
+    const cur = this.deckTheme();
+    if (cur.id && !opts.some((o) => o.value === cur.id))
+      opts.push({ value: cur.id, label: cur.name, group: 'Custom' });
+    return opts;
+  });
+
+  /** A layout from a layout set the deck no longer uses, kept because slides still use it. */
+  protected foreign(l: CanvasElementModel): boolean {
+    return isForeignLayout(l, this.layoutSetId());
+  }
+  /** A slide whose layout is not one of the design's layouts. */
+  protected slideForeign(f: CanvasElementModel): boolean {
+    const l = layoutOf(f, this.store.slideFrames());
+    return !!l && this.foreign(l);
+  }
+
+  /** Feedback from design, theme and layout actions. */
+  protected readonly themeNote = signal<string | null>(null);
+  /** Shown after a switch that kept layouts slides still use. */
+  protected readonly relayoutNote = signal<string | null>(null);
+
+  /** Design tab sub-tab: the design's layouts, or its theme. */
+  protected readonly designTab = signal<'layouts' | 'theme'>('layouts');
+  protected readonly designTabOptions: SegmentedOption<'layouts' | 'theme'>[] = [
+    { value: 'layouts', label: 'Layouts' },
+    { value: 'theme', label: 'Theme' },
+  ];
+  /** Which part the next imported file is used as. */
+  protected readonly importPart = signal<ThemeFilePart>('design');
+
+  private newId(): string {
+    return `custom-${crypto.randomUUID()}`;
+  }
+  /** A name not yet used by a custom record. */
+  private freshName(base: string): string {
+    const names = new Set(this.library().map((c) => c.name));
+    let name = base;
+    for (let n = 2; names.has(name); n++) name = `${base} ${n}`;
+    return name;
+  }
+  /** Add or replace custom records (by id) in the project and My designs, and drop `remove`. */
+  private async saveRecords(upserts: SlideTheme[], remove: string[] = []): Promise<void> {
+    const ids = new Set([...upserts.map((u) => u.id), ...remove]);
+    await this.store.setCustomThemes([
+      ...this.customThemes().filter((c) => !ids.has(c.id)),
+      ...upserts,
+    ]);
+    for (const u of upserts) {
+      this.userThemes.save(u).catch(() => this.themeNote.set('Could not save to My designs.'));
+    }
+    for (const id of remove) {
+      const row = this.userThemes.themes().find((t) => t.theme.id === id);
+      if (row) void this.userThemes.remove(row.id);
+    }
+  }
+  private designRecord(name: string, themeId: string | undefined, layoutsId: string): SlideTheme {
+    return {
+      ...themeTokensOnly(DEFAULT_THEME),
+      kind: 'design',
+      id: this.newId(),
+      name,
+      themeId,
+      layoutsId,
+    };
+  }
+  private layoutsRecord(
+    name: string,
+    content: Pick<SlideTheme, 'layouts' | 'extraLayouts' | 'master'>,
+  ): SlideTheme {
+    return {
+      ...themeTokensOnly(DEFAULT_THEME),
+      kind: 'layouts',
+      id: this.newId(),
+      name,
+      ...content,
+    };
+  }
+
+  /**
+   * Store the theme and the deck's design and layout set on every frame of the deck.
+   * `everywhere`: other decks on the same theme take its new colors and fonts (keeping
+   * their own design).
+   */
+  private async stamp(
+    theme: SlideTheme,
+    designId: string,
+    layoutsId: string,
+    everywhere = false,
+    silent = false,
+  ): Promise<string[]> {
+    const name = this.presentation();
+    const tokens = themeTokensOnly(theme);
+    const touched: string[] = [];
+    for (const f of this.store.slideFrames()) {
+      if (!f.slide) continue;
+      let next: SlideTheme | null = null;
+      if (presentationOf(f) === name) next = { ...tokens, designId, layoutsId };
+      else if (everywhere && theme.id && f.slide.theme?.id === theme.id) {
+        next = { ...tokens, designId: f.slide.theme.designId, layoutsId: f.slide.theme.layoutsId };
+      }
+      if (!next) continue;
+      touched.push(f.id);
+      const patch = { slide: { ...f.slide, theme: next } };
+      if (silent) await this.store.patchElementSilently(f.id, patch);
+      else await this.store.updateElement(f.id, patch);
+    }
+    return touched;
+  }
+
+  /** Refit text boxes that use a theme font on these frames (fit-to-glyph boxes were sized for the old one). */
+  private async refitText(frameIds: readonly string[]): Promise<void> {
+    const ids = new Set(frameIds);
+    for (const e of this.store.elements()) {
+      if (e.type !== 'text' || !e.slideId || !ids.has(e.slideId) || !tokenOf(e.fontFamily))
+        continue;
+      const size = fitTextElement(e);
+      if (size.width !== e.width || size.height !== e.height) {
+        await this.store.updateElement(e.id, { width: size.width, height: size.height });
+      }
+    }
+  }
+  private fontsDiffer(a: SlideTheme, b: SlideTheme): boolean {
+    return a.fonts.heading !== b.fonts.heading || a.fonts.body !== b.fonts.body;
+  }
+  private async loadFonts(theme: SlideTheme): Promise<void> {
+    await Promise.all([
+      ensureFontLoaded(theme.fonts.heading as FontFamily),
+      ensureFontLoaded(theme.fonts.body as FontFamily),
+    ]);
+  }
+
+  /** Put the deck on a design: its layout set's layouts and the given theme. */
+  private async switchTo(design: SlideTheme, set: SlideTheme, theme: SlideTheme): Promise<void> {
+    const name = this.presentation();
+    if (!name || !this.canEdit()) return;
+    const fromSetId = this.layoutSetId();
+    const from = this.deckTheme();
+    await this.loadFonts(theme);
+    this.applying = true;
+    try {
+      await this.store.batchHistory(async () => {
+        const frames = await this.stamp(theme, design.id!, set.id!);
+        if (set.id !== fromSetId) {
+          const editing = this.shownLayoutId();
+          const { kept, replaced } = await applyLayoutSet(this.store, name, fromSetId, set, theme);
+          // Keep editing the layout that was on the canvas, now under the new set's id.
+          const next = editing && replaced.get(editing);
+          if (next) this.command.emit({ kind: 'focus', id: next });
+          this.relayoutNote.set(
+            kept
+              ? `${kept} layout${kept > 1 ? 's' : ''} not in this design ${kept > 1 ? 'are' : 'is'} kept for the slides that use ${kept > 1 ? 'them' : 'it'} (flagged).`
+              : null,
+          );
+        }
+        if (this.fontsDiffer(from, theme)) await this.refitText(frames);
+      });
+    } finally {
+      this.applying = false;
+    }
+    this.rebaseline();
+  }
+
+  protected async pickDesign(id: string): Promise<void> {
+    if (id === this.design().id) return;
+    const target = this.record(id);
+    if (!target) return;
+    this.themeNote.set(null);
+    await this.flushLayouts();
+    const set = this.record(target.layoutsId) ?? DEFAULT_LAYOUT_SET;
+    const theme = this.record(target.themeId) ?? DEFAULT_THEME;
+    await this.switchTo(target, set, themeTokensOnly(theme));
+  }
+
+  /** New design: a copy of this one (its layouts and theme) to change freely. */
+  protected async newDesign(): Promise<void> {
+    const name = this.presentation();
+    if (!name || !this.canEdit()) return;
+    await this.flushLayouts();
+    const d = this.design();
+    const cur = this.deckTheme();
+    const designName = this.freshName(`${d.name} copy`);
+    const theme: SlideTheme = {
+      ...cur,
+      kind: 'theme',
+      id: this.newId(),
+      name: this.freshName(`${cur.name} copy`),
+    };
+    const set = this.layoutsRecord(
+      `${designName} layouts`,
+      captureLayoutSet(this.store, name, this.layoutSetId()),
+    );
+    const design = this.designRecord(designName, theme.id, set.id!);
+    await this.saveRecords([theme, set, design]);
+    await this.store.batchHistory(async () => {
+      await this.retagLayouts(set.id!, false);
+      await this.stamp(theme, design.id!, set.id!);
+    });
+    this.rebaseline();
+  }
+
+  /** The option above `id` in a dropdown list, or the one below when it is first. */
+  private neighborOf(opts: SelectOption<string>[], id: string): string | undefined {
+    const i = opts.findIndex((o) => o.value === id);
+    if (i < 0) return undefined;
+    return (opts[i - 1] ?? opts[i + 1])?.value;
+  }
+
+  /** Delete the deck's custom design; the deck moves to the design above it in the list (or below). */
+  protected async deleteDesign(): Promise<void> {
+    const d = this.design();
+    if (!this.designIsCustom() || !this.canEdit()) return;
+    clearTimeout(this.layoutTimer);
+    const setId = this.layoutSetId();
+    const nextId = this.neighborOf(this.designOptions(), d.id!);
+    const next = (nextId && this.record(nextId)) || DEFAULT_DESIGN;
+    if (next === DEFAULT_DESIGN) {
+      await this.switchTo(DEFAULT_DESIGN, DEFAULT_LAYOUT_SET, this.deckTheme());
+    } else {
+      const set = this.record(next.layoutsId) ?? DEFAULT_LAYOUT_SET;
+      const theme = this.record(next.themeId) ?? DEFAULT_THEME;
+      await this.switchTo(next, set, themeTokensOnly(theme));
+    }
+    const setShared = this.library().some(
+      (r) => r.id !== d.id && recordKind(r) === 'design' && r.layoutsId === setId,
+    );
+    await this.saveRecords([], [d.id!, ...(setShared || isBuiltInRecord(setId) ? [] : [setId])]);
+    this.themeNote.set(`Deleted "${d.name}".`);
+  }
+
+  /** Select a theme for the design (a custom design remembers it). */
+  protected async pickTheme(id: string): Promise<void> {
+    if (id === this.deckTheme().id) return;
+    const rec = this.record(id);
+    if (!rec) return;
+    const theme = themeTokensOnly(rec);
+    const d = this.design();
+    if (this.designIsCustom()) await this.saveRecords([{ ...d, themeId: id }]);
+    await this.writeTheme(theme, d.id!);
+  }
+
+  /** Put a theme's colors and fonts on the deck (and on other decks using it, when it was edited). */
+  private async writeTheme(theme: SlideTheme, designId: string, everywhere = false): Promise<void> {
+    if (!this.presentation() || !this.canEdit()) return;
+    const from = this.deckTheme();
+    await this.loadFonts(theme);
+    await this.store.batchHistory(async () => {
+      const frames = await this.stamp(theme, designId, this.layoutSetId(), everywhere);
+      if (this.fontsDiffer(from, theme)) await this.refitText(frames);
+    });
+  }
+
+  /**
+   * Change the theme's colors, fonts or name. A built-in theme is copied into a custom one,
+   * and a built-in design into a custom design using it, so the defaults never change.
+   */
+  private async editTheme(patch: Partial<SlideTheme>): Promise<void> {
+    if (!this.canEdit()) return;
+    const cur = this.deckTheme();
+    const custom = this.themeIsCustom();
+    const theme: SlideTheme = custom
+      ? { ...cur, kind: 'theme', ...patch }
+      : {
+          ...cur,
+          kind: 'theme',
+          id: this.newId(),
+          name: this.freshName(`${cur.name} custom`),
+          ...patch,
+        };
+    const upserts: SlideTheme[] = [theme];
+    let design = this.design();
+    if (!this.designIsCustom()) {
+      design = this.designRecord(
+        this.freshName(`${design.name} custom`),
+        theme.id,
+        this.layoutSetId(),
+      );
+      upserts.push(design);
+      this.themeNote.set(`Saved your changes as "${design.name}".`);
+    } else if (design.themeId !== theme.id) {
+      design = { ...design, themeId: theme.id };
+      upserts.push(design);
+    }
+    await this.saveRecords(upserts);
+    await this.writeTheme(theme, design.id!, custom);
+  }
+
+  protected setThemeColor(token: ThemeColorToken, color: string): void {
+    void this.editTheme({ colors: { ...this.deckTheme().colors, [token]: color } });
+  }
+  protected setThemeFont(token: ThemeFontToken, font: string): void {
+    void this.editTheme({ fonts: { ...this.deckTheme().fonts, [token]: font } });
+  }
+  /** Rename a custom design or theme (from the pencil in its dropdown). */
+  protected async renameRecord(id: string, name: string): Promise<void> {
+    const rec = this.library().find((r) => r.id === id);
+    if (!rec || isBuiltInRecord(id) || !this.canEdit()) return;
+    const renamed = { ...rec, name };
+    await this.saveRecords([renamed]);
+    // Slides carry their theme's name too: keep it in step.
+    if (recordKind(rec) === 'theme' && this.deckTheme().id === id) {
+      await this.writeTheme(themeTokensOnly(renamed), this.design().id!, true);
+    }
+  }
+
+  /** Delete the selected custom theme; the deck takes the theme above it in the list (or below). */
+  protected async deleteTheme(): Promise<void> {
+    const t = this.deckTheme();
+    if (!this.themeIsCustom() || !this.canEdit()) return;
+    await this.pickTheme(this.neighborOf(this.themeOptions(), t.id!) ?? DEFAULT_THEME.id!);
+    await this.saveRecords([], [t.id!]);
+  }
+
+  // ---- Layout edits: saved into the design's layout set ----
+  private applying = false;
+  private layoutTimer?: ReturnType<typeof setTimeout>;
+  /** The deck's layouts as last saved (or first seen), per deck and set. */
+  private layoutBaseline: { key: string; sig: string } | null = null;
+  private readonly watchLayouts = effect(() => {
+    this.store.elements();
+    const name = this.presentation();
+    this.layoutSetId();
+    if (!name || !this.canEdit()) return;
+    untracked(() => {
+      clearTimeout(this.layoutTimer);
+      this.layoutTimer = setTimeout(() => void this.checkLayouts(), 800);
+    });
+  });
+  private layoutSignature(): {
+    key: string;
+    sig: string;
+    content: ReturnType<typeof captureLayoutSet>;
+  } | null {
+    const name = this.presentation();
+    if (!name) return null;
+    const setId = this.layoutSetId();
+    const content = captureLayoutSet(this.store, name, setId);
+    return { key: `${name}|${setId}`, sig: JSON.stringify(content), content };
+  }
+  /** Until when changes to the layouts are follow-ups of our own switch (saves, refits), not edits. */
+  private settleUntil = 0;
+  private rebaseline(): void {
+    clearTimeout(this.layoutTimer);
+    this.settleUntil = Date.now() + 2500;
+    const s = this.layoutSignature();
+    this.layoutBaseline = s ? { key: s.key, sig: s.sig } : null;
+  }
+  /** Save pending layout edits now (before the deck switches design). */
+  private async flushLayouts(): Promise<void> {
+    clearTimeout(this.layoutTimer);
+    await this.checkLayouts();
+  }
+  private async checkLayouts(): Promise<void> {
+    if (this.applying || !this.canEdit()) return;
+    const s = this.layoutSignature();
+    if (!s) return;
+    if (!this.layoutBaseline || this.layoutBaseline.key !== s.key || Date.now() < this.settleUntil) {
+      this.layoutBaseline = { key: s.key, sig: s.sig };
+      return;
+    }
+    if (s.sig === this.layoutBaseline.sig) return;
+    this.layoutBaseline.sig = s.sig;
+    const set = this.layoutSet();
+    if (!isBuiltInRecord(set.id)) {
+      await this.saveRecords([{ ...set, ...s.content }]);
+      return;
+    }
+    // The first edit to built-in layouts: they become a custom set (and design) of their own.
+    const wasBuiltIn = !this.designIsCustom();
+    let design = this.design();
+    const fresh = this.layoutsRecord(
+      this.freshName(`${this.designIsCustom() ? design.name : `${design.name} custom`} layouts`),
+      s.content,
+    );
+    design = this.designIsCustom()
+      ? { ...design, layoutsId: fresh.id }
+      : this.designRecord(this.freshName(`${design.name} custom`), this.deckTheme().id, fresh.id!);
+    await this.saveRecords([fresh, design]);
+    this.applying = true;
+    try {
+      await this.retagLayouts(fresh.id!, true);
+      await this.stamp(this.deckTheme(), design.id!, fresh.id!, false, true);
+    } finally {
+      this.applying = false;
+    }
+    this.rebaseline();
+    if (wasBuiltIn) this.themeNote.set(`Saved your changes as "${design.name}".`);
+  }
+  /** Hand the deck's current layouts over to the set `setId`. */
+  private async retagLayouts(setId: string, silent: boolean): Promise<void> {
+    const name = this.presentation();
+    if (!name) return;
+    for (const l of deckLayouts(this.store, name)) {
+      if (l.slide?.master || this.foreign(l) || !l.slide?.layoutSetId) continue;
+      const patch = { slide: { ...l.slide, layoutSetId: setId } };
+      if (silent) await this.store.patchElementSilently(l.id, patch);
+      else await this.store.updateElement(l.id, patch);
+    }
+  }
+
+  // ---- Files ----
+  /** The deck's layouts as a layout set (for export). */
+  private exportedLayouts(): SlideTheme {
+    const name = this.presentation() ?? '';
+    const set = this.layoutSet();
+    return {
+      ...themeTokensOnly(DEFAULT_THEME),
+      kind: 'layouts',
+      name: isBuiltInRecord(set.id) ? `${this.design().name} layouts` : set.name,
+      ...captureLayoutSet(this.store, name, this.layoutSetId()),
+    };
+  }
+
+  /** Download the design (layouts and theme), just its layouts, or just its theme. */
+  protected exportDesign(part: ThemeFilePart): void {
+    const d = this.design();
+    const layouts = this.exportedLayouts();
+    const theme = this.deckTheme();
+    const file = themeFile(part, { name: d.name, theme, layouts });
+    const title = part === 'design' ? d.name : part === 'theme' ? theme.name : layouts.name;
+    const suffix = part === 'theme' ? '.dbtheme' : part === 'layouts' ? '.dblayouts' : '.dbdesign';
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${title.replace(/[^\w .-]+/g, '_')}${suffix}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  /**
+   * Read a file and use it: as a whole design (its layouts and theme become a new design),
+   * as this design's layouts, or as a theme to select.
+   */
+  protected async importDesign(input: HTMLInputElement): Promise<void> {
+    const part = this.importPart();
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.canEdit()) return;
+    let parsed: ParsedThemeFile | string;
+    try {
+      parsed = parseThemeFile(JSON.parse(await file.text()));
+    } catch {
+      parsed = 'The file is not valid JSON.';
+    }
+    if (typeof parsed === 'string') {
+      this.themeNote.set(parsed);
+      return;
+    }
+    await this.flushLayouts();
+    if (part === 'theme') {
+      if (!parsed.theme) return this.themeNote.set('The file has no theme.');
+      const theme: SlideTheme = {
+        ...parsed.theme,
+        kind: 'theme',
+        id: this.newId(),
+        name: this.freshName(parsed.theme.name),
+      };
+      await this.saveRecords([theme]);
+      await this.pickTheme(theme.id!);
+      this.themeNote.set(`Imported the theme "${theme.name}".`);
+      return;
+    }
+    if (part === 'layouts') {
+      if (!parsed.layouts) return this.themeNote.set('The file has no layouts.');
+      const set: SlideTheme = {
+        ...parsed.layouts,
+        kind: 'layouts',
+        id: this.newId(),
+        name: this.freshName(parsed.layouts.name),
+      };
+      const design = this.designIsCustom()
+        ? { ...this.design(), layoutsId: set.id }
+        : this.designRecord(
+            this.freshName(`${this.design().name} custom`),
+            this.deckTheme().id,
+            set.id!,
+          );
+      await this.saveRecords([set, design]);
+      await this.switchTo(design, set, this.deckTheme());
+      this.themeNote.set(`Imported the layouts "${set.name}".`);
+      return;
+    }
+    const upserts: SlideTheme[] = [];
+    let theme = this.deckTheme();
+    if (parsed.theme) {
+      theme = {
+        ...parsed.theme,
+        kind: 'theme',
+        id: this.newId(),
+        name: this.freshName(parsed.theme.name),
+      };
+      upserts.push(theme);
+    }
+    let set = this.layoutSet();
+    if (parsed.layouts) {
+      set = {
+        ...parsed.layouts,
+        kind: 'layouts',
+        id: this.newId(),
+        name: this.freshName(parsed.layouts.name),
+      };
+      upserts.push(set);
+    }
+    const design = this.designRecord(this.freshName(parsed.name), theme.id, set.id!);
+    upserts.push(design);
+    await this.saveRecords(upserts);
+    await this.switchTo(design, set, themeTokensOnly(theme));
+    this.themeNote.set(`Imported the design "${design.name}".`);
+  }
+
   protected isSelected(id: string): boolean {
     return this.activeSlides().some((f) => f.id === id);
   }
 
   protected selectAll(): void {
-    this.store.setSelection([], [], this.frames().map((f) => f.id));
+    this.store.setSelection(
+      [],
+      [],
+      this.frames().map((f) => f.id),
+    );
   }
 
   /** Up/Down arrows move to the previous/next slide. */
@@ -1962,7 +3238,13 @@ export class SlidesPanelComponent {
       this.cloning.set(on);
       this.cloneGhost.set(
         on && srcFrame
-          ? { id: srcFrame.id, top: me.top, height: me.height, fw: srcFrame.width, fh: srcFrame.height }
+          ? {
+              id: srcFrame.id,
+              top: me.top,
+              height: me.height,
+              fw: srcFrame.width,
+              fh: srcFrame.height,
+            }
           : null,
       );
     };

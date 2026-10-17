@@ -5,6 +5,7 @@
 // no socket.io, Angular, or Nest imports here, only the shapes on the wire.
 
 import type { AccessLevel } from '../enums';
+import type { SlideTheme } from '../slides/themes';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -112,7 +113,8 @@ export type SchemaMutation =
   | { kind: 'message.updated'; message: SequenceMessageModel }
   | { kind: 'message.moved'; messageId: string; y: number }
   | { kind: 'message.deleted'; messageId: string }
-  | { kind: 'home.updated'; home: ViewportModel | null };
+  | { kind: 'home.updated'; home: ViewportModel | null }
+  | { kind: 'themes.updated'; themes: SlideTheme[] };
 
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {

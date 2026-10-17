@@ -115,6 +115,7 @@ export class ElementsService {
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
       placeholderJson: dto.placeholder ? JSON.stringify(dto.placeholder) : null,
+      overrides: dto.overrides ?? null,
       step: dto.step ?? null,
       slideId: dto.type === 'frame' ? null : (dto.slideId ?? null),
     });
@@ -286,6 +287,9 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.placeholder !== undefined) {
     element.placeholderJson = dto.placeholder ? JSON.stringify(dto.placeholder) : null;
+  }
+  if (dto.overrides !== undefined) {
+    element.overrides = dto.overrides;
   }
   if (dto.morphId !== undefined) {
     element.morphId = dto.morphId;

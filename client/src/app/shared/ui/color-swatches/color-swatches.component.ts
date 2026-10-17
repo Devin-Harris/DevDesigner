@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { PICKER_SWATCHES } from '@dbdesigner/shared';
+import { PICKER_SWATCHES, THEME_COLOR_LABELS, THEME_COLOR_TOKENS, themeSwatchCss, themeToken, type SlideTheme } from '@dbdesigner/shared';
 import { IconComponent } from '../icon/icon.component';
 
 /**
@@ -13,6 +13,24 @@ import { IconComponent } from '../icon/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
+    @if (deckTheme(); as t) {
+      <div class="deck-label">{{ t.name }} theme</div>
+      <div class="grid deck" [style.grid-template-columns]="'repeat(' + columns() + ', 26px)'">
+        @for (k of tokens; track k) {
+          <button
+            type="button"
+            class="sw"
+            [class.active]="current() === norm(token(k))"
+            [class.none]="t.colors[k] === 'transparent'"
+            [style.background]="t.colors[k] === 'transparent' ? null : css(t.colors[k])"
+            [attr.title]="labels[k] + ' (follows the theme)'"
+            [attr.aria-label]="'Theme ' + labels[k]"
+            [disabled]="disabled()"
+            (click)="pick.emit(token(k))"
+          ></button>
+        }
+      </div>
+    }
     <div class="grid" [style.grid-template-columns]="'repeat(' + columns() + ', 26px)'">
       @if (allowNone()) {
         <button
@@ -68,6 +86,16 @@ import { IconComponent } from '../icon/icon.component';
       .grid {
         display: grid;
         gap: 6px;
+      }
+      .deck-label {
+        font-size: 11px;
+        color: var(--dbd-text-muted);
+        margin-bottom: 4px;
+      }
+      .grid.deck {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--dbd-border);
       }
       .sw {
         width: 26px;
@@ -130,14 +158,23 @@ export class ColorSwatchesComponent {
   /** What the theme swatch emits; null hides it. */
   readonly themeValue = input<string | null>(null);
   readonly columns = input(6);
+  /** A slide deck's theme: shows its color tokens (emitted as `$accent1`, ...) above the palette. */
+  readonly deckTheme = input<SlideTheme | null>(null);
   readonly disabled = input(false);
   readonly pick = output<string>();
 
   protected readonly current = computed(() => this.norm(this.value()));
   protected readonly isCustom = computed(() => {
     const c = this.current();
-    return !!c && c !== this.norm(this.noneValue()) && c !== this.norm(this.themeValue()) && !this.colors().includes(c);
+    return !!c && !c.startsWith('$') && c !== this.norm(this.noneValue()) && c !== this.norm(this.themeValue()) && !this.colors().includes(c);
   });
+
+  protected readonly tokens = THEME_COLOR_TOKENS;
+  protected readonly css = themeSwatchCss;
+  protected readonly labels = THEME_COLOR_LABELS;
+  protected token(k: (typeof THEME_COLOR_TOKENS)[number]): string {
+    return themeToken(k);
+  }
 
   protected norm(c: string | null | undefined): string {
     return (c || '').toLowerCase();

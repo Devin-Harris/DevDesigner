@@ -209,6 +209,11 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  overrides?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   morphId?: string | null;
 
   @IsOptional()

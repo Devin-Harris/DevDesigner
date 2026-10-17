@@ -44,6 +44,18 @@ import {
   placeholderPrompt,
   themeColorCss,
   sequenceDiagramRect,
+  resolveThemedElements,
+  resolveThemeElement,
+  resolveFields,
+  fieldContext,
+  masterOf,
+  presentableSlides,
+  type FieldContext,
+  resolveThemeColor,
+  themeSwatchCss,
+  themeToken,
+  DEFAULT_THEME,
+  type SlideTheme,
 } from '@dbdesigner/shared';
 import {
   boxToOuter,
@@ -93,7 +105,7 @@ import {
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './canvas/models/toolbar-actions';
-import { fillFromLayout, slotFollower, slotStyle } from './slides/layout-placeholders';
+import { deleteStandIn, detachFromLayout, fillFromLayout, slotFollower, slotStyle, standInFor } from './slides/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './minimap/minimap.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
@@ -204,6 +216,7 @@ import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-to
 import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { PresentModeComponent } from './slides/present-mode.component';
 import { SlideRenderService, type RenderedSlide } from './slides/slide-render.service';
+import { ensureDeckDefaults } from './slides/deck-defaults';
 import { SlidesPanelComponent, type SlidesCommand } from './slides/slides-panel.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
 
@@ -362,7 +375,7 @@ export class EditorComponent {
   private shownElements(): CanvasElementModel[] {
     const hide = this.focusHidden();
     const locked = this.store.layoutItemIds();
-    return this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id));
+    return this.withFields(this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id)));
   }
 
   /** Tables that are on the canvas right now (focus mode collapses other slides' tables). */
@@ -404,11 +417,25 @@ export class EditorComponent {
     const draftView = draft ? views.get(this.drawSlideId() ?? '') : undefined;
     if (draft && draftView) elements.set(draft.id, draftView);
     if (views.size) {
+      // A zoomed slide's layout items are drawn in its layer too, beneath its own.
+      const frames = this.store.slideFrames();
+      const layoutViews = new Map<string, SlideView>();
+      for (const f of frames) {
+        const v = views.get(f.id);
+        const l = v ? layoutOf(f, frames) : undefined;
+        if (v && l && !views.has(l.id)) layoutViews.set(l.id, v);
+      }
+      const locked = this.store.layoutItemIds();
       for (const e of this.store.elements()) {
         // The frame joins its layer only zoomed out: at scale 1 its title strip and
         // handles sit on or past the block's edge, where the layer clips.
         const own = views.get(e.id);
-        const v = own && own.scale < 1 ? own : e.slideId ? views.get(e.slideId) : undefined;
+        const v =
+          own && own.scale < 1
+            ? own
+            : e.slideId
+              ? (views.get(e.slideId) ?? (locked.has(e.id) ? layoutViews.get(e.slideId) : undefined))
+              : undefined;
         if (v) elements.set(e.id, v);
       }
       for (const t of this.store.tables()) {
@@ -556,7 +583,7 @@ export class EditorComponent {
   /** The panels' own corner radius (world units); the outline's is concentric with it. */
   private static readonly PANEL_RADIUS = 14;
   private static readonly LIST_W = 296;
-  private static readonly SETTINGS_W = 340;
+  private static readonly SETTINGS_W = 400;
   private static readonly FOLDED_W = 44;
   /** As tall as the frame on screen, but never so short that the panel stops being usable. */
   private static readonly PANEL_MIN_H = 320;
@@ -611,6 +638,17 @@ export class EditorComponent {
           frameId: frame.id,
           list,
           settings,
+          // While a layout is shown, it is ringed and labelled so it is not mistaken for a slide.
+          layoutEdit: frame.slide?.layout
+            ? {
+                left: frame.x * v.zoom + v.x,
+                top,
+                width: frame.width * v.zoom,
+                height: frame.height * v.zoom,
+                name: frame.slide.master ? 'Master' : layoutNameOf(frame, frames),
+                master: !!frame.slide.master,
+              }
+            : null,
           outline: {
             left: list.left - pad,
             top: top - pad,
@@ -927,7 +965,13 @@ export class EditorComponent {
     // 401 is the above-tables content slice (elements brought in front of the ERD).
     sorted.filter((d) => d.zIndex > maxZ).forEach((d, i) => z.set(d.id, 402 + i));
     const segmentOf = new Map<string, number>();
+    // A shown slide's layout items sit beneath everything on it.
+    const locked = this.store.layoutItemIds();
     for (const e of els) {
+      if (locked.has(e.id)) {
+        segmentOf.set(e.id, 0);
+        continue;
+      }
       if (e.aboveTables) {
         segmentOf.set(e.id, among.length + 1);
         continue;
@@ -963,8 +1007,21 @@ export class EditorComponent {
     const editing = this.editingTextId();
     const looks = this.emptyCopyLooks();
     const fills = this.layoutFills();
-    const all = shown.map((e) => {
-      if (locked.has(e.id)) return { ...e, zIndex: e.zIndex - LAYOUT_Z_OFFSET };
+    // Elements draw in array order, so a shown slide's layout items go first (beneath it).
+    const ordered = locked.size
+      ? [...shown.filter((e) => locked.has(e.id)), ...shown.filter((e) => !locked.has(e.id))]
+      : shown;
+    const masters = this.store.masterItemIds();
+    const under = this.inheritedOffsets();
+    const all = ordered.map((e) => {
+      if (locked.has(e.id)) {
+        // The master's items sit below the layout's.
+        const depth = masters.has(e.id) ? 2 : 1;
+        // Drawn where the shown slide is (its layout catches up once a drag settles).
+        const d = e.slideId ? under.get(e.slideId) : undefined;
+        const at = d ? { x: e.x + d.dx, y: e.y + d.dy } : {};
+        return { ...e, ...at, zIndex: e.zIndex - LAYOUT_Z_OFFSET * depth, aboveTables: false };
+      }
       const fill = fills.get(e.id);
       if (fill) return { ...e, ...fill };
       // An empty placeholder copy shows its layout slot's text, ghosted (not while typed into).
@@ -975,7 +1032,16 @@ export class EditorComponent {
       }
       return e;
     });
-    const elements = draft ? [...all, draft] : all;
+    // Fields ({{slide}}, ...) show their values on slides, not while typed into.
+    const fields = this.shownFields();
+    const filled = fields.size
+      ? all.map((e) => {
+          const ctx = e.id !== editing && e.slideId ? fields.get(e.slideId) : undefined;
+          return ctx ? this.fillFields(e, ctx) : e;
+        })
+      : all;
+    // Deck theme tokens ($accent1, $heading, ...) resolve against each item's presentation.
+    const elements = resolveThemedElements(draft ? [...filled, draft] : filled, this.store.slideFrames());
     // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
     this.theme.dark();
     const views = buildShapeViews(
@@ -1346,6 +1412,69 @@ export class EditorComponent {
     });
   })();
 
+  /**
+   * An item with its fields filled in; an auto-sized text box refits to the filled text
+   * (keeping its alignment edge) so its box and handles match what is drawn.
+   */
+  private fillFields<E extends CanvasElementModel>(e: E, ctx: FieldContext): E {
+    const filled = resolveFields(e, ctx);
+    if (filled === e || e.type !== 'text' || e.wrap) return filled;
+    const size = fitTextElement(filled, { text: filled.text ?? '' });
+    const shift = e.textAlign === 'right' ? 1 : e.textAlign === 'center' ? 0.5 : 0;
+    return { ...filled, x: e.x + (e.width - size.width) * shift, width: size.width, height: size.height };
+  }
+
+  /** Items as drawn: fields filled in for the slide they show under (not while typed into). */
+  private withFields(items: CanvasElementModel[]): CanvasElementModel[] {
+    const fields = this.shownFields();
+    if (!fields.size) return items;
+    const editing = this.editingTextId();
+    return items.map((e) => {
+      const ctx = e.id !== editing && e.slideId ? fields.get(e.slideId) : undefined;
+      return ctx ? this.fillFields(e, ctx) : e;
+    });
+  }
+
+  /**
+   * Field values per frame whose items are drawn under a shown slide: the slide itself,
+   * its layout and its deck's master all number as that slide. Shown layouts keep tokens.
+   */
+  private readonly shownFields = computed(() => {
+    const frames = this.store.slideFrames();
+    const out = new Map<string, FieldContext>();
+    for (const [name, id] of this.store.shownByPresentation()) {
+      const slide = frames.find((f) => f.id === id);
+      if (!slide || slide.slide?.layout) continue;
+      const ids = presentableSlides(frames)
+        .filter((f) => presentationOf(f) === name)
+        .map((f) => f.id);
+      const ctx = fieldContext(slide.id, ids, name);
+      out.set(slide.id, ctx);
+      const layout = layoutOf(slide, frames);
+      if (layout) out.set(layout.id, ctx);
+      const master = masterOf(slide, frames);
+      if (master) out.set(master.id, ctx);
+    }
+    return out;
+  });
+
+  /**
+   * Layout / master frames drawn under a shown frame -> how far that frame sits from
+   * them (non-zero only while a moved slide's stack has not caught up yet).
+   */
+  private readonly inheritedOffsets = computed(() => {
+    const frames = this.store.slideFrames();
+    const shown = this.store.shownSlideIds();
+    const out = new Map<string, { dx: number; dy: number }>();
+    for (const f of frames) {
+      if (!shown.has(f.id)) continue;
+      for (const u of [layoutOf(f, frames), masterOf(f, frames)]) {
+        if (u && !shown.has(u.id) && (u.x !== f.x || u.y !== f.y)) out.set(u.id, { dx: f.x - u.x, dy: f.y - u.y });
+      }
+    }
+    return out;
+  });
+
   /** Shown slides without a background of their own take their layout's. */
   private readonly layoutFills = computed(() => {
     const frames = this.store.slideFrames();
@@ -1358,6 +1487,13 @@ export class EditorComponent {
       }
     }
     return out;
+  });
+
+  /** Every presentation gets a theme and a default layout; every slide a layout. */
+  private readonly deckDefaults = effect(() => {
+    this.store.slideFrames();
+    if (!this.store.canEdit()) return;
+    untracked(() => void ensureDeckDefaults(this.store, this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE));
   });
 
   /** Per presentation: the last slide (not a layout) shown, so editing a layout keeps your place. */
@@ -1392,12 +1528,20 @@ export class EditorComponent {
     if (stale) void this.store.patchElementSilently(id, look.patch);
   });
 
+  /** The deck theme an element's tokens resolve against (its presentation's, else the default). */
+  private deckThemeOf(el: Pick<CanvasElementModel, 'id' | 'type' | 'slideId'>): SlideTheme {
+    const f = el.type === 'frame' ? this.store.slideFrames().find((x) => x.id === el.id) : this.store.slideFrames().find((x) => x.id === el.slideId);
+    return (f && this.store.presentationThemes().get(presentationOf(f))) || DEFAULT_THEME;
+  }
+
   protected readonly textEditor = computed(() => {
     const id = this.editingTextId();
     if (!id) {
       return null;
     }
-    const el = this.store.elements().find((e) => e.id === id);
+    const raw = this.store.elements().find((e) => e.id === id);
+    // The editor overlay draws in the element's concrete (theme-resolved) colors and font.
+    const el = raw && resolveThemeElement(raw, this.deckThemeOf(raw));
     const editable =
       el &&
       (el.type === 'text' ||
@@ -1713,6 +1857,8 @@ export class EditorComponent {
     // Slides are locked together: moving one moves all of them (once the move settles).
     effect((onCleanup) => {
       this.store.slideFrames();
+      // Not mid-drag: a pause would shift the rest early; the whole move is caught up on release.
+      if (this.gestureActive()) return;
       const timer = setTimeout(() => this.syncSlideMoves(), 160);
       onCleanup(() => clearTimeout(timer));
     });
@@ -1978,6 +2124,16 @@ export class EditorComponent {
       }
       this.beginDraw(tool, event);
       return;
+    }
+    // Grabbing a master item drawn under a shown slide or layout gives that frame its own
+    // copy, selected and (while the button is held) dragged like any item.
+    if (tool === 'select' && this.store.canEdit() && !EditorComponent.additive(event)) {
+      const inherited = this.inheritedMasterItemAt(this.toWorld(event.clientX, event.clientY));
+      if (inherited) {
+        event.preventDefault();
+        void this.grabInherited(inherited.item, inherited.frame, event);
+        return;
+      }
     }
     this.marqueeAdditive = EditorComponent.additive(event);
     if (!this.marqueeAdditive) {
@@ -3286,7 +3442,9 @@ export class EditorComponent {
         span.style.textDecoration = 'underline';
       }
       if (run.color) {
-        span.style.color = run.color;
+        // Theme tokens paint as their color; the dataset keeps the token to save back.
+        const el = this.store.elements().find((e) => e.id === this.editingTextId());
+        span.style.color = el ? themeSwatchCss(resolveThemeColor(run.color, this.deckThemeOf(el))) : run.color;
         span.dataset['color'] = run.color;
       }
       if (run.morph) {
@@ -3508,6 +3666,19 @@ export class EditorComponent {
     this.publishRichSelection(next);
   }
 
+  /** Type text at the remembered caret (a field token from the toolbar), as if typed. */
+  private insertRichText(text: string): void {
+    const root = this.richEditorRef()?.nativeElement;
+    if (!root) {
+      return;
+    }
+    root.focus();
+    const { start, end } = this.richSel;
+    this.setRichSelection(root, Math.min(start, end), Math.max(start, end));
+    // execCommand fires the editor's own input handling (and keeps native undo).
+    document.execCommand('insertText', false, text);
+  }
+
   private initRichEditor(root: HTMLDivElement): void {
     const id = this.editingTextId();
     const el = id ? this.store.elements().find((e) => e.id === id) : null;
@@ -3523,6 +3694,7 @@ export class EditorComponent {
       id,
       (patch) => this.applyRichPatch(patch),
       (kind) => this.toggleRichList(kind),
+      (text) => this.insertRichText(text),
     );
     this.publishRichSelection();
 
@@ -4814,17 +4986,27 @@ export class EditorComponent {
     inner.tableIds.forEach((id) => tableIds.add(id));
     inner.diagramIds.forEach((id) => diagramIds.add(id));
 
-    void this.store.batchHistory(() => {
+    // Slides using a deleted layout keep its look: its items are copied onto them first.
+    const layouts = this.store.slideFrames().filter((f) => f.slide?.layout && elementIds.has(f.id));
+    void this.store.batchHistory(async () => {
+      // Slides deleted along with the layout need no copy of its look.
+      for (const l of layouts) await detachFromLayout(this.store, l, elementIds);
       const jobs: unknown[] = [];
       relIds.forEach((id) => jobs.push(this.store.deleteRelationship(id)));
       tableIds.forEach((id) => jobs.push(this.store.deleteTable(id)));
-      elementIds.forEach((id) => jobs.push(this.store.deleteElement(id)));
+      elementIds.forEach((id) => {
+        // A slide's or layout's copy of a master item stays as a marker deleting it there
+        // (unless its frame goes too).
+        const el = this.store.elements().find((e) => e.id === id);
+        const keepMarker = !!el?.overrides && !(el.slideId && elementIds.has(el.slideId));
+        jobs.push(keepMarker ? deleteStandIn(this.store, el!) : this.store.deleteElement(id));
+      });
       diagramIds.forEach((id) => jobs.push(this.store.deleteSequence(id)));
       if (!diagramIds.size) {
         messageIds.forEach((id) => jobs.push(this.store.deleteMessage(id)));
         lifelineIds.forEach((id) => jobs.push(this.store.deleteLifeline(id)));
       }
-      return Promise.all(jobs);
+      await Promise.all(jobs);
     });
   }
 
@@ -5564,7 +5746,8 @@ export class EditorComponent {
       height: shown?.height ?? preset.height,
       angle: 0,
       strokeColor: this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
-      fillStyle: 'none',
+      // Layouts are filled with the theme background (slides show their layout's).
+      ...(layout ? { backgroundColor: themeToken('background'), fillStyle: 'solid' as const } : { fillStyle: 'none' as const }),
       strokeWidth: 1.5,
       strokeStyle: 'solid',
       opacity: 100,
@@ -5574,12 +5757,12 @@ export class EditorComponent {
         ...(presentation ? { presentation } : {}),
         // A layout; or a slide using the layout shown (or the shown slide's layout).
         ...(layout
-          ? { layout: true, layoutName: `Layout ${slides.length + 1}` }
+          ? { layout: true, layoutName: `Layout ${slides.filter((f) => !f.slide?.defaultLayout).length + 1}` }
           : layoutId !== undefined
             ? layoutId
               ? { layoutId }
               : {}
-            : shown?.slide?.layout
+            : shown?.slide?.layout && !shown.slide.master
             ? { layoutId: shown.id }
             : shown?.slide?.layoutId
               ? { layoutId: shown.slide.layoutId }
@@ -5683,7 +5866,9 @@ export class EditorComponent {
           .filter((l) => l.id !== copy.id)
           .map((l) => layoutNameOf(l, frames));
         const name = nextCopyName(layoutNameOf(frame, frames), names);
-        await this.store.updateElement(copy.id, { slide: { ...copy.slide, layoutName: name } });
+        await this.store.updateElement(copy.id, {
+          slide: { ...copy.slide, layoutName: name, defaultLayout: undefined, master: undefined },
+        });
       }
     });
     if (newId) {
@@ -5992,6 +6177,15 @@ export class EditorComponent {
     if (!this.store.canEdit() || !this.store.projectId()) {
       return;
     }
+    // Double-clicking a master item drawn under a shown slide or layout gives that frame
+    // its own copy to edit (reset to master deletes it again).
+    if (!hit) {
+      const inherited = this.inheritedMasterItemAt(world);
+      if (inherited) {
+        void this.editInherited(inherited.item, inherited.frame);
+        return;
+      }
+    }
     // Double-clicking a grid table edits the cell under the pointer.
     if (hit?.type === 'grid') {
       const cell = gridCellAt(hit, world);
@@ -6045,6 +6239,79 @@ export class EditorComponent {
       return;
     }
     this.createTextAt(world);
+  }
+
+  /**
+   * The topmost master item (or a layout's stand-in for one) drawn locked under a shown
+   * slide or layout at a world point, with the shown frame it is under.
+   */
+  private inheritedMasterItemAt(world: { x: number; y: number }): { item: CanvasElementModel; frame: CanvasElementModel } | null {
+    const locked = this.store.layoutItemIds();
+    const masters = this.store.masterItemIds();
+    const hide = this.focusHidden();
+    const frames = this.store.slideFrames();
+    const shown = frames.filter((f) => this.store.shownSlideIds().has(f.id));
+    const items = this.withFields(this.store.elements())
+      .filter((e) => locked.has(e.id) && (masters.has(e.id) || !!e.overrides) && !hide?.elementIds.has(e.id))
+      .sort((a, b) => (masters.has(a.id) ? 0 : 1) - (masters.has(b.id) ? 0 : 1) || a.zIndex - b.zIndex)
+      .reverse();
+    for (const item of items) {
+      if (!hitTestElement(item, world)) continue;
+      const frame = shown.find((f) => masterOf(f, frames)?.id === item.slideId || layoutOf(f, frames)?.id === item.slideId);
+      // Hit-test what is drawn (fields filled in), but copy the stored item (fields kept).
+      const raw = this.store.elements().find((e) => e.id === item.id);
+      if (frame && raw) return { item: raw, frame };
+    }
+    return null;
+  }
+
+  /** Copies made by grabbing a master item, as made: dropped again if left unchanged. */
+  private readonly pristineStandIns = new Map<string, string>();
+
+  private async grabInherited(item: CanvasElementModel, frame: CanvasElementModel, event: PointerEvent): Promise<void> {
+    let held = true;
+    const up = (): void => {
+      held = false;
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointerup', up);
+    const copy = await standInFor(this.store, item, frame, true);
+    if (!copy) return;
+    this.pristineStandIns.set(copy.id, this.standInLook(copy));
+    this.store.selectElement(copy.id, false);
+    if (!held) return;
+    window.removeEventListener('pointerup', up);
+    this.startClientX = event.clientX;
+    this.startClientY = event.clientY;
+    this.gestureScale = this.itemScale(copy.id);
+    this.dragCopied = false;
+    this.beginElementDrag(copy);
+  }
+
+  private standInLook(e: CanvasElementModel): string {
+    const { zIndex: _z, ...rest } = e;
+    return JSON.stringify(rest);
+  }
+
+  /** A grabbed master item's copy that was never changed goes once it is deselected. */
+  private readonly prunePristine = effect(() => {
+    const selected = new Set(this.store.selectedElementIds());
+    const editing = this.editingTextId();
+    untracked(() => {
+      for (const [id, look] of [...this.pristineStandIns]) {
+        if (selected.has(id) || editing === id) continue;
+        this.pristineStandIns.delete(id);
+        const el = this.store.elements().find((e) => e.id === id);
+        if (el && this.standInLook(el) === look) void this.store.deleteElementSilently(id);
+      }
+    });
+  });
+
+  private async editInherited(item: CanvasElementModel, frame: CanvasElementModel): Promise<void> {
+    const copy = await standInFor(this.store, item, frame);
+    if (!copy) return;
+    this.store.selectElement(copy.id);
+    if (['text', 'rectangle', 'ellipse', 'diamond', 'code'].includes(copy.type)) this.editingTextId.set(copy.id);
   }
 
   /** Create an empty text block at a world point and open its inline editor. */
@@ -6298,9 +6565,9 @@ export class EditorComponent {
     const tables = selectionOnly
       ? this.store.tables().filter((t) => selectedTableIds.has(t.id))
       : this.store.tables();
-    const elements = selectionOnly
-      ? this.store.elements().filter((e) => selectedElementIds.has(e.id))
-      : this.store.elements();
+    // Pictures draw deck theme tokens as their concrete colors/fonts.
+    const themed = this.store.themedElements();
+    const elements = selectionOnly ? themed.filter((e) => selectedElementIds.has(e.id)) : themed;
 
     const columnIds = new Set<string>();
     for (const table of tables) {
@@ -6577,6 +6844,7 @@ export class EditorComponent {
           sequences.lifelines,
           sequences.messages,
           layoutOf(frame, this.store.slideFrames())?.id,
+          masterOf(frame, this.store.slideFrames())?.id,
         );
         const built = buildDiagramSvg(
           mine.tables,

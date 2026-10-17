@@ -1,4 +1,4 @@
-import type { CanvasElementModel, TextRun } from '@dbdesigner/shared';
+import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@dbdesigner/shared';
 import { runWeight, usableRuns } from './rich-text.helper';
 import { fontStack, fontWeightFor } from './shape-render.helper';
 
@@ -107,6 +107,14 @@ export function measureTextBox(
 }
 
 /** The box a text element takes for its content at its current typography. */
+/** Resolves a theme font token (`$heading`) for an element; the project store registers the deck-aware one. */
+let themeFont: (el: { id?: string; slideId?: string; fontFamily?: string }) => string | undefined = (el) =>
+  resolveThemeFont(el.fontFamily);
+
+export function setThemeFontResolver(fn: typeof themeFont): void {
+  themeFont = fn;
+}
+
 export function fitTextElement(
   el: Pick<
     CanvasElementModel,
@@ -133,7 +141,7 @@ export function fitTextElement(
   return measureTextBox(
     text,
     overrides.fontSize ?? el.fontSize ?? TEXT_DEFAULT_FONT_SIZE,
-    el.fontFamily,
+    themeFont(el),
     el.bold ? 800 : fontWeightFor(el.strokeWidth),
     !!el.italic,
     el.lineHeight ?? DEFAULT_LINE_HEIGHT,
