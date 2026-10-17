@@ -122,7 +122,9 @@ export class AuthController {
   /**
    * httpOnly session cookie attributes. Secure is enabled in production. When the
    * client and API live on different sites, set COOKIE_SAMESITE=none (browsers
-   * require Secure with it, so it is forced on).
+   * require Secure with it, so it is forced on). Cross-site cookies are also marked
+   * Partitioned (CHIPS): browsers that block third-party cookies still keep a
+   * partitioned one, keyed to the client's site, so the session survives reloads.
    */
   private cookieOptions(): CookieOptions {
     const raw = this.config.get<string>('COOKIE_SAMESITE', 'lax').toLowerCase();
@@ -134,6 +136,7 @@ export class AuthController {
       httpOnly: true,
       sameSite,
       secure,
+      partitioned: sameSite === 'none',
       path: '/',
       maxAge: SESSION_MAX_AGE_MS,
     };
