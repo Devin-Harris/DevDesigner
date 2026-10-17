@@ -3,16 +3,22 @@ import { RouterOutlet } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { EditorActionsService } from './core/services/editor-actions.service';
+import { ProjectsService } from './core/services/projects.service';
 import { ProjectFileService } from './core/services/project-file.service';
 import { RealtimeService } from './core/services/realtime.service';
 import { ProjectsStore } from './stores/projects.store';
 import { ProjectStore } from './stores/project.store';
 import { AuthDialogComponent } from './features/auth/auth-dialog.component';
+import {
+  ConfirmDialogComponent,
+  type ConfirmDialogData,
+} from './features/workspace/confirm-dialog/confirm-dialog.component';
 import { ApiTokensDialogComponent } from './features/auth/api-tokens-dialog.component';
 import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/icon/icon.component';
@@ -43,6 +49,7 @@ export class AppComponent {
   private readonly overlay = inject(ProjectsOverlayService);
   private readonly projectFile = inject(ProjectFileService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly projectsApi = inject(ProjectsService);
 
   constructor() {
     void this.auth.loadMe();
@@ -112,11 +119,46 @@ export class AppComponent {
 
   protected openAuth(): void {
     const ref = this.dialog.open(AuthDialogComponent, { width: '420px', maxWidth: '92vw' });
-    ref.afterClosed().subscribe((signedIn) => {
+    ref.afterClosed().subscribe(async (signedIn) => {
       if (signedIn) {
+        await this.offerGuestProjectClaim();
         this.refreshForIdentity();
       }
     });
+  }
+
+  /** After sign-in, offer to move this browser's guest projects into the account. */
+  private async offerGuestProjectClaim(): Promise<void> {
+    try {
+      const { count } = await firstValueFrom(this.projectsApi.guestCount());
+      if (count === 0) {
+        return;
+      }
+      const plural = count === 1 ? 'project' : 'projects';
+      const data: ConfirmDialogData = {
+        title: 'Move guest projects?',
+        message:
+          `You have ${count} ${plural} made in this browser without an account. ` +
+          `Move ${count === 1 ? 'it' : 'them'} into your account? If you don't, ` +
+          `${count === 1 ? 'it stays' : 'they stay'} available here only while signed out.`,
+        confirmLabel: `Move ${plural}`,
+      };
+      const confirmed = await firstValueFrom(
+        this.dialog.open(ConfirmDialogComponent, { data, width: '420px' }).afterClosed(),
+      );
+      if (!confirmed) {
+        return;
+      }
+      const moved = await firstValueFrom(this.projectsApi.claimGuest());
+      this.snackBar.open(
+        `Moved ${moved.count} ${moved.count === 1 ? 'project' : 'projects'} to your account`,
+        undefined,
+        { duration: 3000 },
+      );
+    } catch (err) {
+      console.error('Could not move guest projects', err);
+      this.snackBar.open('Could not move guest projects', 'Dismiss', { duration: 5000 });
+    }
   }
 
   protected openApiTokens(): void {

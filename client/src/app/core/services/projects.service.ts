@@ -31,6 +31,16 @@ export class ProjectsService {
     return this.api.get<ProjectSummary[]>(`/projects?archived=${archived}`);
   }
 
+  /** GET /projects/guest-count : this browser's guest projects (signed in only). */
+  guestCount(): Observable<{ count: number }> {
+    return this.api.get<{ count: number }>('/projects/guest-count');
+  }
+
+  /** POST /projects/claim-guest : move this browser's guest projects into the account. */
+  claimGuest(): Observable<{ count: number }> {
+    return this.api.post<{ count: number }>('/projects/claim-guest', {});
+  }
+
   /** POST /projects */
   create(dto: CreateProjectDto): Observable<ProjectSummary> {
     return this.api.post<ProjectSummary>('/projects', dto);

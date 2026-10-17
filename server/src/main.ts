@@ -29,7 +29,7 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigin.split(',').map((o) => o.trim()),
     // Share tokens travel in X-Share-Token for anonymous link-based access;
     // X-Client-Id tags each write so its realtime broadcast can skip the origin tab.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id', 'X-Guest-Id'],
     credentials: true,
   });
 

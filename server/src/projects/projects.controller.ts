@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type {
   ImportIntoProjectResponse,
@@ -21,8 +22,10 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { CurrentUser, CurrentUserId } from '../auth/current-user.decorator';
+import { guestOwnerId } from '../auth/guest-id';
+import type { AuthUser } from '../auth/auth.types';
+import { ClientId, GuestId, ShareToken } from '../common/request.decorators';
 
 /**
  * Granular project routes (BUILD_INSTRUCTIONS.md section 5). Controllers only
@@ -47,6 +50,35 @@ export class ProjectsController {
     @CurrentUserId() userId: string | null,
   ): Promise<ProjectSummary> {
     return this.projects.create(dto, userId);
+  }
+
+  /**
+   * How many projects this browser created as a guest (X-Guest-Id), so a
+   * freshly signed-in user can be offered to move them into their account.
+   */
+  @Get('guest-count')
+  async guestCount(
+    @CurrentUser() user: AuthUser | null,
+    @GuestId() guestId: string | null,
+  ): Promise<{ count: number }> {
+    const owner = guestOwnerId(guestId);
+    if (!user || !owner) {
+      return { count: 0 };
+    }
+    return { count: await this.projects.countOwnedBy(owner) };
+  }
+
+  /** Move this browser's guest projects into the signed-in account. */
+  @Post('claim-guest')
+  async claimGuest(
+    @CurrentUser() user: AuthUser | null,
+    @GuestId() guestId: string | null,
+  ): Promise<{ count: number }> {
+    if (!user) {
+      throw new UnauthorizedException('Sign in to claim guest projects.');
+    }
+    const owner = guestOwnerId(guestId);
+    return { count: owner ? await this.projects.transferOwnership(owner, user.id) : 0 };
   }
 
   /** Create a project from an exported file. Declared before ':projectId' routes. */

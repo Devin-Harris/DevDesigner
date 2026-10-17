@@ -9,6 +9,23 @@ function mintClientId(): string {
   }
 }
 
+const GUEST_ID_KEY = 'dbd.guestId';
+
+/** A random id for this browser, persisted so its guest projects stay its own. */
+function loadGuestId(): string {
+  const fresh = mintClientId().replace(/[^A-Za-z0-9_-]/g, '');
+  try {
+    const stored = localStorage.getItem(GUEST_ID_KEY);
+    if (stored && /^[A-Za-z0-9_-]{16,64}$/.test(stored)) {
+      return stored;
+    }
+    localStorage.setItem(GUEST_ID_KEY, fresh);
+  } catch {
+    // Storage blocked: fall back to a per-load id.
+  }
+  return fresh;
+}
+
 /**
  * Holds the current anonymous share token (set only when the app is opened via a
  * /shared/:token link) and a per-tab client id. The share-token interceptor reads
@@ -23,6 +40,9 @@ export class ShareSessionService {
 
   /** Stable id for this tab, used as X-Client-Id and for self-filtering broadcasts. */
   readonly clientId = mintClientId();
+
+  /** Per-browser guest id (X-Guest-Id); owns projects made without an account. */
+  readonly guestId = loadGuestId();
 
   setToken(token: string | null): void {
     this._token.set(token);

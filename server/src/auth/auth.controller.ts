@@ -21,7 +21,7 @@ import type {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { CurrentUser, CurrentUserId } from './current-user.decorator';
+import { CurrentUser } from './current-user.decorator';
 import { ApiTokenService } from './api-token.service';
 import { CreateApiTokenDto } from './dto/create-api-token.dto';
 import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
@@ -67,8 +67,8 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUserId() userId: string | null): Promise<CurrentUserResponse | null> {
-    return this.auth.me(userId);
+  me(@CurrentUser() user: AuthUser | null): Promise<CurrentUserResponse | null> {
+    return this.auth.me(user?.id ?? null);
   }
 
   // --- API tokens (for the MCP server / automation) ---

@@ -23,6 +23,7 @@ import {
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
 import { AccessService } from '../access/access.service';
+import { guestOwnerId } from '../auth/guest-id';
 import { AuthService } from '../auth/auth.service';
 
 /** Colors assigned round-robin to participants so cursors read distinctly. */
@@ -87,6 +88,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const projectId = typeof auth.projectId === 'string' ? auth.projectId : null;
     const token = typeof auth.token === 'string' ? auth.token : null;
     const clientId = typeof auth.clientId === 'string' ? auth.clientId : null;
+    const guestId = guestOwnerId(auth.guestId);
     if (!projectId) {
       client.disconnect(true);
       return;
@@ -95,7 +97,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const user = this.auth.verifySession(client.handshake.headers.cookie);
     let accessLevel: AccessLevel;
     try {
-      accessLevel = await this.access.resolveProjectAccess(projectId, user?.id ?? null, token);
+      accessLevel = await this.access.resolveProjectAccess(projectId, user?.id ?? guestId, token);
     } catch {
       // No access: refuse the socket rather than leaking presence.
       client.disconnect(true);

@@ -131,4 +131,6 @@ export interface RealtimeHandshakeAuth {
   token?: string;
   /** The tab's X-Client-Id, so its own broadcasts can be self-filtered. */
   clientId: string;
+  /** This browser's guest id (localStorage), scoping account-free projects. */
+  guestId?: string;
 }

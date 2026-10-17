@@ -32,3 +32,12 @@ export const ClientId = createParamDecorator(
     return null;
   },
 );
+
+/** Inject this browser's raw X-Guest-Id (validate with guestOwnerId), or null. */
+export const GuestId = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): string | null => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const value = request.headers['x-guest-id'];
+    return typeof value === 'string' && value.length > 0 ? value : null;
+  },
+);

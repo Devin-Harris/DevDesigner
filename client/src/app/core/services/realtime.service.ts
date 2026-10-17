@@ -90,6 +90,7 @@ export class RealtimeService {
       projectId,
       token: this.session.token() ?? undefined,
       clientId: this.session.clientId,
+      guestId: this.session.guestId,
     };
     const socket = io(`${environment.wsBaseUrl}${REALTIME_NAMESPACE}`, {
       withCredentials: true,

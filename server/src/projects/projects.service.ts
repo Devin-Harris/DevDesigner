@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   PROJECT_EXPORT_FORMAT,
   PROJECT_EXPORT_VERSION,
@@ -60,15 +60,29 @@ export class ProjectsService {
 
   /**
    * List projects for the dashboard. An authenticated caller sees only the
-   * projects they own; an anonymous caller sees the account-free (ownerless)
-   * projects, preserving the app's original no-login workflow.
+   * projects they own; an anonymous caller sees only its own browser's guest
+   * projects (userId is `guest:<id>`). Legacy ownerless projects are never listed.
    */
   async list(userId: string | null, archived = false): Promise<ProjectSummary[]> {
+    if (!userId) {
+      return [];
+    }
     const rows = await this.projects.find({
-      where: { archived, ownerId: userId ?? IsNull() },
+      where: { archived, ownerId: userId },
       order: { updatedAt: 'DESC' },
     });
     return rows.map((row) => this.toSummary(row));
+  }
+
+  /** Number of projects (archived or not) owned by `ownerId`. */
+  countOwnedBy(ownerId: string): Promise<number> {
+    return this.projects.count({ where: { ownerId } });
+  }
+
+  /** Reassign every project of `fromOwner` to `toOwner`; returns how many moved. */
+  async transferOwnership(fromOwner: string, toOwner: string): Promise<number> {
+    const result = await this.projects.update({ ownerId: fromOwner }, { ownerId: toOwner });
+    return result.affected ?? 0;
   }
 
   async create(dto: CreateProjectDto, userId: string | null): Promise<ProjectSummary> {
@@ -76,7 +90,7 @@ export class ProjectsService {
       name: dto.name,
       description: dto.description ?? null,
       type: dto.type ?? 'ERD',
-      // Owned by the creator when signed in; ownerless (open) when anonymous.
+      // Owned by the account when signed in, else by this browser's guest id.
       ownerId: userId,
     });
     const saved = await this.projects.save(project);

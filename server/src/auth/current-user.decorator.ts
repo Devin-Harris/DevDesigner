@@ -1,6 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthUser } from './auth.types';
+import { guestOwnerId } from './guest-id';
 
 interface RequestWithUser extends Request {
   user?: AuthUser | null;
@@ -14,10 +15,13 @@ export const CurrentUser = createParamDecorator(
   },
 );
 
-/** Inject just the caller's user id, or null when anonymous. Handy for scoping. */
+/**
+ * Inject the caller's owner id for scoping: the account id when signed in,
+ * else `guest:<id>` from this browser's X-Guest-Id, else null.
+ */
 export const CurrentUserId = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string | null => {
     const request = ctx.switchToHttp().getRequest<RequestWithUser>();
-    return request.user?.id ?? null;
+    return request.user?.id ?? guestOwnerId(request.headers['x-guest-id']);
   },
 );
