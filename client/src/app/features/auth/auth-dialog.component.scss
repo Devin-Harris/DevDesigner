@@ -1,8 +1,16 @@
 .dlg-title {
   margin: 0 0 var(--dbd-space-3);
+  padding: 0 !important;
+  color: var(--dbd-text);
+  line-height: 1.3;
+  letter-spacing: normal;
   font-family: var(--dbd-display);
   font-size: 18px;
   font-weight: 700;
+
+  &::before {
+    display: none;
+  }
 }
 
 .dlg-body {

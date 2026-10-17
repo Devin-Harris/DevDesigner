@@ -1,7 +1,7 @@
 <h2 mat-dialog-title class="dlg-title">{{ title() }}</h2>
 
 <mat-dialog-content class="dlg-body">
-  <div class="form">
+  <div class="form" (keydown.enter)="submit()">
     @if (isRegister()) {
       <div class="field">
         <label class="field-label">Display name (optional)</label>
