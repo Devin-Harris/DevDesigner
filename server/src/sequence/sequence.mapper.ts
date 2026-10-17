@@ -18,6 +18,7 @@ export function toSequenceDiagramModel(e: SequenceDiagramEntity): SequenceDiagra
     groupId: e.groupId ?? undefined,
     slideId: e.slideId ?? undefined,
     backgroundColor: e.backgroundColor ?? undefined,
+    borderColor: e.borderColor ?? undefined,
     title: e.title ?? undefined,
     morphId: e.morphId ?? undefined,
   };
@@ -30,6 +31,8 @@ export function toLifelineModel(e: LifelineEntity): LifelineModel {
     label: e.label,
     color: e.color ?? undefined,
     lineColor: e.lineColor ?? undefined,
+    strokeColor: e.strokeColor ?? undefined,
+    textColor: e.textColor ?? undefined,
     x: e.x,
     width: e.width,
     order: e.orderIndex,

@@ -4,9 +4,23 @@
     {
       "name": "client",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeArgs": [
+        "start"
+      ],
       "cwd": "client",
       "port": 4242
+    },
+    {
+      "name": "client-4300",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "ng",
+        "serve",
+        "--port",
+        "4300"
+      ],
+      "cwd": "client",
+      "port": 4300
     }
   ]
 }

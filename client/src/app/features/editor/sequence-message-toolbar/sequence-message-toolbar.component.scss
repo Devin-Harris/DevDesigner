@@ -76,3 +76,19 @@
     color: var(--dbd-danger);
   }
 }
+.color-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--dbd-border-strong);
+}
+.color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dbd-space-2);
+  padding: var(--dbd-space-3);
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  border-radius: var(--dbd-radius);
+  box-shadow: var(--dbd-shadow-3);
+}

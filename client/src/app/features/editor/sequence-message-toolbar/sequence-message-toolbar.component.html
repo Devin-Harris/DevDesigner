@@ -58,6 +58,23 @@
   <button
     type="button"
     class="ico-act"
+    [dbdPopoverTrigger]="colorMenu"
+    placement="below-start"
+    [disabled]="!canEdit()"
+    title="Line color"
+    aria-label="Line color"
+  >
+    <span class="color-dot" [style.background]="css(m.color) || 'var(--dbd-connector)'"></span>
+  </button>
+  <ng-template #colorMenu let-close>
+    <div class="color-grid">
+      <dbd-color-swatches [value]="m.color" noneLabel="Default" themeValue="theme" (pick)="setColor($event); close()" />
+    </div>
+  </ng-template>
+
+  <button
+    type="button"
+    class="ico-act"
     [disabled]="!canEdit()"
     (click)="edit()"
     title="Edit label"

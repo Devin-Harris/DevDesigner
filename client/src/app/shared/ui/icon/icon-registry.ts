@@ -82,6 +82,7 @@ export const ICON_PATHS: Record<string, string> = {
 
   // ---- element styling ----
   colorize: '<path d="M15 5l4 4M18 4l2 2a1.5 1.5 0 0 1 0 2l-2 2-4-4 2-2a1.5 1.5 0 0 1 2 0zM13 8L4 17v3h3l9-9"/>',
+  contrast: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
   line_weight: '<path d="M4 6h16M4 12h16M4 18h16" stroke-width="1"/><path d="M4 12h16" stroke-width="2"/><path d="M4 18h16" stroke-width="3.2"/>',
   opacity: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 3v18" opacity="0"/>',
   auto_fix: '<path d="M5 19L17 7M14.5 4.5l5 5M6 4v3M4.5 5.5h3M19 15v3M17.5 16.5h3"/>',

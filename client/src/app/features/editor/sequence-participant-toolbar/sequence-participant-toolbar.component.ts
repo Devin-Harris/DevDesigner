@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { HEADER_SWATCHES, SOFT_SWATCHES } from '@dbdesigner/shared';
+import { themeColorCss } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 
 /**
@@ -13,7 +14,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   selector: 'app-sequence-participant-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, PopoverTriggerDirective],
+  imports: [ColorSwatchesComponent, IconComponent, PopoverTriggerDirective],
   templateUrl: './sequence-participant-toolbar.component.html',
   styleUrl: './sequence-participant-toolbar.component.scss',
 })
@@ -21,12 +22,19 @@ export class SequenceParticipantToolbarComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly lifeline = computed(() => this.store.selectedLifeline());
   protected readonly canEdit = computed(() => this.store.canEdit());
-
-  protected readonly swatches = ['', ...HEADER_SWATCHES, ...SOFT_SWATCHES];
+  protected readonly css = themeColorCss;
 
   protected setColor(color: string): void {
     const l = this.lifeline();
     if (l) void this.store.updateLifeline(l.id, { color });
+  }
+  protected setStroke(strokeColor: string): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { strokeColor });
+  }
+  protected setText(textColor: string): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { textColor });
   }
   protected edit(): void {
     const l = this.lifeline();

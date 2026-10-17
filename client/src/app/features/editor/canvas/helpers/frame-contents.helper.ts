@@ -1,3 +1,4 @@
+import { isEmptyPlaceholder, type PlaceholderConfig } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   LifelineModel,
@@ -117,10 +118,11 @@ export function frameContents(
 /**
  * What belongs in the picture of the frame `frameId` (a slide's thumbnail, its
  * presentation image, an export): items owned by that slide plus anything on no
- * slide. Other slides' items, stacked in the same spot, are left out.
+ * slide. Other slides' items, stacked in the same spot, are left out. `layoutId`
+ * (the slide's layout frame) adds that layout's elements, drawn beneath the slide's.
  */
 export function contentForFrame<
-  E extends { slideId?: string },
+  E extends { slideId?: string; zIndex: number; placeholder?: PlaceholderConfig; text?: string },
   T extends { slideId?: string },
   D extends { id: string; slideId?: string },
   L extends { diagramId: string },
@@ -133,6 +135,7 @@ export function contentForFrame<
   diagrams: readonly D[],
   lifelines: readonly L[],
   messages: readonly M[],
+  layoutId?: string,
 ): { elements: E[]; tables: T[]; diagrams: D[]; lifelines: L[]; messages: M[] } {
   if (!isSlide) {
     return {
@@ -144,13 +147,41 @@ export function contentForFrame<
     };
   }
   const mine = (slideId: string | undefined): boolean => !slideId || slideId === frameId;
+  // A slide with no background of its own shows its layout's.
+  type Fill = { id?: string; fillStyle?: string; backgroundColor?: string };
+  const layout = layoutId
+    ? (elements as readonly Fill[]).find((e) => e.id === layoutId)
+    : undefined;
+  const withLayoutFill = (e: E): E => {
+    const f = e as Fill;
+    return layout && f.id === frameId && f.fillStyle === 'none' && layout.fillStyle !== 'none'
+      ? ({ ...e, fillStyle: layout.fillStyle, backgroundColor: layout.backgroundColor } as E)
+      : e;
+  };
   const ds = diagrams.filter((d) => mine(d.slideId));
   const ids = new Set(ds.map((d) => d.id));
   return {
-    elements: elements.filter((e) => mine(e.slideId)),
+    elements: [
+      ...(layoutId ? layoutElements(elements, layoutId) : []),
+      // Empty placeholder copies are only prompts for the editor: never in the picture.
+      ...elements.filter((e) => mine(e.slideId) && !isEmptyPlaceholder(e)).map(withLayoutFill),
+    ],
     tables: tables.filter((t) => mine(t.slideId)),
     diagrams: ds,
     lifelines: lifelines.filter((l) => ids.has(l.diagramId)),
     messages: messages.filter((m) => ids.has(m.diagramId)),
   };
+}
+
+/** Below every slide item: a layout's elements always draw under the slide's own. */
+export const LAYOUT_Z_OFFSET = 1_000_000;
+
+/** A layout frame's elements, pushed below the slide's own stacking order. */
+export function layoutElements<
+  E extends { slideId?: string; zIndex: number; placeholder?: PlaceholderConfig },
+>(elements: readonly E[], layoutId: string): E[] {
+  // Placeholders are not repeated: each slide has its own copy.
+  return elements
+    .filter((e) => e.slideId === layoutId && !e.placeholder)
+    .map((e) => ({ ...e, zIndex: e.zIndex - LAYOUT_Z_OFFSET }));
 }

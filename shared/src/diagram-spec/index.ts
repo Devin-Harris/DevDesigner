@@ -416,6 +416,10 @@ export interface SpecParticipant {
   color?: string;
   /** Color of the dashed line under the header. */
   lineColor?: string;
+  /** Header border color. */
+  strokeColor?: string;
+  /** Header label color. */
+  textColor?: string;
   /** Morph tag: pairs this participant with the same tag on the next slide even if renamed. */
   morph?: string;
 }
@@ -733,6 +737,8 @@ function buildSequence(
     const n = lifelines.length;
     const color = colorOrWarn(opts.color, `participant "${name}"`, warnings);
     const lineColor = colorOrWarn(opts.lineColor, `participant "${name}" line`, warnings);
+    const strokeColor = colorOrWarn(opts.strokeColor, `participant "${name}" stroke`, warnings);
+    const textColor = colorOrWarn(opts.textColor, `participant "${name}" text`, warnings);
     const tag = opts.morph?.trim() ? morphIdForTag(opts.morph) : null;
     const lifeline: LifelineModel = {
       id: id('l'),
@@ -743,6 +749,8 @@ function buildSequence(
       order: n,
       ...(color ? { color } : {}),
       ...(lineColor ? { lineColor } : {}),
+      ...(strokeColor ? { strokeColor } : {}),
+      ...(textColor ? { textColor } : {}),
       ...(tag ? { morphId: tag } : {}),
     };
     lifelines.push(lifeline);

@@ -8,11 +8,10 @@ import {
   type IndexModel,
   type TableModel,
   type UpdateColumnDto,
-  HEADER_SWATCHES,
-  SOFT_SWATCHES,
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
@@ -28,7 +27,7 @@ type InspectorTab = 'columns' | 'indexes' | 'sql';
   selector: 'app-inspector',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [ColorSwatchesComponent, 
     FormsModule,
     DragDropModule,
     IconComponent,
@@ -43,7 +42,6 @@ export class InspectorComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly typeOptions: SelectOption[] = DATA_TYPE_NAMES.map((n) => ({ value: n, label: n }));
   // Saturated category tints (shared look with the table node + floating toolbar).
-  protected readonly swatches = ['', ...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   readonly table = input.required<TableModel>();
 

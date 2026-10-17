@@ -24,7 +24,25 @@ import {
   type SlideEasing,
   type SlideTransition,
   type SlideTransitionType,
+  layoutOf,
+  presentationLayouts,
+  layoutNameOf,
+  presentationOf,
+  placeholderPrompt,
+  PLACEHOLDER_ROLES,
+  type PlaceholderRole,
+  type PlaceholderConfig,
 } from '@dbdesigner/shared';
+import {
+  placeholderGhosts,
+  placeholderDrift,
+  resetSlideToLayout,
+  switchLayout,
+  syncLayoutCopies,
+  type PlaceholderDrift,
+} from './layout-placeholders';
+import { ThemeService } from '../../../core/services/theme.service';
+import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
 import { TagInputComponent } from '../../../shared/ui/tag-input/tag-input.component';
@@ -43,7 +61,8 @@ export type SlidesCommand =
   | { kind: 'focus'; id: string }
   | { kind: 'duplicate'; id: string; toIndex?: number }
   | { kind: 'delete'; id: string }
-  | { kind: 'add' }
+  /** `layout`: add a layout; `layoutId`: the new slide's layout (null = blank, absent = as shown). */
+  | { kind: 'add'; layout?: boolean; layoutId?: string | null }
   | { kind: 'deletePresentation' }
   | { kind: 'close' }
   | { kind: 'fold' };
@@ -108,7 +127,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
   selector: 'app-slides-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnimationPaneComponent, FormsModule, IconComponent, SelectComponent, TagInputComponent],
+  imports: [AnimationPaneComponent, CheckboxComponent, FormsModule, IconComponent, SelectComponent, TagInputComponent],
   template: `
     @if (part() === 'list') {
     <header class="head">
@@ -155,9 +174,35 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         </button>
       </div>
       @if (canEdit()) {
-        <button class="btn new" (click)="command.emit({ kind: 'add' })" title="Add a new 16:9 slide">
-          <dbd-icon name="add" />New
-        </button>
+        <div class="newsplit">
+          <button class="btn new" (click)="command.emit({ kind: 'add' })"
+            [title]="newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'">
+            <dbd-icon name="add" />New
+          </button>
+          <button class="btn caret" (click)="newMenu.set(!newMenu())" aria-label="Choose the new slide's layout"
+            title="New slide with a layout…">
+            <dbd-icon name="expand_more" />
+          </button>
+          @if (newMenu()) {
+            <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
+              <button role="menuitem" (click)="addWithLayout(null)">
+                <span class="mthumb blank"></span>Blank slide
+              </button>
+              @for (l of layouts(); track l.id) {
+                <button role="menuitem" (click)="addWithLayout(l.id)">
+                  <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                    @if (layoutThumbs().get(l.id); as src) {
+                      <img [src]="src" alt="" draggable="false" />
+                    }
+                  </span>{{ layoutName(l) }}
+                </button>
+              }
+              @if (!layouts().length) {
+                <p class="hint">Add layouts in the settings panel's Layout tab.</p>
+              }
+            </div>
+          }
+        </div>
       }
     </div>
 
@@ -191,7 +236,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
           <li
             class="card"
             [class.on]="isSelected(f.id)"
-            [class.current]="f.id === active_()"
+            [class.current]="f.id === (shownLayout() ? lastSlide() : active_())"
             [class.hidden]="!!f.slide?.hidden"
             [class.dragging]="draggingIndex() === i && !cloning()"
             [class.settling]="draggingIndex() === i && !cloning() && settling()"
@@ -282,6 +327,9 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         </button>
         <button class="tab" [class.on]="tab() === 'size'" (click)="pick('size')">
           Size
+        </button>
+        <button class="tab" [class.on]="tab() === 'layout'" (click)="pick('layout')">
+          Layout
         </button>
         <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">
           Notes
@@ -419,6 +467,121 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             
               }
             }
+            @case ('layout') {
+              @if (active() && !shownLayout()) {
+                <label class="field">
+                  <span>Layout of {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span>
+                  <dbd-select
+                    [options]="layoutOptions()"
+                    [ngModel]="activeLayoutValue()"
+                    [disabled]="!canEdit() || !layouts().length"
+                    (ngModelChange)="setLayout($event)"
+                  />
+                </label>
+              }
+              @if (canEdit() && drift(); as d) {
+                <div class="field">
+                  <span>{{ driftLabel(d) }}</span>
+                  @if (selectedDrifted().length) {
+                    <button class="btn wide" (click)="resetSlide(true)"
+                      title="Put the selected placeholders back where and how the layout has them; keeps the text">
+                      <dbd-icon name="undo" />Reset selected to layout
+                    </button>
+                  } @else {
+                    <button class="btn wide" (click)="resetSlide(false)"
+                      title="Put every placeholder back where and how the layout has them and bring back deleted ones; keeps the text">
+                      <dbd-icon name="undo" />Reset slide to layout
+                    </button>
+                  }
+                </div>
+              }
+              @if (shownLayout(); as l) {
+                <label class="field">
+                  <span>Layout name</span>
+                  <input
+                    class="text-input"
+                    type="text"
+                    maxlength="120"
+                    aria-label="Layout name"
+                    [value]="layoutName(l)"
+                    [disabled]="!canEdit()"
+                    (keydown.enter)="$any($event.target).blur()"
+                    (blur)="renameLayout(l, $any($event.target))"
+                  />
+                </label>
+                @if (layoutTextSelection().length; as n) {
+                  <div class="field">
+                    <dbd-checkbox
+                      [ngModel]="!!layoutTextSelection()[0].placeholder"
+                      [disabled]="!canEdit()"
+                      (ngModelChange)="setPlaceholder($event)"
+                    >
+                      {{ n > 1 ? 'Selected text boxes are placeholders' : 'Selected text box is a placeholder' }}
+                    </dbd-checkbox>
+                  </div>
+                  @if (layoutTextSelection()[0].placeholder; as ph) {
+                    <label class="field">
+                      <span>Style type</span>
+                      <dbd-select
+                        [options]="roleOptions"
+                        [ngModel]="ph.role ?? ''"
+                        [disabled]="!canEdit()"
+                        (ngModelChange)="setRole($event)"
+                      />
+                    </label>
+                    <p class="hint">Slides show this box's text, faded, until something is typed in.</p>
+                  }
+                }
+                <p class="hint">
+                  Items drawn here show, locked, under every slide using this layout. Mark a text box
+                  as a placeholder and each slide gets its own empty copy to type into.
+                </p>
+                <div class="row">
+                  <button class="btn" (click)="backToSlide()"><dbd-icon name="chevron_left" />Back to slides</button>
+                  @if (canEdit()) {
+                    <button class="btn" (click)="command.emit({ kind: 'add' })" title="Add a slide that uses this layout">
+                      <dbd-icon name="add" />New slide
+                    </button>
+                  }
+                </div>
+              }
+              <div class="listbar">
+                <span class="muted">Layouts</span>
+                @if (canEdit()) {
+                  <button class="link" (click)="command.emit({ kind: 'add', layout: true })" title="Add a layout">
+                    <dbd-icon name="add" />Layout
+                  </button>
+                }
+              </div>
+              @if (!layouts().length) {
+                <p class="hint">No layouts yet. A layout holds the logo, bars and text boxes that repeat on slides.</p>
+              }
+              <ol class="layout-list">
+                @for (l of layouts(); track l.id) {
+                  <li class="lcard" [class.current]="l.id === active_()" (click)="command.emit({ kind: 'focus', id: l.id })"
+                    [title]="'Edit layout ' + layoutName(l)">
+                    <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                      @if (thumbs().get(l.id); as src) {
+                        <img [src]="src" alt="" draggable="false" />
+                      }
+                    </span>
+                    <span class="lname">{{ layoutName(l) }}</span>
+                    @if (canEdit()) {
+                      <span class="licons">
+                        <button class="icon" (click)="$event.stopPropagation(); command.emit({ kind: 'duplicate', id: l.id })"
+                          title="Duplicate layout" aria-label="Duplicate layout">
+                          <dbd-icon name="content_copy" />
+                        </button>
+                        <button class="icon" (click)="$event.stopPropagation(); command.emit({ kind: 'delete', id: l.id })"
+                          title="Delete layout and its items" aria-label="Delete layout">
+                          <dbd-icon name="delete" />
+                        </button>
+                      </span>
+                    }
+                  </li>
+                }
+              </ol>
+            }
             @case ('size') {
               @if (canEdit()) {
                 <label class="field">
@@ -530,14 +693,15 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .actions {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         padding: 6px 12px 10px;
         align-items: center;
       }
       .split {
         display: inline-flex;
         flex: 1 1 auto;
-        min-width: 0;
+        /* Never squeezed under its buttons (they would slide under New). */
+        min-width: max-content;
       }
       .split button {
         height: 32px;
@@ -553,7 +717,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .split .main {
         flex: 1 1 auto;
         gap: 6px;
-        padding: 0 12px;
+        padding: 0 10px;
         border-radius: 8px 0 0 8px;
         background: var(--dbd-primary);
         border-color: var(--dbd-primary);
@@ -561,7 +725,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .split .from {
         flex: none;
-        padding: 0 12px;
+        padding: 0 10px;
         border-radius: 0 8px 8px 0;
         border-left: none;
         background: var(--dbd-surface-2);
@@ -577,6 +741,71 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .btn.new {
         flex: none;
         height: 32px;
+      }
+      .newsplit {
+        position: relative;
+        display: inline-flex;
+        flex: none;
+      }
+      .newsplit .new {
+        padding: 0 8px;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+      .newsplit .caret {
+        height: 32px;
+        padding: 0 4px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: none;
+      }
+      .menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        z-index: 5;
+        width: 200px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 4px;
+        background: var(--dbd-surface);
+        border: 1px solid var(--dbd-border);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .menu button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+        background: transparent;
+        color: var(--dbd-text);
+        font: inherit;
+        font-size: 12.5px;
+        text-align: left;
+        padding: 5px 6px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .menu button:hover {
+        background: var(--dbd-surface-2);
+      }
+      .mthumb {
+        width: 48px;
+        flex: none;
+        aspect-ratio: 16 / 9;
+        border: 1px solid var(--dbd-border);
+        border-radius: 3px;
+        overflow: hidden;
+        background: var(--dbd-bg, transparent);
+      }
+      .mthumb img {
+        width: 100%;
+        height: 100%;
+        display: block;
       }
       .btn {
         display: inline-flex;
@@ -628,6 +857,48 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         flex: none;
         padding: 0 10px;
       }
+      .row {
+        display: flex;
+        gap: 6px;
+        margin: 4px 0 10px;
+      }
+      .layout-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+        gap: 6px;
+      }
+      .lcard {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        cursor: pointer;
+        border: 1px solid var(--dbd-border);
+        border-radius: 6px;
+        padding: 3px;
+        position: relative;
+      }
+      .lcard.current {
+        border-color: var(--dbd-primary);
+      }
+      .lcard .lname {
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .lcard .licons {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        display: none;
+        gap: 2px;
+      }
+      .lcard:hover .licons {
+        display: inline-flex;
+      }
       .cards {
         flex: 1 1 0;
         /* The panel is as tall as the frame on screen, so the cards scroll within it. */
@@ -646,6 +917,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         align-items: center;
         gap: 2px;
         padding: 6px 8px;
+        min-width: 0;
       }
       .tab {
         border: none;
@@ -654,9 +926,11 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         font: inherit;
         font-size: 12px;
         font-weight: 600;
-        padding: 5px 9px;
+        padding: 5px 7px;
         border-radius: 8px;
         cursor: pointer;
+        white-space: nowrap;
+        flex: none;
       }
       .tab:hover {
         background: var(--dbd-surface-2);
@@ -908,6 +1182,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         gap: 8px;
       }
       input[type='number'],
+      .text-input,
       textarea {
         font: inherit;
         color: var(--dbd-text);
@@ -918,7 +1193,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         box-sizing: border-box;
         width: 100%;
       }
-      input[type='number'] {
+      input[type='number'],
+      .text-input {
         height: 34px;
       }
       textarea {
@@ -948,9 +1224,12 @@ export class SlidesPanelComponent {
   readonly active_ = input<string | null>(null, { alias: 'active' });
   /** The presentation this panel belongs to (its name). */
   readonly presentation = input.required<string>();
+  /** The last slide shown before a layout was opened (kept highlighted while editing it). */
+  readonly lastSlide = input<string | null>(null);
 
   protected readonly store = inject(ProjectStore);
   private readonly render = inject(SlideRenderService);
+  private readonly theme = inject(ThemeService);
   private readonly tagSuggestions = inject(MorphTagSuggestions);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -979,7 +1258,8 @@ export class SlidesPanelComponent {
       input.value = current;
       return;
     }
-    const slides = this.frames();
+    // Layouts carry the presentation name too.
+    const slides = this.store.slideFrames().filter((f) => presentationOf(f) === current);
     const shown = this.active_();
     void this.store
       .batchHistory(async () => {
@@ -1030,6 +1310,154 @@ export class SlidesPanelComponent {
   protected thumbId(f: CanvasElementModel): string {
     return f.id === this.pendingCloneId ? (this.pendingClone()?.srcId ?? f.id) : f.id;
   }
+  /** Layouts of this presentation. */
+  protected readonly layouts = computed(() =>
+    presentationLayouts(this.store.slideFrames(), this.presentation()),
+  );
+  /** The layout on the canvas right now (being edited), if one is. */
+  protected readonly shownLayout = computed(
+    () => this.layouts().find((l) => l.id === this.active_()) ?? null,
+  );
+  /** Showing a layout opens this tab, so its editing tools are at hand. */
+  private readonly layoutTab = effect(() => {
+    if (this.shownLayout()) untracked(() => this.tab.set('layout'));
+  });
+  /** Leave the layout: show the first slide using it, else the first slide. */
+  protected backToSlide(): void {
+    const l = this.shownLayout();
+    const slide =
+      this.frames().find((f) => f.id === this.lastSlide()) ??
+      this.frames().find((f) => f.slide?.layoutId === l?.id) ??
+      this.frames()[0];
+    if (slide) this.command.emit({ kind: 'focus', id: slide.id });
+  }
+  protected layoutName(l: CanvasElementModel): string {
+    return layoutNameOf(l, this.store.slideFrames());
+  }
+  protected renameLayout(l: CanvasElementModel, input: HTMLInputElement): void {
+    const name = input.value.trim().slice(0, 120);
+    if (!l.slide || !name || name === this.layoutName(l)) {
+      input.value = this.layoutName(l);
+      return;
+    }
+    void this.store.updateElement(l.id, { slide: { ...l.slide, layoutName: name } });
+  }
+  protected readonly layoutOptions = computed<SelectOption<string>[]>(() => [
+    { value: '', label: 'No layout' },
+    ...this.layouts().map((l) => ({ value: l.id, label: this.layoutName(l) })),
+  ]);
+  /** The selected slides' common layout ('' = none; first slide's when they differ). */
+  protected readonly activeLayoutValue = computed(() => {
+    const a = this.active();
+    return (a && layoutOf(a, this.store.slideFrames())?.id) ?? '';
+  });
+  protected setLayout(id: string): void {
+    const targets = this.activeSlides().length ? this.activeSlides() : this.active() ? [this.active()!] : [];
+    const layout = this.layouts().find((l) => l.id === id) ?? null;
+    void this.store.batchHistory(async () => {
+      for (const f of targets) {
+        if (f.slide && (f.slide.layoutId ?? '') !== id) {
+          await switchLayout(this.store, f, layout);
+        }
+      }
+    });
+  }
+
+  protected readonly roleOptions: SelectOption<string>[] = [
+    { value: '', label: 'None' },
+    ...PLACEHOLDER_ROLES.map((r) => ({ value: r, label: r[0].toUpperCase() + r.slice(1) })),
+  ];
+  /** Selected text boxes on the shown layout (they can be made placeholders). */
+  protected readonly layoutTextSelection = computed(() => {
+    const l = this.shownLayout();
+    const ids = new Set(this.store.selectedElementIds());
+    return l
+      ? this.store.elements().filter((e) => ids.has(e.id) && e.slideId === l.id && e.type === 'text')
+      : [];
+  });
+  /** The shown slide (not a layout) when exactly it is what the tab edits. */
+  private readonly driftSlide = computed(() => {
+    const a = this.active();
+    return a && !a.slide?.layout && this.activeSlides().length <= 1 ? a : null;
+  });
+  /** Placeholders on the slide moved/restyled or deleted away from its layout; null = none. */
+  protected readonly drift = computed(() => {
+    this.store.elements();
+    const slide = this.driftSlide();
+    const d = slide ? placeholderDrift(this.store, slide) : null;
+    return d && (d.changed.length || d.missing.length) ? d : null;
+  });
+  /** Selected placeholders that drifted (reset just those). */
+  protected readonly selectedDrifted = computed(() => {
+    const ids = new Set(this.store.selectedElementIds());
+    return this.drift()?.changed.filter((c) => ids.has(c.id)) ?? [];
+  });
+  protected driftLabel(d: PlaceholderDrift): string {
+    const parts = [
+      d.changed.length ? `${d.changed.length} placeholder${d.changed.length > 1 ? 's' : ''} changed` : '',
+      d.missing.length ? `${d.missing.length} deleted` : '',
+    ].filter(Boolean);
+    return parts.join(', ') + ' from the layout';
+  }
+  protected resetSlide(selectedOnly: boolean): void {
+    const slide = this.driftSlide();
+    if (!slide) return;
+    const only = selectedOnly ? new Set(this.selectedDrifted().map((c) => c.id)) : undefined;
+    void this.store.batchHistory(() => resetSlideToLayout(this.store, slide, only));
+  }
+  /** Change the selected layout text boxes' placeholders, then bring slides in line. */
+  private editPlaceholders(fn: (e: CanvasElementModel) => PlaceholderConfig | null): void {
+    const items = this.layoutTextSelection();
+    const layout = this.shownLayout();
+    if (!layout) return;
+    void this.store.batchHistory(async () => {
+      for (const e of items) await this.store.updateElement(e.id, { placeholder: fn(e) });
+      await syncLayoutCopies(this.store, layout);
+    });
+  }
+  protected setPlaceholder(on: boolean): void {
+    this.editPlaceholders((e) => (on ? (e.placeholder ?? {}) : null));
+  }
+  protected setRole(role: string): void {
+    this.editPlaceholders((e) => {
+      const { role: _old, ...rest } = e.placeholder ?? {};
+      return role ? { ...rest, role: role as PlaceholderRole } : rest;
+    });
+  }
+  /** The New button's layout menu is open. */
+  protected readonly newMenu = signal(false);
+  private readonly closeNewMenu = (): void => this.newMenu.set(false);
+  private readonly newMenuWatch = effect((onCleanup) => {
+    if (!this.newMenu()) return;
+    // Any press outside the menu closes it.
+    const t = setTimeout(() => document.addEventListener('pointerdown', this.closeNewMenu));
+    onCleanup(() => {
+      clearTimeout(t);
+      document.removeEventListener('pointerdown', this.closeNewMenu);
+    });
+  });
+  /** The layout plain "New" uses (the shown layout or the shown slide's), for its tooltip. */
+  protected readonly newLayoutName = computed(() => {
+    const shown = this.store.slideFrames().find((f) => f.id === this.active_());
+    const l = shown?.slide?.layout ? shown : shown && layoutOf(shown, this.store.slideFrames());
+    return l ? this.layoutName(l) : null;
+  });
+  protected addWithLayout(layoutId: string | null): void {
+    this.newMenu.set(false);
+    this.command.emit({ kind: 'add', layoutId });
+  }
+  /** Layout thumbnails for the list panel's New menu (rendered here, the settings panel has its own). */
+  protected readonly layoutThumbs = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly layoutThumbWatch = effect((onCleanup) => {
+    if (this.part() !== 'list' || !this.newMenu()) return;
+    const layouts = [...this.layouts()];
+    this.theme.dark();
+    let live = true;
+    void this.render.render(layouts, { fonts: false }).then((rs) => {
+      if (live) this.layoutThumbs.set(new Map(rs.map((r) => [r.id, SlideRenderService.dataUrl(r.svg)])));
+    });
+    onCleanup(() => (live = false));
+  });
   protected readonly playable = computed(() => this.frames().some((f) => !f.slide?.hidden));
   /** The single selected frame, when it is not part of the sequence yet. */
   protected readonly selectedLoose = computed<CanvasElementModel | null>(() => {
@@ -1043,9 +1471,9 @@ export class SlidesPanelComponent {
   protected readonly thumbs = signal<ReadonlyMap<string, string>>(new Map());
   protected readonly overIndex = signal<number | null>(null);
   /** The detail tabs of the settings panel. */
-  protected readonly tab = signal<'transition' | 'size' | 'notes' | 'animations'>('transition');
+  protected readonly tab = signal<'transition' | 'layout' | 'size' | 'notes' | 'animations'>('transition');
 
-  protected pick(tab: 'transition' | 'size' | 'notes' | 'animations'): void {
+  protected pick(tab: 'transition' | 'layout' | 'size' | 'notes' | 'animations'): void {
     this.tab.set(tab);
   }
 
@@ -1202,16 +1630,14 @@ export class SlidesPanelComponent {
   constructor() {
     // Re-render thumbnails (debounced) whenever anything that can appear on a slide changes.
     effect((onCleanup) => {
-      if (this.part() !== 'list') {
-        return;
-      }
-      const frames = [...this.frames()];
+      const frames = this.part() === 'list' ? [...this.frames()] : [...this.layouts()];
       this.store.elements();
       this.store.tables();
       this.store.relationships();
       this.store.sequenceDiagrams();
       this.store.lifelines();
       this.store.sequenceMessages();
+      this.theme.dark();
       const timer = setTimeout(() => void untracked(() => this.refreshThumbs(frames)), 350);
       onCleanup(() => clearTimeout(timer));
     });
@@ -1232,7 +1658,9 @@ export class SlidesPanelComponent {
       return;
     }
     const token = (this.renderToken += 1);
-    const rendered = dirty.length ? await this.render.render(dirty, { fonts: false }) : [];
+    const rendered = dirty.length
+      ? await this.render.render(dirty, { fonts: false, ghosts: true })
+      : [];
     if (token !== this.renderToken) {
       return;
     }
@@ -1260,6 +1688,7 @@ export class SlidesPanelComponent {
       this.store.sequenceDiagrams(),
       this.store.lifelines(),
       this.store.sequenceMessages(),
+      layoutOf(frame, this.store.slideFrames())?.id,
     );
     // Rows not assigned to any slide are offered to every frame and cropped away when
     // outside it, so only those overlapping the frame affect its picture.
@@ -1280,9 +1709,15 @@ export class SlidesPanelComponent {
     const relationships = this.store
       .relationships()
       .filter((r) => columns.has(r.sourceColumnId) || columns.has(r.targetColumnId));
+    // Layout items arrive as re-stacked copies; compare the stored rows instead.
+    const rows = new Map(this.store.elements().map((e) => [e.id, e] as const));
     return [
       frame,
-      ...elements,
+      // Thumbnails bake in the theme's colors.
+      this.theme.dark(),
+      ...elements.map((e) => rows.get(e.id) ?? e),
+      // Empty placeholders are drawn from their layout slot: redraw when either changes.
+      ...placeholderGhosts(frame.id, this.store.elements()).sources,
       ...tables,
       ...diagrams,
       ...mine.lifelines.filter((l) => diagramIds.has(l.diagramId)),
@@ -1407,7 +1842,7 @@ export class SlidesPanelComponent {
   /** Resize every slide to a preset: all slides share one size. */
   protected setSize(presetId: string): void {
     const preset = FRAME_PRESETS.find((p) => p.id === presetId);
-    const targets = this.frames();
+    const targets = [...this.frames(), ...this.layouts()];
     if (!preset || !targets.length) {
       return;
     }
@@ -1723,7 +2158,11 @@ function sameInputs(a: readonly unknown[] | undefined, b: readonly unknown[]): b
   const fb = b[0] as CanvasElementModel;
   const dx = fb.x - fa.x;
   const dy = fb.y - fa.y;
-  return a.every((v, i) => v === b[i] || shiftedKey(v, 0, 0) === shiftedKey(b[i], dx, dy));
+  return a.every(
+    (v, i) =>
+      v === b[i] ||
+      (typeof v === 'object' && v !== null && shiftedKey(v, 0, 0) === shiftedKey(b[i], dx, dy)),
+  );
 }
 
 /** A row's JSON with its world-space position fields shifted back by (dx, dy). */

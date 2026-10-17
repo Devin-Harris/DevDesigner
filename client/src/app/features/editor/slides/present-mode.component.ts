@@ -88,7 +88,7 @@ const TRAVEL: Record<string, [number, number]> = {
       tabindex="-1"
       [class.idle]="!barVisible()"
       (click)="next()"
-      (pointermove)="wake()"
+      (pointermove)="onPresentMove($event)"
     >
       <div #stage class="stage">
         <!-- Every slide image stays in the DOM (decoded), so switching is a visibility
@@ -562,7 +562,6 @@ export class PresentModeComponent {
           })
           .catch(() => undefined);
       }
-      this.wake();
       if (!this.follow()) {
         void this.playAutomatic();
       }
@@ -705,6 +704,29 @@ export class PresentModeComponent {
       clearTimeout(this.idleTimer);
     }
     this.idleTimer = setTimeout(() => this.barVisible.set(false), 2600);
+  }
+
+  /** The control bar only reveals when the mouse reaches the bottom edge of the
+   *  screen; once shown it stays while the pointer is over (or dragging) the bar. */
+  protected onPresentMove(event: PointerEvent): void {
+    const overBar = !!(event.target as HTMLElement | null)?.closest?.('.bar');
+    if (overBar || this.barDrag) {
+      if (this.barVisible()) {
+        if (this.idleTimer) {
+          clearTimeout(this.idleTimer);
+          this.idleTimer = null;
+        }
+        return;
+      }
+    }
+    const host = event.currentTarget as HTMLElement;
+    const bottom = host.getBoundingClientRect().bottom;
+    if (event.clientY >= bottom - 8) {
+      this.wake();
+    } else if (this.barVisible() && !this.idleTimer) {
+      // Left the bar: start the usual hide countdown.
+      this.idleTimer = setTimeout(() => this.barVisible.set(false), 2600);
+    }
   }
 
   protected onBarDown(event: PointerEvent): void {

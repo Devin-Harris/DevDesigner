@@ -1,7 +1,7 @@
 // Slide-sequence and morph-matching logic for presentation mode. Pure functions
 // over plain data so the client (and tests) can share them without any DOM.
 
-import type { SlideConfig, SlideTransition } from '../models';
+import type { PlaceholderConfig, PlaceholderRole, SlideConfig, SlideTransition } from '../models';
 
 /** What a transition into a slide does when none has been configured. */
 export const DEFAULT_SLIDE_TRANSITION: SlideTransition = {
@@ -57,12 +57,90 @@ export function presentationSlides<T extends SlideFrameLike>(
   frames: readonly T[],
   name: string | null,
 ): T[] {
-  return slideSequence(frames).filter((f) => presentationOf(f) === name);
+  return slideSequence(frames).filter((f) => !f.slide?.layout && presentationOf(f) === name);
+}
+
+/** The layouts of one presentation (frames marked `slide.layout`), in order. */
+export function presentationLayouts<T extends SlideFrameLike>(
+  frames: readonly T[],
+  name: string | null,
+): T[] {
+  return slideSequence(frames).filter((f) => !!f.slide?.layout && presentationOf(f) === name);
+}
+
+/** The layout a slide uses, if it names one that still exists in its presentation. */
+export function layoutOf<T extends SlideFrameLike>(frame: T, frames: readonly T[]): T | undefined {
+  const id = frame.slide?.layout ? undefined : frame.slide?.layoutId;
+  return id
+    ? frames.find((f) => f.id === id && !!f.slide?.layout && presentationOf(f) === presentationOf(frame))
+    : undefined;
+}
+
+/** Ghost text of a placeholder: its own prompt, else one for its role. */
+export function placeholderPrompt(p: PlaceholderConfig): string {
+  const own = p.prompt?.trim();
+  if (own) return own;
+  return !p.role || p.role === 'other' ? 'Click to add text' : `Click to add ${p.role}`;
+}
+
+/** A slide's placeholder copy nobody has typed into: ghosted in the editor, never shown. */
+export function isEmptyPlaceholder(e: { placeholder?: PlaceholderConfig; text?: string }): boolean {
+  return !!e.placeholder && !(e.text ?? '').trim();
+}
+
+/**
+ * Switching a slide to another layout: pair the slide's placeholder copies with the
+ * new layout's placeholders: a copy of one of its own slots goes back to it, the rest pair
+ * by style type (untyped with untyped), in reading order within each role. Returns
+ * copy id -> new layout placeholder id; copies left out have no slot (they stay as
+ * free text), and layout placeholders left out still need a fresh empty copy.
+ */
+export function matchPlaceholders<
+  C extends { id: string; x: number; y: number; placeholder?: PlaceholderConfig },
+  L extends { id: string; x: number; y: number; placeholder?: PlaceholderConfig },
+>(copies: readonly C[], layoutPlaceholders: readonly L[]): Map<string, string> {
+  const byRole = <T extends { x: number; y: number; placeholder?: PlaceholderConfig }>(
+    items: readonly T[],
+  ): Map<PlaceholderRole | '', T[]> => {
+    const out = new Map<PlaceholderRole | '', T[]>();
+    for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
+      if (!it.placeholder) continue;
+      const key = it.placeholder.role ?? '';
+      const list = out.get(key) ?? [];
+      list.push(it);
+      out.set(key, list);
+    }
+    return out;
+  };
+  const pairs = new Map<string, string>();
+  // A copy made from one of these very slots goes back to it (switching away and back).
+  const slotIds = new Set(layoutPlaceholders.map((s) => s.id));
+  for (const c of copies) {
+    const of = c.placeholder?.of;
+    if (of && slotIds.has(of) && ![...pairs.values()].includes(of)) pairs.set(c.id, of);
+  }
+  const taken = new Set(pairs.values());
+  const slots = byRole(layoutPlaceholders.filter((s) => !taken.has(s.id)));
+  for (const [role, list] of byRole(copies.filter((c) => !pairs.has(c.id)))) {
+    const free = slots.get(role) ?? [];
+    list.forEach((c, i) => {
+      if (free[i]) pairs.set(c.id, free[i].id);
+    });
+  }
+  return pairs;
+}
+
+/** A layout's display name (its own, else "Layout N" by position). */
+export function layoutNameOf<T extends SlideFrameLike>(frame: T, frames: readonly T[]): string {
+  const own = frame.slide?.layoutName?.trim();
+  if (own) return own;
+  const i = presentationLayouts(frames, presentationOf(frame)).findIndex((f) => f.id === frame.id);
+  return `Layout ${i + 1}`;
 }
 
 /** The slides that will actually be shown (hidden ones skipped). */
 export function presentableSlides<T extends SlideFrameLike>(frames: readonly T[]): T[] {
-  return slideSequence(frames).filter((f) => !f.slide?.hidden);
+  return slideSequence(frames).filter((f) => !f.slide?.hidden && !f.slide?.layout);
 }
 
 // ---- Morph matching -------------------------------------------------------

@@ -57,9 +57,9 @@ const FIELDS: Record<BatchSection, Record<string, unknown>> = {
   },
   diagrams: {
     lifelineSpacing: 160, rowSpacing: 48, headerHeight: 40, originY: 0, zIndex: -1, groupId: null, slideId: null,
-    backgroundColor: null, title: '', morphId: '',
+    backgroundColor: null, borderColor: null, title: '', morphId: '',
   },
-  lifelines: { x: 0, label: '', color: null, lineColor: null, morphId: '', width: 120 },
+  lifelines: { x: 0, label: '', color: null, lineColor: null, strokeColor: null, textColor: null, morphId: '', width: 120 },
   messages: {
     y: 0, fromLifelineId: '', toLifelineId: '', label: '', style: 'solid', direction: null, arrowhead: null,
     color: null, wrap: null, morphId: '',

@@ -19,19 +19,7 @@
   />
 
   <div class="field-label">Header color</div>
-  <div class="swatches">
-    @for (swatch of swatches; track swatch) {
-      <button
-        type="button"
-        class="swatch"
-        [class.none]="swatch === ''"
-        [class.active]="(table().color || '') === swatch"
-        [style.background]="swatch || 'transparent'"
-        [disabled]="!store.canEdit()"
-        (click)="setColor(swatch)"
-      ></button>
-    }
-  </div>
+  <dbd-color-swatches class="swatches" [value]="table().color" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
 
   <div class="field-label">Note</div>
   <textarea

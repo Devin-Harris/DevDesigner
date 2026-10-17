@@ -36,8 +36,8 @@ const cellStyle = z
     italic: z.boolean().nullable().optional(),
     align: z.enum(TEXT_ALIGNS as unknown as [string, ...string[]]).nullable().optional(),
     vAlign: z.enum(VERTICAL_ALIGNS as unknown as [string, ...string[]]).nullable().optional(),
-    color: z.string().nullable().optional().describe('Text color: palette name or #hex.'),
-    fill: z.string().nullable().optional().describe('Cell background: palette name (soft tints read best) or #hex.'),
+    color: z.string().nullable().optional().describe('Text color: palette name (swatch; #hex only if the user asked for an exact color).'),
+    fill: z.string().nullable().optional().describe('Cell background: palette name (soft tints read best; #hex only if the user asked for an exact color).'),
   })
   .describe('Per-cell overrides; null clears one back to the table default.');
 
@@ -116,8 +116,8 @@ export function registerTableTools(tool: ToolFn, api: DbDesignerApi): void {
       fontSize: z.number().min(6).max(96).optional().describe('Default 14.'),
       merges: z.array(z.object(block)).optional().describe('Blocks to merge after filling, e.g. {r0:0,c0:0,r1:0,c1:2} for a title spanning three columns.'),
       cellStyles: z.array(z.object({ ...block, style: cellStyle })).optional().describe('Per-cell styling, applied to each block.'),
-      strokeColor: z.string().optional().describe('Border + text color: palette name or #hex (default ink).'),
-      backgroundColor: z.string().optional().describe("Table background: palette name or #hex (default the theme surface)."),
+      strokeColor: z.string().optional().describe('Border + text color: palette name (swatch; #hex only if the user asked for an exact color) (default ink).'),
+      backgroundColor: z.string().optional().describe("Table background: palette name (swatch; #hex only if the user asked for an exact color) (default the theme surface)."),
       x: z.number().optional(),
       y: z.number().optional(),
       near: z.string().optional().describe('Table name or element id to place beside.'),

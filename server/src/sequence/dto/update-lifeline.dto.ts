@@ -19,6 +19,16 @@ export class UpdateLifelineDto implements IUpdateLifelineDto {
   lineColor?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  strokeColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  textColor?: string;
+
+  @IsOptional()
   @IsNumber()
   width?: number;
 

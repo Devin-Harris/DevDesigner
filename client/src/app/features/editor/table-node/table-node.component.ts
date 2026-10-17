@@ -14,13 +14,13 @@ import {
   type IndexModel,
   type TableModel,
   type UpdateColumnDto,
-  HEADER_SWATCHES,
-  SOFT_SWATCHES,
   isLightFill,
   isSwatchColor,
+  themeColorCss,
 } from '@dbdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import { ProjectStore, type TableGeometry } from '../../../stores/project.store';
 import {
@@ -52,7 +52,7 @@ export interface HandleEvent {
   selector: 'app-table-node',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AutofocusDirective, IconComponent, PopoverTriggerDirective],
+  imports: [ColorSwatchesComponent, AutofocusDirective, IconComponent, PopoverTriggerDirective],
   templateUrl: './table-node.component.html',
   styleUrl: './table-node.component.scss',
   host: {
@@ -72,6 +72,8 @@ export class TableNodeComponent {
   /** True for custom pale header colors, which take dark text instead of white. Stock swatches use the theme text. */
   protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
   protected readonly isSwatch = isSwatchColor;
+  /** CSS for a stored color (resolves the theme sentinels). */
+  protected readonly css = themeColorCss;
 
   readonly table = input.required<TableModel>();
   readonly selected = input<boolean>(false);
@@ -199,7 +201,6 @@ export class TableNodeComponent {
     void this.store.addIndex(table.id, { name, columnIds: [column.id], isUnique: true });
   }
   /** Saturated header colors, then pale tints (the shared palette the MCP server also uses). */
-  protected readonly headerColors = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   protected setColor(color: string): void {
     if (!this.editable()) {

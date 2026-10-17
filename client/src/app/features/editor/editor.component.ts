@@ -23,6 +23,7 @@ import type {
   CodeLanguage,
   CreateElementDto,
   ElementType,
+  UpdateElementDto,
   RelationshipModel,
   RelationshipType,
   TableModel,
@@ -35,6 +36,14 @@ import {
   presentationOf,
   presentationSlides,
   type SequenceDiagramModel,
+  layoutOf,
+  layoutNameOf,
+  nextCopyName,
+  presentationLayouts,
+  isEmptyPlaceholder,
+  placeholderPrompt,
+  themeColorCss,
+  sequenceDiagramRect,
 } from '@dbdesigner/shared';
 import {
   boxToOuter,
@@ -84,11 +93,13 @@ import {
   type ShapePointerEvent,
 } from './canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './canvas/models/toolbar-actions';
+import { fillFromLayout, slotFollower, slotStyle } from './slides/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './minimap/minimap.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
 import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
 import {
   contentForFrame,
+  LAYOUT_Z_OFFSET,
   frameContents,
   sequenceDiagramBox,
 } from './canvas/helpers/frame-contents.helper';
@@ -184,6 +195,7 @@ import { ElementInspectorComponent } from './element-inspector/element-inspector
 import { SequenceInspectorComponent } from './sequence-inspector/sequence-inspector.component';
 import { SequenceMessageToolbarComponent } from './sequence-message-toolbar/sequence-message-toolbar.component';
 import { SequenceParticipantToolbarComponent } from './sequence-participant-toolbar/sequence-participant-toolbar.component';
+import { SequenceDiagramToolbarComponent } from './sequence-diagram-toolbar/sequence-diagram-toolbar.component';
 import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
@@ -297,6 +309,7 @@ function readStoredGrid(): boolean {
     SequenceInspectorComponent,
     SequenceMessageToolbarComponent,
     SequenceParticipantToolbarComponent,
+    SequenceDiagramToolbarComponent,
     MinimapComponent,
     CanvasSequenceComponent,
     ElementFloatingToolbarComponent,
@@ -348,8 +361,8 @@ export class EditorComponent {
   /** The elements on the canvas right now (not collapsed away with another slide). */
   private shownElements(): CanvasElementModel[] {
     const hide = this.focusHidden();
-    const all = this.store.elements();
-    return hide ? all.filter((e) => !hide.elementIds.has(e.id)) : [...all];
+    const locked = this.store.layoutItemIds();
+    return this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id));
   }
 
   /** Tables that are on the canvas right now (focus mode collapses other slides' tables). */
@@ -543,7 +556,7 @@ export class EditorComponent {
   /** The panels' own corner radius (world units); the outline's is concentric with it. */
   private static readonly PANEL_RADIUS = 14;
   private static readonly LIST_W = 296;
-  private static readonly SETTINGS_W = 296;
+  private static readonly SETTINGS_W = 340;
   private static readonly FOLDED_W = 44;
   /** As tall as the frame on screen, but never so short that the panel stops being usable. */
   private static readonly PANEL_MIN_H = 320;
@@ -874,6 +887,20 @@ export class EditorComponent {
     return { left: l.x * v.zoom + v.x, top: d.originY * v.zoom + v.y };
   });
 
+  /** Screen anchor (top-center of the box) for the selected sequence diagram's toolbar. */
+  protected readonly sequenceDiagramToolbar = computed(() => {
+    const d = this.store.selectedDiagram();
+    if (!d || this.store.selectedLifeline() || this.store.selectedMessage()) {
+      return null;
+    }
+    const r = sequenceDiagramRect(d, this.store.lifelines(), this.store.sequenceMessages());
+    if (!r) {
+      return null;
+    }
+    const v = this.store.viewport();
+    return { left: (r.x + r.w / 2) * v.zoom + v.x, top: r.y * v.zoom + v.y };
+  });
+
   /** World boxes of sequence message labels: anchor targets for lines/arrows. */
   private readonly messageBoxes = computed(() =>
     messageLabelBoxes(
@@ -928,9 +955,26 @@ export class EditorComponent {
   protected readonly shapeViews = computed(() => {
     const draft = this.draft();
     const hide = this.focusHidden();
-    const all = hide
+    const shown = hide
       ? this.store.elements().filter((e) => !hide.elementIds.has(e.id))
       : this.store.elements();
+    // A shown slide's layout items draw beneath it, locked.
+    const locked = this.store.layoutItemIds();
+    const editing = this.editingTextId();
+    const looks = this.emptyCopyLooks();
+    const fills = this.layoutFills();
+    const all = shown.map((e) => {
+      if (locked.has(e.id)) return { ...e, zIndex: e.zIndex - LAYOUT_Z_OFFSET };
+      const fill = fills.get(e.id);
+      if (fill) return { ...e, ...fill };
+      // An empty placeholder copy shows its layout slot's text, ghosted (not while typed into).
+      const look = looks.get(e.id);
+      if (look && e.id !== editing) return { ...look.el, opacity: look.el.opacity * 0.45 };
+      if (isEmptyPlaceholder(e) && e.id !== editing) {
+        return { ...e, text: placeholderPrompt(e.placeholder!), runs: undefined, opacity: e.opacity * 0.45 };
+      }
+      return e;
+    });
     const elements = draft ? [...all, draft] : all;
     // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
     this.theme.dark();
@@ -954,9 +998,10 @@ export class EditorComponent {
         })
         .map((e) => e.id),
     );
-    return offSlide.size
+    const out = offSlide.size
       ? views.map((v) => (offSlide.has(v.id) ? { ...v, opacity: v.opacity * 0.5 } : v))
       : views;
+    return locked.size ? out.map((v) => (locked.has(v.id) ? { ...v, locked: true } : v)) : out;
   });
 
   /** Resolved canvas background + text color for the render-time contrast guard. */
@@ -1166,7 +1211,7 @@ export class EditorComponent {
       italic: st.italic ?? !!el.italic,
       lineHeight: f.lineHeight * z,
       padding: GRID_CELL_PAD * z,
-      color: st.color ?? el.strokeColor,
+      color: st.color ?? themeColorCss(el.strokeColor) ?? el.strokeColor,
       align: st.align ?? el.textAlign ?? 'left',
       background: bg && bg !== 'none' && !bg.startsWith('url(') ? bg : 'var(--dbd-surface)',
       value: g.cells[cell.row][cell.col],
@@ -1271,6 +1316,82 @@ export class EditorComponent {
   }
 
   /** Screen-space placement + value for the inline text editor overlay. */
+  /**
+   * Empty placeholder copies, drawn as their layout slot: its size, style and text (the
+   * prompt), at the copy's own spot. `patch` is the slot look to store when typed into.
+   */
+  private readonly emptyCopyLooks = computed(() => {
+    const elements = this.store.elements();
+    const out = new Map<string, { el: CanvasElementModel; patch: UpdateElementDto }>();
+    if (!elements.some((e) => e.placeholder?.of)) return out;
+    const byId = new Map(elements.map((e) => [e.id, e] as const));
+    for (const e of elements) {
+      const slot = e.placeholder?.of ? byId.get(e.placeholder.of) : undefined;
+      if (!slot || !isEmptyPlaceholder(e)) continue;
+      const patch = slotStyle(slot);
+      out.set(e.id, {
+        el: { ...e, ...(patch as Partial<CanvasElementModel>), text: slot.text, runs: slot.runs },
+        patch,
+      });
+    }
+    return out;
+  });
+
+  /** Slide placeholders nobody changed follow their layout slot when it moves or restyles. */
+  private readonly followSlots = (() => {
+    const follow = slotFollower(this.store);
+    return effect(() => {
+      this.store.elements();
+      untracked(follow);
+    });
+  })();
+
+  /** Shown slides without a background of their own take their layout's. */
+  private readonly layoutFills = computed(() => {
+    const frames = this.store.slideFrames();
+    const shown = this.store.shownSlideIds();
+    const out = new Map<string, Pick<CanvasElementModel, 'fillStyle' | 'backgroundColor'>>();
+    for (const f of frames) {
+      const l = shown.has(f.id) && f.fillStyle === 'none' ? layoutOf(f, frames) : undefined;
+      if (l && l.fillStyle !== 'none') {
+        out.set(f.id, { fillStyle: l.fillStyle, backgroundColor: l.backgroundColor });
+      }
+    }
+    return out;
+  });
+
+  /** Per presentation: the last slide (not a layout) shown, so editing a layout keeps your place. */
+  private readonly lastSlides = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly trackLastSlide = effect(() => {
+    const shown = this.store.shownByPresentation();
+    const frames = this.store.slideFrames();
+    untracked(() => {
+      const next = new Map(this.lastSlides());
+      let changed = false;
+      for (const [name, id] of shown) {
+        const f = frames.find((x) => x.id === id);
+        if (f && !f.slide?.layout && next.get(name) !== id) {
+          next.set(name, id);
+          changed = true;
+        }
+      }
+      if (changed) this.lastSlides.set(next);
+    });
+  });
+  protected lastSlideOf(name: string): string | null {
+    return this.lastSlides().get(name) ?? null;
+  }
+
+  /** Typing into an empty placeholder: it takes its slot's current size and style first. */
+  private readonly adoptSlotLook = effect(() => {
+    const id = this.editingTextId();
+    const look = id ? untracked(() => this.emptyCopyLooks().get(id)) : undefined;
+    if (!id || !look || !this.store.canEdit()) return;
+    const el = untracked(() => this.store.elements().find((e) => e.id === id));
+    const stale = el && Object.entries(look.patch).some(([k, v]) => (el as unknown as Record<string, unknown>)[k] !== v);
+    if (stale) void this.store.patchElementSilently(id, look.patch);
+  });
+
   protected readonly textEditor = computed(() => {
     const id = this.editingTextId();
     if (!id) {
@@ -1305,7 +1426,7 @@ export class EditorComponent {
         fontWeight: 600,
         italic: false,
         value: el.text ?? '',
-        color: el.strokeColor,
+        color: themeColorCss(el.strokeColor) ?? el.strokeColor,
         align: 'left' as const,
         wrap: false,
         center: false,
@@ -1367,7 +1488,7 @@ export class EditorComponent {
       fontWeight: el.bold ? 800 : fontWeightFor(el.strokeWidth),
       italic: !!el.italic,
       value: text,
-      color: el.strokeColor,
+      color: themeColorCss(el.strokeColor) ?? el.strokeColor,
       align: isLabel ? 'center' : (el.textAlign ?? 'left'),
       wrap: isLabel || (el.type === 'text' && !!el.wrap),
       center: isLabel,
@@ -3281,7 +3402,7 @@ export class EditorComponent {
       bold: !!el.bold,
       italic: !!el.italic,
       underline: false,
-      color: el.strokeColor,
+      color: themeColorCss(el.strokeColor) ?? el.strokeColor,
     };
   }
 
@@ -3571,7 +3692,10 @@ export class EditorComponent {
       return;
     }
     if (text.trim() === '') {
-      void this.store.deleteElement(id);
+      // An emptied placeholder stays: it goes back to showing its prompt.
+      void (el.placeholder
+        ? this.store.updateElement(id, { text: '', runs: null })
+        : this.store.deleteElement(id));
       return;
     }
     const runs = usableRuns(text, el.runs);
@@ -4726,10 +4850,14 @@ export class EditorComponent {
         this.focusFrame(cmd.id);
         break;
       case 'add':
-        void this.addSlide();
+        void this.addSlide(undefined, cmd.layout, cmd.layoutId);
         break;
       case 'deletePresentation': {
-        const ids = presentationSlides(this.store.slideFrames(), presentation).map((f) => f.id);
+        // Its layouts go with it.
+        const ids = this.store
+          .slideFrames()
+          .filter((f) => presentationOf(f) === presentation)
+          .map((f) => f.id);
         if (ids.length) {
           this.store.setSelection([], [], ids);
           this.deleteSelection();
@@ -4789,7 +4917,8 @@ export class EditorComponent {
     }
     // Each presentation is locked together on its own: its slides share a spot and a size.
     for (const name of this.store.presentations()) {
-      const frames = presentationSlides(all, name);
+      // Layouts share the spot too.
+      const frames = all.filter((f) => presentationOf(f) === name);
       const known = frames.filter((f) => prev.has(f.id));
       if (known.length === 0) {
         // First sight of this presentation: bring slides that differ to the first one's size.
@@ -5377,13 +5506,21 @@ export class EditorComponent {
    * a first 16:9 slide with its own list and settings panels. Without it, the new slide
    * joins the selected presentation, stacked on the one it shows.
    */
-  private async addSlide(at?: { x: number; y: number }): Promise<void> {
+  private async addSlide(
+    at?: { x: number; y: number },
+    layout = false,
+    layoutId?: string | null,
+  ): Promise<void> {
     if (!this.store.canEdit()) {
       return;
     }
     const preset = framePreset('16-9');
     const newPresentation = at ? this.newPresentationName() : undefined;
-    const slides = newPresentation ? [] : this.store.presentationFrames();
+    const slides = newPresentation
+      ? []
+      : layout
+        ? this.store.presentationLayoutFrames()
+        : this.store.presentationFrames();
     const presentation = newPresentation ?? this.store.presentation() ?? undefined;
     const shown = newPresentation
       ? undefined
@@ -5401,9 +5538,12 @@ export class EditorComponent {
       y = Math.round(c.y - preset.height / 2);
     }
     // Insert right after the selected slide of this presentation; append when none is.
-    const after = newPresentation
-      ? undefined
-      : slides.find((f) => f.id === this.activeSlideId());
+    // While a layout is shown, the new slide goes after the slide you were on before it.
+    const afterId =
+      shown?.slide?.layout && !layout && presentation
+        ? this.lastSlides().get(presentation)
+        : this.activeSlideId();
+    const after = newPresentation ? undefined : slides.find((f) => f.id === afterId);
     let order = slides.reduce((m, f) => Math.max(m, f.slide?.order ?? 0), -1) + 1;
     let shifted: CanvasElementModel[] = [];
     if (after) {
@@ -5429,9 +5569,27 @@ export class EditorComponent {
       strokeStyle: 'solid',
       opacity: 100,
       cornerRadius: 0,
-      slide: presentation ? { order, presentation } : { order },
+      slide: {
+        order,
+        ...(presentation ? { presentation } : {}),
+        // A layout; or a slide using the layout shown (or the shown slide's layout).
+        ...(layout
+          ? { layout: true, layoutName: `Layout ${slides.length + 1}` }
+          : layoutId !== undefined
+            ? layoutId
+              ? { layoutId }
+              : {}
+            : shown?.slide?.layout
+            ? { layoutId: shown.id }
+            : shown?.slide?.layoutId
+              ? { layoutId: shown.slide.layoutId }
+              : {}),
+      },
     });
     if (created) {
+      // A slide on a layout starts with empty copies of its placeholders.
+      const layout = layoutOf(created, this.store.slideFrames());
+      if (layout) await fillFromLayout(this.store, created, layout);
       this.focusFrame(created.id);
     }
   }
@@ -5516,6 +5674,16 @@ export class EditorComponent {
         if (copy?.slide) {
           await this.store.updateElement(newId, { slide: { ...copy.slide, order } });
         }
+      }
+      // A copied layout gets its own name ("Title copy").
+      const copy = newId ? this.store.elements().find((e) => e.id === newId) : undefined;
+      if (copy?.slide?.layout) {
+        const frames = this.store.slideFrames();
+        const names = presentationLayouts(frames, presentationOf(copy))
+          .filter((l) => l.id !== copy.id)
+          .map((l) => layoutNameOf(l, frames));
+        const name = nextCopyName(layoutNameOf(frame, frames), names);
+        await this.store.updateElement(copy.id, { slide: { ...copy.slide, layoutName: name } });
       }
     });
     if (newId) {
@@ -6408,6 +6576,7 @@ export class EditorComponent {
           sequences.diagrams,
           sequences.lifelines,
           sequences.messages,
+          layoutOf(frame, this.store.slideFrames())?.id,
         );
         const built = buildDiagramSvg(
           mine.tables,

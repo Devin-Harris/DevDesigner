@@ -93,7 +93,7 @@ const specTable = z.object({
     .string()
     .optional()
     .describe(
-      'Header color: a palette name (blue, green, violet, amber, sky, pink, teal, orange, red, slate, or a *-soft tint such as blue-soft; see list_colors) or a #hex. Use ONE color per domain/area so related tables read together. Unset: tables connected by relationships automatically share a color per group.',
+      'Header color: a palette name (blue, green, violet, amber, sky, pink, teal, orange, red, slate, or a *-soft tint such as blue-soft; see list_colors) (#hex only if the user asked for an exact color). Use ONE color per domain/area so related tables read together. Unset: tables connected by relationships automatically share a color per group.',
     ),
   note: z.string().optional(),
   columns: z.array(specColumn),
@@ -110,7 +110,7 @@ const specMessage = z.object({
   to: z.string().describe('Participant name (same as from = self call).'),
   label: z.string().optional(),
   style: z.enum(['solid', 'dashed', 'break']).optional().describe('solid = call, dashed = return/async, break = divider label.'),
-  color: z.string().optional().describe('Arrow color (palette name or #hex). Leave unset unless it carries meaning (e.g. red for the error path).'),
+  color: z.string().optional().describe('Arrow color (palette name (swatch; #hex only if the user asked for an exact color)). Leave unset unless it carries meaning (e.g. red for the error path).'),
   morph: z
     .string()
     .max(60)
@@ -124,8 +124,10 @@ const specParticipant = z.union([
     color: z
       .string()
       .optional()
-      .describe('Header color (palette name or #hex). One color per system boundary, e.g. clients blue, services violet, data stores slate.'),
+      .describe('Header color (palette name (swatch; #hex only if the user asked for an exact color)). One color per system boundary, e.g. clients blue, services violet, data stores slate.'),
     lineColor: z.string().optional().describe('Color of the dashed line under the header.'),
+    strokeColor: z.string().optional().describe('Header border (palette name). Unset: no border.'),
+    textColor: z.string().optional().describe('Header label color (palette name). Unset: automatic - theme text on swatches.'),
     morph: z
       .string()
       .max(60)
@@ -137,12 +139,12 @@ const specSequence = z.object({
   title: z.string().optional().describe('What the diagram shows (drawn at its top-left). Always give one.'),
   participants: z
     .array(specParticipant)
-    .describe('Left-to-right order: names, or {name, color, lineColor, morph} objects.'),
+    .describe('Left-to-right order: names, or {name, color, lineColor, strokeColor, textColor, morph} objects.'),
   messages: z.array(specMessage).describe('Top-to-bottom order.'),
   background: z
     .string()
     .optional()
-    .describe('Diagram box background (palette name or #hex); prefer a soft tint or white. Text color adapts.'),
+    .describe('Diagram box background (palette name (swatch; #hex only if the user asked for an exact color)); prefer a soft tint or white. Text color adapts.'),
   morph: z.string().max(60).optional().describe('Morph tag pairing this whole diagram with the same tag on the next slide.'),
 });
 const diagramSpec = z.object({
@@ -370,12 +372,12 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
   tool(
     'update_table',
-    'Rename a table or change its header color (palette name or #hex; empty string removes it) / note.',
+    'Rename a table or change its header color (palette name (swatch; #hex only if the user asked for an exact color); empty string removes it) / note.',
     {
       projectId,
       table: z.string().describe('Table name or id.'),
       name: z.string().optional(),
-      color: z.string().optional().describe('Palette name or #hex; empty string removes the color.'),
+      color: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color); empty string removes the color.'),
       note: z.string().optional(),
     },
     { idempotent: true },
@@ -581,12 +583,14 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       projectId,
       diagramId: z.string(),
       name: z.string(),
-      color: z.string().optional().describe('Header color: palette name or #hex.'),
+      color: z.string().optional().describe('Header color: palette name (swatch; #hex only if the user asked for an exact color).'),
       lineColor: z.string().optional(),
+      strokeColor: z.string().optional().describe('Header border (palette name). Unset: no border.'),
+      textColor: z.string().optional().describe('Header label color (palette name). Unset: automatic - theme text on swatches.'),
       morph: z.string().max(60).optional().describe('Morph tag (see create_presentation).'),
     },
     {},
-    async ({ projectId: id, diagramId, name, color, lineColor, morph }) => {
+    async ({ projectId: id, diagramId, name, color, lineColor, strokeColor, textColor, morph }) => {
       const schema = (await graph(id)).schema;
       const diagram = findDiagram(schema, diagramId);
       const own = schema.lifelines.filter((l) => l.diagramId === diagramId);
@@ -600,6 +604,8 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         order: own.length,
         ...(color ? { color: colorArg(color, 'the participant header') } : {}),
         ...(lineColor ? { lineColor: colorArg(lineColor, 'the participant line') } : {}),
+        ...(strokeColor ? { strokeColor: colorArg(strokeColor, 'the participant stroke') } : {}),
+        ...(textColor ? { textColor: colorArg(textColor, 'the participant text') } : {}),
         ...(morph?.trim() ? { morphId: morphIdForTag(morph) ?? undefined } : {}),
       });
       return { id: created.id, name: created.label };
@@ -608,14 +614,16 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
   tool(
     'update_participant',
-    "Rename a participant of a sequence diagram or change its header color, line color or morph tag. Empty strings clear a color/tag.",
+    "Rename a participant of a sequence diagram or change its header color, header stroke/text color, line color or morph tag. Empty strings clear a color/tag.",
     {
       projectId,
       diagramId: z.string(),
       participant: z.string().describe('Participant name or id.'),
       name: z.string().optional(),
-      color: z.string().optional().describe('Header color: palette name or #hex; empty string clears.'),
+      color: z.string().optional().describe('Header color: palette name (swatch; #hex only if the user asked for an exact color); empty string clears.'),
       lineColor: z.string().optional(),
+      strokeColor: z.string().optional().describe('Header border (palette name). Unset: no border.'),
+      textColor: z.string().optional().describe('Header label color (palette name). Unset: automatic - theme text on swatches.'),
       morph: z
         .string()
         .max(60)
@@ -624,7 +632,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       isolate: z.boolean().optional().describe('Give it a unique tag so it never morphs into a participant of the next slide.'),
     },
     { idempotent: true },
-    async ({ projectId: id, diagramId, participant, name, color, lineColor, morph, isolate }) => {
+    async ({ projectId: id, diagramId, participant, name, color, lineColor, strokeColor, textColor, morph, isolate }) => {
       const schema = (await graph(id)).schema;
       const l = findLifeline(schema, diagramId, participant);
       const tag = isolate ? soloMorphId() : morph !== undefined ? (morphIdForTag(morph) ?? '') : undefined;
@@ -632,6 +640,8 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
         ...(name !== undefined ? { label: name } : {}),
         ...(color !== undefined ? { color: colorArg(color, 'the participant header') } : {}),
         ...(lineColor !== undefined ? { lineColor: colorArg(lineColor, 'the participant line') } : {}),
+        ...(strokeColor !== undefined ? { strokeColor: colorArg(strokeColor, 'the participant stroke') } : {}),
+        ...(textColor !== undefined ? { textColor: colorArg(textColor, 'the participant text') } : {}),
         ...(tag !== undefined ? { morphId: tag } : {}),
       });
       return { id: l.id, name: name ?? l.label };
@@ -645,7 +655,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       projectId,
       diagramId: z.string(),
       title: z.string().optional().describe('Empty string clears it.'),
-      background: z.string().optional().describe('Palette name or #hex (prefer soft tints / white); empty string clears.'),
+      background: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color) (prefer soft tints / white); empty string clears.'),
       morph: z.string().max(60).optional().describe('Morph tag pairing this diagram with the same tag on the next slide. Empty string clears.'),
       isolate: z.boolean().optional().describe('Give it a unique tag so it never morphs into a diagram of the next slide.'),
     },
@@ -672,7 +682,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       to: z.string(),
       label: z.string().optional(),
       style: z.enum(['solid', 'dashed', 'break']).optional(),
-      color: z.string().optional().describe('Arrow color: palette name or #hex.'),
+      color: z.string().optional().describe('Arrow color: palette name (swatch; #hex only if the user asked for an exact color).'),
       wrap: z.boolean().optional().describe('Auto-wrap the label to the message width (default on).'),
       morph: z.string().max(60).optional().describe('Morph tag (see create_presentation).'),
     },
@@ -716,7 +726,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       style: z.enum(['solid', 'dashed', 'break']).optional(),
       from: z.string().optional(),
       to: z.string().optional(),
-      color: z.string().optional().describe('Arrow color: palette name or #hex; empty string clears.'),
+      color: z.string().optional().describe('Arrow color: palette name (swatch; #hex only if the user asked for an exact color); empty string clears.'),
       wrap: z.boolean().optional().describe('Auto-wrap the label to the message width (default on).'),
       morph: z
         .string()
@@ -817,8 +827,8 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       x: z.number().optional(),
       y: z.number().optional(),
       near: z.string().optional().describe('Table name or element id to place beside.'),
-      strokeColor: z.string().optional().describe('Outline color: palette name or #hex.'),
-      backgroundColor: z.string().optional().describe('Solid fill: palette name (soft tints read best) or #hex.'),
+      strokeColor: z.string().optional().describe('Outline color: palette name (swatch; #hex only if the user asked for an exact color).'),
+      backgroundColor: z.string().optional().describe('Solid fill: palette name (soft tints read best; #hex only if the user asked for an exact color).'),
     },
     {},
     async ({ projectId: id, shape, text: label, width, height, x, y, near, strokeColor, backgroundColor }) => {
@@ -852,7 +862,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       projectId,
       text: z.string(),
       fontSize: z.number().optional().describe('Default 20.'),
-      color: z.string().optional().describe('Text color: palette name or #hex.'),
+      color: z.string().optional().describe('Text color: palette name (swatch; #hex only if the user asked for an exact color).'),
       x: z.number().optional(),
       y: z.number().optional(),
       near: z.string().optional(),
@@ -892,7 +902,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       x2: z.number().optional(),
       y2: z.number().optional(),
       line: z.boolean().optional().describe('Plain line without an arrowhead.'),
-      strokeColor: z.string().optional().describe('Palette name or #hex.'),
+      strokeColor: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color).'),
       dashed: z.boolean().optional(),
     },
     {},
@@ -1038,7 +1048,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
   tool(
     'list_colors',
-    'The named color palette (strong header colors, soft tints, neutrals) and which role each tone suits: table headers, participant headers, message arrows, diagram backgrounds, shape fills. Every color argument accepts these names or a #hex.',
+    'The named color palette (strong header colors, soft tints, neutrals) and which role each tone suits: table headers, participant headers, message arrows, diagram backgrounds, shape fills. Every color argument accepts these names; prefer them - a #hex only when the user asked for an exact color.',
     {},
     { readOnly: true },
     async () => describePalette(),

@@ -11,6 +11,7 @@ import {
   breakLabelMaxChars,
   isLightFill,
   isSwatchColor,
+  themeColorCss,
   messageLabelLines,
   messageLabelMaxChars,
   SEQ_LABEL_CHAR_W,
@@ -140,7 +141,8 @@ const MIN_HEADER_W = 60;
     '(pointerover)': 'addHover(true)',
     '(pointerout)': 'addHover(false)',
     // Message labels sit on the diagram's own background so they blend with it.
-    '[style.--seq-bg]': 'diagram().backgroundColor || null',
+    '[style.--seq-bg]': 'css(diagram().backgroundColor)',
+    '[style.--seq-border]': 'css(diagram().borderColor)',
     '[style.--seq-fg]': 'fg()?.text || null',
     '[style.--seq-fg-muted]': 'fg()?.muted || null',
     '[style.--seq-fg-soft]': 'fg()?.soft || null',
@@ -154,6 +156,8 @@ export class SequenceDiagramComponent {
   /** True for custom pale participant colors, which take dark text instead of white. Stock swatches use the theme text. */
   protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
   protected readonly isSwatch = isSwatchColor;
+  /** CSS for a stored color (resolves the theme sentinels). */
+  protected readonly css = themeColorCss;
 
   /** The id of the diagram this instance renders. */
   readonly diagramId = input.required<string>();

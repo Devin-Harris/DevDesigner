@@ -1,7 +1,7 @@
 // Color arguments for tools: palette names ("blue", "amber-soft") or hex, resolved to
 // the hex the app stores, with an actionable error for anything else.
 
-import { COLOR_ROLES, PALETTE, paletteNames, resolveColor } from '@dbdesigner/shared';
+import { COLOR_ROLES, PALETTE, PICKER_COLOR_NAMES, paletteNames, resolveColor } from '@dbdesigner/shared';
 import { UserError } from './model';
 
 /**
@@ -23,7 +23,8 @@ export function colorArg(input: string | undefined, what: string): string | unde
 /** The text returned by list_colors. */
 export function describePalette(): Record<string, unknown> {
   return {
-    note: 'Pass any of these names (or a #hex) wherever a tool takes a color. Header text turns dark automatically on pale colors.',
+    note: 'Pass these names wherever a tool takes a color - they match the swatches users pick from in the app. Use a #hex only when the user asks for an exact color (e.g. a brand color); do not invent custom shades. Header text turns dark automatically on pale colors.',
+    pickerSwatches: { names: PICKER_COLOR_NAMES, note: 'The swatches the editor color pickers offer (plus white). Prefer these for everything.' },
     strong: PALETTE.filter((c) => c.tone === 'strong').map((c) => ({ name: c.name, hex: c.hex })),
     soft: PALETTE.filter((c) => c.tone === 'soft').map((c) => ({ name: c.name, hex: c.hex })),
     neutral: PALETTE.filter((c) => c.tone === 'neutral').map((c) => ({ name: c.name, hex: c.hex })),

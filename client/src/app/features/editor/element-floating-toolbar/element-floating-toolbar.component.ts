@@ -3,6 +3,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { GridTableService } from '../../../core/services/grid-table.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import {
   CODE_LANGUAGES,
@@ -15,6 +16,7 @@ import {
   type TextAlign,
   type UpdateElementDto,
   type VerticalAlign,
+  THEME_STROKE,
 } from '@dbdesigner/shared';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
@@ -42,9 +44,6 @@ import {
 } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
 
-// Saturated palette shared with the table header tints (no muted pastels).
-const STROKE_COLORS = ['#ffffff', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
-const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
 const STROKE_WIDTHS: { value: number; label: string }[] = [
   { value: 1, label: 'Thin' },
   { value: 2, label: 'Bold' },
@@ -75,7 +74,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
   selector: 'app-element-floating-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
+  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
   templateUrl: './element-floating-toolbar.component.html',
   styleUrl: './element-floating-toolbar.component.scss',
 })
@@ -85,8 +84,6 @@ export class ElementFloatingToolbarComponent {
   private readonly codeActions = inject(CodeActionsService);
   protected readonly grids = inject(GridTableService);
   private readonly rich = inject(RichTextSessionService);
-  protected readonly strokeColors = STROKE_COLORS;
-  protected readonly fillColors = FILL_COLORS;
   protected readonly strokeWidths = STROKE_WIDTHS;
   protected readonly strokeStyleIcons = STROKE_STYLE_ICONS;
   protected readonly fonts = FONT_OPTIONS;
@@ -181,6 +178,16 @@ export class ElementFloatingToolbarComponent {
       this.element().type !== 'freedraw' &&
       this.element().type !== 'image',
   );
+  /** Closed shapes and code cards can drop their outline entirely ("no stroke"). */
+  protected readonly strokeCanBeNone = computed(() => {
+    const t = this.element().type;
+    return t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'code';
+  });
+  /** The theme stroke swatch applies to whole elements, not to cell or rich-text styling. */
+  protected readonly strokeThemeValue = computed(() =>
+    this.cellsOn() || this.editingRich() ? null : THEME_STROKE,
+  );
+  protected readonly surfaceFill = SURFACE_FILL;
   /** Corner radius applies to rectangles only. */
   protected readonly isRect = computed(() => this.element().type === 'rectangle');
 
@@ -425,6 +432,10 @@ export class ElementFloatingToolbarComponent {
 
   protected setCornerRadius(value: number): void {
     this.patchAll({ cornerRadius: value });
+  }
+
+  protected setEllipticCorners(on: boolean): void {
+    this.patchAll({ ellipticCorners: on });
   }
 
   protected setTextAlign(align: TextAlign): void {

@@ -191,8 +191,8 @@
 
 // Color picker popover surface (no longer inside a Material menu panel).
 .color-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--dbd-space-2);
   padding: var(--dbd-space-3);
   background: var(--dbd-surface);

@@ -363,6 +363,8 @@ export async function writeSchemaInto(
               presentationName.get(e.slide.presentation?.trim() || DEFAULT_PRESENTATION) ??
               e.slide.presentation,
             order: e.slide.order + slideShift,
+            // A slide's layout is another frame of the file; drop it if that is missing.
+            layoutId: e.slide.layoutId ? (elementIds.get(e.slide.layoutId) ?? undefined) : undefined,
             // Animations follow their objects to the new ids; ones whose object is gone drop.
             animations: e.slide.animations
               ?.map((a) => {
@@ -373,6 +375,13 @@ export async function writeSchemaInto(
               .filter((a): a is NonNullable<typeof a> => a !== null),
           }
         : undefined,
+    // A slide's placeholder copy points at its layout's element; drop the link if gone.
+    placeholder: e.placeholder
+      ? {
+          ...e.placeholder,
+          of: e.placeholder.of ? (elementIds.get(e.placeholder.of) ?? undefined) : undefined,
+        }
+      : undefined,
     // Lineage ids are remapped as a set so copies still match each other after import.
     // Named morph tags ("tag:...") are kept as written so slides added by a later import
     // still pair with earlier ones.
@@ -402,6 +411,7 @@ export async function writeSchemaInto(
       opacity: e.opacity,
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius ?? null,
+      ellipticCorners: e.ellipticCorners ?? null,
       pointsJson: e.points?.length ? JSON.stringify(e.points) : null,
       text: e.text ?? null,
       fontSize: e.fontSize ?? null,
@@ -427,6 +437,7 @@ export async function writeSchemaInto(
       expandedHeight: e.type === 'code' ? (e.expandedHeight ?? null) : null,
       groupId: e.groupId ?? null,
       slideJson: e.slide ? JSON.stringify(e.slide) : null,
+      placeholderJson: e.placeholder ? JSON.stringify(e.placeholder) : null,
       morphId: e.morphId ?? null,
       step: e.step ?? null,
       slideId: e.slideId ?? null,
@@ -455,6 +466,7 @@ export async function writeSchemaInto(
       groupId: d.groupId ?? null,
       slideId: d.slideId ?? null,
       backgroundColor: d.backgroundColor ?? null,
+      borderColor: d.borderColor ?? null,
       title: d.title ?? null,
       morphId: d.morphId ?? null,
     })),
@@ -476,6 +488,8 @@ export async function writeSchemaInto(
       label: l.label,
       color: l.color ?? null,
       lineColor: l.lineColor ?? null,
+      strokeColor: l.strokeColor ?? null,
+      textColor: l.textColor ?? null,
       morphId: l.morphId ?? null,
       x: l.x,
       width: l.width,

@@ -8,21 +8,16 @@
     title="Header color"
     aria-label="Header color"
   >
-    <span class="color-dot" [style.background]="l.color || 'var(--dbd-handle)'"></span>
+    <span class="color-dot" [style.background]="css(l.color) || 'var(--dbd-handle)'"></span>
   </button>
   <ng-template #colorMenu let-close>
     <div class="color-grid">
-      @for (s of swatches; track s) {
-        <button
-          type="button"
-          class="swatch"
-          [class.none]="s === ''"
-          [class.active]="(l.color || '') === s"
-          [style.background]="s || 'var(--dbd-surface-2)'"
-          (click)="setColor(s); close()"
-          [attr.aria-label]="s || 'No color'"
-        ></button>
-      }
+      <div class="grid-label">Fill</div>
+      <dbd-color-swatches [value]="l.color" themeValue="surface" (pick)="setColor($event)" />
+      <div class="grid-label">Stroke</div>
+      <dbd-color-swatches [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" (pick)="setStroke($event)" />
+      <div class="grid-label">Text</div>
+      <dbd-color-swatches [value]="l.textColor" noneLabel="Automatic" themeValue="theme" (pick)="setText($event)" />
     </div>
   </ng-template>
 

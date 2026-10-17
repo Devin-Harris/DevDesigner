@@ -14,7 +14,7 @@
   [class.colored]="!!table().color"
   [class.light]="isLight(table().color)"
   [class.stock]="isSwatch(table().color)"
-  [style.--tbl-color]="table().color || null"
+  [style.--tbl-color]="css(table().color)"
   [style.height.px]="headerH"
 >
   <button
@@ -26,14 +26,11 @@
     title="Header color"
     aria-label="Header color"
   >
-    <span class="color-dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+    <span class="color-dot" [style.background]="css(table().color) || 'var(--dbd-handle)'"></span>
   </button>
   <ng-template #colorMenu let-close>
     <div class="color-grid">
-      @for (c of headerColors; track c) {
-        <button class="swatch" [style.background]="c" (click)="setColor(c); close()" [attr.aria-label]="c"></button>
-      }
-      <button class="swatch none" (click)="setColor(''); close()" title="No color" aria-label="No color"></button>
+      <dbd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
     </div>
   </ng-template>
 

@@ -99,6 +99,8 @@ export interface ShapeView {
   id: string;
   type: ElementType;
   selected: boolean;
+  /** A slide layout's item drawn under the slide: shown, never hit or edited. */
+  locked?: boolean;
   opacity: number;
   stroke: string;
   strokeWidth: number;

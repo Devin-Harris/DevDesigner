@@ -26,6 +26,7 @@ import {
   type FillStyle,
   type PointModel,
   type SlideConfig,
+  type PlaceholderConfig,
   type TextRun,
   type StrokeStyle,
   type TextAlign,
@@ -34,7 +35,7 @@ import {
 } from '@dbdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
-import { SlideDto } from './slide.dto';
+import { PlaceholderDto, SlideDto } from './slide.dto';
 import { TextRunDto } from './text-run.dto';
 
 /** Body for PATCH /elements/:elementId (style / content / geometry). */
@@ -92,6 +93,10 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsNumber()
   cornerRadius?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  ellipticCorners?: boolean;
 
   @IsOptional()
   @IsArray()
@@ -195,6 +200,11 @@ export class UpdateElementDto implements IUpdateElementDto {
   @ValidateNested()
   @Type(() => SlideDto)
   slide?: SlideConfig | null;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlaceholderDto)
+  placeholder?: PlaceholderConfig | null;
 
   @IsOptional()
   @IsString()

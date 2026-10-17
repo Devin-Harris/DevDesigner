@@ -52,7 +52,7 @@ export class CodeActionsService {
     if (el?.type !== 'code') {
       return;
     }
-    if (el.expandedHeight !== undefined) {
+    if (el.expandedHeight != null) {
       await this.store.updateElement(id, { height: el.expandedHeight, expandedHeight: null });
     } else {
       const header = codeHeaderHeight(el.fontSize ?? CODE_FONT_SIZE);
@@ -78,7 +78,7 @@ export class CodeActionsService {
         await this.store.updateElement(el.id, {
           text,
           width: Math.max(el.width, size.width),
-          ...(el.expandedHeight === undefined
+          ...(el.expandedHeight == null
             ? { height: Math.max(el.height, size.height) }
             : { expandedHeight: Math.max(el.expandedHeight, size.height) }),
         });
@@ -96,14 +96,14 @@ export class CodeActionsService {
       .filter((e) => e.type === 'code' && ids.includes(e.id));
     for (const el of blocks) {
       const size = codeContentSize(el.text ?? '', el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
-      if (size.width === el.width && size.height === el.height && el.expandedHeight === undefined) {
+      if (size.width === el.width && size.height === el.height && el.expandedHeight == null) {
         continue;
       }
       // Fitting also expands a collapsed block.
       await this.store.updateElement(el.id, {
         width: size.width,
         height: size.height,
-        ...(el.expandedHeight !== undefined ? { expandedHeight: null } : {}),
+        ...(el.expandedHeight != null ? { expandedHeight: null } : {}),
       });
     }
   }

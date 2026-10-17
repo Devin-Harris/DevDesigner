@@ -37,6 +37,8 @@ import {
   presentationNames,
   presentationOf,
   presentationSlides,
+  presentationLayouts,
+  layoutOf,
   remapAnimations,
   slideSequence,
 } from '@dbdesigner/shared';
@@ -236,7 +238,7 @@ const initialState: EditorState = {
 };
 
 /** Build a create DTO from an existing element (for undo/redo re-creation). */
-function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
+export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
   return {
     type: e.type,
     x: e.x,
@@ -252,6 +254,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     opacity: e.opacity,
     zIndex: e.zIndex,
     cornerRadius: e.cornerRadius,
+    ellipticCorners: e.ellipticCorners,
     points: e.points,
     text: e.text,
     fontSize: e.fontSize,
@@ -274,6 +277,7 @@ function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     fileName: e.fileName,
     expandedHeight: e.expandedHeight,
     slide: e.slide,
+    placeholder: e.placeholder,
     morphId: e.morphId,
     step: e.step,
     slideId: e.slideId,
@@ -361,8 +365,10 @@ export const ProjectStore = signalStore(
         const frames = slideFrames();
         const out = new Map<string, string>();
         for (const name of presentations()) {
+          // A layout can be shown too (to edit it); it stacks in the same spot.
           const slides = presentationSlides(frames, name);
-          const hit = slides.find((f) => f.id === picked[name]) ?? slides[0];
+          const all = frames.filter((f) => presentationOf(f) === name);
+          const hit = all.find((f) => f.id === picked[name]) ?? slides[0] ?? all[0];
           if (hit) {
             out.set(name, hit.id);
           }
@@ -372,6 +378,17 @@ export const ProjectStore = signalStore(
       const shownSlideIds = computed(
         () => new Set(shownByPresentation().values()) as ReadonlySet<string>,
       );
+      /** Layout frames drawn under a shown slide (and not shown themselves). */
+      const layoutsUnderShown = computed(() => {
+        const frames = slideFrames();
+        const shown = shownSlideIds();
+        const out = new Set<string>();
+        for (const f of frames) {
+          const l = shown.has(f.id) ? layoutOf(f, frames) : undefined;
+          if (l && !shown.has(l.id)) out.add(l.id);
+        }
+        return out as ReadonlySet<string>;
+      });
       return {
     slideFrames,
     /** The presentations in the project (names), in order of first appearance. */
@@ -380,6 +397,18 @@ export const ProjectStore = signalStore(
     presentation,
     /** The slides of the selected presentation, in order (skipped ones included). */
     presentationFrames: computed(() => presentationSlides(slideFrames(), presentation())),
+    /** The layouts of the selected presentation. */
+    presentationLayoutFrames: computed(() => presentationLayouts(slideFrames(), presentation())),
+    /**
+     * Elements of a layout drawn under a shown slide: on the canvas, but locked (they
+     * are edited by showing the layout itself).
+     */
+    layoutItemIds: computed(() => {
+      const under = layoutsUnderShown();
+      return new Set(
+        under.size ? (schema()?.elements ?? []).filter((e) => !!e.slideId && under.has(e.slideId) && !e.placeholder).map((e) => e.id) : [],
+      ) as ReadonlySet<string>;
+    }),
     tables: computed(() => schema()?.tables ?? []),
     relationships: computed(() => schema()?.relationships ?? []),
     /**
@@ -416,9 +445,11 @@ export const ProjectStore = signalStore(
       if (!shown.size) {
         return null;
       }
+      // The layouts under shown slides stay on the canvas (drawn locked, beneath).
+      const under = layoutsUnderShown();
       const elementIds = new Set<string>();
       for (const e of elements) {
-        if (e.type === 'frame' ? !!e.slide && !shown.has(e.id) : !!e.slideId && !shown.has(e.slideId)) {
+        if (e.type === 'frame' ? !!e.slide && !shown.has(e.id) : !!e.slideId && !shown.has(e.slideId) && !(under.has(e.slideId) && !e.placeholder)) {
           elementIds.add(e.id);
         }
       }
@@ -1400,6 +1431,8 @@ export const ProjectStore = signalStore(
               label: l.label,
               color: l.color,
               lineColor: l.lineColor,
+              strokeColor: l.strokeColor,
+              textColor: l.textColor,
               morphId: l.morphId,
               x: l.x,
               width: l.width,
@@ -2387,6 +2420,8 @@ export const ProjectStore = signalStore(
                   label: l.label,
                   color: l.color,
                   lineColor: l.lineColor,
+                  strokeColor: l.strokeColor,
+                  textColor: l.textColor,
                   morphId: l.morphId,
                   x: l.x + dx,
                   width: l.width,
@@ -2442,6 +2477,8 @@ export const ProjectStore = signalStore(
                 label: src.label,
                 color: src.color,
                 lineColor: src.lineColor,
+                strokeColor: src.strokeColor,
+                textColor: src.textColor,
                 morphId: src.morphId,
                 x: src.x + dx,
                 width: src.width,
@@ -2554,7 +2591,7 @@ export const ProjectStore = signalStore(
           // Move/resize gestures record their own layout step; only the appearance
           // settings are recorded here.
           const keys = Object.keys(patch).filter((k) =>
-            ['backgroundColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(k),
+            ['backgroundColor', 'borderColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(k),
           );
           const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
           const before = current && keys.length ? pickKeys(current, keys) : null;

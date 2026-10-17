@@ -179,6 +179,23 @@ export interface SlideAnimation {
  * belongs to the project's slide sequence; the sequence is the frames that have
  * one, sorted by `order`. A frame without it is just a page on the canvas.
  */
+/** Optional style type of a placeholder (for theming); a slide's copy keeps it. */
+export const PLACEHOLDER_ROLES = ['title', 'subtitle', 'body', 'emphasis', 'caption', 'other'] as const;
+export type PlaceholderRole = (typeof PLACEHOLDER_ROLES)[number];
+
+/**
+ * A text box a layout hands to the slides that use it. On the layout element it says
+ * what goes there; on a slide's copy `of` points back at the layout element.
+ */
+export interface PlaceholderConfig {
+  /** Style type for theming; none = a plain placeholder. */
+  role?: PlaceholderRole;
+  /** Ghost text shown while the box is empty ("Click to add title"). */
+  prompt?: string;
+  /** On a slide's copy: the layout element it was made from. */
+  of?: string;
+}
+
 export interface SlideConfig {
   /** Position in the sequence (ascending; need not be contiguous). */
   order: number;
@@ -199,6 +216,15 @@ export interface SlideConfig {
    * per-element build `step` derive theirs from it (`slideAnimations`).
    */
   animations?: SlideAnimation[];
+  /**
+   * This frame is a layout of its presentation, not a slide: never in the sequence,
+   * its items are drawn (locked) under every slide that uses it.
+   */
+  layout?: boolean;
+  /** A layout's display name ("Title", "Body", ...). */
+  layoutName?: string;
+  /** On a slide: the layout frame (id) whose items repeat under it. */
+  layoutId?: string;
 }
 
 /**
@@ -232,8 +258,12 @@ export interface CanvasElementModel {
   aboveTables?: boolean;
   /** Corner radius (px) for rectangles. Undefined = auto (min(12, 15% of side)). */
   cornerRadius?: number;
+  /** Corners stretch independently per axis (oval-ish) instead of clamping to a pill. */
+  ellipticCorners?: boolean;
   /** Vertices for line/arrow/freedraw, relative to `x`/`y`. */
   points?: PointModel[];
+  /** A layout placeholder, or a slide's copy of one (text boxes only). */
+  placeholder?: PlaceholderConfig;
   /** Text content for a text element, or a label on a shape. */
   text?: string;
   fontSize?: number;
@@ -304,6 +334,10 @@ export interface LifelineModel {
   color?: string;
   /** Color of the dashed spine below the header (hex); absent = theme connector color. */
   lineColor?: string;
+  /** Header border color (hex); absent = no border on a colored header, theme border otherwise. */
+  strokeColor?: string;
+  /** Header label color (hex); absent = theme text on swatches, contrast text on custom colors. */
+  textColor?: string;
   /** World-space X center of this lifeline's spine. */
   x: number;
   /** Header box width in px. */
@@ -361,8 +395,10 @@ export interface SequenceDiagramModel {
   groupId?: string;
   /** The slide (frame id) this diagram belongs to; absent = on every slide / no slide. */
   slideId?: string;
-  /** Background fill of the diagram box (hex); absent = theme surface. */
+  /** Background fill of the diagram box (hex, or `transparent`); absent = theme surface. */
   backgroundColor?: string;
+  /** Border color of the diagram box (hex, or `transparent` for none); absent = theme border. */
+  borderColor?: string;
   /** What the diagram represents; drawn at its top-left. Absent = untitled. */
   title?: string;
   /** Morph tag (`tag:<name>`): pairs this diagram with the same tag on the next slide. */

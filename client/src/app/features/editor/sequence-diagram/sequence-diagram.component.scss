@@ -54,7 +54,7 @@
   position: absolute;
   box-sizing: border-box;
   border-radius: 16px;
-  border: 1.5px solid var(--dbd-border);
+  border: 1.5px solid var(--seq-border, var(--dbd-border));
   background: var(--seq-bg, var(--dbd-surface));
   cursor: move;
   pointer-events: auto;

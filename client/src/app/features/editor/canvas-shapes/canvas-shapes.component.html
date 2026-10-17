@@ -62,7 +62,7 @@
       ></rect>
     }
     @for (s of visible(); track s.id) {
-      <g [attr.transform]="s.transform" [style.opacity]="s.opacity">
+      <g [attr.transform]="s.transform" [style.opacity]="s.opacity" [class.locked]="s.locked">
         <!-- Invisible hit target so the element is grabbable over its whole box. -->
         @if (s.rect) {
           <rect

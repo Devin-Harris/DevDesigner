@@ -75,6 +75,10 @@ export class ElementEntity {
   @Column({ type: 'float', nullable: true })
   cornerRadius!: number | null;
 
+  // Rectangle corners stretch per axis (oval-ish) instead of clamping to a pill.
+  @Column({ type: 'boolean', nullable: true })
+  ellipticCorners!: boolean | null;
+
   // JSON-encoded PointModel[] for line/arrow/freedraw vertices, relative to x/y.
   @Column({ type: 'text', nullable: true })
   pointsJson!: string | null;
@@ -161,6 +165,10 @@ export class ElementEntity {
   /** Frame elements: JSON-encoded SlideConfig (sequence order, transition, notes); null = not a slide. */
   @Column({ type: 'text', nullable: true })
   slideJson!: string | null;
+
+  /** JSON PlaceholderConfig: a layout's text box slot, or a slide's copy of one; null = none. */
+  @Column({ type: 'text', nullable: true })
+  placeholderJson!: string | null;
 
   /** Morph lineage shared with the element this was copied from; null = its own id. */
   @Column({ type: 'varchar', nullable: true })

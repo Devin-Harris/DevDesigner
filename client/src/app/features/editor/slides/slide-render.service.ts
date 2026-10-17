@@ -1,3 +1,4 @@
+import { placeholderGhosts } from './layout-placeholders';
 import { Injectable, inject } from '@angular/core';
 import {
   effectiveTransition,
@@ -14,6 +15,7 @@ import {
   type SequenceMessageModel,
   type SlideTransition,
   type TableModel,
+  layoutOf,
 } from '@dbdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectStore } from '../../../stores/project.store';
@@ -98,10 +100,13 @@ export class SlideRenderService {
   private readonly store = inject(ProjectStore);
   private readonly images = inject(ElementImagesService);
 
-  /** Render the given frames in order. `fonts` embeds web fonts (needed for display). */
+  /**
+   * Render the given frames in order. `fonts` embeds web fonts (needed for display);
+   * `ghosts` draws empty placeholders faded, as the editor shows them (thumbnails).
+   */
   async render(
     frames: readonly CanvasElementModel[],
-    options: { fonts: boolean } = { fonts: true },
+    options: { fonts: boolean; ghosts?: boolean } = { fonts: true },
   ): Promise<RenderedSlide[]> {
     const allElements = this.store.elements();
     const allTables = this.store.tables();
@@ -117,8 +122,11 @@ export class SlideRenderService {
         this.store.sequenceDiagrams(),
         this.store.lifelines(),
         this.store.sequenceMessages(),
+        layoutOf(frame, this.store.slideFrames())?.id,
       );
-      const elements = mine.elements;
+      const elements = options.ghosts
+        ? [...mine.elements, ...placeholderGhosts(frame.id, allElements).ghosts]
+        : mine.elements;
       const tables = mine.tables;
       const sequences = {
         diagrams: mine.diagrams,
@@ -301,7 +309,8 @@ export class SlideRenderService {
       }
       items.push({
         id: e.id,
-        key: e.morphId ?? e.id,
+        // Copies of one layout placeholder morph into each other across slides.
+        key: e.morphId ?? (e.placeholder?.of ? `placeholder:${e.placeholder.of}` : e.id),
         kind: 'element',
         type: e.type,
         // Grids are matched by what their cells say, not by their JSON.

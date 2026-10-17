@@ -218,10 +218,10 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   tool(
     'set_slide_background',
-    "Set a slide's background color on the slide itself (its frame fill) - never draw a rectangle behind the content. Give a palette name or #hex; an empty string removes the fill. `allSlides` applies it to the whole presentation. Text and shape outlines that would be hard to read on the new color are reported (`lowContrast`) and, with `recolorText`, switched to white/near-black. Slides built later by add_slides take `background` per slide.",
+    "Set a slide's background color on the slide itself (its frame fill) - never draw a rectangle behind the content. Give a palette name (swatch; #hex only if the user asked for an exact color); an empty string removes the fill. `allSlides` applies it to the whole presentation. Text and shape outlines that would be hard to read on the new color are reported (`lowContrast`) and, with `recolorText`, switched to white/near-black. Slides built later by add_slides take `background` per slide.",
     {
       projectId,
-      color: z.string().describe('Palette name (e.g. "ink", "blue-soft", "white") or #hex; empty string clears the fill.'),
+      color: z.string().describe('Palette name (e.g. "ink", "blue-soft", "white"; #hex only if the user asked for an exact color); empty string clears the fill.'),
       slide: slideRef,
       presentation: presentationRef,
       allSlides: z.boolean().optional().describe('Every slide of the presentation instead of one slide.'),
@@ -293,17 +293,17 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
 
   tool(
     'style_elements',
-    "Restyle existing drawing elements - shapes, text, code blocks, images' frames, lines, slide frames - and/or table headers, using palette names (swatches) or #hex. Works on many ids at once. Fields: `strokeColor` is the outline AND the text color of text/labels; `backgroundColor` is the fill (for a code block: the card surface - dark swatches such as ink/charcoal flip the token colors to a light palette; '' or 'transparent' removes the fill / resets a code card to the theme default). Also fill style, stroke width/style, opacity, corner radius, font size, bold/italic, alignment, code language and file name, and size. Use list_colors for what suits what.",
+    "Restyle existing drawing elements - shapes, text, code blocks, images' frames, lines, slide frames - and/or table headers, using palette names (swatches; #hex only if the user asked for an exact color). Works on many ids at once. Fields: `strokeColor` is the outline AND the text color of text/labels; `backgroundColor` is the fill (for a code block: the card surface - dark swatches such as ink/charcoal flip the token colors to a light palette; '' or 'transparent' removes the fill / resets a code card to the theme default). Also fill style, stroke width/style, opacity, corner radius, font size, bold/italic, alignment, code language and file name, and size. Use list_colors for what suits what.",
     {
       projectId,
       elements: z.array(z.string()).optional().describe('Drawing element ids (from get_project_summary / get_slide).'),
       tables: z.array(z.string()).optional().describe('Table names or ids (only `headerColor` applies to tables).'),
-      headerColor: z.string().optional().describe('Table header color: palette name or #hex; empty string removes it.'),
-      strokeColor: z.string().optional().describe('Outline / text color: palette name or #hex.'),
+      headerColor: z.string().optional().describe('Table header color: palette name (swatch; #hex only if the user asked for an exact color); empty string removes it.'),
+      strokeColor: z.string().optional().describe('Outline / text color: palette name (swatch; #hex only if the user asked for an exact color).'),
       backgroundColor: z
         .string()
         .optional()
-        .describe("Fill: palette name or #hex. '' or 'transparent' = no fill (a code card goes back to the theme default)."),
+        .describe("Fill: palette name (swatch; #hex only if the user asked for an exact color). '' or 'transparent' = no fill (a code card goes back to the theme default)."),
       fillStyle: enumOf(FILL_STYLES).optional(),
       strokeWidth: z.number().min(0).max(40).optional(),
       strokeStyle: enumOf(STROKE_STYLES).optional(),
@@ -1251,7 +1251,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
             messageId: z.string(),
             label: z.string().optional(),
             style: z.enum(['solid', 'dashed', 'break']).optional(),
-            color: z.string().optional().describe('Palette name or #hex; empty string clears.'),
+            color: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color); empty string clears.'),
             wrap: z.boolean().optional(),
           }),
         )

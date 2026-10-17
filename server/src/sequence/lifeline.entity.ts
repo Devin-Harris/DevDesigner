@@ -46,6 +46,14 @@ export class LifelineEntity {
   @Column({ type: 'varchar', nullable: true })
   lineColor!: string | null;
 
+  /** Header border color; null = no border on a colored header. */
+  @Column({ type: 'varchar', nullable: true })
+  strokeColor!: string | null;
+
+  /** Header label color; null = automatic (theme text or contrast). */
+  @Column({ type: 'varchar', nullable: true })
+  textColor!: string | null;
+
   @Column({ type: 'float', default: 0 })
   x!: number;
 

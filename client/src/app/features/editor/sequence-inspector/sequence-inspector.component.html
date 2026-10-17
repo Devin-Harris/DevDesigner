@@ -15,34 +15,16 @@
     <dbd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
 
     <div class="field-label">Header color</div>
-    <div class="swatches">
-      <button type="button" class="default-btn" [class.active]="!l.color" [disabled]="!store.canEdit()" (click)="setColor('')">Default</button>
-      @for (s of swatches; track s) {
-        <button
-          type="button"
-          class="swatch"
-          [class.active]="(l.color || '') === s"
-          [style.background]="s"
-          [disabled]="!store.canEdit()"
-          (click)="setColor(s)"
-        ></button>
-      }
-    </div>
+    <dbd-color-swatches class="swatches" [value]="l.color" noneLabel="Default" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
+
+    <div class="field-label">Header stroke</div>
+    <dbd-color-swatches class="swatches" [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setStrokeColor($event)" />
+
+    <div class="field-label">Header text</div>
+    <dbd-color-swatches class="swatches" [value]="l.textColor" noneLabel="Automatic" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setTextColor($event)" />
 
     <div class="field-label">Line color</div>
-    <div class="swatches">
-      <button type="button" class="default-btn" [class.active]="!l.lineColor" [disabled]="!store.canEdit()" (click)="setLineColor('')">Default</button>
-      @for (s of swatches; track s) {
-        <button
-          type="button"
-          class="swatch"
-          [class.active]="(l.lineColor || '') === s"
-          [style.background]="s"
-          [disabled]="!store.canEdit()"
-          (click)="setLineColor(s)"
-        ></button>
-      }
-    </div>
+    <dbd-color-swatches class="swatches" [value]="l.lineColor" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setLineColor($event)" />
 
 
     <div class="field-label">Width</div>
@@ -83,19 +65,7 @@
     </div>
 
     <div class="field-label">Line color</div>
-    <div class="swatches">
-      <button type="button" class="default-btn" [class.active]="!m.color" [disabled]="!store.canEdit()" (click)="setMsgColor('')">Default</button>
-      @for (s of swatches; track s) {
-        <button
-          type="button"
-          class="swatch"
-          [class.active]="(m.color || '') === s"
-          [style.background]="s"
-          [disabled]="!store.canEdit()"
-          (click)="setMsgColor(s)"
-        ></button>
-      }
-    </div>
+    <dbd-color-swatches class="swatches" [value]="m.color" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setMsgColor($event)" />
 
     <div class="field-label">Label</div>
     <div class="flag-chips">
@@ -118,20 +88,10 @@
     </div>
 
     <div class="field-label">Background</div>
-    <div class="swatches">
-      <button type="button" class="default-btn" [class.active]="!diagram()!.backgroundColor" [disabled]="!store.canEdit()" (click)="setBackground('')">Default</button>
-      @for (s of bgSwatches; track s) {
-        <button
-          type="button"
-          class="swatch"
-          [class.active]="(diagram()!.backgroundColor || '') === s"
-          [style.background]="s"
-          [disabled]="!store.canEdit()"
-          (click)="setBackground(s)"
-        ></button>
-      }
-    </div>
+    <dbd-color-swatches class="swatches" [value]="diagram()!.backgroundColor" noneValue="transparent" noneLabel="No background" themeValue="" [disabled]="!store.canEdit()" (pick)="setBackground($event)" />
 
+    <div class="field-label">Border</div>
+    <dbd-color-swatches class="swatches" [value]="diagram()!.borderColor" noneValue="transparent" noneLabel="No border" themeValue="" [disabled]="!store.canEdit()" (pick)="setBorder($event)" />
 
     <div class="field-label">Arrange</div>
     <div class="flag-chips">

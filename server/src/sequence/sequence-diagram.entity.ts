@@ -50,6 +50,10 @@ export class SequenceDiagramEntity {
   /** Box background color (hex); null = theme surface. */
   @Column({ type: 'varchar', nullable: true })
   backgroundColor!: string | null;
+  
+  /** Diagram box border color; null = theme border. */
+  @Column({ type: 'varchar', nullable: true })
+  borderColor!: string | null;
 
   /** Title drawn at the diagram's top-left; null = untitled. */
   @Column({ type: 'varchar', length: 200, nullable: true })

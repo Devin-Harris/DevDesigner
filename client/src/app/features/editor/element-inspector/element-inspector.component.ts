@@ -16,10 +16,7 @@ import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
 import { withTextFit } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
-
-// Saturated palette shared with the table header tints (no muted pastels).
-const STROKE_COLORS = ['#ffffff', '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
-const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899'];
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 
 /**
  * The "shape & line styling" side panel — the design's calm, full-width companion
@@ -31,7 +28,7 @@ const FILL_COLORS = ['transparent', SURFACE_FILL, '#e5484d', '#f5a623', '#12b76a
   selector: 'app-element-inspector',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [ColorSwatchesComponent, IconComponent],
   templateUrl: './element-inspector.component.html',
   styleUrl: './element-inspector.component.scss',
 })
@@ -40,8 +37,10 @@ export class ElementInspectorComponent {
   private readonly codeActions = inject(CodeActionsService);
   readonly element = input.required<CanvasElementModel>();
 
-  protected readonly strokeColors = STROKE_COLORS;
-  protected readonly fillColors = FILL_COLORS;
+  /** Closed shapes and code cards can drop their outline entirely. */
+  protected readonly strokeCanBeNone = computed(() =>
+    ['rectangle', 'ellipse', 'diamond', 'code'].includes(this.element().type),
+  );
   protected readonly widths = [1, 2, 4];
   protected readonly styles: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
   protected readonly stackOf = fontStack;
@@ -164,6 +163,10 @@ export class ElementInspectorComponent {
   }
   protected setCornerRadius(value: number): void {
     this.patchAll({ cornerRadius: value });
+  }
+
+  protected setEllipticCorners(on: boolean): void {
+    this.patchAll({ ellipticCorners: on });
   }
   protected setOpacity(value: number): void {
     this.patchAll({ opacity: value });

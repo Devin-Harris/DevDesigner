@@ -87,6 +87,7 @@ export class SequenceService {
       rowSpacing: dto.rowSpacing ?? 48,
       headerHeight: dto.headerHeight ?? 42,
       backgroundColor: dto.backgroundColor ?? null,
+      borderColor: dto.borderColor ?? null,
       title: dto.title?.trim() || null,
       morphId: dto.morphId?.trim() || null,
       slideId: dto.slideId ?? null,
@@ -149,6 +150,8 @@ export class SequenceService {
       label: dto.label,
       color: dto.color ?? null,
       lineColor: dto.lineColor ?? null,
+      strokeColor: dto.strokeColor ?? null,
+      textColor: dto.textColor ?? null,
       morphId: dto.morphId?.trim() || null,
       x: dto.x,
       width: dto.width ?? 120,
@@ -328,6 +331,7 @@ export function applyDiagramPatch(entity: SequenceDiagramEntity, dto: UpdateSequ
   if (dto.groupId !== undefined) entity.groupId = dto.groupId;
   if (dto.slideId !== undefined) entity.slideId = dto.slideId;
   if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
+  if (dto.borderColor !== undefined) entity.borderColor = dto.borderColor;
   if (dto.title !== undefined) entity.title = dto.title.trim() || null;
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
 }
@@ -336,6 +340,8 @@ export function applyLifelinePatch(entity: LifelineEntity, dto: UpdateLifelineDt
   if (dto.label !== undefined) entity.label = dto.label;
   if (dto.color !== undefined) entity.color = dto.color;
   if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
+  if (dto.strokeColor !== undefined) entity.strokeColor = dto.strokeColor;
+  if (dto.textColor !== undefined) entity.textColor = dto.textColor;
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
   if (dto.width !== undefined) entity.width = dto.width;
 }

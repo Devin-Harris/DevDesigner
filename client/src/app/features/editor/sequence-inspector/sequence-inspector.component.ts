@@ -1,12 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  HEADER_SWATCHES,
-  SOFT_SWATCHES,
   type SequenceMessageModel,
 } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
 
@@ -20,7 +19,7 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
   selector: 'app-sequence-inspector',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent, InputComponent, SelectComponent],
+  imports: [ColorSwatchesComponent, FormsModule, IconComponent, InputComponent, SelectComponent],
   templateUrl: './sequence-inspector.component.html',
   styleUrl: './sequence-inspector.component.scss',
 })
@@ -48,7 +47,6 @@ export class SequenceInspectorComponent {
       this.store.sequenceMessages().filter((m) => m.diagramId === this.activeDiagram()?.id).length,
   );
 
-  protected readonly swatches = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
   protected readonly lifelineOptions = computed<SelectOption[]>(() =>
     this.store
@@ -66,10 +64,21 @@ export class SequenceInspectorComponent {
     const l = this.lifeline();
     if (l) void this.store.updateLifeline(l.id, { color });
   }
-  protected readonly bgSwatches = ['#ffffff', ...SOFT_SWATCHES, '#1e293b'];
   protected setBackground(backgroundColor: string): void {
     const d = this.activeDiagram();
     if (d) void this.store.updateSequenceConfig(d.id, { backgroundColor });
+  }
+  protected setBorder(borderColor: string): void {
+    const d = this.activeDiagram();
+    if (d) void this.store.updateSequenceConfig(d.id, { borderColor });
+  }
+  protected setStrokeColor(strokeColor: string): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { strokeColor });
+  }
+  protected setTextColor(textColor: string): void {
+    const l = this.lifeline();
+    if (l) void this.store.updateLifeline(l.id, { textColor });
   }
   protected setLineColor(lineColor: string): void {
     const l = this.lifeline();

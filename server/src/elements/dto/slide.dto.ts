@@ -17,6 +17,9 @@ import {
   MAX_ANIMATION_DURATION,
   MAX_SLIDE_ANIMATIONS,
   MORPH_BY_OPTIONS,
+  PLACEHOLDER_ROLES,
+  type PlaceholderConfig,
+  type PlaceholderRole,
   type MorphBy,
   SLIDE_ANIMATION_EFFECTS,
   SLIDE_ANIMATION_KINDS,
@@ -92,6 +95,22 @@ export class SlideAnimationDto implements SlideAnimation {
 }
 
 /** A frame's place in the slide sequence plus its transition and notes. */
+export class PlaceholderDto implements PlaceholderConfig {
+  @IsOptional()
+  @IsIn(PLACEHOLDER_ROLES)
+  role?: PlaceholderRole;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  prompt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  of?: string;
+}
+
 export class SlideDto implements SlideConfig {
   @IsNumber()
   order!: number;
@@ -121,4 +140,18 @@ export class SlideDto implements SlideConfig {
   @ValidateNested({ each: true })
   @Type(() => SlideAnimationDto)
   animations?: SlideAnimation[];
+
+  @IsOptional()
+  @IsBoolean()
+  layout?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  layoutName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  layoutId?: string;
 }

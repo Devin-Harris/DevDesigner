@@ -2,17 +2,18 @@
   <!-- Stroke color -->
   @if (!isImage()) {
   <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
-    <span class="swatch ring" [style.background]="strokeSwatch()"></span>
+    <span class="swatch ring" [class.none]="strokeSwatch() === 'transparent'" [style.background-color]="strokeSwatch() === 'theme' ? 'var(--dbd-text)' : strokeSwatch()"></span>
   </button>
   <ng-template #strokeMenu let-close>
     <div class="picker">
-      @for (c of strokeColors; track c) {
-        <button class="swatch-btn" [class.active]="c === strokeSwatch()" [style.background]="c" (click)="setStroke(c); close()"></button>
-      }
-      <label class="swatch-btn custom">
-        <dbd-icon name="colorize" />
-        <input type="color" [value]="element().strokeColor" (change)="setStroke($any($event.target).value)" />
-      </label>
+      <dbd-color-swatches
+        [value]="strokeSwatch()"
+        [allowNone]="strokeCanBeNone()"
+        noneValue="transparent"
+        noneLabel="No stroke"
+        [themeValue]="strokeThemeValue()"
+        (pick)="setStroke($event); close()"
+      />
     </div>
   </ng-template>
   }
@@ -27,20 +28,13 @@
     </button>
     <ng-template #fillMenu let-close>
       <div class="picker">
-        @for (c of fillColors; track c) {
-          <button
-            class="swatch-btn"
-            [class.none]="c === 'transparent'"
-            [class.surface]="c === 'surface'"
-            [class.active]="c === 'transparent' ? fillShown().none : (!fillShown().none && c === fillShown().color)"
-            [style.background-color]="c === 'transparent' ? c : fillCss(c)"
-            (click)="setFill(c); close()"
-          ></button>
-        }
-        <label class="swatch-btn custom">
-          <dbd-icon name="colorize" />
-          <input type="color" [value]="fillShown().color && fillShown().color !== 'surface' ? fillShown().color : '#ffffff'" (change)="setFill($any($event.target).value)" />
-        </label>
+        <dbd-color-swatches
+          [value]="fillShown().none ? 'transparent' : fillShown().color"
+          noneValue="transparent"
+          noneLabel="No fill"
+          [themeValue]="surfaceFill"
+          (pick)="setFill($event); close()"
+        />
       </div>
     </ng-template>
   }
@@ -90,7 +84,11 @@
       <div class="picker col">
         <div class="head-row">
           <span class="head-label">Radius</span>
-          <input type="range" min="0" max="48" step="2" [value]="element().cornerRadius ?? 12" (input)="setCornerRadius(+$any($event.target).value)" />
+          <input type="range" min="0" max="48" step="2" [value]="element().cornerRadius ?? 12" [style.--fill]="((element().cornerRadius ?? 12) / 48) * 100 + '%'" (input)="setCornerRadius(+$any($event.target).value)" />
+        </div>
+        <div class="head-row">
+          <button class="tb" [class.on]="!element().ellipticCorners" matTooltip="Large radius rounds into a pill" (click)="setEllipticCorners(false)">Pill</button>
+          <button class="tb" [class.on]="!!element().ellipticCorners" matTooltip="Large radius stretches into an oval" (click)="setEllipticCorners(true)">Oval</button>
         </div>
       </div>
     </ng-template>
@@ -291,7 +289,7 @@
       <button class="dbd-menu-item" (click)="sendToBack(); close()"><dbd-icon name="flip_to_back" />Send to back</button>
       <div class="opacity-row">
         <dbd-icon name="opacity" />
-        <input type="range" min="10" max="100" step="10" [value]="element().opacity" (input)="setOpacity(+$any($event.target).value)" />
+        <input type="range" min="10" max="100" step="10" [value]="element().opacity" [style.--fill]="((element().opacity - 10) / 90) * 100 + '%'" (input)="setOpacity(+$any($event.target).value)" />
       </div>
     </div>
   </ng-template>

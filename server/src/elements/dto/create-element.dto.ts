@@ -30,6 +30,7 @@ import {
   type FillStyle,
   type PointModel,
   type SlideConfig,
+  type PlaceholderConfig,
   type TextRun,
   type StrokeStyle,
   type TextAlign,
@@ -37,7 +38,7 @@ import {
 } from '@dbdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
-import { SlideDto } from './slide.dto';
+import { PlaceholderDto, SlideDto } from './slide.dto';
 import { TextRunDto } from './text-run.dto';
 
 /** Body for POST /projects/:projectId/elements. */
@@ -93,6 +94,10 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsNumber()
   cornerRadius?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  ellipticCorners?: boolean;
 
   @IsOptional()
   @IsArray()
@@ -195,6 +200,11 @@ export class CreateElementDto implements ICreateElementDto {
   @ValidateNested()
   @Type(() => SlideDto)
   slide?: SlideConfig;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlaceholderDto)
+  placeholder?: PlaceholderConfig;
 
   @IsOptional()
   @IsString()

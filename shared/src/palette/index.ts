@@ -211,6 +211,7 @@ export function isLightFill(fill: string | undefined | null): boolean {
  * colors get the contrast-derived text color.
  */
 export function isSwatchColor(fill: string | undefined | null): boolean {
+  if (fill === THEME_FILL) return true;
   const hex = fill ? normalizeHex(fill) : null;
   return !!hex && PALETTE.some((c) => c.tone !== 'neutral' && c.hex === hex);
 }
@@ -231,4 +232,30 @@ export function colorName(hex: string | undefined | null): string | undefined {
   const norm = normalizeHex(hex);
   const hit = norm ? PALETTE.find((c) => c.hex === norm) : undefined;
   return hit ? hit.name : hex;
+}
+
+/**
+ * The swatches every color picker in the editor offers (shapes, tables, sequence
+ * diagrams), so a color chosen in one place can be matched in another.
+ */
+export const PICKER_COLOR_NAMES: readonly string[] = ['white', 'red', 'amber', 'green', 'sky', 'blue', 'violet', 'pink', 'slate'];
+
+/** Hex values of {@link PICKER_COLOR_NAMES}, in order. */
+export const PICKER_SWATCHES: readonly string[] = PICKER_COLOR_NAMES.map((n) => BY_NAME.get(n)!.hex);
+
+/**
+ * Theme-adaptive color sentinels the pickers offer next to the swatches. They are
+ * stored as-is and resolved at render time so they follow light/dark mode:
+ * `THEME_FILL` is the raised surface (fills, headers, backgrounds) and
+ * `THEME_STROKE` the theme text color (outlines, text).
+ */
+export const THEME_FILL = 'surface';
+export const THEME_STROKE = 'theme';
+
+/** CSS for a stored color, resolving the theme sentinels to the app's CSS variables. */
+export function themeColorCss(color: string | undefined | null): string | null {
+  if (!color) return null;
+  if (color === THEME_FILL) return 'var(--dbd-surface)';
+  if (color === THEME_STROKE) return 'var(--dbd-text)';
+  return color;
 }

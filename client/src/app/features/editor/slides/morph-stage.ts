@@ -1654,6 +1654,8 @@ export class MorphStage {
           width: lerp(la.width, lb.width, t),
           color: mixOptionalColor(la.color, lb.color, t),
           lineColor: mixOptionalColor(la.lineColor, lb.lineColor, t),
+          strokeColor: mixOptionalColor(la.strokeColor, lb.strokeColor, t),
+          textColor: mixOptionalColor(la.textColor, lb.textColor, t),
         });
       }
       for (const la of p.llA) {

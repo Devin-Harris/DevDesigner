@@ -3,6 +3,7 @@ import type {
   ElementBinding,
   PointModel,
   SlideConfig,
+  PlaceholderConfig,
   TextRun,
 } from '@dbdesigner/shared';
 import { ElementEntity } from './element.entity';
@@ -13,6 +14,17 @@ function toBinding(
   id: string | null,
 ): ElementBinding | undefined {
   return kind && id ? { targetKind: kind, targetId: id } : undefined;
+}
+
+/** Decode a stored placeholder; a corrupt value just means "not a placeholder". */
+function toPlaceholder(json: string | null): PlaceholderConfig | undefined {
+  if (!json) return undefined;
+  try {
+    const parsed = JSON.parse(json) as PlaceholderConfig;
+    return parsed && typeof parsed === 'object' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Decode a stored slide config; a corrupt value just means "not a slide". */
@@ -59,6 +71,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     opacity: entity.opacity,
     zIndex: entity.zIndex,
     cornerRadius: entity.cornerRadius ?? undefined,
+    ellipticCorners: entity.ellipticCorners ?? undefined,
     points: entity.pointsJson ? (JSON.parse(entity.pointsJson) as PointModel[]) : undefined,
     text: entity.text ?? undefined,
     fontSize: entity.fontSize ?? undefined,
@@ -82,6 +95,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     expandedHeight: entity.expandedHeight ?? undefined,
     groupId: entity.groupId ?? undefined,
     slide: toSlide(entity.slideJson),
+    placeholder: toPlaceholder(entity.placeholderJson),
     morphId: entity.morphId ?? undefined,
     step: entity.step ?? undefined,
     slideId: entity.slideId ?? undefined,

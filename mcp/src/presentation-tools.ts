@@ -34,6 +34,8 @@ import {
   presentationNames,
   presentationOf,
   presentationSlides,
+  presentationLayouts,
+  layoutNameOf,
   soloMorphId,
   schemaRects,
   sequenceDiagramRect,
@@ -126,7 +128,7 @@ const morph = {
 const color = z
   .string()
   .optional()
-  .describe('Palette name (e.g. "ink", "blue", "amber-soft"; see list_colors) or #hex.');
+  .describe('Palette name (e.g. "ink", "blue", "amber-soft"; see list_colors; #hex only if the user asked for an exact color).');
 const runs = z
   .array(
     z.object({
@@ -199,8 +201,8 @@ const slideItem = z.discriminatedUnion('type', [
     text: z.string().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
-    backgroundColor: z.string().optional().describe('Fill: palette name (soft tints read best) or #hex.'),
-    strokeColor: z.string().optional().describe('Outline: palette name or #hex.'),
+    backgroundColor: z.string().optional().describe('Fill: palette name (soft tints read best; #hex only if the user asked for an exact color).'),
+    strokeColor: z.string().optional().describe('Outline: palette name (swatch; #hex only if the user asked for an exact color).'),
     ...morph,
     ...at,
   }),
@@ -220,7 +222,7 @@ const slideItem = z.discriminatedUnion('type', [
       .string()
       .optional()
       .describe(
-        'Card surface: palette name (e.g. "ink", "charcoal" for a dark editor look, "slate-soft") or #hex. Default: light grey. Token colors switch to a light palette on dark surfaces.',
+        'Card surface: palette name (e.g. "ink", "charcoal" for a dark editor look, "slate-soft"; #hex only if the user asked for an exact color). Default: light grey. Token colors switch to a light palette on dark surfaces.',
       ),
     ...morph,
     ...at,
@@ -233,7 +235,7 @@ const slideItem = z.discriminatedUnion('type', [
         color: z
           .string()
           .optional()
-          .describe('Header color: palette name or #hex. One color per domain; unset = connected tables share one automatically.'),
+          .describe('Header color: palette name (swatch; #hex only if the user asked for an exact color). One color per domain; unset = connected tables share one automatically.'),
         columns: z.array(
           z.object({
             name: z.string(),
@@ -259,8 +261,10 @@ const slideItem = z.discriminatedUnion('type', [
         z.string(),
         z.object({
           name: z.string(),
-          color: z.string().optional().describe('Header color: palette name or #hex.'),
+          color: z.string().optional().describe('Header color: palette name (swatch; #hex only if the user asked for an exact color).'),
           lineColor: z.string().optional(),
+          strokeColor: z.string().optional(),
+          textColor: z.string().optional(),
           morph: z.string().max(60).optional().describe('Pairs with the same tag on the next slide even if renamed.'),
         }),
       ]),
@@ -271,11 +275,11 @@ const slideItem = z.discriminatedUnion('type', [
         to: z.string(),
         label: z.string().optional(),
         style: z.enum(['solid', 'dashed', 'break']).optional(),
-        color: z.string().optional().describe('Arrow color: palette name or #hex (leave unset unless meaningful).'),
+        color: z.string().optional().describe('Arrow color: palette name (swatch; #hex only if the user asked for an exact color) (leave unset unless meaningful).'),
         morph: z.string().max(60).optional().describe('Pairs with the same tag on the next slide even if reworded.'),
       }),
     ),
-    background: z.string().optional().describe('Diagram background: palette name or #hex.'),
+    background: z.string().optional().describe('Diagram background: palette name (swatch; #hex only if the user asked for an exact color).'),
     morph: z.string().max(60).optional().describe('Pairs this whole diagram with the same tag on the next slide.'),
     ...at,
   }),
@@ -291,11 +295,23 @@ const slideSpec = z.object({
     .describe(
       'add_slides only: an existing slide id to copy the look from - its background, title styling/position and decorative shapes (accent bars etc.); the content is still yours.',
     ),
+  layout: z
+    .string()
+    .optional()
+    .describe(
+      'add_slides only: a layout of the presentation (name or id, see list_layouts). Its repeated items show under the slide and its placeholders become text boxes on it, filled from `fill`.',
+    ),
+  fill: z
+    .record(z.string(), z.union([z.string(), z.array(z.string())]))
+    .optional()
+    .describe(
+      'add_slides only, with `layout`: text per placeholder role from list_layouts (untyped placeholders are "text"), e.g. {"title": "Q3", "body": "..."}; an array fills several placeholders of one role in reading order. Unfilled placeholders stay empty (hidden when presenting).',
+    ),
   background: z
     .string()
     .optional()
     .describe(
-      'Slide background: palette name (e.g. "ink", "blue-soft") or #hex, set on the slide itself (never draw a rectangle for this). On a dark background, text/outlines without an explicit color default to white. Change later with set_slide_background.',
+      'Slide background: palette name (e.g. "ink", "blue-soft"; #hex only if the user asked for an exact color), set on the slide itself (never draw a rectangle for this). On a dark background, text/outlines without an explicit color default to white. Change later with set_slide_background.',
     ),
   transition: transitionSchema
     .optional()
@@ -383,6 +399,51 @@ export function resolveSlide(schema: SchemaModel, ref: string, presentation?: st
 }
 
 /** Entities that belong to a slide through `slideId`. */
+/**
+ * Put a new slide on a layout: link it, then give it a copy of each placeholder,
+ * filled from `fill` by role (arrays fill same-role placeholders in reading order).
+ */
+async function applyLayout(
+  api: DbDesignerApi,
+  id: string,
+  schema: SchemaModel,
+  frame: CanvasElementModel,
+  layout: CanvasElementModel,
+  fill: Record<string, string | string[]>,
+): Promise<void> {
+  await api.patch(`/elements/${frame.id}`, { slide: { ...frame.slide, layoutId: layout.id } });
+  const slots = schema.elements
+    .filter((e) => e.slideId === layout.id && !!e.placeholder)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  const used = new Map<string, number>();
+  for (const slot of slots) {
+    const role = slot.placeholder!.role ?? 'text';
+    const n = used.get(role) ?? 0;
+    used.set(role, n + 1);
+    const given = fill[role];
+    const text = (Array.isArray(given) ? given[n] : n === 0 ? given : undefined) ?? '';
+    const {
+      id: _id,
+      zIndex: _z,
+      groupId: _g,
+      morphId: _m,
+      step: _s,
+      runs: _r,
+      slideId: _sl,
+      slide: _sc,
+      ...look
+    } = slot;
+    await api.post(`/projects/${id}/elements`, {
+      ...look,
+      x: slot.x - layout.x + frame.x,
+      y: slot.y - layout.y + frame.y,
+      text,
+      slideId: frame.id,
+      placeholder: { ...slot.placeholder, of: slot.id },
+    });
+  }
+}
+
 function ownedBy(schema: SchemaModel, frameId: string): {
   elements: CanvasElementModel[];
   tableIds: string[];
@@ -669,7 +730,19 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const after = afterSlide ? resolveSlide(schema, afterSlide, name) : null;
       // Templates resolve up front so a bad id fails before anything is written.
       const templates = slides.map((sl) => (sl.template ? resolveSlide(schema, sl.template) : null));
-      const specs = slides.map(({ template: _t, ...sl }, i) => {
+      const frameList = slideFrames(schema);
+      const layouts = slides.map((sl) => {
+        if (!sl.layout) return null;
+        const all = presentationLayouts(frameList, name);
+        const hit = all.find((l) => l.id === sl.layout || layoutNameOf(l, frameList) === sl.layout);
+        if (!hit) {
+          throw new UserError(
+            `No layout "${sl.layout}" in "${name}". Layouts: ${all.map((l) => layoutNameOf(l, frameList)).join(', ') || 'none'}.`,
+          );
+        }
+        return hit;
+      });
+      const specs = slides.map(({ template: _t, layout: _l, fill: _f, ...sl }, i) => {
         const t = templates[i];
         return t && sl.background === undefined && t.fillStyle !== 'none' && t.backgroundColor
           ? { ...sl, background: t.backgroundColor }
@@ -697,7 +770,11 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         return t ? [{ frame: f, template: t, titled: !!slides[i].title }] : [];
       });
       if (templated.length) await applyTemplates(id, fresh, templated);
-      if (after || templated.length) fresh = (await graph(id)).schema;
+      for (const [i, f] of created.entries()) {
+        const layout = layouts[i];
+        if (layout) await applyLayout(api, id, fresh, f, layout, (slides[i].fill ?? {}) as Record<string, string | string[]>);
+      }
+      if (after || templated.length || layouts.some(Boolean)) fresh = (await graph(id)).schema;
       return { presentation: name, added: receipts(fresh, created.map((f) => f.id)), warnings: built.warnings };
     },
   );
@@ -872,6 +949,30 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         }
       }
       return { slide: frame.id, added: mutations.length, warnings: built.warnings };
+    },
+  );
+
+  tool(
+    'list_layouts',
+    "List a presentation's slide layouts: name, id, and its placeholders (role, prompt). Use a layout's name with add_slides `layout` and fill its placeholders with `fill`.",
+    { projectId, presentation: z.string().optional() },
+    { readOnly: true },
+    async ({ projectId: id, presentation }) => {
+      const { schema } = await graph(id);
+      const name = resolvePresentation(schema, presentation);
+      const frames = slideFrames(schema);
+      return {
+        presentation: name,
+        layouts: presentationLayouts(frames, name).map((l) => ({
+          id: l.id,
+          name: layoutNameOf(l, frames),
+          slidesUsing: presentationSlides(frames, name).filter((f) => f.slide.layoutId === l.id).length,
+          placeholders: schema.elements
+            .filter((e) => e.slideId === l.id && !!e.placeholder)
+            .sort((a, b) => a.y - b.y || a.x - b.x)
+            .map((e) => ({ id: e.id, role: e.placeholder!.role ?? 'text', prompt: e.text ?? '' })),
+        })),
+      };
     },
   );
 

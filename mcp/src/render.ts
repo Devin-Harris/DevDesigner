@@ -154,7 +154,7 @@ function drawElement(
   schema?: SchemaModel,
 ): string {
   const op = e.opacity !== undefined && e.opacity < 100 ? ` opacity="${e.opacity / 100}"` : '';
-  const stroke = e.strokeColor || '#1e1e1e';
+  const stroke = !e.strokeColor || e.strokeColor === 'theme' ? '#1e1e1e' : e.strokeColor;
   const sw = e.strokeWidth ?? 2;
   const fill = e.fillStyle && e.fillStyle !== 'none' && e.backgroundColor ? e.backgroundColor : 'none';
   const ds = dash(e.strokeStyle, sw);
@@ -181,7 +181,7 @@ function drawElement(
       return `<rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" fill="${bg}" stroke="#94a3b8" stroke-dasharray="6 4"/>`;
     }
     case 'rectangle': {
-      const rx = e.cornerRadius ?? 0;
+      const rx = e.ellipticCorners ? (e.cornerRadius ?? 0) : Math.min(e.cornerRadius ?? 0, e.width / 2, e.height / 2);
       return `<g${op}><rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${ds}/>${label()}</g>`;
     }
     case 'ellipse':
@@ -330,8 +330,8 @@ function drawSequence(schema: SchemaModel, diagramId: string): string {
   for (const l of lanes) {
     const head = l.color || '#e2e8f0';
     out += `<line x1="${l.x}" y1="${d.originY + d.headerHeight}" x2="${l.x}" y2="${bottom}" stroke="${l.lineColor ?? '#94a3b8'}" stroke-dasharray="6 5"/>`;
-    out += `<rect x="${l.x - l.width / 2}" y="${d.originY}" width="${l.width}" height="${d.headerHeight}" rx="6" fill="${head}" stroke="#94a3b8"/>`;
-    out += textBlock([l.label], l.x, d.originY + d.headerHeight / 2 - 9, 14, readableTextOn(head), { anchor: 'middle', bold: true });
+    out += `<rect x="${l.x - l.width / 2}" y="${d.originY}" width="${l.width}" height="${d.headerHeight}" rx="6" fill="${head}" stroke="${l.strokeColor ?? (l.color ? 'none' : '#94a3b8')}"/>`;
+    out += textBlock([l.label], l.x, d.originY + d.headerHeight / 2 - 9, 14, l.textColor ?? readableTextOn(head), { anchor: 'middle', bold: true });
   }
   const laneX = new Map(lanes.map((l) => [l.id, l.x]));
   for (const m of msgs) {

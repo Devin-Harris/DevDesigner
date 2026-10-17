@@ -14,7 +14,7 @@
     "watch:shared": "npm run watch -w shared",
     "dev:server": "npm run start:dev -w server",
     "dev:client": "npm start -w client",
-    "dev": "npm run build:shared && concurrently -n shared,server,client -c gray,blue,green \"npm run watch:shared\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "npm run ng cache clean -w client && npm run build:shared && concurrently -n shared,server,client -c gray,blue,green \"npm run watch:shared\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:windows": "npm run build:shared && node scripts/dev.mjs",
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
     "build:server": "npm run build -w shared && npm run build -w server",

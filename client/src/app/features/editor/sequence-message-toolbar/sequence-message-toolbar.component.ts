@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import type { SequenceMessageModel } from '@dbdesigner/shared';
+import { themeColorCss, type SequenceMessageModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 
 /**
  * On-canvas contextual bar that floats above the selected sequence message
@@ -12,7 +14,7 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
   selector: 'app-sequence-message-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
   templateUrl: './sequence-message-toolbar.component.html',
   styleUrl: './sequence-message-toolbar.component.scss',
 })
@@ -20,6 +22,12 @@ export class SequenceMessageToolbarComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly message = computed(() => this.store.selectedMessage());
   protected readonly canEdit = computed(() => this.store.canEdit());
+  protected readonly css = themeColorCss;
+
+  protected setColor(color: string): void {
+    const m = this.message();
+    if (m) void this.store.updateMessage(m.id, { color });
+  }
 
   protected setStyle(style: SequenceMessageModel['style']): void {
     const m = this.message();

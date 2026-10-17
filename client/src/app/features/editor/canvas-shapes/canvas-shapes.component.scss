@@ -16,6 +16,12 @@
   pointer-events: none !important;
 }
 
+// A slide layout's items under the slide: visible but click-through.
+.locked,
+.locked * {
+  pointer-events: none !important;
+}
+
 // Stand-in drawn while a picture's file is still loading.
 .image-pending {
   fill: color-mix(in srgb, var(--dbd-text-muted) 12%, transparent);

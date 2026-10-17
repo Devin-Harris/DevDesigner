@@ -247,6 +247,8 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         width: l.width,
         ...(l.color ? { color: l.color } : {}),
         ...(l.lineColor ? { lineColor: l.lineColor } : {}),
+        ...(l.strokeColor ? { strokeColor: l.strokeColor } : {}),
+        ...(l.textColor ? { textColor: l.textColor } : {}),
         ...(l.morphId ? { morphId: l.morphId } : {}),
       });
       laneMap.set(l.id, nl.id);
@@ -362,7 +364,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
       slide: z.string().optional().describe('Slide id or 1-based number (with presentation): items owned by that slide.'),
       presentation: z.string().optional(),
       group: z.string().optional().describe('Group id.'),
-      color: z.string().optional().describe('Palette name or #hex: items using that stroke / fill / header color.'),
+      color: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color): items using that stroke / fill / header color.'),
       region: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).optional(),
       limit: z.number().int().min(1).max(500).optional(),
     },
@@ -528,7 +530,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
             from: z.string().describe('Element id or table name/id.'),
             to: z.string(),
             label: z.string().max(200).optional(),
-            color: z.string().optional().describe('Palette name or #hex.'),
+            color: z.string().optional().describe('Palette name (swatch; #hex only if the user asked for an exact color).'),
             dashed: z.boolean().optional(),
             line: z.boolean().optional().describe('No arrowhead.'),
             both: z.boolean().optional().describe('Arrowheads on both ends.'),

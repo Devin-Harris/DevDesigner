@@ -25,6 +25,7 @@ import type {
   PointModel,
   SchemaModel,
   SlideConfig,
+  PlaceholderConfig,
   TextRun,
 } from '../models';
 import type { SchemaMutation } from '../realtime';
@@ -305,6 +306,7 @@ export interface CreateElementDto {
   opacity: number;
   zIndex?: number;
   cornerRadius?: number;
+  ellipticCorners?: boolean;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
@@ -332,6 +334,8 @@ export interface CreateElementDto {
   expandedHeight?: number;
   /** Frame only: slide-sequence membership + transition. */
   slide?: SlideConfig;
+  /** Text boxes: a layout placeholder, or a slide's copy of one. */
+  placeholder?: PlaceholderConfig;
   /** Morph lineage (set on copies so they morph with their source). */
   morphId?: string;
   step?: number;
@@ -352,6 +356,7 @@ export interface UpdateElementDto {
   opacity?: number;
   zIndex?: number;
   cornerRadius?: number;
+  ellipticCorners?: boolean;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
@@ -380,6 +385,7 @@ export interface UpdateElementDto {
   groupId?: string | null;
   /** Frame only: slide config; null removes the frame from the sequence. */
   slide?: SlideConfig | null;
+  placeholder?: PlaceholderConfig | null;
   /** Morph lineage; null clears an explicit pairing. */
   morphId?: string | null;
   /** Build step; null clears it. */
@@ -404,6 +410,8 @@ export interface CreateSequenceDiagramDto {
   rowSpacing?: number;
   headerHeight?: number;
   backgroundColor?: string;
+  /** Diagram box border color; empty string = theme border. */
+  borderColor?: string;
   /** Stacking order against elements (default -1 = under all of them). */
   zIndex?: number;
   /** The slide (frame id) the diagram is created on. */
@@ -425,6 +433,8 @@ export interface UpdateSequenceDiagramDto {
   slideId?: string | null;
   /** Box background (hex); empty string clears back to the theme surface. */
   backgroundColor?: string;
+  /** Diagram box border color; empty string = theme border. */
+  borderColor?: string;
   /** Diagram title; empty string clears it. */
   title?: string;
   /** Morph tag (`tag:<name>`); empty string clears it. */
@@ -437,6 +447,10 @@ export interface CreateLifelineDto {
   label: string;
   color?: string;
   lineColor?: string;
+  /** Header border color; empty string clears it. */
+  strokeColor?: string;
+  /** Header label color; empty string = automatic. */
+  textColor?: string;
   x: number;
   width?: number;
   order?: number;
@@ -447,6 +461,10 @@ export interface UpdateLifelineDto {
   label?: string;
   color?: string;
   lineColor?: string;
+  /** Header border color; empty string clears it. */
+  strokeColor?: string;
+  /** Header label color; empty string = automatic. */
+  textColor?: string;
   width?: number;
   /** Morph tag (`tag:<name>`); empty string clears it. */
   morphId?: string;

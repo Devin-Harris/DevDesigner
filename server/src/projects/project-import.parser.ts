@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  PLACEHOLDER_ROLES,
+  type PlaceholderConfig,
   ARROWHEAD_TYPES,
   CODE_LANGUAGES,
   ELEMENT_TYPES,
@@ -210,6 +212,19 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
         }
       : undefined,
     animations: slideAnimations(s['animations'], `${path}.animations`),
+    layout: s['layout'] === undefined || s['layout'] === null ? undefined : bool(s, 'layout', path, false),
+    layoutName: optStr(s, 'layoutName', path, 120),
+    layoutId: optStr(s, 'layoutId', path, 64),
+  };
+}
+
+function placeholder(value: unknown, path: string): PlaceholderConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+  const p = obj(value, path);
+  return {
+    role: optOneOf(p, 'role', path, PLACEHOLDER_ROLES),
+    prompt: optStr(p, 'prompt', path, 200),
+    of: optStr(p, 'of', path, 100),
   };
 }
 
@@ -309,6 +324,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     opacity: num(e, 'opacity', path, 100),
     zIndex: num(e, 'zIndex', path, 0),
     cornerRadius: optNum(e, 'cornerRadius', path),
+    ellipticCorners: e['ellipticCorners'] === true ? true : undefined,
     points: points(e['points'], `${path}.points`),
     text: optStr(e, 'text', path, 100_000),
     fontSize: optNum(e, 'fontSize', path),
@@ -339,6 +355,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     expandedHeight: optNum(e, 'expandedHeight', path),
     groupId: optStr(e, 'groupId', path, 100),
     slide: slide(e['slide'], `${path}.slide`),
+    placeholder: placeholder(e['placeholder'], `${path}.placeholder`),
     morphId: optStr(e, 'morphId', path, 100),
     step: optNum(e, 'step', path),
     slideId: optStr(e, 'slideId', path, 100),
@@ -366,6 +383,7 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     groupId: optStr(d, 'groupId', path, 100),
     slideId: optStr(d, 'slideId', path, 100),
     backgroundColor: optStr(d, 'backgroundColor', path, 100),
+    borderColor: optStr(d, 'borderColor', path, 100),
     title: optStr(d, 'title', path, 200),
     morphId: optStr(d, 'morphId', path, 100),
   };
@@ -379,6 +397,8 @@ function parseLifeline(raw: unknown, path: string): LifelineModel {
     label: str(l, 'label', path, 255),
     color: optStr(l, 'color', path, 100),
     lineColor: optStr(l, 'lineColor', path, 100),
+    strokeColor: optStr(l, 'strokeColor', path, 100),
+    textColor: optStr(l, 'textColor', path, 100),
     morphId: optStr(l, 'morphId', path, 100),
     x: num(l, 'x', path, 0),
     width: num(l, 'width', path, 120),

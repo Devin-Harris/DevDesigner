@@ -95,9 +95,7 @@
 
 // Popover surfaces for the pickers.
 .picker {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  display: block;
   padding: 8px;
   background: var(--dbd-surface);
   border: 1px solid var(--dbd-border);

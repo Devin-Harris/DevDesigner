@@ -68,7 +68,7 @@
   @for (l of lls(); track l.id) {
     <div
       class="spine"
-      [style.--line-color]="l.lineColor || null"
+      [style.--line-color]="css(l.lineColor)"
       [style.left.px]="l.x"
       [style.top.px]="headerBottom()"
       [style.height.px]="spineEnd() - headerBottom()"
@@ -99,7 +99,9 @@
       [style.top.px]="originY()"
       [style.width.px]="l.width"
       [style.height.px]="headerH()"
-      [style.--ll-color]="l.color || null"
+      [style.--ll-color]="css(l.color)"
+      [style.border-color]="css(l.strokeColor)"
+      [style.color]="css(l.textColor)"
       (pointerdown)="onHeaderDown($event, l)"
       (dblclick)="startEditLifeline($event, l)"
     >
@@ -132,7 +134,7 @@
       <div
         class="break-line"
         [class.selected]="m.selected"
-        [style.--msg-color]="m.color || null"
+        [style.--msg-color]="css(m.color)"
         [style.left.px]="m.spanLeft"
         [style.top.px]="m.y"
         [style.width.px]="m.spanWidth"
@@ -176,7 +178,7 @@
         class="msg-line"
         [class.dashed]="m.dashed"
         [class.selected]="m.selected"
-        [style.--msg-color]="m.color || null"
+        [style.--msg-color]="css(m.color)"
         [style.left.px]="m.leftX"
         [style.top.px]="m.y"
         [style.width.px]="m.width"
@@ -186,7 +188,7 @@
         class="msg-head"
         [class.dashed]="m.dashed"
         [class.selected]="m.selected"
-        [style.--msg-color]="m.color || null"
+        [style.--msg-color]="css(m.color)"
         viewBox="0 0 10 10"
         [style.left.px]="m.headX - (m.dirRight ? 9 : 1)"
         [style.top.px]="m.y - 5"

@@ -88,6 +88,7 @@ export class ElementsService {
       opacity: dto.opacity,
       zIndex: dto.zIndex ?? (await this.nextZIndex(projectId)),
       cornerRadius: dto.cornerRadius ?? null,
+      ellipticCorners: dto.ellipticCorners ?? null,
       pointsJson: dto.points ? JSON.stringify(dto.points) : null,
       text: dto.text ?? null,
       fontSize: dto.fontSize ?? null,
@@ -113,6 +114,7 @@ export class ElementsService {
       expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
+      placeholderJson: dto.placeholder ? JSON.stringify(dto.placeholder) : null,
       step: dto.step ?? null,
       slideId: dto.type === 'frame' ? null : (dto.slideId ?? null),
     });
@@ -236,6 +238,7 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     'opacity',
     'zIndex',
     'cornerRadius',
+    'ellipticCorners',
     'fontSize',
     'fontFamily',
     'bold',
@@ -280,6 +283,9 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.slide !== undefined && element.type === 'frame') {
     element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
+  }
+  if (dto.placeholder !== undefined) {
+    element.placeholderJson = dto.placeholder ? JSON.stringify(dto.placeholder) : null;
   }
   if (dto.morphId !== undefined) {
     element.morphId = dto.morphId;

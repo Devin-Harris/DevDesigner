@@ -1,4 +1,4 @@
-import { isNumericType, isSwatchColor, messageLabelLines, readableTextOn } from '@dbdesigner/shared';
+import { isNumericType, isSwatchColor, messageLabelLines, readableTextOn, THEME_FILL, THEME_STROKE } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -217,6 +217,11 @@ const CHIP_H = 16;
 const CHIP_GAP = 3;
 const CHIPS_BLOCK_W = 4 * CHIP_W + 3 * CHIP_GAP;
 
+/** Resolve the theme color sentinels (surface fill, theme stroke) to this theme's colors. */
+function themed(color: string | undefined, theme: Theme): string | undefined {
+  return color === THEME_FILL ? theme.surface : color === THEME_STROKE ? theme.text : color;
+}
+
 /** Render one table node as an SVG group at its world coordinates. */
 function renderTable(table: TableModel, theme: Theme): string {
   // Drawn at natural size inside a scaled group, so the whole node scales uniformly.
@@ -224,7 +229,7 @@ function renderTable(table: TableModel, theme: Theme): string {
   const height = nodeHeight(table.columns.length);
   const scale = tableScale(table);
   const colored = !!table.color;
-  const headerFill = table.color || theme.nodeHeader;
+  const headerFill = themed(table.color, theme) || theme.nodeHeader;
   const headerText = colored && !isSwatchColor(table.color) ? readableTextOn(table.color!) : theme.text;
 
   const parts: string[] = [`<g transform="translate(${table.x}, ${table.y})${scale === 1 ? '' : ` scale(${scale})`}">`];
@@ -601,11 +606,23 @@ function renderSequence(
 ): { box: SequenceBox; svg: string } | null {
   const smooth = data.smooth === true;
   const fade = data.fade;
-  const lls = allLifelines.filter((l) => l.diagramId === diagram.id).sort((a, b) => a.x - b.x);
+  const lls = allLifelines
+    .filter((l) => l.diagramId === diagram.id)
+    .sort((a, b) => a.x - b.x)
+    .map((l) => ({
+      ...l,
+      color: themed(l.color, theme),
+      lineColor: themed(l.lineColor, theme),
+      strokeColor: themed(l.strokeColor, theme),
+      textColor: themed(l.textColor, theme),
+    }));
   if (!lls.length) {
     return null;
   }
-  const msgs = allMessages.filter((m) => m.diagramId === diagram.id).sort((a, b) => a.y - b.y);
+  const msgs = allMessages
+    .filter((m) => m.diagramId === diagram.id)
+    .sort((a, b) => a.y - b.y)
+    .map((m) => ({ ...m, color: themed(m.color, theme) }));
   const headerBottom = diagram.originY + diagram.headerHeight;
   const gap = diagram.rowSpacing;
   const rowIndex = (y: number): number =>
@@ -635,7 +652,7 @@ function renderSequence(
   };
   out.push(
     `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
-      `fill="${bg}" stroke="${theme.border}" stroke-width="1.5" />`,
+      `fill="${bg}" stroke="${themed(diagram.borderColor, theme) || theme.border}" stroke-width="1.5" />`,
   );
   if (diagram.title && !data.hideText?.titles?.has(diagram.id)) {
     out.push(
@@ -735,11 +752,11 @@ function renderSequence(
       faded(
         fade?.lifelines?.get(l.id),
         `<rect x="${l.x - l.width / 2 + 0.5}" y="${diagram.originY + 0.5}" width="${l.width - 1}" height="${diagram.headerHeight - 1}" ` +
-          `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${colored ? 'none' : theme.nodeBorder}" stroke-width="1" />`,
+          `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${l.strokeColor || (colored ? 'none' : theme.nodeBorder)}" stroke-width="1" />`,
         data.hideText?.lifelines?.has(l.id)
           ? ''
           : `<text data-lid="${esc(l.id)}" x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
-            `font-size="12" font-weight="600" fill="${colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+            `font-size="12" font-weight="600" fill="${l.textColor ? l.textColor : colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
       ),
     );
   }

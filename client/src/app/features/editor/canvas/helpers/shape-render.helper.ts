@@ -1,3 +1,4 @@
+import { THEME_STROKE } from '@dbdesigner/shared';
 import type {
   CanvasElementModel,
   CodeLanguage,
@@ -77,6 +78,16 @@ export const FONT_OPTIONS: { value: string; label: string }[] = [
   { value: 'code', label: 'JetBrains Mono' },
 ];
 
+/**
+ * Rectangle corner radius. By default it clamps to half the shorter side, so a big
+ * radius gives a pill; with `ellipticCorners` the raw radius is left to SVG, which
+ * clamps each axis separately and stretches the corners into an oval.
+ */
+export function rectCornerRadius(element: CanvasElementModel): number {
+  const r = element.cornerRadius ?? Math.min(12, Math.min(element.width, element.height) * 0.15);
+  return element.ellipticCorners ? r : Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+}
+
 export function fontStack(key: string | undefined): string {
   return FONT_STACKS[key ?? 'normal'] ?? FONT_STACKS['normal'];
 }
@@ -146,6 +157,9 @@ const CONTRAST_FLOOR = 1.5;
  * colors too (per the design decision).
  */
 export function contrastSafe(color: string, theme: ThemeColors | undefined): string {
+  if (color === THEME_STROKE) {
+    return theme?.text ?? '#1e293b';
+  }
   if (!theme) {
     return color;
   }
@@ -568,7 +582,7 @@ function codeBlockView(
   );
   const baseline = codeBaseline(fontSize);
   const header = codeHeaderHeight(fontSize);
-  const collapsed = element.expandedHeight !== undefined;
+  const collapsed = element.expandedHeight != null;
   const top = element.y + header + CODE_PADDING;
   const lines = collapsed
     ? []
@@ -965,9 +979,7 @@ export function buildShapeViews(
           y: element.y,
           width: element.width,
           height: element.height,
-          rx:
-            element.cornerRadius ??
-            Math.min(12, Math.min(element.width, element.height) * 0.15),
+          rx: rectCornerRadius(element),
         };
         base.label = shapeLabel(element, base.bbox, theme);
         break;

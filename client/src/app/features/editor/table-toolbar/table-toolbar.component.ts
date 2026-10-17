@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { HEADER_SWATCHES, SOFT_SWATCHES, type TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 
-const HEADER_COLORS = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 
 /**
  * Floating action bar shown above the selected table (mirrors the shape/connector
@@ -16,7 +16,7 @@ const HEADER_COLORS = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
   selector: 'app-table-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
+  imports: [ColorSwatchesComponent, MatTooltipModule, IconComponent, PopoverTriggerDirective],
   template: `
     <div class="bar">
       <button class="add" (click)="addColumn()" [disabled]="!store.canEdit()">
@@ -30,10 +30,7 @@ const HEADER_COLORS = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
       </button>
       <ng-template #colorMenu let-close>
         <div class="color-grid">
-          @for (c of colors; track c) {
-            <button class="swatch" [style.background]="c" (click)="setColor(c); close()"></button>
-          }
-          <button class="swatch none" (click)="setColor(''); close()" title="No color"></button>
+          <dbd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
         </div>
       </ng-template>
 
@@ -61,7 +58,6 @@ const HEADER_COLORS = [...HEADER_SWATCHES, ...SOFT_SWATCHES];
 })
 export class TableToolbarComponent {
   protected readonly store = inject(ProjectStore);
-  protected readonly colors = HEADER_COLORS;
   readonly table = input.required<TableModel>();
 
   protected addColumn(): void {

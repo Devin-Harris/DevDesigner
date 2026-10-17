@@ -309,6 +309,7 @@
         [style.transform]="'scale(' + set.list.scale + ')'"
         [presentation]="set.name"
         [active]="set.frameId"
+        [lastSlide]="lastSlideOf(set.name)"
         part="list"
         (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
@@ -325,6 +326,7 @@
         [style.height.px]="set.settings.height"
         [style.transform]="'scale(' + set.settings.scale + ')'"
         [active]="set.frameId"
+        [lastSlide]="lastSlideOf(set.name)"
         (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
         (command)="onSlidesCommand($event, set.name)"
@@ -495,6 +497,15 @@
         (pointerdown)="$event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
       ></app-sequence-message-toolbar>
+    }
+
+    @if (sequenceDiagramToolbar(); as dt) {
+      <app-sequence-diagram-toolbar
+        [style.left.px]="dt.left"
+        [style.top.px]="dt.top"
+        (pointerdown)="$event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      ></app-sequence-diagram-toolbar>
     }
 
     @if (sequenceParticipantToolbar(); as pt) {
