@@ -2194,6 +2194,13 @@ export class SlidesPanelComponent {
   /** True when a morph is involved: the transition into this slide or into the one before it. */
   protected readonly morphRelevant = computed(() => {
     const frames = this.frames();
+    // Layouts (and masters) feed every slide that uses them, so their objects can be tagged.
+    const layoutIds = new Set(
+      this.store.slideFrames().filter((f) => f.slide?.layout).map((f) => f.id),
+    );
+    if (this.selectedObjects().some((e) => !!e.slideId && layoutIds.has(e.slideId))) {
+      return true;
+    }
     const i = frames.findIndex((f) => f.id === this.activeId());
     if (i < 0) {
       return false;
@@ -2269,7 +2276,15 @@ export class SlidesPanelComponent {
   });
   /** The morph tag shared by the selection ('' when none or they differ). */
   protected readonly morphTag = computed(() => {
-    const tags = new Set(this.tagTargets().map((e) => morphTagOf(e.morphId) ?? ''));
+    // A slide's placeholder copy without its own tag shows the one set on the layout's placeholder.
+    const byId = new Map(this.selectedObjects().map((e) => [e.id, e] as const));
+    const inherited = (id: string): string | undefined => {
+      const of = byId.get(id)?.placeholder?.of;
+      return of ? this.store.elements().find((p) => p.id === of)?.morphId : undefined;
+    };
+    const tags = new Set(
+      this.tagTargets().map((e) => morphTagOf(e.morphId ?? inherited(e.id)) ?? ''),
+    );
     return tags.size === 1 ? [...tags][0] : '';
   });
   /** Tags used on the slide before the selection's, offered while typing a tag. */
@@ -3386,8 +3401,19 @@ export class SlidesPanelComponent {
    */
   protected setMorphTag(value: string): void {
     const morphId = morphIdForTag(value);
+    // A placeholder copy whose layout slot is tagged would fall back to that tag when
+    // cleared, so clearing gives it its own id instead (an untagged override).
+    const slotTag = (id: string): string | undefined => {
+      const of = this.store.elements().find((e) => e.id === id)?.placeholder?.of;
+      const tag = of ? this.store.elements().find((p) => p.id === of)?.morphId : undefined;
+      return morphTagOf(tag) !== null ? tag : undefined;
+    };
+    const next = (t: { kind: string; id: string }): string | null =>
+      morphId === null && t.kind === 'element' && slotTag(t.id) ? t.id : morphId;
     const targets = this.tagTargets().filter((e) =>
-      morphId === null ? morphTagOf(e.morphId) !== null : e.morphId !== morphId,
+      morphId === null
+        ? morphTagOf(e.morphId) !== null || (e.kind === 'element' && !e.morphId && !!slotTag(e.id))
+        : e.morphId !== morphId,
     );
     if (!targets.length) {
       return;
@@ -3395,7 +3421,7 @@ export class SlidesPanelComponent {
     void this.store.batchHistory(async () => {
       for (const t of targets) {
         if (t.kind === 'element') {
-          await this.store.updateElement(t.id, { morphId });
+          await this.store.updateElement(t.id, { morphId: next(t) });
         } else if (t.kind === 'table') {
           await this.store.updateTable(t.id, { morphId: morphId ?? '' });
         } else if (t.kind === 'lifeline') {

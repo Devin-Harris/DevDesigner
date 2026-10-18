@@ -417,13 +417,15 @@ export class EditorComponent {
     const draftView = draft ? views.get(this.drawSlideId() ?? '') : undefined;
     if (draft && draftView) elements.set(draft.id, draftView);
     if (views.size) {
-      // A zoomed slide's layout items are drawn in its layer too, beneath its own.
+      // A zoomed slide's layout and master items are drawn in its layer too, beneath its own.
       const frames = this.store.slideFrames();
       const layoutViews = new Map<string, SlideView>();
       for (const f of frames) {
         const v = views.get(f.id);
-        const l = v ? layoutOf(f, frames) : undefined;
-        if (v && l && !views.has(l.id)) layoutViews.set(l.id, v);
+        if (!v) continue;
+        for (const u of [layoutOf(f, frames), masterOf(f, frames)]) {
+          if (u && !views.has(u.id) && !layoutViews.has(u.id)) layoutViews.set(u.id, v);
+        }
       }
       const locked = this.store.layoutItemIds();
       for (const e of this.store.elements()) {

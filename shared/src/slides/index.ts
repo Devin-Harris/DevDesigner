@@ -180,6 +180,27 @@ export interface MorphItem {
   cy: number;
   w: number;
   h: number;
+  /**
+   * Where the item comes from: the slide itself (undefined) or a layout / master. Untagged
+   * items only pair by look-alike with items from the same source, so a layout's accent
+   * bar never morphs into a box on the next slide.
+   */
+  source?: 'layout';
+}
+
+/**
+ * The morph lineage key of a slide element: its own morphId, else (a slide's copy of a
+ * layout placeholder) the tag on that layout placeholder, else one key shared by every
+ * copy of the placeholder, else its own id.
+ */
+export function slideMorphKey(
+  e: { id: string; morphId?: string; placeholder?: { of?: string } },
+  slot: (id: string) => { morphId?: string } | undefined,
+): string {
+  if (e.morphId) return e.morphId;
+  const of = e.placeholder?.of;
+  if (!of) return e.id;
+  return slot(of)?.morphId ?? `placeholder:${of}`;
 }
 
 /** Prefix that marks a morph lineage key as a name the user typed (a "morph tag"). */
@@ -305,7 +326,11 @@ export function matchMorphItems(
         return;
       }
       to.forEach((b, j) => {
-        if (usedTo.has(j) || a.kind !== b.kind || (!byLineage && taggedTo(b))) {
+        if (
+          usedTo.has(j) ||
+          a.kind !== b.kind ||
+          (!byLineage && (taggedTo(b) || a.source !== b.source))
+        ) {
           return;
         }
         const cost = score(a, b);

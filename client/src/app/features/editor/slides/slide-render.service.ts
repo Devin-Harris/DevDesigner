@@ -6,6 +6,7 @@ import {
   parseGrid,
   planAnimations,
   slideAnimations,
+  slideMorphKey,
   type AnimationPlan,
   type CanvasElementModel,
   type MorphItem,
@@ -322,7 +323,8 @@ export class SlideRenderService {
       items.push({
         id: e.id,
         // Copies of one layout placeholder morph into each other across slides.
-        key: e.morphId ?? (e.placeholder?.of ? `placeholder:${e.placeholder.of}` : e.id),
+        // A tag set on the layout's placeholder applies to every slide's copy of it.
+        key: slideMorphKey(e, (id) => this.store.elements().find((p) => p.id === id)),
         kind: 'element',
         type: e.type,
         // Grids are matched by what their cells say, not by their JSON.
@@ -333,6 +335,8 @@ export class SlideRenderService {
         w: b.x1 - b.x0,
         h: b.y1 - b.y0,
         angle: e.angle ?? 0,
+        // Placeholder copies are slide content; anything else not owned by the slide came from its layout.
+        source: frame.slide && e.slideId && e.slideId !== frame.id && !e.placeholder?.of ? 'layout' : undefined,
         element: e,
       });
     }

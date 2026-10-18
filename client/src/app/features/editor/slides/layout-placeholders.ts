@@ -134,7 +134,8 @@ export async function resetToLayout(store: Store, copies: readonly CanvasElement
     const layout = slot && frames.find((f) => f.id === slot.slideId);
     const slide = frames.find((f) => f.id === c.slideId);
     if (slot && layout && slide) {
-      await store.updateElement(c.id, slotLook(slot, layout, slide));
+      // Dropping its own tag lets it take the slot's again.
+      await store.updateElement(c.id, { ...slotLook(slot, layout, slide), ...(c.morphId ? { morphId: null } : {}) });
     }
   }
 }
@@ -193,6 +194,8 @@ export function copyDrifted(
 ): boolean {
   const at = moved(slot, layout, slide);
   if (Math.abs(copy.x - at.x) > 0.5 || Math.abs(copy.y - at.y) > 0.5) return true;
+  // Its own morph tag replaces the one it would take from the slot.
+  if (copy.morphId && copy.morphId !== slot.morphId) return true;
   // An empty copy is drawn as its slot, so only where it sits counts.
   if (!(copy.text ?? '').trim()) return false;
   return DRIFT_KEYS.some((k) => (copy[k] ?? null) !== (slot[k] ?? null));

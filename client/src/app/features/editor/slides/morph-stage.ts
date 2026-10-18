@@ -260,13 +260,20 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
     return null;
   }
   const size = Number(text.getAttribute('font-size')) || 16;
-  const family = text.getAttribute('font-family') ?? 'sans-serif';
+  // The computed family, per run: the attribute may be missing (CSS / a theme font)
+  // or overridden on a tspan, and falling back would swap the typeface mid-morph.
+  const families: string[] = [];
   const styles: SpanStyle[] = [];
   const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const st = spanStyle(node, text);
+    const fam =
+      getComputedStyle(node.parentElement ?? text).fontFamily ||
+      text.getAttribute('font-family') ||
+      'sans-serif';
     for (let k = 0; k < (node.nodeValue?.length ?? 0); k += 1) {
       styles.push(st);
+      families.push(fam);
     }
   }
   if (styles.length !== n) {
@@ -298,7 +305,7 @@ function readGlyphs(text: SVGTextElement, off: Offset): Glyph[] | null {
       y: p.y - off.y,
       size,
       fill: st.fill,
-      family,
+      family: families[i],
       weight: st.weight,
       italic: st.italic,
       underline: st.underline,
@@ -1335,6 +1342,11 @@ export class MorphStage {
     const make = (g: Glyph): SVGTextElement => {
       const el = document.createElementNS(SVG_NS, 'text') as SVGTextElement;
       el.setAttribute('font-family', g.family);
+      // Glyphs are laid out once at a fixed size and moved/scaled by transform:
+      // changing font-size per frame re-hints them, so letters wobble mid-morph.
+      el.setAttribute('text-rendering', 'geometricPrecision');
+      el.setAttribute('x', '0');
+      el.setAttribute('y', '0');
       el.textContent = g.ch;
       layer.appendChild(el);
       return el;
@@ -1548,9 +1560,12 @@ export class MorphStage {
       // where the block ends up, or in from where it was) instead of staying put.
       const x = single ? (c.a ? only.x + c.dx * t : only.x - c.dx * (1 - t)) : lerp(from.x, to.x, f);
       const y = single ? (c.a ? only.y + c.dy * t : only.y - c.dy * (1 - t)) : lerp(from.y, to.y, f);
-      c.el.setAttribute('x', String(x));
-      c.el.setAttribute('y', String(y));
-      c.el.setAttribute('font-size', String(lerp(from.size, to.size, f)));
+      const base = to.size || 16;
+      if (c.el.getAttribute('font-size') !== String(base)) {
+        c.el.setAttribute('font-size', String(base));
+      }
+      const scale = lerp(from.size, to.size, f) / base;
+      c.el.setAttribute('transform', `translate(${x} ${y}) scale(${scale})`);
       c.el.setAttribute('fill', mixColor(from.fill, to.fill, f));
       // Weight / italic / underline can't be blended: they switch halfway.
       const style = f < 0.5 ? from : to;

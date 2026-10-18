@@ -36,6 +36,9 @@ import {
   presentationSlides,
   presentationLayouts,
   layoutNameOf,
+  layoutOf,
+  masterOf,
+  slideMorphKey,
   soloMorphId,
   schemaRects,
   sequenceDiagramRect,
@@ -61,6 +64,7 @@ import type { DbDesignerApi } from './api';
 import { Batch } from './batch';
 import { loadImage } from './images';
 import { collectItems, keyOf, placement, type FramePlacement } from './layout';
+import { planLayoutMorphTags } from './layout-morph';
 import { UserError } from './model';
 
 export type ToolFn = <S extends z.ZodRawShape>(
@@ -954,13 +958,17 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
 
   tool(
     'list_layouts',
-    "List a presentation's slide layouts: name, id, and its placeholders (role, prompt). Use a layout's name with add_slides `layout` and fill its placeholders with `fill`.",
+    "List a presentation's slide layouts: name, id, its placeholders (role, prompt, morph tag) and its repeated items (shapes/text drawn under every slide using it, with slide-local position and morph tag). Use a layout's name with add_slides `layout` and fill its placeholders with `fill`. Tag layout items with set_morph_tag or tag_layout_morphs.",
     { projectId, presentation: z.string().optional() },
     { readOnly: true },
     async ({ projectId: id, presentation }) => {
       const { schema } = await graph(id);
       const name = resolvePresentation(schema, presentation);
       const frames = slideFrames(schema);
+      const tag = (m: string | undefined): { morphTag?: string } => {
+        const t = morphTagOf(m);
+        return t && !isSoloTag(m) ? { morphTag: t } : {};
+      };
       return {
         presentation: name,
         layouts: presentationLayouts(frames, name).map((l) => ({
@@ -970,8 +978,86 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
           placeholders: schema.elements
             .filter((e) => e.slideId === l.id && !!e.placeholder)
             .sort((a, b) => a.y - b.y || a.x - b.x)
-            .map((e) => ({ id: e.id, role: e.placeholder!.role ?? 'text', prompt: e.text ?? '' })),
+            .map((e) => ({ id: e.id, role: e.placeholder!.role ?? 'text', prompt: e.text ?? '', ...tag(e.morphId) })),
+          items: schema.elements
+            .filter((e) => e.slideId === l.id && !e.placeholder && e.type !== 'frame')
+            .sort((a, b) => a.y - b.y || a.x - b.x)
+            .map((e) => ({
+              id: e.id,
+              type: e.type,
+              ...(e.text ? { text: e.text.slice(0, 60) } : {}),
+              x: Math.round(e.x - l.x),
+              y: Math.round(e.y - l.y),
+              width: Math.round(e.width),
+              height: Math.round(e.height),
+              ...tag(e.morphId),
+            })),
         })),
+      };
+    },
+  );
+
+  tool(
+    'tag_layout_morphs',
+    "Give a presentation's layouts shared morph tags so moving between slides on DIFFERENT layouts animates sensibly: placeholders of the same role get one tag across layouts (every layout's title -> \"layout-title\", the 2nd body -> \"layout-body-2\", ...), and look-alike repeated items (same type, colors and shape - e.g. the accent bar, a footer logo, matching boxes) get one tag per kind. Items found on only one layout are left alone. A tag on a layout placeholder applies to every slide's copy of it, so by default this also drops the slides' own isolating tags from those copies (not tags someone named on purpose). Run with dryRun first to see the plan, then check with preview_morph.",
+    {
+      projectId,
+      presentation: z.string().optional(),
+      dryRun: z.boolean().optional().describe('Only report what would be tagged.'),
+      overwrite: z
+        .boolean()
+        .optional()
+        .describe('Also replace tags already named on layout items (default: keep them).'),
+      placeholders: z.boolean().optional().describe('Tag placeholders by role (default true).'),
+      items: z.boolean().optional().describe('Tag look-alike repeated items (default true).'),
+      inheritOnSlides: z
+        .boolean()
+        .optional()
+        .describe("Clear isolating (solo) tags on slides' placeholder copies so they use the layout tag (default true)."),
+    },
+    { idempotent: true },
+    async ({ projectId: id, presentation, dryRun, overwrite, placeholders = true, items = true, inheritOnSlides = true }) => {
+      const { schema } = await graph(id);
+      const name = resolvePresentation(schema, presentation);
+      const frames = slideFrames(schema);
+      const layouts = presentationLayouts(frames, name);
+      const plan = planLayoutMorphTags(schema.elements, layouts, { placeholders, items });
+      const named = (e: CanvasElementModel): boolean => !!morphTagOf(e.morphId) && !isSoloTag(e.morphId);
+      const byId = new Map(schema.elements.map((e) => [e.id, e] as const));
+      const batch = new Batch();
+      const tagged: Array<{ layout: string; item: string; tag: string }> = [];
+      const kept: Array<{ item: string; tag: string }> = [];
+      const layoutName = new Map(layouts.map((l) => [l.id, layoutNameOf(l, frames)] as const));
+      for (const { elementId, tag } of plan) {
+        const e = byId.get(elementId)!;
+        if (named(e) && !overwrite) {
+          if (morphTagOf(e.morphId) !== tag) kept.push({ item: describe(e), tag: morphTagOf(e.morphId)! });
+          continue;
+        }
+        if (e.morphId === morphIdForTag(tag)) continue;
+        batch.set('elements', e.id, { morphId: morphIdForTag(tag) });
+        tagged.push({ layout: layoutName.get(e.slideId!) ?? e.slideId!, item: describe(e), tag });
+      }
+      // Slide copies of layout placeholders: drop isolating tags so the layout's tag applies.
+      let inherited = 0;
+      if (inheritOnSlides && placeholders) {
+        const layoutIds = new Set(layouts.map((l) => l.id));
+        for (const e of schema.elements) {
+          const slot = e.placeholder?.of ? byId.get(e.placeholder.of) : undefined;
+          if (!slot || !slot.slideId || !layoutIds.has(slot.slideId) || !e.morphId || named(e)) continue;
+          const slotTagged = plan.some((p) => p.elementId === slot.id) || named(slot);
+          if (!slotTagged || morphTagOf(e.morphId) === null) continue;
+          batch.set('elements', e.id, { morphId: null });
+          inherited += 1;
+        }
+      }
+      if (!dryRun) await batch.send(api, id);
+      return {
+        presentation: name,
+        ...(dryRun ? { dryRun: true } : {}),
+        tagged,
+        ...(kept.length ? { keptExistingTags: kept, note: 'Pass overwrite: true to replace these.' } : {}),
+        slidePlaceholderCopiesNowInheriting: inherited,
       };
     },
   );
@@ -1211,7 +1297,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
 
   tool(
     'set_morph_tag',
-    "Morph is meant to be minimal: link only the few objects that truly persist between slides. This tags drawing elements (by id, on the same or different slides) so a morph transition treats them as THE SAME object (they glide, resize and restyle into each other). A tagged element only pairs with its own tag. An empty tag isolates the elements instead (a unique id: they never morph). Tables and diagrams can't be tagged (they pair by name). Check the effect with preview_morph.",
+    "Morph is meant to be minimal: link only the few objects that truly persist between slides. This tags drawing elements (by id, on the same or different slides) so a morph transition treats them as THE SAME object (they glide, resize and restyle into each other). A tagged element only pairs with its own tag. An empty tag isolates the elements instead (a unique id: they never morph). Tables and diagrams can't be tagged (they pair by name). Layout items and placeholders (ids from list_layouts) can be tagged too: a layout placeholder's tag applies to every slide's copy of it unless the copy has its own tag (an empty tag on a copy overrides it so it doesn't morph). Check the effect with preview_morph.",
     {
       projectId,
       elementIds: z.array(z.string()).min(1),
@@ -1276,11 +1362,23 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const { schema } = await graph(id);
       const name = resolvePresentation(schema, presentation);
       const slides = presentationSlides(slideFrames(schema), name);
+      const frames = slideFrames(schema);
+      const byId = new Map(schema.elements.map((e) => [e.id, e] as const));
       const itemsOf = (frame: Frame): Array<{ item: MorphItem; label: string }> => {
         const own = ownedBy(schema, frame.id);
-        const out: Array<{ item: MorphItem; label: string }> = own.elements.map((e) => ({
+        // What the slide shows: its own content (empty placeholders are hidden) plus the
+        // repeated items of its layout and master.
+        const fromLayout = [layoutOf(frame, frames), masterOf(frame, frames)].flatMap((l) =>
+          l ? schema.elements.filter((e) => e.slideId === l.id && !e.placeholder && e.type !== 'frame' && !e.overrides) : [],
+        );
+        const shown = [
+          ...own.elements.filter((e) => !(e.placeholder && !(e.text ?? '').trim())).map((e) => ({ e, layout: false })),
+          ...fromLayout.map((e) => ({ e, layout: true })),
+        ];
+        const out: Array<{ item: MorphItem; label: string }> = shown.map(({ e, layout }) => ({
           item: {
-            key: e.morphId ?? e.id,
+            key: slideMorphKey(e, (pid) => byId.get(pid)),
+            ...(layout ? { source: 'layout' as const } : {}),
             kind: 'element',
             type: e.type,
             text: e.type === 'grid' ? parseGrid(e.text).cells.flat().filter((c) => c.trim()).join(' ') : (e.text ?? ''),
@@ -1290,7 +1388,7 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
             w: e.width,
             h: e.height,
           },
-          label: describe(e),
+          label: layout ? `${describe(e)} (layout)` : describe(e),
         }));
         for (const t of schema.tables.filter((x) => own.tableIds.includes(x.id))) {
           const r = tableRect(t);
