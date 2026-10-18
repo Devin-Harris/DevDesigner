@@ -1317,13 +1317,26 @@ export class MorphStage {
         };
       });
     }
+    // Cross-fade without washing out: B sits underneath fully opaque, A fades out on
+    // top of it (its opaque card hides B at first), and B's lines are redrawn on top so
+    // they never sit under a half-transparent card. Stacking two half-transparent
+    // cards dimmed every line and cell fill mid-morph, which then popped back.
+    const linesOnly = (text: string | undefined) => {
+      const g = blank(text);
+      const styles = Object.fromEntries(
+        Object.entries(g.styles ?? {}).map(([k, st]) => [k, { ...st, fill: undefined }]),
+      );
+      return serializeGrid({ ...g, header: false, styles });
+    };
     return [
-      { ...blended, text: serializeGrid(blank(ea.text)), opacity: ea.opacity * fadeOut(t) },
+      { ...blended, id: `${blended.id}~b`, text: serializeGrid(blank(eb.text)), opacity: eb.opacity },
+      { ...blended, text: serializeGrid(blank(ea.text)), opacity: ea.opacity * (1 - t) },
       {
         ...blended,
-        id: `${blended.id}~b`,
-        text: serializeGrid(blank(eb.text)),
-        opacity: eb.opacity * fadeIn(t),
+        id: `${blended.id}~bl`,
+        backgroundColor: 'transparent',
+        text: linesOnly(eb.text),
+        opacity: eb.opacity * t,
       },
     ];
   }
@@ -1569,7 +1582,11 @@ export class MorphStage {
         seq,
         { x: 0, y: 0, width: this.to.width, height: this.to.height },
         this.to.imageData,
-      ).body;
+      )
+        // Grid/code cards clip by `grid-clip-<id>` / `code-clip-<id>`; the hidden measure
+        // copies (and the editor canvas) hold the same ids, and url(#…) picks the first,
+        // so the live card would be clipped by a stale rect (lines and fills vanish).
+        .body.replace(/\b(grid|code)-clip-/g, 'dbd-morph-live-$1-clip-');
     } else {
       this.live.innerHTML = '';
     }

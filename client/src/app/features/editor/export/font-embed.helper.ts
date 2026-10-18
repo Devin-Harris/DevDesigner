@@ -64,10 +64,11 @@ function loadFaces(): Promise<FontFace[]> {
 export async function embedFonts(svg: string): Promise<string> {
   try {
     const faces = (await loadFaces()).filter((f) => svg.includes(f.family));
-    if (!faces.length) {
-      return svg;
-    }
-    const style = `<style>${faces.map((f) => f.css).join('\n')}</style>`;
+    // Same text shaping as inline SVG (styles.scss): an <img> slide picture gets none of
+    // the page CSS, so its titles kerned/hinted differently and visibly shifted the
+    // moment a morph (inline, glyph by glyph) took over.
+    const shaping = 'text{text-rendering:geometricPrecision;font-kerning:normal}';
+    const style = `<style>${shaping}\n${faces.map((f) => f.css).join('\n')}</style>`;
     return svg.replace('<defs>', `<defs>${style}`);
   } catch {
     return svg;

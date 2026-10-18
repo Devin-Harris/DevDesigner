@@ -156,6 +156,7 @@ body {
 // scaling glyphs exactly (hinted text snaps differently and visibly shifts mid-morph).
 svg text {
   text-rendering: geometricPrecision;
+  font-kerning: normal;
 }
 
 // Enforce the design type system over Material's Roboto scale. Headings and the
