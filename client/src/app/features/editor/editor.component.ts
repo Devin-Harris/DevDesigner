@@ -28,6 +28,7 @@ import type {
   RelationshipType,
   TableModel,
   TextRun,
+  SlideConfig,
 } from '@dbdesigner/shared';
 import {
   generateSql,
@@ -1727,6 +1728,12 @@ export class EditorComponent {
     () => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment()),
   );
 
+  /** True once a move of elements / tables has passed the click threshold. */
+  private readonly movingItems = signal(false);
+
+  /** Slide blocks stop clipping while anything is carried, so it stays visible past the block. */
+  protected readonly slideUnclipped = computed(() => this.dragging() || this.movingItems());
+
   /**
    * Column row the in-flight link / re-point would attach to if released now.
    * Magnetic: the cursor only has to be near a table, not on the tiny handle.
@@ -2984,6 +2991,7 @@ export class EditorComponent {
     if (this.belowDragThreshold(clientX, clientY)) {
       return;
     }
+    this.movingItems.set(true);
     const { dx, dy } = this.dragDelta(clientX, clientY);
     const snap = this.gridSnap();
     for (const [id, start] of g.others) {
@@ -4433,6 +4441,7 @@ export class EditorComponent {
       if (this.belowDragThreshold(event.clientX, event.clientY)) {
         return;
       }
+      this.movingItems.set(true);
       const { dx, dy } = this.dragDelta(event.clientX, event.clientY);
       const snap = this.gridSnap();
       // The tables' actual (snapped) move, so routes carried with them stay attached.
@@ -4510,6 +4519,7 @@ export class EditorComponent {
     this.nodeExtras = null;
     this.elementGesture = null;
     this.gestureActive.set(false);
+    this.movingItems.set(false);
     this.bindHighlight.set(null);
     this.multiDragStart.clear();
     this.waypointDragStart.clear();
@@ -6085,6 +6095,27 @@ export class EditorComponent {
     }
   }
 
+  /**
+   * A pasted slide's config moved into `target`: ordered right after `after`, wearing
+   * that deck's theme, and using its layout of the same kind or name (else its default).
+   */
+  private slideForPresentation(copy: CanvasElementModel, target: string, after: CanvasElementModel): SlideConfig {
+    const frames = this.store.slideFrames();
+    const slides = presentationSlides(frames, target).filter((f) => f.id !== copy.id);
+    const at = slides.findIndex((f) => f.id === after.id);
+    const lo = at >= 0 ? slides[at].slide!.order : slides[slides.length - 1]?.slide?.order;
+    const hi = at >= 0 ? slides[at + 1]?.slide?.order : undefined;
+    const order = lo === undefined ? 0 : hi === undefined ? lo + 1 : (lo + hi) / 2;
+    const own = layoutOf(copy, frames);
+    const layouts = presentationLayouts(frames, target).filter((l) => !l.slide?.master);
+    const layout =
+      (own?.slide?.layoutKind && layouts.find((l) => l.slide?.layoutKind === own.slide?.layoutKind)) ||
+      (own && layouts.find((l) => layoutNameOf(l, frames) === layoutNameOf(own, frames))) ||
+      layouts.find((l) => l.slide?.defaultLayout);
+    const theme = frames.find((f) => presentationOf(f) === target && f.slide?.theme)?.slide?.theme;
+    return { ...copy.slide!, presentation: target, order, layoutId: layout?.id, theme };
+  }
+
   /** Paste the clipboard, each successive paste stepping further from the original. */
   private async pasteClipboard(): Promise<void> {
     const clip = this.clipboard;
@@ -6096,8 +6127,18 @@ export class EditorComponent {
     const slide = clip.frame ? this.store.elements().find((e) => e.id === clip.frame?.id) : null;
     const frame = slide ?? clip.frame;
     const isSlide = !!frame?.slide;
-    const dx = isSlide ? 0 : frame ? this.freeFrameOffset(frame, this.pasteCount) : 24 * this.pasteCount;
-    const dy = frame && !isSlide ? 0 : isSlide ? 0 : 24 * this.pasteCount;
+    // A slide pasted while another presentation is selected joins that one: it lands
+    // on that deck's spot, right after the slide it shows.
+    const target = this.store.presentation();
+    const targetShown = this.store.elements().find((e) => e.id === this.store.activeSlideId());
+    const intoOther =
+      isSlide && !frame?.slide?.layout && !!target && !!targetShown && presentationOf(frame!) !== target;
+    let dx = isSlide ? 0 : frame ? this.freeFrameOffset(frame, this.pasteCount) : 24 * this.pasteCount;
+    let dy = frame && !isSlide ? 0 : isSlide ? 0 : 24 * this.pasteCount;
+    if (intoOther) {
+      dx = targetShown!.x - frame!.x;
+      dy = targetShown!.y - frame!.y;
+    }
     let result: { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null =
       null;
     await this.store.batchHistory(async () => {
@@ -6108,6 +6149,10 @@ export class EditorComponent {
         dx,
         dy,
       );
+      const copy = result ? [...result.copies.values()].find((c) => c.type === 'frame' && c.slide) : undefined;
+      if (intoOther && copy?.slide && target && targetShown) {
+        await this.store.updateElement(copy.id, { slide: this.slideForPresentation(copy, target, targetShown) });
+      }
     });
     const r = result as { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null;
     if (!r) {

@@ -152,6 +152,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+// Canvas / slide text renders unhinted, so still slides match the morph's moving and
+// scaling glyphs exactly (hinted text snaps differently and visibly shifts mid-morph).
+svg text {
+  text-rendering: geometricPrecision;
+}
+
 // Enforce the design type system over Material's Roboto scale. Headings and the
 // wordmark use Space Grotesk (display); everything else uses IBM Plex Sans.
 h1,

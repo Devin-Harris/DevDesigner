@@ -41,7 +41,7 @@
       @for (z of slideViewLayers(); track z.view.frameId) {
         <div
           class="slide-zoom"
-          [class.clipped]="!dragging()"
+          [class.clipped]="!slideUnclipped()"
           [style.left.px]="z.left"
           [style.top.px]="z.top"
           [style.width.px]="z.width"

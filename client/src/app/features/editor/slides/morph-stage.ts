@@ -868,8 +868,44 @@ export class MorphStage {
           .map((r) => r.id),
       );
     };
-    const ridA = liveRelIds(from.relationships, from.items, matchedA);
-    const ridB = liveRelIds(to.relationships, to.items, matchedB);
+    // Only a line that is on BOTH slides (between the same paired tables) is drawn
+    // live; one on a single slide stays in that slide's static copy and fades with it,
+    // instead of vanishing (an A-only line was dropped from A and never drawn live).
+    const aToB = new Map([...this.tablePairs].map((p) => [p.a.id, p.b.id]));
+    const ends = (r: RelationshipModel, col: Map<string, string>): [string, string] | null => {
+      const s = col.get(r.sourceColumnId);
+      const t = col.get(r.targetColumnId);
+      return s && t ? [s, t] : null;
+    };
+    const colA = columnToTable(from.items);
+    const colB = columnToTable(to.items);
+    const key = (x: string, y: string): string => [x, y].sort().join('|');
+    const keysA = new Set<string>();
+    for (const r of from.relationships) {
+      const e = ends(r, colA);
+      if (e && aToB.has(e[0]) && aToB.has(e[1])) {
+        keysA.add(key(aToB.get(e[0])!, aToB.get(e[1])!));
+      }
+    }
+    const keysB = new Set<string>();
+    for (const r of to.relationships) {
+      const e = ends(r, colB);
+      if (e) {
+        keysB.add(key(e[0], e[1]));
+      }
+    }
+    const ridA = new Set(
+      [...liveRelIds(from.relationships, from.items, matchedA)].filter((id) => {
+        const e = ends(from.relationships.find((r) => r.id === id)!, colA)!;
+        return keysB.has(key(aToB.get(e[0])!, aToB.get(e[1])!));
+      }),
+    );
+    const ridB = new Set(
+      [...liveRelIds(to.relationships, to.items, matchedB)].filter((id) => {
+        const e = ends(to.relationships.find((r) => r.id === id)!, colB)!;
+        return keysA.has(key(e[0], e[1]));
+      }),
+    );
     this.liveRels.push(...to.relationships.filter((r) => ridB.has(r.id)));
 
     // Sequence diagrams on both slides are paired by morph tag, else by their
