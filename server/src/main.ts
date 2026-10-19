@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import 'reflect-metadata';
+import compression from 'compression';
 import { AppModule } from './app.module';
+import { WriteRevisionInterceptor } from './common/write-revision';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -11,9 +13,21 @@ async function bootstrap(): Promise<void> {
 
   // Project import posts a whole exported diagram; Express's 100kb default is too small.
   app.useBodyParser('json', { limit: '25mb' });
+  // Project graphs and export files are large, repetitive JSON; gzip cuts them 5-10x.
+  // Raster images are already compressed, so they are skipped (SVG is text and is not).
+  app.use(
+    compression({
+      threshold: 1024,
+      filter: (req, res) =>
+        !/^image\/(?!svg)/.test(String(res.getHeader('Content-Type') ?? '')) && compression.filter(req, res),
+    }),
+  );
 
   // All routes are served under /api (see BUILD_INSTRUCTIONS.md section 5).
   app.setGlobalPrefix('api');
+
+  // Write counter behind the project graph's ETag (see common/write-revision.ts).
+  app.useGlobalInterceptors(new WriteRevisionInterceptor());
 
   // Global DTO validation. Controllers only parse/validate; logic lives in services.
   app.useGlobalPipes(

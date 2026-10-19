@@ -36,3 +36,5 @@ coverage/
 
 # MCP client config (contains an API token)
 .mcp.json
+*.sqlite-wal
+*.sqlite-shm

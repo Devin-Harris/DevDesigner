@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { EntityManager, EntityTarget, ObjectLiteral } from 'typeorm';
+import { In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import type {
   CanvasElementModel,
@@ -18,6 +18,7 @@ import { fromDataType } from '../columns/column.mapper';
 import { ElementEntity } from '../elements/element.entity';
 import { IndexEntity } from '../indexes/index.entity';
 import { ProjectImageEntity } from '../images/project-image.entity';
+import { imageHash } from '../images/image-hash';
 import { RelationshipEntity } from '../relationships/relationship.entity';
 import { LifelineEntity } from '../sequence/lifeline.entity';
 import { SequenceDiagramEntity } from '../sequence/sequence-diagram.entity';
@@ -264,22 +265,53 @@ export async function writeSchemaInto(
 
   // Image files get fresh ids; image elements are re-pointed at them, or dropped
   // when their file isn't in the import.
+  // Bytes this project already stores (same hash) are not stored again: the element is
+  // pointed at the existing file. With linkExisting, a fileId already in this project
+  // may be referenced without embedding its bytes at all (same-project duplicates).
   const imageIds = new IdMap();
-  const imported = options.images ?? [];
-  for (const img of imported) imageIds.mint(img.id);
+  const imported = (options.images ?? []).map((img) => ({ ...img, sha256: imageHash(img.data) }));
+  const reuse = new Map<string, string>();
+  if (imported.length) {
+    const have = await manager.find(ProjectImageEntity, {
+      where: { projectId, sha256: In([...new Set(imported.map((i) => i.sha256))]) },
+      select: { id: true, sha256: true, mimeType: true },
+    });
+    for (const img of imported) {
+      const hit = have.find((h) => h.sha256 === img.sha256 && h.mimeType === img.mimeType);
+      if (hit) reuse.set(img.id, hit.id);
+    }
+  }
+  const fresh = imported.filter((img) => !reuse.has(img.id));
+  for (const img of fresh) imageIds.mint(img.id);
   await insertAll(
     manager,
     ProjectImageEntity,
-    imported.map((img) => ({
+    fresh.map((img) => ({
       id: imageIds.get(img.id)!,
       projectId,
       mimeType: img.mimeType,
       data: img.data,
+      sha256: img.sha256,
     })),
   );
-  const sourceElements = schema.elements.filter(
-    (e) => e.type !== 'image' || (e.fileId !== undefined && imageIds.get(e.fileId) !== undefined),
-  );
+  const embedded = new Set(imported.map((i) => i.id));
+  const referenced = [
+    ...new Set(
+      schema.elements
+        .filter((e) => e.type === 'image' && e.fileId && !embedded.has(e.fileId))
+        .map((e) => e.fileId as string),
+    ),
+  ];
+  if (options.linkExisting && referenced.length) {
+    const own = await manager.find(ProjectImageEntity, {
+      where: { projectId, id: In(referenced) },
+      select: { id: true },
+    });
+    for (const row of own) reuse.set(row.id, row.id);
+  }
+  const fileOf = (old: string | undefined): string | undefined =>
+    old === undefined ? undefined : (imageIds.get(old) ?? reuse.get(old));
+  const sourceElements = schema.elements.filter((e) => e.type !== 'image' || fileOf(e.fileId) !== undefined);
   // Free-form elements. Mint all ids first: bindings can point at later elements.
   for (const e of sourceElements) {
     if (elementIds.get(e.id) === undefined) elementIds.mint(e.id);
@@ -347,7 +379,7 @@ export async function writeSchemaInto(
   const elementModels: CanvasElementModel[] = sourceElements.map((e) => ({
     ...e,
     id: elementIds.get(e.id)!,
-    fileId: e.type === 'image' ? imageIds.get(e.fileId) : undefined,
+    fileId: e.type === 'image' ? fileOf(e.fileId) : undefined,
     x: e.x + dx,
     y: e.y + dy,
     zIndex: e.zIndex + zShift,

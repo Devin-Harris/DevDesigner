@@ -880,12 +880,19 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         )
         .optional()
         .describe('Per-item moves.'),
+      toSlide: z
+        .string()
+        .optional()
+        .describe(
+          'Move the items ONTO this slide (id, or 1-based number with `presentation`; "canvas" detaches them). Slides share one spot, so position alone never changes which slide owns an item - use this. Items keep their place relative to the slide unless x/y are given.',
+        ),
+      presentation: z.string().optional().describe('With a numeric `toSlide`.'),
     },
     {},
-    async ({ projectId: id, items, dx, dy, x, y, moves }) => {
+    async ({ projectId: id, items, dx, dy, x, y, moves, toSlide, presentation }) => {
       if (!items?.length && !moves?.length) throw new UserError('Give `items` (with dx/dy or x/y) and/or `moves`.');
-      if (items?.length && dx === undefined && dy === undefined && x === undefined && y === undefined) {
-        throw new UserError('With `items` give dx/dy or x/y.');
+      if (items?.length && !toSlide && dx === undefined && dy === undefined && x === undefined && y === undefined) {
+        throw new UserError('With `items` give dx/dy or x/y (or `toSlide`).');
       }
       const { schema } = await graph(id);
       const rects = rectsOf(schema);
@@ -944,6 +951,51 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         if (blocks.has(keyOf('diagram', (ref as { diagramId: string }).diagramId))) {
           throw new UserError(`"${ref.label}" belongs to a diagram that is also being moved; move one or the other.`);
         }
+      }
+      let reparented = 0;
+      const owners = new Map<string, { section: 'tables' | 'elements' | 'diagrams'; id: string }>();
+      if (toSlide) {
+        const target = toSlide.trim().toLowerCase() === 'canvas' ? null : resolveSlide(schema, toSlide, presentation);
+        const frames = new Map(slideFrames(schema).map((f) => [f.id, f]));
+        const absolute = new Set((moves ?? []).filter((m) => m.x !== undefined || m.y !== undefined).map((m) => m.target));
+        const refs = [...resolveRefs(schema, items ?? []), ...(moves ?? []).map((m) => resolveRef(schema, m.target))];
+        for (const r of refs) {
+          if (r.kind === 'participant' || r.kind === 'message') {
+            throw new UserError(`"${r.label}" is part of a sequence diagram; move the whole diagram to another slide.`);
+          }
+          const owner =
+            r.kind === 'table' ? schema.tables.find((t) => t.id === r.id)?.slideId
+            : r.kind === 'element' ? schema.elements.find((e) => e.id === r.id)?.slideId
+            : schema.sequenceDiagrams.find((d) => d.id === r.id)?.slideId;
+          const el = r.kind === 'element' ? schema.elements.find((e) => e.id === r.id) : undefined;
+          if (el?.type === 'frame' && el.slide) throw new UserError(`"${r.id}" is a slide; use move_slides.`);
+          if ((owner ?? null) === (target?.id ?? null) || owners.has(r.key)) continue;
+          owners.set(r.key, { section: r.kind === 'table' ? 'tables' : r.kind === 'element' ? 'elements' : 'diagrams', id: r.id });
+          // Keep the item's place relative to its slide (stacked slides share a spot, so usually 0).
+          const from = owner ? frames.get(owner) : undefined;
+          if (from && target && !absolute.has(r.id) && !(items?.includes(r.id) && (x !== undefined || y !== undefined))) {
+            add(r, target.x - from.x, target.y - from.y);
+          }
+        }
+        reparented = owners.size;
+        const batch = new Batch();
+        queueMoves(batch, schema, blocks);
+        for (const o of owners.values()) batch.set(o.section, o.id, { slideId: target?.id ?? null });
+        for (const { ref, d } of parts.values()) {
+          if (d === 0) continue;
+          if (ref.kind === 'participant') batch.set('lifelines', ref.id, { x: Math.round(ref.x + d) });
+          else if (ref.kind === 'message') batch.set('messages', ref.id, { y: Math.round(ref.y + d) });
+        }
+        const writes = await batch.send(api, id);
+        const after = (await graph(id)).schema;
+        const slideOf = (o: { section: string; id: string }) =>
+          (o.section === 'tables' ? after.tables : o.section === 'elements' ? after.elements : after.sequenceDiagrams).find((v) => v.id === o.id)?.slideId ?? 'canvas';
+        return {
+          moved: blocks.size + parts.size,
+          reparented,
+          writes,
+          nowOn: [...owners.values()].map((o) => ({ id: o.id, slide: slideOf(o) })),
+        };
       }
       const writes = await applyAllMoves(id, schema, blocks, [...parts.values()]);
       return { moved: blocks.size + parts.size, writes };

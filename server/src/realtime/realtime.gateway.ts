@@ -1,8 +1,10 @@
 import {
   PROJECT_MUTATION_EVENT,
+  PROJECT_MUTATIONS_EVENT,
   REALTIME_NAMESPACE,
   RT_EVENTS,
   type AccessLevel,
+  type MutationBatchEvent,
   type MutationEvent,
   type Participant,
   type PresenceCursor,
@@ -196,6 +198,12 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   @OnEvent(PROJECT_MUTATION_EVENT)
   handleMutation(event: MutationEvent): void {
     this.server.to(roomOf(event.projectId)).emit(RT_EVENTS.mutation, event);
+  }
+
+  /** Fan many changes from one request out as one message. */
+  @OnEvent(PROJECT_MUTATIONS_EVENT)
+  handleMutations(event: MutationBatchEvent): void {
+    this.server.to(roomOf(event.projectId)).emit(RT_EVENTS.mutations, event);
   }
 
   private async buildParticipant(

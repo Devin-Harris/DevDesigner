@@ -16,6 +16,7 @@ import { Project } from '../projects/project.entity';
  * project cascades to its images.
  */
 @Entity('project_images')
+@Index('idx_project_images_hash', ['projectId', 'sha256'])
 export class ProjectImageEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -33,6 +34,10 @@ export class ProjectImageEntity {
 
   @Column({ type: 'blob' })
   data!: Buffer;
+
+  /** Hex SHA-256 of `data`: the same bytes uploaded or imported twice share one row. */
+  @Column({ type: 'varchar', nullable: true })
+  sha256!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;

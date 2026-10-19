@@ -295,7 +295,7 @@ export class CloneService {
       return out;
     });
 
-    for (const mutation of mutations) this.realtime.emit(projectId, clientId, mutation);
+    this.realtime.emitMany(projectId, clientId, mutations);
     return { mutations };
   }
 }

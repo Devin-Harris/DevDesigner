@@ -99,6 +99,11 @@ export class ProjectsService {
     return this.toSummary(saved);
   }
 
+  /** Authorize a read without loading anything (conditional graph requests). */
+  async assertCanRead(id: string, userId: string | null, shareToken: string | null = null): Promise<void> {
+    await this.access.assertCanRead(id, userId, shareToken);
+  }
+
   /** Full project graph for initial load. Authorized against the caller's access. */
   async getGraph(
     id: string,
@@ -338,9 +343,7 @@ export class ProjectsService {
         (message): SchemaMutation => ({ kind: 'message.created', message }),
       ),
     ];
-    for (const mutation of mutations) {
-      this.realtime.emit(projectId, clientId, mutation);
-    }
+    this.realtime.emitMany(projectId, clientId, mutations);
     return { mutations };
   }
 

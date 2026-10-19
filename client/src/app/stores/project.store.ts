@@ -640,7 +640,14 @@ export const ProjectStore = signalStore(
         }
       }
 
+      /** While applying a batch of remote changes: the working schema, written once at the end. */
+      let pendingSchema: SchemaModel | null = null;
+
       function setSchema(updater: (schema: SchemaModel) => SchemaModel): void {
+        if (pendingSchema) {
+          pendingSchema = updater(pendingSchema);
+          return;
+        }
         const current = store.schema();
         if (current) {
           patchState(store, { schema: updater(current) });
@@ -1702,6 +1709,26 @@ export const ProjectStore = signalStore(
          * an endpoint. Cascades that the DB performs (deleting a table removes its
          * columns and dependent relationships) are mirrored here.
          */
+        /**
+         * Apply many remote changes (one batch/import/clone request) as ONE state update,
+         * so derived views recompute once instead of once per change.
+         */
+        applyRemoteBatch(mutations: readonly SchemaMutation[]): void {
+          const current = store.schema();
+          if (!current || pendingSchema) {
+            for (const m of mutations) this.applyRemote(m);
+            return;
+          }
+          pendingSchema = current;
+          try {
+            for (const m of mutations) this.applyRemote(m);
+          } finally {
+            const next = pendingSchema;
+            pendingSchema = null;
+            if (next !== current) patchState(store, { schema: next });
+          }
+        },
+
         applyRemote(mutation: SchemaMutation): void {
           switch (mutation.kind) {
             case 'table.created':
@@ -3947,8 +3974,8 @@ export const ProjectStore = signalStore(
       const tableIds: string[] = [];
       const elementIds: string[] = [];
       const diagramIds: string[] = [];
+      store.applyRemoteBatch(mutations);
       for (const mutation of mutations) {
-        store.applyRemote(mutation);
         if (mutation.kind === 'table.created') tableIds.push(mutation.table.id);
         else if (mutation.kind === 'element.created') elementIds.push(mutation.element.id);
         else if (mutation.kind === 'sequenceDiagram.created') diagramIds.push(mutation.diagram.id);

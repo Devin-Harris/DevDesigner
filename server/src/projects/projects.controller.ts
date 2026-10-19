@@ -10,6 +10,8 @@ import {
   Put,
   Post,
   Query,
+  Req,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import type {
@@ -18,6 +20,8 @@ import type {
   ProjectGraphResponse,
   ProjectSummary,
 } from '@dbdesigner/shared';
+import type { Request, Response } from 'express';
+import { writeRevisionTag } from '../common/write-revision';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -114,12 +118,29 @@ export class ProjectsController {
   }
 
   @Get(':projectId')
-  get(
+  async get(
     @Param('projectId') projectId: string,
     @CurrentUserId() userId: string | null,
     @ShareToken() shareToken: string | null,
-  ): Promise<ProjectGraphResponse> {
-    return this.projects.getGraph(projectId, userId, shareToken);
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ProjectGraphResponse | undefined> {
+    // Taken BEFORE reading, so a write landing mid-read leaves this tag outdated.
+    const tag = writeRevisionTag();
+    const tagged = (): void => {
+      res.setHeader('Cache-Control', 'private, no-cache');
+      res.setHeader('ETag', tag);
+    };
+    if (req.headers['if-none-match'] === tag) {
+      // Nothing was written since the caller's copy: skip rebuilding the graph.
+      await this.projects.assertCanRead(projectId, userId, shareToken);
+      tagged();
+      res.status(HttpStatus.NOT_MODIFIED);
+      return undefined;
+    }
+    const graph = await this.projects.getGraph(projectId, userId, shareToken);
+    tagged();
+    return graph;
   }
 
   @Patch(':projectId')

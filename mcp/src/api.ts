@@ -42,7 +42,15 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   return { baseUrl, token };
 }
 
+/** Image files are immutable (new bytes get a new id), so this cache never goes stale. */
+const IMAGE_CACHE_BYTES = 64 * 1024 * 1024;
+
 export class DbDesignerApi {
+  /** Last body + ETag per GET path: unchanged reads come back as a cheap 304. */
+  private readonly etags = new Map<string, { tag: string; text: string }>();
+  private readonly images = new Map<string, { mimeType: string; data: Buffer }>();
+  private imageBytes = 0;
+
   constructor(private readonly config: ApiConfig) {}
 
   get<T>(path: string): Promise<T> {
@@ -63,6 +71,13 @@ export class DbDesignerApi {
 
   /** Raw bytes of a binary resource (e.g. an uploaded image) plus its content type. */
   async getBytes(path: string): Promise<{ mimeType: string; data: Buffer }> {
+    const cached = this.images.get(path);
+    if (cached) {
+      // Re-insert to keep the map in least-recently-used order.
+      this.images.delete(path);
+      this.images.set(path, cached);
+      return cached;
+    }
     let response: Response;
     try {
       response = await fetch(`${this.config.baseUrl}${path}`, {
@@ -72,10 +87,20 @@ export class DbDesignerApi {
       throw new ApiError(0, `Cannot reach the DBDesigner API at ${this.config.baseUrl} (${(err as Error).message}).`);
     }
     if (!response.ok) throw new ApiError(response.status, await describeFailure(response));
-    return {
+    const out = {
       mimeType: (response.headers.get('content-type') ?? 'application/octet-stream').split(';')[0].trim(),
       data: Buffer.from(await response.arrayBuffer()),
     };
+    if (path.startsWith('/images/') && out.data.length <= IMAGE_CACHE_BYTES / 4) {
+      this.images.set(path, out);
+      this.imageBytes += out.data.length;
+      for (const [k, v] of this.images) {
+        if (this.imageBytes <= IMAGE_CACHE_BYTES) break;
+        this.images.delete(k);
+        this.imageBytes -= v.data.length;
+      }
+    }
+    return out;
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -87,6 +112,7 @@ export class DbDesignerApi {
           Authorization: `Bearer ${this.config.token}`,
           'X-Client-Id': 'mcp-server',
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...(method === 'GET' && this.etags.has(path) ? { 'If-None-Match': this.etags.get(path)!.tag } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
@@ -97,6 +123,11 @@ export class DbDesignerApi {
           'Is the server running, and is DBDESIGNER_API_URL correct?',
       );
     }
+    if (method === 'GET' && response.status === 304) {
+      const hit = this.etags.get(path);
+      // Parse afresh: callers may mutate what they get back.
+      if (hit) return JSON.parse(hit.text) as T;
+    }
     if (!response.ok) {
       throw new ApiError(response.status, await describeFailure(response));
     }
@@ -104,6 +135,12 @@ export class DbDesignerApi {
       return undefined as T;
     }
     const text = await response.text();
+    const tag = response.headers.get('etag');
+    if (method === 'GET' && tag && text) {
+      this.etags.delete(path);
+      this.etags.set(path, { tag, text });
+      if (this.etags.size > 20) this.etags.delete(this.etags.keys().next().value as string);
+    }
     return (text ? JSON.parse(text) : undefined) as T;
   }
 }

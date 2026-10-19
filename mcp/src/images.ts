@@ -54,9 +54,9 @@ const isRemote = (): boolean => process.env.DBDESIGNER_MCP_REMOTE === '1';
 export function isPrivateAddress(ip: string): boolean {
   const v = ip.toLowerCase();
   if (v === '::1' || v === '::' || v.startsWith('fe80:') || v.startsWith('fc') || v.startsWith('fd')) return true;
-  const mapped = /^::ffff:(d+.d+.d+.d+)$/.exec(v);
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(v);
   const four = mapped ? mapped[1] : v;
-  const m = /^(d+).(d+).(d+).(d+)$/.exec(four);
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(four);
   if (!m) return false;
   const [a, b] = [Number(m[1]), Number(m[2])];
   return (
@@ -67,7 +67,7 @@ export function isPrivateAddress(ip: string): boolean {
 
 /** Remote mode: refuse hosts that resolve to this server's own or private network. */
 async function assertPublicHost(host: string): Promise<void> {
-  const name = host.replace(/^[|]$/g, '');
+  const name = host.replace(/^\[|\]$/g, '');
   const addrs = isIP(name) ? [name] : (await lookup(name, { all: true })).map((a) => a.address);
   if (name === 'localhost' || name.endsWith('.internal') || name.endsWith('.local') || addrs.some(isPrivateAddress)) {
     throw new UserError('That URL points at a private or local address, which is not allowed here.');

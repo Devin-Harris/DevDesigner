@@ -913,8 +913,8 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         const joined = (patch.runs as Array<{ text?: string }>).map((r) => r.text ?? '').join('');
         if (joined !== (patch.text ?? el.text ?? '')) throw new UserError('`runs` texts must concatenate to the text.');
       }
-      await api.patch(`/elements/${elId}`, patch);
-      const stored = (await graph(pid)).schema.elements.find((e) => e.id === elId);
+      // The PATCH answers with the stored element, so no second graph read is needed.
+      const stored = await api.patch<CanvasElementModel>(`/elements/${elId}`, patch);
       const pick = (o: unknown) =>
         Object.fromEntries(Object.keys(patch).map((k) => [k, (o as Record<string, unknown>)[k] ?? null]));
       return { id: elId, before: pick(el), after: stored ? pick(stored) : null };
@@ -941,17 +941,21 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         label: 'Slide',
         defaultInk: inkOn(frame.fillStyle !== 'none' ? frame.backgroundColor : undefined),
       });
-      const mutations = await importFile(id, contentFile(built));
-      // Image elements are created by the import, so count them like any other element.
-      for (const m of mutations) {
-        if (m.kind === 'element.created') {
-          await api.patch(`/elements/${m.element.id}`, { slideId: frame.id });
-        } else if (m.kind === 'table.created') {
-          await api.patch(`/tables/${m.table.id}`, { slideId: frame.id });
-        } else if (m.kind === 'sequenceDiagram.created') {
-          await api.patch(`/projects/${id}/sequence-diagrams/${m.diagram.id}`, { slideId: frame.id });
-        }
-      }
+      // Owned by the slide from the start (one atomic import, no follow-up PATCH per item):
+      // linkExisting lets the file's slideId point at the existing frame.
+      const owned = {
+        ...built,
+        elements: built.elements.map((e) => ({ ...e, slideId: frame.id })),
+        tables: built.tables.map((t) => ({ ...t, slideId: frame.id })),
+        sequenceDiagrams: built.sequenceDiagrams.map((d) => ({ ...d, slideId: frame.id })),
+      };
+      const mutations = (
+        await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, {
+          file: contentFile(owned),
+          joinPresentations: true,
+          linkExisting: true,
+        })
+      ).mutations;
       return { slide: frame.id, added: mutations.length, warnings: built.warnings };
     },
   );
@@ -1127,11 +1131,12 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
           }),
         ),
       );
-      await api.patch(`/elements/${frame.id}`, { slide: { ...frame.slide, animations: list } });
-      // The explicit list replaces any old per-element build steps.
+      // One atomic batch: the explicit list replaces any old per-element build steps.
+      const batch = new Batch().set('elements', frame.id, { slide: { ...frame.slide, animations: list } });
       for (const e of own.elements) {
-        if (e.step) await api.patch(`/elements/${e.id}`, { step: null });
+        if (e.step) batch.set('elements', e.id, { step: null });
       }
+      await batch.send(api, id);
       return { slide: frame.id, animations: list.length };
     },
   );
@@ -1146,9 +1151,9 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const name = resolvePresentation(schema, presentation);
       const slides = presentationSlides(slideFrames(schema), name);
       const t = normalizeTransition(transition as never);
-      for (const f of slides.slice(1)) {
-        await api.patch(`/elements/${f.id}`, { slide: { ...f.slide, transition: t } });
-      }
+      const batch = new Batch();
+      for (const f of slides.slice(1)) batch.set('elements', f.id, { slide: { ...f.slide, transition: t } });
+      await batch.send(api, id);
       return { presentation: name, updated: Math.max(0, slides.length - 1) };
     },
   );
@@ -1314,9 +1319,9 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         const el = schema.elements.find((e) => e.id === eid);
         if (!el) throw new UserError(`No drawing element "${eid}" in this project (tables can't be tagged).`);
       }
-      for (const eid of elementIds) {
-        await api.patch(`/elements/${eid}`, { morphId: morphId ?? soloMorphId() });
-      }
+      const batch = new Batch();
+      for (const eid of elementIds) batch.set('elements', eid, { morphId: morphId ?? soloMorphId() });
+      await batch.send(api, id);
       return {
         updated: elementIds.length,
         tag: morphId ? tag.trim() : null,
@@ -1341,14 +1346,16 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
       const { schema } = await graph(id);
       const name = resolvePresentation(schema, presentation);
       const slideIds = new Set(presentationSlides(slideFrames(schema), name).map((f) => f.id));
+      const batch = new Batch();
       let isolated = 0;
       for (const e of schema.elements) {
         if (e.type === 'frame' || !e.slideId || !slideIds.has(e.slideId)) continue;
         const plainLineage = !!e.morphId && morphTagOf(e.morphId) === null;
         if (e.morphId && !(resetCopies && plainLineage)) continue;
-        await api.patch(`/elements/${e.id}`, { morphId: soloMorphId() });
+        batch.set('elements', e.id, { morphId: soloMorphId() });
         isolated += 1;
       }
+      await batch.send(api, id);
       return { presentation: name, isolated };
     },
   );

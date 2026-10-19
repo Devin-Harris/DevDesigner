@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { normalizeApiUrl } from './api';
 import { colorArg, describePalette } from './colors';
-import { loadImage } from './images';
+import { isPrivateAddress, loadImage } from './images';
 import { UserError } from './model';
 
 describe('colorArg', () => {
@@ -63,5 +63,17 @@ describe('normalizeApiUrl', () => {
     expect(normalizeApiUrl('https://x.up.railway.app/')).toBe('https://x.up.railway.app/api');
     expect(normalizeApiUrl('https://x.up.railway.app/api/')).toBe('https://x.up.railway.app/api');
     expect(normalizeApiUrl('http://localhost:3000/api')).toBe('http://localhost:3000/api');
+  });
+});
+
+describe('isPrivateAddress', () => {
+  it('flags loopback, private and link-local addresses', () => {
+    for (const ip of ['127.0.0.1', '10.1.2.3', '192.168.0.5', '172.16.0.1', '169.254.169.254', '::ffff:127.0.0.1', '::1', '0.0.0.0']) {
+      expect(isPrivateAddress(ip)).toBe(true);
+    }
+  });
+
+  it('allows public addresses', () => {
+    for (const ip of ['8.8.8.8', '172.32.0.1', '2606:4700::1111']) expect(isPrivateAddress(ip)).toBe(false);
   });
 });

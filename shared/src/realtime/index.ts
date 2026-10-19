@@ -31,6 +31,8 @@ export const RT_EVENTS = {
   laser: 'presence:laser',
   present: 'presence:present',
   mutation: 'project:mutation',
+  /** Several changes from one request (batch, import, clone), applied as one update. */
+  mutations: 'project:mutations',
   // clients -> server (cursor/selection/laser are reused by name)
 } as const;
 
@@ -123,8 +125,17 @@ export interface MutationEvent {
   mutation: SchemaMutation;
 }
 
+/** Envelope for many changes persisted by one request, broadcast as ONE socket message. */
+export interface MutationBatchEvent {
+  projectId: string;
+  originClientId: string | null;
+  mutations: SchemaMutation[];
+}
+
 /** Internal event name emitted on the server's EventEmitter2 bus. */
 export const PROJECT_MUTATION_EVENT = 'project.mutation';
+/** Internal bus event carrying a MutationBatchEvent. */
+export const PROJECT_MUTATIONS_EVENT = 'project.mutations';
 
 /** Handshake auth payload the client sends when opening the socket. */
 export interface RealtimeHandshakeAuth {

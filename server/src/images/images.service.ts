@@ -5,15 +5,20 @@ import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES } from '@dbdesigner/shared';
 import type { ProjectExportImage, UploadImageResponse } from '@dbdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { ElementEntity } from '../elements/element.entity';
+import { imageHash } from './image-hash';
 import { ProjectImageEntity } from './project-image.entity';
 import { svgRejectionReason } from './svg-safety';
 
 /** Orphaned uploads younger than this survive, so undo/redo can still bring them back. */
 const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
+/** Orphan cleanup runs at most this often per project (it scans every image element). */
+const PRUNE_INTERVAL_MS = 10 * 60 * 1000;
 
 /** Storage and access control for the images behind canvas image elements. */
 @Injectable()
 export class ImagesService {
+  private readonly lastPrune = new Map<string, number>();
+
   constructor(
     @InjectRepository(ProjectImageEntity)
     private readonly images: Repository<ProjectImageEntity>,
@@ -31,7 +36,13 @@ export class ImagesService {
   ): Promise<UploadImageResponse> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
     const data = this.validate(mimeType, base64);
-    const saved = await this.images.save(this.images.create({ projectId, mimeType, data }));
+    const sha256 = imageHash(data);
+    // Same bytes already stored for this project: reuse that file (and the client's cached copy).
+    const existing = await this.images.findOne({ where: { projectId, sha256, mimeType }, select: { id: true } });
+    if (existing) {
+      return { id: existing.id };
+    }
+    const saved = await this.images.save(this.images.create({ projectId, mimeType, data, sha256 }));
     void this.pruneOrphans(projectId);
     return { id: saved.id };
   }
@@ -42,11 +53,16 @@ export class ImagesService {
     userId: string | null,
     shareToken: string | null,
   ): Promise<{ mimeType: string; data: Buffer }> {
-    const image = await this.images.findOne({ where: { id: imageId } });
+    // Authorize before loading the blob, so refused requests never read the bytes.
+    const meta = await this.images.findOne({ where: { id: imageId }, select: { id: true, projectId: true } });
+    if (!meta) {
+      throw new NotFoundException(`Image ${imageId} not found.`);
+    }
+    await this.access.assertCanRead(meta.projectId, userId, shareToken);
+    const image = await this.images.findOne({ where: { id: imageId }, select: { id: true, mimeType: true, data: true } });
     if (!image) {
       throw new NotFoundException(`Image ${imageId} not found.`);
     }
-    await this.access.assertCanRead(image.projectId, userId, shareToken);
     return { mimeType: image.mimeType, data: image.data };
   }
 
@@ -99,6 +115,11 @@ export class ImagesService {
 
   /** Delete old uploads no element references any more (best effort). */
   private async pruneOrphans(projectId: string): Promise<void> {
+    const now = Date.now();
+    if (now - (this.lastPrune.get(projectId) ?? 0) < PRUNE_INTERVAL_MS) {
+      return;
+    }
+    this.lastPrune.set(projectId, now);
     try {
       const referenced = await this.referencedIds(projectId);
       await this.images.delete({

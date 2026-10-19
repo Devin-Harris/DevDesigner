@@ -17,6 +17,15 @@ export function buildDataSourceOptions(env: NodeJS.ProcessEnv = process.env): Da
     migrations: [__dirname + '/../../migrations/*{.ts,.js}'],
     synchronize: env.DATABASE_SYNCHRONIZE === 'true',
     logging: false,
+    // WAL lets reads run alongside a write and makes each small write transaction cheap
+    // (no full fsync per commit with synchronous=NORMAL, which is still crash-safe in WAL).
+    enableWAL: true,
+    prepareDatabase: (db: { pragma: (sql: string) => unknown }) => {
+      db.pragma('synchronous = NORMAL');
+      db.pragma('busy_timeout = 5000');
+      db.pragma('cache_size = -32000');
+      db.pragma('temp_store = MEMORY');
+    },
   };
 }
 

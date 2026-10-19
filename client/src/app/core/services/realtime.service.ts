@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import {
   REALTIME_NAMESPACE,
   RT_EVENTS,
+  type MutationBatchEvent,
   type MutationEvent,
   type Participant,
   type PresenceCursor,
@@ -126,6 +127,12 @@ export class RealtimeService {
         return;
       }
       this.store.applyRemote(event.mutation);
+    });
+    socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => {
+      if (event.originClientId === this.session.clientId) {
+        return;
+      }
+      this.store.applyRemoteBatch(event.mutations);
     });
 
     this.socket = socket;

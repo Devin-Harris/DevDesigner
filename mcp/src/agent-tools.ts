@@ -79,20 +79,9 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
     (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file, joinPresentations: true, ...(linkExisting ? { linkExisting } : {}) }))
       .mutations;
 
-  /** Base64 of the image files behind these elements (missing files are skipped). */
-  const imagesFor = async (elements: CanvasElementModel[]): Promise<ProjectExportImage[]> => {
-    const ids = [...new Set(elements.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string))];
-    const out: ProjectExportImage[] = [];
-    for (const fid of ids) {
-      try {
-        const { mimeType, data } = await api.getBytes(`/images/${fid}`);
-        out.push({ id: fid, mimeType, data: data.toString('base64') });
-      } catch {
-        // gone: the import drops the element
-      }
-    }
-    return out;
-  };
+  // Copies and undo restores stay in this project, and import-content with linkExisting
+  // reuses this project's stored image files by id - so image bytes are never
+  // downloaded and re-uploaded for them.
 
   // ---- Undo ------------------------------------------------------------------------------
 
@@ -176,7 +165,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         lifelines: before.lifelines.filter((l) => restoredDiagrams.has(l.diagramId)),
         sequenceMessages: before.sequenceMessages.filter((m) => restoredDiagrams.has(m.diagramId)),
       },
-      await imagesFor(r.elements),
+      [],
     );
     const colMap = new Map<string, string>();
     if (r.tables.length || r.elements.length || r.diagrams.length) {
@@ -604,7 +593,7 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
         lifelines: schema.lifelines.filter((l) => sel.diagrams.has(l.diagramId)),
         sequenceMessages: schema.sequenceMessages.filter((m) => sel.diagrams.has(m.diagramId)),
       },
-      await imagesFor(elements),
+      [],
     );
   };
 
@@ -794,14 +783,16 @@ export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Jo
       // Embed only the images that are drawn.
       const imgIds = new Set(schema.elements.filter((e) => e.type === 'image' && e.fileId && (!slideId || e.slideId === slideId)).map((e) => e.fileId as string));
       const images = new Map<string, string>();
-      for (const fid of imgIds) {
-        try {
-          const { mimeType, data } = await api.getBytes(`/images/${fid}`);
-          images.set(fid, `data:${mimeType};base64,${data.toString('base64')}`);
-        } catch {
-          // placeholder box
-        }
-      }
+      await Promise.all(
+        [...imgIds].map(async (fid) => {
+          try {
+            const { mimeType, data } = await api.getBytes(`/images/${fid}`);
+            images.set(fid, `data:${mimeType};base64,${data.toString('base64')}`);
+          } catch {
+            // placeholder box
+          }
+        }),
+      );
       const { svg, region: drawnRegion, drawn, hiddenSlides } = renderSvg(schema, { region: area, slideId, images, showIds });
       const meta = {
         region: round(drawnRegion),
