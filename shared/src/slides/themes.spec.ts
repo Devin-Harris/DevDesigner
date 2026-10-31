@@ -2,6 +2,8 @@ import {
   BUILT_IN_THEMES,
   DEFAULT_THEME,
   presentationThemes,
+  resolveColorOrToken,
+  resolveThemedSequences,
   resolveThemeColor,
   resolveThemeElement,
   resolveThemedElements,
@@ -70,5 +72,34 @@ describe('theme files', () => {
     const t = themeTokensOnly(bold);
     expect(t.layouts).toBeUndefined();
     expect(t.colors).toBe(bold.colors);
+  });
+});
+
+describe('tokens beyond plain element colors', () => {
+  const theme = { ...DEFAULT_THEME, colors: { ...DEFAULT_THEME.colors, accent1: '#123456' } };
+
+  it('accepts known tokens as color arguments and refuses unknown ones', () => {
+    expect(resolveColorOrToken('$accent1')).toBe('$accent1');
+    expect(resolveColorOrToken('$nope')).toBeNull();
+    expect(resolveColorOrToken('#ABC')).toBe('#aabbcc');
+  });
+
+  it('resolves tokens in grid cell styles', () => {
+    const text = JSON.stringify({ cols: [10], rows: [10], cells: [['a']], styles: { '0,0': { color: '$accent1', fill: '$accent1' } } });
+    const out = resolveThemeElement({ type: 'grid', text, strokeColor: '#000000', backgroundColor: 'surface' } as never, theme) as { text: string };
+    expect(JSON.parse(out.text).styles['0,0']).toEqual({ color: '#123456', fill: '#123456' });
+  });
+
+  it('resolves sequence diagrams against the deck of their slide', () => {
+    const frame = { id: 'f', type: 'frame', slide: { presentation: 'P', theme: { ...theme, id: 'custom' } } };
+    const out = resolveThemedSequences(
+      {
+        diagrams: [{ id: 'd', slideId: 'f', backgroundColor: '$accent1' }],
+        lifelines: [{ diagramId: 'd', color: '$accent1' }],
+        messages: [{ diagramId: 'd', color: '$accent1' }],
+      },
+      [frame as never],
+    );
+    expect([out.diagrams[0].backgroundColor, out.lifelines[0].color, out.messages[0].color]).toEqual(['#123456', '#123456', '#123456']);
   });
 });

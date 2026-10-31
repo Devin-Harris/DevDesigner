@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { CanvasElementModel, ProjectSummary } from '@dbdesigner/shared';
+import { resolveThemedElements, resolveThemedSequences, type CanvasElementModel, type ProjectSummary } from '@dbdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectsService } from '../../../core/services/projects.service';
 import { ThemeService } from '../../../core/services/theme.service';
@@ -100,11 +100,10 @@ export class ProjectThumbnailService {
     let state: ThumbState;
     try {
       const { schema } = await firstValueFrom(this.projects.getGraph(id));
-      const sequences = {
-        diagrams: schema.sequenceDiagrams,
-        lifelines: schema.lifelines,
-        messages: schema.sequenceMessages,
-      };
+      const sequences = resolveThemedSequences(
+        { diagrams: schema.sequenceDiagrams, lifelines: schema.lifelines, messages: schema.sequenceMessages },
+        schema.elements,
+      );
       if (
         schema.tables.length === 0 &&
         schema.elements.length === 0 &&
@@ -116,7 +115,7 @@ export class ProjectThumbnailService {
         const built = buildDiagramSvg(
           schema.tables,
           schema.relationships,
-          schema.elements,
+          resolveThemedElements(schema.elements),
           sequences,
           undefined,
           imageData,

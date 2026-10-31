@@ -16,7 +16,7 @@ import {
   messageLabelMaxChars,
   SEQ_LABEL_CHAR_W,
 } from '@dbdesigner/shared';
-import type { LifelineModel, SequenceDiagramModel } from '@dbdesigner/shared';
+import { DEFAULT_THEME, presentationOf, resolveThemeColor, type LifelineModel, type SequenceDiagramModel } from '@dbdesigner/shared';
 import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';
@@ -154,10 +154,13 @@ const MIN_HEADER_W = 60;
 export class SequenceDiagramComponent {
   protected readonly store = inject(ProjectStore);
   /** True for custom pale participant colors, which take dark text instead of white. Stock swatches use the theme text. */
-  protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
-  protected readonly isSwatch = isSwatchColor;
+  protected readonly isLight = (c: string | undefined | null): boolean => {
+    const color = this.themed(c);
+    return !isSwatchColor(color) && isLightFill(color);
+  };
+  protected readonly isSwatch = (c: string | undefined | null): boolean => isSwatchColor(this.themed(c));
   /** CSS for a stored color (resolves the theme sentinels). */
-  protected readonly css = themeColorCss;
+  protected readonly css = (c: string | undefined | null) => themeColorCss(this.themed(c));
 
   /** The id of the diagram this instance renders. */
   readonly diagramId = input.required<string>();
@@ -183,8 +186,18 @@ export class SequenceDiagramComponent {
       },
   );
 
+  /** The deck theme of the slide this diagram is on. */
+  private readonly deckTheme = computed(() => {
+    const frame = this.store.slideFrames().find((f) => f.id === this.diagram().slideId);
+    return (frame && this.store.presentationThemes().get(presentationOf(frame))) || DEFAULT_THEME;
+  });
+  /** A stored color with theme tokens resolved. */
+  private themed<C extends string | undefined | null>(c: C): C | string {
+    return c ? resolveThemeColor(c, this.deckTheme()) : c;
+  }
+
   /** Text colors that stay readable on a custom background; null = theme defaults. */
-  protected readonly fg = computed(() => contrastText(this.diagram().backgroundColor));
+  protected readonly fg = computed(() => contrastText(this.themed(this.diagram().backgroundColor) ?? undefined));
 
   protected readonly originY = computed(() => this.diagram().originY);
   protected readonly headerH = computed(() => this.diagram().headerHeight);

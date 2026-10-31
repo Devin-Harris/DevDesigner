@@ -772,6 +772,8 @@ export interface DiagramSvg {
   background: string;
   /** The drawing alone (no defs/background), in the same coordinates as `svg`'s content group. */
   body: string;
+  /** The exported frame's fill, when it has one. */
+  pageColor?: string;
 }
 
 /**
@@ -785,7 +787,7 @@ export function buildDiagramSvg(
   relationships: readonly RelationshipModel[],
   elements: readonly CanvasElementModel[] = [],
   sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
-  crop?: { x: number; y: number; width: number; height: number; frameId?: string },
+  crop?: { x: number; y: number; width: number; height: number; frameId?: string; pageColor?: string },
   /** fileId -> `data:` URI for each image element (see ElementImagesService.dataUrl). */
   imageData: ReadonlyMap<string, string> = new Map(),
 ): DiagramSvg {
@@ -819,9 +821,13 @@ export function buildDiagramSvg(
           `height="${pageView.rect.height}" fill="${pageView.fill}" fill-opacity="${pageView.fillOpacity}" ` +
           `opacity="${pageView.opacity}" />`
         : '';
+    // Frames are gone from `elements` by now, so tell the contrast guard what the items
+    // sit on: the page's fill, not the app's canvas (dark text must not flip on a white
+    // slide in dark mode).
+    const pageColor = crop?.pageColor ?? (pageView?.rect && pageView.fill !== 'none' ? pageView.fill : undefined);
     const connectors = computeConnectors(tables, relationships, new Set<string>(), frameBoxes);
     const shapeViews = buildShapeViews(elements, tables, new Set<string>(), {
-      canvasBg: theme.canvasBg,
+      canvasBg: pageColor ?? theme.canvasBg,
       text: theme.text,
       surface: theme.surface,
     }, messageLabelBoxes(sequences.diagrams, sequences.lifelines, sequences.messages));
@@ -957,7 +963,7 @@ ${stack}
 </g>
 </svg>`;
 
-    return { svg, width, height, background: theme.canvasBg, body };
+    return { svg, width, height, background: theme.canvasBg, body, pageColor };
   } finally {
     dispose();
   }

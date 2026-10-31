@@ -16,7 +16,8 @@ import type {
   SlideTransitionType,
 } from '../enums';
 import { fitWithin, imageSize, base64ToBytes } from '../images';
-import { LIGHT_TEXT, paletteNames, readableTextOn, resolveColor } from '../palette';
+import { LIGHT_TEXT, paletteNames, readableTextOn } from '../palette';
+import { resolveColorOrToken } from '../slides/themes';
 import type {
   CanvasElementModel,
   LifelineModel,
@@ -345,10 +346,10 @@ export function buildSlideContent(
   /** Palette name or hex -> hex; unknown colors warn (listing valid names) and are ignored. */
   const color = (input: string | undefined, what: string): string | undefined => {
     if (!input?.trim()) return undefined;
-    const { hex } = resolveColor(input);
+    const hex = resolveColorOrToken(input);
     if (hex) return hex;
     out.warnings.push(
-      `${where}unknown color "${input}" for ${what}; ignored. Use hex or one of: ${paletteNames()}.`,
+      `${where}unknown color "${input}" for ${what}; ignored. Use a theme token ($accent1, ...), hex or one of: ${paletteNames()}.`,
     );
     return undefined;
   };
@@ -665,7 +666,7 @@ export function buildPresentationFile(
     };
     let background: string | undefined;
     if (s.background?.trim()) {
-      background = resolveColor(s.background).hex ?? undefined;
+      background = resolveColorOrToken(s.background) ?? undefined;
       if (!background) {
         merged.warnings.push(
           `Slide ${i + 1}: unknown background "${s.background}"; ignored. Use hex or one of: ${paletteNames()}.`,

@@ -1580,7 +1580,7 @@ export class MorphStage {
         this.liveRels,
         elements,
         seq,
-        { x: 0, y: 0, width: this.to.width, height: this.to.height },
+        { x: 0, y: 0, width: this.to.width, height: this.to.height, pageColor: this.to.pageColor },
         this.to.imageData,
       )
         // Grid/code cards clip by `grid-clip-<id>` / `code-clip-<id>`; the hidden measure

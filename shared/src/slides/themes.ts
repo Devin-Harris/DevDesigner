@@ -6,7 +6,8 @@
 
 import type { CanvasElementModel, SlideConfig } from '../models';
 import { presentationOf } from './index';
-import { THEME_FILL, THEME_STROKE } from '../palette';
+import { THEME_FILL, THEME_STROKE, resolveColor } from '../palette';
+import { parseGrid, serializeGrid } from '../grid';
 import {
   BANNER_LAYOUTS,
   CENTERED_LAYOUTS,
@@ -330,6 +331,14 @@ export function tokenOf(value: string | undefined | null): string | null {
   return value && value.startsWith(THEME_TOKEN_PREFIX) ? value.slice(THEME_TOKEN_PREFIX.length) : null;
 }
 
+/** A color argument (theme token, palette name or hex) as the value to store; null when unknown. */
+export function resolveColorOrToken(input: string | undefined | null): string | null {
+  const raw = (input ?? '').trim();
+  const token = tokenOf(raw);
+  if (token !== null) return (THEME_COLOR_TOKENS as readonly string[]).includes(token) ? raw : null;
+  return resolveColor(raw).hex;
+}
+
 /** A stored color as a concrete color (tokens looked up; unknown tokens fall back to the default theme). */
 export function resolveThemeColor(value: string, theme?: SlideTheme): string;
 export function resolveThemeColor(value: string | undefined, theme?: SlideTheme): string | undefined;
@@ -348,16 +357,32 @@ export function resolveThemeFont(value: string | undefined, theme: SlideTheme = 
 
 type Themable = Pick<CanvasElementModel, 'strokeColor' | 'backgroundColor' | 'fontFamily' | 'runs'> & {
   fillStyle?: CanvasElementModel['fillStyle'];
+  type?: string;
+  text?: string;
 };
+
+/** A grid's stored JSON with the theme tokens in its cell styles resolved. */
+function resolveGridText(text: string, theme: SlideTheme): string {
+  const grid = parseGrid(text);
+  const styles = Object.fromEntries(
+    Object.entries(grid.styles ?? {}).map(([key, st]) => [
+      key,
+      { ...st, color: resolveThemeColor(st.color, theme), fill: resolveThemeColor(st.fill, theme) },
+    ]),
+  );
+  return serializeGrid({ ...grid, styles });
+}
 
 /** An element with its theme tokens replaced by concrete values (the same object when it has none). */
 export function resolveThemeElement<E extends Themable>(e: E, theme: SlideTheme = DEFAULT_THEME): E {
   const runTokens = e.runs?.some((r) => tokenOf(r.color));
-  if (!tokenOf(e.strokeColor) && !tokenOf(e.backgroundColor) && !tokenOf(e.fontFamily) && !runTokens) {
+  const gridTokens = e.type === 'grid' && !!e.text?.includes(`"${THEME_TOKEN_PREFIX}`);
+  if (!tokenOf(e.strokeColor) && !tokenOf(e.backgroundColor) && !tokenOf(e.fontFamily) && !runTokens && !gridTokens) {
     return e;
   }
   return {
     ...e,
+    ...(gridTokens ? { text: resolveGridText(e.text!, theme) } : {}),
     strokeColor: resolveThemeColor(e.strokeColor, theme),
     backgroundColor: resolveThemeColor(e.backgroundColor, theme),
     fontFamily: resolveThemeFont(e.fontFamily, theme),
@@ -406,4 +431,39 @@ export function resolveThemedElements<E extends Themable & FrameLike & { slideId
   return elements.map((e) =>
     resolveThemeElement(e, frameTheme.get(e.type === 'frame' ? e.id : e.slideId ?? '') ?? DEFAULT_THEME),
   );
+}
+
+/** A sequence diagram's parts with theme tokens resolved against the deck of the slide each diagram is on. */
+export function resolveThemedSequences<
+  D extends { id: string; slideId?: string; backgroundColor?: string; borderColor?: string },
+  L extends { diagramId: string; color?: string; lineColor?: string; strokeColor?: string; textColor?: string },
+  M extends { diagramId: string; color?: string },
+>(
+  sequences: { diagrams: readonly D[]; lifelines: readonly L[]; messages: readonly M[] },
+  context: readonly FrameLike[],
+): { diagrams: D[]; lifelines: L[]; messages: M[] } {
+  const themes = presentationThemes(context);
+  const frames = new Map(context.filter((f) => f.type === 'frame' && f.slide).map((f) => [f.id, f]));
+  const themeOf = new Map(
+    sequences.diagrams.map((d) => {
+      const f = d.slideId ? frames.get(d.slideId) : undefined;
+      return [d.id, (f && themes.get(presentationOf(f))) ?? DEFAULT_THEME] as const;
+    }),
+  );
+  const of = (diagramId: string): SlideTheme => themeOf.get(diagramId) ?? DEFAULT_THEME;
+  return {
+    diagrams: sequences.diagrams.map((d) => ({
+      ...d,
+      backgroundColor: resolveThemeColor(d.backgroundColor, of(d.id)),
+      borderColor: resolveThemeColor(d.borderColor, of(d.id)),
+    })),
+    lifelines: sequences.lifelines.map((l) => ({
+      ...l,
+      color: resolveThemeColor(l.color, of(l.diagramId)),
+      lineColor: resolveThemeColor(l.lineColor, of(l.diagramId)),
+      strokeColor: resolveThemeColor(l.strokeColor, of(l.diagramId)),
+      textColor: resolveThemeColor(l.textColor, of(l.diagramId)),
+    })),
+    messages: sequences.messages.map((m) => ({ ...m, color: resolveThemeColor(m.color, of(m.diagramId)) })),
+  };
 }

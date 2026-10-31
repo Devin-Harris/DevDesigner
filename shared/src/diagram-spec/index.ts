@@ -7,7 +7,8 @@
 import { PROJECT_EXPORT_FORMAT, PROJECT_EXPORT_VERSION } from '../dto';
 import type { ProjectExportFile } from '../dto';
 import type { RelationshipType } from '../enums';
-import { HEADER_COLOR_CYCLE, paletteNames, resolveColor } from '../palette';
+import { HEADER_COLOR_CYCLE, paletteNames } from '../palette';
+import { resolveColorOrToken, tokenOf } from '../slides/themes';
 import { morphIdForTag } from '../slides';
 import type {
   CanvasElementModel,
@@ -491,9 +492,9 @@ function colorOrWarn(
   warnings: string[],
 ): string | undefined {
   if (!input?.trim()) return undefined;
-  const { hex } = resolveColor(input);
+  const hex = resolveColorOrToken(input);
   if (hex) return hex;
-  warnings.push(`Unknown color "${input}" for ${what}; ignored. Use a hex like #2f6bff or one of: ${paletteNames()}.`);
+  warnings.push(`Unknown color "${input}" for ${what}; ignored. Use a theme token ($accent1, ...), a hex like #2f6bff or one of: ${paletteNames()}.`);
   return undefined;
 }
 
@@ -565,7 +566,9 @@ export function buildSpecFile(
         note: c.note,
       });
     }
-    const color = colorOrWarn(t.color, `table "${t.name}"`, warnings);
+    // Database tables do not follow a deck theme.
+    const color = tokenOf(t.color) === null ? colorOrWarn(t.color, `table "${t.name}"`, warnings) : undefined;
+    if (tokenOf(t.color) !== null) warnings.push(`Table "${t.name}": theme tokens are not supported on database tables; color ignored.`);
     const table: TableModel = {
       id: id('t'),
       name: t.name,

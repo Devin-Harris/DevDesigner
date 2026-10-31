@@ -46,6 +46,7 @@ import {
   themeColorCss,
   sequenceDiagramRect,
   resolveThemedElements,
+  resolveThemedSequences,
   resolveThemeElement,
   resolveFields,
   fieldContext,
@@ -6648,11 +6649,10 @@ export class EditorComponent {
       );
       return !hasPicked || selectedMessageIds.has(m.id);
     });
-    const sequences: SequenceExportData = {
-      diagrams,
-      lifelines: allLifelines.filter((l) => diagramIds.has(l.diagramId)),
-      messages,
-    };
+    const sequences: SequenceExportData = resolveThemedSequences(
+      { diagrams, lifelines: allLifelines.filter((l) => diagramIds.has(l.diagramId)), messages },
+      this.store.slideFrames(),
+    );
 
     return { tables, relationships, elements, sequences, selectionOnly };
   }
@@ -6701,8 +6701,28 @@ export class EditorComponent {
    * unselected table) are dropped by the importer.
    */
   protected async exportSelectionFile(): Promise<void> {
-    const { tables, relationships, elements, sequences, selectionOnly } = this.exportScope();
+    const { tables, relationships, elements: picked, sequences: drawn, selectionOnly } = this.exportScope();
     if (!selectionOnly) return;
+    // The file holds the stored rows, so theme tokens stay tokens (the scope's are resolved for drawing).
+    const keep = new Set(picked.map((e) => e.id));
+    // Slides need their deck's layouts and master, and those frames' items, to look the same.
+    const frames = this.store.slideFrames();
+    const decks = new Set(frames.filter((f) => keep.has(f.id)).map((f) => presentationOf(f)));
+    const designFrames = new Set(
+      frames
+        .filter((f) => (f.slide?.layout || f.slide?.master) && decks.has(presentationOf(f)))
+        .map((f) => f.id),
+    );
+    const elements = this.store
+      .elements()
+      .filter((e) => keep.has(e.id) || designFrames.has(e.id) || (!!e.slideId && designFrames.has(e.slideId)));
+    const diagramIds = new Set(drawn.diagrams.map((d) => d.id));
+    const messageIds = new Set(drawn.messages.map((m) => m.id));
+    const sequences = {
+      diagrams: this.store.sequenceDiagrams().filter((d) => diagramIds.has(d.id)),
+      lifelines: this.store.lifelines().filter((l) => diagramIds.has(l.diagramId)),
+      messages: this.store.sequenceMessages().filter((m) => messageIds.has(m.id)),
+    };
     // Embed the files behind image elements; the importer drops images without one.
     const fileIds = [
       ...new Set(elements.flatMap((e) => (e.type === 'image' && e.fileId ? [e.fileId] : []))),
@@ -6737,6 +6757,7 @@ export class EditorComponent {
           lifelines: [...sequences.lifelines],
           sequenceMessages: [...sequences.messages],
           viewport: this.store.viewport(),
+          ...(decks.size && this.store.customThemes().length ? { themes: this.store.customThemes() } : {}),
         },
         ...(images.length ? { images } : {}),
       },

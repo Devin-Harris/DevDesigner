@@ -24,6 +24,7 @@ import {
   resolveFields,
   type FieldContext,
   resolveThemedElements,
+  resolveThemedSequences,
 } from '@dbdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectStore } from '../../../stores/project.store';
@@ -82,6 +83,8 @@ export interface RenderedSlide {
   /** relationship id -> its two tables, so connectors follow their tables' animations. */
   relationshipEnds: ReadonlyMap<string, [string, string]>;
   background: string;
+  /** The slide's own fill (what its items' colors are kept readable against). */
+  pageColor?: string;
   notes: string;
   /** The transition into this slide. */
   transition: SlideTransition;
@@ -141,11 +144,10 @@ export class SlideRenderService {
       const ctx = frame.slide && !frame.slide.layout ? this.fieldsFor(frame) : null;
       const elements = ctx ? themed.map((e) => resolveFields(e, ctx)) : themed;
       const tables = mine.tables;
-      const sequences = {
-        diagrams: mine.diagrams,
-        lifelines: mine.lifelines,
-        messages: mine.messages,
-      };
+      const sequences = resolveThemedSequences(
+        { diagrams: mine.diagrams, lifelines: mine.lifelines, messages: mine.messages },
+        allElements,
+      );
       const crop = {
         x: frame.x,
         y: frame.y,
@@ -223,6 +225,7 @@ export class SlideRenderService {
         height: built.height,
         svg,
         background: built.background,
+        pageColor: built.pageColor,
         notes: frame.slide?.notes ?? '',
         transition: effectiveTransition(frame.slide),
         items,

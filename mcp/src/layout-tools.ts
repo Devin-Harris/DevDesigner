@@ -13,7 +13,11 @@ import {
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
+  DEFAULT_THEME,
   contrastRatio,
+  presentationOf,
+  presentationThemes,
+  resolveThemeColor,
   estimateTextSize,
   presentationSlides,
   readableTextOn,
@@ -24,7 +28,7 @@ import {
 } from '@dbdesigner/shared';
 import type { DbDesignerApi } from './api';
 import { Batch } from './batch';
-import { colorArg } from './colors';
+import { colorArg, tableColorArg } from './colors';
 import {
   SEQUENCE_BOX_PAD,
   arrangeStack,
@@ -250,14 +254,17 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
         const lowContrast: Array<{ id: string; label: string; color: string; ratio: number }> = [];
         let recolored = 0;
         if (hex) {
-          const ink = readableTextOn(hex);
+          // Tokens are compared as the colors the deck's theme gives them.
+          const theme = presentationThemes(schema.elements).get(presentationOf(frame)) ?? DEFAULT_THEME;
+          const fill = resolveThemeColor(hex, theme);
+          const ink = readableTextOn(fill);
           for (const e of schema.elements.filter((x) => x.slideId === frame.id)) {
             const isText = e.type === 'text';
             const isOutlineOnly =
               (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
               (e.fillStyle === 'none' || !e.backgroundColor);
             if (!isText && !isOutlineOnly) continue;
-            const ratio = contrastRatio(e.strokeColor, hex);
+            const ratio = contrastRatio(resolveThemeColor(e.strokeColor, theme), fill);
             if (ratio >= 3) continue;
             lowContrast.push({
               id: e.id,
@@ -387,7 +394,7 @@ export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
       }
       const doneTables: string[] = [];
       if (headerColor !== undefined) {
-        const c = colorArg(headerColor, 'the table header');
+        const c = tableColorArg(headerColor, 'the table header');
         for (const ref of tables ?? []) {
           const t = findTable(schema, ref);
           batch.set('tables', t.id, { color: c ?? '' });

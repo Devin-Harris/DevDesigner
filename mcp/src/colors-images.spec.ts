@@ -2,11 +2,17 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { normalizeApiUrl } from './api';
-import { colorArg, describePalette } from './colors';
+import { colorArg, describePalette, tableColorArg } from './colors';
 import { isPrivateAddress, loadImage } from './images';
 import { UserError } from './model';
 
 describe('colorArg', () => {
+  it('keeps theme tokens on slide content but refuses them on database tables', () => {
+    expect(colorArg('$accent1', 'x')).toBe('$accent1');
+    expect(() => colorArg('$nope', 'x')).toThrow(UserError);
+    expect(() => tableColorArg('$accent1', 'x')).toThrow(UserError);
+  });
+
   it('resolves names and hex, keeps undefined and clears with an empty string', () => {
     expect(colorArg('blue', 'x')).toBe('#2f6bff');
     expect(colorArg('Amber-Soft', 'x')).toBe('#fef3c7');

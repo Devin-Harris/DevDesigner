@@ -39,7 +39,7 @@ import {
 } from '@dbdesigner/shared';
 import { ApiError, type DbDesignerApi } from './api';
 import { applySpec } from './apply';
-import { colorArg, describePalette } from './colors';
+import { colorArg, describePalette, tableColorArg } from './colors';
 import { loadImage } from './images';
 import { Batch } from './batch';
 import { isRich, registerAgentTools, type RichResult } from './agent-tools';
@@ -366,7 +366,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       applySpec(
         api,
         id,
-        { tables: [{ name, columns: (columns ?? []) as never, color: colorArg(color, 'the table header'), note }] },
+        { tables: [{ name, columns: (columns ?? []) as never, color: tableColorArg(color, 'the table header'), note }] },
         { near },
       ) as unknown as Json,
   );
@@ -386,7 +386,7 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
       const t = findTable((await graph(id)).schema, table);
       const updated = await api.patch<TableModel>(`/tables/${t.id}`, {
         ...(name !== undefined ? { name } : {}),
-        ...(color !== undefined ? { color: colorArg(color, 'the table header') } : {}),
+        ...(color !== undefined ? { color: tableColorArg(color, 'the table header') } : {}),
         ...(note !== undefined ? { note } : {}),
       });
       return { id: updated.id, name: updated.name };

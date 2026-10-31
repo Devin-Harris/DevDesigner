@@ -19,6 +19,8 @@ import {
   type PointModel,
   type SchemaModel,
   type TableModel,
+  resolveThemedElements,
+  resolveThemedSequences,
 } from '@dbdesigner/shared';
 import { collectItems, unionOf } from './layout';
 import { formatDataType } from './model';
@@ -356,9 +358,21 @@ function drawSequence(schema: SchemaModel, diagramId: string): string {
 
 /** Render to an SVG string. Returns the world region drawn too. */
 export function renderSvg(
-  schema: SchemaModel,
+  stored: SchemaModel,
   options: RenderOptions = {},
 ): { svg: string; region: Rect; drawn: number; hiddenSlides: number } {
+  // Draw deck theme tokens as their concrete colors.
+  const sequences = resolveThemedSequences(
+    { diagrams: stored.sequenceDiagrams, lifelines: stored.lifelines, messages: stored.sequenceMessages },
+    stored.elements,
+  );
+  const schema: SchemaModel = {
+    ...stored,
+    elements: resolveThemedElements(stored.elements),
+    sequenceDiagrams: sequences.diagrams,
+    lifelines: sequences.lifelines,
+    sequenceMessages: sequences.messages,
+  };
   const frame = options.slideId ? schema.elements.find((e) => e.id === options.slideId) : undefined;
   let items = collectItems(schema, { lines: 'all' });
   // Slides of a presentation are stacked on one spot: on the canvas view draw only the
