@@ -108,7 +108,7 @@ export type SlidesCommand =
   | { kind: 'present'; from: 'start' | 'current' }
   | { kind: 'preview'; id: string }
   | { kind: 'focus'; id: string }
-  | { kind: 'duplicate'; id: string; toIndex?: number }
+  | { kind: 'duplicate'; id: string; ids?: string[]; toIndex?: number }
   | { kind: 'delete'; id: string }
   /** `layout`: add a layout; `layoutId`: the new slide's layout (null = blank, absent = as shown). */
   | { kind: 'add'; layout?: boolean; layoutId?: string | null }
@@ -367,7 +367,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
               [style.height.px]="g.height"
               [style.transform]="'translateY(' + dragDy() + 'px) scale(1.02)'"
             >
-              <span class="num">+</span>
+              <span class="num">+{{ g.count > 1 ? g.count : '' }}</span>
               <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
                 @if (thumbs().get(g.id); as src) {
                   <img [src]="src" alt="" draggable="false" />
@@ -3168,6 +3168,7 @@ export class SlidesPanelComponent {
     height: number;
     fw: number;
     fh: number;
+    count: number;
   } | null>(null);
 
   /** Transform for a card during a drag: the preview follows the pointer, the rest make room. */
@@ -3224,6 +3225,16 @@ export class SlidesPanelComponent {
     const gap = slots.length > 1 ? Math.max(0, slots[1].top - slots[0].top - slots[0].height) : 0;
     const centers = slots.map((s) => s.top + s.height / 2);
     const srcFrame = this.shown()[index];
+    // Alt-dragging one of several selected slides copies all of them, in deck order.
+    const selected = new Set(this.activeSlides().map((f) => f.id));
+    const copyIds =
+      srcFrame && selected.has(srcFrame.id) && selected.size > 1
+        ? this.shown()
+            .filter((f) => selected.has(f.id))
+            .map((f) => f.id)
+        : srcFrame
+          ? [srcFrame.id]
+          : [];
     let started = false;
     let lastY = startY;
     let alt = event.altKey;
@@ -3262,6 +3273,7 @@ export class SlidesPanelComponent {
               height: me.height,
               fw: srcFrame.width,
               fh: srcFrame.height,
+              count: copyIds.length,
             }
           : null,
       );
@@ -3346,7 +3358,7 @@ export class SlidesPanelComponent {
           });
           setTimeout(() => this.pendingClone.set(null), 5000);
           clear();
-          this.command.emit({ kind: 'duplicate', id: srcFrame.id, toIndex: to });
+          this.command.emit({ kind: 'duplicate', id: srcFrame.id, ids: copyIds, toIndex: to });
         }, 180);
         return;
       }

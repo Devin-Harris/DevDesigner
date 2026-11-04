@@ -76,8 +76,7 @@ import { EditorActionsService } from '../../core/services/editor-actions.service
 import { ProjectFileService } from '../../core/services/project-file.service';
 import { ElementImagesService } from '../../core/services/element-images.service';
 import { MediaActionsService } from '../../core/services/media-actions.service';
-import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
-import { ProjectsStore } from '../../stores/projects.store';
+import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { AutofocusDirective } from './autofocus.directive';
@@ -781,7 +780,7 @@ export class EditorComponent {
   /** Snap drags to nearby items' edges, centers and spacing (Figma-style guides). */
   protected readonly smartGuides = signal(readStoredSmartGuides());
   /** What the moving selection snaps against, captured when a drag starts. */
-  private smartBase: { box: Box; targets: Box[]; view?: SlideView } | null = null;
+  private smartBase: { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null = null;
   /** Guides for the current drag, in world (or slide-inner) coordinates. */
   private readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView } | null>(null);
   /** The current drag's guides in canvas-screen px, for the overlay. */
@@ -1699,8 +1698,10 @@ export class EditorComponent {
       id,
       left: (isLabel ? el.x + el.width / 2 : el.x) * z + v.x,
       top: (isLabel ? el.y + el.height / 2 : el.y) * z + v.y,
-      width: Math.max(el.width, 8) * z,
-      height: (isLabel ? contentHeight : Math.max(el.height, fontSize)) * z,
+      // A free text box gets a comfortable typing area (about 8 characters wide and one
+      // full line tall) even while it is empty or short; it still grows with the text.
+      width: Math.max(el.width, isLabel || el.wrap ? 8 : fontSize * 8) * z,
+      height: (isLabel ? contentHeight : Math.max(el.height, fontSize * lh)) * z,
       fontSize: fontSize * z,
       fontFamily: fontStack(el.fontFamily),
       fontWeight: el.bold ? 800 : fontWeightFor(el.strokeWidth),
@@ -1883,6 +1884,8 @@ export class EditorComponent {
     /** The first copied frame, so pasted slides land on free canvas. */
     frame: CanvasElementModel | null;
   } | null = null;
+  /** Text put on the system clipboard at the last in-app copy, to notice a newer outside copy. */
+  private clipboardMark: string | null = null;
   private pasteCount = 0;
   /** True once the current drag has switched to dragging Alt-made copies. */
   private dragCopied = false;
@@ -3333,7 +3336,7 @@ export class EditorComponent {
     }
     this.movingItems.set(true);
     let { dx, dy } = this.dragDelta(clientX, clientY);
-    const smart = this.smartDelta(g.id, g.others.keys(), g.tables?.keys() ?? [], dx, dy);
+    const smart = this.smartDelta(g.id, g.others.keys(), g.tables?.keys() ?? [], dx, dy, g.sequences?.keys() ?? []);
     dx += smart?.ox ?? 0;
     dy += smart?.oy ?? 0;
     const grid = this.gridSnap();
@@ -4156,6 +4159,16 @@ export class EditorComponent {
     root.focus();
     this.setRichSelection(root, text.length, text.length);
     this.richSel = { start: text.length, end: text.length };
+    // Opened by a double-click: select the word under it (typing replaces it), or put the caret there.
+    const at = this.editClickPoint;
+    this.editClickPoint = null;
+    if (at && text) {
+      const word = this.wordAtPoint(root, text, at.x, at.y);
+      if (word) {
+        this.setRichSelection(root, word.start, word.end);
+        this.richSel = word;
+      }
+    }
     this.richSession.open(
       id,
       (patch) => this.applyRichPatch(patch),
@@ -4187,6 +4200,40 @@ export class EditorComponent {
       document.removeEventListener('selectionchange', onSelection);
       document.removeEventListener('mousedown', onMouseDown, true);
     };
+  }
+
+  /** Where the double-click that opened the editor landed (screen coords), if any. */
+  private editClickPoint: { x: number; y: number } | null = null;
+
+  /** The word (plain-text offsets) under a screen point in the rich editor, or a caret there when it is not on a word. */
+  private wordAtPoint(root: HTMLElement, text: string, x: number, y: number): { start: number; end: number } | null {
+    const doc = document as Document & {
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    };
+    let node: Node | null = null;
+    let offset = 0;
+    const pos = doc.caretPositionFromPoint?.(x, y);
+    if (pos) {
+      node = pos.offsetNode;
+      offset = pos.offset;
+    } else {
+      const r = document.caretRangeFromPoint?.(x, y);
+      if (r) {
+        node = r.startContainer;
+        offset = r.startOffset;
+      }
+    }
+    if (!node || !root.contains(node)) return null;
+    const i = this.richOffset(root, node, offset);
+    const isWord = (c: string | undefined): boolean => !!c && /[\p{L}\p{N}_'’-]/u.test(c);
+    // The caret may sit just after the word (clicked on its right half of the last letter).
+    let start = isWord(text[i]) ? i : isWord(text[i - 1]) ? i - 1 : -1;
+    // Not on a word (spaces, past a line's end): put the caret where the click landed.
+    if (start < 0) return { start: i, end: i };
+    let end = start;
+    while (start > 0 && isWord(text[start - 1])) start -= 1;
+    while (end < text.length && isWord(text[end])) end += 1;
+    return { start, end };
   }
 
   private teardownRichEditor(): void {
@@ -4914,6 +4961,7 @@ export class EditorComponent {
         this.multiDragStart.keys(),
         dx,
         dy,
+        this.nodeExtras?.sequences.keys() ?? [],
       );
       dx += smart?.ox ?? 0;
       dy += smart?.oy ?? 0;
@@ -5486,6 +5534,20 @@ export class EditorComponent {
 
     // Slides using a deleted layout keep its look: its items are copied onto them first.
     const layouts = this.store.slideFrames().filter((f) => f.slide?.layout && elementIds.has(f.id));
+    // A deck losing its shown slide shows the nearest surviving one: the slide above, else below.
+    const nextShown: string[] = [];
+    for (const shownId of this.store.shownSlideIds()) {
+      if (!elementIds.has(shownId)) continue;
+      const frame = this.store.slideFrames().find((f) => f.id === shownId);
+      if (!frame || frame.slide?.layout) continue;
+      const list = presentationSlides(this.store.slideFrames(), presentationOf(frame));
+      const at = list.findIndex((f) => f.id === shownId);
+      const up = list.slice(0, Math.max(0, at)).reverse().find((f) => !elementIds.has(f.id));
+      const down = list.slice(at + 1).find((f) => !elementIds.has(f.id));
+      const pick = up ?? down;
+      if (pick) nextShown.push(pick.id);
+    }
+    const activeDeck = this.store.presentation();
     void this.store.batchHistory(async () => {
       // Slides deleted along with the layout need no copy of its look.
       for (const l of layouts) await detachFromLayout(this.store, l, elementIds);
@@ -5505,6 +5567,15 @@ export class EditorComponent {
         lifelineIds.forEach((id) => jobs.push(this.store.deleteLifeline(id)));
       }
       await Promise.all(jobs);
+    }).then(() => {
+      if (!nextShown.length) return;
+      for (const id of nextShown) this.store.setActiveSlide(id);
+      // Keep the deck the user was working in selected, with its new slide highlighted.
+      const mine = nextShown.find((id) => {
+        const f = this.store.slideFrames().find((x) => x.id === id);
+        return !!f && presentationOf(f) === activeDeck;
+      });
+      if (mine) this.focusFrame(mine);
     });
   }
 
@@ -5545,7 +5616,7 @@ export class EditorComponent {
         break;
       }
       case 'duplicate':
-        void this.duplicateSlide(cmd.id, cmd.toIndex);
+        void this.duplicateSlides(cmd.ids?.length ? cmd.ids : [cmd.id], cmd.toIndex);
         break;
       case 'delete':
         this.store.setSelection([], [], [cmd.id]);
@@ -6319,18 +6390,63 @@ export class EditorComponent {
   }
 
   /**
-   * Duplicate a slide with everything on it, beside the original. The copy lands
-   * right after it in the sequence, or at `toIndex` when given (Alt-drag in the panel).
+   * Give pasted/duplicated slide copies their place in `deck`: at `toIndex` when given
+   * (Alt-drag in the panel), else right after `afterId`, keeping their relative order.
    */
-  private async duplicateSlide(id: string, toIndex?: number): Promise<void> {
-    const frame = this.store.elements().find((e) => e.id === id);
-    if (!frame || !this.store.canEdit()) {
+  private async orderSlideCopies(
+    copies: readonly CanvasElementModel[],
+    deck: string,
+    afterId: string | null,
+    toIndex?: number,
+  ): Promise<void> {
+    const copyIds = new Set(copies.map((c) => c.id));
+    const fresh = copies
+      .map((c) => this.store.elements().find((e) => e.id === c.id))
+      .filter((c): c is CanvasElementModel => !!c?.slide && !c.slide.layout)
+      .sort((a, b) => (a.slide!.order ?? 0) - (b.slide!.order ?? 0));
+    if (!fresh.length) return;
+    const list = presentationSlides(this.store.slideFrames(), deck).filter((f) => !copyIds.has(f.id));
+    let at: number;
+    if (toIndex !== undefined) {
+      at = toIndex - 1;
+    } else {
+      at = afterId ? list.findIndex((f) => f.id === afterId) : -1;
+      if (at < 0) at = list.length - 1;
+    }
+    const lo = list[at]?.slide?.order;
+    const hi = list[at + 1]?.slide?.order;
+    const n = fresh.length;
+    for (let i = 0; i < n; i++) {
+      const order =
+        lo === undefined && hi === undefined
+          ? i
+          : lo === undefined
+            ? hi! - (n - i)
+            : hi === undefined
+              ? lo + i + 1
+              : lo + ((hi - lo) * (i + 1)) / (n + 1);
+      const c = fresh[i];
+      if (c.slide!.order !== order) {
+        await this.store.updateElement(c.id, { slide: { ...c.slide!, order } });
+      }
+    }
+  }
+
+  /**
+   * Duplicate slides with everything on them. The copies land right after the last
+   * source in the sequence, or at `toIndex` when given (Alt-drag in the panel).
+   */
+  private async duplicateSlides(ids: readonly string[], toIndex?: number): Promise<void> {
+    const frames = ids
+      .map((id) => this.store.elements().find((e) => e.id === id))
+      .filter((f): f is CanvasElementModel => !!f);
+    if (!frames.length || !this.store.canEdit()) {
       return;
     }
+    const idSet = new Set(frames.map((f) => f.id));
     // Slides are stacked in one spot, so a copy sits exactly on its source.
-    const dx = 0;
     const inner = frameContents(
-      new Set([id]),
+      idSet,
       this.store.elements(),
       this.store.tables(),
       this.store.sequenceDiagrams(),
@@ -6338,39 +6454,46 @@ export class EditorComponent {
       this.store.sequenceMessages(),
       this.store.shownSlideIds(),
     );
-    let newId: string | null = null;
+    const newIds: string[] = [];
     await this.store.batchHistory(async () => {
       const sources = this.store
         .elements()
-        .filter((e) => e.id === id || inner.elementIds.has(e.id));
-      const cloned = await this.cloneItems(inner.tableIds, inner.diagramIds, sources, dx, 0);
-      newId = cloned.copies.get(id)?.id ?? null;
-      if (newId && toIndex !== undefined) {
-        const others = this.store.presentationFrames().filter((f) => f.id !== newId);
-        const lo = others[toIndex - 1]?.slide?.order;
-        const hi = others[toIndex]?.slide?.order;
-        const order =
-          lo === undefined ? (hi ?? 0) - 1 : hi === undefined ? lo + 1 : (lo + hi) / 2;
-        const copy = this.store.elements().find((e) => e.id === newId);
-        if (copy?.slide) {
-          await this.store.updateElement(newId, { slide: { ...copy.slide, order } });
-        }
+        .filter((e) => idSet.has(e.id) || inner.elementIds.has(e.id));
+      const cloned = await this.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0);
+      for (const f of frames) {
+        const c = cloned.copies.get(f.id);
+        if (c) newIds.push(c.id);
+      }
+      const copies = newIds
+        .map((id) => this.store.elements().find((e) => e.id === id))
+        .filter((c): c is CanvasElementModel => !!c);
+      // Slide copies go after the last copied slide of their deck (or into the drop slot).
+      const decks = new Set(copies.filter((c) => c.slide && !c.slide.layout).map((c) => presentationOf(c)));
+      for (const deck of decks) {
+        const mine = copies.filter((c) => presentationOf(c) === deck);
+        const deckSlides = presentationSlides(this.store.slideFrames(), deck);
+        const last = [...deckSlides].reverse().find((f) => idSet.has(f.id));
+        await this.orderSlideCopies(mine, deck, last?.id ?? null, toIndex);
       }
       // A copied layout gets its own name ("Title copy").
-      const copy = newId ? this.store.elements().find((e) => e.id === newId) : undefined;
-      if (copy?.slide?.layout) {
-        const frames = this.store.slideFrames();
-        const names = presentationLayouts(frames, presentationOf(copy))
-          .filter((l) => l.id !== copy.id)
-          .map((l) => layoutNameOf(l, frames));
-        const name = nextCopyName(layoutNameOf(frame, frames), names);
-        await this.store.updateElement(copy.id, {
-          slide: { ...copy.slide, layoutName: name, defaultLayout: undefined, master: undefined },
-        });
+      for (const f of frames) {
+        const id = cloned.copies.get(f.id)?.id;
+        const copy = id ? this.store.elements().find((e) => e.id === id) : undefined;
+        if (copy?.slide?.layout) {
+          const all = this.store.slideFrames();
+          const names = presentationLayouts(all, presentationOf(copy))
+            .filter((l) => l.id !== copy.id)
+            .map((l) => layoutNameOf(l, all));
+          const name = nextCopyName(layoutNameOf(f, all), names);
+          await this.store.updateElement(copy.id, {
+            slide: { ...copy.slide, layoutName: name, defaultLayout: undefined, master: undefined },
+          });
+        }
       }
     });
-    if (newId) {
-      this.focusFrame(newId);
+    if (newIds.length) {
+      this.focusFrame(newIds[newIds.length - 1]);
+      if (newIds.length > 1) this.store.setSelection([], [], newIds);
     }
   }
 
@@ -6438,6 +6561,12 @@ export class EditorComponent {
       event.preventDefault();
       void this.insertImages(files);
       return;
+    }
+    // Something copied elsewhere since our last copy replaces it: don't paste the stale one.
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (this.clipboard && this.clipboardMark !== null && text && text !== this.clipboardMark) {
+      this.clipboard = null;
+      this.clipboardMark = null;
     }
     if (this.clipboard) {
       event.preventDefault();
@@ -6552,7 +6681,14 @@ export class EditorComponent {
   /** Snapshot the selected tables and elements into the in-app clipboard. */
   private copySelection(): void {
     const tableIds = this.store.selectedTableIds();
-    const elementIds = this.store.selectedElementIds();
+    let elementIds = this.store.selectedElementIds();
+    // A slide left selected next to items picked on the canvas means "copy those items",
+    // not the whole slide around them.
+    const slideIds = new Set(this.store.slideFrames().map((f) => f.id));
+    const picked = elementIds.filter((id) => !slideIds.has(id));
+    if (picked.length && picked.length < elementIds.length) {
+      elementIds = picked;
+    }
     // Copying a frame (slide) copies everything inside it too.
     const inner = frameContents(
       new Set(elementIds),
@@ -6580,9 +6716,15 @@ export class EditorComponent {
       frame: elements.find((e) => e.type === 'frame' && elementIds.includes(e.id)) ?? null,
     };
     this.pasteCount = 0;
-    // A lone code block also lands on the system clipboard as plain text.
-    if (!tables.length && elements.length === 1 && elements[0].type === 'code') {
-      void navigator.clipboard?.writeText(elements[0].text ?? '').catch(() => undefined);
+    // A lone code block also lands on the system clipboard as plain text; anything else
+    // leaves a marker there, so a later copy in another app is noticed on paste.
+    const mark =
+      !tables.length && elements.length === 1 && elements[0].type === 'code'
+        ? (elements[0].text ?? '')
+        : `dbdesigner:${Date.now()}`;
+    this.clipboardMark = mark || null;
+    if (mark) {
+      void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));
     }
   }
 
@@ -6640,18 +6782,28 @@ export class EditorComponent {
         dx,
         dy,
       );
-      const copy = result ? [...result.copies.values()].find((c) => c.type === 'frame' && c.slide) : undefined;
-      if (intoOther && copy?.slide && target && targetShown) {
-        await this.store.updateElement(copy.id, { slide: this.slideForPresentation(copy, target, targetShown) });
+      const slideCopies = result
+        ? [...result.copies.values()].filter((c) => c.type === 'frame' && c.slide && !c.slide.layout)
+        : [];
+      if (intoOther && target && targetShown) {
+        for (const copy of slideCopies) {
+          await this.store.updateElement(copy.id, { slide: this.slideForPresentation(copy, target, targetShown) });
+        }
+        await this.orderSlideCopies(slideCopies, target, targetShown.id);
+      } else if (slideCopies.length) {
+        // Pasted slides go right after the slide shown in their deck, in their copied order.
+        const deck = presentationOf(slideCopies[0]);
+        await this.orderSlideCopies(slideCopies, deck, this.store.shownByPresentation().get(deck) ?? null);
       }
     });
     const r = result as { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null;
     if (!r) {
       return;
     }
-    const pastedSlide = [...r.copies.values()].find((c) => c.type === 'frame' && c.slide);
-    if (pastedSlide) {
-      this.focusFrame(pastedSlide.id);
+    const pastedSlides = [...r.copies.values()].filter((c) => c.type === 'frame' && c.slide);
+    if (pastedSlides.length) {
+      this.focusFrame(pastedSlides[pastedSlides.length - 1].id);
+      if (pastedSlides.length > 1) this.store.setSelection([], [], pastedSlides.map((c) => c.id));
       return;
     }
     // Pasted content lands on the slide that is shown, not on the one it was copied from.
@@ -6799,6 +6951,9 @@ export class EditorComponent {
           } else if (!hit.wrap) {
             this.store.patchElementLocal(hit.id, this.fitTextSize(hit, hit.text ?? ''));
           }
+        }
+        if (hit.type === 'text') {
+          this.editClickPoint = { x: clientX, y: clientY };
         }
         this.editingTextId.set(hit.id);
       }
@@ -7158,11 +7313,12 @@ export class EditorComponent {
         if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
       }
       const view = this.itemScale(grabbedId) !== 1 ? this.viewOf(grabbedId) : undefined;
-      this.smartBase = { box, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
+      this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
     }
     const base = this.smartBase;
     const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
-    const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId));
+    const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
+    const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId), parts);
     // Shift constrains the drag to one axis; don't let a snap pull it off.
     if (this.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
     if (this.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });

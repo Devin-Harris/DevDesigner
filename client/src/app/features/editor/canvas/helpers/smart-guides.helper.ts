@@ -56,8 +56,28 @@ interface Candidate {
   gaps?: (shifted: Box) => GapGuide[];
 }
 
-/** Best offset along one axis from edge/center alignment and equal spacing. */
-function bestOnAxis(m: Box, targets: readonly Box[], a: Axis, thr: number): Candidate | null {
+/** Positive gaps between neighbours along `a` that share a row/column. */
+function rowGaps(boxes: readonly Box[], a: Axis): [Box, Box][] {
+  const c = other(a);
+  const sorted = [...boxes].sort((p, q) => lo(p, a) - lo(q, a));
+  const out: [Box, Box][] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    // The nearest later box in the same row (skipping ones that overlap along `a`).
+    const p = sorted[i];
+    const q = sorted
+      .slice(i + 1)
+      .filter((b) => lo(b, a) > hi(p, a) && overlaps(b, p, c))
+      .sort((x, y) => lo(x, a) - lo(y, a))[0];
+    if (q) out.push([p, q]);
+  }
+  return out;
+}
+
+/**
+ * Best offset along one axis from edge/center alignment and equal spacing.
+ * `parts` are the individual moving items, whose own gaps count as references.
+ */
+function bestOnAxis(m: Box, parts: readonly Box[], targets: readonly Box[], a: Axis, thr: number): Candidate | null {
   let best: Candidate | null = null;
   const consider = (c: Candidate) => {
     if (Math.abs(c.delta) <= thr && (!best || Math.abs(c.delta) < Math.abs(best.delta) - 0.01)) best = c;
@@ -82,14 +102,25 @@ function bestOnAxis(m: Box, targets: readonly Box[], a: Axis, thr: number): Cand
       consider({ delta: start - lo(m, a), gaps: (s) => [gap(l, s), gap(s, r)] });
     }
   }
-  // Continuing an existing gap between two adjacent items (lists of cards).
-  for (let i = 0; i + 1 < row.length; i++) {
-    const p = row[i];
-    const q = row[i + 1];
-    const g = lo(q, a) - hi(p, a);
-    if (g <= 0) continue;
-    consider({ delta: hi(q, a) + g - lo(m, a), gaps: (s) => [gap(p, q), gap(q, s)] });
-    consider({ delta: lo(p, a) - g - size - lo(m, a), gaps: (s) => [gap(s, p), gap(p, q)] });
+  // Matching a gap already used in this row (or inside the moving selection),
+  // placed against the nearest item on either side (lists of cards).
+  const shift = (b: Box, s: Box): Box => {
+    const dx = s.x0 - m.x0;
+    const dy = s.y0 - m.y0;
+    return { x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy };
+  };
+  const refs: { g: number; marks: (s: Box) => GapGuide[] }[] = [
+    ...rowGaps(row, a).map(([p, q]) => ({ g: lo(q, a) - hi(p, a), marks: () => [gap(p, q)] })),
+    ...rowGaps(parts.length > 1 ? parts : [], a).map(([p, q]) => ({
+      g: lo(q, a) - hi(p, a),
+      marks: (s: Box) => [gap(shift(p, s), shift(q, s))],
+    })),
+  ];
+  const before = row.filter((t) => hi(t, a) <= lo(m, a) + thr).pop();
+  const after = row.find((t) => lo(t, a) >= hi(m, a) - thr);
+  for (const { g, marks } of refs) {
+    if (before) consider({ delta: hi(before, a) + g - lo(m, a), gaps: (s) => [...marks(s), gap(before, s)] });
+    if (after) consider({ delta: lo(after, a) - g - hi(m, a), gaps: (s) => [gap(s, after), ...marks(s)] });
   }
   return best as Candidate | null;
 }
@@ -117,10 +148,10 @@ function linesOn(m: Box, targets: readonly Box[], a: Axis): AlignGuide[] {
  * Figma-style smart guides: snap `moving` to the edges/centers of nearby
  * targets and to equal spacing in a row or column. `zoom` scales the reach.
  */
-export function smartSnap(moving: Box, targets: readonly Box[], zoom: number): SmartSnap {
+export function smartSnap(moving: Box, targets: readonly Box[], zoom: number, parts: readonly Box[] = []): SmartSnap {
   const thr = SNAP_PX / zoom;
-  const bx = bestOnAxis(moving, targets, 'x', thr);
-  const by = bestOnAxis(moving, targets, 'y', thr);
+  const bx = bestOnAxis(moving, parts, targets, 'x', thr);
+  const by = bestOnAxis(moving, parts, targets, 'y', thr);
   const ox = bx?.delta ?? 0;
   const oy = by?.delta ?? 0;
   const s: Box = { x0: moving.x0 + ox, y0: moving.y0 + oy, x1: moving.x1 + ox, y1: moving.y1 + oy };
