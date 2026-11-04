@@ -40,6 +40,19 @@
             [attr.height]="g.rect.height" [attr.rx]="g.rect.rx"></rect>
         </clipPath>
       }
+      @if (s.image?.clip; as ic) {
+        <!-- A cropped or clipped picture shows only its box / clip shape. -->
+        <clipPath [attr.id]="ic.id">
+          @if (ic.rect; as r) {
+            <rect [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.width" [attr.height]="r.height"
+              [attr.rx]="r.rx"></rect>
+          } @else if (ic.ellipse; as e) {
+            <ellipse [attr.cx]="e.cx" [attr.cy]="e.cy" [attr.rx]="e.rx" [attr.ry]="e.ry"></ellipse>
+          } @else {
+            <polygon [attr.points]="ic.polygon"></polygon>
+          }
+        </clipPath>
+      }
       @if (s.code; as c) {
         <!-- Keeps code that outgrows a resized card inside it. -->
         <clipPath [attr.id]="c.clipId">
@@ -100,21 +113,6 @@
           ></rect>
         }
         @if (s.image; as img) {
-          <!-- Pictures render through <image> (static mode: SVG scripts never run). -->
-          @if (images.url(img.fileId); as href) {
-            <image
-              [attr.href]="href"
-              [attr.x]="img.x"
-              [attr.y]="img.y"
-              [attr.width]="img.width"
-              [attr.height]="img.height"
-              preserveAspectRatio="none"
-              pointer-events="none"
-            ></image>
-          } @else {
-            <rect class="image-pending" [attr.x]="img.x" [attr.y]="img.y"
-              [attr.width]="img.width" [attr.height]="img.height" rx="4"></rect>
-          }
           <rect
             class="hit"
             [attr.x]="img.x"
@@ -122,7 +120,38 @@
             [attr.width]="img.width"
             [attr.height]="img.height"
             (pointerdown)="onBody(s.id, $event)"
+            (pointerenter)="hoveredId.set(s.id)"
+            (pointerleave)="hoveredId.set(null)"
           ></rect>
+          @if (croppingId() === s.id) {
+            <!-- Drawn by the crop overlay while cropping. -->
+          } @else if (images.kind(img.fileId) === 'video' && images.url(img.fileId); as href) {
+            <!-- Videos play in a small HTML player (scales with the canvas zoom). -->
+            <foreignObject [attr.x]="img.x" [attr.y]="img.y" [attr.width]="img.width"
+              [attr.height]="img.height" pointer-events="none">
+              <app-media-video
+                [view]="img"
+                [src]="$any(href)"
+                [poster]="images.posterUrl(img.fileId)"
+                [controls]="s.selected && interactive()"
+              ></app-media-video>
+            </foreignObject>
+          } @else if (pictureHref(s.id, img, s.selected); as href) {
+            <!-- Pictures render through <image> (static mode: SVG scripts never run). -->
+            <image
+              [attr.href]="href"
+              [attr.x]="img.src.x"
+              [attr.y]="img.src.y"
+              [attr.width]="img.src.width"
+              [attr.height]="img.src.height"
+              [attr.clip-path]="img.clip ? 'url(#' + img.clip.id + ')' : null"
+              preserveAspectRatio="none"
+              pointer-events="none"
+            ></image>
+          } @else {
+            <rect class="image-pending" [attr.x]="img.x" [attr.y]="img.y"
+              [attr.width]="img.width" [attr.height]="img.height" rx="4"></rect>
+          }
         }
         @if (s.grid; as g) {
           <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
@@ -400,7 +429,7 @@
         }
       </g>
 
-      @if (s.selected && s.id !== editingId()) {
+      @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {
         <g [attr.transform]="s.transform" class="selection">
           @if (s.ends) {
             <!-- Line/arrow: draggable endpoint handles. -->

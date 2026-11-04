@@ -146,6 +146,10 @@ export class ElementEntity {
   @Column({ type: 'varchar', nullable: true })
   fileId!: string | null;
 
+  /** Image elements: JSON-encoded MediaConfig (crop, clip shape, playback); null = defaults. */
+  @Column({ type: 'text', nullable: true })
+  mediaJson!: string | null;
+
   /** Code elements: the highlight language of `text`. */
   @Column({ type: 'varchar', nullable: true })
   language!: CodeLanguage | null;

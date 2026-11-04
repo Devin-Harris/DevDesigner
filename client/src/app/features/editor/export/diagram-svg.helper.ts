@@ -340,11 +340,23 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
     body.push(renderGridTable(view, dash));
   } else if (view.image) {
     // Embedded as a data: URI so the exported file is self-contained.
-    const href = imageData.get(view.image.fileId);
+    const img = view.image;
+    const href = imageData.get(img.fileId);
     if (href) {
+      let clip = '';
+      if (img.clip) {
+        const c = img.clip;
+        const outline = c.rect
+          ? `<rect x="${c.rect.x}" y="${c.rect.y}" width="${c.rect.width}" height="${c.rect.height}" rx="${c.rect.rx}" />`
+          : c.ellipse
+            ? `<ellipse cx="${c.ellipse.cx}" cy="${c.ellipse.cy}" rx="${c.ellipse.rx}" ry="${c.ellipse.ry}" />`
+            : `<polygon points="${c.polygon}" />`;
+        body.push(`<clipPath id="${esc(c.id)}">${outline}</clipPath>`);
+        clip = ` clip-path="url(#${esc(c.id)})"`;
+      }
       body.push(
-        `<image href="${esc(href)}" x="${view.image.x}" y="${view.image.y}" ` +
-          `width="${view.image.width}" height="${view.image.height}" preserveAspectRatio="none" />`,
+        `<image href="${esc(href)}" x="${img.src.x}" y="${img.src.y}" ` +
+          `width="${img.src.width}" height="${img.src.height}" preserveAspectRatio="none"${clip} />`,
       );
     }
   } else if (view.rect) {

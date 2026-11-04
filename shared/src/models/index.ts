@@ -10,6 +10,8 @@ import type {
   CodeLanguage,
   ElementType,
   FillStyle,
+  MediaClipShape,
+  MediaPlayback,
   MorphBy,
   RelationshipType,
   SlideAnimationEffect,
@@ -181,6 +183,28 @@ export interface SlideAnimation {
  * belongs to the project's slide sequence; the sequence is the frames that have
  * one, sorted by `order`. A frame without it is just a page on the canvas.
  */
+/**
+ * How an image element shows its file: the visible part of the source (crop), a
+ * clip shape, and when GIFs/videos play. Absent = whole picture, rectangle, defaults.
+ */
+export interface MediaConfig {
+  /**
+   * Visible region of the source as fractions of its size (0..1 inside the picture;
+   * values past the edges leave empty space). Absent = the whole source.
+   */
+  crop?: { x: number; y: number; width: number; height: number };
+  /** Clip the element box to this shape (rectangle = rounded by `clipRadius`). */
+  clip?: MediaClipShape;
+  /** Rectangle clip corner radius (px). */
+  clipRadius?: number;
+  /** GIFs default to `click` (still until clicked), videos to `click` (play from their controls). */
+  playback?: MediaPlayback;
+  /** Videos: start over at the end (GIFs always loop). */
+  loop?: boolean;
+  /** Videos: start muted. */
+  muted?: boolean;
+}
+
 /** Optional style type of a placeholder (for theming); a slide's copy keeps it. */
 export const PLACEHOLDER_ROLES = ['title', 'subtitle', 'body', 'emphasis', 'caption', 'other'] as const;
 export type PlaceholderRole = (typeof PLACEHOLDER_ROLES)[number];
@@ -322,8 +346,10 @@ export interface CanvasElementModel {
   endArrowhead?: ArrowheadType;
   /** Line/arrow only: perpendicular offset (px) of the curve's midpoint from the straight chord; 0/absent = straight. */
   curvature?: number;
-  /** Image only: id of the uploaded project image this element displays. */
+  /** Image only: id of the uploaded project image (or video) this element displays. */
   fileId?: string;
+  /** Image only: crop, clip shape and playback. */
+  media?: MediaConfig;
   /** Code only: the language the `text` is highlighted as (default typescript). */
   language?: CodeLanguage;
   /** Code only: optional file name shown in a title bar (simulates the code living in that file). */

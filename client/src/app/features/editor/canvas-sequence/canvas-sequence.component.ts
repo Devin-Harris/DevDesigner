@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { ProjectStore } from '../../../stores/project.store';
-import { SequenceDiagramComponent } from '../sequence-diagram/sequence-diagram.component';
+import {
+  SequenceDiagramComponent,
+  type SmartDragEndFn,
+  type GroupResizeFn,
+  type SmartDragFn,
+} from '../sequence-diagram/sequence-diagram.component';
 
 type WorldFn = (clientX: number, clientY: number) => { x: number; y: number };
 type SnapFn = (n: number) => number;
@@ -25,6 +30,10 @@ export class CanvasSequenceComponent {
   readonly toWorld = input<WorldFn | null>(null);
   /** Snap a world coordinate to the grid (identity when grid-snap is off). */
   readonly snap = input<SnapFn | null>(null);
+  /** Smart-guide snapping for whole-diagram drags (null when not wired). */
+  readonly smartDrag = input<SmartDragFn | null>(null);
+  readonly smartDragEnd = input<SmartDragEndFn | null>(null);
+  readonly groupResize = input<GroupResizeFn | null>(null);
   /** Diagram ids to leave out (collapsed by the slides focus mode). */
   readonly hiddenIds = input<ReadonlySet<string> | null>(null);
   /** Per-diagram z-index (stacking against drawing elements), from the editor. */

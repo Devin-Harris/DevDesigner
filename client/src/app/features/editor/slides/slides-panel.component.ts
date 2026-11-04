@@ -82,6 +82,7 @@ import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
 import { ensureFontLoaded, fitTextElement } from '../canvas/helpers/text-metrics';
 import { AnimationPaneComponent } from './animation-pane.component';
 import {
+  isLayoutStandIn,
   masterStandIns,
   placeholderDrift,
   placeholderGhosts,
@@ -704,7 +705,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           <button
                             class="btn wide"
                             (click)="resetSlide(true)"
-                            title="Put the selected placeholders back where and how the layout has them; keeps the text"
+                            title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
                           >
                             <dbd-icon name="undo" />Reset selected to layout
                           </button>
@@ -712,7 +713,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           <button
                             class="btn wide"
                             (click)="resetSlide(false)"
-                            title="Put every placeholder back where and how the layout has them and bring back deleted ones; keeps the text"
+                            title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
                           >
                             <dbd-icon name="undo" />Reset slide to layout
                           </button>
@@ -2014,12 +2015,13 @@ export class SlidesPanelComponent {
     this.store.elements();
     const slide = this.driftSlide();
     const d = slide ? placeholderDrift(this.store, slide) : null;
-    return d && (d.changed.length || d.missing.length) ? d : null;
+    return d && (d.changed.length || d.missing.length || d.objects.length) ? d : null;
   });
   /** Selected placeholders that drifted (reset just those). */
   protected readonly selectedDrifted = computed(() => {
     const ids = new Set(this.store.selectedElementIds());
-    return this.drift()?.changed.filter((c) => ids.has(c.id)) ?? [];
+    const d = this.drift();
+    return d ? [...d.changed, ...d.objects].filter((c) => ids.has(c.id)) : [];
   });
   protected driftLabel(d: PlaceholderDrift): string {
     const parts = [
@@ -2027,6 +2029,7 @@ export class SlidesPanelComponent {
         ? `${d.changed.length} placeholder${d.changed.length > 1 ? 's' : ''} changed`
         : '',
       d.missing.length ? `${d.missing.length} deleted` : '',
+      d.objects.length ? `${d.objects.length} object${d.objects.length > 1 ? 's' : ''} changed` : '',
     ].filter(Boolean);
     return parts.join(', ') + ' from the layout';
   }
@@ -2043,7 +2046,7 @@ export class SlidesPanelComponent {
     const a = this.shownLayout() ?? (this.activeSlides().length <= 1 ? this.active() : null);
     // A copy made by just clicking the item, still as the master has it, is not a change.
     return a && !a.slide?.master
-      ? masterStandIns(this.store, a.id).filter((e) => standInChanged(this.store, e))
+      ? masterStandIns(this.store, a.id).filter((e) => !isLayoutStandIn(this.store, e) && standInChanged(this.store, e))
       : [];
   });
   protected readonly selectedStandIns = computed(() => {

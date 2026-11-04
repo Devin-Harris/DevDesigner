@@ -4,6 +4,9 @@
       [diagramId]="d.id"
       [toWorld]="toWorld()"
       [snap]="snap()"
+      [smartDrag]="smartDrag()"
+      [smartDragEnd]="smartDragEnd()"
+      [groupResize]="groupResize()"
       [style.z-index]="layerZ()?.get(d.id) ?? null"
     />
   }

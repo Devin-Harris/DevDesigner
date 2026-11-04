@@ -466,6 +466,7 @@ export async function writeSchemaInto(
       endArrowhead: e.endArrowhead ?? null,
       curvature: e.curvature ?? null,
       fileId: e.fileId ?? null,
+      mediaJson: e.type === 'image' && e.media ? JSON.stringify(e.media) : null,
       language: e.type === 'code' ? (e.language ?? 'typescript') : null,
       fileName: e.type === 'code' ? (e.fileName?.trim() || null) : null,
       expandedHeight: e.type === 'code' ? (e.expandedHeight ?? null) : null,

@@ -182,6 +182,28 @@ export const IMAGE_MIME_TYPES: readonly string[] = [
 /** Largest accepted image upload, in bytes (decoded). */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/** Video formats accepted for image elements (a video file behind `fileId`). */
+export const VIDEO_MIME_TYPES: readonly string[] = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'] as const;
+
+/** Largest accepted video upload, in bytes (decoded). */
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+
+/** Every file type an image element can show (pictures and videos). */
+export const MEDIA_MIME_TYPES: readonly string[] = [...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES];
+
+/** Largest upload for a file of this type. */
+export function maxMediaBytes(mimeType: string): number {
+  return VIDEO_MIME_TYPES.includes(mimeType) ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+}
+
+/** When an animated picture (GIF) or video starts: on its own, on click, or while hovered. */
+export type MediaPlayback = 'auto' | 'click' | 'hover';
+export const MEDIA_PLAYBACK_MODES: readonly MediaPlayback[] = ['auto', 'click', 'hover'] as const;
+
+/** Shapes an image can be clipped to (from "clip to shape"). */
+export type MediaClipShape = 'rectangle' | 'ellipse' | 'diamond';
+export const MEDIA_CLIP_SHAPES: readonly MediaClipShape[] = ['rectangle', 'ellipse', 'diamond'] as const;
+
 /** How a slide is entered during a presentation (the transition INTO that slide). */
 export type SlideTransitionType = 'none' | 'fade' | 'slide' | 'zoom' | 'morph';
 export const SLIDE_TRANSITION_TYPES: readonly SlideTransitionType[] = [

@@ -19,6 +19,7 @@ import { RealtimeService } from '../../../core/services/realtime.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { MorphStage } from './morph-stage';
 import { slideAtStep, type RenderedSlide } from './slide-render.service';
+import { SlideMediaLayerComponent } from '../media/slide-media-layer.component';
 import { playGroup, undoGroup } from './step-animator';
 
 /** CSS cubic-bezier control points per easing name. */
@@ -80,7 +81,7 @@ const TRAVEL: Record<string, [number, number]> = {
   selector: 'app-present-mode',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [IconComponent, SlideMediaLayerComponent],
   template: `
     <div
       #root
@@ -105,6 +106,15 @@ const TRAVEL: Record<string, [number, number]> = {
           }
         }
         <div #overlay class="overlay"></div>
+        <!-- GIFs and videos play live over the settled slide (not during transitions). -->
+        @if (liveMedia(); as lm) {
+          <app-slide-media-layer
+            [media]="lm.slide.media"
+            [hidden]="lm.hidden"
+            [slideWidth]="lm.slide.width"
+            [slideHeight]="lm.slide.height"
+          ></app-slide-media-layer>
+        }
       </div>
 
       @if (lasers().length) {
@@ -491,6 +501,15 @@ export class PresentModeComponent {
     const per = this.urlList()[slideIndex] ?? [];
     return Math.min(this.step(), per.length - 1) === k;
   }
+  /** The current slide's GIFs/videos and what its animation step hides (none while busy). */
+  protected readonly liveMedia = computed(() => {
+    const slide = this.slides()[this.index()];
+    if (!slide?.media?.length || this.busy()) {
+      return null;
+    }
+    const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step(), slide.maxStep)] ?? null) : null;
+    return { slide, hidden };
+  });
   protected readonly current = computed(
     () => this.slides()[this.index()] ?? { name: '', notes: '', maxStep: 0 },
   );

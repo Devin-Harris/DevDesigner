@@ -26,6 +26,7 @@ import type {
   SchemaModel,
   SlideConfig,
   PlaceholderConfig,
+  MediaConfig,
   TextRun,
 } from '../models';
 import type { SchemaMutation } from '../realtime';
@@ -331,6 +332,8 @@ export interface CreateElementDto {
   curvature?: number;
   /** Image only: the uploaded project image to display (see UploadImageDto). */
   fileId?: string;
+  /** Image only: crop, clip shape and playback. */
+  media?: MediaConfig;
   /** Code only: the highlight language of `text`. */
   language?: CodeLanguage;
   /** Code only: optional file name title bar. */
@@ -393,6 +396,8 @@ export interface UpdateElementDto {
   /** Frame only: slide config; null removes the frame from the sequence. */
   slide?: SlideConfig | null;
   placeholder?: PlaceholderConfig | null;
+  /** Image only: crop/clip/playback; null clears it. */
+  media?: MediaConfig | null;
   overrides?: string | null;
   /** Morph lineage; null clears an explicit pairing. */
   morphId?: string | null;

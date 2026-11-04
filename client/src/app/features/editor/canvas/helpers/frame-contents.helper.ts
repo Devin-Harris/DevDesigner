@@ -172,7 +172,9 @@ export function contentForFrame<
     ? layoutElements(elements, masterId, 2).filter((e) => !bySlide.has(e.id!) && !byLayout.has(e.id!))
     : [];
   const layoutItems = layoutId
-    ? layoutElements(elements, layoutId).filter((e) => !isMasterDeletion(e) && !bySlide.has(overriddenId(e) ?? ''))
+    ? layoutElements(elements, layoutId).filter(
+        (e) => !isMasterDeletion(e) && !bySlide.has(e.id!) && !bySlide.has(overriddenId(e) ?? ''),
+      )
     : [];
   const ds = diagrams.filter((d) => mine(d.slideId));
   const ids = new Set(ds.map((d) => d.id));

@@ -64,6 +64,47 @@
   }
 }
 
+// Font family / size pickers show their current value.
+.font-pick {
+  max-width: 132px;
+  gap: 2px;
+  padding: 0 4px 0 8px;
+  color: var(--dbd-text);
+  font-size: 13px;
+  --dbd-icon-size: 16px;
+  .pick-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.size-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--dbd-border);
+  border-radius: 8px;
+  margin: 0 2px;
+}
+.size-pick {
+  min-width: 40px;
+  height: 28px;
+  padding: 0 4px;
+  color: var(--dbd-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.size-input {
+  box-sizing: border-box;
+  width: calc(100% - 16px);
+  margin: 2px 8px 6px;
+  padding: 4px 6px;
+  font: inherit;
+  color: var(--dbd-text);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  border-radius: 6px;
+}
+
 .sep {
   width: 1px;
   height: 22px;
@@ -208,4 +249,9 @@
   font-size: 11px;
   line-height: 1.35;
   color: var(--dbd-text-muted);
+}
+
+.menu-head {
+  display: block;
+  padding: 6px 10px 2px;
 }

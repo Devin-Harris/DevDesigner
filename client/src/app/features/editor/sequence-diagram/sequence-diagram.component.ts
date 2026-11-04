@@ -58,6 +58,16 @@ interface BoundingBox {
 
 type WorldFn = (clientX: number, clientY: number) => { x: number; y: number };
 type SnapFn = (n: number) => number;
+/** Smart-guide correction for a diagram drag by (dx, dy) of the given items. */
+export type SmartDragFn = (
+  diagramId: string,
+  items: { diagrams: Iterable<string>; elements: Iterable<string>; tables: Iterable<string> },
+  dx: number,
+  dy: number,
+) => { ox: number; oy: number; snappedX: boolean; snappedY: boolean } | null;
+export type SmartDragEndFn = () => void;
+/** Start a resize of the whole multi-selection; false when it isn't one. */
+export type GroupResizeFn = (handle: string, event: PointerEvent) => boolean;
 /** All eight resize handles, like any other shape. */
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
@@ -168,6 +178,11 @@ export class SequenceDiagramComponent {
   readonly toWorld = input<WorldFn | null>(null);
   /** Snap a world coordinate to the grid (identity when grid-snap is off). */
   readonly snap = input<SnapFn | null>(null);
+  /** Smart-guide snapping against nearby items, supplied by the editor. */
+  readonly smartDrag = input<SmartDragFn | null>(null);
+  readonly smartDragEnd = input<SmartDragEndFn | null>(null);
+  /** Editor hook: resize the whole multi-selection together (false when not multi). */
+  readonly groupResize = input<GroupResizeFn | null>(null);
 
   /**
    * This diagram's record, read straight from the store signal (not via an input)
@@ -227,8 +242,10 @@ export class SequenceDiagramComponent {
     return !!gid && gid !== this.store.enteredGroupId();
   }
 
-  /** Resize handles only show when this is the sole selected diagram. */
-  protected readonly soleSelected = computed(() => this.store.selectedDiagramId() === this.diagram().id);
+  /** Resize handles show when this diagram is selected (alone, or with others to scale together). */
+  protected readonly soleSelected = computed(
+    () => this.store.selectedDiagramId() === this.diagram().id || this.sequenceSelected(),
+  );
 
   /** Snap a world-y to its row centre on the grid (row 1 is the first below the header). */
   protected rowY(y: number): number {
@@ -551,6 +568,7 @@ export class SequenceDiagramComponent {
   protected onResizeDown(event: PointerEvent, handle: Handle): void {
     event.stopPropagation();
     if (!this.canEdit()) return;
+    if (this.groupResize()?.(handle, event)) return;
     this.store.selectSequence(this.diagram().id);
     this.layoutBefore = this.snapshotLayout(this.diagram().id);
     this.startDrag();
@@ -766,12 +784,24 @@ export class SequenceDiagramComponent {
     if (Math.hypot(event.clientX - d.startX, event.clientY - d.startY) < 3) return;
     let dx = (event.clientX - d.startX) / this.zoom();
     let dy = (event.clientY - d.startY) / this.zoom();
+    const smart = this.smartDrag()?.(
+      d.diagramId,
+      {
+        diagrams: [d.diagramId, ...d.others.map((o) => o.diagramId)],
+        elements: d.companions.elements.keys(),
+        tables: d.companions.tables.keys(),
+      },
+      dx,
+      dy,
+    );
+    dx += smart?.ox ?? 0;
+    dy += smart?.oy ?? 0;
     const snap = this.snap();
     if (snap && d.startXs.size) {
-      // Align the block by its leftmost spine and its origin.
+      // Align the block by its leftmost spine and its origin (axes a smart guide caught stay put).
       const refX = Math.min(...d.startXs.values());
-      dx = snap(refX + dx) - refX;
-      dy = snap(d.startOriginY + dy) - d.startOriginY;
+      if (!smart?.snappedX) dx = snap(refX + dx) - refX;
+      if (!smart?.snappedY) dy = snap(d.startOriginY + dy) - d.startOriginY;
     }
     this.store.shiftSequence(d.diagramId, d.startXs, dx, d.startOriginY, dy, d.startRows);
     for (const o of d.others) {
@@ -906,6 +936,7 @@ export class SequenceDiagramComponent {
     const d = this.drag;
     if (this.duplicating) {
       // Released before the copy existed: leave the original put and the copy in place.
+      if (d?.kind === 'diagram') this.smartDragEnd()?.();
       this.drag = null;
       return;
     }
@@ -967,6 +998,8 @@ export class SequenceDiagramComponent {
       // where no intermediate pointermove fired), then persist everything.
       if (d.kind === 'diagram') {
         this.shiftDiagram(d, event);
+        // Only now: the final shift above still snaps against the drag's start box.
+        this.smartDragEnd()?.();
       } else {
         this.applyResize(d, event);
       }

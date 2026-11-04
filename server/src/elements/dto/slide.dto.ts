@@ -14,6 +14,11 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  MEDIA_CLIP_SHAPES,
+  MEDIA_PLAYBACK_MODES,
+  type MediaClipShape,
+  type MediaConfig,
+  type MediaPlayback,
   MAX_ANIMATION_DELAY,
   MAX_ANIMATION_DURATION,
   MAX_SLIDE_ANIMATIONS,
@@ -96,6 +101,58 @@ export class SlideAnimationDto implements SlideAnimation {
   @IsOptional()
   @IsIn([...SLIDE_DIRECTIONS])
   direction?: SlideDirection;
+}
+
+class MediaCropDto {
+  @IsNumber()
+  @Min(-100)
+  @Max(100)
+  x!: number;
+
+  @IsNumber()
+  @Min(-100)
+  @Max(100)
+  y!: number;
+
+  @IsNumber()
+  @Min(0.0001)
+  @Max(1000)
+  width!: number;
+
+  @IsNumber()
+  @Min(0.0001)
+  @Max(1000)
+  height!: number;
+}
+
+/** An image element's crop, clip shape and playback. */
+export class MediaDto implements MediaConfig {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MediaCropDto)
+  crop?: MediaConfig['crop'];
+
+  @IsOptional()
+  @IsIn(MEDIA_CLIP_SHAPES)
+  clip?: MediaClipShape;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  clipRadius?: number;
+
+  @IsOptional()
+  @IsIn(MEDIA_PLAYBACK_MODES)
+  playback?: MediaPlayback;
+
+  @IsOptional()
+  @IsBoolean()
+  loop?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  muted?: boolean;
 }
 
 /** A frame's place in the slide sequence plus its transition and notes. */

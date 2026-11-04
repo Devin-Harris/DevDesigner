@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
-import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES } from '@dbdesigner/shared';
+import { MEDIA_MIME_TYPES, maxMediaBytes } from '@dbdesigner/shared';
 import type { ProjectExportImage, UploadImageResponse } from '@dbdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { ElementEntity } from '../elements/element.entity';
@@ -82,18 +82,19 @@ export class ImagesService {
 
   /** Decode + validate an embedded/uploaded image; throws 400 on anything unacceptable. */
   validate(mimeType: string, base64: string): Buffer {
-    if (!IMAGE_MIME_TYPES.includes(mimeType)) {
+    if (!MEDIA_MIME_TYPES.includes(mimeType)) {
       throw new BadRequestException(
-        `Unsupported image type. Use ${IMAGE_MIME_TYPES.join(', ')}.`,
+        `Unsupported file type. Use ${MEDIA_MIME_TYPES.join(', ')}.`,
       );
     }
     const data = Buffer.from(base64, 'base64');
     if (data.length === 0) {
       throw new BadRequestException('The image is empty.');
     }
-    if (data.length > MAX_IMAGE_BYTES) {
+    const max = maxMediaBytes(mimeType);
+    if (data.length > max) {
       throw new BadRequestException(
-        `Images can be at most ${Math.round(MAX_IMAGE_BYTES / (1024 * 1024))} MB.`,
+        `${mimeType.startsWith('video/') ? 'Videos' : 'Images'} can be at most ${Math.round(max / (1024 * 1024))} MB.`,
       );
     }
     if (mimeType === 'image/svg+xml') {

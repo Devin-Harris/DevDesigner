@@ -118,7 +118,7 @@
       <dbd-icon name="description" />
     </button>
 
-    <button class="tb" matTooltip="Fit to content" [disabled]="!store.canEdit()" (click)="fitToContent()">
+    <button class="tb" matTooltip="Fit to content (Shift+Alt+S)" [disabled]="!store.canEdit()" (click)="fitToContent()">
       <dbd-icon name="fit_screen" />
     </button>
 
@@ -168,32 +168,46 @@
         </div>
       </ng-template>
     }
-    <button class="tb wide" [dbdPopoverTrigger]="fontMenu" placement="below-start" matTooltip="Font" [disabled]="!store.canEdit()">
-      <dbd-icon name="font_download" />
+    <button class="tb wide font-pick" [dbdPopoverTrigger]="fontMenu" placement="below-start"
+      [matTooltip]="multiText() ? 'Font (all selected text)' : 'Font'" [disabled]="!store.canEdit()">
+      <span class="pick-label" [style.font-family]="fontLabelStack()">{{ fontLabel() }}</span>
+      <dbd-icon name="expand_more" />
     </button>
     <ng-template #fontMenu let-close>
       <div class="dbd-menu">
         @if (themeFonts().length) {
           <div class="dbd-menu-label">Theme fonts</div>
           @for (f of themeFonts(); track f.value) {
-            <button class="dbd-menu-item" [class.on]="f.value === element().fontFamily" [style.font-family]="f.stack" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
+            <button class="dbd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="f.stack" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
           }
           <div class="dbd-menu-sep"></div>
           <div class="dbd-menu-label">Fonts</div>
         }
         @for (f of fonts; track f.value) {
-          <button class="dbd-menu-item" [class.on]="f.value === (element().fontFamily ?? 'normal')" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
+          <button class="dbd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
         }
       </div>
     </ng-template>
 
-    <button class="tb" [dbdPopoverTrigger]="sizeMenu" placement="below-start" matTooltip="Font size" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_size" />
-    </button>
+    <div class="size-group">
+      <button class="tb sm" matTooltip="Smaller text" [disabled]="!store.canEdit()" (click)="stepFontSize(-1)">
+        <dbd-icon name="remove" />
+      </button>
+      <button class="tb wide size-pick" [dbdPopoverTrigger]="sizeMenu" placement="below-start"
+        [matTooltip]="multiText() ? 'Font size (all selected text)' : 'Font size'" [disabled]="!store.canEdit()">
+        {{ sharedSize() ?? 'Mixed' }}
+      </button>
+      <button class="tb sm" matTooltip="Larger text" [disabled]="!store.canEdit()" (click)="stepFontSize(1)">
+        <dbd-icon name="add" />
+      </button>
+    </div>
     <ng-template #sizeMenu let-close>
       <div class="dbd-menu">
+        <div class="dbd-menu-label">Font size</div>
+        <input class="size-input" type="number" min="4" max="400" [value]="sharedSize() ?? ''" placeholder="Mixed"
+          (keydown.enter)="setCustomFontSize($any($event.target).value); close()" />
         @for (s of fontSizes; track s) {
-          <button class="dbd-menu-item" [class.on]="s === element().fontSize" (click)="setFontSize(s); close()">{{ s }} px</button>
+          <button class="dbd-menu-item" [class.on]="s === sharedSize()" (click)="setFontSize(s); close()">{{ s }} px</button>
         }
       </div>
     </ng-template>
@@ -302,7 +316,49 @@
     </ng-template>
   }
 
+  <!-- Pictures and videos: crop, clip to shape, playback -->
+  @if (media.clipPair()) {
+    <button class="tb" matTooltip="Clip image to shape" [disabled]="!store.canEdit()" (click)="media.clipToShape()">
+      <dbd-icon name="clip_shape" />
+    </button>
+  }
+  @if (isImage()) {
+    <button class="tb" matTooltip="Crop (double-click)" [disabled]="!store.canEdit()" (click)="media.startCrop(element().id)">
+      <dbd-icon name="crop" />
+    </button>
+    @if (element().media?.clip) {
+      <button class="tb" matTooltip="Release clip" [disabled]="!store.canEdit()" (click)="media.releaseClip(element().id)">
+        <dbd-icon name="clip_release" />
+      </button>
+    }
+    @if (mediaKind(); as kind) {
+      <button class="tb" [dbdPopoverTrigger]="playMenu" placement="below-start" matTooltip="Playback" [disabled]="!store.canEdit()">
+        <dbd-icon name="play_circle" />
+      </button>
+      <ng-template #playMenu let-close>
+        <div class="dbd-menu">
+          <div class="head-label menu-head">{{ kind === 'gif' ? 'Play GIF' : 'Start video' }}</div>
+          @for (m of playbackModes; track m.value) {
+            <button class="dbd-menu-item" [class.on]="playback() === m.value" [attr.title]="m.hint" (click)="setPlayback(m.value); close()">
+              {{ m.label }}
+            </button>
+          }
+          @if (kind === 'video') {
+            <button class="dbd-menu-item" [class.on]="element().media?.loop ?? false" (click)="toggleMediaFlag('loop')">Loop</button>
+            <button class="dbd-menu-item" [class.on]="element().media?.muted ?? false" (click)="toggleMediaFlag('muted')">Start muted</button>
+          }
+        </div>
+      </ng-template>
+    }
+  }
+
   <span class="sep"></span>
+
+  @if (store.canEdit() && revert().items.length) {
+    <button class="tb" [matTooltip]="'Revert to ' + revert().from" (click)="revertToLayout()">
+      <dbd-icon name="undo" />
+    </button>
+  }
 
   <!-- Layer + opacity + delete -->
   <button class="tb" [dbdPopoverTrigger]="moreMenu" placement="below-end" matTooltip="More" [disabled]="!store.canEdit()">

@@ -75,6 +75,8 @@ import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { ProjectFileService } from '../../core/services/project-file.service';
 import { ElementImagesService } from '../../core/services/element-images.service';
+import { MediaActionsService } from '../../core/services/media-actions.service';
+import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
 import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
@@ -125,6 +127,7 @@ import {
   FRAME_TITLE_H,
   FRAME_TITLE_W,
   hitTestElement,
+  isPathElement,
   tableBox,
   toRelative,
 } from './canvas/helpers/element-geometry.helper';
@@ -165,12 +168,17 @@ import {
   normalizeRuns,
   patchRuns,
   plainOf,
+  runLines,
   runsOrPlain,
   styleOver,
   usableRuns,
   type RunBase,
   type RunPatch,
 } from './canvas/helpers/rich-text.helper';
+
+/** A list item's leading indent + marker, and a test for any list line. */
+const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
+const LIST_LINE = /(?:^|\n) *(?:[•◦▪]|\d+\.) /;
 import {
   listAutoformat,
   listBackspace,
@@ -187,6 +195,7 @@ import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import { findLinkSnap, type LinkSnap } from './canvas/helpers/link-snap.helper';
+import { smartSnap, snapTargets, type SmartSnap } from './canvas/helpers/smart-guides.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
 import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
@@ -231,6 +240,8 @@ type DragMode =
   | 'element'
   | 'element-resize'
   | 'element-rotate'
+  /** Resizing a multi-selection (elements + sequence diagrams) as one box. */
+  | 'group-resize'
   | 'arrow-endpoint'
   | 'arrow-bend'
   /** Alt-drag: waiting for the copies to be created before the drag can start. */
@@ -267,6 +278,21 @@ interface ElementGesture {
   points?: { x: number; y: number }[];
 }
 
+/** A resize of several selected items at once: everything scales about one shared box. */
+interface GroupResize {
+  /** Handle being dragged (nw/ne/sw/se/n/s/e/w), mapped onto the group's box. */
+  handle: string;
+  box: { x0: number; y0: number; x1: number; y1: number };
+  /** Element states at gesture start. */
+  elements: CanvasElementModel[];
+  diagrams: {
+    id: string;
+    start: SequenceStart;
+    rowSpacing: number;
+    before: SequenceLayoutSnapshot;
+  }[];
+}
+
 interface RelinkState {
   relationshipId: string;
   which: 'source' | 'target';
@@ -282,11 +308,20 @@ interface Rect {
 /** Element kinds that can contain other items (a lone selection aligns to these). */
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
 const GRID_SNAP_KEY = 'dbd-grid-snap';
+const SMART_GUIDES_KEY = 'dbd-smart-guides';
 const SIDE_PANEL_KEY = 'dbd-side-panel-collapsed';
 
 function readStoredSidePanelCollapsed(): boolean {
   try {
     return globalThis.localStorage?.getItem(SIDE_PANEL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function readStoredSmartGuides(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(SMART_GUIDES_KEY) === '1';
   } catch {
     return false;
   }
@@ -313,6 +348,7 @@ function readStoredGrid(): boolean {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ImageCropOverlayComponent,
     MatProgressSpinnerModule,
     IconComponent,
     MatTooltipModule,
@@ -742,7 +778,41 @@ export class EditorComponent {
   });
 
   protected readonly gridSnap = signal(readStoredGrid());
+  /** Snap drags to nearby items' edges, centers and spacing (Figma-style guides). */
+  protected readonly smartGuides = signal(readStoredSmartGuides());
+  /** What the moving selection snaps against, captured when a drag starts. */
+  private smartBase: { box: Box; targets: Box[]; view?: SlideView } | null = null;
+  /** Guides for the current drag, in world (or slide-inner) coordinates. */
+  private readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView } | null>(null);
+  /** The current drag's guides in canvas-screen px, for the overlay. */
+  protected readonly smartGuideMarks = computed(() => {
+    const st = this.smartSnapState();
+    if (!st) return null;
+    const v = this.store.viewport();
+    const sp = (x: number, y: number) => {
+      const p = st.view ? toOuter(st.view, { x, y }) : { x, y };
+      return { x: p.x * v.zoom + v.x, y: p.y * v.zoom + v.y };
+    };
+    const seg = (axis: 'x' | 'y', pos: number, a: number, b: number) => {
+      const p = axis === 'x' ? sp(pos, a) : sp(a, pos);
+      const q = axis === 'x' ? sp(pos, b) : sp(b, pos);
+      return { x1: p.x, y1: p.y, x2: q.x, y2: q.y };
+    };
+    return {
+      lines: st.snap.guides.map((g) => seg(g.axis, g.pos, g.from, g.to)),
+      gaps: st.snap.gaps.map((g) => {
+        // A gap along x is a horizontal segment at y = cross.
+        const s = seg(g.axis === 'x' ? 'y' : 'x', g.cross, g.a, g.b);
+        return { ...s, label: String(Math.round(g.b - g.a)), lx: (s.x1 + s.x2) / 2, ly: (s.y1 + s.y2) / 2 };
+      }),
+    };
+  });
 
+  /** The image element being cropped inline (crop overlay), while it still exists. */
+  protected readonly croppingElement = computed(() => {
+    const id = this.mediaActions.croppingId();
+    return id ? (this.store.elements().find((e) => e.id === id && e.type === 'image') ?? null) : null;
+  });
   protected readonly worldTransform = computed(() => {
     const v = this.store.viewport();
     return `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
@@ -1648,8 +1718,6 @@ export class EditorComponent {
     };
   });
 
-  /** Id of a just-created code card, discarded if it is left empty. */
-  private freshCodeId: string | null = null;
   /** The language new code blocks start with: that of the most recent code block. */
   private lastCodeLanguage(): CodeLanguage {
     const els = this.store.elements();
@@ -1850,6 +1918,37 @@ export class EditorComponent {
       host.removeEventListener('wheel', blockPageZoom, { capture: true }),
     );
 
+    // Double-click detection of our own. The browser only fires `dblclick` when both
+    // clicks land on the same live DOM node, but the first click often re-renders the
+    // item under the pointer (selection moves it between layers, slide placeholders
+    // swap for their copies...), which silently swallows the native event. Two quick
+    // presses close together count as a double-click wherever they land.
+    let lastDown: { t: number; x: number; y: number } | null = null;
+    let pending: { x: number; y: number } | null = null;
+    const onDown = (e: PointerEvent): void => {
+      if (e.button !== 0 || e.pointerType === 'touch') return;
+      const now = performance.now();
+      const near = lastDown && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
+      pending = near ? { x: e.clientX, y: e.clientY } : null;
+      lastDown = near ? null : { t: now, x: e.clientX, y: e.clientY };
+    };
+    const onUp = (e: PointerEvent): void => {
+      const p = pending;
+      pending = null;
+      if (!p || e.button !== 0 || Math.hypot(e.clientX - p.x, e.clientY - p.y) >= 6) return;
+      const canvas = this.canvasRef().nativeElement;
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (!target || !canvas.contains(target)) return;
+      this.lastOwnDblClick = performance.now();
+      this.handleDoubleClick(target, canvas, e.clientX, e.clientY);
+    };
+    host.addEventListener('pointerdown', onDown, { capture: true });
+    window.addEventListener('pointerup', onUp, { capture: true });
+    this.destroyRef.onDestroy(() => {
+      host.removeEventListener('pointerdown', onDown, { capture: true });
+      window.removeEventListener('pointerup', onUp, { capture: true });
+    });
+
     // Initialise the contenteditable once per editing session (the DOM owns the
     // content while typing, so it is never re-rendered from the store).
     effect(() => {
@@ -2003,6 +2102,14 @@ export class EditorComponent {
         // ignore storage errors
       }
     });
+    effect(() => {
+      const on = this.smartGuides();
+      try {
+        globalThis.localStorage?.setItem(SMART_GUIDES_KEY, on ? '1' : '0');
+      } catch {
+        // ignore storage errors
+      }
+    });
     // Persist the grid-snap toggle across refreshes.
     effect(() => {
       const on = this.gridSnap();
@@ -2135,7 +2242,7 @@ export class EditorComponent {
       this.beginDraw(tool, event);
       return;
     }
-    // Grabbing a master item drawn under a shown slide or layout gives that frame its own
+    // Grabbing a master or layout item drawn under a shown slide or layout gives that frame its own
     // copy, selected and (while the button is held) dragged like any item.
     if (tool === 'select' && this.store.canEdit() && !EditorComponent.additive(event)) {
       const inherited = this.inheritedMasterItemAt(this.toWorld(event.clientX, event.clientY));
@@ -2481,8 +2588,7 @@ export class EditorComponent {
         this.grids.beginEdit({ id: created.id, row: 0, col: 0 });
       }
       if (created && created.type === 'code') {
-        // A fresh code card opens straight into its editor; an untouched one is discarded on exit.
-        this.freshCodeId = created.id;
+        // A fresh code card opens straight into its editor.
         this.editingTextId.set(created.id);
       }
     }
@@ -2823,9 +2929,242 @@ export class EditorComponent {
     };
   }
 
+  private groupResize: GroupResize | null = null;
+
+  /**
+   * Start resizing the whole multi-selection from one item's handle. Returns false
+   * (leaving the caller to do a single-item resize) when fewer than two items are
+   * selected. Handed to sequence diagrams too, which run their own pointer handling.
+   */
+  protected readonly startGroupResize = (
+    handle: string,
+    event: PointerEvent,
+    scaleId?: string,
+  ): boolean => {
+    if (!this.store.canEdit()) {
+      return false;
+    }
+    const elIds = new Set(this.store.selectedElementIds());
+    const diagIds = new Set(this.store.selectedDiagramIds());
+    const elements = this.store.elements().filter((e) => elIds.has(e.id) && e.type !== 'frame');
+    const diagrams = this.store.sequenceDiagrams().filter((d) => diagIds.has(d.id));
+    if (elements.length + diagrams.length < 2) {
+      return false;
+    }
+    const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    const grow = (x0: number, y0: number, x1: number, y1: number): void => {
+      box.x0 = Math.min(box.x0, x0);
+      box.y0 = Math.min(box.y0, y0);
+      box.x1 = Math.max(box.x1, x1);
+      box.y1 = Math.max(box.y1, y1);
+    };
+    for (const e of elements) {
+      const b = elementBox(e);
+      grow(b.x0, b.y0, b.x1, b.y1);
+    }
+    const seqs: GroupResize['diagrams'] = [];
+    for (const d of diagrams) {
+      const b = this.diagramBox(d);
+      const start = this.sequenceStart(d.id);
+      if (!b || !start) continue;
+      grow(b.minX, b.minY, b.maxX, b.maxY);
+      seqs.push({ id: d.id, start, rowSpacing: d.rowSpacing, before: this.layoutSnapshot(d.id) });
+    }
+    if (!Number.isFinite(box.x0)) {
+      return false;
+    }
+    this.mode = 'group-resize';
+    this.gestureActive.set(true);
+    this.startClientX = event.clientX;
+    this.startClientY = event.clientY;
+    this.gestureScale = scaleId ? this.itemScale(scaleId) : 1;
+    this.groupResize = { handle, box, elements, diagrams: seqs };
+    return true;
+  };
+
+  /**
+   * Scale every item of a group resize about the group's box: the opposite edge
+   * (or, with Alt, the centre) stays put, Shift keeps proportions, and items keep
+   * their relative placement. Each item resizes the way it does on its own (text
+   * and grids rescale their font, diagrams re-spread spines and rows).
+   */
+  private groupResizeMove(ev: PointerEvent): void {
+    const g = this.groupResize;
+    if (!g) {
+      return;
+    }
+    const b = g.box;
+    const zoom = this.store.viewport().zoom * this.gestureScale;
+    const dx = (ev.clientX - this.startClientX) / zoom;
+    const dy = (ev.clientY - this.startClientY) / zoom;
+    const h = g.handle;
+    const left = h.includes('w');
+    const right = h.includes('e');
+    const top = h.includes('n');
+    const bottom = h.includes('s');
+    const horiz = left || right;
+    const vert = top || bottom;
+    const W = Math.max(1, b.x1 - b.x0);
+    const H = Math.max(1, b.y1 - b.y0);
+    const f = ev.altKey ? 2 : 1;
+    const gx = (left ? -dx : dx) * f;
+    const gy = (top ? -dy : dy) * f;
+    let sx = horiz ? (W + gx) / W : 1;
+    let sy = vert ? (H + gy) / H : 1;
+    if (ev.shiftKey) {
+      if (horiz && vert) {
+        // Project onto the box diagonal so the corner tracks the cursor smoothly.
+        sx = sy = 1 + (gx * W + gy * H) / (W * W + H * H);
+      } else if (horiz) {
+        sy = sx;
+      } else {
+        sx = sy;
+      }
+    } else if (this.gridSnap() && !ev.altKey) {
+      // Land the dragged edge(s) on the grid.
+      if (horiz) {
+        sx = right ? (snapToGrid(b.x0 + W * sx) - b.x0) / W : (b.x1 - snapToGrid(b.x1 - W * sx)) / W;
+      }
+      if (vert) {
+        sy = bottom ? (snapToGrid(b.y0 + H * sy) - b.y0) / H : (b.y1 - snapToGrid(b.y1 - H * sy)) / H;
+      }
+    }
+    sx = Math.max(0.05, sx);
+    sy = Math.max(0.05, sy);
+    const ax = ev.altKey ? (b.x0 + b.x1) / 2 : left ? b.x1 : b.x0;
+    const ay = ev.altKey ? (b.y0 + b.y1) / 2 : top ? b.y1 : b.y0;
+    const mx = (x: number): number => ax + (x - ax) * sx;
+    const my = (y: number): number => ay + (y - ay) * sy;
+
+    for (const e of g.elements) {
+      if (e.type === 'line' || e.type === 'arrow') {
+        const pts = absolutePoints(e).map((p) => ({ x: mx(p.x), y: my(p.y) }));
+        const o = pts[0];
+        this.store.patchElementLocal(e.id, {
+          x: o.x,
+          y: o.y,
+          points: pts.map((p) => ({ x: p.x - o.x, y: p.y - o.y })),
+        });
+        continue;
+      }
+      const x = mx(e.x);
+      const y = my(e.y);
+      const w = Math.max(8, e.width * sx);
+      const hh = Math.max(8, e.height * sy);
+      // Where an item whose size is content-driven sits inside its scaled slot:
+      // pinned the same way the group is (opposite edge, or centre with Alt).
+      const place = (cw: number, ch: number): { x: number; y: number } => ({
+        x: ev.altKey || !horiz ? x + (w - cw) / 2 : left ? x + w - cw : x,
+        y: ev.altKey || !vert ? y + (hh - ch) / 2 : top ? y + hh - ch : y,
+      });
+      if (e.type === 'text') {
+        const startFont = e.fontSize ?? DEFAULT_FONT_SIZE;
+        const diag = e.width * e.width + e.height * e.height;
+        const k = diag > 0 ? (w * e.width + hh * e.height) / diag : 1;
+        let fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, startFont * k));
+        fontSize = Math.round(fontSize * 2) / 2;
+        const size = fitTextElement(e, {
+          fontSize,
+          width: e.wrap ? e.width * (fontSize / startFont) : undefined,
+        });
+        const p = place(size.width, size.height);
+        this.store.patchElementLocal(e.id, {
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          width: size.width,
+          height: size.height,
+          fontSize,
+        });
+      } else if (e.type === 'grid') {
+        const r = this.gridResize(e, w, hh);
+        const p = place(r.width, r.height);
+        this.store.patchElementLocal(e.id, { ...r, x: p.x, y: p.y });
+      } else {
+        this.store.patchElementLocal(e.id, { x, y, width: w, height: hh });
+      }
+    }
+
+    for (const d of g.diagrams) {
+      const rowSpacing = Math.max(20, d.rowSpacing * sy);
+      this.store.resizeSequenceTo(d.id, d.start.xs, ax, sx, rowSpacing, my(d.start.originY), d.start.rows);
+    }
+  }
+
+  /** Persist a finished group resize as one undo step. */
+  private commitGroupResize(): void {
+    const g = this.groupResize;
+    this.groupResize = null;
+    if (!g) {
+      return;
+    }
+    const now = new Map(this.store.elements().map((e) => [e.id, e] as const));
+    const pick = (e: CanvasElementModel): UpdateElementDto =>
+      e.type === 'line' || e.type === 'arrow'
+        ? { x: e.x, y: e.y, points: e.points }
+        : {
+            x: e.x,
+            y: e.y,
+            width: e.width,
+            height: e.height,
+            ...(e.type === 'text' ? { fontSize: e.fontSize, wrap: e.wrap ?? false } : {}),
+            ...(e.type === 'grid' ? { text: e.text ?? '', fontSize: e.fontSize } : {}),
+          };
+    void this.store.batchHistory(async () => {
+      await Promise.all(
+        g.elements.map((snap) => {
+          const el = now.get(snap.id);
+          return el ? this.store.commitElementGeometry(snap.id, pick(snap), pick(el)) : null;
+        }),
+      );
+      for (const d of g.diagrams) {
+        const after = this.layoutSnapshot(d.id);
+        for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
+        for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
+        void this.store.updateSequenceConfig(d.id, {
+          rowSpacing: after.rowSpacing,
+          originY: after.originY,
+        });
+        this.store.recordSequenceLayout(d.id, d.before, after);
+      }
+    });
+  }
+
+  /**
+   * A grid table resized to (about) `width` x `height`: columns share the width,
+   * rows scale but never below what their text needs, and the font follows the
+   * drag projected onto the box diagonal.
+   */
+  private gridResize(
+    snapshot: CanvasElementModel,
+    width: number,
+    height: number,
+  ): { width: number; height: number; text: string; fontSize: number } {
+    const start = gridInPixels(snapshot);
+    const sw = snapshot.width;
+    const sh = snapshot.height;
+    const sx = width / Math.max(1, sw);
+    const sy = height / Math.max(1, sh);
+    const cols = start.cols.map((c) => Math.max(GRID_MIN_CELL, c * sx));
+    const startFont = snapshot.fontSize ?? 14;
+    const diag = sw * sw + sh * sh;
+    const k = diag > 0 ? (width * sw + height * sh) / diag : 1;
+    const fontSize = Math.round(Math.min(96, Math.max(6, startFont * k)) * 2) / 2;
+    const needs = gridRowNeeds({ ...snapshot, fontSize }, start, cols);
+    const rows = start.rows.map((r, i) => Math.max(GRID_MIN_CELL, needs[i], r * sy));
+    return {
+      width: cols.reduce((a, b) => a + b, 0),
+      height: rows.reduce((a, b) => a + b, 0),
+      text: serializeGrid({ ...start, cols, rows }),
+      fontSize,
+    };
+  }
+
   protected onElementResizeDown(payload: ResizeDownEvent): void {
     const el = this.store.elements().find((e) => e.id === payload.id);
     if (!el || !this.store.canEdit()) {
+      return;
+    }
+    if (this.startGroupResize(payload.handle, payload.event, payload.id)) {
       return;
     }
     this.mode = 'element-resize';
@@ -2993,11 +3332,14 @@ export class EditorComponent {
       return;
     }
     this.movingItems.set(true);
-    const { dx, dy } = this.dragDelta(clientX, clientY);
-    const snap = this.gridSnap();
+    let { dx, dy } = this.dragDelta(clientX, clientY);
+    const smart = this.smartDelta(g.id, g.others.keys(), g.tables?.keys() ?? [], dx, dy);
+    dx += smart?.ox ?? 0;
+    dy += smart?.oy ?? 0;
+    const grid = this.gridSnap();
     for (const [id, start] of g.others) {
-      const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
-      const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
+      const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
+      const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
       this.store.moveElement(id, nx, ny);
     }
     // Carry a frame's tables with it by the same (snapped) displacement as the frame.
@@ -3137,27 +3479,15 @@ export class EditorComponent {
     if (el?.type === 'grid') {
       // Columns share the new width proportionally; rows scale too but never
       // shrink below what their text needs, so cell content is never clipped.
-      const start = gridInPixels(g.snapshot);
-      const sx = width / Math.max(1, s.width);
-      const sy = height / Math.max(1, s.height);
-      const cols = start.cols.map((c) => Math.max(GRID_MIN_CELL, c * sx));
       // Text scales with the table like a text box does: by the drag projected onto
       // the box diagonal, so a corner drag in any direction grows/shrinks it evenly.
-      const startFont = g.snapshot.fontSize ?? 14;
-      const diag = s.width * s.width + s.height * s.height;
-      const k = diag > 0 ? (width * s.width + height * s.height) / diag : 1;
-      const fontSize = Math.round(Math.min(96, Math.max(6, startFont * k)) * 2) / 2;
-      const needs = gridRowNeeds({ ...g.snapshot, fontSize }, start, cols);
-      const rows = start.rows.map((r, i) => Math.max(GRID_MIN_CELL, needs[i], r * sy));
-      const w = cols.reduce((a, b) => a + b, 0);
-      const h = rows.reduce((a, b) => a + b, 0);
+      const r = this.gridResize(g.snapshot, width, height);
+      const w = r.width;
+      const h = r.height;
       this.store.patchElementLocal(g.id, {
+        ...r,
         x: ev.altKey ? cx - w / 2 : left ? s.x + s.width - w : s.x,
         y: ev.altKey ? cy - h / 2 : top ? s.y + s.height - h : s.y,
-        width: w,
-        height: h,
-        text: serializeGrid({ ...start, cols, rows }),
-        fontSize,
       });
       return;
     }
@@ -3373,6 +3703,13 @@ export class EditorComponent {
       }
     };
     const indent = ' '.repeat(TAB_SIZE);
+    if (event.shiftKey && event.altKey && event.code === 'KeyS') {
+      // Fit the card to what is being typed (grow or shrink); saved on commit.
+      event.preventDefault();
+      const size = codeContentSize(area.value, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
+      this.store.patchElementLocal(el.id, { width: size.width, height: size.height });
+      return;
+    }
     if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'f') {
       // Format in place through the textarea so the edit stays one undo step.
       event.preventDefault();
@@ -3433,14 +3770,105 @@ export class EditorComponent {
   /** Selection (character offsets) last seen inside the rich editor. */
   private richSel = { start: 0, end: 0 };
   private richCleanup: (() => void) | null = null;
+  /** True while native line-break edits run; list blocks are rebuilt once after. */
+  private richHoldLayout = false;
 
   /** Paint runs into the editor host as inline-styled spans. */
   private renderRichRuns(root: HTMLElement, runs: readonly TextRun[]): void {
     root.textContent = '';
-    for (const run of runs) {
-      if (!run.text) {
-        continue;
+    if (LIST_LINE.test(plainOf(runs))) {
+      this.renderRichListLines(root, runs);
+    } else {
+      for (const run of runs) {
+        if (run.text) {
+          root.appendChild(this.richRunSpan(run));
+        }
       }
+    }
+    if (plainOf(runs).endsWith('\n')) {
+      // A trailing newline needs a placeholder so the empty last line is visible.
+      root.appendChild(document.createElement('br'));
+    }
+  }
+
+  /**
+   * Text with list items: each item is its own block with a hanging indent the
+   * width of its marker, so wrapped lines sit under the text (as on the canvas).
+   * The line's newline stays inside its block, so the text reads back unchanged.
+   */
+  private renderRichListLines(root: HTMLElement, runs: readonly TextRun[]): void {
+    const cs = getComputedStyle(root);
+    const ctx = document.createElement('canvas').getContext('2d');
+    const lines = runLines(runs);
+    lines.forEach((line, i) => {
+      const plain = line.map((r) => r.text).join('');
+      const prefix = LIST_LINE_PREFIX.exec(plain)?.[0];
+      let host: HTMLElement = root;
+      let marker: HTMLElement | null = null;
+      if (prefix) {
+        host = document.createElement('span');
+        host.className = 'li-line';
+        let em = prefix.length * 0.5;
+        if (ctx) {
+          const bold = line[0]?.bold;
+          const weight = bold === undefined ? cs.fontWeight : bold ? '700' : '400';
+          ctx.font = `${cs.fontStyle} ${weight} 100px ${cs.fontFamily}`;
+          em = ctx.measureText(prefix).width / 100;
+        }
+        // Inline styles: component (encapsulated) CSS does not reach nodes made here.
+        // The marker floats in the left padding, so the text never breaks after it
+        // (a long first word stays beside the marker, as on the canvas).
+        host.style.display = 'block';
+        host.style.paddingLeft = `${em}em`;
+        marker = document.createElement('span');
+        marker.className = 'li-marker';
+        marker.style.cssFloat = 'left';
+        marker.style.width = `${em}em`;
+        marker.style.marginLeft = `-${em}em`;
+        marker.style.whiteSpace = 'pre';
+        host.appendChild(marker);
+        root.appendChild(host);
+      }
+      let seen = 0;
+      for (const run of line) {
+        let text = run.text;
+        if (marker && seen < prefix!.length) {
+          const head = text.slice(0, prefix!.length - seen);
+          marker.appendChild(this.richRunSpan({ ...run, text: head }));
+          seen += head.length;
+          text = text.slice(head.length);
+        }
+        if (text) {
+          host.appendChild(this.richRunSpan({ ...run, text }));
+        }
+      }
+      if (i < lines.length - 1) {
+        const last = line[line.length - 1] ?? runs[0];
+        host.appendChild(this.richRunSpan({ ...last, text: '\n', morph: undefined }));
+      }
+    });
+  }
+
+  /** True when the list blocks no longer match the content (e.g. after Enter). */
+  private richListLayoutStale(root: HTMLElement, runs: readonly TextRun[]): boolean {
+    const lines = plainOf(runs).split('\n');
+    const items = lines.filter((l) => LIST_LINE_PREFIX.test(l)).length;
+    const blocks = Array.from(root.querySelectorAll<HTMLElement>('.li-line'));
+    if (blocks.length !== items) {
+      return true;
+    }
+    return blocks.some((b) => {
+      const t = b.textContent ?? '';
+      const m = b.querySelector('.li-marker')?.textContent ?? '';
+      if (m !== LIST_LINE_PREFIX.exec(t)?.[0]) {
+        return true;
+      }
+      return !!b.querySelector('br') || t.indexOf('\n') !== t.length - 1 && t.includes('\n') || !LIST_LINE_PREFIX.test(t);
+    });
+  }
+
+  private richRunSpan(run: TextRun): HTMLSpanElement {
+    {
       const span = document.createElement('span');
       span.textContent = run.text;
       if (run.bold !== undefined) {
@@ -3461,11 +3889,7 @@ export class EditorComponent {
       if (run.morph) {
         span.dataset['morph'] = run.morph;
       }
-      root.appendChild(span);
-    }
-    if (plainOf(runs).endsWith('\n')) {
-      // A trailing newline needs a placeholder so the empty last line is visible.
-      root.appendChild(document.createElement('br'));
+      return span;
     }
   }
 
@@ -3536,7 +3960,9 @@ export class EditorComponent {
     const range = document.createRange();
     range.selectNodeContents(root);
     range.setEnd(node, offset);
-    return range.toString().length;
+    // Range text skips <br>, which reads back as a newline; count them too.
+    const frag = range.cloneContents();
+    return (frag.textContent ?? '').length + frag.querySelectorAll('br').length;
   }
 
   private setRichSelection(root: HTMLElement, start: number, end: number): void {
@@ -3641,9 +4067,38 @@ export class EditorComponent {
       this.commitListResult(root, fixed);
       return;
     }
+    if (
+      !this.richHoldLayout &&
+      !(event as InputEvent | undefined)?.isComposing &&
+      this.richListLayoutStale(root, runs)
+    ) {
+      this.commitListResult(root, { runs, map: (p) => p });
+      return;
+    }
     this.syncRichModel(runs);
     this.captureRichSelection(root);
     this.publishRichSelection(runs);
+  }
+
+  /**
+   * Run native edits that add a line break, then rebuild the list blocks once with
+   * the caret `inserted` characters past the old selection start (the DOM caret
+   * right after a <br> is unreliable to read back).
+   */
+  private richLineBreak(root: HTMLElement, edit: () => void, inserted: number): void {
+    this.captureRichSelection(root);
+    const caret = Math.min(this.richSel.start, this.richSel.end) + inserted;
+    this.richHoldLayout = true;
+    try {
+      edit();
+    } finally {
+      this.richHoldLayout = false;
+    }
+    const runs = this.readRichRuns(root);
+    if (this.richListLayoutStale(root, runs)) {
+      this.richSel = { start: caret, end: caret };
+      this.commitListResult(root, { runs, map: (p) => p });
+    }
   }
 
   private captureRichSelection(root: HTMLElement): void {
@@ -3754,7 +4209,11 @@ export class EditorComponent {
     if (event.key === 'Enter' && !event.isComposing) {
       // A plain line break keeps the content flat (no nested block elements).
       event.preventDefault();
-      document.execCommand('insertLineBreak');
+      if (root) {
+        this.richLineBreak(root, () => document.execCommand('insertLineBreak'), 1);
+      } else {
+        document.execCommand('insertLineBreak');
+      }
       return;
     }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
@@ -3811,8 +4270,14 @@ export class EditorComponent {
         this.commitListResult(root, result.exit);
       } else {
         // Native edits keep the browser's undo stack.
-        document.execCommand('insertLineBreak');
-        document.execCommand('insertText', false, result.insert.slice(1));
+        this.richLineBreak(
+          root,
+          () => {
+            document.execCommand('insertLineBreak');
+            document.execCommand('insertText', false, result.insert.slice(1));
+          },
+          result.insert.length,
+        );
       }
       return true;
     }
@@ -3855,12 +4320,7 @@ export class EditorComponent {
     }
     const text = el.text ?? '';
     if (el.type === 'code') {
-      if (text.trim() === '' && id === this.freshCodeId) {
-        this.freshCodeId = null;
-        void this.store.deleteElement(id);
-        return;
-      }
-      this.freshCodeId = null;
+      // Code blocks stay even when left empty.
       const size = codeContentSize(text, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
       void this.store.updateElement(id, {
         text,
@@ -4421,6 +4881,10 @@ export class EditorComponent {
       this.resizeElement(event);
       return;
     }
+    if (this.mode === 'group-resize') {
+      this.groupResizeMove(event);
+      return;
+    }
     if (this.mode === 'element-rotate') {
       this.rotateElement(event);
       return;
@@ -4443,13 +4907,22 @@ export class EditorComponent {
         return;
       }
       this.movingItems.set(true);
-      const { dx, dy } = this.dragDelta(event.clientX, event.clientY);
-      const snap = this.gridSnap();
+      let { dx, dy } = this.dragDelta(event.clientX, event.clientY);
+      const smart = this.smartDelta(
+        this.dragTableId,
+        this.nodeExtras?.elements.keys() ?? [],
+        this.multiDragStart.keys(),
+        dx,
+        dy,
+      );
+      dx += smart?.ox ?? 0;
+      dy += smart?.oy ?? 0;
+      const grid = this.gridSnap();
       // The tables' actual (snapped) move, so routes carried with them stay attached.
       let moved: { x: number; y: number } | null = null;
       for (const [id, start] of this.multiDragStart) {
-        const nx = snap ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
-        const ny = snap ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
+        const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
+        const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
         this.store.moveTable(id, nx, ny);
         if (id === this.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
       }
@@ -4506,6 +4979,8 @@ export class EditorComponent {
       this.recordMoveGesture();
     } else if (this.mode === 'node') {
       this.settleNodeExtras();
+    } else if (this.mode === 'group-resize') {
+      this.commitGroupResize();
     } else if (
       this.mode === 'element-resize' ||
       this.mode === 'element-rotate' ||
@@ -4530,6 +5005,8 @@ export class EditorComponent {
     this.activeSegment.set(null);
     this.clearLinking();
     this.gestureScale = 1;
+    // Sequence diagrams run their own drags and clear this after their final shift.
+    if (moved) this.smartDragEnd();
     if (moved) {
       this.releaseDroppedOutOfSlides(moved);
     }
@@ -4847,6 +5324,14 @@ export class EditorComponent {
         this.store.arrangeSelection(
           event.shiftKey ? (forward ? 'front' : 'back') : forward ? 'forward' : 'backward',
         );
+      }
+      return;
+    }
+    if (event.shiftKey && event.altKey && !mod && event.code === 'KeyS') {
+      // Fit the selected code blocks to their content.
+      event.preventDefault();
+      if (this.store.canEdit()) {
+        void this.codeActions.fitToContent(this.store.selectedElementIds());
       }
       return;
     }
@@ -5963,6 +6448,7 @@ export class EditorComponent {
   // --- images ---
 
   private readonly images = inject(ElementImagesService);
+  private readonly mediaActions = inject(MediaActionsService);
 
   /** Toolbar "Image": pick one or more files and drop them at the center of the view. */
   protected pickImages(): void {
@@ -5972,7 +6458,8 @@ export class EditorComponent {
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg';
+    input.accept =
+      'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg,video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.mov';
     input.onchange = () => {
       const files = Array.from(input.files ?? []);
       if (files.length) {
@@ -5991,7 +6478,7 @@ export class EditorComponent {
 
   protected onCanvasDrop(event: DragEvent): void {
     const files = Array.from(event.dataTransfer?.files ?? []).filter(
-      (f) => f.type.startsWith('image/') || /\.svg$/i.test(f.name),
+      (f) => f.type.startsWith('image/') || f.type.startsWith('video/') || /\.svg$/i.test(f.name),
     );
     if (!files.length) {
       return;
@@ -6023,10 +6510,13 @@ export class EditorComponent {
     for (const file of files) {
       try {
         // Some sources (an SVG from a file picker) report no MIME type; infer it.
-        const typed =
-          file.type || !/\.svg$/i.test(file.name)
-            ? file
-            : new Blob([file], { type: 'image/svg+xml' });
+        const typed = file.type
+          ? file
+          : /\.svg$/i.test(file.name)
+            ? new Blob([file], { type: 'image/svg+xml' })
+            : /\.mp4$/i.test(file.name)
+              ? new Blob([file], { type: 'video/mp4' })
+              : file;
         const uploaded = await this.images.upload(projectId, typed);
         const scale = Math.min(1, maxSide / Math.max(uploaded.width, uploaded.height));
         const width = Math.max(8, Math.round(uploaded.width * scale));
@@ -6188,20 +6678,42 @@ export class EditorComponent {
 
   // --- toolbar: add / zoom / grid / align ---
 
+  /** When our own double-click detector last fired (the native event that follows is ignored). */
+  private lastOwnDblClick = -Infinity;
+
   protected onCanvasDblClick(event: MouseEvent): void {
+    if (performance.now() - this.lastOwnDblClick < 600) {
+      return;
+    }
+    this.handleDoubleClick(event.target as Element | null, event.currentTarget, event.clientX, event.clientY);
+  }
+
+  private handleDoubleClick(
+    target: Element | null,
+    canvas: EventTarget | null,
+    clientX: number,
+    clientY: number,
+  ): void {
     // Toolbars, panels, the minimap and the inline editor are children of the
     // canvas element, so their double-clicks bubble up here. Only a double-click
     // on the drawing surface itself (the canvas or the world layer) is ours.
-    const target = event.target as Element | null;
     const onSurface =
       !!target &&
-      (target === event.currentTarget || !!target.closest('.world')) &&
-      !target.closest('.text-editor');
-    if (!onSurface) {
+      (target === canvas || !!target.closest('.world')) &&
+      !target.closest('.text-editor, [contenteditable="true"], textarea, input');
+    if (!onSurface || this.editingTextId()) {
       return;
     }
-    const world = this.toWorld(event.clientX, event.clientY);
-    const hit = this.shownElements().reverse().find((e) => hitTestElement(e, world));
+    const world = this.toWorld(clientX, clientY);
+    const hits = this.shownElements().reverse().filter((e) => hitTestElement(e, world));
+    // What is under the pointer, in order of intent: the item just clicked (selected),
+    // then text (slide text often sits over a card or picture), then the topmost item.
+    const selected = new Set(this.store.selectedElementIds());
+    const isTexty = (e: CanvasElementModel): boolean => e.type === 'text' || e.type === 'code' || e.type === 'grid';
+    const hit =
+      hits.find((e) => selected.has(e.id) && e.type !== 'frame') ??
+      hits.find(isTexty) ??
+      hits[0];
     // Double-clicking a member of a group steps into it (selecting just that
     // member); once inside, the usual double-click behaviour applies.
     const locked = (id: string): boolean => {
@@ -6223,6 +6735,12 @@ export class EditorComponent {
       return;
     }
     if (!this.store.canEdit() || !this.store.projectId()) {
+      return;
+    }
+    // Double-clicking a picture crops it inline.
+    if (hit?.type === 'image') {
+      this.store.selectElement(hit.id);
+      this.mediaActions.startCrop(hit.id);
       return;
     }
     // Double-clicking a master item drawn under a shown slide or layout gives that frame
@@ -6290,8 +6808,8 @@ export class EditorComponent {
   }
 
   /**
-   * The topmost master item (or a layout's stand-in for one) drawn locked under a shown
-   * slide or layout at a world point, with the shown frame it is under.
+   * The topmost master or layout item drawn locked under a shown slide or layout at a
+   * world point, with the shown frame it is under.
    */
   private inheritedMasterItemAt(world: { x: number; y: number }): { item: CanvasElementModel; frame: CanvasElementModel } | null {
     const locked = this.store.layoutItemIds();
@@ -6300,7 +6818,7 @@ export class EditorComponent {
     const frames = this.store.slideFrames();
     const shown = frames.filter((f) => this.store.shownSlideIds().has(f.id));
     const items = this.withFields(this.store.elements())
-      .filter((e) => locked.has(e.id) && (masters.has(e.id) || !!e.overrides) && !hide?.elementIds.has(e.id))
+      .filter((e) => locked.has(e.id) && !hide?.elementIds.has(e.id))
       .sort((a, b) => (masters.has(a.id) ? 0 : 1) - (masters.has(b.id) ? 0 : 1) || a.zIndex - b.zIndex)
       .reverse();
     for (const item of items) {
@@ -6563,6 +7081,93 @@ export class EditorComponent {
 
   protected toggleGrid(): void {
     this.gridSnap.update((v) => !v);
+  }
+
+  /** Smart-guide hooks handed to sequence diagrams, which run their own drags. */
+  protected readonly smartDrag = (
+    diagramId: string,
+    items: { diagrams: Iterable<string>; elements: Iterable<string>; tables: Iterable<string> },
+    dx: number,
+    dy: number,
+  ): SmartSnap | null => this.smartDelta(diagramId, items.elements, items.tables, dx, dy, items.diagrams);
+
+  protected readonly smartDragEnd = (): void => {
+    this.smartBase = null;
+    this.smartSnapState.set(null);
+  };
+
+  protected toggleSmartGuides(): void {
+    this.smartGuides.update((v) => !v);
+  }
+
+  /**
+   * Smart-guide correction for a drag by (dx, dy) of the given items, grabbed by
+   * `grabbedId`. Targets are the visible items nearest the selection in the same
+   * space (the canvas, or the grabbed item's slide, whose frame counts too).
+   */
+  private smartDelta(
+    grabbedId: string,
+    elementIds: Iterable<string>,
+    tableIds: Iterable<string>,
+    dx: number,
+    dy: number,
+    diagramIds: Iterable<string> = [],
+  ): SmartSnap | null {
+    if (!this.smartGuides()) {
+      this.smartSnapState.set(null);
+      return null;
+    }
+    if (!this.smartBase) {
+      const moving = new Set([...elementIds, ...tableIds, ...diagramIds]);
+      const els = this.store.elements();
+      const tables = this.store.tables();
+      const diagrams = this.store.sequenceDiagrams();
+      const lifelines = this.store.lifelines();
+      const messages = this.store.sequenceMessages();
+      const grabbed =
+        els.find((e) => e.id === grabbedId) ??
+        tables.find((t) => t.id === grabbedId) ??
+        diagrams.find((d) => d.id === grabbedId);
+      const ctx = grabbed?.slideId ?? null;
+      const boxes: Box[] = [];
+      for (const e of els) if (moving.has(e.id)) boxes.push(elementBox(e));
+      for (const t of tables) if (moving.has(t.id)) boxes.push(tableBox(t));
+      const diagramBoxes = new Map<string, Box>();
+      for (const d of diagrams) {
+        const b = sequenceDiagramBox(d, lifelines, messages);
+        if (b) diagramBoxes.set(d.id, b);
+        if (b && moving.has(d.id)) boxes.push(b);
+      }
+      if (!boxes.length) return null;
+      const box = {
+        x0: Math.min(...boxes.map((b) => b.x0)),
+        y0: Math.min(...boxes.map((b) => b.y0)),
+        x1: Math.max(...boxes.map((b) => b.x1)),
+        y1: Math.max(...boxes.map((b) => b.y1)),
+      };
+      const all: Box[] = [];
+      for (const e of els) {
+        if (moving.has(e.id) || isPathElement(e.type)) continue;
+        if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(elementBox(e));
+      }
+      for (const t of tables) {
+        if (!moving.has(t.id) && (t.slideId ?? null) === ctx) all.push(tableBox(t));
+      }
+      for (const d of diagrams) {
+        const b = diagramBoxes.get(d.id);
+        if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
+      }
+      const view = this.itemScale(grabbedId) !== 1 ? this.viewOf(grabbedId) : undefined;
+      this.smartBase = { box, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
+    }
+    const base = this.smartBase;
+    const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
+    const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId));
+    // Shift constrains the drag to one axis; don't let a snap pull it off.
+    if (this.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
+    if (this.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
+    this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+    return snap;
   }
 
   /**
@@ -6840,7 +7445,7 @@ export class EditorComponent {
     const data = new Map<string, string>();
     await Promise.all(
       ids.map(async (id) => {
-        const url = await this.images.dataUrl(id);
+        const url = await this.images.stillDataUrl(id);
         if (url) {
           data.set(id, url);
         }
@@ -7054,6 +7659,11 @@ export class EditorComponent {
 
   protected onAlign(action: AlignAction): void {
     if (!this.store.canEdit()) {
+      return;
+    }
+    // While cropping, the panel lines the clip shape up within its picture.
+    if (this.croppingElement()) {
+      this.mediaActions.requestCropAlign(action);
       return;
     }
     // Tables, canvas elements (text, shapes, lines...) and sequence diagrams align

@@ -40,6 +40,7 @@ export const ICON_PATHS: Record<string, string> = {
   merge_cells: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v4M12 16v4M7 12h3.5M8.5 10l2 2-2 2M17 12h-3.5M15.5 10l-2 2 2 2"/>',
   split_cells: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M10 12H6M7.5 10l-2 2 2 2M14 12h4M16.5 10l2 2-2 2"/>',
   grid_4x4: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
+  smart_guides: '<rect x="4" y="5" width="7" height="6" rx="1"/><rect x="13" y="13" width="7" height="6" rx="1"/><path d="M2 5h20M16.5 2v20" stroke-dasharray="2 2"/>',
 
   // ---- export ----
   ios_share: '<path d="M12 15V4M8.5 7.5L12 4l3.5 3.5M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6"/>',
@@ -130,6 +131,10 @@ export const ICON_PATHS: Record<string, string> = {
   arrow_upward: '<path d="M12 20V5M6 11l6-6 6 6"/>',
   east: '<path d="M4 12h15M14 7l5 5-5 5"/>',
   play_arrow: '<path d="M7 5l11 7-11 7z"/>',
+  play_circle: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z"/>',
+  crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+  clip_shape: '<circle cx="12" cy="12" r="8"/><path d="M4 16l5-5 4 4 3-3 4 4"/>',
+  clip_release: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><path d="M8 16l3-3 2 2 3-3"/>',
 
   // ---- keys / flags (table) ----
   key: '<circle cx="8" cy="12" r="4"/><path d="M11.5 12H21l-2 2m2-2-2-2M8 12h.01"/>',

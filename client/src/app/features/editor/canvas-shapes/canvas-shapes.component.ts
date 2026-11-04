@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { ProjectStore } from '../../../stores/project.store';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import type { ArrowheadType } from '@dbdesigner/shared';
 import { GridTableService, type GridStructureAction } from '../../../core/services/grid-table.service';
-import type { CodeDotAction, GridTableView, ShapeView } from '../canvas/models/shape-view.model';
+import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../canvas/models/shape-view.model';
+import { MediaVideoComponent } from '../media/media-video.component';
+import { MediaActionsService } from '../../../core/services/media-actions.service';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
@@ -46,6 +48,7 @@ export interface ShapeEndpointEvent {
   host: {
     '[style.z-index]': "layer() === 'lines' ? 1000 : layer() === 'content' ? (hostZ() ?? 10) : null",
   },
+  imports: [MediaVideoComponent],
   templateUrl: './canvas-shapes.component.html',
   styleUrl: './canvas-shapes.component.scss',
 })
@@ -89,6 +92,11 @@ export class CanvasShapesComponent {
   private readonly grids = inject(GridTableService);
   private readonly store = inject(ProjectStore);
 
+  /** The picture under the pointer (GIFs set to play on hover animate while hovered). */
+  protected readonly hoveredId = signal<string | null>(null);
+  /** The picture being cropped inline (the crop overlay draws it instead). */
+  protected readonly croppingId = inject(MediaActionsService).croppingId;
+
   protected readonly frameTitleW = FRAME_TITLE_W;
   protected readonly frameTitleH = FRAME_TITLE_H;
 
@@ -97,6 +105,23 @@ export class CanvasShapesComponent {
   readonly rotateDown = output<ShapePointerEvent>();
   readonly endpointDown = output<ShapeEndpointEvent>();
   readonly bendDown = output<ShapeBendEvent>();
+
+  /**
+   * What an image element draws: the file, except a GIF stays on its first frame
+   * until its playback says go (auto = always; hover = while hovered; click = while
+   * selected, the canvas stand-in for a click).
+   */
+  protected pictureHref(id: string, img: ImageView, selected: boolean): string | null {
+    const url = this.images.url(img.fileId);
+    if (this.images.kind(img.fileId) !== 'gif') {
+      return url;
+    }
+    const playback = img.playback ?? 'click';
+    const playing =
+      playback === 'auto' ||
+      (playback === 'hover' ? this.hoveredId() === id : selected);
+    return playing ? url : (this.images.posterUrl(img.fileId) ?? null);
+  }
 
   /** SVG marker url for an arrowhead type, or null for 'none'. */
   protected markerUrl(type: ArrowheadType): string | null {

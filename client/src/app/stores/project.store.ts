@@ -827,7 +827,8 @@ export const ProjectStore = signalStore(
             key === 'morphId' ||
             key === 'step' ||
             key === 'slideId' ||
-            key === 'expandedHeight'
+            key === 'expandedHeight' ||
+            key === 'media'
           ) {
             before[key] = element[key] ?? null;
           } else if (key === 'fileName') {

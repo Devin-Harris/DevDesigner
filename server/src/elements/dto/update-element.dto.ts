@@ -27,6 +27,7 @@ import {
   type PointModel,
   type SlideConfig,
   type PlaceholderConfig,
+  type MediaConfig,
   type TextRun,
   type StrokeStyle,
   type TextAlign,
@@ -35,7 +36,7 @@ import {
 } from '@dbdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
-import { PlaceholderDto, SlideDto } from './slide.dto';
+import { MediaDto, PlaceholderDto, SlideDto } from './slide.dto';
 import { TextRunDto } from './text-run.dto';
 
 /** Body for PATCH /elements/:elementId (style / content / geometry). */
@@ -205,6 +206,11 @@ export class UpdateElementDto implements IUpdateElementDto {
   @ValidateNested()
   @Type(() => PlaceholderDto)
   placeholder?: PlaceholderConfig | null;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MediaDto)
+  media?: MediaConfig | null;
 
   @IsOptional()
   @IsString()

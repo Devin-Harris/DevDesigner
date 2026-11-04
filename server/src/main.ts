@@ -12,7 +12,7 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   // Project import posts a whole exported diagram; Express's 100kb default is too small.
-  app.useBodyParser('json', { limit: '25mb' });
+  app.useBodyParser('json', { limit: '200mb' });
   // Project graphs and export files are large, repetitive JSON; gzip cuts them 5-10x.
   // Raster images are already compressed, so they are skipped (SVG is text and is not).
   app.use(

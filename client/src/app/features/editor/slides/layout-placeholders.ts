@@ -177,6 +177,8 @@ export interface PlaceholderDrift {
   changed: CanvasElementModel[];
   /** Slots the slide has no copy of (deleted placeholders). */
   missing: CanvasElementModel[];
+  /** The layout's own items (shapes, logos, ...) changed or deleted on the slide. */
+  objects: CanvasElementModel[];
 }
 
 /** Style fields compared for drift (size is left out: text boxes fit their own text). */
@@ -206,13 +208,14 @@ export function placeholderDrift(store: Store, slide: CanvasElementModel): Place
   const layout = store.slideFrames().find((f) => f.id === slide.slide?.layoutId && f.slide?.layout);
   if (!layout) return null;
   const slots = layoutPlaceholders(store, layout.id);
+  const objects = changedLayoutStandIns(store, slide.id);
   const copies = slidePlaceholders(store, slide.id);
   const changed = copies.filter((c) => {
     const slot = slots.find((s) => s.id === c.placeholder!.of);
     return !!slot && copyDrifted(c, slot, layout, slide);
   });
   const have = new Set(copies.map((c) => c.placeholder!.of));
-  return { changed, missing: slots.filter((s) => !have.has(s.id)) };
+  return { changed, missing: slots.filter((s) => !have.has(s.id)), objects };
 }
 
 /** Put a slide's placeholders back as its layout has them (text kept, deleted ones back). */
@@ -227,6 +230,10 @@ export async function resetSlideToLayout(
   await resetToLayout(store, only ? drift.changed.filter((c) => only.has(c.id)) : drift.changed);
   if (!only) {
     for (const slot of drift.missing) await store.addElement(emptyCopy(slot, layout, slide), false);
+    // The layout's own items the slide changed or deleted show again.
+    await resetToMaster(store, drift.objects);
+  } else {
+    await resetToMaster(store, drift.objects.filter((e) => only.has(e.id)));
   }
 }
 
@@ -391,6 +398,48 @@ export function standInChanged(store: Store, standIn: CanvasElementModel): boole
 /** Drop stand-ins so the master's items show again. */
 export async function resetToMaster(store: Store, standIns: readonly CanvasElementModel[]): Promise<void> {
   for (const e of standIns) await store.deleteElement(e.id);
+}
+
+/** Whether a stand-in replaces one of its slide's layout items (not a master item). */
+export function isLayoutStandIn(store: Store, standIn: CanvasElementModel): boolean {
+  const of = overriddenId(standIn);
+  const item = of ? store.elements().find((e) => e.id === of) : undefined;
+  return !!item?.slideId && !!store.slideFrames().find((f) => f.id === item.slideId)?.slide?.layout;
+}
+
+/** A slide's stand-ins for its layout's own items (shapes, logos, ...) that differ from them. */
+export function changedLayoutStandIns(store: Store, slideId: string): CanvasElementModel[] {
+  return masterStandIns(store, slideId).filter((e) => isLayoutStandIn(store, e) && standInChanged(store, e));
+}
+
+/**
+ * Of some items, those that can go back to what their layout (or master) has: placeholder
+ * copies moved or restyled from their slot, and changed stand-ins. `from` says which.
+ */
+export function revertable(
+  store: Store,
+  items: readonly CanvasElementModel[],
+): { items: CanvasElementModel[]; from: 'layout' | 'master' } {
+  const frames = store.slideFrames();
+  const out: CanvasElementModel[] = [];
+  for (const e of items) {
+    if (e.overrides) {
+      if (standInChanged(store, e)) out.push(e);
+    } else if (e.placeholder?.of) {
+      const slot = store.elements().find((s) => s.id === e.placeholder!.of);
+      const layout = slot && frames.find((f) => f.id === slot.slideId);
+      const slide = frames.find((f) => f.id === e.slideId);
+      if (slot && layout && slide && copyDrifted(e, slot, layout, slide)) out.push(e);
+    }
+  }
+  const master = out.length > 0 && out.every((e) => e.overrides && !isLayoutStandIn(store, e));
+  return { items: out, from: master ? 'master' : 'layout' };
+}
+
+/** Put items back as their layout (or master) has them. Call inside a history batch. */
+export async function revertItems(store: Store, items: readonly CanvasElementModel[]): Promise<void> {
+  await resetToLayout(store, items.filter((e) => !e.overrides && e.placeholder?.of));
+  await resetToMaster(store, items.filter((e) => !!e.overrides));
 }
 
 /**

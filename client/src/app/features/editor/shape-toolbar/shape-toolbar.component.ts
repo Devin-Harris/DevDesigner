@@ -58,6 +58,7 @@ export class ShapeToolbarComponent {
   readonly zoomLabel = input<string>('100%');
   readonly saveLabel = input<string>('');
   readonly gridSnap = input<boolean>(false);
+  readonly smartGuides = input<boolean>(false);
   readonly canAlign = input<boolean>(false);
   /** Three or more units selected, so distribute is meaningful. */
   readonly canDistribute = input<boolean>(false);
@@ -84,6 +85,7 @@ export class ShapeToolbarComponent {
   readonly setHome = output<void>();
   readonly clearHome = output<void>();
   readonly toggleGrid = output<void>();
+  readonly toggleSmartGuides = output<void>();
   readonly align = output<AlignAction>();
   readonly exportSql = output<void>();
   /** Open the image picker (images are placed via the editor, not drawn). */

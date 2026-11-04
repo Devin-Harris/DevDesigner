@@ -31,6 +31,8 @@ import { ProjectStore } from '../../../stores/project.store';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../export/diagram-svg.helper';
+import { imageView } from '../canvas/helpers/shape-render.helper';
+import type { ImageView } from '../canvas/models/shape-view.model';
 import { embedFonts } from '../export/font-embed.helper';
 
 /** A grid's cell text in reading order, for morph matching (its `text` is JSON). */
@@ -88,6 +90,8 @@ export interface RenderedSlide {
   notes: string;
   /** The transition into this slide. */
   transition: SlideTransition;
+  /** GIFs and videos on the slide, played live over the slide picture while presenting. */
+  media: SlideMedia[];
   items: SlideItem[];
   /** Relationships and image data the slide draws with (for live morph rendering). */
   relationships: RelationshipModel[];
@@ -98,6 +102,22 @@ export interface RenderedSlide {
     messages: SequenceMessageModel[];
   };
   imageData: ReadonlyMap<string, string>;
+}
+
+/** A GIF or video on a slide, placed in percent of the slide (so it scales with it). */
+export interface SlideMedia {
+  id: string;
+  kind: 'gif' | 'video';
+  fileId: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Rotation in degrees about the box centre. */
+  angle: number;
+  opacity: number;
+  /** The picture in its own box (crop, clip, playback). */
+  view: ImageView;
 }
 
 /**
@@ -232,6 +252,7 @@ export class SlideRenderService {
         relationships: [...relationships],
         sequences: this.sequencesWithin(frame, sequences),
         imageData,
+        media: this.mediaWithin(frame, elements),
       });
     }
     return out;
@@ -365,6 +386,32 @@ export class SlideRenderService {
     return items;
   }
 
+  /** The GIFs and videos among a slide's elements (files are loaded by `imageData` first). */
+  private mediaWithin(frame: CanvasElementModel, elements: readonly CanvasElementModel[]): SlideMedia[] {
+    const out: SlideMedia[] = [];
+    const fw = frame.width || 1;
+    const fh = frame.height || 1;
+    for (const e of [...elements].sort((a, b) => a.zIndex - b.zIndex)) {
+      const kind = e.type === 'image' ? this.images.kind(e.fileId) : null;
+      if (!e.fileId || (kind !== 'gif' && kind !== 'video')) {
+        continue;
+      }
+      out.push({
+        id: e.id,
+        kind,
+        fileId: e.fileId,
+        left: ((e.x - frame.x) / fw) * 100,
+        top: ((e.y - frame.y) / fh) * 100,
+        width: (e.width / fw) * 100,
+        height: (e.height / fh) * 100,
+        angle: ((e.angle || 0) * 180) / Math.PI,
+        opacity: e.opacity / 100,
+        view: imageView(e, e.fileId),
+      });
+    }
+    return out;
+  }
+
   private async imageData(elements: readonly CanvasElementModel[]): Promise<Map<string, string>> {
     const ids = [
       ...new Set(
@@ -374,7 +421,7 @@ export class SlideRenderService {
     const data = new Map<string, string>();
     await Promise.all(
       ids.map(async (id) => {
-        const url = await this.images.dataUrl(id);
+        const url = await this.images.stillDataUrl(id);
         if (url) {
           data.set(id, url);
         }

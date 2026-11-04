@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { GridTableService } from '../../../core/services/grid-table.service';
+import { ElementImagesService } from '../../../core/services/element-images.service';
+import { MediaActionsService } from '../../../core/services/media-actions.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
@@ -12,6 +14,7 @@ import {
   type CodeLanguage,
   type FillStyle,
   type FontFamily,
+  type MediaPlayback,
   type StrokeStyle,
   type TextAlign,
   type UpdateElementDto,
@@ -53,6 +56,7 @@ import {
   withTextFit,
 } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
+import { revertable, revertItems } from '../slides/layout-placeholders';
 
 const STROKE_WIDTHS: { value: number; label: string }[] = [
   { value: 1, label: 'Thin' },
@@ -64,7 +68,10 @@ const STROKE_STYLE_ICONS: { value: StrokeStyle; icon: string }[] = [
   { value: 'dashed', icon: 'more_horiz' },
   { value: 'dotted', icon: 'drag_handle' },
 ];
-const FONT_SIZES = [14, 16, 20, 28, 36, 48];
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 44, 48, 60, 72, 96];
+/** Element types that carry text (their own, or a label) and take font styling. */
+const TEXT_TYPES = new Set(['text', 'rectangle', 'ellipse', 'diamond', 'grid']);
+const TEXT_SIZE_DEFAULT = 20;
 const CODE_FONT_SIZES = [11, 12, 14, 16, 18, 20, 24];
 const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
   { value: 'none', icon: 'horizontal_rule', label: 'None' },
@@ -94,6 +101,8 @@ export class ElementFloatingToolbarComponent {
   private readonly codeActions = inject(CodeActionsService);
   protected readonly grids = inject(GridTableService);
   private readonly rich = inject(RichTextSessionService);
+  protected readonly media = inject(MediaActionsService);
+  private readonly images = inject(ElementImagesService);
   protected readonly strokeWidths = STROKE_WIDTHS;
   protected readonly strokeStyleIcons = STROKE_STYLE_ICONS;
   protected readonly fonts = FONT_OPTIONS;
@@ -160,6 +169,17 @@ export class ElementFloatingToolbarComponent {
   );
   /** Pictures have no stroke/fill styling, only opacity and layering. */
   protected readonly isImage = computed(() => this.element().type === 'image');
+  /** GIFs and videos: what the picture is (null for stills or while loading). */
+  protected readonly mediaKind = computed(() => {
+    const kind = this.isImage() ? this.images.kind(this.element().fileId) : null;
+    return kind === 'gif' || kind === 'video' ? kind : null;
+  });
+  protected readonly playback = computed<MediaPlayback>(() => this.element().media?.playback ?? 'click');
+  protected readonly playbackModes: ReadonlyArray<{ value: MediaPlayback; label: string; hint: string }> = [
+    { value: 'click', label: 'On click', hint: 'Still until clicked while presenting' },
+    { value: 'hover', label: 'On hover', hint: 'Plays while the pointer is over it' },
+    { value: 'auto', label: 'Automatically', hint: 'Plays as soon as it is shown' },
+  ];
   protected readonly isCode = computed(() => this.element().type === 'code');
   protected readonly isGrid = computed(() => this.element().type === 'grid');
   protected readonly gridHeaderOn = computed(
@@ -177,10 +197,40 @@ export class ElementFloatingToolbarComponent {
     () => this.element().type === 'arrow' || this.element().type === 'line',
   );
   /** Text/label controls apply to text elements and to shapes (which have labels). */
-  protected readonly canHaveText = computed(() => {
-    const t = this.element().type;
-    return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'grid';
+  protected readonly canHaveText = computed(() => this.textTargets().length > 0);
+
+  /** Every selected element that takes font styling (the shown element when nothing else is). */
+  private readonly textTargets = computed(() => {
+    const ids = new Set(this.store.selectedElementIds());
+    const els = ids.size ? this.store.elements().filter((e) => ids.has(e.id)) : [this.element()];
+    return els.filter((e) => TEXT_TYPES.has(e.type));
   });
+  /** The font shared by the text in the selection, or null when they differ. */
+  protected readonly sharedFont = computed<string | null>(() => {
+    const fonts = new Set(this.textTargets().map((e) => e.fontFamily ?? 'normal'));
+    return fonts.size === 1 ? [...fonts][0] : null;
+  });
+  /** The font size shared by the text in the selection, or null when they differ. */
+  protected readonly sharedSize = computed<number | null>(() => {
+    const sizes = new Set(this.textTargets().map((e) => e.fontSize ?? TEXT_SIZE_DEFAULT));
+    return sizes.size === 1 ? [...sizes][0] : null;
+  });
+  /** Name shown on the font button. */
+  protected readonly fontLabel = computed(() => {
+    const f = this.sharedFont();
+    if (f === null) return 'Mixed';
+    return (
+      this.themeFonts().find((t) => t.value === f)?.label ??
+      this.fonts.find((o) => o.value === f)?.label ??
+      f
+    );
+  });
+  protected readonly fontLabelStack = computed(() => {
+    const f = this.sharedFont();
+    if (f === null) return null;
+    return this.themeFonts().find((t) => t.value === f)?.stack ?? fontStack(f as FontFamily);
+  });
+  protected readonly multiText = computed(() => this.textTargets().length > 1);
   protected readonly hasFill = computed(
     () =>
       !this.isText() &&
@@ -386,7 +436,35 @@ export class ElementFloatingToolbarComponent {
   protected setFont(font: FontFamily): void {
     // Fonts are downloaded on first use; wait so the box is measured in the real face.
     const face = (resolveThemeFont(font, this.deckTheme() ?? DEFAULT_THEME) ?? 'normal') as FontFamily;
-    void ensureFontLoaded(face).then(() => this.patchAll({ fontFamily: font }));
+    void ensureFontLoaded(face).then(() => this.patchText({ fontFamily: font }));
+  }
+
+  /** Font changes go to every selected element that has text, never to pictures, lines, etc. */
+  private patchText(patch: UpdateElementDto): void {
+    for (const el of this.textTargets()) {
+      void this.store.updateElement(el.id, withTextFit(el, this.withRunReset(el, patch)));
+    }
+    this.store.setElementStyle(patch as Record<string, unknown>);
+  }
+
+  /** Step every selected text's size to the next preset up or down (each from its own size). */
+  protected stepFontSize(dir: 1 | -1): void {
+    for (const el of this.textTargets()) {
+      const cur = el.fontSize ?? TEXT_SIZE_DEFAULT;
+      const next =
+        dir > 0
+          ? (FONT_SIZES.find((s) => s > cur) ?? Math.round(cur * 1.25))
+          : ([...FONT_SIZES].reverse().find((s) => s < cur) ?? Math.max(6, Math.round(cur * 0.8)));
+      void this.store.updateElement(el.id, withTextFit(el, { fontSize: next }));
+    }
+  }
+
+  /** A size typed into the size menu. */
+  protected setCustomFontSize(value: string): void {
+    const n = Math.round(Number(value));
+    if (Number.isFinite(n) && n >= 4 && n <= 400) {
+      this.setFontSize(n);
+    }
   }
 
   protected setLineHeight(lineHeight: number): void {
@@ -394,7 +472,7 @@ export class ElementFloatingToolbarComponent {
   }
 
   protected setFontSize(size: number): void {
-    this.patchAll({ fontSize: size });
+    this.patchText({ fontSize: size });
   }
 
   protected toggleBold(): void {
@@ -547,12 +625,33 @@ export class ElementFloatingToolbarComponent {
     this.patchAll({ opacity: value });
   }
 
+  protected setPlayback(value: MediaPlayback): void {
+    void this.media.setMedia(this.element().id, { playback: value === 'click' ? undefined : value });
+  }
+
+  protected toggleMediaFlag(key: 'loop' | 'muted'): void {
+    const el = this.element();
+    const on = key === 'loop' ? (el.media?.loop ?? false) : (el.media?.muted ?? false);
+    void this.media.setMedia(el.id, { [key]: !on });
+  }
+
   protected bringToFront(): void {
     this.store.arrangeSelection('front');
   }
 
   protected sendToBack(): void {
     this.store.arrangeSelection('back');
+  }
+
+  /** Selected items changed from their slide's layout (or master) that can go back. */
+  protected readonly revert = computed(() => {
+    const ids = new Set(this.store.selectedElementIds());
+    return revertable(this.store, this.store.elements().filter((e) => ids.has(e.id)));
+  });
+
+  protected revertToLayout(): void {
+    const items = this.revert().items;
+    void this.store.batchHistory(() => revertItems(this.store, items));
   }
 
   protected remove(): void {

@@ -155,7 +155,7 @@ export class ProjectThumbnailService {
     const data = new Map<string, string>();
     await Promise.all(
       ids.map(async (fileId) => {
-        const url = await this.images.dataUrl(fileId);
+        const url = await this.images.stillDataUrl(fileId);
         if (url) {
           data.set(fileId, url);
         }

@@ -1,4 +1,4 @@
-import type { ArrowheadType, ElementType } from '@dbdesigner/shared';
+import type { ArrowheadType, ElementType, MediaPlayback } from '@dbdesigner/shared';
 
 /** One wrapped line with its absolute baseline position. */
 export interface TextLineView {
@@ -117,8 +117,8 @@ export interface ShapeView {
   rect?: { x: number; y: number; width: number; height: number; rx: number };
   ellipse?: { cx: number; cy: number; rx: number; ry: number };
   polygon?: string;
-  /** An uploaded picture (image element): drawn stretched to this box. */
-  image?: { x: number; y: number; width: number; height: number; fileId: string };
+  /** An uploaded picture or video (image element), shown in this box. */
+  image?: ImageView;
   /** A syntax-highlighted code block (code element). */
   code?: CodeBlockView;
   /** A spreadsheet-style table (grid element). */
@@ -144,4 +144,32 @@ export interface ShapeView {
 
   /** Selection bounding box (world coords) for the outline and resize handles. */
   bbox: { x: number; y: number; width: number; height: number };
+}
+
+/** An image element's picture: the box it fills, where its whole source lands, and its clip. */
+export interface ImageView {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fileId: string;
+  /** Where the whole source is drawn (stretched); the box itself when uncropped. */
+  src: { x: number; y: number; width: number; height: number };
+  /** Set when the picture is cropped or clipped: the outline it is clipped to. */
+  clip?: ImageClipView;
+  /** GIFs/videos: when playback starts (absent = click). */
+  playback?: MediaPlayback;
+  loop: boolean;
+  muted: boolean;
+}
+
+export interface ImageClipView {
+  id: string;
+  /** Rectangle outline (rx = corner radius). */
+  rect?: { x: number; y: number; width: number; height: number; rx: number };
+  ellipse?: { cx: number; cy: number; rx: number; ry: number };
+  /** Diamond outline as SVG points. */
+  polygon?: string;
+  /** The same outline as a CSS clip-path (for HTML overlays positioned on the box). */
+  css: string;
 }

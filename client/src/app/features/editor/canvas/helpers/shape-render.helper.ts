@@ -10,10 +10,12 @@ import type {
 } from '@dbdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
+import { isFullCrop, mediaSourceRect } from './media.helper';
 import type {
   CodeBlockView,
   CodeDotAction,
   GridTableView,
+  ImageView,
   ShapeView,
   TextBlockView,
   TextLineView,
@@ -86,6 +88,43 @@ export const FONT_OPTIONS: { value: string; label: string }[] = [
 export function rectCornerRadius(element: CanvasElementModel): number {
   const r = element.cornerRadius ?? Math.min(12, Math.min(element.width, element.height) * 0.15);
   return element.ellipticCorners ? r : Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+}
+
+/** An image element's picture: its crop resolved to where the source lands, and its clip. */
+export function imageView(element: CanvasElementModel, fileId: string): ImageView {
+  const box = { x: element.x, y: element.y, width: element.width, height: element.height };
+  const media = element.media;
+  const crop = isFullCrop(media?.crop) ? undefined : media?.crop;
+  const view: ImageView = {
+    ...box,
+    fileId,
+    src: mediaSourceRect(box, crop),
+    playback: media?.playback,
+    loop: media?.loop ?? false,
+    muted: media?.muted ?? false,
+  };
+  const id = `img-clip-${element.id}`;
+  const w = Math.abs(box.width);
+  const h = Math.abs(box.height);
+  if (media?.clip === 'ellipse') {
+    view.clip = {
+      id,
+      ellipse: { cx: box.x + box.width / 2, cy: box.y + box.height / 2, rx: w / 2, ry: h / 2 },
+      css: 'ellipse(50% 50% at 50% 50%)',
+    };
+  } else if (media?.clip === 'diamond') {
+    const mx = box.x + box.width / 2;
+    const my = box.y + box.height / 2;
+    view.clip = {
+      id,
+      polygon: `${mx},${box.y} ${box.x + box.width},${my} ${mx},${box.y + box.height} ${box.x},${my}`,
+      css: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+    };
+  } else if (media?.clip === 'rectangle' || crop) {
+    const rx = media?.clip === 'rectangle' ? Math.min(media.clipRadius ?? 0, w / 2, h / 2) : 0;
+    view.clip = { id, rect: { ...box, rx }, css: `inset(0 round ${rx}px)` };
+  }
+  return view;
 }
 
 export function fontStack(key: string | undefined): string {
@@ -201,7 +240,12 @@ function measureWidth(text: string, cssFont: string): number {
 }
 
 /** Greedily wrap a paragraph to a maximum width (word wrap, hard-breaks long words). */
-function wrapParagraph(para: string, maxWidth: number, cssFont: string): string[] {
+function wrapParagraph(
+  para: string,
+  maxWidth: number,
+  cssFont: string,
+  breakWords = false,
+): string[] {
   if (para === '') {
     return [''];
   }
@@ -209,6 +253,23 @@ function wrapParagraph(para: string, maxWidth: number, cssFont: string): string[
   const lines: string[] = [];
   let current = '';
   for (const word of words) {
+    if (breakWords && measureWidth(word, cssFont) > maxWidth) {
+      // A word wider than the box breaks by character (as the editor's CSS does).
+      // The word starts its own line first, then breaks.
+      if (current) {
+        lines.push(current);
+      }
+      let chunk = '';
+      for (const ch of word) {
+        if (chunk && measureWidth(chunk + ch, cssFont) > maxWidth) {
+          lines.push(chunk);
+          chunk = '';
+        }
+        chunk += ch;
+      }
+      current = chunk;
+      continue;
+    }
     const candidate = current ? `${current} ${word}` : word;
     if (measureWidth(candidate, cssFont) <= maxWidth || current === '') {
       current = candidate;
@@ -235,17 +296,31 @@ function cssFontFor(opts: { fontSize: number; fontFamilyKey: string | undefined 
  * font (bold is wider), long words are broken by character, and trailing spaces
  * are dropped at a break so alignment stays true.
  */
+/** A list item's leading indent + marker ("  • ", "1. "), whose width continuation lines hang under. */
+const LIST_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
+
 function wrapRunLines(
   paragraphs: TextRun[][],
   maxWidth: number,
   baseWeight: number,
   baseItalic: boolean,
   fontFor: (weight: number, italic: boolean) => string,
-): TextRun[][] {
-  const out: TextRun[][] = [];
+): { runs: TextRun[]; indent: number }[] {
+  const out: { runs: TextRun[]; indent: number }[] = [];
   for (const para of paragraphs) {
     let line: TextRun[] = [];
     let width = 0;
+    // Wrapped lines of a list item start under its text, not under the marker.
+    let hang = 0;
+    const prefix = LIST_PREFIX.exec(para.map((r) => r.text).join(''))?.[0];
+    if (prefix && para[0]) {
+      hang = measureWidth(prefix, fontFor(runWeight(baseWeight, para[0]), para[0].italic ?? baseItalic));
+    }
+    // Every line of the item's text gets the width beside the marker; the marker
+    // itself is never left alone on a line.
+    const limit = Math.max(8, maxWidth - hang);
+    let markerLeft = prefix?.length ?? 0;
+    let indent = 0;
     const add = (run: TextRun, text: string): void => {
       const last = line[line.length - 1];
       if (
@@ -266,22 +341,34 @@ function wrapRunLines(
       if (last) {
         last.text = last.text.replace(/\s+$/, '');
       }
-      out.push(line.filter((r) => r.text));
+      out.push({ runs: line.filter((r) => r.text), indent });
       line = [];
       width = 0;
+      indent = hang;
     };
     for (const run of para) {
       const font = fontFor(runWeight(baseWeight, run), run.italic ?? baseItalic);
-      for (const tok of run.text.match(/\S+\s*|\s+/g) ?? []) {
+      for (let tok of run.text.match(/\S+\s*|\s+/g) ?? []) {
+        if (markerLeft > 0) {
+          // Marker characters sit in the hang, outside the width the text wraps to.
+          const head = tok.slice(0, markerLeft);
+          add(run, head);
+          markerLeft -= head.length;
+          tok = tok.slice(head.length);
+          if (!tok) {
+            continue;
+          }
+        }
+        const max = hang ? limit : maxWidth;
         const wordW = measureWidth(tok.replace(/\s+$/, ''), font);
-        if (width > 0 && width + wordW > maxWidth) {
+        if (width > 0 && width + wordW > max) {
           flush();
         }
-        if (wordW > maxWidth) {
+        if (wordW > max) {
           // A word wider than the box: break it by character.
           for (const ch of tok) {
             const cw = measureWidth(ch, font);
-            if (width > 0 && width + cw > maxWidth) {
+            if (width > 0 && width + cw > max) {
               flush();
             }
             add(run, ch);
@@ -293,7 +380,7 @@ function wrapRunLines(
         }
       }
     }
-    out.push(line);
+    out.push({ runs: line, indent });
   }
   return out;
 }
@@ -327,22 +414,37 @@ function layoutTextBlock(
   const style = opts.italic ? 'italic ' : '';
   const cssFont = `${style}${opts.fontWeight} ${opts.fontSize}px ${stack}`;
   const maxWidth = Math.max(8, box.width - opts.padding * 2);
-  const rich = opts.runs?.length
+  const wrapped = opts.runs?.length
     ? opts.wrap
       ? wrapRunLines(runLines(opts.runs), maxWidth, opts.fontWeight, !!opts.italic, cssFontFor(opts))
-      : runLines(opts.runs)
+      : runLines(opts.runs).map((runs) => ({ runs, indent: 0 }))
     : null;
+  const rich = wrapped?.map((l) => l.runs) ?? null;
   const lines: string[] = [];
-  if (rich) {
-    for (const line of rich) {
-      lines.push(line.map((r) => r.text).join(''));
+  const indents: number[] = [];
+  if (wrapped) {
+    for (const line of wrapped) {
+      lines.push(line.runs.map((r) => r.text).join(''));
+      indents.push(line.indent);
     }
   } else {
     for (const para of text.split('\n')) {
       if (opts.wrap) {
-        lines.push(...wrapParagraph(para, maxWidth, cssFont));
+        const prefix = LIST_PREFIX.exec(para)?.[0];
+        if (prefix) {
+          // The item's text wraps beside the marker; the marker stays on the first line.
+          const hang = measureWidth(prefix, cssFont);
+          const body = wrapParagraph(para.slice(prefix.length), Math.max(8, maxWidth - hang), cssFont, true);
+          lines.push(prefix + body[0], ...body.slice(1));
+          indents.push(0, ...body.slice(1).map(() => hang));
+        } else {
+          const wrapped = wrapParagraph(para, maxWidth, cssFont, true);
+          lines.push(...wrapped);
+          indents.push(...wrapped.map(() => 0));
+        }
       } else {
         lines.push(para);
+        indents.push(0);
       }
     }
   }
@@ -371,7 +473,9 @@ function layoutTextBlock(
   // looser line height adds space above and below the glyphs rather than only below.
   const baseline = lineHeight / 2 + opts.fontSize * 0.175;
   const lineViews: TextLineView[] = lines.map((t, i) => {
-    const view: TextLineView = { text: t, x, y: top + i * lineHeight + baseline };
+    // Hanging indent only reads as one with left-aligned text.
+    const lx = anchor === 'start' ? x + indents[i] : x;
+    const view: TextLineView = { text: t, x: lx, y: top + i * lineHeight + baseline };
     if (rich) {
       view.spans = rich[i].map((r) => ({
         text: r.text,
@@ -1005,13 +1109,7 @@ export function buildShapeViews(
         break;
       case 'image':
         if (element.fileId) {
-          base.image = {
-            x: element.x,
-            y: element.y,
-            width: element.width,
-            height: element.height,
-            fileId: element.fileId,
-          };
+          base.image = imageView(element, element.fileId);
         }
         break;
       case 'frame': {

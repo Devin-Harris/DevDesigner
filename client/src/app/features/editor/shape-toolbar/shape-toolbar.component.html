@@ -345,6 +345,14 @@
   >
     <dbd-icon name="grid_4x4" />
   </button>
+  <button
+    class="sbtn"
+    [class.on]="smartGuides()"
+    (click)="toggleSmartGuides.emit()"
+    matTooltip="Smart guides: snap to nearby items and spacing"
+  >
+    <dbd-icon name="smart_guides" />
+  </button>
 
   @if (saveLabel()) {
     <span class="save-label">{{ saveLabel() }}</span>

@@ -4,6 +4,7 @@ import type {
   PointModel,
   SlideConfig,
   PlaceholderConfig,
+  MediaConfig,
   TextRun,
 } from '@dbdesigner/shared';
 import { ElementEntity } from './element.entity';
@@ -21,6 +22,17 @@ function toPlaceholder(json: string | null): PlaceholderConfig | undefined {
   if (!json) return undefined;
   try {
     const parsed = JSON.parse(json) as PlaceholderConfig;
+    return parsed && typeof parsed === 'object' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Decode a stored media config; a corrupt value just means "defaults". */
+function toMedia(json: string | null): MediaConfig | undefined {
+  if (!json) return undefined;
+  try {
+    const parsed = JSON.parse(json) as MediaConfig;
     return parsed && typeof parsed === 'object' ? parsed : undefined;
   } catch {
     return undefined;
@@ -90,6 +102,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     endArrowhead: entity.endArrowhead ?? undefined,
     curvature: entity.curvature ?? undefined,
     fileId: entity.fileId ?? undefined,
+    media: toMedia(entity.mediaJson),
     language: entity.language ?? undefined,
     fileName: entity.fileName ?? undefined,
     expandedHeight: entity.expandedHeight ?? undefined,

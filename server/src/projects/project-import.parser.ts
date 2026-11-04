@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   PLACEHOLDER_ROLES,
+  MEDIA_CLIP_SHAPES,
+  MEDIA_PLAYBACK_MODES,
+  type MediaConfig,
   LAYOUT_KINDS,
   type PlaceholderConfig,
   ARROWHEAD_TYPES,
@@ -257,6 +260,28 @@ function slideTheme(value: unknown, path: string): SlideTheme | undefined {
   };
 }
 
+function media(value: unknown, path: string): MediaConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+  const m = obj(value, path);
+  const c = m['crop'] === undefined || m['crop'] === null ? undefined : obj(m['crop'], `${path}.crop`);
+  const bool = (key: string): boolean | undefined => (typeof m[key] === 'boolean' ? (m[key] as boolean) : undefined);
+  return {
+    crop: c
+      ? {
+          x: num(c, 'x', `${path}.crop`),
+          y: num(c, 'y', `${path}.crop`),
+          width: Math.max(0.0001, num(c, 'width', `${path}.crop`)),
+          height: Math.max(0.0001, num(c, 'height', `${path}.crop`)),
+        }
+      : undefined,
+    clip: optOneOf(m, 'clip', path, MEDIA_CLIP_SHAPES),
+    clipRadius: optNum(m, 'clipRadius', path),
+    playback: optOneOf(m, 'playback', path, MEDIA_PLAYBACK_MODES),
+    loop: bool('loop'),
+    muted: bool('muted'),
+  };
+}
+
 function placeholder(value: unknown, path: string): PlaceholderConfig | undefined {
   if (value === undefined || value === null) return undefined;
   const p = obj(value, path);
@@ -383,6 +408,7 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     endArrowhead: optOneOf(e, 'endArrowhead', path, ARROWHEAD_TYPES),
     curvature: optNum(e, 'curvature', path),
     fileId: optStr(e, 'fileId', path, 100),
+    media: media(e['media'], `${path}.media`),
     // 'javascript' was removed; older exports map to TypeScript.
     language: optOneOf(
       e['language'] === 'javascript' ? { ...e, language: 'typescript' } : e,

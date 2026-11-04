@@ -72,6 +72,33 @@
   z-index: 4;
 }
 
+// Smart-guide alignment lines and equal-spacing markers while dragging.
+.smart-guides {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+
+  line {
+    stroke: #f43f5e;
+    stroke-width: 1;
+  }
+
+  line.gap {
+    stroke-dasharray: 3 2;
+  }
+
+  text {
+    fill: #f43f5e;
+    font-size: 10px;
+    font-weight: 600;
+    text-anchor: middle;
+  }
+}
+
 // Inline editor for a text element / shape label, overlaying the element exactly.
 // Sized + styled to match the rendered glyphs (width/height/font/align are bound
 // inline), so the editor IS the visible text — no overlay surface, no second copy

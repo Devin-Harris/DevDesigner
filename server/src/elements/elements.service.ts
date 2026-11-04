@@ -109,6 +109,7 @@ export class ElementsService {
       endArrowhead: dto.endArrowhead ?? null,
       curvature: dto.curvature ?? null,
       fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
+      mediaJson: dto.type === 'image' && dto.media ? JSON.stringify(dto.media) : null,
       language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
       fileName: dto.type === 'code' ? dto.fileName?.trim() || null : null,
       expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
@@ -284,6 +285,9 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.slide !== undefined && element.type === 'frame') {
     element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
+  }
+  if (dto.media !== undefined && element.type === 'image') {
+    element.mediaJson = dto.media ? JSON.stringify(dto.media) : null;
   }
   if (dto.placeholder !== undefined) {
     element.placeholderJson = dto.placeholder ? JSON.stringify(dto.placeholder) : null;
