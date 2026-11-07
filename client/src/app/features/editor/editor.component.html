@@ -537,6 +537,29 @@
       </svg>
     }
 
+    @if (spacingHandles(); as sh) {
+      <svg class="smart-guides">
+        @for (h of sh; track $index) {
+          <line class="gap" [attr.x1]="h.line.x1" [attr.y1]="h.line.y1" [attr.x2]="h.line.x2" [attr.y2]="h.line.y2" />
+          @for (k of h.ticks; track $index) {
+            <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" />
+          }
+          <text [attr.x]="h.lx" [attr.y]="h.ly">{{ h.label }}</text>
+        }
+      </svg>
+      @for (h of sh; track $index) {
+        <div
+          class="spacing-handle"
+          [class.vertical]="h.vertical"
+          [style.left.px]="h.left"
+          [style.top.px]="h.top"
+          [style.--span.px]="h.span"
+          title="Drag to change spacing"
+          (pointerdown)="startSpacingDrag($event)"
+        ></div>
+      }
+    }
+
     @if (marqueeRect(); as m) {
       <div
         class="marquee"

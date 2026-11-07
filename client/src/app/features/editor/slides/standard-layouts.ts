@@ -93,8 +93,8 @@ async function addLayoutFrame(
     height: fh,
     angle: 0,
     strokeColor: anchor.strokeColor,
-    backgroundColor: themeToken('background'),
-    fillStyle: 'solid',
+    // Transparent: the master's background shows through.
+    fillStyle: 'none',
     strokeWidth: 1.5,
     strokeStyle: 'solid',
     opacity: 100,

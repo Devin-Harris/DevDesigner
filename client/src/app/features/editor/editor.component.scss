@@ -524,3 +524,44 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
   pointer-events: none;
 }
+
+// Grab area over a gap mark of an evenly spaced selection (the mark itself is
+// drawn in .smart-guides); hovering thickens the guide line under it.
+.spacing-handle {
+  position: absolute;
+  z-index: 5;
+  width: 12px;
+  height: var(--span, 12px);
+  transform: translate(-50%, -50%);
+  cursor: ns-resize;
+  touch-action: none;
+
+  &.vertical {
+    width: var(--span, 12px);
+    height: 12px;
+    cursor: ew-resize;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 100%;
+    background: #f43f5e;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 100ms ease;
+  }
+
+  &.vertical::before {
+    width: 100%;
+    height: 2px;
+  }
+
+  &:hover::before,
+  &:active::before {
+    opacity: 1;
+  }
+}

@@ -58,6 +58,7 @@ import {
   themeToken,
   DEFAULT_THEME,
   type SlideTheme,
+  DEFAULT_SLIDE_TRANSITION,
 } from '@dbdesigner/shared';
 import {
   boxToOuter,
@@ -245,6 +246,8 @@ type DragMode =
   | 'element-rotate'
   /** Resizing a multi-selection (elements + sequence diagrams) as one box. */
   | 'group-resize'
+  /** Dragging a gap handle to respace an evenly spaced selection. */
+  | 'spacing'
   | 'arrow-endpoint'
   | 'arrow-bend'
   /** Alt-drag: waiting for the copies to be created before the drag can start. */
@@ -642,6 +645,33 @@ export class EditorComponent {
    * to its left edge, the settings pinned to its right, and a border around all
    * three. Each presentation is a self-contained set at its own spot.
    */
+  /** World-space box of each presentation's dashed outline (list + frame + settings, as laid out in slideSets). */
+  private presentationOutlineBoxes(): { frameId: string; box: Box }[] {
+    const gap = EditorComponent.PANEL_GAP;
+    const zoom = this.store.viewport().zoom;
+    const pad = Math.max(EditorComponent.PANEL_PAD, EditorComponent.PANEL_MIN_PAD_PX / zoom);
+    const frames = this.store.slideFrames();
+    const shown = this.store.shownByPresentation();
+    const settingsW = this.settingsFolded() ? EditorComponent.FOLDED_W : EditorComponent.SETTINGS_W;
+    return this.store.presentations().flatMap((name) => {
+      const f = frames.find((fr) => fr.id === shown.get(name));
+      if (!f) return [];
+      const y0 = f.y;
+      const y1 = f.y + Math.max(f.height, EditorComponent.PANEL_MIN_H);
+      return [
+        {
+          frameId: f.id,
+          box: {
+            x0: f.x - gap - EditorComponent.LIST_W - pad,
+            y0: y0 - pad,
+            x1: f.x + f.width + gap + settingsW + pad,
+            y1: y1 + pad,
+          },
+        },
+      ];
+    });
+  }
+
   protected readonly slideSets = computed(() => {
     const v = this.store.viewport();
     const gap = EditorComponent.PANEL_GAP;
@@ -1575,14 +1605,15 @@ export class EditorComponent {
     return out;
   });
 
-  /** Shown slides without a background of their own take their layout's. */
+  /** Shown slides/layouts without a background of their own take their layout's, else the master's. */
   private readonly layoutFills = computed(() => {
     const frames = this.store.slideFrames();
     const shown = this.store.shownSlideIds();
     const out = new Map<string, Pick<CanvasElementModel, 'fillStyle' | 'backgroundColor'>>();
+    const filled = (u: CanvasElementModel | undefined) => (u && u.fillStyle !== 'none' ? u : undefined);
     for (const f of frames) {
-      const l = shown.has(f.id) && f.fillStyle === 'none' ? layoutOf(f, frames) : undefined;
-      if (l && l.fillStyle !== 'none') {
+      const l = shown.has(f.id) && f.fillStyle === 'none' ? (filled(layoutOf(f, frames)) ?? filled(masterOf(f, frames))) : undefined;
+      if (l) {
         out.set(f.id, { fillStyle: l.fillStyle, backgroundColor: l.backgroundColor });
       }
     }
@@ -3185,6 +3216,147 @@ export class EditorComponent {
     }
   }
 
+  /**
+   * When 2+ selected elements sit in one row or column with equal gaps, a handle
+   * in the middle of each gap: dragging it respaces every gap at once.
+   */
+  private readonly evenSpacing = computed<{
+    axis: 'x' | 'y';
+    gap: number;
+    items: { el: CanvasElementModel; box: { x0: number; y0: number; x1: number; y1: number } }[];
+  } | null>(() => {
+    if (!this.store.canEdit()) return null;
+    const ids = new Set(this.store.selectedElementIds());
+    if (ids.size < 2 || this.store.selectedTableIds().length || this.store.selectedDiagramIds().length) return null;
+    const items = this.store
+      .elements()
+      .filter((e) => ids.has(e.id) && e.type !== 'frame')
+      .map((el) => ({ el, box: elementBox(el) }));
+    if (items.length < 2 || items.length !== ids.size) return null;
+    for (const axis of ['x', 'y'] as const) {
+      const lo = axis === 'x' ? 'x0' : 'y0';
+      const hi = axis === 'x' ? 'x1' : 'y1';
+      const sorted = [...items].sort((a, b) => a.box[lo] - b.box[lo]);
+      const gaps = sorted.slice(1).map((it, i) => it.box[lo] - sorted[i].box[hi]);
+      if (gaps.some((g) => g < 0)) continue;
+      if (Math.max(...gaps) - Math.min(...gaps) > 1.5) continue;
+      return { axis, gap: gaps.reduce((s, g) => s + g, 0) / gaps.length, items: sorted };
+    }
+    return null;
+  });
+
+  /** True while a gap handle is being dragged (keeps the guides on screen). */
+  private readonly spacingActive = signal(false);
+
+  /**
+   * Screen-space gap marks for {@link evenSpacing}, drawn like the smart-guide
+   * gap marks (line, end ticks, distance label) with a grab area on each line.
+   */
+  protected readonly spacingHandles = computed(() => {
+    const s = this.evenSpacing();
+    if (!s || (this.gestureActive() && !this.spacingActive())) return null;
+    const v = this.store.viewport();
+    const sx = (x: number): number => x * v.zoom + v.x;
+    const sy = (y: number): number => y * v.zoom + v.y;
+    const T = 3;
+    return s.items.slice(1).map((it, k) => {
+      const a = s.items[k].box;
+      const b = it.box;
+      const label = String(Math.round(s.axis === 'x' ? b.x0 - a.x1 : b.y0 - a.y1));
+      if (s.axis === 'x') {
+        const y = sy((Math.max(a.y0, b.y0) + Math.min(a.y1, b.y1)) / 2);
+        const x1 = sx(a.x1);
+        const x2 = sx(b.x0);
+        return {
+          vertical: true,
+          line: { x1, y1: y, x2, y2: y },
+          ticks: [
+            { x1, y1: y - T, x2: x1, y2: y + T },
+            { x1: x2, y1: y - T, x2, y2: y + T },
+          ],
+          label,
+          lx: (x1 + x2) / 2,
+          ly: y - 9,
+          left: (x1 + x2) / 2,
+          top: y,
+          span: Math.max(12, x2 - x1),
+        };
+      }
+      const x = sx((Math.max(a.x0, b.x0) + Math.min(a.x1, b.x1)) / 2);
+      const y1 = sy(a.y1);
+      const y2 = sy(b.y0);
+      return {
+        vertical: false,
+        line: { x1: x, y1, x2: x, y2 },
+        ticks: [
+          { x1: x - T, y1, x2: x + T, y2: y1 },
+          { x1: x - T, y1: y2, x2: x + T, y2 },
+        ],
+        label,
+        lx: x + 6 + label.length * 3,
+        ly: (y1 + y2) / 2,
+        left: x,
+        top: (y1 + y2) / 2,
+        span: Math.max(12, y2 - y1),
+      };
+    });
+  });
+
+  private spacingDrag: {
+    axis: 'x' | 'y';
+    gap: number;
+    items: { el: CanvasElementModel; box: { x0: number; y0: number; x1: number; y1: number } }[];
+  } | null = null;
+
+  protected startSpacingDrag(event: PointerEvent): void {
+    const s = this.evenSpacing();
+    if (!s || event.button !== 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+    this.spacingDrag = s;
+    this.mode = 'spacing';
+    this.spacingActive.set(true);
+    this.gestureActive.set(true);
+    this.startClientX = event.clientX;
+    this.startClientY = event.clientY;
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+  }
+
+  private spacingMove(ev: PointerEvent): void {
+    const g = this.spacingDrag;
+    if (!g) return;
+    const zoom = this.store.viewport().zoom;
+    const delta = (g.axis === 'x' ? ev.clientX - this.startClientX : ev.clientY - this.startClientY) / zoom;
+    let gap = Math.max(0, g.gap + delta);
+    if (!ev.altKey) gap = Math.round(gap);
+    let cursor = g.items[0].box[g.axis === 'x' ? 'x1' : 'y1'];
+    g.items.forEach((it, i) => {
+      if (i === 0) return;
+      const start = it.box[g.axis === 'x' ? 'x0' : 'y0'];
+      const target = cursor + gap;
+      const shift = target - start;
+      cursor = target + (g.axis === 'x' ? it.box.x1 - it.box.x0 : it.box.y1 - it.box.y0);
+      this.store.patchElementLocal(it.el.id, g.axis === 'x' ? { x: it.el.x + shift } : { y: it.el.y + shift });
+    });
+  }
+
+  private commitSpacingDrag(): void {
+    const g = this.spacingDrag;
+    this.spacingDrag = null;
+    this.spacingActive.set(false);
+    if (!g) return;
+    const now = new Map(this.store.elements().map((e) => [e.id, e] as const));
+    void this.store.batchHistory(async () => {
+      await Promise.all(
+        g.items.slice(1).map(({ el }) => {
+          const cur = now.get(el.id);
+          if (!cur || (cur.x === el.x && cur.y === el.y)) return null;
+          return this.store.commitElementGeometry(el.id, { x: el.x, y: el.y }, { x: cur.x, y: cur.y });
+        }),
+      );
+    });
+  }
+
   /** Persist a finished group resize as one undo step. */
   private commitGroupResize(): void {
     const g = this.groupResize;
@@ -4672,13 +4844,23 @@ export class EditorComponent {
       if (grabbed) {
         resume = () => {
           this.store.setSelection([], [], selectedCopies);
+          // Record where the copied slides start, so the release catches the hidden ones up
+          // (as in a plain slide drag) instead of moving every slide on each pointer move.
+          for (const c of allCopies.values()) {
+            if (c.type === 'frame' && c.slide) {
+              this.slideBounds.set(c.id, { x: c.x, y: c.y, w: c.width, h: c.height });
+            }
+          }
           this.beginElementDrag(grabbed);
-          // Everything copied but not selected rides along with the drag.
-          this.attachCarried(
-            created.filter((id) => !selectedCopies.includes(id)),
-            tableCopies,
-            sequenceCopies,
-          );
+          // Only what's on the shown slides (and the rest of the selection) rides along.
+          const g = this.elementGesture;
+          const carried = g?.others && this.carriedByFrames(g.others);
+          if (g?.others && carried) {
+            for (const [id, pos] of carried.elements) g.others.set(id, pos);
+            g.tables = carried.tables;
+            g.waypoints = carried.waypoints;
+            g.sequences = carried.sequences;
+          }
           this.selectedSlideSets.set(names);
         };
       }
@@ -5013,6 +5195,21 @@ export class EditorComponent {
 
   // --- global pointer + keyboard ---
 
+  /**
+   * Items on the canvas are moved by our own pointer handling. A native HTML drag
+   * (selected text in a code block, an <img>) would draw the browser's translucent
+   * drag image at the item's old spot and swallow the pointer moves, so block it.
+   */
+  @HostListener('window:dragstart', ['$event'])
+  protected onNativeDragStart(event: DragEvent): void {
+    const target = event.target as Node | null;
+    const el = target instanceof HTMLElement ? target : target?.parentElement;
+    if (el?.closest('input, textarea, [contenteditable="true"]')) return;
+    if (el && this.canvasRef().nativeElement.contains(el)) {
+      event.preventDefault();
+    }
+  }
+
   @HostListener('window:pointermove', ['$event'])
   protected onPointerMove(event: PointerEvent): void {
     this.lastPointer = event;
@@ -5047,6 +5244,10 @@ export class EditorComponent {
     }
     if (this.mode === 'group-resize') {
       this.groupResizeMove(event);
+      return;
+    }
+    if (this.mode === 'spacing') {
+      this.spacingMove(event);
       return;
     }
     if (this.mode === 'element-rotate') {
@@ -5146,6 +5347,8 @@ export class EditorComponent {
       this.settleNodeExtras();
     } else if (this.mode === 'group-resize') {
       this.commitGroupResize();
+    } else if (this.mode === 'spacing') {
+      this.commitSpacingDrag();
     } else if (
       this.mode === 'element-resize' ||
       this.mode === 'element-rotate' ||
@@ -6440,8 +6643,8 @@ export class EditorComponent {
       height: shown?.height ?? preset.height,
       angle: 0,
       strokeColor: this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
-      // Layouts are filled with the theme background (slides show their layout's).
-      ...(layout ? { backgroundColor: themeToken('background'), fillStyle: 'solid' as const } : { fillStyle: 'none' as const }),
+      // Slides and layouts show the master's background unless given their own.
+      fillStyle: 'none' as const,
       strokeWidth: 1.5,
       strokeStyle: 'solid',
       opacity: 100,
@@ -6449,6 +6652,8 @@ export class EditorComponent {
       slide: {
         order,
         ...(presentation ? { presentation } : {}),
+        // New slides morph in by default (layouts don't transition).
+        ...(layout ? {} : { transition: { ...DEFAULT_SLIDE_TRANSITION, type: 'morph' as const } }),
         // A layout; or a slide using the layout shown (or the shown slide's layout).
         ...(layout
           ? { layout: true, layoutName: `Layout ${slides.filter((f) => !f.slide?.defaultLayout).length + 1}` }
@@ -6689,7 +6894,14 @@ export class EditorComponent {
     }
     // Something copied elsewhere since our last copy replaces it: don't paste the stale one.
     const text = event.clipboardData?.getData('text/plain') ?? '';
-    if (this.clipboard && this.clipboardMark !== null && text && text !== this.clipboardMark) {
+    // Line endings are compared loosely: the Windows clipboard turns \n into \r\n.
+    const eol = (s: string) => s.replace(/\r\n?/g, '\n');
+    if (
+      this.clipboard &&
+      this.clipboardMark !== null &&
+      text &&
+      eol(text) !== eol(this.clipboardMark)
+    ) {
       this.clipboard = null;
       this.clipboardMark = null;
     }
@@ -6731,8 +6943,21 @@ export class EditorComponent {
   }
 
   protected onCanvasDrop(event: DragEvent): void {
-    const files = Array.from(event.dataTransfer?.files ?? []).filter(
-      (f) => f.type.startsWith('image/') || f.type.startsWith('video/') || /\.svg$/i.test(f.name),
+    const all = Array.from(event.dataTransfer?.files ?? []);
+    const json = all.filter((f) => f.type === 'application/json' || /\.json$/i.test(f.name));
+    if (json.length) {
+      event.preventDefault();
+      if (this.store.canEdit()) {
+        void this.importDroppedJson(json, this.toWorld(event.clientX, event.clientY));
+      }
+      return;
+    }
+    // Some OSes leave `type` empty (or odd) for media, so fall back to the extension.
+    const files = all.filter(
+      (f) =>
+        f.type.startsWith('image/') ||
+        f.type.startsWith('video/') ||
+        /\.(svg|png|jpe?g|gif|webp|mp4|m4v|webm|mov|ogv)$/i.test(f.name),
     );
     if (!files.length) {
       return;
@@ -6764,13 +6989,13 @@ export class EditorComponent {
     for (const file of files) {
       try {
         // Some sources (an SVG from a file picker) report no MIME type; infer it.
-        const typed = file.type
-          ? file
-          : /\.svg$/i.test(file.name)
-            ? new Blob([file], { type: 'image/svg+xml' })
-            : /\.mp4$/i.test(file.name)
-              ? new Blob([file], { type: 'video/mp4' })
-              : file;
+        const ext = /\.([a-z0-9]+)$/i.exec(file.name)?.[1]?.toLowerCase() ?? '';
+        const byExt: Record<string, string> = {
+          svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+          gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4', m4v: 'video/mp4',
+          webm: 'video/webm', mov: 'video/quicktime', ogv: 'video/ogg',
+        };
+        const typed = file.type || !byExt[ext] ? file : new Blob([file], { type: byExt[ext] });
         const uploaded = await this.images.upload(projectId, typed);
         const scale = Math.min(1, maxSide / Math.max(uploaded.width, uploaded.height));
         const width = Math.max(8, Math.round(uploaded.width * scale));
@@ -6874,6 +7099,17 @@ export class EditorComponent {
     return { ...copy.slide!, presentation: target, order, layoutId: layout?.id, theme };
   }
 
+  /** The cursor in world coordinates, if it is over the canvas. */
+  private pasteAnchor(): { x: number; y: number } | null {
+    const p = this.lastPointer;
+    if (!p) return null;
+    const rect = this.canvasRect();
+    if (p.clientX < rect.left || p.clientX > rect.right || p.clientY < rect.top || p.clientY > rect.bottom) {
+      return null;
+    }
+    return this.toWorld(p.clientX, p.clientY);
+  }
+
   /** Paste the clipboard, each successive paste stepping further from the original. */
   private async pasteClipboard(): Promise<void> {
     const clip = this.clipboard;
@@ -6896,6 +7132,21 @@ export class EditorComponent {
     if (intoOther) {
       dx = targetShown!.x - frame!.x;
       dy = targetShown!.y - frame!.y;
+    } else if (!frame) {
+      // Loose items paste centered on the cursor when it is over the canvas.
+      const at = this.pasteAnchor();
+      const boxes = [
+        ...clip.elements.map((e) => ({ x: e.x, y: e.y, w: e.width ?? 0, h: e.height ?? 0 })),
+        ...clip.tables.map((t) => ({ x: t.x, y: t.y, w: 0, h: 0 })),
+      ];
+      if (at && boxes.length) {
+        const minX = Math.min(...boxes.map((b) => b.x));
+        const minY = Math.min(...boxes.map((b) => b.y));
+        const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+        const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+        dx = Math.round(at.x - (minX + maxX) / 2);
+        dy = Math.round(at.y - (minY + maxY) / 2);
+      }
     }
     let result: { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null =
       null;
@@ -7445,6 +7696,10 @@ export class EditorComponent {
         const b = diagramBoxes.get(d.id);
         if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
       }
+      // A presentation's dashed outline (around its panels and frame) is a snap target too.
+      for (const p of this.presentationOutlineBoxes()) {
+        if (ctx === null || p.frameId === ctx) all.push(p.box);
+      }
       const view = this.itemScale(grabbedId) !== 1 ? this.viewOf(grabbedId) : undefined;
       this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
     }
@@ -7556,11 +7811,41 @@ export class EditorComponent {
   }
 
   /** Merge a project file into this project, landing in the visible part of the canvas. */
-  protected async importProjectFile(file: unknown): Promise<number> {
+  /** Dropped project/selection `.json` files: import each like File → Import, at the drop point. */
+  private async importDroppedJson(files: File[], at: { x: number; y: number }): Promise<void> {
+    let total = 0;
+    for (const [i, file] of files.entries()) {
+      try {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(await file.text());
+        } catch {
+          throw new Error(`${file.name} is not valid JSON.`);
+        }
+        const anchor = { x: Math.round(at.x + i * 40), y: Math.round(at.y + i * 40) };
+        total += await this.importProjectFile(parsed, anchor);
+      } catch (err) {
+        const e = err as { error?: { message?: string }; message?: string };
+        const detail = e?.error?.message ?? e?.message;
+        // eslint-disable-next-line no-console
+        console.error('Could not import file', err);
+        this.snackBar.open(`Could not import file${detail ? `: ${detail}` : ''}`, 'Dismiss', {
+          duration: 6000,
+        });
+        return;
+      }
+    }
+    this.snackBar.open(`Imported ${total} item${total === 1 ? '' : 's'}`, undefined, {
+      duration: 2500,
+    });
+  }
+
+  /** Merge a project file into this project, landing in the visible part of the canvas (or at `at`). */
+  protected async importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number> {
     const rect = this.canvasRect();
     const v = this.store.viewport();
     // Top-left of the content goes a little in from the canvas's top-left corner.
-    const anchor = {
+    const anchor = at ?? {
       x: Math.round((rect.width * 0.1 - v.x) / v.zoom),
       y: Math.round((rect.height * 0.15 - v.y) / v.zoom),
     };

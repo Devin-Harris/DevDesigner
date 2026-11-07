@@ -225,6 +225,10 @@ function slide(value: unknown, path: string): SlideConfig | undefined {
     defaultLayout:
       s['defaultLayout'] === undefined || s['defaultLayout'] === null ? undefined : bool(s, 'defaultLayout', path, false),
     master: s['master'] === undefined || s['master'] === null ? undefined : bool(s, 'master', path, false),
+    masterBackground:
+      s['masterBackground'] === undefined || s['masterBackground'] === null
+        ? undefined
+        : bool(s, 'masterBackground', path, false),
     layoutKind: optOneOf(s, 'layoutKind', path, LAYOUT_KINDS),
     designId: optStr(s, 'designId', path, 64),
     layoutSetId: optStr(s, 'layoutSetId', path, 64),

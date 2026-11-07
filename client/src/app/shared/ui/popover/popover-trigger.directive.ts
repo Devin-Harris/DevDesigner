@@ -52,10 +52,15 @@ export class PopoverTriggerDirective implements OnDestroy {
   readonly content = input.required<TemplateRef<unknown>>({ alias: 'dbdPopoverTrigger' });
   readonly placement = input<PopoverPlacement>('below-start');
   readonly disabled = input<boolean>(false);
+  /** 'click' toggles on click (default); 'hover' opens on pointer enter and
+   *  closes shortly after the pointer leaves both host and panel, leaving the
+   *  host's own click handler free to do something else. */
+  readonly popoverTrigger = input<'click' | 'hover'>('click');
   readonly opened = output<void>();
   readonly closed = output<void>();
 
   private ref: OverlayRef | null = null;
+  private hoverCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
   get isOpen(): boolean {
     return !!this.ref;
@@ -63,9 +68,32 @@ export class PopoverTriggerDirective implements OnDestroy {
 
   @HostListener('click', ['$event'])
   protected onClick(event: MouseEvent): void {
+    if (this.popoverTrigger() === 'hover') return;
     event.stopPropagation();
     if (this.disabled()) return;
     this.toggle();
+  }
+
+  @HostListener('mouseenter')
+  protected onHostEnter(): void {
+    if (this.popoverTrigger() !== 'hover' || this.disabled()) return;
+    this.cancelHoverClose();
+    this.open();
+  }
+
+  @HostListener('mouseleave')
+  protected onHostLeave(): void {
+    if (this.popoverTrigger() === 'hover') this.scheduleHoverClose();
+  }
+
+  private scheduleHoverClose(): void {
+    this.cancelHoverClose();
+    this.hoverCloseTimer = setTimeout(() => this.close(), 150);
+  }
+
+  private cancelHoverClose(): void {
+    if (this.hoverCloseTimer) clearTimeout(this.hoverCloseTimer);
+    this.hoverCloseTimer = null;
   }
 
   toggle(): void {
@@ -88,9 +116,10 @@ export class PopoverTriggerDirective implements OnDestroy {
       .withPush(true)
       .withPositions([primary, ...fallbacks]);
 
+    const hover = this.popoverTrigger() === 'hover';
     this.ref = this.overlay.create({
       positionStrategy,
-      hasBackdrop: true,
+      hasBackdrop: !hover,
       backdropClass: 'dbd-overlay-backdrop',
       panelClass: 'dbd-popover-panel',
       scrollStrategy: this.overlay.scrollStrategies.reposition(),
@@ -105,10 +134,16 @@ export class PopoverTriggerDirective implements OnDestroy {
     //   <ng-template #menu let-close><button (click)="act(); close()">…
     const close = () => this.close();
     this.ref.attach(new TemplatePortal(this.content(), this.vcr, { $implicit: close, close }));
+    if (hover) {
+      const pane = this.ref.overlayElement;
+      pane.addEventListener('mouseenter', () => this.cancelHoverClose());
+      pane.addEventListener('mouseleave', () => this.scheduleHoverClose());
+    }
     this.opened.emit();
   }
 
   close(): void {
+    this.cancelHoverClose();
     if (!this.ref) return;
     this.ref.dispose();
     this.ref = null;

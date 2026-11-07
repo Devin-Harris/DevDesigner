@@ -62,13 +62,14 @@ function rowGaps(boxes: readonly Box[], a: Axis): [Box, Box][] {
   const sorted = [...boxes].sort((p, q) => lo(p, a) - lo(q, a));
   const out: [Box, Box][] = [];
   for (let i = 0; i < sorted.length; i++) {
-    // The nearest later box in the same row (skipping ones that overlap along `a`).
+    // Every later box in the same row that nothing sits wholly in front of. Two
+    // boxes side by side (e.g. a card and a wide text beside it) are both
+    // neighbours; taking only the nearest would hide the other's gap.
     const p = sorted[i];
-    const q = sorted
-      .slice(i + 1)
-      .filter((b) => lo(b, a) > hi(p, a) && overlaps(b, p, c))
-      .sort((x, y) => lo(x, a) - lo(y, a))[0];
-    if (q) out.push([p, q]);
+    const later = sorted.slice(i + 1).filter((b) => lo(b, a) > hi(p, a) && overlaps(b, p, c));
+    for (const q of later) {
+      if (!later.some((b) => b !== q && hi(b, a) <= lo(q, a))) out.push([p, q]);
+    }
   }
   return out;
 }

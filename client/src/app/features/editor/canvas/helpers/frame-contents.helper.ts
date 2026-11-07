@@ -150,13 +150,16 @@ export function contentForFrame<
   const mine = (slideId: string | undefined): boolean => !slideId || slideId === frameId;
   // A slide with no background of its own shows its layout's.
   type Fill = { id?: string; fillStyle?: string; backgroundColor?: string };
-  const layout = layoutId
-    ? (elements as readonly Fill[]).find((e) => e.id === layoutId)
-    : undefined;
+  // ... and with none there either, the master's (the layer below every layout).
+  const filled = (id: string | undefined): Fill | undefined => {
+    const u = id ? (elements as readonly Fill[]).find((e) => e.id === id) : undefined;
+    return u && u.fillStyle !== 'none' ? u : undefined;
+  };
+  const under = filled(layoutId) ?? filled(masterId);
   const withLayoutFill = (e: E): E => {
     const f = e as Fill;
-    return layout && f.id === frameId && f.fillStyle === 'none' && layout.fillStyle !== 'none'
-      ? ({ ...e, fillStyle: layout.fillStyle, backgroundColor: layout.backgroundColor } as E)
+    return under && f.id === frameId && f.fillStyle === 'none'
+      ? ({ ...e, fillStyle: under.fillStyle, backgroundColor: under.backgroundColor } as E)
       : e;
   };
   // Master items the slide or its layout stands in for; the slide's stand-in wins.

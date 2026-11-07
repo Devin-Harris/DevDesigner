@@ -456,13 +456,13 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
   }
   for (const b of c.bands ?? []) {
     out.push(
-      `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" fill="${b.fill}" />`,
+      `<rect data-diff="1" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" fill="${b.fill}" />`,
     );
   }
   if (c.divider) {
     const d = c.divider;
     out.push(
-      `<line x1="${d.x}" y1="${d.y1}" x2="${d.x}" y2="${d.y2}" stroke="${d.color}" stroke-opacity="0.35" />`,
+      `<line data-diff="1" x1="${d.x}" y1="${d.y1}" x2="${d.x}" y2="${d.y2}" stroke="${d.color}" stroke-opacity="0.35" />`,
     );
   }
   for (const line of c.lines) {
@@ -473,7 +473,7 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
     }
     if (line.sign) {
       out.push(
-        `<text x="${line.sign.x}" y="${line.y}" ${font} fill="${line.sign.color}">${esc(line.sign.text)}</text>`,
+        `<text data-diff="1" x="${line.sign.x}" y="${line.y}" ${font} fill="${line.sign.color}">${esc(line.sign.text)}</text>`,
       );
     }
     out.push(

@@ -1052,7 +1052,7 @@ function codeBlockView(
     background,
     fontSize,
     fontFamily: fontStack('code'),
-    clipId: `code-clip-${element.id}`,
+    clipId: `code-clip-${element.id}-${clipKey(element)}`,
     numberX: element.x + CODE_PADDING + digits * m.charWidth,
     textX: element.x + m.textOffset,
     numberColor: palette.muted,
@@ -1223,7 +1223,7 @@ function gridTableView(
     lines,
     cells,
     fills,
-    clipId: `grid-clip-${element.id}`,
+    clipId: `grid-clip-${element.id}-${clipKey(element)}`,
     colEdges,
     rowEdges,
   };
@@ -1596,4 +1596,14 @@ export function buildShapeViews(
   });
   // Frames are page backdrops: draw them beneath everything else (stable sort).
   return views.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
+}
+
+/**
+ * Part of a clip path's id that changes with the box it clips to. Chrome does not always
+ * repaint the area a clipped group used to cover when only the clip rect moves, leaving
+ * a faded copy behind mid-drag; a fresh clipPath per box forces a clean repaint.
+ */
+function clipKey(el: { x: number; y: number; width: number; height: number }): string {
+  const r = (n: number) => Math.round(n * 10);
+  return `${r(el.x)}_${r(el.y)}_${r(el.width)}_${r(el.height)}`.replace(/-/g, 'm');
 }

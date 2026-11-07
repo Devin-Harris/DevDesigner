@@ -18,6 +18,7 @@ import {
   type TableModel,
 } from '@dbdesigner/shared';
 import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../export/diagram-svg.helper';
+import { codeDiffActive } from '../canvas/helpers/shape-render.helper';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -1042,7 +1043,7 @@ export class MorphStage {
 
     // Code blocks with changed code: line-level morph on top of the live card.
     for (const p of this.elementPairs) {
-      if (p.a.type === 'code' && p.b.type === 'code' && p.a.text !== p.b.text) {
+      if (p.a.type === 'code' && p.b.type === 'code' && codeShown(p.a.element!) !== codeShown(p.b.element!)) {
         const code = this.buildCodeMorph(p, a, b, shell);
         if (code) {
           this.codes.push(code);
@@ -1069,9 +1070,13 @@ export class MorphStage {
     if (!ga || !gb) {
       return null;
     }
-    const read = (g: SVGGElement): { code: SVGTextElement[]; nums: SVGTextElement[] } => {
+    const read = (
+      g: SVGGElement,
+    ): { code: SVGTextElement[]; nums: SVGTextElement[]; extras: SVGTextElement[] } => {
       const texts = Array.from(g.querySelectorAll('text')) as unknown as SVGTextElement[];
       return {
+        // Diff decorations (highlight bands, split divider, +/- signs) fade as a whole.
+        extras: Array.from(g.querySelectorAll('[data-diff]')) as unknown as SVGTextElement[],
         code: texts.filter((t) => t.getAttribute('xml:space') === 'preserve'),
         nums: texts.filter(
           (t) => t.getAttribute('text-anchor') === 'end' && /^\d+$/.test(t.textContent ?? ''),
@@ -1110,48 +1115,120 @@ export class MorphStage {
       la: SVGTextElement[],
       lb: SVGTextElement[],
       pairs: Array<[number, number]>,
+      skipA: ReadonlySet<number> = new Set(),
+      skipB: ReadonlySet<number> = new Set(),
     ): void => {
       const usedA = new Set(pairs.map((x) => x[0]));
       const usedB = new Set(pairs.map((x) => x[1]));
       for (const [i, j] of pairs) {
         const g = place(b, lb[j], []);
-        const pa = pos(la[i]);
-        const pb = pos(lb[j]);
-        // Both positions are canvas coordinates of different slides: compare them
-        // relative to their own slide so only the in-slide movement is animated.
-        out.moves.push({
-          el: g,
-          dx: pa.x - this.offA.x - (pb.x - this.offB.x),
-          dy: pa.y - this.offA.y - (pb.y - this.offB.y),
-        });
+        out.moves.push({ el: g, ...this.codeShift(pos(la[i]), pos(lb[j])) });
       }
       la.forEach((t, i) => {
-        if (!usedA.has(i)) {
+        if (!usedA.has(i) && !skipA.has(i)) {
           place(a, t, out.fadeOut);
         }
       });
       lb.forEach((t, j) => {
-        if (!usedB.has(j)) {
+        if (!usedB.has(j) && !skipB.has(j)) {
           place(b, t, out.fadeIn);
         }
       });
     };
+    const textOf = (t: SVGTextElement): string => t.textContent ?? '';
+    // Identical lines glide whole.
+    const linePairs = lcsPairs(ra.code.map(textOf), rb.code.map(textOf));
+    // Changed lines (the unmatched ones between two matched anchors, zipped in order)
+    // morph character by character instead of crossfading.
+    const changed: Array<[number, number]> = [];
+    const anchors: Array<[number, number]> = [
+      [-1, -1],
+      ...linePairs,
+      [ra.code.length, rb.code.length],
+    ];
+    for (let k = 0; k + 1 < anchors.length; k++) {
+      const ia: number[] = [];
+      const ib: number[] = [];
+      for (let i = anchors[k][0] + 1; i < anchors[k + 1][0]; i++) {
+        if (textOf(ra.code[i]).trim()) ia.push(i);
+      }
+      for (let j = anchors[k][1] + 1; j < anchors[k + 1][1]; j++) {
+        if (textOf(rb.code[j]).trim()) ib.push(j);
+      }
+      for (let m = 0; m < Math.min(ia.length, ib.length); m++) {
+        changed.push([ia[m], ib[m]]);
+      }
+    }
     pairUp(
       ra.code,
       rb.code,
-      lcsPairs(
-        ra.code.map((t) => t.textContent ?? ''),
-        rb.code.map((t) => t.textContent ?? ''),
-      ),
+      linePairs,
+      new Set(changed.map((x) => x[0])),
+      new Set(changed.map((x) => x[1])),
     );
-    // Gutter numbers: the k-th number is the same number on both slides.
-    const n = Math.min(ra.nums.length, rb.nums.length);
-    pairUp(
-      ra.nums,
-      rb.nums,
-      Array.from({ length: n }, (_v, k): [number, number] => [k, k]),
-    );
+    for (const [i, j] of changed) {
+      const ca = codeChars(ra.code[i]);
+      const cb = codeChars(rb.code[j]);
+      const cp = lcsPairs(
+        ca.map((c) => c.ch),
+        cb.map((c) => c.ch),
+      );
+      const ua = new Set(cp.map((x) => x[0]));
+      const ub = new Set(cp.map((x) => x[1]));
+      for (const [x, y] of cp) {
+        const g = place(b, cb[y].el, []);
+        out.moves.push({ el: g, ...this.codeShift(ca[x], cb[y]) });
+      }
+      ca.forEach((c, x) => {
+        if (!ua.has(x) && /\S/.test(c.ch)) place(a, c.el, out.fadeOut);
+      });
+      cb.forEach((c, y) => {
+        if (!ub.has(y) && /\S/.test(c.ch)) place(b, c.el, out.fadeIn);
+      });
+    }
+    // Gutter numbers stay in their gutter: a number pairs with the same number in the
+    // same gutter column (left to right) on the other slide, so it only shifts by as
+    // much as its row does; the rest fade.
+    const keys = (list: SVGTextElement[]): string[] => {
+      const cols = [...new Set(list.map((t) => Math.round(pos(t).x)))].sort((x, y) => x - y);
+      return list.map((t) => `${cols.indexOf(Math.round(pos(t).x))}|${textOf(t)}`);
+    };
+    const kb = keys(rb.nums);
+    const freeB = new Map<string, number[]>();
+    kb.forEach((key, j) => freeB.set(key, [...(freeB.get(key) ?? []), j]));
+    const numPairs: Array<[number, number]> = [];
+    keys(ra.nums).forEach((key, i) => {
+      const j = freeB.get(key)?.shift();
+      if (j != null) numPairs.push([i, j]);
+    });
+    pairUp(ra.nums, rb.nums, numPairs);
+    // Bands sit under the text: put them first in the layer.
+    const before = layer.firstChild;
+    for (const [side, list, into] of [
+      [a, ra.extras, out.fadeOut],
+      [b, rb.extras, out.fadeIn],
+    ] as const) {
+      for (const el of list) {
+        const g = place(side, el, into);
+        if (el.tagName !== 'text') {
+          layer.insertBefore(g, before);
+        }
+      }
+    }
     return out;
+  }
+
+  /** The in-slide offset from a B-side position back to its A-side partner. */
+  private codeShift(
+    pa: { x: number; y: number },
+    pb: { x: number; y: number },
+  ): { dx: number; dy: number } {
+    // Both positions are canvas coordinates of different slides: compare them
+    // relative to their own slide so only the in-slide movement is animated.
+    return {
+      dx: pa.x - this.offA.x - (pb.x - this.offB.x),
+      dy: pa.y - this.offA.y - (pb.y - this.offB.y),
+    };
   }
 
   private buildGridMorph(
@@ -1556,7 +1633,15 @@ export class MorphStage {
         continue;
       }
       // A shape's label (or a changing code block's lines) is drawn by its own layer.
-      elements.push(glyphs || isCode ? { ...blended, text: '' } : blended);
+      // A changing code block's card is drawn empty (no lines, no diff): its own layer
+      // animates the lines and the diff decorations on top.
+      elements.push(
+        isCode
+          ? { ...blended, text: '', diffText: undefined, diffView: undefined }
+          : glyphs
+            ? { ...blended, text: '' }
+            : blended,
+      );
       if (isCode) {
         const c = this.codes.find((x) => x.pair === p)!;
         c.clip.setAttribute('x', String(blended.x));
@@ -1809,4 +1894,55 @@ export class MorphStage {
     this.charLayer?.remove();
     this.svg.remove();
   }
+}
+
+/** What a code block shows: its code plus, when a diff is on, the diff view and other side. */
+function codeShown(el: CanvasElementModel): string {
+  return codeDiffActive(el) ? `${el.text} ${el.diffView} ${el.diffText}` : (el.text ?? '');
+}
+
+/**
+ * A code line split into one positioned <text> per character (monospace: the advance
+ * is the line's measured width over its length), keeping each token's color/italic.
+ */
+function codeChars(line: SVGTextElement): Array<{ ch: string; x: number; y: number; el: SVGTextElement }> {
+  const text = line.textContent ?? '';
+  const x0 = Number(line.getAttribute('x')) || 0;
+  const y = Number(line.getAttribute('y')) || 0;
+  const size = Number(line.getAttribute('font-size')) || 14;
+  let cw = size * 0.6;
+  try {
+    const w = line.getComputedTextLength();
+    if (w > 0 && text.length) cw = w / text.length;
+  } catch {
+    /* not rendered: keep the estimate */
+  }
+  const runs: Array<{ text: string; fill: string | null; italic: boolean }> = [];
+  const spans = Array.from(line.querySelectorAll('tspan'));
+  if (spans.length) {
+    for (const sp of spans) {
+      runs.push({
+        text: sp.textContent ?? '',
+        fill: sp.getAttribute('fill'),
+        italic: sp.getAttribute('font-style') === 'italic',
+      });
+    }
+  } else {
+    runs.push({ text, fill: line.getAttribute('fill'), italic: false });
+  }
+  const out: Array<{ ch: string; x: number; y: number; el: SVGTextElement }> = [];
+  let i = 0;
+  for (const r of runs) {
+    for (const ch of r.text) {
+      const x = x0 + i * cw;
+      const el = line.cloneNode(false) as SVGTextElement;
+      el.setAttribute('x', String(x));
+      if (r.fill) el.setAttribute('fill', r.fill);
+      if (r.italic) el.setAttribute('font-style', 'italic');
+      el.textContent = ch;
+      out.push({ ch, x, y, el });
+      i += 1;
+    }
+  }
+  return out;
 }

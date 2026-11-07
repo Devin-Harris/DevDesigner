@@ -48,8 +48,7 @@ export async function ensureDeckDefaults(store: Store, frameStroke: string): Pro
           height: first.height,
           angle: 0,
           strokeColor: first.strokeColor ?? frameStroke,
-          backgroundColor: themeToken('background'),
-          fillStyle: 'solid',
+          fillStyle: 'none',
           strokeWidth: 1.5,
           strokeStyle: 'solid',
           opacity: 100,
@@ -76,7 +75,9 @@ export async function ensureDeckDefaults(store: Store, frameStroke: string): Pro
           height: first.height,
           angle: 0,
           strokeColor: first.strokeColor ?? frameStroke,
-          fillStyle: 'none',
+          // The master holds the deck background; slides and layouts show it through.
+          backgroundColor: themeToken('background'),
+          fillStyle: 'solid',
           strokeWidth: 1.5,
           strokeStyle: 'solid',
           opacity: 100,
@@ -87,8 +88,25 @@ export async function ensureDeckDefaults(store: Store, frameStroke: string): Pro
             layout: true,
             layoutName: 'Master',
             master: true,
+            masterBackground: true,
             theme,
           },
+        });
+      }
+      // Older decks: the background lived on each layout and the master had none.
+      // Move it to the master so the master is the layer below every layout.
+      const master = mine.find((f) => f.slide?.master);
+      // Runs once per deck (flagged on the master), even if the master already has a fill.
+      if (master?.slide && !master.slide.masterBackground) {
+        const bg = themeToken('background');
+        for (const l of layouts) {
+          if (!l.slide?.master && l.fillStyle !== 'none' && l.backgroundColor === bg) {
+            await store.patchElementSilently(l.id, { fillStyle: 'none' });
+          }
+        }
+        await store.patchElementSilently(master.id, {
+          ...(master.fillStyle === 'none' ? { backgroundColor: bg, fillStyle: 'solid' as const } : {}),
+          slide: { ...master.slide, masterBackground: true },
         });
       }
       if (starter) {

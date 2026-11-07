@@ -328,6 +328,10 @@ export class SlideDto implements SlideConfig {
   master?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  masterBackground?: boolean;
+
+  @IsOptional()
   @IsIn(LAYOUT_KINDS)
   layoutKind?: LayoutKind;
 

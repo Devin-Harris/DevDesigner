@@ -262,6 +262,8 @@ export interface SlideConfig {
    * slide and layout of it (created automatically; never a slide's layout).
    */
   master?: boolean;
+  /** On the master: the deck background lives here and layouts show it through (set once migrated). */
+  masterBackground?: boolean;
   /** On a layout: which standard kind it is (title, two-column, ...), for switching themes. */
   layoutKind?: LayoutKind;
   /**
