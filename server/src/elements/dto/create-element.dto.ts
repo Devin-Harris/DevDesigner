@@ -17,6 +17,7 @@ import {
 import {
   ARROWHEAD_TYPES,
   CODE_LANGUAGES,
+  CODE_DIFF_VIEWS,
   ELEMENT_TYPES,
   FILL_STYLES,
   STROKE_STYLES,
@@ -24,6 +25,7 @@ import {
   VERTICAL_ALIGNS,
   type ArrowheadType,
   type CodeLanguage,
+  type CodeDiffView,
   type CreateElementDto as ICreateElementDto,
   type ElementBinding,
   type ElementType,
@@ -187,6 +189,28 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsIn([...CODE_LANGUAGES])
   language?: CodeLanguage;
+
+  /** Code only: the changed side of a diff. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  diffText?: string;
+
+  @IsOptional()
+  @IsIn([...CODE_DIFF_VIEWS])
+  diffView?: CodeDiffView;
+
+  /** Code only: left side's share of the width in split views. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(0.9)
+  diffSplit?: number;
+
+  /** Code only: count whitespace-only changes in the diff. */
+  @IsOptional()
+  @IsBoolean()
+  diffShowWhitespace?: boolean;
 
   @IsOptional()
   @IsString()

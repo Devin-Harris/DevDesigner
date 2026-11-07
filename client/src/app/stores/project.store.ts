@@ -283,6 +283,10 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     fileId: e.fileId,
     language: e.language,
     fileName: e.fileName,
+    diffText: e.diffText,
+    diffView: e.diffView,
+    diffSplit: e.diffSplit,
+    diffShowWhitespace: e.diffShowWhitespace,
     expandedHeight: e.expandedHeight,
     slide: e.slide,
     placeholder: e.placeholder,
@@ -828,6 +832,7 @@ export const ProjectStore = signalStore(
             key === 'step' ||
             key === 'slideId' ||
             key === 'expandedHeight' ||
+            key === 'diffText' ||
             key === 'media'
           ) {
             before[key] = element[key] ?? null;

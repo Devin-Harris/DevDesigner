@@ -126,6 +126,23 @@
       <button class="seg text" [disabled]="!store.canEdit() || !canFormat()" (click)="format()" title="Format with Prettier (Shift+Alt+F)">Format code</button>
       <button class="seg text" [disabled]="!store.canEdit()" (click)="fitToContent()" title="Resize the block to fit its code (Shift+Alt+S)">Fit to content</button>
     </div>
+    <div class="field-label">Diff</div>
+    <div class="seg-row">
+      @for (v of diffViews; track v.id) {
+        <button class="seg text" [class.on]="(element().diffView ?? 'off') === v.id" [disabled]="!store.canEdit()" (click)="setDiffView(v.id)" [title]="v.title">{{ v.label }}</button>
+      }
+    </div>
+    <div class="seg-row">
+      <button class="seg text" [class.on]="!element().diffShowWhitespace" [disabled]="!store.canEdit()" (click)="toggleWhitespace()" title="Treat lines that differ only in spaces or indentation as unchanged">Ignore whitespace</button>
+    </div>
+    @if (element().diffText != null) {
+      <div class="seg-row wrap code-actions">
+        <button class="seg text" [disabled]="!store.canEdit()" (click)="editDiff('original')" title="Edit the original (left) side">Edit original</button>
+        <button class="seg text" [disabled]="!store.canEdit() || (element().diffView ?? 'off') === 'off'" (click)="editDiff('modified')" title="Edit the changed (right) side">Edit changed</button>
+        <button class="seg text" [disabled]="!store.canEdit()" (click)="swapDiff()" title="Swap the original and changed sides">Swap</button>
+        <button class="seg text" [disabled]="!store.canEdit()" (click)="clearDiff()" title="Delete the changed side and keep the original">Remove diff</button>
+      </div>
+    }
     <div class="field-label">File name <span class="optional">(optional)</span></div>
     <div class="seg-row">
       <input class="text-input" type="text" maxlength="120" placeholder="e.g. user.service.ts" [value]="element().fileName ?? ''" [disabled]="!store.canEdit()" (change)="setFileName($any($event.target).value)" (keydown.enter)="$any($event.target).blur()" />

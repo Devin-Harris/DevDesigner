@@ -8,6 +8,7 @@ import type { LayoutKind } from '../slides/layout-kinds';
 import type {
   ArrowheadType,
   CodeLanguage,
+  CodeDiffView,
   ElementType,
   FillStyle,
   MediaClipShape,
@@ -354,6 +355,14 @@ export interface CanvasElementModel {
   language?: CodeLanguage;
   /** Code only: optional file name shown in a title bar (simulates the code living in that file). */
   fileName?: string;
+  /** Code only: the changed ("right") side of a diff against `text` (the original); absent = no diff. */
+  diffText?: string;
+  /** Code only: how the diff is shown; absent/'off' = original only. */
+  diffView?: CodeDiffView;
+  /** Code only: the original (left) side's share of the width in split views (0.15–0.85); absent = 0.5. */
+  diffSplit?: number;
+  /** Code only: count whitespace-only changes in the diff; absent = ignore them (like `git diff -w`). */
+  diffShowWhitespace?: boolean;
   /** Code only: set while collapsed to its title bar; the height to restore on expand. */
   expandedHeight?: number;
   /** Shared by every member of a group (tables, elements, sequence diagrams); absent = ungrouped. */

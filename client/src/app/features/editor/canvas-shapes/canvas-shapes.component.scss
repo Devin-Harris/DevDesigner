@@ -185,3 +185,15 @@
     stroke: #fff;
   }
 }
+
+// Split diff middle rule: a thin drag handle for resizing the two sides.
+.diff-divider {
+  fill: transparent;
+  pointer-events: all;
+  cursor: col-resize;
+
+  &:hover {
+    fill: var(--dbd-accent, #4c8dff);
+    fill-opacity: 0.25;
+  }
+}

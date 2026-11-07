@@ -3,6 +3,7 @@ import {
   CODE_LANGUAGES,
   type CanvasElementModel,
   type CodeLanguage,
+  type CodeDiffView,
   type FillStyle,
   type FontFamily,
   type StrokeStyle,
@@ -143,6 +144,32 @@ export class ElementInspectorComponent {
 
   protected format(): void {
     void this.codeActions.format(this.store.selectedElementIds());
+  }
+
+  protected readonly diffViews: { id: CodeDiffView; label: string; title: string }[] = [
+    { id: 'off', label: 'Off', title: 'Show only the original code' },
+    { id: 'inline', label: 'Inline', title: 'Removed and added lines interleaved' },
+    { id: 'split', label: 'Side by side', title: 'Original on the left, changes on the right' },
+  ];
+
+  protected setDiffView(view: CodeDiffView): void {
+    void this.codeActions.setDiffView(this.store.selectedElementIds(), view);
+  }
+
+  protected editDiff(side: 'original' | 'modified'): void {
+    this.codeActions.editDiffSide(this.element().id, side);
+  }
+
+  protected toggleWhitespace(): void {
+    void this.codeActions.toggleDiffWhitespace(this.store.selectedElementIds());
+  }
+
+  protected swapDiff(): void {
+    void this.codeActions.swapDiffSides(this.element().id);
+  }
+
+  protected clearDiff(): void {
+    void this.codeActions.clearDiff(this.element().id);
   }
 
   protected fitToContent(): void {

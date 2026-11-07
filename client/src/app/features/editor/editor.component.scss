@@ -87,15 +87,12 @@
     stroke-width: 1;
   }
 
-  line.gap {
-    stroke-dasharray: 3 2;
-  }
-
   text {
     fill: #f43f5e;
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 9.5px;
+    font-weight: 500;
     text-anchor: middle;
+    dominant-baseline: central;
   }
 }
 
@@ -143,6 +140,11 @@
   // the element's box in step), so nothing is clipped or wrapped while typing.
   &.rich {
     width: max-content;
+    // With text, the outline is drawn at the glyph box by .text-edit-frame.
+    &.bare {
+      background: transparent;
+      box-shadow: none;
+    }
     overflow: visible;
     cursor: text;
     user-select: text;
@@ -163,6 +165,16 @@
       background: color-mix(in srgb, var(--dbd-primary) 35%, transparent);
     }
   }
+}
+
+// Edit-mode outline of a text element, at its glyph box (matches the selection box).
+.text-edit-frame {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
 }
 
 // In-canvas file-name input over a code block's title bar.
@@ -494,4 +506,21 @@
   border-radius: 0;
   white-space: pre-wrap;
   overflow-wrap: break-word;
+}
+
+// A diff code block's two editor panes: one shared highlight around the whole card.
+.text-editor.split-pane {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.diff-edit-frame {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
+  pointer-events: none;
 }

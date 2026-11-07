@@ -112,6 +112,10 @@ export class ElementsService {
       mediaJson: dto.type === 'image' && dto.media ? JSON.stringify(dto.media) : null,
       language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
       fileName: dto.type === 'code' ? dto.fileName?.trim() || null : null,
+      diffText: dto.type === 'code' ? (dto.diffText ?? null) : null,
+      diffView: dto.type === 'code' ? (dto.diffView ?? null) : null,
+      diffSplit: dto.type === 'code' ? (dto.diffSplit ?? null) : null,
+      diffShowWhitespace: dto.type === 'code' ? (dto.diffShowWhitespace ?? null) : null,
       expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
@@ -267,6 +271,18 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.expandedHeight !== undefined && element.type === 'code') {
     element.expandedHeight = dto.expandedHeight;
+  }
+  if (dto.diffText !== undefined && element.type === 'code') {
+    element.diffText = dto.diffText;
+  }
+  if (dto.diffShowWhitespace !== undefined && element.type === 'code') {
+    element.diffShowWhitespace = dto.diffShowWhitespace;
+  }
+  if (dto.diffSplit !== undefined && element.type === 'code') {
+    element.diffSplit = dto.diffSplit;
+  }
+  if (dto.diffView !== undefined && element.type === 'code') {
+    element.diffView = dto.diffView;
   }
   if (dto.fileName !== undefined && element.type === 'code') {
     element.fileName = dto.fileName.trim() || null;

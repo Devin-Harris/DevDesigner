@@ -161,6 +161,32 @@ export function smartSnap(moving: Box, targets: readonly Box[], zoom: number, pa
     snappedX: !!bx,
     snappedY: !!by,
     guides: [...(bx ? linesOn(s, targets, 'x') : []), ...(by ? linesOn(s, targets, 'y') : [])],
-    gaps: [...(bx?.gaps?.(s) ?? []), ...(by?.gaps?.(s) ?? [])],
+    gaps: [...withMatchingGaps(bx?.gaps?.(s) ?? [], s, targets, 'x'), ...withMatchingGaps(by?.gaps?.(s) ?? [], s, targets, 'y')],
   };
+}
+
+/**
+ * The snap only names the gap(s) it matched; also mark every other neighbour
+ * pair in the same row/column whose gap equals one of them, so a whole evenly
+ * spaced run lights up rather than just the reference pair.
+ */
+function withMatchingGaps(marks: GapGuide[], s: Box, targets: readonly Box[], a: Axis): GapGuide[] {
+  if (!marks.length) return marks;
+  const c = other(a);
+  const sizes = marks.map((g) => g.b - g.a);
+  const row = [...targets.filter((t) => overlaps(t, s, c)), s];
+  const out = [...marks];
+  const key = (g: GapGuide) => `${Math.round(g.a * 2)}:${Math.round(g.b * 2)}`;
+  const seen = new Set(out.map(key));
+  for (const [p, q] of rowGaps(row, a)) {
+    const g = lo(q, a) - hi(p, a);
+    // Equal as the labels show them (gaps measured to glyphs are fractional).
+    if (!sizes.some((v) => Math.abs(v - g) < 1 || Math.round(v) === Math.round(g))) continue;
+    const cross = (Math.max(lo(p, c), lo(q, c)) + Math.min(hi(p, c), hi(q, c))) / 2;
+    const m: GapGuide = { axis: a, a: hi(p, a), b: lo(q, a), cross };
+    if (seen.has(key(m))) continue;
+    seen.add(key(m));
+    out.push(m);
+  }
+  return out;
 }

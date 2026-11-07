@@ -41,6 +41,20 @@ export interface CodeTokenView {
 /** What clicking a code block's title-bar dot does. */
 export type CodeDotAction = 'delete' | 'collapse' | 'fit';
 
+/** One drawn row of a code block. Diff rows override the card's gutter/text x and add a +/- sign. */
+export interface CodeLineView {
+  y: number;
+  number: string;
+  tokens: CodeTokenView[];
+  /** Overrides CodeBlockView.numberX / textX (diff views). */
+  numberX?: number;
+  textX?: number;
+  /** Inline diff: the original-side line number in a second gutter column. */
+  oldNumber?: { x: number; text: string };
+  /** Diff marker ('+' / '-') before the code. */
+  sign?: { x: number; text: string; color: string };
+}
+
 /** A syntax-highlighted code block (code element): card, gutter and colored lines. */
 export interface CodeBlockView {
   rect: { x: number; y: number; width: number; height: number; rx: number };
@@ -53,7 +67,11 @@ export interface CodeBlockView {
   numberX: number;
   textX: number;
   numberColor: string;
-  lines: { y: number; number: string; tokens: CodeTokenView[] }[];
+  lines: CodeLineView[];
+  /** Diff views only: row highlight bands (red removed, green added), drawn behind the code. */
+  bands?: { x: number; y: number; width: number; height: number; fill: string }[];
+  /** Split diff view only: the rule between the original and changed halves. */
+  divider?: { x: number; y1: number; y2: number; color: string };
   /** True while collapsed to just the title bar. */
   collapsed: boolean;
   /** Window-style title bar across the top of the card (code starts below it). */

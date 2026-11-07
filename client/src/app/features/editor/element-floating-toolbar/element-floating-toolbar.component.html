@@ -122,6 +122,24 @@
       <dbd-icon name="fit_screen" />
     </button>
 
+    <button class="tb" [class.on]="diffOn()" [dbdPopoverTrigger]="diffMenu" placement="below-start" matTooltip="Diff" [disabled]="!store.canEdit()">
+      <dbd-icon name="difference" />
+    </button>
+    <ng-template #diffMenu let-close>
+      <div class="dbd-menu">
+        <div class="dbd-menu-label">Diff view</div>
+        @for (v of diffViews; track v.id) {
+          <button class="dbd-menu-item" [class.on]="(element().diffView ?? 'off') === v.id" (click)="setDiffView(v.id); close()">{{ v.label }}</button>
+        }
+        <div class="dbd-menu-sep"></div>
+        <button class="dbd-menu-item" [class.on]="!element().diffShowWhitespace" (click)="toggleWhitespace()">Ignore whitespace</button>
+        @if (element().diffText != null) {
+          <button class="dbd-menu-item" (click)="swapDiff(); close()">Swap sides</button>
+          <button class="dbd-menu-item" (click)="clearDiff(); close()">Remove diff</button>
+        }
+      </div>
+    </ng-template>
+
     <button class="tb" [dbdPopoverTrigger]="codeSizeMenu" placement="below-start" matTooltip="Text size" [disabled]="!store.canEdit()">
       <dbd-icon name="format_size" />
     </button>

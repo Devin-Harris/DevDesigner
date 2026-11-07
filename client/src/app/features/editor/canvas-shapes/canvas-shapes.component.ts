@@ -128,6 +128,36 @@ export class CanvasShapesComponent {
     return type === 'none' ? null : `url(#dbd-ah-${type})`;
   }
 
+  /** Drag a split diff's middle rule: sets the left side's share of the card's width. */
+  protected onDiffDivider(id: string, event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    event.preventDefault();
+    const el = this.store.elements().find((e) => e.id === id);
+    const ctm = (event.target as SVGGraphicsElement).getScreenCTM()?.inverse();
+    if (!el || !ctm || !this.store.canEdit()) {
+      return;
+    }
+    const start = el.diffSplit;
+    let split = start;
+    const move = (e: PointerEvent): void => {
+      const x = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm).x;
+      split = Math.round(Math.min(0.85, Math.max(0.15, (x - el.x) / el.width)) * 1000) / 1000;
+      this.store.patchElementLocal(id, { diffSplit: split });
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (split !== start && split != null) {
+        void this.store.updateElement(id, { diffSplit: split });
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   /** A control dot on a code block's title bar. */
   protected onDot(action: CodeDotAction, id: string, event: PointerEvent): void {
     if (event.button !== 0) {

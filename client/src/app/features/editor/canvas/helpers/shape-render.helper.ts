@@ -14,6 +14,7 @@ import { isFullCrop, mediaSourceRect } from './media.helper';
 import type {
   CodeBlockView,
   CodeDotAction,
+  CodeLineView,
   GridTableView,
   ImageView,
   ShapeView,
@@ -29,7 +30,9 @@ import {
   tokenColor,
   tokenizeCode,
   type CodeToken,
+  type CodePalette,
 } from './code-highlight.helper';
+import { changedSpan, diffLines, splitLines, splitRows } from './code-diff.helper';
 import {
   absolutePoints,
   boundaryPoint,
@@ -50,6 +53,7 @@ import {
   type GridData,
 } from './grid-table.helper';
 import { curvedPath, freehandFillPath, polylinePath } from './freedraw-path.helper';
+import { textInkInsets } from './text-metrics';
 import { ANCHOR_GAP } from '../constants/canvas.constants';
 
 /** Map a stored font-family key to a concrete CSS font stack (see index.html). */
@@ -230,6 +234,25 @@ const LINE_HEIGHT = 1.25;
 
 const measureCtx: CanvasRenderingContext2D | null =
   typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+
+/**
+ * Where a browser puts the baseline inside a line box of `lineHeight` px: the
+ * font's ascent+descent is centred in the box (half-leading above and below),
+ * so the baseline is half-leading + ascent. Using the font's real metrics keeps
+ * the SVG glyphs exactly where the contenteditable editor draws them.
+ */
+export function baselineInLine(cssFont: string, fontSize: number, lineHeight: number): number {
+  if (measureCtx) {
+    measureCtx.font = cssFont;
+    const m = measureCtx.measureText('Hg');
+    const asc = m.fontBoundingBoxAscent;
+    const desc = m.fontBoundingBoxDescent;
+    if (Number.isFinite(asc) && Number.isFinite(desc) && asc + desc > 0) {
+      return (lineHeight - (asc + desc)) / 2 + asc;
+    }
+  }
+  return lineHeight / 2 + fontSize * 0.175;
+}
 
 function measureWidth(text: string, cssFont: string): number {
   if (!measureCtx || text === '') {
@@ -471,7 +494,7 @@ function layoutTextBlock(
         : box.x + opts.padding;
   // The baseline sits where a browser puts it: centred in the line box, so a
   // looser line height adds space above and below the glyphs rather than only below.
-  const baseline = lineHeight / 2 + opts.fontSize * 0.175;
+  const baseline = baselineInLine(cssFont, opts.fontSize, lineHeight);
   const lineViews: TextLineView[] = lines.map((t, i) => {
     // Hanging indent only reads as one with left-aligned text.
     const lx = anchor === 'start' ? x + indents[i] : x;
@@ -631,6 +654,317 @@ function layoutCodeRows(
   return { rows, metrics, digits: Math.max(2, String(realCount).length) };
 }
 
+// --- code diffs ---
+
+/** The original (left) side's share of a split diff's width, clamped to keep both panes usable. */
+export function codeDiffSplit(el: Pick<CanvasElementModel, 'diffSplit'>): number {
+  return Math.min(0.85, Math.max(0.15, el.diffSplit ?? 0.5));
+}
+
+/** True when a code block shows a diff (it has a changed side and the view isn't off). */
+export function codeDiffActive(el: Pick<CanvasElementModel, 'diffText' | 'diffView'>): boolean {
+  return el.diffText != null && !!el.diffView && el.diffView !== 'off';
+}
+
+interface DiffColors {
+  removed: string;
+  added: string;
+  removedStrong: string;
+  addedStrong: string;
+  removedSign: string;
+  addedSign: string;
+  filler: string;
+  divider: string;
+}
+
+function diffColors(dark: boolean, palette: CodePalette): DiffColors {
+  return {
+    removed: dark ? 'rgba(248,81,73,0.16)' : 'rgba(255,129,130,0.22)',
+    added: dark ? 'rgba(46,160,67,0.18)' : 'rgba(74,194,107,0.22)',
+    removedStrong: dark ? 'rgba(248,81,73,0.4)' : 'rgba(255,129,130,0.5)',
+    addedStrong: dark ? 'rgba(46,160,67,0.45)' : 'rgba(74,194,107,0.5)',
+    removedSign: dark ? '#ff7b72' : '#cf222e',
+    addedSign: dark ? '#56d364' : '#1a7f37',
+    filler: dark ? 'rgba(110,118,129,0.12)' : 'rgba(175,184,193,0.18)',
+    divider: palette.muted,
+  };
+}
+
+function codeTokenViews(tokens: CodeToken[], palette: CodePalette): CodeLineView['tokens'] {
+  return tokens.map((t) => ({
+    // An elision reads as a muted "···" (same width as the "..." typed).
+    text: t.kind === 'elision' ? '···' : t.text,
+    color: tokenColor(palette, t.kind),
+    italic: t.kind === 'comment',
+  }));
+}
+
+/** Cut a line's tokens to its first `cols` characters (split halves can't overflow each other). */
+function truncateTokens(tokens: CodeToken[], cols: number): CodeToken[] {
+  const out: CodeToken[] = [];
+  let left = cols;
+  for (const t of tokens) {
+    if (left <= 0) break;
+    out.push(t.text.length > left ? { ...t, text: t.text.slice(0, left) } : t);
+    left -= t.text.length;
+  }
+  return out;
+}
+
+const rowText = (tokens: CodeToken[]): string => tokens.map((t) => t.text).join('');
+
+/** Both sides of a diff laid out (tokenized rows) and aligned. */
+function codeDiffModel(element: CanvasElementModel, language: string, fontSize: number) {
+  const a = layoutCodeRows(element.text ?? '', language, fontSize);
+  const b = layoutCodeRows(element.diffText ?? '', language, fontSize);
+  const unified = diffLines(
+    splitLines(element.text ?? ''),
+    splitLines(element.diffText ?? ''),
+    !element.diffShowWhitespace,
+  );
+  const digits = Math.max(a.digits, b.digits);
+  const cw = a.metrics.charWidth;
+  return { a, b, unified, digits, cw, lineHeight: a.metrics.lineHeight };
+}
+
+/** Gutter width of a diff pane: one number column plus a sign column. */
+function diffGutters(digits: number, cw: number): { inline: number; split: number } {
+  return {
+    inline: CODE_PADDING + digits * cw + 3 * cw,
+    split: CODE_PADDING + digits * cw + 3 * cw,
+  };
+}
+
+/** The rows of a diff view (inline or split), with highlight bands and the split divider. */
+function codeDiffLines(
+  element: CanvasElementModel,
+  palette: CodePalette,
+  dark: boolean,
+  language: string,
+  fontSize: number,
+  firstBaseline: number,
+  editing = false,
+): {
+  lines: CodeLineView[];
+  bands: NonNullable<CodeBlockView['bands']>;
+  divider?: CodeBlockView['divider'];
+} {
+  const { a, b, unified, digits, cw, lineHeight } = codeDiffModel(element, language, fontSize);
+  const colors = diffColors(dark, palette);
+  const gut = diffGutters(digits, cw);
+  const lines: CodeLineView[] = [];
+  const bands: NonNullable<CodeBlockView['bands']> = [];
+  const rowTop = (i: number): number => firstBaseline - codeBaseline(fontSize) + i * lineHeight;
+  const band = (i: number, x: number, width: number, fill: string): void => {
+    if (width > 0) bands.push({ x, y: rowTop(i), width, height: lineHeight, fill });
+  };
+  const spanBand = (i: number, textX: number, span: [number, number], fill: string): void =>
+    band(i, textX + span[0] * cw, (span[1] - span[0]) * cw, fill);
+
+  if (editing) {
+    // Each side keeps its own rows (so they stay under its textarea), still styled as a
+    // diff: removed lines red on the left, added green on the right, changed words marked.
+    const ed = codeDiffEditLayout(element);
+    const cols = Math.max(1, Math.floor((ed.left - ed.textOffset - CODE_PADDING / 2) / cw));
+    const changedA = new Set(unified.filter((d) => d.op === 'removed').map((d) => d.a));
+    const changedB = new Set(unified.filter((d) => d.op === 'added').map((d) => d.b));
+    const spansA = new Map<number, [number, number]>();
+    const spansB = new Map<number, [number, number]>();
+    for (const r of splitRows(unified)) {
+      if (r.op !== 'change' || r.a < 0 || r.b < 0) continue;
+      const sp = changedSpan(rowText(a.rows[r.a].tokens), rowText(b.rows[r.b].tokens), !element.diffShowWhitespace);
+      if (sp) {
+        spansA.set(r.a, sp.a);
+        spansB.set(r.b, sp.b);
+      }
+    }
+    const sides = [
+      { side: a, changed: changedA, spans: spansA, sign: '-', signColor: colors.removedSign, fill: colors.removed, strong: colors.removedStrong },
+      { side: b, changed: changedB, spans: spansB, sign: '+', signColor: colors.addedSign, fill: colors.added, strong: colors.addedStrong },
+    ];
+    sides.forEach((s, k) => {
+      const x0 = element.x + k * ed.left;
+      const w = k === 0 ? ed.left : element.width - ed.left;
+      const numberX = x0 + CODE_PADDING + digits * cw;
+      const textX = x0 + ed.textOffset;
+      s.side.rows.forEach((row, i) => {
+        const changed = s.changed.has(i);
+        lines.push({
+          y: firstBaseline + i * lineHeight,
+          number: row.number,
+          numberX,
+          textX,
+          sign: changed ? { x: numberX + cw, text: s.sign, color: s.signColor } : undefined,
+          // The right pane is clipped by the card; the left must not run into it.
+          tokens: codeTokenViews(k === 0 ? truncateTokens(row.tokens, cols) : row.tokens, palette),
+        });
+        if (changed) {
+          band(i, x0, w, s.fill);
+          const sp = s.spans.get(i);
+          const end = sp ? (k === 0 ? Math.min(sp[1], cols) : sp[1]) : 0;
+          if (sp && end > sp[0]) spanBand(i, textX, [sp[0], end], s.strong);
+        }
+      });
+    });
+    return {
+      lines,
+      bands,
+      divider: {
+        x: element.x + ed.left,
+        y1: element.y + codeHeaderHeight(fontSize),
+        y2: element.y + element.height,
+        color: colors.divider,
+      },
+    };
+  }
+
+  if (element.diffView === 'inline') {
+    // One number column: a removed line shows its original number, the rest their new one.
+    const numberX = element.x + CODE_PADDING + digits * cw;
+    const signX = numberX + cw;
+    const textX = element.x + gut.inline;
+    unified.forEach((d, i) => {
+      const ra = d.a >= 0 ? a.rows[d.a] : null;
+      const rb = d.b >= 0 ? b.rows[d.b] : null;
+      const row = (rb ?? ra)!;
+      lines.push({
+        y: firstBaseline + i * lineHeight,
+        number: rb?.number ?? ra?.number ?? '',
+        numberX,
+        textX,
+        sign:
+          d.op === 'equal'
+            ? undefined
+            : d.op === 'added'
+              ? { x: signX, text: '+', color: colors.addedSign }
+              : { x: signX, text: '-', color: colors.removedSign },
+        tokens: codeTokenViews(row.tokens, palette),
+      });
+      if (d.op !== 'equal') {
+        band(i, element.x, element.width, d.op === 'added' ? colors.added : colors.removed);
+      }
+    });
+    // Word-level emphasis where removed lines are directly followed by their replacements.
+    for (let i = 0; i < unified.length; i++) {
+      if (unified[i].op !== 'removed') continue;
+      let j = i;
+      while (j < unified.length && unified[j].op === 'removed') j++;
+      for (let k = 0; k < j - i && unified[j + k]?.op === 'added'; k++) {
+        const span = changedSpan(
+          rowText(a.rows[unified[i + k].a].tokens),
+          rowText(b.rows[unified[j + k].b].tokens),
+          !element.diffShowWhitespace,
+        );
+        if (span) {
+          spanBand(i + k, textX, span.a, colors.removedStrong);
+          spanBand(j + k, textX, span.b, colors.addedStrong);
+        }
+      }
+      i = j - 1;
+    }
+    return { lines, bands };
+  }
+
+  // Split: original on the left half, changed on the right, change blocks paired row by row.
+  const left = element.width * codeDiffSplit(element);
+  const cols = Math.max(1, Math.floor((left - gut.split - CODE_PADDING / 2) / cw));
+  splitRows(unified).forEach((r, i) => {
+    const ra = r.a >= 0 ? a.rows[r.a] : null;
+    const rb = r.b >= 0 ? b.rows[r.b] : null;
+    const sides = [
+      { row: ra, x0: element.x, w: left, sign: '-', signColor: colors.removedSign, fill: colors.removed },
+      { row: rb, x0: element.x + left, w: element.width - left, sign: '+', signColor: colors.addedSign, fill: colors.added },
+    ];
+    const span =
+      r.op === 'change' && ra && rb ? changedSpan(rowText(ra.tokens), rowText(rb.tokens), !element.diffShowWhitespace) : null;
+    sides.forEach((s, k) => {
+      const numberX = s.x0 + CODE_PADDING + digits * cw;
+      const textX = s.x0 + gut.split;
+      if (!s.row) {
+        band(i, s.x0, s.w, colors.filler);
+        return;
+      }
+      lines.push({
+        y: firstBaseline + i * lineHeight,
+        number: s.row.number,
+        numberX,
+        textX,
+        sign: r.op === 'change' ? { x: numberX + cw, text: s.sign, color: s.signColor } : undefined,
+        // The right pane is clipped by the card; the left must not run into it.
+        tokens: codeTokenViews(k === 0 ? truncateTokens(s.row.tokens, cols) : s.row.tokens, palette),
+      });
+      if (r.op === 'change') {
+        band(i, s.x0, s.w, s.fill);
+        const sp = span ? (k === 0 ? span.a : span.b) : null;
+        if (sp) {
+          const end = k === 0 ? Math.min(sp[1], cols) : sp[1];
+          if (end > sp[0]) {
+            spanBand(i, textX, [sp[0], end], k === 0 ? colors.removedStrong : colors.addedStrong);
+          }
+        }
+      }
+    });
+  });
+  return {
+    lines,
+    bands,
+    divider: {
+      x: element.x + left,
+      y1: element.y + codeHeaderHeight(fontSize),
+      y2: element.y + element.height,
+      color: colors.divider,
+    },
+  };
+}
+
+/**
+ * Geometry of a diff card while both sides are edited: two halves, each a plain code
+ * pane with a shared gutter width (shared by the renderer and the two textareas).
+ */
+export function codeDiffEditLayout(el: CanvasElementModel): {
+  /** Width of the left (original) pane; the right pane takes the rest. */
+  left: number;
+  textOffset: number;
+  lineHeight: number;
+  rows: number;
+} {
+  const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+  const count = Math.max(codeLineCount(el.text ?? ''), codeLineCount(el.diffText ?? ''));
+  const m = codeLayoutMetrics(fontSize, count);
+  // Same gutter as the split view (numbers + a sign column), so code doesn't jump on commit.
+  const digits = Math.max(2, String(count).length);
+  const textOffset = diffGutters(digits, m.charWidth).split;
+  const rows = Math.max(splitLines(el.text ?? '').length, splitLines(el.diffText ?? '').length);
+  return { left: el.width * codeDiffSplit(el), textOffset, lineHeight: m.lineHeight, rows };
+}
+
+/** Diff-aware content size: the plain size, or the inline/split diff's when a diff is shown. */
+export function codeElementContentSize(el: CanvasElementModel): { width: number; height: number } {
+  const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+  const title = codeTitle(el);
+  if (!codeDiffActive(el)) {
+    return codeContentSize(el.text ?? '', fontSize, title);
+  }
+  const { a, b, unified, digits, cw, lineHeight } = codeDiffModel(el, 'plaintext', fontSize);
+  const gut = diffGutters(digits, cw);
+  const longestOf = (rows: CodeRow[]): number => Math.max(1, ...rows.map((r) => rowText(r.tokens).length));
+  const longest = Math.max(longestOf(a.rows), longestOf(b.rows));
+  // Each split pane must fit its own side at the divider's position.
+  const pane = (n: number): number => gut.split + n * cw + CODE_PADDING / 2 + 1;
+  const r = codeDiffSplit(el);
+  const header = codeHeaderHeight(fontSize);
+  const nameWidth = 2 * CODE_DOTS_WIDTH + title.length * 12 * 0.62 + 8;
+  const inline = el.diffView === 'inline';
+  const width = inline
+    ? gut.inline + longest * cw + CODE_PADDING
+    : Math.max(pane(longestOf(a.rows)) / r, pane(longestOf(b.rows)) / (1 - r));
+  const rows = inline ? unified.length : splitRows(unified).length;
+  return {
+    width: Math.ceil(Math.max(width, nameWidth)),
+    height: Math.ceil(header + rows * lineHeight + CODE_PADDING * 2),
+  };
+}
+
 /** The smallest box that shows all of `text` without clipping. */
 export function codeContentSize(
   text: string,
@@ -679,6 +1013,7 @@ function codeBackground(element: CanvasElementModel, theme: ThemeColors | undefi
 function codeBlockView(
   element: CanvasElementModel,
   theme: ThemeColors | undefined,
+  diffEditing = false,
 ): CodeBlockView {
   const fontSize = element.fontSize ?? CODE_FONT_SIZE;
   const background = codeBackground(element, theme);
@@ -693,19 +1028,20 @@ function codeBlockView(
   const header = codeHeaderHeight(fontSize);
   const collapsed = element.expandedHeight != null;
   const top = element.y + header + CODE_PADDING;
+  const diff =
+    !collapsed && codeDiffActive(element)
+      ? codeDiffLines(element, palette, isDarkColor(background), language, fontSize, top + baseline, diffEditing)
+      : null;
   const lines = collapsed
     ? []
-    : rows.map((row, i) => ({
+    : (diff?.lines ??
+      rows.map((row, i) => ({
         y: top + i * m.lineHeight + baseline,
         number: row.number,
-        tokens: row.tokens.map((t) => ({
-          // An elision reads as a muted "···" (same width as the "..." typed).
-          text: t.kind === 'elision' ? '···' : t.text,
-          color: tokenColor(palette, t.kind),
-          italic: t.kind === 'comment',
-        })),
-      }));
+        tokens: codeTokenViews(row.tokens, palette),
+      })));
   return {
+    ...(diff ? { bands: diff.bands, divider: diff.divider } : {}),
     rect: {
       x: element.x,
       y: element.y,
@@ -1040,6 +1376,8 @@ export function buildShapeViews(
   selectedIds: ReadonlySet<string>,
   canvasTheme?: ThemeColors,
   messageBoxes?: ReadonlyMap<string, Box>,
+  /** A diff code block being edited: drawn as two plain halves under its two editors. */
+  diffEditingId?: string | null,
 ): ShapeView[] {
   const tableById = new Map(tables.map((t) => [t.id, t]));
   const elementById = new Map(elements.map((e) => [e.id, e]));
@@ -1100,7 +1438,7 @@ export function buildShapeViews(
         base.label = shapeLabel(element, base.bbox, theme);
         break;
       case 'code':
-        base.code = codeBlockView(element, theme);
+        base.code = codeBlockView(element, theme, element.id === diffEditingId);
         // The card carries its own fill; the SVG layer draws the border from stroke.
         base.fill = base.code.background;
         break;
@@ -1241,7 +1579,16 @@ export function buildShapeViews(
         });
         const contentH =
           base.text.lines.length * tFontSize * (element.lineHeight ?? LINE_HEIGHT) + 4;
-        base.bbox = { ...base.bbox, height: contentH };
+        // The outline hugs the glyphs (the layout box keeps its line-height padding).
+        const ink = textInkInsets(element);
+        const bottom = legacyWrapped ? contentH : element.height - ink.bottom;
+        base.bbox = {
+          ...base.bbox,
+          x: base.bbox.x + ink.left,
+          y: base.bbox.y + ink.top,
+          width: Math.max(1, base.bbox.width - ink.left - ink.right),
+          height: Math.max(1, bottom - ink.top),
+        };
         break;
       }
     }

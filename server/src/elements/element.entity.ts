@@ -2,6 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } 
 import type {
   ArrowheadType,
   CodeLanguage,
+  CodeDiffView,
   ElementType,
   FillStyle,
   StrokeStyle,
@@ -157,6 +158,22 @@ export class ElementEntity {
   /** Code elements: optional file name shown in a title bar. */
   @Column({ type: 'varchar', length: 120, nullable: true })
   fileName!: string | null;
+
+  /** Code elements: the changed side of a diff against `text`; null = no diff. */
+  @Column({ type: 'text', nullable: true })
+  diffText!: string | null;
+
+  /** Code elements: how the diff is shown (split / inline / off). */
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  diffView!: CodeDiffView | null;
+
+  /** Code elements: the left side's share of the width in split views; null = half. */
+  @Column({ type: 'float', nullable: true })
+  diffSplit!: number | null;
+
+  /** Code elements: count whitespace-only diff changes; null = ignore them. */
+  @Column({ type: 'boolean', nullable: true })
+  diffShowWhitespace!: boolean | null;
 
   /** Code elements: while collapsed to the title bar, the height to restore on expand. */
   @Column({ type: 'float', nullable: true })

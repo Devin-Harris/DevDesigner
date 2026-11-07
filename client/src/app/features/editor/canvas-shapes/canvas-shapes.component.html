@@ -259,9 +259,25 @@
                 <circle [attr.cx]="d.x" [attr.cy]="d.y" [attr.r]="d.r" [attr.fill]="d.color"></circle>
               }
             }
+            @for (b of c.bands; track $index) {
+              <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.width" [attr.height]="b.height"
+                [attr.fill]="b.fill"></rect>
+            }
+            @if (c.divider; as dv) {
+              <line [attr.x1]="dv.x" [attr.x2]="dv.x" [attr.y1]="dv.y1" [attr.y2]="dv.y2"
+                [attr.stroke]="dv.color" stroke-opacity="0.35"></line>
+            }
             @for (line of c.lines; track $index) {
+              @if (line.oldNumber; as on) {
+                <text [attr.x]="on.x" [attr.y]="line.y" text-anchor="end" [attr.font-size]="c.fontSize"
+                  [attr.font-family]="c.fontFamily" [attr.fill]="c.numberColor">{{ on.text }}</text>
+              }
+              @if (line.sign; as sg) {
+                <text [attr.x]="sg.x" [attr.y]="line.y" [attr.font-size]="c.fontSize"
+                  [attr.font-family]="c.fontFamily" [attr.fill]="sg.color">{{ sg.text }}</text>
+              }
               <text
-                [attr.x]="c.numberX"
+                [attr.x]="line.numberX ?? c.numberX"
                 [attr.y]="line.y"
                 text-anchor="end"
                 [attr.font-size]="c.fontSize"
@@ -269,7 +285,7 @@
                 [attr.fill]="c.numberColor"
               >{{ line.number }}</text>
               <text
-                [attr.x]="c.textX"
+                [attr.x]="line.textX ?? c.textX"
                 [attr.y]="line.y"
                 xml:space="preserve"
                 [attr.font-size]="c.fontSize"
@@ -289,6 +305,17 @@
             [attr.height]="c.rect.height"
             (pointerdown)="onBody(s.id, $event)"
           ></rect>
+          @if (interactive() && c.divider; as dv) {
+            <!-- Split diff: drag the middle rule to give either side more room. -->
+            <rect
+              class="diff-divider"
+              [attr.x]="dv.x - 4"
+              [attr.y]="dv.y1"
+              width="8"
+              [attr.height]="dv.y2 - dv.y1"
+              (pointerdown)="onDiffDivider(s.id, $event)"
+            ><title>Drag to resize the sides</title></rect>
+          }
           @if (interactive()) {
             <!-- Window dots: red deletes, yellow collapses/expands, green fits to content. -->
             @for (d of c.header.dots; track $index) {

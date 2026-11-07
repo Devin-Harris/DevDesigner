@@ -1,6 +1,7 @@
 import type { CanvasElementModel, PointModel, TableModel } from '@dbdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
 import { tableHeight, tableWidth } from './node-metrics.helper';
+import { textInkInsets } from './text-metrics';
 
 /** Vertex-based element types whose geometry lives in `points`, not width/height. */
 export function isPathElement(type: CanvasElementModel['type']): boolean {
@@ -30,6 +31,16 @@ export function elementBox(element: CanvasElementModel): Box {
       y1 = Math.max(y1, p.y);
     }
     return { x0, y0, x1, y1 };
+  }
+  if (element.type === 'text') {
+    // Text is measured by its glyphs, not its line boxes.
+    const ink = textInkInsets(element);
+    return {
+      x0: element.x + ink.left,
+      y0: element.y + ink.top,
+      x1: element.x + element.width - ink.right,
+      y1: element.y + element.height - ink.bottom,
+    };
   }
   return {
     x0: element.x,

@@ -9,6 +9,7 @@ import type {
   AccessLevel,
   ArrowheadType,
   CodeLanguage,
+  CodeDiffView,
   ElementType,
   FillStyle,
   ProjectType,
@@ -338,6 +339,10 @@ export interface CreateElementDto {
   language?: CodeLanguage;
   /** Code only: optional file name title bar. */
   fileName?: string;
+  diffText?: string;
+  diffView?: CodeDiffView;
+  diffSplit?: number;
+  diffShowWhitespace?: boolean;
   /** Code only: collapsed state (see CanvasElementModel.expandedHeight). */
   expandedHeight?: number;
   /** Frame only: slide-sequence membership + transition. */
@@ -389,6 +394,11 @@ export interface UpdateElementDto {
   language?: CodeLanguage;
   /** Code only: file name title bar; empty string clears it. */
   fileName?: string;
+  /** Code only: diff right side; null clears the diff. */
+  diffText?: string | null;
+  diffView?: CodeDiffView;
+  diffSplit?: number;
+  diffShowWhitespace?: boolean;
   /** Code only: height to restore when expanding; set = collapsed, null = expanded. */
   expandedHeight?: number | null;
   /** Group membership; null clears it. */

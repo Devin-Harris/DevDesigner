@@ -1,5 +1,5 @@
 import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@dbdesigner/shared';
-import { runWeight, usableRuns } from './rich-text.helper';
+import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import { fontStack, fontWeightFor } from './shape-render.helper';
 
 /** Default line height multiple, and the options offered in the UI. */
@@ -195,4 +195,128 @@ export function withTextFit<T extends object>(el: CanvasElementModel, patch: T):
   const next = { ...el, ...patch } as CanvasElementModel;
   const size = fitTextElement(next);
   return { ...patch, width: size.width, height: size.height };
+}
+
+/** Insets from a text element's layout box (x/y/width/height) in to its glyph ink. */
+export interface TextInk {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+const NO_INK: TextInk = { top: 0, right: 0, bottom: 0, left: 0 };
+const inkCache = new Map<string, TextInk>();
+let inkCtx: CanvasRenderingContext2D | null | undefined;
+
+if (typeof document !== 'undefined' && document.fonts) {
+  // Metrics taken before a web font arrives are the fallback face's.
+  document.fonts.addEventListener?.('loadingdone', () => inkCache.clear());
+}
+
+/**
+ * How far a text element's glyphs sit inside its layout box, measured with the
+ * font's real metrics, so the selection outline, snapping and spacing hug the
+ * characters while the stored position (and the editor) stay where they were.
+ * The layout mirrors `layoutTextBlock`: 2px padding, lines of `fontSize *
+ * lineHeight`, each baseline at half-leading + ascent.
+ */
+export function textInkInsets(el: CanvasElementModel): TextInk {
+  const text = el.text ?? '';
+  if (!text.trim()) {
+    return NO_INK;
+  }
+  if (inkCtx === undefined) {
+    inkCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  }
+  const ctx = inkCtx;
+  if (!ctx) {
+    return NO_INK;
+  }
+  const fontSize = el.fontSize ?? TEXT_DEFAULT_FONT_SIZE;
+  const weight = el.bold ? 800 : fontWeightFor(el.strokeWidth);
+  const italic = !!el.italic;
+  const lh = el.lineHeight ?? DEFAULT_LINE_HEIGHT;
+  const stack = fontStack(themeFont(el));
+  const runs = usableRuns(text, el.runs);
+  const key = JSON.stringify([text, runs, fontSize, weight, italic, lh, stack, el.textAlign, el.wrap, el.width]);
+  const hit = inkCache.get(key);
+  if (hit) {
+    return hit;
+  }
+  const fontOf = (w: number, it: boolean) => `${it ? 'italic ' : ''}${w} ${fontSize}px ${stack}`;
+  // Each line as styled segments (plain text is one segment in the base font).
+  const lines: { text: string; font: string }[][] = runs
+    ? runLines(runs).map((line) =>
+        line.map((r) => ({ text: r.text, font: fontOf(runWeight(weight, r), r.italic ?? italic) })),
+      )
+    : text.split('\n').map((t) => [{ text: t, font: fontOf(weight, italic) }]);
+
+  ctx.font = fontOf(weight, italic);
+  const fm = ctx.measureText('Hg');
+  const L = fontSize * lh;
+  const asc = Number.isFinite(fm.fontBoundingBoxAscent) ? fm.fontBoundingBoxAscent : fontSize * 0.8;
+  const desc = Number.isFinite(fm.fontBoundingBoxDescent) ? fm.fontBoundingBoxDescent : fontSize * 0.2;
+  const half = (L - (asc + desc)) / 2;
+
+  const PAD = 2;
+  const align = el.textAlign ?? 'left';
+  let inkL = Infinity;
+  let inkR = -Infinity;
+  const vert: { a: number; d: number }[] = [];
+  for (const segs of lines) {
+    let x = 0;
+    let l = Infinity;
+    let r = -Infinity;
+    let a = -Infinity;
+    let d = -Infinity;
+    for (const s of segs) {
+      if (!s.text) continue;
+      ctx.font = s.font;
+      const m = ctx.measureText(s.text);
+      if (s.text.trim()) {
+        l = Math.min(l, x - m.actualBoundingBoxLeft);
+        r = Math.max(r, x + m.actualBoundingBoxRight);
+        a = Math.max(a, m.actualBoundingBoxAscent);
+        d = Math.max(d, m.actualBoundingBoxDescent);
+      }
+      x += m.width;
+    }
+    vert.push({ a, d });
+    if (l === Infinity) continue;
+    const start =
+      align === 'center' ? el.width / 2 - x / 2 : align === 'right' ? el.width - PAD - x : PAD;
+    inkL = Math.min(inkL, start + l);
+    inkR = Math.max(inkR, start + r);
+  }
+  const first = vert.findIndex((v) => v.a > -Infinity);
+  let last = -1;
+  for (let i = vert.length - 1; i >= 0; i--) {
+    if (vert[i].a > -Infinity) {
+      last = i;
+      break;
+    }
+  }
+  if (first < 0) {
+    return NO_INK;
+  }
+  const baseline = PAD + half + asc;
+  const top = baseline + first * L - vert[first].a;
+  const bottomInk = baseline + last * L + vert[last].d;
+  // Unwrapped text is drawn as exactly its lines; wrapped (or legacy-wrapped)
+  // text keeps its stored height, and its breaks aren't known here, so only
+  // the top/bottom are trimmed.
+  const natural = lines.length * L + PAD * 2;
+  const wrapped = !!el.wrap || el.height > natural + L * 0.5;
+  const horiz = !wrapped && inkL < Infinity;
+  const ink: TextInk = {
+    top: Math.max(0, top),
+    // Relative to the STORED height (it may lag the drawn lines until refit).
+    bottom: wrapped ? 0 : el.height - bottomInk,
+    left: horiz ? inkL : 0,
+    right: horiz ? el.width - inkR : 0,
+  };
+  if (inkCache.size > 2000) inkCache.clear();
+  inkCache.set(key, ink);
+  return ink;
 }

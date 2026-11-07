@@ -12,6 +12,7 @@ import {
   type ArrowheadType,
   type CanvasElementModel,
   type CodeLanguage,
+  type CodeDiffView,
   type FillStyle,
   type FontFamily,
   type MediaPlayback,
@@ -181,6 +182,28 @@ export class ElementFloatingToolbarComponent {
     { value: 'auto', label: 'Automatically', hint: 'Plays as soon as it is shown' },
   ];
   protected readonly isCode = computed(() => this.element().type === 'code');
+  protected readonly diffOn = computed(() => (this.element().diffView ?? 'off') !== 'off');
+  protected readonly diffViews: { id: CodeDiffView; label: string }[] = [
+    { id: 'off', label: 'Off (original only)' },
+    { id: 'inline', label: 'Inline' },
+    { id: 'split', label: 'Side by side' },
+  ];
+
+  protected setDiffView(view: CodeDiffView): void {
+    void this.codeActions.setDiffView(this.store.selectedElementIds(), view);
+  }
+
+  protected toggleWhitespace(): void {
+    void this.codeActions.toggleDiffWhitespace(this.store.selectedElementIds());
+  }
+
+  protected swapDiff(): void {
+    void this.codeActions.swapDiffSides(this.element().id);
+  }
+
+  protected clearDiff(): void {
+    void this.codeActions.clearDiff(this.element().id);
+  }
   protected readonly isGrid = computed(() => this.element().type === 'grid');
   protected readonly gridHeaderOn = computed(
     () => this.isGrid() && parseGrid(this.element().text).header,

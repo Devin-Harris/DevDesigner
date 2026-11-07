@@ -398,9 +398,13 @@
 
     @if (textEditor(); as t) {
      @if (t.rich) {
+      @if (t.ink; as k) {
+        <div class="text-edit-frame" [style.left.px]="k.left" [style.top.px]="k.top" [style.width.px]="k.width" [style.height.px]="k.height"></div>
+      }
       <div
         #richEditor
         class="text-editor rich"
+        [class.bare]="!!t.ink"
         [class.wrap]="t.wrap"
         [style.width.px]="t.wrap ? t.width : null"
         contenteditable="true"
@@ -433,6 +437,8 @@
         [class.centered]="t.center"
         [class.wrap]="t.wrap"
         [class.code]="t.code"
+        [class.code-pane]="t.code"
+        [class.split-pane]="t.code && !!diffPaneEditor()"
         [attr.spellcheck]="t.code ? 'false' : null"
         [style.line-height.px]="t.lineHeight"
         [style.left.px]="t.left"
@@ -452,9 +458,34 @@
         (pointerdown)="$event.stopPropagation()"
         (keydown)="onEditorKeydown($event)"
         (input)="onTextInput($any($event.target).value)"
-        (blur)="commitTextEdit()"
+        (blur)="t.code ? onCodePaneBlur($event) : commitTextEdit()"
       ></textarea>
      }
+    }
+
+    @if (diffPaneEditor(); as p) {
+      <div class="diff-edit-frame" [style.left.px]="p.frame.left" [style.top.px]="p.frame.top"
+        [style.width.px]="p.frame.width" [style.height.px]="p.frame.height"></div>
+      <!-- A diff code block's changed (right) side, edited alongside the original. -->
+      <textarea
+        class="text-editor code code-pane split-pane diff-pane"
+        spellcheck="false"
+        [style.line-height.px]="p.lineHeight"
+        [style.left.px]="p.left"
+        [style.top.px]="p.top"
+        [style.width.px]="p.width"
+        [style.height.px]="p.height"
+        [style.font-size.px]="p.fontSize"
+        [style.font-family]="p.fontFamily"
+        [style.padding.px]="p.padding"
+        [style.padding-left.px]="p.padLeft"
+        style="color: transparent; caret-color: var(--dbd-text)"
+        [value]="p.value"
+        (pointerdown)="$event.stopPropagation()"
+        (keydown)="onEditorKeydown($event)"
+        (input)="onDiffPaneInput($any($event.target).value)"
+        (blur)="onCodePaneBlur($event)"
+      ></textarea>
     }
 
     @if (gridCellEditor(); as gc) {
@@ -498,8 +529,10 @@
           <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
         }
         @for (g of sg.gaps; track $index) {
-          <line class="gap" [attr.x1]="g.x1" [attr.y1]="g.y1" [attr.x2]="g.x2" [attr.y2]="g.y2" />
-          <text [attr.x]="g.lx" [attr.y]="g.ly - 5">{{ g.label }}</text>
+          @for (s of g.segs; track $index) {
+            <line class="gap" [attr.x1]="s.x1" [attr.y1]="s.y1" [attr.x2]="s.x2" [attr.y2]="s.y2" />
+          }
+          <text [attr.x]="g.lx" [attr.y]="g.ly">{{ g.label }}</text>
         }
       </svg>
     }

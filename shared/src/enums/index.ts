@@ -119,6 +119,10 @@ export const CODE_LANGUAGES: readonly CodeLanguage[] = [
   'bash',
 ] as const;
 
+/** How a code block shows its diff: side by side, interleaved, or just the original. */
+export type CodeDiffView = 'split' | 'inline' | 'off';
+export const CODE_DIFF_VIEWS: readonly CodeDiffView[] = ['split', 'inline', 'off'] as const;
+
 /** How a shape's interior is filled. */
 export type FillStyle = 'none' | 'solid' | 'hachure';
 export const FILL_STYLES: readonly FillStyle[] = ['none', 'solid', 'hachure'] as const;

@@ -16,12 +16,14 @@ import {
 import {
   ARROWHEAD_TYPES,
   CODE_LANGUAGES,
+  CODE_DIFF_VIEWS,
   FILL_STYLES,
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
   type ArrowheadType,
   type CodeLanguage,
+  type CodeDiffView,
   type ElementBinding,
   type FillStyle,
   type PointModel,
@@ -181,6 +183,28 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsOptional()
   @IsIn([...CODE_LANGUAGES])
   language?: CodeLanguage;
+
+  /** Code only: the changed side of a diff; null clears it. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  diffText?: string | null;
+
+  @IsOptional()
+  @IsIn([...CODE_DIFF_VIEWS])
+  diffView?: CodeDiffView;
+
+  /** Code only: left side's share of the width in split views. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(0.9)
+  diffSplit?: number;
+
+  /** Code only: count whitespace-only changes in the diff. */
+  @IsOptional()
+  @IsBoolean()
+  diffShowWhitespace?: boolean;
 
   @IsOptional()
   @IsString()

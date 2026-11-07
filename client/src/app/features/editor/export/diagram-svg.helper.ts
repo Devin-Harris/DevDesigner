@@ -454,9 +454,30 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
       out.push(`<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}" />`);
     }
   }
-  for (const line of c.lines) {
+  for (const b of c.bands ?? []) {
     out.push(
-      `<text x="${c.numberX}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.number}</text>`,
+      `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" fill="${b.fill}" />`,
+    );
+  }
+  if (c.divider) {
+    const d = c.divider;
+    out.push(
+      `<line x1="${d.x}" y1="${d.y1}" x2="${d.x}" y2="${d.y2}" stroke="${d.color}" stroke-opacity="0.35" />`,
+    );
+  }
+  for (const line of c.lines) {
+    if (line.oldNumber) {
+      out.push(
+        `<text x="${line.oldNumber.x}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.oldNumber.text}</text>`,
+      );
+    }
+    if (line.sign) {
+      out.push(
+        `<text x="${line.sign.x}" y="${line.y}" ${font} fill="${line.sign.color}">${esc(line.sign.text)}</text>`,
+      );
+    }
+    out.push(
+      `<text x="${line.numberX ?? c.numberX}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.number}</text>`,
     );
     const runs = line.tokens
       .map(
@@ -465,7 +486,7 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
       )
       .join('');
     out.push(
-      `<text x="${c.textX}" y="${line.y}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
+      `<text x="${line.textX ?? c.textX}" y="${line.y}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
     );
   }
   out.push('</g>');

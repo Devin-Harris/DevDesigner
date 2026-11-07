@@ -144,6 +144,10 @@ import {
   CODE_FONT_SIZE,
   CODE_PADDING,
   codeContentSize,
+  codeDiffActive,
+  codeElementContentSize,
+  codeDiffEditLayout,
+  codeDiffSplit,
   CODE_DOTS_WIDTH,
   codeHeaderHeight,
   codeTitle,
@@ -802,7 +806,26 @@ export class EditorComponent {
       gaps: st.snap.gaps.map((g) => {
         // A gap along x is a horizontal segment at y = cross.
         const s = seg(g.axis === 'x' ? 'y' : 'x', g.cross, g.a, g.b);
-        return { ...s, label: String(Math.round(g.b - g.a)), lx: (s.x1 + s.x2) / 2, ly: (s.y1 + s.y2) / 2 };
+        const label = String(Math.round(g.b - g.a));
+        const horiz = g.axis === 'x';
+        const lx = (s.x1 + s.x2) / 2;
+        const ly = (s.y1 + s.y2) / 2;
+        const len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
+        // Room the label needs along the line (text width, or its height when vertical).
+        const half = horiz ? label.length * 3.2 + 4 : 9;
+        const T = 3; // end-tick half length
+        const ticks = horiz
+          ? [{ x1: s.x1, y1: s.y1 - T, x2: s.x1, y2: s.y1 + T }, { x1: s.x2, y1: s.y2 - T, x2: s.x2, y2: s.y2 + T }]
+          : [{ x1: s.x1 - T, y1: s.y1, x2: s.x1 + T, y2: s.y1 }, { x1: s.x2 - T, y1: s.y2, x2: s.x2 + T, y2: s.y2 }];
+        if (len > 2 * half + 6) {
+          // Two lines: element -> label, label -> next element.
+          const segs = horiz
+            ? [{ x1: s.x1, y1: ly, x2: lx - half, y2: ly }, { x1: lx + half, y1: ly, x2: s.x2, y2: ly }]
+            : [{ x1: lx, y1: s.y1, x2: lx, y2: ly - half }, { x1: lx, y1: ly + half, x2: lx, y2: s.y2 }];
+          return { segs: [...segs, ...ticks], label, lx, ly };
+        }
+        // Too tight for the label inline: keep the line whole and set the label beside it.
+        return { segs: [s, ...ticks], label, lx: horiz ? lx : lx + half + 4, ly: horiz ? ly - 9 : ly };
       }),
     };
   });
@@ -1113,6 +1136,9 @@ export class EditorComponent {
           return ctx ? this.fillFields(e, ctx) : e;
         })
       : all;
+    // A diff card being edited shows both sides plain, one under each of its two editors.
+    const editedDiff = editing ? filled.find((e) => e.id === editing) : undefined;
+    const diffEditingId = editedDiff?.type === 'code' && codeDiffActive(editedDiff) ? editing : null;
     // Deck theme tokens ($accent1, $heading, ...) resolve against each item's presentation.
     const elements = resolveThemedElements(draft ? [...filled, draft] : filled, this.store.slideFrames());
     // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
@@ -1123,6 +1149,7 @@ export class EditorComponent {
       new Set(this.store.selectedElementIds()),
       this.themeColors(),
       this.messageBoxes(),
+      diffEditingId,
     );
     // Slide items staged wholly outside their frame (morph entrances/exits) are dimmed:
     // they are part of the slide but never shown when presenting.
@@ -1607,6 +1634,39 @@ export class EditorComponent {
     return (f && this.store.presentationThemes().get(presentationOf(f))) || DEFAULT_THEME;
   }
 
+  /** The right (changed) pane's editor of a diff code block being edited; null otherwise. */
+  protected readonly diffPaneEditor = computed(() => {
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!id || el?.type !== 'code' || !codeDiffActive(el)) {
+      return null;
+    }
+    const v = this.viewportFor(id);
+    const z = v.zoom;
+    const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+    const d = codeDiffEditLayout(el);
+    const header = codeHeaderHeight(fontSize);
+    return {
+      // The edit highlight spans the whole card, not just one pane.
+      frame: {
+        left: el.x * z + v.x,
+        top: (el.y + header) * z + v.y,
+        width: el.width * z,
+        height: (el.height - header) * z,
+      },
+      left: (el.x + d.left) * z + v.x,
+      top: (el.y + header) * z + v.y,
+      width: (el.width - d.left) * z,
+      height: (el.height - header) * z,
+      fontSize: fontSize * z,
+      fontFamily: fontStack('code'),
+      padding: CODE_PADDING * z,
+      padLeft: d.textOffset * z,
+      lineHeight: d.lineHeight * z,
+      value: el.diffText ?? '',
+    };
+  });
+
   protected readonly textEditor = computed(() => {
     const id = this.editingTextId();
     if (!id) {
@@ -1652,26 +1712,30 @@ export class EditorComponent {
         rich: false,
         lineHeight: null as number | null,
         padLeft: null as number | null,
+        ink: null,
       };
     }
     if (el.type === 'code') {
       // The textarea sits exactly over the card with transparent glyphs, so the
       // live-highlighted SVG beneath shows through while the caret and selection stay native.
       const fontSize = el.fontSize ?? CODE_FONT_SIZE;
-      const m = codeLayoutMetrics(fontSize, codeLineCount(el.text ?? ''));
+      const code = el.text ?? '';
+      const diff = codeDiffActive(el) ? codeDiffEditLayout(el) : null;
+      const m = diff ?? codeLayoutMetrics(fontSize, codeLineCount(code));
       // The file-name title bar (if any) sits above the editable code area.
       const header = codeHeaderHeight(fontSize);
       return {
         id,
         left: el.x * z + v.x,
         top: (el.y + header) * z + v.y,
-        width: el.width * z,
+        // A diff card edits its original in the left pane (the changed side is diffPaneEditor).
+        width: (diff ? diff.left : el.width) * z,
         height: (el.height - header) * z,
         fontSize: fontSize * z,
         fontFamily: fontStack('code'),
         fontWeight: 400,
         italic: false,
-        value: el.text ?? '',
+        value: code,
         color: 'transparent',
         align: 'left' as const,
         wrap: false,
@@ -1681,6 +1745,7 @@ export class EditorComponent {
         rich: false,
         lineHeight: m.lineHeight * z,
         padLeft: m.textOffset * z,
+        ink: null,
       };
     }
     const isLabel = el.type !== 'text';
@@ -1716,7 +1781,12 @@ export class EditorComponent {
       rich: el.type === 'text',
       lineHeight: fontSize * z * lh,
       padLeft: null as number | null,
+      // The edit outline hugs the glyphs, like the selection box.
+      ink: el.type === 'text' && (el.text ?? '').trim() ? inkRect(elementBox(el)) : null,
     };
+    function inkRect(b: Box) {
+      return { left: b.x0 * z + v.x, top: b.y0 * z + v.y, width: (b.x1 - b.x0) * z, height: (b.y1 - b.y0) * z };
+    }
   });
 
   /** The language new code blocks start with: that of the most recent code block. */
@@ -1954,6 +2024,28 @@ export class EditorComponent {
 
     // Initialise the contenteditable once per editing session (the DOM owns the
     // content while typing, so it is never re-rendered from the store).
+    // The inspector's "Edit original / Edit changed" opens the inline editor on that side.
+    effect(() => {
+      const req = this.codeActions.editRequest();
+      if (!req) return;
+      untracked(() => {
+        this.codeActions.editRequest.set(null);
+        if (this.editingTextId()) this.commitTextEdit();
+        this.codeActions.diffEditSide.set(req.side);
+        this.editingTextId.set(req.id);
+      });
+    });
+    // A diff card's editor opens with the caret in the pane that was asked for.
+    // Only when the editor opens: later keystrokes must not pull the caret across.
+    effect(() => {
+      const id = this.editingTextId();
+      if (!id || untracked(() => !this.diffPaneEditor() || this.codeActions.diffEditSide() !== 'modified')) return;
+      setTimeout(() => {
+        const pane = document.querySelector('textarea.diff-pane') as HTMLTextAreaElement | null;
+        pane?.focus();
+        pane?.setSelectionRange(pane.value.length, pane.value.length);
+      }, 30);
+    });
     effect(() => {
       const ref = this.richEditorRef();
       untracked(() => {
@@ -3676,6 +3768,28 @@ export class EditorComponent {
     this.store.patchElementLocal(id, { text: value, width: size.width, height: size.height });
   }
 
+  /** Typing in a diff card's right (changed) pane; the card grows taller to fit. */
+  protected onDiffPaneInput(value: string): void {
+    const id = this.editingTextId();
+    const el = id ? this.store.elements().find((e) => e.id === id) : null;
+    if (!id || el?.type !== 'code') {
+      return;
+    }
+    const next = { ...el, diffText: value };
+    const d = codeDiffEditLayout(next);
+    const height = codeHeaderHeight(el.fontSize ?? CODE_FONT_SIZE) + d.rows * d.lineHeight + CODE_PADDING * 2;
+    this.store.patchElementLocal(id, { diffText: value, height: Math.max(el.height, Math.ceil(height)) });
+  }
+
+  /** Leaving one pane of a diff card's editor: moving to the other pane keeps editing. */
+  protected onCodePaneBlur(event: FocusEvent): void {
+    const to = event.relatedTarget as HTMLElement | null;
+    if (to?.classList.contains('code-pane')) {
+      return;
+    }
+    this.commitTextEdit();
+  }
+
   /** The box a text element takes for `value`: always hugging its content, never wrapped. */
   private fitTextSize(el: CanvasElementModel, value: string): { width: number; height: number } {
     return fitTextElement(el, { text: value });
@@ -3713,7 +3827,7 @@ export class EditorComponent {
       this.store.patchElementLocal(el.id, { width: size.width, height: size.height });
       return;
     }
-    if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'f') {
+    if (event.shiftKey && event.altKey && event.code === 'KeyF') {
       // Format in place through the textarea so the edit stays one undo step.
       event.preventDefault();
       void formatCode(area.value, el.language, codePrintWidth(el))
@@ -4367,10 +4481,13 @@ export class EditorComponent {
     }
     const text = el.text ?? '';
     if (el.type === 'code') {
-      // Code blocks stay even when left empty.
-      const size = codeContentSize(text, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
+      const diff = codeDiffActive(el);
+      this.codeActions.diffEditSide.set('original');
+      // Code blocks stay even when left empty. A diff card grows to fit its diff view.
+      const size = codeElementContentSize(el);
       void this.store.updateElement(id, {
         text,
+        ...(diff ? { diffText: el.diffText ?? '' } : {}),
         width: Math.max(el.width, size.width),
         height: Math.max(el.height, size.height),
       });
@@ -5383,6 +5500,14 @@ export class EditorComponent {
       }
       return;
     }
+    if (event.shiftKey && event.altKey && !mod && event.code === 'KeyF') {
+      // Format the selected code blocks.
+      event.preventDefault();
+      if (this.store.canEdit()) {
+        void this.codeActions.format(this.store.selectedElementIds());
+      }
+      return;
+    }
     if (mod && event.key.toLowerCase() === 'g') {
       // Group / ungroup the selection (also stops the browser's find-next).
       event.preventDefault();
@@ -5450,7 +5575,7 @@ export class EditorComponent {
         return;
       }
     }
-    const tool = mod ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
+    const tool = mod || event.altKey ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
     // The laser pointer is a presenting tool, so view-only guests may use it too.
     if (tool && (this.store.canEdit() || tool === 'laser')) {
       this.activeTool.set(tool);
@@ -6954,6 +7079,14 @@ export class EditorComponent {
         }
         if (hit.type === 'text') {
           this.editClickPoint = { x: clientX, y: clientY };
+        }
+        if (hit.type === 'code') {
+          // Both diff sides open for editing; the caret starts in the pane clicked.
+          this.codeActions.diffEditSide.set(
+            codeDiffActive(hit) && world.x >= hit.x + hit.width * codeDiffSplit(hit)
+              ? 'modified'
+              : 'original',
+          );
         }
         this.editingTextId.set(hit.id);
       }
