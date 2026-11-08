@@ -102,6 +102,14 @@ export class UpdateElementDto implements IUpdateElementDto {
   ellipticCorners?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  elbow?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  clipContent?: boolean;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PointDto)
@@ -245,6 +253,16 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsString()
   @MaxLength(100)
   morphId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphIn?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphOut?: string | null;
 
   @IsOptional()
   @IsInt()

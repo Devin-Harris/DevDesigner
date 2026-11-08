@@ -77,6 +77,54 @@
     </ng-template>
   }
 
+  <!-- Plain frames: size, export, turn into a slide -->
+  @if (isPlainFrame()) {
+    <button class="tb wide" [dbdPopoverTrigger]="ratioMenu" placement="below-start" matTooltip="Frame size" [disabled]="!store.canEdit()">
+      <span class="lang">{{ frameRatioLabel() }}</span><dbd-icon name="expand_more" />
+    </button>
+    <ng-template #ratioMenu let-close>
+      <div class="ratio-pop">
+        @for (r of frameRatios; track r.id) {
+          <button class="ratio" [class.on]="frameRatioLabel() === r.label" (click)="setFrameRatio(r.ratio); close()">
+            <span class="rbox" [style.width.px]="r.w" [style.height.px]="r.h"></span>{{ r.label }}
+          </button>
+        }
+      </div>
+    </ng-template>
+    <button class="tb" [class.on]="!!element().clipContent" [matTooltip]="element().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'" [disabled]="!store.canEdit()" (click)="toggleClipContent()">
+      <dbd-icon name="crop" />
+    </button>
+    <button class="tb wide" [dbdPopoverTrigger]="frameExportMenu" placement="below-start" matTooltip="Export frame">
+      <dbd-icon name="download" /><dbd-icon name="expand_more" />
+    </button>
+    <ng-template #frameExportMenu let-close>
+      <div class="dbd-menu">
+        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'png'); close()"><dbd-icon name="photo" />PNG</button>
+        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'svg'); close()"><dbd-icon name="image" />SVG</button>
+        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'pdf'); close()"><dbd-icon name="picture_as_pdf" />PDF</button>
+      </div>
+    </ng-template>
+    @if (store.canEdit()) {
+      <button class="tb wide add-deck" [dbdPopoverTrigger]="addDeckMenu" placement="below-start" matTooltip="Make this frame a slide">
+        <dbd-icon name="add" />Add to presentation<dbd-icon name="expand_more" />
+      </button>
+      <ng-template #addDeckMenu let-close>
+        <div class="dbd-menu">
+          <div class="head-label menu-head">Add as a slide to</div>
+          @for (d of actions.decks(); track d.name) {
+            <button class="dbd-menu-item" (click)="actions.addFrameToPresentation(element().id, d.name); close()">
+              <dbd-icon name="slideshow" />{{ d.name }}<span class="menu-sub">{{ d.slides }} slides</span>
+            </button>
+          }
+          <button class="dbd-menu-item" (click)="actions.addFrameToPresentation(element().id, null); close()">
+            <dbd-icon name="add" />New presentation from this frame
+          </button>
+        </div>
+      </ng-template>
+    }
+    <span class="sep"></span>
+  }
+
   <!-- Corner radius (rectangles only) -->
   @if (isRect()) {
     <button class="tb" [dbdPopoverTrigger]="radiusMenu" placement="below-start" matTooltip="Corner radius" [disabled]="!store.canEdit()">
@@ -116,6 +164,10 @@
 
     <button class="tb" matTooltip="File name" [disabled]="!store.canEdit()" (click)="editFileName()">
       <dbd-icon name="description" />
+    </button>
+
+    <button class="tb" [matTooltip]="copied() ? 'Copied' : 'Copy code'" (click)="copyCode()">
+      <dbd-icon [name]="copied() ? 'check' : 'content_copy'" />
     </button>
 
     <button class="tb" matTooltip="Fit to content (Shift+Alt+S)" [disabled]="!store.canEdit()" (click)="fitToContent()">
@@ -167,6 +219,16 @@
     <button class="tb" [class.on]="gridHeaderOn()" matTooltip="Header row" [disabled]="!store.canEdit()" (click)="toggleGridHeader()">
       <dbd-icon name="table_chart" />
     </button>
+    <button class="tb wide" [dbdPopoverTrigger]="bordersMenu" placement="below-start" matTooltip="Borders" [disabled]="!store.canEdit()">
+      <dbd-icon name="grid_4x4" /><dbd-icon name="expand_more" />
+    </button>
+    <ng-template #bordersMenu let-close>
+      <div class="dbd-menu">
+        @for (b of borderModes; track b.id) {
+          <button class="dbd-menu-item" [class.on]="gridBorders() === b.id" (click)="setGridBorders(b.id); close()">{{ b.label }}</button>
+        }
+      </div>
+    </ng-template>
   }
 
   <!-- Text / label: font + size + bold/italic + alignment -->
@@ -306,9 +368,17 @@
 
   <!-- Arrow/line: curve + arrowheads -->
   @if (isLine()) {
-    <button class="tb" [class.on]="!!element().curvature" matTooltip="Curved" [disabled]="!store.canEdit()" (click)="toggleCurve()">
-      <dbd-icon name="curve" />
-    </button>
+    <span class="route-seg">
+      <button class="tb sm" [class.on]="route() === 'straight'" matTooltip="Straight" [disabled]="!store.canEdit()" (click)="setRoute('straight')">
+        <dbd-icon name="remove" />
+      </button>
+      <button class="tb sm" [class.on]="route() === 'curved'" matTooltip="Curved" [disabled]="!store.canEdit()" (click)="setRoute('curved')">
+        <dbd-icon name="curve" />
+      </button>
+      <button class="tb sm" [class.on]="route() === 'elbow'" matTooltip="Elbow" [disabled]="!store.canEdit()" (click)="setRoute('elbow')">
+        <dbd-icon name="elbow" />
+      </button>
+    </span>
     <button class="tb" [dbdPopoverTrigger]="headMenu" placement="below-start" matTooltip="Arrowheads" [disabled]="!store.canEdit()">
       <dbd-icon name="swap_horiz" />
     </button>
@@ -341,6 +411,24 @@
     </button>
   }
   @if (isImage()) {
+    <button class="tb" [dbdPopoverTrigger]="altMenu" placement="below-start" matTooltip="Alt text" [class.on]="!!element().media?.alt" [disabled]="!store.canEdit()">
+      <dbd-icon name="accessibility" />
+    </button>
+    <ng-template #altMenu let-close>
+      <div class="picker col alt-pop">
+        <span class="head-label">Alt text</span>
+        <textarea
+          #altBox
+          rows="3"
+          placeholder="Describe the picture for people who can't see it"
+          [value]="element().media?.alt ?? ''"
+          (keydown.enter)="$event.preventDefault(); setAlt(altBox.value); close()"
+        ></textarea>
+        <div class="head-row">
+          <button class="tb" (click)="setAlt(altBox.value); close()">Save</button>
+        </div>
+      </div>
+    </ng-template>
     <button class="tb" matTooltip="Crop (double-click)" [disabled]="!store.canEdit()" (click)="media.startCrop(element().id)">
       <dbd-icon name="crop" />
     </button>
@@ -364,6 +452,12 @@
           @if (kind === 'video') {
             <button class="dbd-menu-item" [class.on]="element().media?.loop ?? false" (click)="toggleMediaFlag('loop')">Loop</button>
             <button class="dbd-menu-item" [class.on]="element().media?.muted ?? false" (click)="toggleMediaFlag('muted')">Start muted</button>
+            <div class="dbd-menu-sep"></div>
+            <div class="head-label menu-head">Trim (seconds)</div>
+            <div class="trim-row">
+              <label>Start <input type="number" min="0" step="0.5" [value]="element().media?.start ?? ''" placeholder="0" (change)="setTrim('start', $any($event.target).value)" /></label>
+              <label>End <input type="number" min="0" step="0.5" [value]="element().media?.end ?? ''" placeholder="end" (change)="setTrim('end', $any($event.target).value)" /></label>
+            </div>
           }
         </div>
       </ng-template>
@@ -393,6 +487,9 @@
     </div>
   </ng-template>
 
+  <button type="button" class="tb details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
+    <dbd-icon name="tune" />
+  </button>
   <button class="tb del" matTooltip="Delete" (click)="remove()" [disabled]="!store.canEdit()">
     <dbd-icon name="delete" />
   </button>

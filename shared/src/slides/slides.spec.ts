@@ -56,6 +56,29 @@ describe('slide sequence', () => {
 });
 
 describe('morph matching', () => {
+  it('chains split tags: a -> (in a, out b) -> b', () => {
+    const x = item('tag:a', 'rectangle', '', 0, 0);
+    const y = { ...item('tag:a', 'rectangle', '', 300, 0), keyIn: 'tag:a', keyOut: 'tag:b' };
+    const z = item('tag:b', 'ellipse', '', 600, 400);
+    expect(matchMorphItems([x], [y])).toEqual([[0, 0]]);
+    expect(matchMorphItems([y], [z])).toEqual([[0, 0]]);
+    expect(matchMorphItems([z], [y], undefined, true)).toEqual([[0, 0]]);
+  });
+
+  it('uses split in / out tags only on their own side of a transition', () => {
+    // Slide A's arrow morphs OUT into slide B's box, whose in-tag matches; B's box keeps
+    // its own out key for the next transition.
+    const a = { ...item('a1', 'arrow', '', 0, 0), keyOut: 'tag:pair-1' };
+    const aBox = item('a2', 'rectangle', '', 10, 10);
+    const b = { ...item('b1', 'rectangle', '', 400, 400), keyIn: 'tag:pair-1', keyOut: 'tag:next' };
+    expect(matchMorphItems([aBox, a], [b])).toEqual([[1, 0]]);
+    // Played backwards (from = later slide) the same pair holds.
+    expect(matchMorphItems([b], [aBox, a], undefined, true)).toEqual([[0, 1]]);
+    // A solo in-tag keeps an item from pairing at all.
+    const solo = { ...item('b2', 'rectangle', '', 10, 10), keyIn: 'tag:solo-in-x' };
+    expect(matchMorphItems([aBox], [solo])).toEqual([]);
+  });
+
   it('pairs by shared lineage key first, even when far apart', () => {
     const pairs = matchMorphItems(
       [item('k', 'rectangle', '', 0, 0)],

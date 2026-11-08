@@ -314,6 +314,8 @@ export interface CreateElementDto {
   zIndex?: number;
   cornerRadius?: number;
   ellipticCorners?: boolean;
+  elbow?: boolean;
+  clipContent?: boolean;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
@@ -353,6 +355,8 @@ export interface CreateElementDto {
   overrides?: string;
   /** Morph lineage (set on copies so they morph with their source). */
   morphId?: string;
+  morphIn?: string;
+  morphOut?: string;
   step?: number;
   slideId?: string;
 }
@@ -372,6 +376,8 @@ export interface UpdateElementDto {
   zIndex?: number;
   cornerRadius?: number;
   ellipticCorners?: boolean;
+  elbow?: boolean;
+  clipContent?: boolean;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
@@ -411,6 +417,9 @@ export interface UpdateElementDto {
   overrides?: string | null;
   /** Morph lineage; null clears an explicit pairing. */
   morphId?: string | null;
+  /** Split morph tags (into / out of this slide); null clears. */
+  morphIn?: string | null;
+  morphOut?: string | null;
   /** Build step; null clears it. */
   step?: number | null;
   /** Owning slide (frame id); null clears it. */

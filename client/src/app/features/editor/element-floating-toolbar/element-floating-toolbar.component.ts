@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { InspectorPanelService } from '../inspector-panel.service';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { GridTableService } from '../../../core/services/grid-table.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { MediaActionsService } from '../../../core/services/media-actions.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
+import type { GridBorders } from '@dbdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -97,6 +99,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
   styleUrl: './element-floating-toolbar.component.scss',
 })
 export class ElementFloatingToolbarComponent {
+  protected readonly inspector = inject(InspectorPanelService);
   protected readonly store = inject(ProjectStore);
   private readonly editorActions = inject(EditorActionsService);
   private readonly codeActions = inject(CodeActionsService);
@@ -170,6 +173,26 @@ export class ElementFloatingToolbarComponent {
   );
   /** Pictures have no stroke/fill styling, only opacity and layering. */
   protected readonly isImage = computed(() => this.element().type === 'image');
+  /** A frame that is not a slide (slides are sized by their presentation). */
+  protected readonly isPlainFrame = computed(() => this.element().type === 'frame' && !this.element().slide);
+  protected readonly actions = inject(EditorActionsService);
+  protected readonly frameRatios = [
+    { id: '16-9', label: '16:9', ratio: 16 / 9, w: 32, h: 18 },
+    { id: '4-3', label: '4:3', ratio: 4 / 3, w: 28, h: 21 },
+    { id: '1-1', label: '1:1', ratio: 1, w: 22, h: 22 },
+    { id: 'a4', label: 'A4', ratio: 794 / 1123, w: 17, h: 24 },
+    { id: '9-16', label: '9:16', ratio: 9 / 16, w: 15, h: 27 },
+  ];
+  protected readonly frameRatioLabel = computed(() => {
+    const e = this.element();
+    const r = e.width / (e.height || 1);
+    return this.frameRatios.find((x) => Math.abs(x.ratio - r) < 0.02)?.label ?? 'Custom';
+  });
+  /** Reshape the frame to an aspect ratio, keeping its width and top-left corner. */
+  protected setFrameRatio(ratio: number): void {
+    const e = this.element();
+    void this.store.updateElement(e.id, { height: Math.round(e.width / ratio) });
+  }
   /** GIFs and videos: what the picture is (null for stills or while loading). */
   protected readonly mediaKind = computed(() => {
     const kind = this.isImage() ? this.images.kind(this.element().fileId) : null;
@@ -396,6 +419,18 @@ export class ElementFloatingToolbarComponent {
     void this.codeActions.fitToContent(this.store.selectedElementIds());
   }
 
+  protected readonly borderModes: { id: GridBorders; label: string }[] = [
+    { id: 'all', label: 'All borders' },
+    { id: 'outer', label: 'Outside only' },
+    { id: 'inner', label: 'Inside only' },
+    { id: 'rows', label: 'Rows only' },
+    { id: 'none', label: 'No borders' },
+  ];
+  protected readonly gridBorders = computed<GridBorders>(() => parseGrid(this.element().text).borders ?? 'all');
+  protected setGridBorders(mode: GridBorders): void {
+    void this.grids.setBorders(this.store.selectedElementIds(), mode);
+  }
+
   protected toggleGridHeader(): void {
     void this.grids.toggleHeader(this.store.selectedElementIds());
   }
@@ -617,6 +652,29 @@ export class ElementFloatingToolbarComponent {
   }
 
   /** Toggle between a straight line and a curve (drag the midpoint handle to fine-tune). */
+  /** How the selected line/arrow is routed. */
+  protected readonly route = computed<'straight' | 'curved' | 'elbow'>(() => {
+    const e = this.element();
+    return e.elbow ? 'elbow' : e.curvature ? 'curved' : 'straight';
+  });
+
+  protected setRoute(mode: 'straight' | 'curved' | 'elbow'): void {
+    if (mode === this.route()) return;
+    if (mode === 'elbow') {
+      this.patchAll({ elbow: true, curvature: 0 });
+    } else if (mode === 'straight') {
+      this.patchAll({ elbow: false, curvature: 0 });
+    } else {
+      if (this.element().elbow) this.patchAll({ elbow: false });
+      this.toggleCurve();
+    }
+  }
+
+  protected toggleClipContent(): void {
+    const e = this.element();
+    void this.store.updateElement(e.id, { clipContent: !e.clipContent });
+  }
+
   protected toggleCurve(): void {
     const el = this.element();
     if (el.curvature) {
@@ -656,6 +714,27 @@ export class ElementFloatingToolbarComponent {
     const el = this.element();
     const on = key === 'loop' ? (el.media?.loop ?? false) : (el.media?.muted ?? false);
     void this.media.setMedia(el.id, { [key]: !on });
+  }
+
+  protected readonly copied = signal(false);
+  /** Copy a code block's text to the clipboard. */
+  protected copyCode(): void {
+    const text = this.element().text ?? '';
+    void navigator.clipboard?.writeText(text).then(() => {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 1200);
+    });
+  }
+
+  protected setAlt(value: string): void {
+    const alt = value.trim();
+    void this.media.setMedia(this.element().id, { alt: alt || undefined });
+  }
+
+  /** Video trim, in seconds (empty clears it). */
+  protected setTrim(key: 'start' | 'end', raw: string): void {
+    const n = raw === '' ? undefined : Math.max(0, Number(raw));
+    void this.media.setMedia(this.element().id, { [key]: n === undefined || Number.isNaN(n) ? undefined : n });
   }
 
   protected bringToFront(): void {

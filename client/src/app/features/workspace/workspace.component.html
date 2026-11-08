@@ -2,13 +2,6 @@
   @if (selectedProject(); as project) {
     <app-editor [projectId]="project.id"></app-editor>
   } @else {
-    <div class="empty">
-      <dbd-icon name="schema" class="empty-icon" />
-      <p>Select a project to open its canvas.</p>
-      <button class="open-btn" (click)="openProjects()">
-        <dbd-icon name="table_chart" />
-        Open projects
-      </button>
-    </div>
+    <app-home></app-home>
   }
 </div>

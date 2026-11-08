@@ -284,6 +284,9 @@ function media(value: unknown, path: string): MediaConfig | undefined {
     playback: optOneOf(m, 'playback', path, MEDIA_PLAYBACK_MODES),
     loop: bool('loop'),
     muted: bool('muted'),
+    start: optNum(m, 'start', path),
+    end: optNum(m, 'end', path),
+    alt: typeof m['alt'] === 'string' ? (m['alt'] as string).slice(0, 1000) : undefined,
   };
 }
 
@@ -394,6 +397,8 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     zIndex: num(e, 'zIndex', path, 0),
     cornerRadius: optNum(e, 'cornerRadius', path),
     ellipticCorners: e['ellipticCorners'] === true ? true : undefined,
+    elbow: e['elbow'] === true ? true : undefined,
+    clipContent: e['clipContent'] === true ? true : undefined,
     points: points(e['points'], `${path}.points`),
     text: optStr(e, 'text', path, 100_000),
     fontSize: optNum(e, 'fontSize', path),
@@ -432,6 +437,8 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     placeholder: placeholder(e['placeholder'], `${path}.placeholder`),
     overrides: optStr(e, 'overrides', path, 100),
     morphId: optStr(e, 'morphId', path, 100),
+    morphIn: optStr(e, 'morphIn', path, 100),
+    morphOut: optStr(e, 'morphOut', path, 100),
     step: optNum(e, 'step', path),
     slideId: optStr(e, 'slideId', path, 100),
   };

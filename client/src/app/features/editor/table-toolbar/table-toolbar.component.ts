@@ -1,7 +1,9 @@
+import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { TableModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
+import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -43,12 +45,20 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
         </div>
       </ng-template>
 
+      <button class="tb txt" (click)="inspector.toggle()" matTooltip="Indexes (in Details)">
+        Indexes · {{ table().indexes?.length ?? 0 }}
+      </button>
+      <button class="tb txt" (click)="actions.exportSql()" matTooltip="SQL for the selected tables">SQL</button>
+
       <button class="tb" (click)="duplicate()" matTooltip="Duplicate table" [disabled]="!store.canEdit()">
         <dbd-icon name="content_copy" />
       </button>
 
       <span class="sep"></span>
 
+      <button type="button" class="tb details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
+        <dbd-icon name="tune" />
+      </button>
       <button class="tb del" (click)="remove()" matTooltip="Delete table" [disabled]="!store.canEdit()">
         <dbd-icon name="delete" />
       </button>
@@ -57,7 +67,9 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   styleUrl: './table-toolbar.component.scss',
 })
 export class TableToolbarComponent {
+  protected readonly inspector = inject(InspectorPanelService);
   protected readonly store = inject(ProjectStore);
+  protected readonly actions = inject(EditorActionsService);
   readonly table = input.required<TableModel>();
 
   protected addColumn(): void {

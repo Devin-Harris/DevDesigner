@@ -166,6 +166,9 @@ export function presentableSlides<T extends SlideFrameLike>(frames: readonly T[]
 export interface MorphItem {
   /** Lineage key: the element's morphId, else its own id (tables: their morph tag, else own id). */
   key: string;
+  /** Split tags: the key used when this item is on the later slide (in) / earlier slide (out). */
+  keyIn?: string;
+  keyOut?: string;
   kind: 'element' | 'table';
   /** Element type (rectangle/text/...) or 'table'. */
   type: string;
@@ -299,6 +302,10 @@ export function matchMorphItems(
   maxDistance = 160,
   reversed = false,
 ): Array<[number, number]> {
+  // Split tags: the earlier slide speaks with its "out" key, the later with its "in" key
+  // (swapped when playing backwards, where `from` is the later slide).
+  from = from.map((m) => ({ ...m, key: (reversed ? m.keyIn : m.keyOut) ?? m.key }));
+  to = to.map((m) => ({ ...m, key: (reversed ? m.keyOut : m.keyIn) ?? m.key }));
   const usedFrom = new Set<number>();
   const usedTo = new Set<number>();
   const pairs: Array<[number, number]> = [];
@@ -311,7 +318,8 @@ export function matchMorphItems(
   // slide carries is open to untagged look-alikes. Solo tags (diagram-spec
   // `newSoloTag`) mean "never morph", so they stay reserved.
   const otherTags = new Set((reversed ? to : from).filter(tagged).map((m) => m.key));
-  const solo = (m: MorphItem): boolean => (morphTagOf(m.key) ?? '').startsWith('solo-');
+  // Solo tags never morph; "cut" tags (no transition at all) never morph either.
+  const solo = (m: MorphItem): boolean => /^(solo|cut)-/.test(morphTagOf(m.key) ?? '');
   const reserved = (m: MorphItem): boolean => tagged(m) && (solo(m) || otherTags.has(m.key));
   const taggedFrom = reversed ? reserved : tagged;
   const taggedTo = reversed ? tagged : reserved;

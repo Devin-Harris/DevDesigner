@@ -95,6 +95,12 @@ export interface SelectOption<T = string> {
                   (click)="startRename(opt.value, $event)">
                   <dbd-icon name="edit" />
                 </button>
+                @if (removable()) {
+                  <button type="button" class="pen del" aria-label="Delete" title="Delete"
+                    (click)="$event.stopPropagation(); remove.emit(opt.value)">
+                    <dbd-icon name="delete" />
+                  </button>
+                }
               }
             </div>
           }
@@ -177,6 +183,7 @@ export interface SelectOption<T = string> {
         cursor: pointer;
         --dbd-icon-size: 14px;
       }
+      .pen.del:hover { color: #ef6b6b; }
       .pen:hover {
         background: var(--dbd-surface-2);
         color: var(--dbd-text);
@@ -227,6 +234,9 @@ export class SelectComponent<T = string> implements ControlValueAccessor {
   protected readonly value = signal<T | null>(null);
   /** A renamable option's new name, after the pencil is used. */
   readonly rename = output<{ value: T; label: string }>();
+  /** Renamable options also get a delete button (emits `remove`). */
+  readonly removable = input(false);
+  readonly remove = output<T>();
   protected readonly editing = signal<T | null>(null);
 
   /** Renaming the selected option in the trigger's place (not in the menu). */

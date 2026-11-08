@@ -204,6 +204,12 @@ export interface MediaConfig {
   loop?: boolean;
   /** Videos: start muted. */
   muted?: boolean;
+  /** Videos: play from this second (trim start). */
+  start?: number;
+  /** Videos: stop (or loop back) at this second (trim end). */
+  end?: number;
+  /** Description of the picture for screen readers and exports. */
+  alt?: string;
 }
 
 /** Optional style type of a placeholder (for theming); a slide's copy keeps it. */
@@ -313,6 +319,10 @@ export interface CanvasElementModel {
   cornerRadius?: number;
   /** Corners stretch independently per axis (oval-ish) instead of clamping to a pill. */
   ellipticCorners?: boolean;
+  /** Line/arrow: route with right-angle bends (elbow) instead of straight/curved. */
+  elbow?: boolean;
+  /** Plain frame: hide the parts of shapes inside it that stick out past its edges. */
+  clipContent?: boolean;
   /** Vertices for line/arrow/freedraw, relative to `x`/`y`. */
   points?: PointModel[];
   /** A layout placeholder, or a slide's copy of one (text boxes only). */
@@ -378,6 +388,12 @@ export interface CanvasElementModel {
    * slides animates between them. Absent = the element's own id is its lineage.
    */
   morphId?: string;
+  /**
+   * Split morph tags: the lineage key used against the PREVIOUS slide (morph in) and
+   * against the NEXT slide (morph out). Absent = `morphId` for both.
+   */
+  morphIn?: string;
+  morphOut?: string;
   /**
    * Build step: while presenting, the element appears on this step of its slide
    * (1 = after the first advance). Absent/0 = visible from the start.

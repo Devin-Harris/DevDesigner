@@ -75,6 +75,12 @@
       ></rect>
     }
     @for (s of visible(); track s.id) {
+      @if (s.frameClip; as fc) {
+        <clipPath [attr.id]="'fclip-' + s.id">
+          <rect [attr.x]="fc.x" [attr.y]="fc.y" [attr.width]="fc.width" [attr.height]="fc.height"></rect>
+        </clipPath>
+      }
+      <g [attr.clip-path]="s.frameClip ? 'url(#fclip-' + s.id + ')' : null">
       <g [attr.transform]="s.transform" [style.opacity]="s.opacity" [class.locked]="s.locked">
         <!-- Invisible hit target so the element is grabbable over its whole box. -->
         @if (s.rect) {
@@ -147,7 +153,9 @@
               [attr.clip-path]="img.clip ? 'url(#' + img.clip.id + ')' : null"
               preserveAspectRatio="none"
               pointer-events="none"
-            ></image>
+              [attr.role]="img.alt ? 'img' : null"
+              [attr.aria-label]="img.alt || null"
+            >@if (img.alt) {<title>{{ img.alt }}</title>}</image>
           } @else {
             <rect class="image-pending" [attr.x]="img.x" [attr.y]="img.y"
               [attr.width]="img.width" [attr.height]="img.height" rx="4"></rect>
@@ -184,9 +192,11 @@
               }
             }
           </g>
-          <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
-            [attr.height]="g.rect.height" [attr.rx]="g.rect.rx" fill="none" [attr.stroke]="s.stroke"
-            [attr.stroke-width]="s.strokeWidth" [attr.stroke-dasharray]="s.dash" pointer-events="none"></rect>
+          @if (g.outline) {
+            <rect [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
+              [attr.height]="g.rect.height" [attr.rx]="g.rect.rx" fill="none" [attr.stroke]="s.stroke"
+              [attr.stroke-width]="s.strokeWidth" [attr.stroke-dasharray]="s.dash" pointer-events="none"></rect>
+          }
           <rect class="hit" [attr.x]="g.rect.x" [attr.y]="g.rect.y" [attr.width]="g.rect.width"
             [attr.height]="g.rect.height" [class.cells]="s.selected" (pointerdown)="onBody(s.id, $event)"></rect>
           @if (s.selected && interactive() && s.id !== editingId()) {
@@ -454,6 +464,7 @@
             }
           </text>
         }
+      </g>
       </g>
 
       @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {

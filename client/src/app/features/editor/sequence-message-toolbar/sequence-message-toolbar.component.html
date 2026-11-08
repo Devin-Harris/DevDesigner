@@ -83,6 +83,9 @@
     <dbd-icon name="edit" />
   </button>
 
+  <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
+    <dbd-icon name="tune" />
+  </button>
   <button
     type="button"
     class="ico-act del"

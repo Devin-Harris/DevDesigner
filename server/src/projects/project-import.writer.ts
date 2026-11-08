@@ -424,6 +424,9 @@ export async function writeSchemaInto(
         ? e.morphId
         : (morphIds.get(e.morphId) ?? morphIds.mint(e.morphId))
       : undefined,
+    // Split tags are named tags (or solo markers) and are kept as written.
+    morphIn: e.morphIn,
+    morphOut: e.morphOut,
   }));
   await insertAll(
     manager,
@@ -446,6 +449,8 @@ export async function writeSchemaInto(
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius ?? null,
       ellipticCorners: e.ellipticCorners ?? null,
+      elbow: e.elbow ?? null,
+      clipContent: e.clipContent ?? null,
       pointsJson: e.points?.length ? JSON.stringify(e.points) : null,
       text: e.text ?? null,
       fontSize: e.fontSize ?? null,
@@ -479,6 +484,8 @@ export async function writeSchemaInto(
       placeholderJson: e.placeholder ? JSON.stringify(e.placeholder) : null,
       overrides: e.overrides ?? null,
       morphId: e.morphId ?? null,
+      morphIn: e.morphIn ?? null,
+      morphOut: e.morphOut ?? null,
       step: e.step ?? null,
       slideId: e.slideId ?? null,
     })),

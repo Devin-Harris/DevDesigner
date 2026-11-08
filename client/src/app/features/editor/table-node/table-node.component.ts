@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   DATA_TYPE_NAMES,
@@ -48,6 +50,29 @@ export interface HandleEvent {
  * Emits low-level pointer intents (node drag start, connect-handle down/up) so
  * the parent canvas can coordinate dragging and relationship linking.
  */
+/** Common type spellings typed on the card, mapped to the supported types. */
+const TYPE_ALIASES: Record<string, { name: string; length?: number }> = {
+  integer: { name: 'INT' },
+  int4: { name: 'INT' },
+  smallint: { name: 'INT' },
+  int8: { name: 'BIGINT' },
+  numeric: { name: 'DECIMAL' },
+  money: { name: 'DECIMAL' },
+  double: { name: 'FLOAT' },
+  real: { name: 'FLOAT' },
+  bool: { name: 'BOOLEAN' },
+  string: { name: 'VARCHAR' },
+  char: { name: 'VARCHAR' },
+  uuid: { name: 'VARCHAR', length: 36 },
+  timestamptz: { name: 'TIMESTAMP' },
+  jsonb: { name: 'JSON' },
+};
+
+function resolveTypeName(word: string): string | undefined {
+  const w = word.toLowerCase();
+  return DATA_TYPE_NAMES.find((t) => t.toLowerCase() === w) ?? TYPE_ALIASES[w]?.name;
+}
+
 @Component({
   selector: 'app-table-node',
   standalone: true,
@@ -389,10 +414,77 @@ export class TableNodeComponent {
       return;
     }
     this.editingColumnId.set(null);
-    const name = (event.target as HTMLInputElement).value.trim();
-    if (name && name !== column.name) {
-      void this.store.updateColumn(this.table().id, column.id, { name });
+    this.saveColumnText(column, (event.target as HTMLInputElement).value);
+  }
+
+  /**
+   * Keyboard flow while renaming a column: Tab / Shift+Tab move to the next /
+   * previous row, Enter commits and — on the last row — adds a new column ready
+   * to type into.
+   */
+  protected async onColumnKey(column: ColumnModel, event: KeyboardEvent): Promise<void> {
+    const cols = this.table().columns;
+    const i = cols.findIndex((c) => c.id === column.id);
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      this.saveColumnText(column, (event.target as HTMLInputElement).value);
+      const next = cols[i + (event.shiftKey ? -1 : 1)];
+      this.editingColumnId.set(next ? next.id : null);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.saveColumnText(column, (event.target as HTMLInputElement).value);
+      this.editingColumnId.set(null);
+      if (i === cols.length - 1 && this.editable()) {
+        await this.addColumnAndEdit();
+      }
     }
+  }
+
+  /**
+   * Save typed column text. "price numeric" or "name varchar(80)" sets the type
+   * too, when the last word is a known data type.
+   */
+  private saveColumnText(column: ColumnModel, raw: string): void {
+    const text = raw.trim();
+    if (!text) {
+      return;
+    }
+    const m = /^(.*\S)\s+([A-Za-z]+)(?:\((\d+)\))?$/.exec(text);
+    const typeName = m ? resolveTypeName(m[2]) : undefined;
+    const aliasLength = m && !m[3] ? TYPE_ALIASES[m[2].toLowerCase()]?.length : undefined;
+    const name = typeName && m ? m[1].trim() : text;
+    const patch: UpdateColumnDto = {};
+    if (name !== column.name) patch.name = name;
+    if (typeName) {
+      const length = m?.[3]
+        ? Number(m[3])
+        : (aliasLength ?? (typeName === 'VARCHAR' ? (column.dataType.length ?? 255) : undefined));
+      if (typeName !== column.dataType.name || length !== column.dataType.length) {
+        patch.dataType = { name: typeName, length };
+        if (column.isUnsigned && !isNumericType(typeName)) patch.isUnsigned = false;
+      }
+    }
+    if (Object.keys(patch).length) {
+      void this.store.updateColumn(this.table().id, column.id, patch);
+    }
+  }
+
+  /** Column ids before an Enter-adds-a-row; the next new id gets edited. */
+  private pendingEditAfter: Set<string> | null = null;
+  private readonly editNewColumn = effect(() => {
+    const cols = this.table().columns;
+    const before = this.pendingEditAfter;
+    if (!before) return;
+    const added = cols.find((c) => !before.has(c.id));
+    if (added) {
+      this.pendingEditAfter = null;
+      untracked(() => this.editingColumnId.set(added.id));
+    }
+  });
+
+  private async addColumnAndEdit(): Promise<void> {
+    this.pendingEditAfter = new Set(this.table().columns.map((c) => c.id));
+    await this.addColumnAsync();
   }
 
   protected cancelInline(): void {
@@ -454,6 +546,10 @@ export class TableNodeComponent {
   // --- add / delete ---
 
   protected addColumn(): void {
+    void this.addColumnAsync();
+  }
+
+  private async addColumnAsync(): Promise<void> {
     if (!this.editable()) {
       return;
     }
@@ -464,7 +560,7 @@ export class TableNodeComponent {
       i += 1;
       name = `column_${i}`;
     }
-    void this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+    await this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
   }
 
   protected deleteColumn(column: ColumnModel): void {

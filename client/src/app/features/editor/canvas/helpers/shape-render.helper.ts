@@ -106,6 +106,9 @@ export function imageView(element: CanvasElementModel, fileId: string): ImageVie
     playback: media?.playback,
     loop: media?.loop ?? false,
     muted: media?.muted ?? false,
+    start: media?.start,
+    end: media?.end,
+    alt: media?.alt,
   };
   const id = `img-clip-${element.id}`;
   const w = Math.abs(box.width);
@@ -1215,12 +1218,16 @@ function gridTableView(
       );
     }),
   );
+  const mode = g.borders ?? 'all';
+  const shownLines =
+    mode === 'all' || mode === 'inner' ? lines : mode === 'rows' ? lines.filter((l) => l.y1 === l.y2) : [];
   return {
     rect: { x: x0, y: y0, width: element.width, height: element.height, rx: element.cornerRadius ?? 4 },
     background: fill,
     // The header row is marked by bold text only, no tinted band.
     header: null,
-    lines,
+    lines: shownLines,
+    outline: mode === 'all' || mode === 'outer' || mode === 'rows',
     cells,
     fills,
     clipId: `grid-clip-${element.id}-${clipKey(element)}`,
@@ -1511,9 +1518,21 @@ export function buildShapeViews(
         } else {
           ends = resolveEnds(element, targetBox);
         }
-        const curvature = ends.length >= 2 ? (element.curvature ?? 0) : 0;
+        const curvature = ends.length >= 2 && !element.elbow ? (element.curvature ?? 0) : 0;
         let labelAt: Point | undefined;
-        if (Math.abs(curvature) > 0.5) {
+        if (element.elbow && ends.length >= 2) {
+          // Right-angle route: out along the longer axis, across at the midpoint, then in.
+          const s = ends[0];
+          const t = ends[ends.length - 1];
+          const across = Math.abs(t.x - s.x) >= Math.abs(t.y - s.y);
+          const mx = (s.x + t.x) / 2;
+          const my = (s.y + t.y) / 2;
+          base.path = across
+            ? `M${s.x} ${s.y} H${mx} V${t.y} H${t.x}`
+            : `M${s.x} ${s.y} V${my} H${t.x} V${t.y}`;
+          base.bend = { x: mx, y: my };
+          labelAt = { x: mx, y: my };
+        } else if (Math.abs(curvature) > 0.5) {
           const curve = curvedPath(ends[0], ends[ends.length - 1], curvature);
           base.path = curve.path;
           base.bend = curve.mid;
@@ -1563,7 +1582,10 @@ export function buildShapeViews(
         const lineH = tFontSize * (element.lineHeight ?? LINE_HEIGHT);
         const legacyWrapped =
           element.wrap ?? element.height > explicitLines * lineH + 4 + lineH * 0.5;
-        base.text = layoutTextBlock(element.text ?? '', base.bbox, {
+        // Lay out in the stored layout box (where the editor draws it), not the
+        // glyph-trimmed `elementBox`, or the glyphs shift down by the top inset.
+        const layoutBox = { x: element.x, y: element.y, width: element.width, height: element.height };
+        base.text = layoutTextBlock(element.text ?? '', layoutBox, {
           fontSize: tFontSize,
           fontFamilyKey: element.fontFamily,
           fontWeight: tWeight,
@@ -1583,10 +1605,9 @@ export function buildShapeViews(
         const ink = textInkInsets(element);
         const bottom = legacyWrapped ? contentH : element.height - ink.bottom;
         base.bbox = {
-          ...base.bbox,
-          x: base.bbox.x + ink.left,
-          y: base.bbox.y + ink.top,
-          width: Math.max(1, base.bbox.width - ink.left - ink.right),
+          x: element.x + ink.left,
+          y: element.y + ink.top,
+          width: Math.max(1, element.width - ink.left - ink.right),
           height: Math.max(1, bottom - ink.top),
         };
         break;
@@ -1595,6 +1616,20 @@ export function buildShapeViews(
     return base;
   });
   // Frames are page backdrops: draw them beneath everything else (stable sort).
+  // Frames set to clip their content: shapes whose centre lies inside the (smallest)
+  // such frame are cut to its box. Slides keep their own clipping.
+  const clipFrames = elements
+    .filter((e) => e.type === 'frame' && e.clipContent && !e.slide)
+    .sort((a, b) => a.width * a.height - b.width * b.height);
+  if (clipFrames.length) {
+    for (const v of views) {
+      const el = elementById.get(v.id);
+      if (!el || el.type === 'frame' || el.slideId) continue;
+      const c = elementCenter(el);
+      const f = clipFrames.find((fr) => c.x >= fr.x && c.x <= fr.x + fr.width && c.y >= fr.y && c.y <= fr.y + fr.height);
+      if (f) v.frameClip = { x: f.x, y: f.y, width: f.width, height: f.height };
+    }
+  }
   return views.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
 }
 

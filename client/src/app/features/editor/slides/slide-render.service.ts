@@ -349,6 +349,8 @@ export class SlideRenderService {
         // Copies of one layout placeholder morph into each other across slides.
         // A tag set on the layout's placeholder applies to every slide's copy of it.
         key: slideMorphKey(e, (id) => this.store.elements().find((p) => p.id === id)),
+        keyIn: e.morphIn ?? undefined,
+        keyOut: e.morphOut ?? undefined,
         kind: 'element',
         type: e.type,
         // Grids are matched by what their cells say, not by their JSON.

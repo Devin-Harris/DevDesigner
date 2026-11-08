@@ -1,0 +1,203 @@
+<div class="guide" [class.expanded]="expanded()" [class.collapsed]="railCollapsed()">
+  <aside class="rail" [class.open]="navOpen()" aria-label="Canvas tools">
+    <div class="rail-head">
+      <a class="logo" routerLink="/">
+        <span class="brand-tile"><dbd-icon name="code" /></span>
+        <span class="disp">DevDesigner</span>
+      </a>
+      <button
+        class="icon-btn collapse-btn"
+        (click)="toggleRail()"
+        [attr.aria-label]="railCollapsed() ? 'Expand tool list' : 'Collapse tool list'"
+        [attr.aria-expanded]="!railCollapsed()"
+        [title]="railCollapsed() ? 'Expand' : 'Collapse'"
+      >
+        <dbd-icon [name]="railCollapsed() ? 'chevron_right' : 'chevron_left'" />
+      </button>
+      <button
+        class="icon-btn theme-btn"
+        (click)="theme.toggle()"
+        [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+      >
+        <dbd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+      </button>
+    </div>
+    <div class="rail-title">
+      <button class="rail-toggle" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()">
+        <dbd-icon [name]="tool().icon" />{{ tool().name }}
+        <dbd-icon name="expand_more" />
+      </button>
+    </div>
+    <nav class="tabs">
+      @for (g of groups; track g.name) {
+        <span class="group lab">{{ g.name }}</span>
+        @for (t of g.tools; track t.id) {
+        <button
+          class="tab"
+          [class.on]="t.id === tool().id"
+          [attr.aria-current]="t.id === tool().id ? 'page' : null"
+          (click)="go(t)"
+          [attr.title]="railCollapsed() ? (t.keys ? t.name + ' (' + t.keys + ')' : t.name) : null"
+          [attr.aria-label]="t.name"
+        >
+          <span class="tab-icon" [attr.data-tone]="t.tone"><dbd-icon [name]="t.icon" /></span>
+          <span class="tab-name">{{ t.name }}</span>
+          @if (t.keys) { <span class="k">{{ t.keys }}</span> }
+        </button>
+        }
+      }
+    </nav>
+    <a class="rail-foot" routerLink="/"><dbd-icon name="arrow_back" />Back to home</a>
+  </aside>
+
+  <main class="page">
+    <header class="hero">
+      <span class="hero-icon" [attr.data-tone]="tool().tone"><dbd-icon [name]="tool().icon" /></span>
+      <div class="hero-text">
+        <h1 class="disp">{{ tool().name }} @if (tool().keys) { <span class="k lg">{{ tool().keys }}</span> }</h1>
+        <p class="tagline">{{ tool().tagline }}</p>
+      </div>
+      <span class="lab hero-count">{{ index() + 1 }} / {{ tools.length }}</span>
+    </header>
+
+    <!-- Sandbox first, sized to the window, so it is visible without scrolling. -->
+    <div class="play">
+    <section class="sandbox card" aria-label="Sandbox">
+      <div class="sb-bar">
+        <span class="sb-dot"></span>
+        <span class="sb-title">Sandbox · {{ tool().name }}</span>
+        <span class="sb-note">Your own scratch copy, kept for this browser session only. Reset any time.</span>
+        @if (tool().sandboxActions === 'export') {
+          <span class="sb-group" role="group" aria-label="Export and import">
+            <button class="btn sm" (click)="actions.exportImage('png')"><dbd-icon name="photo" />PNG</button>
+            <button class="btn sm" (click)="actions.exportImage('svg')">SVG</button>
+            <button class="btn sm" (click)="actions.exportImage('pdf')">PDF</button>
+            <button class="btn sm" (click)="actions.exportSelectionFile()" [disabled]="!actions.hasSelection()">
+              <dbd-icon name="download" />Selection
+            </button>
+            <button class="btn sm" (click)="importInput.click()"><dbd-icon name="upload" />Import</button>
+            <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+          </span>
+        }
+        <button class="btn sm" (click)="reset()"><dbd-icon name="undo" />Reset</button>
+        <button
+          class="btn sm"
+          (click)="expanded.set(!expanded())"
+          [attr.aria-label]="expanded() ? 'Exit full screen' : 'Full screen'"
+        >
+          <dbd-icon [name]="expanded() ? 'close' : 'open_in_full'" />{{ expanded() ? 'Close' : 'Expand' }}
+        </button>
+      </div>
+      <div class="sb-stage">
+        @if (sandboxId()) {
+          <!-- One-item loop so switching tools mounts a fresh editor. -->
+          @for (key of [mountKey()]; track key) {
+            <app-editor [projectId]="sandboxId()" [fitOnLoad]="true" [initialTool]="tool().editorTool ?? null"></app-editor>
+          }
+        } @else if (sandboxError(); as err) {
+          <div class="sb-msg">
+            <dbd-icon name="warning" />{{ err }}
+            <button class="btn sm" (click)="reset()">Try again</button>
+          </div>
+        } @else {
+          <div class="sb-msg muted">Preparing sandbox…</div>
+        }
+      </div>
+    </section>
+      <aside class="try card" aria-label="Try it">
+        <span class="lab">Try it</span>
+        <ol>
+          @for (s of tool().tryIt; track s) {
+            <li>{{ s }}</li>
+          }
+        </ol>
+      </aside>
+    </div>
+
+    <p class="intro">{{ tool().intro }}</p>
+
+    <section class="details">
+      <div class="col">
+        <h2 class="disp">How it works</h2>
+        <div class="steps">
+          @for (s of tool().howTo; track s.title; let i = $index) {
+            <div class="step">
+              <span class="num">{{ i + 1 }}</span>
+              <div>
+                <b>{{ s.title }}</b>
+                <p>{{ s.body }}</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (tool().deepDive?.length) {
+          <h2 class="disp">In depth</h2>
+          <div class="deep">
+            @for (d of tool().deepDive; track d.title) {
+              <div class="deep-item">
+                <h3>{{ d.title }}</h3>
+                @if (d.body) {
+                  <p>{{ d.body }}</p>
+                }
+                @if (d.points?.length) {
+                  <ul>
+                    @for (pt of d.points; track pt) {
+                      <li>{{ pt }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <h2 class="disp">Options</h2>
+        <div class="opts">
+          @for (o of tool().options; track o.title) {
+            <div class="opt card">
+              <b>{{ o.title }}</b>
+              <p>{{ o.body }}</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="col side">
+        <div class="card">
+          <span class="lab">Shortcuts</span>
+          <dl class="keys">
+            @for (s of tool().shortcuts; track s.keys) {
+              <div class="row"><dt>{{ s.action }}</dt><dd><span class="k">{{ s.keys }}</span></dd></div>
+            }
+          </dl>
+        </div>
+        @if (tool().tips.length) {
+          <div class="card tips">
+            <span class="lab">Tips</span>
+            <ul>
+              @for (t of tool().tips; track t) {
+                <li>{{ t }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    </section>
+
+    <nav class="pager" aria-label="Next and previous tool">
+      @if (prev(); as p) {
+        <button class="pg" (click)="go(p)">
+          <span class="muted">Previous</span><span><dbd-icon name="chevron_left" />{{ p.name }}</span>
+        </button>
+      } @else {
+        <span></span>
+      }
+      @if (next(); as n) {
+        <button class="pg right" (click)="go(n)">
+          <span class="muted">Next</span><span>{{ n.name }}<dbd-icon name="chevron_right" /></span>
+        </button>
+      }
+    </nav>
+  </main>
+</div>

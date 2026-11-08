@@ -9,7 +9,10 @@ export type AlignAction =
   | 'vcenter'
   | 'bottom'
   | 'dist-h'
-  | 'dist-v';
+  | 'dist-v'
+  // Tidy: equal 40px gaps between neighbours.
+  | 'gaps-h'
+  | 'gaps-v';
 
 /** Image export formats offered in the export menu. */
 export type ExportImageFormat = 'svg' | 'png' | 'pdf';

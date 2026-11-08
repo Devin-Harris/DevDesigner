@@ -1,3 +1,5 @@
+import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ProjectStore } from '../../../stores/project.store';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
@@ -11,7 +13,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   selector: 'app-sequence-diagram-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ColorSwatchesComponent, PopoverTriggerDirective],
+  imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
   template: `
     @if (diagram(); as d) {
       <button
@@ -69,11 +71,15 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
           />
         </div>
       </ng-template>
+      <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
+        <dbd-icon name="tune" />
+      </button>
     }
   `,
   styleUrl: './sequence-diagram-toolbar.component.scss',
 })
 export class SequenceDiagramToolbarComponent {
+  protected readonly inspector = inject(InspectorPanelService);
   protected readonly store = inject(ProjectStore);
   protected readonly diagram = computed(() => this.store.selectedDiagram());
   protected readonly canEdit = computed(() => this.store.canEdit());

@@ -13,38 +13,7 @@ app-editor {
   height: 100%;
 }
 
-.empty {
+app-home {
+  display: block;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--dbd-space-3);
-  color: var(--dbd-text-muted);
-}
-
-.empty-icon {
-  --dbd-icon-size: 56px;
-  opacity: 0.4;
-}
-
-.open-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: var(--dbd-radius);
-  border: 1px solid var(--dbd-border-strong);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  --dbd-icon-size: 18px;
-
-  &:hover {
-    background: var(--dbd-surface-2);
-  }
 }

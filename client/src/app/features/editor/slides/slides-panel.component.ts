@@ -1,4 +1,6 @@
-import {
+import { NgTemplateOutlet } from '@angular/common';
+import { AutofocusDirective } from '../autofocus.directive';
+import { Injectable,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -44,6 +46,7 @@ import {
   themeFile,
   themeSwatchCss,
   themeTokensOnly,
+  themeToken,
   tokenOf,
   type CanvasElementModel,
   type FontFamily,
@@ -104,6 +107,26 @@ import {
 } from './standard-layouts';
 
 /** What the panel asks the editor to do (things that need canvas knowledge). */
+/** Focus-mode view state that outlives the docks (they are rebuilt per screen). */
+@Injectable({ providedIn: 'root' })
+export class FocusUiState {
+  readonly tab = signal<'slide' | 'transition' | 'animations' | 'notes'>('slide');
+  /** The canvas settings panel's tab. */
+  readonly canvasTab = signal<'transition' | 'design' | 'size' | 'notes' | 'animations'>('transition');
+
+  /** Entering focus: open the same tab there (Design / Size live in the top bar, so Slide). */
+  toFocus(): void {
+    const t = this.canvasTab();
+    this.tab.set(t === 'transition' || t === 'animations' || t === 'notes' ? t : 'slide');
+  }
+
+  /** Leaving focus: the canvas panel shows the tab that was open in focus mode. */
+  fromFocus(): void {
+    const t = this.tab();
+    if (t !== 'slide') this.canvasTab.set(t);
+  }
+}
+
 export type SlidesCommand =
   | { kind: 'present'; from: 'start' | 'current' }
   | { kind: 'preview'; id: string }
@@ -114,7 +137,9 @@ export type SlidesCommand =
   | { kind: 'add'; layout?: boolean; layoutId?: string | null }
   | { kind: 'deletePresentation' }
   | { kind: 'close' }
-  | { kind: 'fold' };
+  | { kind: 'fold' }
+  /** Focus mode: open one of its screens (DeckMorph / DeckAnim / DeckDesign mocks). */
+  | { kind: 'screen'; screen: 'main' | 'morph' | 'anim' | 'design' };
 
 const TYPE_OPTIONS: SelectOption<SlideTransitionType>[] = [
   { value: 'none', label: 'None' },
@@ -177,6 +202,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    NgTemplateOutlet,
+    AutofocusDirective,
     AnimationPaneComponent,
     CheckboxComponent,
     ColorSwatchesComponent,
@@ -437,6 +464,11 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     </div>
                     @if (!hasTransitionTarget()) {
                       <p class="hint">The first slide has no transition into it.</p>
+                      @if (morphRelevantNext()) {
+                        <button class="btn wide map-pairs" (click)="command.emit({ kind: 'screen', screen: 'morph' })" title="See what morphs into what on the next slide, and change it">
+                          <dbd-icon name="open_in_full" />Refine
+                        </button>
+                      }
                     } @else {
                       <label class="field">
                         <span
@@ -504,6 +536,11 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       @if (canEdit() && frames().length > 2) {
                         <button class="link" (click)="applyToAll()">Apply to all slides</button>
                       }
+                      @if (activeSlides().length <= 1) {
+                        <button class="btn wide map-pairs" (click)="command.emit({ kind: 'screen', screen: 'morph' })" title="See what morphs into what, and change it">
+                          <dbd-icon name="open_in_full" />Refine
+                        </button>
+                      }
                     }
                   } @else {
                     <p class="hint">Select a slide to set its transition.</p>
@@ -511,7 +548,31 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   @if (canEdit() && morphRelevant()) {
                     @if (tagCount() > 0) {
                       <div class="field">
-                        <span>Morph tag</span>
+                        <span class="tagline">
+                          Morph tag
+                          @if (splitTarget(); as st) {
+                            <button class="link" (click)="toggleSplit(st)" [title]="st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'">
+                              {{ st.split ? 'Join in / out' : 'Split in / out' }}
+                            </button>
+                          }
+                        </span>
+                        @if (splitTarget()?.split) {
+                          <span class="sublab">In · from the slide before</span>
+                          <dbd-tag-input
+                            [value]="tagText(splitTarget()!.in)"
+                            [suggestions]="morphTagSuggestions()"
+                            [maxlength]="80"
+                            placeholder="type a tag…"
+                            (commit)="setSplitTag('in', $event)"
+                          />
+                          <span class="sublab">Out · to the slide after</span>
+                          <dbd-tag-input
+                            [value]="tagText(splitTarget()!.out)"
+                            [maxlength]="80"
+                            placeholder="type a tag…"
+                            (commit)="setSplitTag('out', $event)"
+                          />
+                        } @else {
                         <dbd-tag-input
                           [value]="morphTag()"
                           [suggestions]="morphTagSuggestions()"
@@ -525,6 +586,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           "
                           (commit)="setMorphTag($event)"
                         />
+                        }
                       </div>
                       <p class="hint">
                         Tagged objects only morph into the object with the same tag on the next
@@ -603,6 +665,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     [disabled]="!canEdit()"
                     (ngModelChange)="pickDesign($event)"
                     (rename)="renameRecord($event.value, $event.label)"
+                    [removable]="true"
+                    (remove)="deleteDesignById($event)"
                   />
                   @if (themeNote() ?? relayoutNote(); as note) {
                     <p class="hint">{{ note }}</p>
@@ -795,12 +859,13 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           <div class="dbd-menu">
                             <button
                               class="dbd-menu-item"
-                              (click)="addStandard(standardKinds); close()"
+                              [disabled]="!missingKinds().length"
+                              (click)="addStandard(missingKinds()); close()"
                             >
-                              All standard layouts
+                              {{ missingKinds().length ? 'All missing standard layouts' : 'All standard layouts added' }}
                             </button>
                             <div class="dbd-menu-sep"></div>
-                            @for (k of standardKinds; track k) {
+                            @for (k of missingKinds(); track k) {
                               <button class="dbd-menu-item" (click)="addStandard([k]); close()">
                                 {{ kindLabels[k] }}
                               </button>
@@ -922,6 +987,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       [disabled]="!canEdit()"
                       (ngModelChange)="pickTheme($event)"
                       (rename)="renameRecord($event.value, $event.label)"
+                      [removable]="true"
+                      (remove)="deleteThemeById($event)"
                     />
                     <div class="field">
                       <span>Colors</span>
@@ -1044,9 +1111,605 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         }
       </div>
     }
+
+
+    @if (part() === 'theme-menu' || part() === 'design-menu') {
+      @let isTheme = part() === 'theme-menu';
+      <div class="dbd-menu rec-menu">
+        @for (g of (isTheme ? themeGroups() : designGroups()); track g.name) {
+          <div class="f-lab grp">{{ g.name }}</div>
+          @for (o of g.items; track o.id) {
+            @if (renaming() === o.id) {
+              <input
+                class="rec-input"
+                [value]="o.name"
+                (keydown.enter)="finishRename(o.id, $any($event.target).value)"
+                (keydown.escape)="renaming.set(null)"
+                (blur)="finishRename(o.id, $any($event.target).value)"
+                (pointerdown)="$event.stopPropagation()"
+                [attr.aria-label]="'Rename ' + o.name"
+                appAutofocus
+              />
+            } @else {
+              <div class="rec-row" [class.on]="o.on">
+                <button class="dbd-menu-item rec-pick" [disabled]="!canEdit()" (click)="isTheme ? pickTheme(o.id) : pickDesign(o.id)">
+                  @if (isTheme && o.theme) {
+                    <span class="rec-sw">
+                      @for (k of ['background', 'heading', 'accent1', 'accent2']; track k) {
+                        <span [style.background]="css($any(o.theme.colors)[k])"></span>
+                      }
+                    </span>
+                  }
+                  {{ o.name }}
+                </button>
+                @if (o.custom && canEdit()) {
+                  <button class="rec-edit" (click)="renaming.set(o.id)" [attr.aria-label]="'Rename ' + o.name" title="Rename">
+                    <dbd-icon name="edit" />
+                  </button>
+                  <button class="rec-edit del" (click)="isTheme ? deleteThemeById(o.id) : deleteDesignById(o.id)" [attr.aria-label]="'Delete ' + o.name" title="Delete">
+                    <dbd-icon name="delete" />
+                  </button>
+                }
+              </div>
+            }
+          }
+        }
+      </div>
+    }
+
+    @if (part() === 'size-menu') {
+      <div class="dbd-menu">
+        @for (o of sizeOptions(); track o.value) {
+          <button class="dbd-menu-item" [class.on]="o.value === sizeValue()" [disabled]="!canEdit()" (click)="setSize(o.value); command.emit({ kind: 'close' })">{{ o.label }}</button>
+        }
+      </div>
+    }
+
+    @if (part() === 'focus-list') {
+      <div class="f-head"><span class="f-lab">Slides</span><span class="f-k">↑↓</span></div>
+      <div
+        class="f-cards"
+        tabindex="0"
+        (keydown.arrowUp)="stepSlide(-1, $event)"
+        (keydown.arrowDown)="stepSlide(1, $event)"
+      >
+        @for (f of shown(); track f.id; let i = $index) {
+          <div
+            class="fs"
+            [class.on]="f.id === active_()"
+            [class.skipped]="!!f.slide?.hidden"
+            (click)="onRowClick(f, $event)"
+          >
+            <span class="n">{{ i + 1 }}</span>
+            <span class="tn" [style.aspect-ratio]="f.width + ' / ' + f.height">
+              @if (thumbs().get(thumbId(f)); as src) {
+                <img [src]="src" alt="" draggable="false" />
+              }
+              <span class="bd">
+                @if (f.slide?.hidden) {
+                  <span class="bdg">skipped</span>
+                } @else {
+                  @if (animCount(f); as c) {
+                    <span class="bdg">▶ {{ c }}</span>
+                  }
+                }
+              </span>
+            </span>
+          </div>
+        }
+      </div>
+      @if (canEdit()) {
+        <div class="f-foot">
+          <button class="f-go" (click)="command.emit({ kind: 'add' })"><span>+ Slide</span></button>
+          <button class="f-tb" [dbdPopoverTrigger]="focusLayoutMenu" placement="above-start" aria-label="New slide with a layout">Layout ▾</button>
+          <ng-template #focusLayoutMenu let-close>
+            <div class="dbd-menu">
+              @for (l of menuLayouts(); track l.id) {
+                <button class="dbd-menu-item lay-item" (click)="addWithLayout(l.id); close()">
+                  <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                    @if (layoutThumbs().get(l.id); as src) {
+                      <img [src]="src" alt="" draggable="false" />
+                    }</span
+                  >{{ layoutName(l) }}
+                </button>
+              }
+              @if (!menuLayouts().length) {
+                <div class="f-hint">No layouts yet.</div>
+              }
+            </div>
+          </ng-template>
+        </div>
+      }
+    }
+
+    @if (part() === 'focus-settings') {
+      <div class="f-tabs" role="tablist">
+        <button class="f-tab" [class.on]="ftab() === 'slide'" (click)="ftab.set('slide')">Slide</button>
+        <button class="f-tab" [class.on]="ftab() === 'transition'" (click)="ftab.set('transition')">
+          Transition
+        </button>
+        <button class="f-tab" [class.on]="ftab() === 'animations'" (click)="ftab.set('animations')">
+          Animations <span class="cnt">{{ active() ? animCount(active()!) : 0 }}</span>
+        </button>
+        <button class="f-tab" [class.on]="ftab() === 'notes'" (click)="ftab.set('notes')">Notes</button>
+      </div>
+      <div class="f-body" [class.gap12]="ftab() === 'transition'">
+        @if (ftab() === 'transition') {
+          <ng-container [ngTemplateOutlet]="transitionBody" />
+          @if (active() && hasTransitionTarget()) {
+            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dbd-icon name="open_in_full" />Refine</button>
+          }
+        } @else if (ftab() === 'animations') {
+          @if (active(); as a) {
+            <app-animation-pane [slide]="a" (play)="command.emit({ kind: 'present', from: 'current' })" />
+          } @else {
+            <p class="hint">Select a slide.</p>
+          }
+        } @else if (active(); as a) {
+          @if (ftab() === 'slide') {
+            <div class="f-between">
+              <span class="f-lab">Layout</span>
+              @if (canEdit() && drift()) {
+                <button class="f-link" (click)="resetSlide(false)">Reset slide to layout</button>
+              }
+            </div>
+            <div class="f-lays">
+              @for (l of designLayouts(); track l.id) {
+                <button class="lay" [class.on]="activeLayoutValue() === l.id" [disabled]="!canEdit()" (click)="setLayout(l.id)">
+                  <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                    @if (thumbs().get(l.id); as src) {
+                      <img [src]="src" alt="" draggable="false" />
+                    }
+                  </span>
+                  {{ layoutName(l) }}
+                </button>
+              }
+              <button class="lay" [class.on]="activeLayoutValue() === ''" [disabled]="!canEdit()" (click)="setLayout('')">
+                <span class="lt" [style.aspect-ratio]="a.width + ' / ' + a.height"></span>Blank
+              </button>
+            </div>
+            <div class="f-row">
+              <span>Background</span>
+              <span class="f-sws">
+                @for (k of bgTokens; track k) {
+                  <button
+                    class="sw"
+                    [class.on]="a.backgroundColor === token(k) && a.fillStyle !== 'none'"
+                    [style.background]="css(deckTheme().colors[k])"
+                    [disabled]="!canEdit()"
+                    [attr.aria-label]="'Background ' + colorLabels[k]"
+                    (click)="setBackground(token(k))"
+                  ></button>
+                }
+              </span>
+            </div>
+            <div class="f-row">
+              <span>Skip in slideshow</span>
+              <button class="tg" [class.on]="!!a.slide?.hidden" [disabled]="!canEdit()" (click)="toggleHidden(a)" aria-label="Skip in slideshow"></button>
+            </div>
+            <div class="f-row">
+              <span>Edited master items</span>
+              @if (standIns().length) {
+                <button class="f-link" [disabled]="!canEdit()" (click)="resetMaster(false)">{{ standIns().length }} · Revert</button>
+              } @else {
+                <span class="muted">None</span>
+              }
+            </div>
+            <div class="f-row">
+              <span>Present from here</span>
+              <button class="f-k btnk" (click)="command.emit({ kind: 'present', from: 'current' })">Shift F5</button>
+            </div>
+          } @else if (ftab() === 'notes') {
+            <textarea
+              class="f-notes"
+              rows="8"
+              placeholder="Shown to the presenter (press N while presenting)"
+              [ngModel]="a.slide?.notes ?? ''"
+              [disabled]="!canEdit()"
+              (blur)="setNotes($any($event.target).value)"
+            ></textarea>
+          }
+        } @else {
+          <p class="hint">Select a slide.</p>
+        }
+      </div>
+    }
+
+    @if (part() === 'focus-transition') {
+      <div class="f-tabs" role="tablist">
+        <button class="f-tab" (click)="ftab.set('slide'); command.emit({ kind: 'screen', screen: 'main' })">Slide</button>
+        <button class="f-tab on">Transition</button>
+        <button class="f-tab" (click)="ftab.set('animations'); command.emit({ kind: 'screen', screen: 'main' })">Animations</button>
+      </div>
+      <div class="f-body gap12">
+        <ng-container [ngTemplateOutlet]="transitionBody" />
+      </div>
+    }
+
+    <ng-template #transitionBody>
+        @if (active() && hasTransitionTarget()) {
+          <div class="f-lab">Into this slide</div>
+          <div class="f-seg">
+            @for (t of focusTypes; track t.value) {
+              <button [class.on]="transition().type === t.value" [disabled]="!canEdit()" (click)="setTransition({ type: t.value })">{{ t.label }}</button>
+            }
+          </div>
+          @if (transition().type !== 'none') {
+            <div class="f-row">
+              Duration
+              <span class="f-seg">
+                @for (d of [200, 300, 500]; track d) {
+                  <button [class.on]="transition().duration === d" [disabled]="!canEdit()" (click)="setTransition({ duration: d })">{{ d }}</button>
+                }
+                <button
+                  [class.on]="![200, 300, 500].includes(transition().duration)"
+                  [disabled]="!canEdit()"
+                  [dbdPopoverTrigger]="durMenu"
+                  placement="below-end"
+                >ms…</button>
+              </span>
+              <ng-template #durMenu let-close>
+                <div class="picker">
+                  <input
+                    class="f-num"
+                    type="number"
+                    min="100"
+                    max="5000"
+                    step="50"
+                    [value]="transition().duration"
+                    (change)="setDuration($any($event.target).value); close()"
+                  />
+                </div>
+              </ng-template>
+            </div>
+            <div class="f-row">
+              Easing
+              <dbd-select
+                class="f-select"
+                [options]="easingOptions"
+                [ngModel]="transition().easing"
+                [disabled]="!canEdit()"
+                (ngModelChange)="setTransition({ easing: $event })"
+              />
+            </div>
+          }
+          @if (transition().type === 'slide') {
+            <div class="f-row">
+              Direction
+              <dbd-select
+                class="f-select"
+                [options]="directionOptions"
+                [ngModel]="transition().direction ?? 'left'"
+                [disabled]="!canEdit()"
+                (ngModelChange)="setTransition({ direction: $event })"
+              />
+            </div>
+          }
+          @if (transition().type === 'morph') {
+            <div class="f-row">
+              Morph text by
+              <span class="f-seg">
+                @for (m of focusMorphBy; track m.value) {
+                  <button [class.on]="(transition().morphBy ?? 'character') === m.value" [disabled]="!canEdit()" (click)="setTransition({ morphBy: m.value })">{{ m.label }}</button>
+                }
+              </span>
+            </div>
+          }
+          @if (canEdit()) {
+            <button class="f-tb outline" (click)="applyToAll()">Apply to all slides</button>
+          }
+        } @else {
+          <p class="hint">The first slide has no transition into it.</p>
+          @if (frames().length > 1) {
+            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dbd-icon name="open_in_full" />Refine</button>
+          }
+        }
+
+        @if (canEdit() && morphRelevant() && tagCount() === 1) {
+          <div class="f-sect">
+            <div class="f-between">
+              <span class="f-lab">Selected · morph tag</span>
+              @if (splitTarget(); as st) {
+                <button class="f-link" (click)="toggleSplit(st)" [title]="st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'">
+                  {{ st.split ? 'Join in / out' : 'Split in / out' }}
+                </button>
+              }
+            </div>
+            @if (splitTarget()?.split) {
+              <div class="f-split">
+                <span class="f-small">In · from the slide before</span>
+                <dbd-tag-input
+                  [value]="tagText(splitTarget()!.in)"
+                  [suggestions]="morphTagSuggestions()"
+                  [maxlength]="80"
+                  placeholder="type a tag…"
+                  (commit)="setSplitTag('in', $event)"
+                />
+                <span class="f-small">Out · to the slide after</span>
+                <dbd-tag-input
+                  [value]="tagText(splitTarget()!.out)"
+                  [maxlength]="80"
+                  placeholder="type a tag…"
+                  (commit)="setSplitTag('out', $event)"
+                />
+              </div>
+            } @else {
+              <dbd-tag-input
+                [value]="morphTag()"
+                [suggestions]="morphTagSuggestions()"
+                [taken]="takenTags()"
+                [maxlength]="80"
+                placeholder="type a tag…"
+                (commit)="setMorphTag($event)"
+              />
+            }
+            @if (morphTagSuggestions().length) {
+              <div class="f-small">
+                Tags used on the previous slide:
+                @for (t of morphTagSuggestions(); track t; let last = $last) {
+                  <span [class.taken]="takenTags().includes(t)" class="vt">{{ t }}</span>{{ last ? '' : ' · ' }}
+                }
+              </div>
+            }
+          </div>
+        }
+        @if (canEdit() && pairable()) {
+          <button class="f-tb outline" (click)="pairSelected()">Treat the {{ pairable() }} selected items as the same object</button>
+        }
+    </ng-template>
+
+    @if (part() === 'design-layouts') {
+      <div class="f-head">
+        <span class="f-lab">Layouts
+          <dbd-icon name="info" class="info" tabindex="0" matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. The master shows under all of them." />
+        </span>
+      </div>
+      <div class="f-cards">
+        @if (master(); as m) {
+          <button class="ly" [class.on]="m.id === active_()" (click)="command.emit({ kind: 'focus', id: m.id })">
+            <span class="lt" [style.aspect-ratio]="m.width + ' / ' + m.height">
+              @if (thumbs().get(m.id); as src) {
+                <img [src]="src" alt="" draggable="false" />
+              }
+            </span>
+            <span class="meta"><b>Master</b><span>under all</span></span>
+          </button>
+          <div class="f-div"></div>
+        }
+        @for (l of designLayouts(); track l.id; let li = $index) {
+          <div
+            class="lyw"
+            [class.ly-dragging]="lyDrag()?.from === li"
+            [class.ly-copy]="lyDrag()?.from === li && lyDrag()?.alt"
+            [class.ly-before]="lyDrag()?.to === li && lyDrag()?.from !== li"
+            [class.ly-after]="lyDrag()?.to === designLayouts().length && li === designLayouts().length - 1"
+            (pointerdown)="onLayoutDown(li, $event)"
+          >
+          @if (canEdit() && !l.slide?.defaultLayout) {
+            <button class="rec-edit del ly-del" (click)="command.emit({ kind: 'delete', id: l.id })" title="Delete layout and its items" aria-label="Delete layout"><dbd-icon name="delete" /></button>
+          }
+          <button class="ly" [class.on]="l.id === active_()" (click)="!lySuppress && command.emit({ kind: 'focus', id: l.id })">
+            <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
+              @if (thumbs().get(l.id); as src) {
+                <img [src]="src" alt="" draggable="false" />
+              }
+            </span>
+            <span class="meta"><span class="nm">{{ layoutName(l) }}</span><span>{{ usage(l.id) }} slide{{ usage(l.id) === 1 ? '' : 's' }}</span></span>
+          </button>
+          </div>
+        }
+      </div>
+      @if (canEdit()) {
+        <div class="f-foot col">
+          <button class="f-tb outline" (click)="command.emit({ kind: 'add', layout: true })">+ Empty layout</button>
+          @if (missingKinds().length) {
+            <button class="f-tb outline" (click)="addStandard(missingKinds())">+ Standard layouts{{ missingKinds().length < standardKinds.length ? ' (' + missingKinds().length + ' missing)' : '' }}</button>
+          }
+        </div>
+      }
+    }
+
+    @if (part() === 'design-theme') {
+      <input #themeFileInput type="file" accept=".json,application/json" hidden (change)="importDesign(themeFileInput)" />
+      <div class="f-body gap14 fill">
+        <div class="f-design top">
+          <div class="f-lab">Design = layouts + theme
+            <dbd-icon name="info" class="info" tabindex="0" matTooltip="A design is one set of layouts plus the theme it uses." />
+          </div>
+          <div class="f-acts">
+            <dbd-select class="f-select grow" [options]="designOptions()" [ngModel]="design().id" [disabled]="!canEdit()" (ngModelChange)="pickDesign($event)" (rename)="renameRecord($event.value, $event.label)" [removable]="true" (remove)="deleteDesignById($event)" />
+            @if (canEdit()) {
+              <button class="f-tb sm" (click)="newDesign()">Save as new</button>
+              <button class="f-tb sm" (click)="exportDesign('design')">Export</button>
+            }
+          </div>
+        </div>
+        <div class="f-between">
+          <span class="f-lab">Theme
+            <dbd-icon name="info" class="info" tabindex="0" matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy." />
+          </span>
+          @if (canEdit()) {
+            <span class="f-acts">
+              <button class="f-tb sm" (click)="importPart.set('theme'); themeFileInput.click()">Import</button>
+              <button class="f-tb sm" (click)="exportDesign('theme')">Export</button>
+            </span>
+          }
+        </div>
+        @for (g of themeGroups(); track g.name) {
+          <div class="f-sub">{{ g.name }}</div>
+          <div class="th-grid">
+            @for (t of g.items; track t.id) {
+              <div class="th" [class.on]="t.on">
+                <button class="pv" [disabled]="!canEdit()" (click)="pickTheme(t.id)" [style.background]="css(t.theme!.colors.background)" [style.color]="css(t.theme!.colors.heading)" [style.font-family]="stackOf(t.theme!.fonts.heading)">
+                  Aa
+                  <span class="bars">
+                    @for (k of ['accent1', 'accent2', 'accent3']; track k) {
+                      <span [style.background]="css($any(t.theme!.colors)[k])"></span>
+                    }
+                  </span>
+                </button>
+                @if (renaming() === t.id) {
+                  <input class="rec-input card" [value]="t.name" (keydown.enter)="finishRename(t.id, $any($event.target).value)" (keydown.escape)="renaming.set(null)" (blur)="finishRename(t.id, $any($event.target).value)" appAutofocus [attr.aria-label]="'Rename ' + t.name" />
+                } @else {
+                  <span class="nm">
+                    <span>{{ t.name }}</span>
+                    @if (t.custom && canEdit()) {
+                      <span class="nm-acts">
+                        <button class="rec-edit" (click)="renaming.set(t.id)" [attr.aria-label]="'Rename ' + t.name" title="Rename"><dbd-icon name="edit" /></button>
+                        <button class="rec-edit del" (click)="deleteThemeById(t.id)" [attr.aria-label]="'Delete ' + t.name" title="Delete"><dbd-icon name="delete" /></button>
+                      </span>
+                    }
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        }
+        <div class="f-lab">Colors</div>
+        <div class="tok-grid">
+          @for (k of colorTokens; track k) {
+            <button class="tok" [dbdPopoverTrigger]="tokPick" placement="below-start" [disabled]="!canEdit()">
+              <span class="sq" [style.background]="isFollow(deckTheme().colors[k]) || deckTheme().colors[k] === 'transparent' ? null : css(deckTheme().colors[k])"></span>
+              {{ colorLabels[k] }}
+            </button>
+            <ng-template #tokPick let-close>
+              <div class="picker">
+                <dbd-color-swatches
+                  [value]="deckTheme().colors[k]"
+                  noneValue="transparent"
+                  noneLabel="None"
+                  [themeValue]="followValue(k)"
+                  (pick)="setThemeColor(k, $event); close()"
+                />
+              </div>
+            </ng-template>
+          }
+        </div>
+        <div class="f-lab">Fonts</div>
+        <div class="fnt"><span class="muted">Heading</span>
+          <dbd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.heading" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('heading', $event)" />
+        </div>
+        <div class="fnt"><span class="muted">Body</span>
+          <dbd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.body" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('body', $event)" />
+        </div>
+      </div>
+    }
   `,
   styles: [
     `
+
+      .map-pairs { margin: 10px 0 6px; }
+      .tagline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .sublab { font-size: 11px; color: var(--dbd-text-muted); }
+      /* ---- Focus mode views (DeckFocus / DeckMorph / DeckDesign mocks) ---- */
+      .rec-menu { min-width: 240px; max-height: 60vh; overflow-y: auto; }
+      .grp { padding: 8px 10px 4px; }
+      .rec-row { display: flex; align-items: center; }
+      .rec-row.on .rec-pick { color: var(--dbd-primary); font-weight: 600; }
+      .rec-pick { flex: 1; min-width: 0; }
+      .rec-sw { display: inline-flex; margin-right: 8px; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+      .rec-sw span { width: 8px; height: 16px; }
+      .rec-edit { width: 26px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: transparent; color: var(--dbd-text-muted); cursor: pointer; --dbd-icon-size: 14px; }
+      .rec-edit:hover { background: var(--dbd-surface-2); color: var(--dbd-text); }
+      .rec-edit.del:hover { background: color-mix(in srgb, #ef6b6b 18%, transparent); color: #ef6b6b; }
+      .nm-acts { display: inline-flex; }
+      .lyw { position: relative; display: grid; touch-action: none; }
+      .lyw.ly-dragging { opacity: .45; }
+      .lyw.ly-copy { opacity: 1; cursor: copy; }
+      .lyw.ly-before::before, .lyw.ly-after::after { content: ''; position: absolute; left: 6px; right: 6px; height: 3px; border-radius: 2px; background: var(--dbd-primary); z-index: 2; }
+      .lyw.ly-before::before { top: -2px; }
+      .lyw.ly-after::after { bottom: -2px; }
+      .ly-del { position: absolute; top: 10px; right: 10px; z-index: 1; background: var(--dbd-surface); opacity: 0; }
+      .lyw:hover .ly-del, .ly-del:focus-visible { opacity: 1; }
+      .rec-input { margin: 2px 6px; width: calc(100% - 12px); box-sizing: border-box; height: 30px; padding: 0 8px; border: 1px solid var(--dbd-primary); border-radius: 6px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; outline: none; }
+      .rec-input.card { margin: 4px; width: calc(100% - 8px); height: 26px; font-size: 12px; }
+      .f-split { display: grid; gap: 6px; }
+      .f-sub { font-size: 12px; color: var(--dbd-text-muted); margin-bottom: -6px; }
+      .th .pv { width: 100%; border: none; cursor: pointer; text-align: left; }
+      .th .nm { align-items: center; }
+      .f-design.top { margin-top: 0; border-top: none; padding-top: 0; padding-left: 0; padding-right: 0; border-bottom: 1px solid var(--dbd-border); padding-bottom: 12px; }
+
+      :host(.fdock) { border-radius: 14px; }
+      .f-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 6px; }
+      .f-lab { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dbd-text-muted); display: inline-flex; align-items: center; gap: 6px; }
+      .f-k { font-family: var(--dbd-mono, monospace); font-size: 11px; color: var(--dbd-text-muted); background: var(--dbd-surface-2); border: 1px solid var(--dbd-border); padding: 1px 5px; border-radius: 4px; }
+      .btnk { cursor: pointer; }
+      .f-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px; display: flex; flex-direction: column; gap: 2px; outline: none; }
+      .fs { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px; border-radius: 9px; cursor: pointer; }
+      .fs.on { background: var(--dbd-primary-weak); }
+      .fs.skipped { opacity: .55; }
+      .fs .n { font-size: 12px; color: var(--dbd-text-muted); text-align: right; padding-top: 4px; }
+      .fs .tn { position: relative; display: block; border-radius: 5px; border: 1px solid var(--dbd-border-strong, var(--dbd-border)); overflow: hidden; background: var(--dbd-surface-2); }
+      .fs.on .tn { border: 2px solid var(--dbd-primary); }
+      .fs .tn img, .lt img { display: block; width: 100%; height: 100%; object-fit: contain; }
+      .bd { position: absolute; bottom: 4px; right: 6px; display: flex; gap: 3px; }
+      .bdg { font-size: 9px; font-weight: 600; padding: 1px 4px; border-radius: 3px; background: rgba(35, 38, 44, .75); color: #fff; }
+      .f-foot { display: flex; gap: 4px; padding: 8px; }
+      .f-foot.col { flex-direction: column; }
+      .f-go { flex: 1; height: 32px; border: none; border-radius: 7px; background: var(--dbd-primary); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      .f-tb { height: 32px; padding: 0 9px; border: none; border-radius: 7px; background: transparent; color: var(--dbd-text); font: inherit; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+      .f-tb:hover:not(:disabled) { background: var(--dbd-surface-2); }
+      .f-tb.outline, .f-foot .f-tb { border: 1px solid var(--dbd-border); }
+      .f-tb.sm { height: 26px; font-size: 12px; }
+      .f-tabs { display: flex; gap: 2px; padding: 4px 12px 0; border-bottom: 1px solid var(--dbd-border); }
+      .f-tab { height: 36px; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 0 8px; font: inherit; font-weight: 500; color: var(--dbd-text-muted); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+      .f-tab.on { border-bottom-color: var(--dbd-primary); color: var(--dbd-text); font-weight: 600; }
+      .cnt { font-size: 10px; background: var(--dbd-surface-2); color: var(--dbd-text-muted); border-radius: 999px; padding: 0 5px; }
+      .f-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; }
+      .f-body.gap12 { gap: 12px; }
+      .f-body.gap14 { gap: 14px; }
+      .f-body.fill { flex: 1 1 auto; }
+      .f-between { display: flex; justify-content: space-between; align-items: center; }
+      .f-link { border: none; background: transparent; color: var(--dbd-primary); font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+      .f-link:hover { background: var(--dbd-surface-2); }
+      .f-lays { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .lay { display: flex; flex-direction: column; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 11px; color: var(--dbd-text-secondary, var(--dbd-text)); text-align: center; cursor: pointer; }
+      .lay .lt { display: block; border-radius: 4px; border: 1px solid var(--dbd-border); background: var(--dbd-surface-2); overflow: hidden; }
+      .lay.on .lt { border: 2px solid var(--dbd-primary); }
+      .f-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; padding: 9px 0 0; border-top: 1px solid var(--dbd-border); }
+      .f-body.gap12 .f-row { border-top: none; padding: 0; }
+      .f-sws { display: flex; gap: 6px; }
+      .sw { width: 22px; height: 22px; padding: 0; border: none; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--dbd-border-strong, rgba(127, 127, 127, .55)); cursor: pointer; }
+      .sw.on { outline: 2px solid var(--dbd-primary); outline-offset: 2px; }
+      .tg { position: relative; width: 34px; height: 20px; padding: 0; border: none; border-radius: 999px; background: var(--dbd-border-strong, var(--dbd-border)); cursor: pointer; }
+      .tg::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dbd-surface); transition: left .12s; }
+      .tg.on { background: var(--dbd-primary); }
+      .tg.on::after { left: 16px; }
+      .muted { color: var(--dbd-text-muted); }
+      .f-notes { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px 10px; border: 1px solid var(--dbd-border); border-radius: 8px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; }
+      .f-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 8px; background: var(--dbd-surface-2); }
+      .f-seg button { border: none; background: transparent; font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; color: var(--dbd-text-muted); cursor: pointer; }
+      .f-seg button.on { background: var(--dbd-surface); color: var(--dbd-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+      .f-select { min-width: 120px; }
+      .f-select.grow { flex: 1; }
+      .f-num { width: 90px; height: 28px; padding: 0 8px; border: 1px solid var(--dbd-border); border-radius: 6px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; }
+      .f-sect { border-top: 1px solid var(--dbd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+      .f-small { font-size: 12px; color: var(--dbd-text-muted); }
+      .vt { color: #7048e8; }
+      .vt.taken { text-decoration: line-through; color: var(--dbd-text-muted); }
+      .f-hint { padding: 6px 10px; font-size: 12px; color: var(--dbd-text-muted); }
+      .ly { display: grid; gap: 4px; padding: 6px; border: none; border-radius: 9px; background: transparent; font: inherit; font-size: 12px; color: var(--dbd-text); text-align: left; cursor: pointer; }
+      .ly.on { background: var(--dbd-primary-weak); }
+      .ly .lt { display: block; border-radius: 5px; border: 1px solid var(--dbd-border); overflow: hidden; background: var(--dbd-surface-2); }
+      .ly.on .lt { border: 2px solid var(--dbd-primary); }
+      .ly .meta { display: flex; justify-content: space-between; color: var(--dbd-text-muted); }
+      .ly .meta b { color: var(--dbd-text); }
+      .ly.on .meta .nm { color: var(--dbd-primary); font-weight: 600; }
+      .f-div { height: 1px; background: var(--dbd-border); margin: 4px 6px; flex-shrink: 0; }
+      .f-acts { display: flex; gap: 4px; align-items: center; }
+      .th-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .th { padding: 0; border: 1px solid var(--dbd-border); border-radius: 10px; overflow: hidden; background: transparent; font: inherit; font-size: 12px; color: var(--dbd-text); text-align: left; cursor: pointer; }
+      .th.on { outline: 2px solid var(--dbd-primary); outline-offset: 1px; }
+      .th .pv { display: flex; justify-content: space-between; height: 52px; padding: 8px; box-sizing: border-box; font-weight: 700; font-size: 14px; }
+      .th .bars { display: flex; gap: 2px; }
+      .th .bars span { width: 8px; height: 22px; }
+      .th .nm { display: flex; justify-content: space-between; padding: 6px 8px; color: var(--dbd-text-muted); }
+      .th.on .nm span:first-child { color: var(--dbd-text); font-weight: 600; }
+      .tok-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px 4px; }
+      .tok { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 10px; color: var(--dbd-text-muted); cursor: pointer; }
+      .tok .sq { width: 26px; height: 26px; box-sizing: border-box; border-radius: 5px; border: 1px solid var(--dbd-border-strong, rgba(127, 127, 127, .55)); }
+      .fnt { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--dbd-border); border-radius: 8px; font-size: 12px; }
+      .f-design { margin-top: auto; border-top: 1px solid var(--dbd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
       :host {
         display: flex;
         flex-direction: column;
@@ -1209,6 +1872,11 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         border-radius: 3px;
         overflow: hidden;
         background: var(--dbd-bg, transparent);
+      }
+      .lay-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
       .mthumb img {
         width: 100%;
@@ -1802,7 +2470,9 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
 export class SlidesPanelComponent {
   readonly command = output<SlidesCommand>();
   /** `list`: the slide cards (left of the frame); `settings`: transition/size/notes (right). */
-  readonly part = input<'list' | 'settings'>('list');
+  readonly part = input<
+    'list' | 'settings' | 'size-menu' | 'theme-menu' | 'design-menu' | 'focus-list' | 'focus-settings' | 'focus-transition' | 'design-layouts' | 'design-theme'
+  >('list');
   /** Settings panel only: folded sideways to a narrow strip. */
   readonly folded = input<boolean>(false);
   /** The slide of this presentation currently shown on the canvas (the only one visible). */
@@ -1921,6 +2591,112 @@ export class SlidesPanelComponent {
   });
   protected readonly standardKinds = LAYOUT_KINDS.filter((k) => k !== 'blank');
   protected readonly kindLabels = LAYOUT_KIND_LABELS;
+  /** Standard layout kinds this design doesn't have yet. */
+  protected readonly missingKinds = computed(() => {
+    const have = new Set(this.designLayouts().map((l) => l.slide?.layoutKind).filter(Boolean));
+    return this.standardKinds.filter((k) => !have.has(k));
+  });
+
+  /** Keep the shown layout's card in view (e.g. one just added). */
+  private readonly followLayout = effect(() => {
+    if (this.part() !== 'design-layouts') return;
+    this.active_();
+    this.designLayouts();
+    setTimeout(() => (this.host.nativeElement as HTMLElement).querySelector('.f-cards .ly.on')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60);
+  });
+
+  // ---- Layout cards: drag to reorder, Alt-drag to duplicate ----
+  protected readonly lyDrag = signal<{ from: number; to: number; alt: boolean } | null>(null);
+  protected lySuppress = false;
+  protected onLayoutDown(index: number, event: PointerEvent): void {
+    if (event.button !== 0 || !this.canEdit()) return;
+    if ((event.target as HTMLElement).closest('.ly-del')) return;
+    const scroller = (event.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const sx = event.clientX;
+    const sy = event.clientY;
+    let started = false;
+    let lastY = sy;
+    let alt = event.altKey;
+    let raf = 0;
+    /** The gap (0..n) the pointer is over: how many card centres lie above it. */
+    const gapAt = (y: number): number => {
+      let i = 0;
+      for (const c of Array.from(scroller.querySelectorAll<HTMLElement>(':scope > .lyw'))) {
+        const r = c.getBoundingClientRect();
+        if (y > r.top + r.height / 2) i++;
+      }
+      return i;
+    };
+    const update = (): void => this.lyDrag.set({ from: index, to: gapAt(lastY), alt });
+    const tick = (): void => {
+      const r = scroller.getBoundingClientRect();
+      if (lastY < r.top + 28) scroller.scrollTop -= 8;
+      else if (lastY > r.bottom - 28) scroller.scrollTop += 8;
+      update();
+      raf = requestAnimationFrame(tick);
+    };
+    const move = (e: PointerEvent): void => {
+      lastY = e.clientY;
+      alt = e.altKey;
+      if (!started) {
+        if (Math.hypot(e.clientX - sx, e.clientY - sy) < 5) return;
+        started = true;
+        raf = requestAnimationFrame(tick);
+      }
+      update();
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Alt' && started) {
+        alt = e.type === 'keydown';
+        e.preventDefault();
+        update();
+      }
+    };
+    const up = (e: PointerEvent): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+      cancelAnimationFrame(raf);
+      const d = this.lyDrag();
+      this.lyDrag.set(null);
+      if (!started || !d || e.type !== 'pointerup') return;
+      this.lySuppress = true;
+      setTimeout(() => (this.lySuppress = false), 0);
+      const cards = this.designLayouts();
+      const src = cards[index];
+      if (!src) return;
+      if (d.alt) {
+        // Position in the deck's full layout list (other designs' layouts included).
+        const all = this.layouts();
+        const toIndex = d.to < cards.length ? all.indexOf(cards[d.to]) : all.indexOf(cards[cards.length - 1]) + 1;
+        this.command.emit({ kind: 'duplicate', id: src.id, toIndex });
+        return;
+      }
+      const to = d.to > index ? d.to - 1 : d.to;
+      if (to === index) return;
+      const next = [...cards];
+      next.splice(index, 1);
+      next.splice(to, 0, src);
+      // Reuse the cards' own order slots, so other designs' layouts keep their places.
+      const slots = cards.map((c) => c.slide?.order ?? 0).sort((a, b) => a - b);
+      void this.store.batchHistory(async () => {
+        for (let i = 0; i < next.length; i++) {
+          const f = next[i];
+          if (f.slide && f.slide.order !== slots[i]) {
+            await this.store.updateElement(f.id, { slide: { ...f.slide, order: slots[i] } });
+          }
+        }
+      });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+  }
+
   /** Add standard layouts to this presentation and show the first one. */
   protected async addStandard(kinds: readonly LayoutKind[]): Promise<void> {
     const anchor = this.active();
@@ -2101,7 +2877,9 @@ export class SlidesPanelComponent {
   /** Layout thumbnails for the list panel's New menu (rendered here, the settings panel has its own). */
   protected readonly layoutThumbs = signal<ReadonlyMap<string, string>>(new Map());
   private readonly layoutThumbWatch = effect((onCleanup) => {
-    if (this.part() !== 'list' || !this.newMenu()) return;
+    // The list panel renders on opening its New menu; the focus filmstrip's popover can't signal open, so it renders up front.
+    const part = this.part();
+    if (!(part === 'list' && this.newMenu()) && part !== 'focus-list') return;
     const layouts = [...this.layouts()];
     this.theme.dark();
     let live = true;
@@ -2124,13 +2902,19 @@ export class SlidesPanelComponent {
   protected readonly thumbs = signal<ReadonlyMap<string, string>>(new Map());
   protected readonly overIndex = signal<number | null>(null);
   /** The detail tabs of the settings panel. */
-  protected readonly tab = signal<'transition' | 'design' | 'size' | 'notes' | 'animations'>(
-    'transition',
-  );
+  /** Settings tab; shared with focus mode so the choice survives going in and out of it. */
+  protected readonly tab = inject(FocusUiState).canvasTab;
 
   protected pick(tab: 'transition' | 'design' | 'size' | 'notes' | 'animations'): void {
     this.tab.set(tab);
   }
+
+  /** A tab the deck header asked to open (a fresh object each request). */
+  readonly requestTab = input<{ tab: 'transition' | 'design' | 'size' | 'notes' | 'animations' } | null>(null);
+  private readonly applyRequestedTab = effect(() => {
+    const r = this.requestTab();
+    if (r) untracked(() => this.tab.set(r.tab));
+  });
 
   /** The selected slides (the details edit all of them at once). */
   protected readonly activeSlides = computed<CanvasElementModel[]>(() => {
@@ -2160,6 +2944,9 @@ export class SlidesPanelComponent {
     return id ? this.frames().findIndex((f) => f.id === id) + 1 : 0;
   });
   /** False when the only slide in play is the first (nothing transitions into it). */
+  /** On the first slide: there is a next slide whose transition can be mapped. */
+  protected readonly morphRelevantNext = computed(() => this.frames().length > 1 && this.activeSlides().length <= 1);
+
   protected readonly hasTransitionTarget = computed(() => {
     const first = this.frames()[0]?.id;
     const targets = this.activeSlides().length
@@ -2271,6 +3058,32 @@ export class SlidesPanelComponent {
     return out;
   });
   protected readonly tagCount = computed(() => this.tagTargets().length);
+  /** The single selected element, with its split in / out tags (split = either is set). */
+  protected readonly splitTarget = computed(() => {
+    const t = this.tagTargets();
+    if (t.length !== 1 || t[0].kind !== 'element') return null;
+    const e = this.store.elements().find((x) => x.id === t[0].id);
+    if (!e) return null;
+    const split = e.morphIn != null || e.morphOut != null;
+    return { id: e.id, split, in: e.morphIn ?? e.morphId, out: e.morphOut ?? e.morphId };
+  });
+  protected tagText(key: string | undefined): string {
+    const t = morphTagOf(key);
+    return t && !t.startsWith('solo-') ? t : '';
+  }
+  /** Split: start both sides from the shared tag. Join: drop both (the shared tag applies). */
+  protected toggleSplit(st: { id: string; split: boolean; in?: string; out?: string }): void {
+    const e = this.store.elements().find((x) => x.id === st.id);
+    if (!e) return;
+    const base = e.morphId ?? `tag:solo-${e.id.slice(0, 8)}`;
+    void this.store.updateElement(e.id, st.split ? { morphIn: null, morphOut: null } : { morphIn: base, morphOut: base });
+  }
+  protected setSplitTag(side: 'in' | 'out', value: string): void {
+    const st = this.splitTarget();
+    if (!st) return;
+    const key = morphIdForTag(value) ?? `tag:solo-${side}-${st.id.slice(0, 8)}`;
+    void this.store.updateElement(st.id, side === 'in' ? { morphIn: key } : { morphOut: key });
+  }
   /** Tags other objects on this slide already carry: one tag names one object per slide. */
   protected readonly takenTags = computed(() => {
     const targets = this.tagTargets();
@@ -2304,12 +3117,103 @@ export class SlidesPanelComponent {
 
   private renderToken = 0;
 
+
+  // ---- Focus mode views ----
+  /** Focus settings dock: Slide or Notes (Transition / Animations open their own screens). */
+  /** Focus dock tab; kept outside this panel so it survives trips to the other focus screens. */
+  protected readonly ftab = inject(FocusUiState).tab;
+  /** The custom theme / design being renamed in a focus menu or card. */
+  protected readonly renaming = signal<string | null>(null);
+  protected finishRename(id: string, value: string): void {
+    if (this.renaming() !== id) return;
+    this.renaming.set(null);
+    const name = value.trim();
+    if (name) void this.renameRecord(id, name);
+  }
+  /** Themes for the focus menus and cards: built-in, then custom ("My themes"). */
+  protected readonly themeGroups = computed(() => {
+    const cur = this.deckTheme().id ?? 'default';
+    const item = (t: SlideTheme, custom: boolean) => ({ id: t.id!, name: t.name, custom, on: t.id === cur, theme: t });
+    const custom = this.library().filter((r) => recordKind(r) === 'theme' && r.id);
+    return [
+      { name: 'Built-in', items: BUILT_IN_THEMES.map((t) => item(t, false)) },
+      ...(custom.length ? [{ name: 'My themes', items: custom.map((t) => item(t, true)) }] : []),
+    ];
+  });
+  /** Designs for the focus top-bar menu: built-in, then custom. */
+  protected readonly designGroups = computed(() => {
+    const cur = this.design().id;
+    const groups = new Map<string, { id: string; name: string; custom: boolean; on: boolean; theme: SlideTheme | null }[]>();
+    for (const o of this.designOptions()) {
+      const g = o.group ?? 'Designs';
+      const list = groups.get(g) ?? [];
+      list.push({ id: o.value, name: o.label, custom: !isBuiltInRecord(o.value), on: o.value === cur, theme: null });
+      groups.set(g, list);
+    }
+    return [...groups.entries()].map(([name, items]) => ({ name, items }));
+  });
+  /** Theme colors offered as slide backgrounds (DeckFocus mock: four swatches). */
+  protected readonly bgTokens = ['background', 'heading', 'accent1', 'surface'] as const;
+  protected token(k: ThemeColorToken): string {
+    return themeToken(k);
+  }
+  protected setBackground(color: string): void {
+    const a = this.active();
+    if (!a || !this.canEdit()) return;
+    void this.store.updateElement(a.id, { backgroundColor: color, fillStyle: 'solid' });
+  }
+  /** Animation build steps on a slide (badge ▶ N). */
+  protected animCount(f: CanvasElementModel): number {
+    const steps = new Set<number>();
+    for (const e of this.store.elements()) if (e.slideId === f.id && e.step) steps.add(e.step);
+    return steps.size;
+  }
+  protected readonly transitionLabel = computed(() => {
+    const t = this.active()?.slide?.transition?.type ?? 'none';
+    return t === 'none' ? 'None' : t.charAt(0).toUpperCase() + t.slice(1);
+  });
+  protected readonly focusTypes: { value: SlideTransitionType; label: string }[] = [
+    { value: 'morph', label: 'Morph' },
+    { value: 'fade', label: 'Fade' },
+    { value: 'slide', label: 'Slide' },
+    { value: 'zoom', label: 'Zoom' },
+    { value: 'none', label: 'None' },
+  ];
+  protected readonly focusMorphBy: { value: MorphBy; label: string }[] = [
+    { value: 'character', label: 'Char' },
+    { value: 'word', label: 'Word' },
+    { value: 'object', label: 'Object' },
+  ];
+  /** Slides of this deck that use a layout (DeckDesign "N slides"). */
+  protected usage(layoutId: string): number {
+    return this.frames().filter((f) => f.slide?.layoutId === layoutId).length;
+  }
+  /** Theme cards for the design screen: built-in themes, then custom ones. */
+  protected readonly themeCards = computed(() => [
+    ...BUILT_IN_THEMES.map((t) => ({ ...t, custom: false })),
+    ...this.library()
+      .filter((r) => recordKind(r) === 'theme' && r.id)
+      .map((t) => ({ ...t, custom: true })),
+  ]);
+
+  private readonly hostEl = inject(ElementRef<HTMLElement>);
+  /** Focus slide list: keep the current slide in view (entering focus, switching slides). */
+  private readonly keepCurrentInView = effect(() => {
+    if (this.part() !== 'focus-list') return;
+    this.active_();
+    this.shown();
+    setTimeout(() => {
+      const el = (this.hostEl.nativeElement as HTMLElement).querySelector('.fs.on');
+      el?.scrollIntoView({ block: 'nearest' });
+    }, 60);
+  });
+
   constructor() {
     // Re-render thumbnails (debounced) whenever anything that can appear on a slide changes.
     effect((onCleanup) => {
       const master = this.master();
       const frames =
-        this.part() === 'list'
+        this.part() === 'list' || this.part() === 'focus-list'
           ? [...this.frames()]
           : [...(master ? [master] : []), ...this.layouts()];
       this.store.elements();
@@ -2505,7 +3409,8 @@ export class SlidesPanelComponent {
 
   private readonly userThemes = inject(UserThemesService);
   private readonly loadMyThemes = effect(() => {
-    if (this.tab() === 'design') untracked(() => void this.userThemes.load());
+    if (this.tab() === 'design' || this.part() === 'design-theme' || this.part() === 'theme-menu' || this.part() === 'design-menu')
+      untracked(() => void this.userThemes.load());
   });
   /** The project's custom records. */
   protected readonly customThemes = this.store.customThemes;
@@ -2875,6 +3780,25 @@ export class SlidesPanelComponent {
     }
   }
 
+  /** Delete any custom theme (the deck's own one moves to its neighbour first). */
+  protected async deleteThemeById(id: string): Promise<void> {
+    if (!this.canEdit() || isBuiltInRecord(id)) return;
+    if (id === this.deckTheme().id) return this.deleteTheme();
+    await this.saveRecords([], [id]);
+  }
+
+  /** Delete any custom design (and its layout set when nothing else uses it). */
+  protected async deleteDesignById(id: string): Promise<void> {
+    if (!this.canEdit() || isBuiltInRecord(id)) return;
+    if (id === this.design().id) return this.deleteDesign();
+    const rec = this.record(id);
+    if (!rec) return;
+    const setId = rec.layoutsId;
+    const setShared = this.library().some((r) => r.id !== id && recordKind(r) === 'design' && r.layoutsId === setId);
+    await this.saveRecords([], [id, ...(!setId || setShared || isBuiltInRecord(setId) ? [] : [setId])]);
+    this.themeNote.set(`Deleted "${rec.name}".`);
+  }
+
   /** Delete the selected custom theme; the deck takes the theme above it in the list (or below). */
   protected async deleteTheme(): Promise<void> {
     const t = this.deckTheme();
@@ -3110,7 +4034,7 @@ export class SlidesPanelComponent {
       const cards = event.currentTarget as HTMLElement | null;
       const index = this.shown().findIndex((f) => f.id === next.id);
       requestAnimationFrame(() => {
-        revealCard(cards?.querySelectorAll('li.card')[index], cards);
+        revealCard(cards?.querySelectorAll('li.card, .fs')[index], cards);
       });
     }
   }

@@ -84,6 +84,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     zIndex: entity.zIndex,
     cornerRadius: entity.cornerRadius ?? undefined,
     ellipticCorners: entity.ellipticCorners ?? undefined,
+    elbow: entity.elbow ?? undefined,
+    clipContent: entity.clipContent ?? undefined,
     points: entity.pointsJson ? (JSON.parse(entity.pointsJson) as PointModel[]) : undefined,
     text: entity.text ?? undefined,
     fontSize: entity.fontSize ?? undefined,
@@ -115,6 +117,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     placeholder: toPlaceholder(entity.placeholderJson),
     overrides: entity.overrides ?? undefined,
     morphId: entity.morphId ?? undefined,
+    morphIn: entity.morphIn ?? undefined,
+    morphOut: entity.morphOut ?? undefined,
     step: entity.step ?? undefined,
     slideId: entity.slideId ?? undefined,
   };

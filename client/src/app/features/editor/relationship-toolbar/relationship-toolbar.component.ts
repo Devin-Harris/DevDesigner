@@ -4,8 +4,8 @@ import type { RelationshipType } from '@dbdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 /**
- * Small on-canvas control that floats at a selected connector's midpoint. Lets
- * you change cardinality (1:1 / 1:N / N:M) and delete the relationship inline.
+ * Small on-canvas control that floats at a selected connector's midpoint:
+ * cardinality (1 : 1 / 1 : N / N : M), Auto-route, Reset route and delete.
  * The parent positions the host via left/top style bindings.
  */
 @Component({

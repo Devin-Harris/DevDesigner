@@ -1,3 +1,4 @@
+import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { themeColorCss, type SequenceMessageModel } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
@@ -19,6 +20,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   styleUrl: './sequence-message-toolbar.component.scss',
 })
 export class SequenceMessageToolbarComponent {
+  protected readonly inspector = inject(InspectorPanelService);
   protected readonly store = inject(ProjectStore);
   protected readonly message = computed(() => this.store.selectedMessage());
   protected readonly canEdit = computed(() => this.store.canEdit());

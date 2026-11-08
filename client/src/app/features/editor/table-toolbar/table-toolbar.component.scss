@@ -137,3 +137,10 @@
     border-color: var(--dbd-primary);
   }
 }
+
+.tb.txt {
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}

@@ -12,6 +12,10 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { ToolbarPrefsService } from './shape-toolbar/toolbar-prefs.service';
+import { PenOptionsBarComponent, PenPrefsService } from './pen-options-bar/pen-options-bar.component';
+import { InspectorPanelService } from './inspector-panel.service';
+import type { CanvasItemRef } from '../../core/services/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -48,11 +52,7 @@ import {
   resolveThemedElements,
   resolveThemedSequences,
   resolveThemeElement,
-  resolveFields,
-  fieldContext,
   masterOf,
-  presentableSlides,
-  type FieldContext,
   resolveThemeColor,
   themeSwatchCss,
   themeToken,
@@ -75,6 +75,7 @@ import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { ProjectFileService } from '../../core/services/project-file.service';
+import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from '../../core/services/element-images.service';
 import { MediaActionsService } from '../../core/services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';import { ProjectsStore } from '../../stores/projects.store';
@@ -226,13 +227,17 @@ import { SequenceDiagramToolbarComponent } from './sequence-diagram-toolbar/sequ
 import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
+import { MultiSelectBarComponent } from './multi-select-bar/multi-select-bar.component';
 import { LaserLayerComponent } from './laser-layer/laser-layer.component';
 import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
 import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { PresentModeComponent } from './slides/present-mode.component';
 import { SlideRenderService, type RenderedSlide } from './slides/slide-render.service';
 import { ensureDeckDefaults } from './slides/deck-defaults';
-import { SlidesPanelComponent, type SlidesCommand } from './slides/slides-panel.component';
+import { FocusUiState, SlidesPanelComponent, type SlidesCommand } from './slides/slides-panel.component';
+import { PopoverTriggerDirective } from '../../shared/ui/popover/popover-trigger.directive';
+import { CompareUiState, DeckCompareComponent } from './slides/deck-compare.component';
+import { AnimationPaneComponent } from './slides/animation-pane.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
 
 type DragMode =
@@ -315,13 +320,13 @@ interface Rect {
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
 const GRID_SNAP_KEY = 'dbd-grid-snap';
 const SMART_GUIDES_KEY = 'dbd-smart-guides';
-const SIDE_PANEL_KEY = 'dbd-side-panel-collapsed';
 
-function readStoredSidePanelCollapsed(): boolean {
+function readFlag(key: string, fallback: boolean): boolean {
   try {
-    return globalThis.localStorage?.getItem(SIDE_PANEL_KEY) === '1';
+    const v = globalThis.localStorage?.getItem(key);
+    return v == null ? fallback : v === '1';
   } catch {
-    return false;
+    return fallback;
   }
 }
 
@@ -373,6 +378,11 @@ function readStoredGrid(): boolean {
     RelationshipInspectorComponent,
     ElementInspectorComponent,
     RelationshipToolbarComponent,
+    MultiSelectBarComponent,
+    PenOptionsBarComponent,
+    DeckCompareComponent,
+    PopoverTriggerDirective,
+    AnimationPaneComponent,
     TableToolbarComponent,
     TableNodeComponent,
     AutofocusDirective,
@@ -386,6 +396,12 @@ export class EditorComponent {
   protected readonly store = inject(ProjectStore);
   protected readonly realtime = inject(RealtimeService);
   private readonly laser = inject(LaserService);
+  protected readonly toolbarPrefs = inject(ToolbarPrefsService);
+  private readonly penPrefs = inject(PenPrefsService);
+  private readonly focusUi = inject(FocusUiState);
+  protected readonly compareUi = inject(CompareUiState);
+  /** The tool dock sits along the top edge (bars that would sit there move down). */
+  protected readonly toolbarPosTop = computed(() => this.toolbarPrefs.position() === 'top');
   private readonly dialog = inject(MatDialog);
   private readonly projectFile = inject(ProjectFileService);
   private readonly projectsStore = inject(ProjectsStore);
@@ -406,8 +422,29 @@ export class EditorComponent {
   /** Other participants who are presenting right now (offer to follow them). */
   protected readonly presenters = this.realtime.presenters;
 
-  /** Whether the canvas inspector panels (table, relationship, element...) are folded away. */
-  protected readonly sidePanelCollapsed = signal(readStoredSidePanelCollapsed());
+  /** Details panel visibility (opened from a floating toolbar, or pinned). */
+  protected readonly inspector = inject(InspectorPanelService);
+  /** Something is selected that the details panel can show. */
+  protected readonly hasInspectable = computed(
+    () =>
+      !!this.store.selectedTable() ||
+      !!this.store.selectedRelationship() ||
+      !!this.store.selectedElement() ||
+      !!this.store.selectedLifeline() ||
+      !!this.store.selectedMessage() ||
+      !!this.store.selectedDiagram(),
+  );
+  /** Identity of the current selection, so an unpinned panel closes when it changes. */
+  private readonly selectionKey = computed(() =>
+    [
+      this.store.selectedTableIds().join(','),
+      this.store.selectedElementIds().join(','),
+      this.store.selectedLifelineIds().join(','),
+      this.store.selectedMessageIds().join(','),
+      this.store.selectedDiagramIds().join(','),
+      this.store.selectedRelationship()?.id ?? '',
+    ].join('|'),
+  );
 
   /** The slide being shown/edited; it is the only slide on the canvas. */
   protected readonly activeSlideId = this.store.activeSlideId;
@@ -419,7 +456,7 @@ export class EditorComponent {
   private shownElements(): CanvasElementModel[] {
     const hide = this.focusHidden();
     const locked = this.store.layoutItemIds();
-    return this.withFields(this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id)));
+    return (this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id)));
   }
 
   /** Tables that are on the canvas right now (focus mode collapses other slides' tables). */
@@ -769,6 +806,12 @@ export class EditorComponent {
   /** Owner/anonymous mode passes a project id; shared mode passes a token instead. */
   readonly projectId = input<string | null>(null);
   readonly shareToken = input<string | null>(null);
+  /** Embedded use (the canvas guide): frame the content once after it loads, at most 100%. */
+  readonly fitOnLoad = input(false);
+  private fittedProjectId: string | null = null;
+  /** Embedded use: the tool to have active once the project loads (e.g. the guide's current tool). */
+  readonly initialTool = input<EditorTool | null>(null);
+  private toolAppliedFor: string | null = null;
   private readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
 
   /** Other participants' cursors projected to screen coordinates for rendering. */
@@ -990,6 +1033,72 @@ export class EditorComponent {
     };
   });
 
+  /**
+   * Placement for the multi-select bar: under the union box of 2+ selected units
+   * (or a single selected group, so it can be ungrouped).
+   */
+  protected readonly multiSelectBar = computed(() => {
+    if (this.gestureActive() || !this.store.canEdit() || this.editingTextId()) {
+      return null;
+    }
+    const byItem = this.store.groupByItem();
+    const entered = this.store.enteredGroupId();
+    const ids = [
+      ...this.store.selectedTableIds(),
+      ...this.store.selectedElementIds(),
+      ...this.store.selectedDiagramIds(),
+    ];
+    const units = new Set(ids.map((id) => {
+      const g = byItem.get(id);
+      return g && g !== entered ? g : id;
+    }));
+    const grouped = units.size === 1 && ids.length > 1 && [...units][0] !== ids[0];
+    if (units.size < 2 && !grouped) {
+      return null;
+    }
+    const selected = new Set(ids);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const grow = (b: Box): void => {
+      x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0);
+      x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1);
+    };
+    for (const t of this.store.tables()) if (selected.has(t.id)) grow(tableBox(t));
+    for (const e of this.store.elements()) if (selected.has(e.id)) grow(this.drawnBox(e.id, elementBox(e)));
+    for (const d of this.store.sequenceDiagrams()) {
+      const b = selected.has(d.id) ? this.diagramBox(d) : null;
+      if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+    }
+    if (!Number.isFinite(x0)) {
+      return null;
+    }
+    const v = this.store.viewport();
+    const below = y1 * v.zoom + v.y + 14;
+    const maxTop = (this.canvasSize().height || window.innerHeight) - 110;
+    return {
+      left: ((x0 + x1) / 2) * v.zoom + v.x,
+      top: Math.min(below, maxTop),
+      count: grouped ? ids.length : units.size,
+      grouped,
+    };
+  });
+
+  /** Bottom-right minimap visibility (remembered per browser). */
+  protected readonly showMinimap = signal(readFlag('devdesigner.minimap', true));
+  protected toggleMinimap(): void {
+    const on = !this.showMinimap();
+    this.showMinimap.set(on);
+    try {
+      globalThis.localStorage?.setItem('devdesigner.minimap', on ? '1' : '0');
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  protected duplicateSelectionInPlace(): void {
+    this.copySelection();
+    void this.pasteClipboard();
+  }
+
   /** Placement + table for the floating table action bar (single table selected). */
   protected readonly tableToolbar = computed(() => {
     if (this.gestureActive()) {
@@ -1158,14 +1267,8 @@ export class EditorComponent {
       }
       return e;
     });
-    // Fields ({{slide}}, ...) show their values on slides, not while typed into.
-    const fields = this.shownFields();
-    const filled = fields.size
-      ? all.map((e) => {
-          const ctx = e.id !== editing && e.slideId ? fields.get(e.slideId) : undefined;
-          return ctx ? this.fillFields(e, ctx) : e;
-        })
-      : all;
+    // Fields ({{slide}}, {{date}}, ...) stay as tokens on the canvas; they fill in when presenting/exporting.
+    const filled = all;
     // A diff card being edited shows both sides plain, one under each of its two editors.
     const editedDiff = editing ? filled.find((e) => e.id === editing) : undefined;
     const diffEditingId = editedDiff?.type === 'code' && codeDiffActive(editedDiff) ? editing : null;
@@ -1409,6 +1512,7 @@ export class EditorComponent {
       padding: GRID_CELL_PAD * z,
       color: st.color ?? themeColorCss(el.strokeColor) ?? el.strokeColor,
       align: st.align ?? el.textAlign ?? 'left',
+      vAlign: st.vAlign ?? el.verticalAlign ?? 'top',
       background: bg && bg !== 'none' && !bg.startsWith('url(') ? bg : 'var(--dbd-surface)',
       value: g.cells[cell.row][cell.col],
     };
@@ -1427,12 +1531,40 @@ export class EditorComponent {
       return;
     }
     if (gc.key === this.gridCellKey) {
+      this.alignGridCellArea();
       return;
     }
     this.gridCellKey = gc.key;
     area.value = gc.value;
+    this.alignGridCellArea();
     area.focus();
     area.setSelectionRange(area.value.length, area.value.length);
+  }
+
+  /**
+   * A textarea always lays text out from the top, so mimic the cell's vertical
+   * alignment (middle / bottom) by growing the top padding to the leftover space.
+   * Re-run on every keystroke so the text stays where the rendered cell shows it.
+   */
+  protected alignGridCellArea(): void {
+    const gc = this.gridCellEditor();
+    const area = this.gridCellArea()?.nativeElement;
+    if (!gc || !area) {
+      return;
+    }
+    area.style.paddingTop = `${gc.padding}px`;
+    if (gc.vAlign === 'top') {
+      return;
+    }
+    // Collapse the box for a moment: scrollHeight is never less than the box height,
+    // so this is the only way to read the text's own height (+ both paddings).
+    const boxHeight = area.style.height;
+    area.style.height = '0px';
+    const text = area.scrollHeight - gc.padding * 2;
+    area.style.height = boxHeight;
+    const free = Math.max(0, gc.height - gc.padding * 2 - text);
+    const extra = gc.vAlign === 'middle' ? free / 2 : free;
+    area.style.paddingTop = `${gc.padding + extra}px`;
   }
 
   /** Keys inside a grid cell editor: Tab/Shift+Tab move across, Enter moves down (Shift+Enter = newline), Esc reverts. */
@@ -1541,52 +1673,6 @@ export class EditorComponent {
       untracked(follow);
     });
   })();
-
-  /**
-   * An item with its fields filled in; an auto-sized text box refits to the filled text
-   * (keeping its alignment edge) so its box and handles match what is drawn.
-   */
-  private fillFields<E extends CanvasElementModel>(e: E, ctx: FieldContext): E {
-    const filled = resolveFields(e, ctx);
-    if (filled === e || e.type !== 'text' || e.wrap) return filled;
-    const size = fitTextElement(filled, { text: filled.text ?? '' });
-    const shift = e.textAlign === 'right' ? 1 : e.textAlign === 'center' ? 0.5 : 0;
-    return { ...filled, x: e.x + (e.width - size.width) * shift, width: size.width, height: size.height };
-  }
-
-  /** Items as drawn: fields filled in for the slide they show under (not while typed into). */
-  private withFields(items: CanvasElementModel[]): CanvasElementModel[] {
-    const fields = this.shownFields();
-    if (!fields.size) return items;
-    const editing = this.editingTextId();
-    return items.map((e) => {
-      const ctx = e.id !== editing && e.slideId ? fields.get(e.slideId) : undefined;
-      return ctx ? this.fillFields(e, ctx) : e;
-    });
-  }
-
-  /**
-   * Field values per frame whose items are drawn under a shown slide: the slide itself,
-   * its layout and its deck's master all number as that slide. Shown layouts keep tokens.
-   */
-  private readonly shownFields = computed(() => {
-    const frames = this.store.slideFrames();
-    const out = new Map<string, FieldContext>();
-    for (const [name, id] of this.store.shownByPresentation()) {
-      const slide = frames.find((f) => f.id === id);
-      if (!slide || slide.slide?.layout) continue;
-      const ids = presentableSlides(frames)
-        .filter((f) => presentationOf(f) === name)
-        .map((f) => f.id);
-      const ctx = fieldContext(slide.id, ids, name);
-      out.set(slide.id, ctx);
-      const layout = layoutOf(slide, frames);
-      if (layout) out.set(layout.id, ctx);
-      const master = masterOf(slide, frames);
-      if (master) out.set(master.id, ctx);
-    }
-    return out;
-  });
 
   /**
    * Layout / master frames drawn under a shown frame -> how far that frame sits from
@@ -2046,9 +2132,22 @@ export class EditorComponent {
       this.lastOwnDblClick = performance.now();
       this.handleDoubleClick(target, canvas, e.clientX, e.clientY);
     };
+    // A native dblclick right after one we replayed is the same gesture: drop it
+    // before it reaches item handlers (it would e.g. enter a group, then edit).
+    const dedupeDbl = (e: MouseEvent): void => {
+      if (
+        !this.replayingDblClick &&
+        performance.now() - this.lastOwnDblClick < 600 &&
+        (e.target as Element | null)?.closest?.(EditorComponent.SELF_DBLCLICK)
+      ) {
+        e.stopImmediatePropagation();
+      }
+    };
+    host.addEventListener('dblclick', dedupeDbl, { capture: true });
     host.addEventListener('pointerdown', onDown, { capture: true });
     window.addEventListener('pointerup', onUp, { capture: true });
     this.destroyRef.onDestroy(() => {
+      host.removeEventListener('dblclick', dedupeDbl, { capture: true });
       host.removeEventListener('pointerdown', onDown, { capture: true });
       window.removeEventListener('pointerup', onUp, { capture: true });
     });
@@ -2158,10 +2257,26 @@ export class EditorComponent {
         void this.store.load(id);
       }
     });
+    // Embedded editors: frame everything once per loaded project, clear of the tool dock.
+    effect(() => {
+      const id = this.store.projectId();
+      if (!this.fitOnLoad() || !id || this.store.loading() || this.fittedProjectId === id) return;
+      if (!this.minimapItems().length) return;
+      this.fittedProjectId = id;
+      setTimeout(() => this.fitContent());
+    });
+    effect(() => {
+      const id = this.store.projectId();
+      const tool = this.initialTool();
+      if (!tool || !id || this.store.loading() || this.toolAppliedFor === id) return;
+      this.toolAppliedFor = id;
+      setTimeout(() => this.onToolChange(tool));
+    });
     // Join / re-join the realtime room whenever the loaded project changes.
     effect(() => {
       const id = this.store.projectId();
-      if (id) {
+      // Guide sandboxes live only in this browser: no realtime room.
+      if (id && !isSandboxId(id)) {
         this.realtime.connect(id);
       }
     });
@@ -2192,6 +2307,88 @@ export class EditorComponent {
       exportSelectionFile: () => void this.exportSelectionFile(),
       importFile: (file) => this.importProjectFile(file),
       deleteSelection: () => this.deleteSelection(),
+      focusDeck: (name) => this.focusDeck(name),
+      enterDeckFocus: (name) => this.enterDeckFocus(name),
+      exitDeckFocus: () => this.exitDeckFocus(),
+      jumpToParticipant: (id) => this.jumpToParticipant(id),
+      followParticipant: (id) => this.followingId.set(id),
+      addFrameToPresentation: (id, deck) => void this.addFrameToPresentation(id, deck),
+      exportFrame: (id, format) => this.exportOneFrame(id, format),
+      presentDeck: (name) => this.presentDeck(name),
+      followPresenter: (id) => void this.followPresenter(id),
+      newDeck: () => this.onToolChange('slide'),
+      setTool: (tool) => this.onToolChange(tool as EditorTool),
+      resetView: () => this.resetView(),
+      setHome: () => this.setHome(),
+      canvasItems: () => this.paletteItems(),
+      jumpTo: (item) => this.jumpToItem(item),
+    });
+    // Feed the top-right Presentations menu.
+    // Following a collaborator: keep their cursor in the middle part of the view.
+    effect(() => {
+      const id = this.followingId();
+      this.editorActions.following.set(id);
+      if (!id) return;
+      if (!this.realtime.participants().some((p) => p.id === id)) {
+        untracked(() => this.followingId.set(null));
+        return;
+      }
+      const c = this.realtime.remoteCursors().find((x) => x.participantId === id);
+      if (!c) return;
+      untracked(() => {
+        const v = this.store.viewport();
+        const { width, height } = this.canvasSize();
+        const sx = c.x * v.zoom + v.x;
+        const sy = c.y * v.zoom + v.y;
+        if (sx < width * 0.2 || sx > width * 0.8 || sy < height * 0.2 || sy > height * 0.8) {
+          this.jumpToParticipant(id);
+        }
+      });
+    });
+    // The transition screen shows its own preview: hide the canvas's floating toolbars.
+    effect(() => {
+      document.body.classList.toggle('dbd-focus-morph', !!this.focusedDeck() && this.focusScreen() === 'morph');
+    });
+    // Floating islands fade while dragging or drawing (toolbar setting).
+    effect(() => {
+      const on = this.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
+      document.body.classList.toggle('dbd-gesture', on);
+    });
+    // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
+    effect(() => {
+      if (!this.focusedDeck()) return;
+      this.focusScreen();
+      const f = this.focusShown();
+      this.canvasSize();
+      if (!f) return;
+      void [f.x, f.y, f.width, f.height];
+      untracked(() => this.fitFocus(true));
+    });
+    // Focus mode follows the deck: tell the app chrome, and end it when the deck is gone.
+    effect(() => {
+      const name = this.focusedDeck();
+      if (name && !this.store.presentations().includes(name)) {
+        untracked(() => this.focusedDeck.set(null));
+        return;
+      }
+      this.editorActions.focusedDeck.set(name);
+    });
+    effect(() => {
+      const frames = this.store.slideFrames();
+      const presenters = this.presenters();
+      this.editorActions.decks.set(
+        this.store.presentations().map((name) => {
+          const p = presenters.find((x) => {
+            const f = frames.find((fr) => fr.id === x.presenting?.frameId);
+            return !!f && presentationOf(f) === name;
+          });
+          return {
+            name,
+            slides: presentationSlides(frames, name).length,
+            presenter: p ? { id: p.id, name: p.name, color: p.color } : null,
+          };
+        }),
+      );
     });
     this.destroyRef.onDestroy(() => this.editorActions.clear());
     // SQL needs unique table names within the exported scope (selection or whole diagram).
@@ -2219,14 +2416,14 @@ export class EditorComponent {
           this.store.selectedDiagramIds().length > 0,
       );
     });
-    // Persist the side-panel collapse state across refreshes.
+    // An unpinned details panel belongs to one selection: fold it when that changes.
+    let lastSelection: string | null = null;
     effect(() => {
-      const collapsed = this.sidePanelCollapsed();
-      try {
-        globalThis.localStorage?.setItem(SIDE_PANEL_KEY, collapsed ? '1' : '0');
-      } catch {
-        // ignore storage errors
+      const key = this.selectionKey();
+      if (lastSelection !== null && key !== lastSelection) {
+        untracked(() => this.inspector.selectionChanged());
       }
+      lastSelection = key;
     });
     effect(() => {
       const on = this.smartGuides();
@@ -2324,8 +2521,9 @@ export class EditorComponent {
       this.grids.endEdit();
     }
     if (
-      event.button === 1 ||
-      (event.button === 0 && (this.spaceDown || this.activeTool() === 'hand'))
+      !this.focusedDeck() &&
+      (event.button === 1 ||
+      (event.button === 0 && (this.spaceDown || this.activeTool() === 'hand')))
     ) {
       event.preventDefault();
       this.mode = 'pan';
@@ -2351,18 +2549,18 @@ export class EditorComponent {
       event.preventDefault();
       if (tool === 'table') {
         this.addTableAt(event.clientX, event.clientY);
-        this.activeTool.set('select');
+        this.afterPlace();
         return;
       }
       if (tool === 'sequence') {
         this.addSequenceAt(event.clientX, event.clientY);
-        this.activeTool.set('select');
+        this.afterPlace();
         return;
       }
       if (tool === 'slide') {
         // A click adds a slide: the first where you click, later ones stacked on the shown one.
         void this.addSlide(this.toWorld(event.clientX, event.clientY));
-        this.activeTool.set('select');
+        this.afterPlace();
         return;
       }
       this.beginDraw(tool, event);
@@ -2550,9 +2748,9 @@ export class EditorComponent {
       strokeColor: style.strokeColor ?? this.defaultStroke(),
       backgroundColor: style.backgroundColor,
       fillStyle: style.fillStyle,
-      strokeWidth: style.strokeWidth,
+      strokeWidth: type === 'freedraw' && this.penPrefs.highlighter() ? Math.max(style.strokeWidth, 2) * 4 : style.strokeWidth,
       strokeStyle: style.strokeStyle,
-      opacity: style.opacity,
+      opacity: type === 'freedraw' && this.penPrefs.highlighter() ? 50 : style.opacity,
       zIndex: this.store.elements().length,
       cornerRadius: style.cornerRadius,
       startArrowhead: style.startArrowhead,
@@ -2704,7 +2902,7 @@ export class EditorComponent {
     // text jumps into its inline editor.
     const isPen = draft.type === 'freedraw';
     const created = await this.store.addElement(dto, !isPen);
-    if (!isPen) {
+    if (!isPen && (draft.type === 'text' || !this.toolbarPrefs.stayOnTool())) {
       this.activeTool.set('select');
       if (created && selectAfter && created.type === 'text') {
         this.editingTextId.set(created.id);
@@ -5150,9 +5348,10 @@ export class EditorComponent {
     });
   }
 
+  /** Reset route: drop every bend and hand the line back to best-path routing. */
   protected onResetRoute(relationshipId: string): void {
     if (this.store.canEdit()) {
-      this.store.setWaypoints(relationshipId, []);
+      void this.store.updateRelationship(relationshipId, { autoRoute: true, waypoints: [] });
     }
   }
 
@@ -5640,6 +5839,16 @@ export class EditorComponent {
     if (typing) {
       return;
     }
+    // Transition screen: ← / → step to the previous / next slide pair.
+    if (
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+      !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey &&
+      this.focusedDeck() && this.focusScreen() === 'morph'
+    ) {
+      event.preventDefault();
+      this.stepTransition(event.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
     if (event.key === 'F5') {
       // Only with a presentation selected; otherwise the browser's reload runs as usual.
       const name = this.selectedPresentationName();
@@ -5656,12 +5865,38 @@ export class EditorComponent {
       event.preventDefault();
       return;
     }
+    // Shift+F: focus the selected presentation (or leave focus mode).
+    if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && event.code === 'KeyF') {
+      const name = this.focusedDeck() ?? this.selectedSlideSets()[0] ?? this.selectedPresentationName();
+      if (name) {
+        event.preventDefault();
+        if (this.focusedDeck()) this.exitDeckFocus();
+        else this.enterDeckFocus(name);
+        return;
+      }
+    }
+    if (event.shiftKey && !event.ctrlKey && !event.metaKey && (event.code === 'Digit1' || event.code === 'Digit2')) {
+      event.preventDefault();
+      if (event.code === 'Digit1') this.zoomToFit();
+      else this.zoomToSelection();
+      return;
+    }
     if (event.key === 'Home') {
       this.resetView();
       event.preventDefault();
       return;
     }
     if (event.key === 'Escape') {
+      if (this.followingId()) {
+        this.followingId.set(null);
+        return;
+      }
+      if (this.activeTool() === 'select' && this.focusedDeck()) {
+        if (this.focusScreen() === 'design') this.closeFocusDesign(this.focusedDeck()!);
+        else if (this.focusScreen() !== 'main') this.leaveFocusScreen();
+        else this.exitDeckFocus();
+        return;
+      }
       this.activeTool.set('select');
       return;
     }
@@ -5781,7 +6016,14 @@ export class EditorComponent {
     const tool = mod || event.altKey ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
     // The laser pointer is a presenting tool, so view-only guests may use it too.
     if (tool && (this.store.canEdit() || tool === 'laser')) {
-      this.activeTool.set(tool);
+      // Pressing a shape / line key again cycles through its family (R → O → D, A → L).
+      const cur = this.activeTool();
+      const family = EditorComponent.TOOL_CYCLES.find((f) => f.includes(tool));
+      if (family && family.includes(cur) && !event.repeat) {
+        this.activeTool.set(family[(family.indexOf(cur) + 1) % family.length]);
+      } else {
+        this.activeTool.set(tool);
+      }
       return;
     }
     if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
@@ -5836,7 +6078,7 @@ export class EditorComponent {
    * Delete everything selected. Deleting a frame also deletes what sits inside it
    * (elements, tables and sequence diagrams), so a frame removes its whole page.
    */
-  private deleteSelection(): void {
+  protected deleteSelection(): void {
     if (!this.store.canEdit()) {
       return;
     }
@@ -5916,6 +6158,14 @@ export class EditorComponent {
       case 'close':
         this.store.setSelection([], [], []);
         break;
+      case 'screen':
+        // From the canvas: open the focus screen on its own; leaving it comes back here.
+        this.enterDeckFocus(presentation, cmd.screen === 'design' ? 'main' : cmd.screen);
+        if (cmd.screen === 'design') this.openFocusDesign();
+        // The first slide has no transition into it: show the one into slide 2.
+        if (cmd.screen !== 'design' && this.focusSlide()?.index === 1) this.goToTransition(2);
+        this.focusFromCanvas.set(true);
+        break;
       case 'fold':
         this.settingsFolded.update((v) => !v);
         break;
@@ -5950,6 +6200,334 @@ export class EditorComponent {
         this.store.setSelection([], [], [cmd.id]);
         this.deleteSelection();
         break;
+    }
+  }
+
+  /** Canvas items the command palette can search and jump to. */
+  private paletteItems(): CanvasItemRef[] {
+    const items: CanvasItemRef[] = this.store.tables().map((t) => ({ kind: 'table', id: t.id, label: t.name }));
+    for (const e of this.store.elements()) {
+      if (e.type === 'code') {
+        const first = (e.text ?? '').split(/\r?\n/).find((l) => l.trim()) ?? '';
+        items.push({ kind: 'code', id: e.id, label: e.fileName || first.trim().slice(0, 60) || 'Code block' });
+      } else if (e.type === 'text' && e.text?.trim()) {
+        items.push({ kind: 'text', id: e.id, label: e.text.trim().split(/\r?\n/)[0].slice(0, 60) });
+      } else if (e.type === 'frame' && !e.slide && e.text?.trim()) {
+        items.push({ kind: 'frame', id: e.id, label: e.text.trim() });
+      }
+    }
+    for (const d of this.store.sequenceDiagrams()) {
+      items.push({ kind: 'sequence', id: d.id, label: d.title || 'Sequence diagram' });
+    }
+    return items;
+  }
+
+  /** Select a palette item and centre it in view. */
+  private jumpToItem(item: CanvasItemRef): void {
+    if (item.kind === 'table') {
+      const t = this.store.tables().find((x) => x.id === item.id);
+      if (!t) return;
+      this.store.setSelection([t.id], [], []);
+      this.panToWorld({ x: t.x + 120, y: t.y + 60 });
+    } else if (item.kind === 'sequence') {
+      const d = this.store.sequenceDiagrams().find((x) => x.id === item.id);
+      if (!d) return;
+      const xs = this.store.lifelines().filter((l) => l.diagramId === d.id).map((l) => l.x);
+      this.store.setSelection([], [], [], [], [], [d.id]);
+      if (xs.length) {
+        this.panToWorld({ x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d.originY + 160 });
+      }
+    } else {
+      const e = this.store.elements().find((x) => x.id === item.id);
+      if (!e) return;
+      this.store.setSelection([], [], [e.id]);
+      this.panToWorld({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+    }
+  }
+
+  /** The deck header asks a deck's settings panel to show a tab. */
+  protected readonly deckTabRequest = signal<{ name: string; tab: 'design' | 'size' | 'notes' } | null>(null);
+  protected openDeckTab(name: string, tab: 'design' | 'size' | 'notes'): void {
+    this.selectSlideSet(name);
+    this.settingsFolded.set(false);
+    this.deckTabRequest.set({ name, tab });
+  }
+
+  /** Slides in a presentation (deck header count). */
+  protected deckSlideCount(name: string): number {
+    return presentationSlides(this.store.slideFrames(), name).length;
+  }
+
+  /** 1-based position of the deck's shown slide among its slides (0 when unknown). */
+  protected deckSlideIndex(name: string, frameId: string): number {
+    return presentationSlides(this.store.slideFrames(), name).findIndex((f) => f.id === frameId) + 1;
+  }
+
+  /** Aspect label of a deck's slides ("16:9", "4:3", ...), for the deck header and focus bar. */
+  protected deckRatioLabel(frameId: string): string {
+    const f = this.store.slideFrames().find((x) => x.id === frameId);
+    if (!f || !f.height) return 'Size';
+    const r = f.width / f.height;
+    const known: [number, string][] = [[16 / 9, '16:9'], [4 / 3, '4:3'], [1, '1:1'], [9 / 16, '9:16'], [16 / 10, '16:10'], [1 / Math.SQRT2, 'A4'], [Math.SQRT2, 'A4']];
+    return known.find(([v]) => Math.abs(v - r) < 0.02)?.[1] ?? `${Math.round(f.width)}×${Math.round(f.height)}`;
+  }
+
+  // ---- Following a collaborator -----------------------------------------
+  /** Participant whose cursor the view keeps in sight, or null. */
+  protected readonly followingId = signal<string | null>(null);
+  protected readonly followingName = computed(() => {
+    const id = this.followingId();
+    return id ? (this.realtime.participants().find((p) => p.id === id)?.name ?? null) : null;
+  });
+
+  /** Center the view on a collaborator's cursor. */
+  protected jumpToParticipant(id: string): void {
+    const c = this.realtime.remoteCursors().find((x) => x.participantId === id);
+    if (!c) return;
+    const rect = this.canvasRect();
+    const v = this.store.viewport();
+    this.animateViewport(rect.width / 2 - c.x * v.zoom, rect.height / 2 - c.y * v.zoom, v.zoom);
+  }
+
+  // ---- Deck focus mode ----------------------------------------------------
+  /** The presentation being edited in focus mode (the rest of the canvas dimmed), or null. */
+  protected readonly focusedDeck = signal<string | null>(null);
+  /** The view before focus mode, restored when it ends. */
+  private viewBeforeFocus: { x: number; y: number; zoom: number } | null = null;
+
+  /** Which focus-mode screen is open: the deck (DeckFocus), design, transition or animations. */
+  protected readonly focusScreen = signal<'main' | 'design' | 'morph' | 'anim'>('main');
+
+  /** Screen-space frame of each focus screen's docks (left dock clears the tool dock). */
+  private focusArea(): { left: number; right: number; top: number; bottom: number } {
+    const rect = this.canvasRect();
+    const screen = this.focusScreen();
+    const leftDock = screen === 'main' || screen === 'design' ? 76 + 196 + 32 : 84;
+    const rightW = screen === 'anim' ? 360 : 344;
+    return { left: leftDock, right: rect.width - (16 + rightW + 32), top: 72 + 24, bottom: rect.height - 40 };
+  }
+
+  /** The shown slide (or layout) of the focused deck. */
+  private readonly focusShown = computed(() => {
+    const name = this.focusedDeck();
+    const id = name ? this.store.shownByPresentation().get(name) : undefined;
+    return id ? (this.store.slideFrames().find((f) => f.id === id) ?? null) : null;
+  });
+
+  /** The focused slide with its number and the slide before it (transition screens). */
+  protected readonly focusSlide = computed(() => {
+    const frame = this.focusShown();
+    const name = this.focusedDeck();
+    if (!frame || !name || frame.slide?.layout) return frame ? { frame, index: 0, prev: null, prev2: null, next: null } : null;
+    const slides = presentationSlides(this.store.slideFrames(), name);
+    const i = slides.findIndex((f) => f.id === frame.id);
+    return {
+      frame,
+      index: i + 1,
+      prev: i > 0 ? slides[i - 1] : null,
+      prev2: i > 1 ? slides[i - 2] : null,
+      next: i >= 0 && i < slides.length - 1 ? slides[i + 1] : null,
+    };
+  });
+
+  /** Staging area around the slide on screen (dashed in the mock): the hole in the dim. */
+  protected readonly focusStage = computed(() => {
+    const f = this.focusShown();
+    if (!f) return null;
+    const v = this.store.viewport();
+    const pad = 40;
+    return {
+      left: f.x * v.zoom + v.x - pad,
+      top: f.y * v.zoom + v.y - pad,
+      width: f.width * v.zoom + pad * 2,
+      height: f.height * v.zoom + pad * 2,
+    };
+  });
+
+  /** clip-path for the dim layer: the whole canvas minus the staging area. */
+  protected readonly focusDimClip = computed(() => {
+    // The hole is the slide itself: nothing else on the canvas shows in focus mode.
+    const st = this.focusStage();
+    const h = st ? { left: st.left + 40, top: st.top + 40, width: st.width - 80, height: st.height - 80 } : null;
+    const { width, height } = this.canvasSize();
+    if (!h) return 'none';
+    const W = Math.max(width, 1) + 4000;
+    const H = Math.max(height, 1) + 4000;
+    const x1 = h.left + h.width;
+    const y1 = h.top + h.height;
+    return `path(evenodd, 'M-2000 -2000 H${W} V${H} H-2000 Z M${h.left} ${h.top} H${x1} V${y1} H${h.left} Z')`;
+  });
+
+  /** The layout or master shown in the design screen, with how many slides use it. */
+  protected readonly focusLayoutInfo = computed(() => {
+    const f = this.focusShown();
+    const name = this.focusedDeck();
+    if (!f?.slide?.layout || !name) return null;
+    const used = presentationSlides(this.store.slideFrames(), name).filter((s) => s.slide?.layoutId === f.id).length;
+    return { master: !!f.slide.master, name: f.slide.layoutName ?? 'Layout', used };
+  });
+
+  /** Theme name for the focus bar ("Theme: Harbor"). */
+  protected deckThemeName(frameId: string): string {
+    const f = this.store.slideFrames().find((x) => x.id === frameId);
+    return f?.slide?.theme?.name ?? 'Default';
+  }
+
+  /** Edit one presentation on its own: the view locks onto its slide between the focus docks. */
+  protected enterDeckFocus(name: string, screen: 'main' | 'morph' | 'anim' = 'main'): void {
+    if (!this.store.presentations().includes(name)) return;
+    if (!this.focusedDeck()) this.viewBeforeFocus = { ...this.store.viewport() };
+    this.focusFromCanvas.set(false);
+    this.focusScreen.set(screen);
+    if (!this.focusedDeck()) this.focusUi.toFocus();
+    this.focusedDeck.set(name);
+    this.store.selectPresentation(name);
+    // A layout left open goes back to its slide.
+    const shown = this.focusShown();
+    if (shown?.slide?.layout) {
+      const back = this.lastSlides().get(name);
+      if (back) this.focusFrame_(back);
+    }
+    this.fitFocus(true);
+  }
+
+  /** Leave focus mode and go back to the view from before it. */
+  protected exitDeckFocus(): void {
+    if (!this.focusedDeck()) return;
+    const name = this.focusedDeck()!;
+    if (this.focusScreen() === 'design') this.closeFocusDesign(name);
+    this.focusUi.fromFocus();
+    this.focusFromCanvas.set(false);
+    this.focusedDeck.set(null);
+    this.focusScreen.set('main');
+    const v = this.viewBeforeFocus;
+    this.viewBeforeFocus = null;
+    if (v) this.animateViewport(v.x, v.y, v.zoom);
+  }
+
+  /** Fit the focused slide (plus staging room) into the space between the docks. */
+  private fitFocus(animate: boolean): void {
+    const f = this.focusShown();
+    if (!f || this.focusScreen() === 'morph') return;
+    const a = this.focusArea();
+    const pad = 40;
+    const availW = Math.max(100, a.right - a.left);
+    const availH = Math.max(100, a.bottom - a.top);
+    const zoom = Math.max(0.05, Math.min((availW - pad * 2) / f.width, (availH - pad * 2) / f.height, 2));
+    const x = a.left + (availW - f.width * zoom) / 2 - f.x * zoom;
+    const y = a.top + (availH - f.height * zoom) / 2 - f.y * zoom;
+    if (animate) this.animateViewport(x, y, zoom);
+    else this.store.setViewport(x, y, zoom);
+  }
+
+  /** Layouts & master / Theme: show the slide's layout (or the master) and the design screen. */
+  protected openFocusDesign(): void {
+    const f = this.focusShown();
+    const name = this.focusedDeck();
+    if (!f || !name) return;
+    const frames = this.store.slideFrames();
+    const target =
+      (f.slide?.layoutId && frames.find((x) => x.id === f.slide!.layoutId)) ||
+      frames.find((x) => presentationOf(x) === name && x.slide?.master);
+    if (target) this.focusFrame_(target.id);
+    this.focusScreen.set('design');
+  }
+
+  /** Done: back to the slide that was shown before the design screen. */
+  protected closeFocusDesign(name: string): void {
+    const back = this.lastSlides().get(name);
+    if (back && this.focusShown()?.slide?.layout) this.focusFrame_(back);
+    this.focusScreen.set('main');
+  }
+
+  /** Commands from the focus docks: screen switches here, the rest as usual. */
+  protected onFocusCommand(cmd: SlidesCommand, name: string): void {
+    if (cmd.kind === 'screen') {
+      if (cmd.screen === 'design') this.openFocusDesign();
+      else if (cmd.screen === 'main' && this.focusScreen() !== 'main') this.stayInFocus();
+      else {
+        this.focusScreen.set(cmd.screen);
+        if (cmd.screen === 'morph' && this.focusSlide()?.index === 1) this.goToTransition(2);
+      }
+      return;
+    }
+    this.onSlidesCommand(cmd, name);
+  }
+
+  /** The current focus screen was opened straight from the canvas: leaving it goes back there. */
+  private readonly focusFromCanvas = signal(false);
+
+  /** "← Canvas" when the screen was opened from the canvas, else "← Slides". */
+  protected focusBackLabel(): string {
+    return this.focusFromCanvas() ? '← Canvas' : '← Slides';
+  }
+
+  /** Leave a focus sub-screen: back to the deck, or to the canvas when it was opened from there. */
+  /** Back to the deck's main focus screen, staying in focus even when opened from the canvas. */
+  protected stayInFocus(): void {
+    this.focusFromCanvas.set(false);
+    this.focusScreen.set('main');
+  }
+
+  protected leaveFocusScreen(): void {
+    if (this.focusFromCanvas()) {
+      this.exitDeckFocus();
+      return;
+    }
+    this.focusScreen.set('main');
+  }
+
+  /** Transition screen: move to the previous / next pair of slides. */
+  protected stepTransition(delta: number): void {
+    const name = this.focusedDeck();
+    const cur = this.focusShown();
+    if (!name || !cur) return;
+    const slides = presentationSlides(this.store.slideFrames(), name);
+    const i = slides.findIndex((f) => f.id === cur.id);
+    const next = slides[i + delta];
+    if (next && i + delta >= 1) this.focusFrame_(next.id);
+  }
+
+  /** Slide numbers (2..n) that have a transition into them. */
+  protected transitionNumbers(name: string): number[] {
+    const n = presentationSlides(this.store.slideFrames(), name).length;
+    return Array.from({ length: Math.max(0, n - 1) }, (_, i) => i + 2);
+  }
+
+  /** Transition screen: jump to the transition into slide `n` (1-based). */
+  protected goToTransition(n: number): void {
+    const name = this.focusedDeck();
+    if (!name) return;
+    const f = presentationSlides(this.store.slideFrames(), name)[n - 1];
+    if (f) this.focusFrame_(f.id);
+  }
+
+  protected previewTransitionFor(id: string): void {
+    void this.previewTransition(id);
+  }
+
+  protected presentFromCurrent(name: string): void {
+    this.store.selectPresentation(name);
+    void this.startPresentation('current');
+  }
+
+  private focusFrame_(id: string): void {
+    this.focusFrame(id);
+  }
+
+  /** Present a deck from its first slide. */
+  protected presentDeck(name: string): void {
+    this.store.selectPresentation(name);
+    void this.startPresentation('start');
+  }
+
+  /** Select a presentation and bring its shown slide into view. */
+  private focusDeck(name: string): void {
+    this.store.selectPresentation(name);
+    const id = this.store.shownByPresentation().get(name);
+    const f = this.store.slideFrames().find((x) => x.id === id);
+    if (f) {
+      this.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
     }
   }
 
@@ -6589,9 +7167,9 @@ export class EditorComponent {
     at?: { x: number; y: number },
     layout = false,
     layoutId?: string | null,
-  ): Promise<void> {
+  ): Promise<string | null> {
     if (!this.store.canEdit()) {
-      return;
+      return null;
     }
     const preset = framePreset('16-9');
     const newPresentation = at ? this.newPresentationName() : undefined;
@@ -6674,6 +7252,50 @@ export class EditorComponent {
       if (layout) await fillFromLayout(this.store, created, layout);
       this.focusFrame(created.id);
     }
+    return created?.id ?? null;
+  }
+
+  /**
+   * Turn a plain frame into a slide: a new slide is added to `deck` (after its shown
+   * slide), or a new presentation is started at the frame when `deck` is null; the
+   * frame's contents move onto it (centred) and the emptied frame is removed. One undo step.
+   */
+  protected async addFrameToPresentation(frameId: string, deck: string | null): Promise<void> {
+    const frame = this.store.elements().find((e) => e.id === frameId && e.type === 'frame' && !e.slide);
+    if (!frame || !this.store.canEdit()) return;
+    const fb: Box = { x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height };
+    const inside = (b: Box): boolean => b.x0 >= fb.x0 - 1 && b.y0 >= fb.y0 - 1 && b.x1 <= fb.x1 + 1 && b.y1 <= fb.y1 + 1;
+    const items = {
+      elements: this.store.elements().filter((e) => e.id !== frame.id && e.type !== 'frame' && !e.slideId && inside(elementBox(e))).map((e) => e.id),
+      tables: this.store.tables().filter((t) => !t.slideId && inside(tableBox(t))).map((t) => t.id),
+      diagrams: this.store.sequenceDiagrams().filter((d) => {
+        const b = !d.slideId && this.diagramBox(d);
+        return !!b && inside({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+      }).map((d) => d.id),
+    };
+    await this.store.batchHistory(async () => {
+      let slideId: string | null;
+      if (deck) {
+        this.store.selectPresentation(deck);
+        slideId = await this.addSlide();
+      } else {
+        // A new presentation, placed clear of the frame so the two never overlap.
+        slideId = await this.addSlide({ x: frame.x + frame.width / 2 + this.freeFrameOffset(frame), y: frame.y + frame.height / 2 });
+      }
+      const slide = slideId ? this.store.elements().find((e) => e.id === slideId) : null;
+      if (!slide) return;
+      const dx = slide.x + (slide.width - frame.width) / 2 - frame.x;
+      const dy = slide.y + (slide.height - frame.height) / 2 - frame.y;
+      this.shiftItems(items, dx, dy);
+      await this.store.assignSlide(items, slide.id);
+      await this.store.deleteElement(frame.id);
+    });
+  }
+
+  /** Export one frame as an image (PNG / SVG / PDF). */
+  protected exportOneFrame(frameId: string, format: ImageFormat): void {
+    const frame = this.store.elements().find((e) => e.id === frameId);
+    if (frame) void this.exportFrames(format, [frame], true, frame.text || 'frame');
   }
 
   /**
@@ -6728,14 +7350,18 @@ export class EditorComponent {
     deck: string,
     afterId: string | null,
     toIndex?: number,
+    layouts = false,
   ): Promise<void> {
     const copyIds = new Set(copies.map((c) => c.id));
     const fresh = copies
       .map((c) => this.store.elements().find((e) => e.id === c.id))
-      .filter((c): c is CanvasElementModel => !!c?.slide && !c.slide.layout)
+      .filter((c): c is CanvasElementModel => !!c?.slide && !!c.slide.layout === layouts && !c.slide.master)
       .sort((a, b) => (a.slide!.order ?? 0) - (b.slide!.order ?? 0));
     if (!fresh.length) return;
-    const list = presentationSlides(this.store.slideFrames(), deck).filter((f) => !copyIds.has(f.id));
+    const list = (layouts
+      ? presentationLayouts(this.store.slideFrames(), deck)
+      : presentationSlides(this.store.slideFrames(), deck)
+    ).filter((f) => !copyIds.has(f.id));
     let at: number;
     if (toIndex !== undefined) {
       at = toIndex - 1;
@@ -6805,6 +7431,13 @@ export class EditorComponent {
         const last = [...deckSlides].reverse().find((f) => idSet.has(f.id));
         await this.orderSlideCopies(mine, deck, last?.id ?? null, toIndex);
       }
+      // Layout copies go right after their source (or into the drop slot).
+      const layoutDecks = new Set(copies.filter((c) => c.slide?.layout && !c.slide.master).map((c) => presentationOf(c)));
+      for (const deck of layoutDecks) {
+        const mine = copies.filter((c) => presentationOf(c) === deck && c.slide?.layout);
+        const last = [...presentationLayouts(this.store.slideFrames(), deck)].reverse().find((f) => idSet.has(f.id));
+        await this.orderSlideCopies(mine, deck, last?.id ?? null, toIndex, true);
+      }
       // A copied layout gets its own name ("Title copy").
       for (const f of frames) {
         const id = cloned.copies.get(f.id)?.id;
@@ -6845,6 +7478,17 @@ export class EditorComponent {
     g: 'grid',
     k: 'laser',
   };
+
+  /** Tool families a repeated shortcut cycles through. */
+  private static readonly TOOL_CYCLES: readonly (readonly EditorTool[])[] = [
+    ['rectangle', 'ellipse', 'diamond'],
+    ['arrow', 'line'],
+  ];
+
+  /** After placing something: back to Select, unless the toolbar is set to stay on the tool. */
+  private afterPlace(): void {
+    if (!this.toolbarPrefs.stayOnTool()) this.activeTool.set('select');
+  }
 
   protected onToolChange(tool: EditorTool): void {
     this.activeTool.set(tool);
@@ -7032,6 +7676,16 @@ export class EditorComponent {
   private copySelection(): void {
     const tableIds = this.store.selectedTableIds();
     let elementIds = this.store.selectedElementIds();
+    // Nothing picked while a layout is shown: copy the layout itself (pasting duplicates it).
+    const shownLayout = this.store.elements().find((e) => e.id === this.store.activeSlideId() && e.slide?.layout && !e.slide.master);
+    if (shownLayout && !tableIds.length && (!elementIds.length || (elementIds.length === 1 && elementIds[0] === shownLayout.id)) && !this.store.selectedDiagramIds().length) {
+      this.clipboard = { tables: [], elements: [shownLayout], diagramIds: [], frame: shownLayout };
+      this.pasteCount = 0;
+      const mark = `dbdesigner:${Date.now()}`;
+      this.clipboardMark = mark;
+      void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));
+      return;
+    }
     // A slide left selected next to items picked on the canvas means "copy those items",
     // not the whole slide around them.
     const slideIds = new Set(this.store.slideFrames().map((f) => f.id));
@@ -7114,6 +7768,14 @@ export class EditorComponent {
   private async pasteClipboard(): Promise<void> {
     const clip = this.clipboard;
     if (!clip) {
+      return;
+    }
+    // A copied layout pastes as a duplicate right after it.
+    const layoutSrc = clip.frame?.slide?.layout && !clip.frame.slide.master
+      ? this.store.elements().find((e) => e.id === clip.frame!.id)
+      : null;
+    if (layoutSrc) {
+      await this.duplicateSlides([layoutSrc.id]);
       return;
     }
     this.pasteCount++;
@@ -7208,6 +7870,9 @@ export class EditorComponent {
 
   /** When our own double-click detector last fired (the native event that follows is ignored). */
   private lastOwnDblClick = -Infinity;
+  private replayingDblClick = false;
+  /** Canvas layers that handle double-clicks themselves via (dblclick) bindings. */
+  private static readonly SELF_DBLCLICK = 'app-table-node, app-canvas-sequence, app-sequence-diagram, app-canvas-connectors';
 
   protected onCanvasDblClick(event: MouseEvent): void {
     if (performance.now() - this.lastOwnDblClick < 600) {
@@ -7230,6 +7895,21 @@ export class EditorComponent {
       (target === canvas || !!target.closest('.world')) &&
       !target.closest('.text-editor, [contenteditable="true"], textarea, input');
     if (!onSurface || this.editingTextId()) {
+      return;
+    }
+    // Layers with their own (dblclick) handlers — ERD tables (rename table / edit
+    // column), sequence diagrams (title, participants, messages), connectors (reset
+    // route). The native dblclick can be swallowed when the first click re-renders
+    // the item, so replay it on the node under the pointer; it bubbles to whichever
+    // handler owns that spot. The native one that may follow is suppressed (see
+    // the capture listener in the constructor) so it doesn't run twice.
+    if (target.closest(EditorComponent.SELF_DBLCLICK)) {
+      this.replayingDblClick = true;
+      try {
+        target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX, clientY }));
+      } finally {
+        this.replayingDblClick = false;
+      }
       return;
     }
     const world = this.toWorld(clientX, clientY);
@@ -7356,14 +8036,13 @@ export class EditorComponent {
     const hide = this.focusHidden();
     const frames = this.store.slideFrames();
     const shown = frames.filter((f) => this.store.shownSlideIds().has(f.id));
-    const items = this.withFields(this.store.elements())
+    const items = this.store.elements()
       .filter((e) => locked.has(e.id) && !hide?.elementIds.has(e.id))
       .sort((a, b) => (masters.has(a.id) ? 0 : 1) - (masters.has(b.id) ? 0 : 1) || a.zIndex - b.zIndex)
       .reverse();
     for (const item of items) {
       if (!hitTestElement(item, world)) continue;
       const frame = shown.find((f) => masterOf(f, frames)?.id === item.slideId || layoutOf(f, frames)?.id === item.slideId);
-      // Hit-test what is drawn (fields filled in), but copy the stored item (fields kept).
       const raw = this.store.elements().find((e) => e.id === item.id);
       if (frame && raw) return { item: raw, frame };
     }
@@ -7447,6 +8126,8 @@ export class EditorComponent {
 
   protected onWheel(event: WheelEvent): void {
     event.preventDefault();
+    // Focus mode locks the view to the presentation (leave it to move around).
+    if (this.focusedDeck() && !event.ctrlKey) return;
     const rect = this.canvasRect();
     const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
     // Ctrl + scroll over a shown slide zooms that slide inside its block (the block keeps
@@ -7499,6 +8180,7 @@ export class EditorComponent {
 
   /** Animate back to the project's saved home view, or the default (origin, 100%). */
   protected resetView(): void {
+    if (this.focusedDeck()) return;
     const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
     this.animateViewport(home.x, home.y, home.zoom);
   }
@@ -7620,6 +8302,111 @@ export class EditorComponent {
 
   protected toggleGrid(): void {
     this.gridSnap.update((v) => !v);
+  }
+
+  /** Element types a "fill / stroke for all" applies to. */
+  private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond']);
+  private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'arrow', 'line', 'freedraw']);
+
+  /** Some selected elements take a fill or stroke. */
+  protected readonly selectionStylable = computed(() => {
+    const ids = new Set(this.store.selectedElementIds());
+    return this.store.elements().some((e) => ids.has(e.id) && EditorComponent.STROKABLE.has(e.type));
+  });
+
+  /** Fill / stroke every selected shape (one undo step). */
+  protected styleSelection(kind: 'fill' | 'stroke', color: string): void {
+    if (!this.store.canEdit()) return;
+    const ids = new Set(this.store.selectedElementIds());
+    const allowed = kind === 'fill' ? EditorComponent.FILLABLE : EditorComponent.STROKABLE;
+    const targets = this.store.elements().filter((e) => ids.has(e.id) && allowed.has(e.type));
+    if (!targets.length) return;
+    void this.store.batchHistory(async () => {
+      for (const e of targets) {
+        if (kind === 'fill') {
+          await this.store.updateElement(
+            e.id,
+            color === 'transparent' ? { fillStyle: 'none' } : { backgroundColor: color, fillStyle: 'solid' },
+          );
+        } else {
+          await this.store.updateElement(e.id, { strokeColor: color });
+        }
+      }
+    });
+  }
+
+  /** Animate the view so a world box fills the canvas (with a margin), capped at 200%. */
+  private zoomToBox(b: Box | null): void {
+    if (this.focusedDeck()) return;
+    if (!b || !Number.isFinite(b.x0)) return;
+    const rect = this.canvasRect();
+    const margin = 80;
+    const w = Math.max(b.x1 - b.x0, 1);
+    const h = Math.max(b.y1 - b.y0, 1);
+    const zoom = Math.max(0.05, Math.min((rect.width - margin * 2) / w, (rect.height - margin * 2) / h, 2));
+    this.animateViewport(
+      rect.width / 2 - ((b.x0 + b.x1) / 2) * zoom,
+      rect.height / 2 - ((b.y0 + b.y1) / 2) * zoom,
+      zoom,
+    );
+  }
+
+  /** Zoom so everything on the canvas is in view (Shift+1). */
+  protected zoomToFit(): void {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const it of this.minimapItems()) {
+      x0 = Math.min(x0, it.x0); y0 = Math.min(y0, it.y0);
+      x1 = Math.max(x1, it.x1); y1 = Math.max(y1, it.y1);
+    }
+    this.zoomToBox(Number.isFinite(x0) ? { x0, y0, x1, y1 } : null);
+  }
+
+  /** Center all content without animating, at most 100%, leaving room for the left tool dock. */
+  private fitContent(): void {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const it of this.minimapItems()) {
+      x0 = Math.min(x0, it.x0); y0 = Math.min(y0, it.y0);
+      x1 = Math.max(x1, it.x1); y1 = Math.max(y1, it.y1);
+    }
+    if (!Number.isFinite(x0)) return;
+    // Decks draw their slide list and settings panels beside the slide: leave room for them.
+    if (this.store.elements().some((e) => e.type === 'frame' && e.slide)) {
+      x0 -= 300;
+      x1 += 300;
+    }
+    const rect = this.canvasRect();
+    const dock = 72;
+    const margin = 48;
+    const availW = rect.width - dock - margin * 2;
+    const availH = rect.height - margin * 2 - 56; // bottom view bar
+    const zoom = Math.max(0.1, Math.min(availW / Math.max(x1 - x0, 1), availH / Math.max(y1 - y0, 1), 1));
+    this.animateViewport(
+      dock + margin + availW / 2 - ((x0 + x1) / 2) * zoom,
+      margin + availH / 2 - ((y0 + y1) / 2) * zoom,
+      zoom,
+    );
+  }
+
+  /** Zoom so the selection fills the view (Shift+2). */
+  protected zoomToSelection(): void {
+    const selected = new Set([
+      ...this.store.selectedTableIds(),
+      ...this.store.selectedElementIds(),
+      ...this.store.selectedDiagramIds(),
+    ]);
+    if (!selected.size) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const grow = (b: Box): void => {
+      x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0);
+      x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1);
+    };
+    for (const t of this.store.tables()) if (selected.has(t.id)) grow(tableBox(t));
+    for (const e of this.store.elements()) if (selected.has(e.id)) grow(this.drawnBox(e.id, elementBox(e)));
+    for (const d of this.store.sequenceDiagrams()) {
+      const b = selected.has(d.id) ? this.diagramBox(d) : null;
+      if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
+    }
+    this.zoomToBox(Number.isFinite(x0) ? { x0, y0, x1, y1 } : null);
   }
 
   /** Smart-guide hooks handed to sequence diagrams, which run their own drags. */
@@ -8181,6 +8968,7 @@ export class EditorComponent {
   }
 
   private applyZoom(factor: number, centerX: number, centerY: number): void {
+    if (this.focusedDeck()) return;
     const v = this.store.viewport();
     const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor));
     const worldX = (centerX - v.x) / v.zoom;
@@ -8400,6 +9188,20 @@ export class EditorComponent {
         const last = sorted[sorted.length - 1].y;
         const step = (last - first) / (sorted.length - 1);
         sorted.forEach((i, n) => i.place(i.x, first + step * n));
+        break;
+      }      case 'gaps-h':
+      case 'gaps-v': {
+        // Tidy: same 40px gap between neighbours, starting from the first one.
+        if (items.length < 2) break;
+        const gap = 40;
+        const horizontal = action === 'gaps-h';
+        const sorted = [...items].sort((p, q) => (horizontal ? p.x - q.x : p.y - q.y));
+        let at = horizontal ? sorted[0].x : sorted[0].y;
+        for (const i of sorted) {
+          if (horizontal) i.place(at, i.y);
+          else i.place(i.x, at);
+          at += (horizontal ? i.w : i.h) + gap;
+        }
         break;
       }
     }

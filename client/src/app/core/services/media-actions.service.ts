@@ -130,5 +130,8 @@ export function cleanMedia(media: MediaConfig): MediaConfig | null {
   if (media.playback) out.playback = media.playback;
   if (media.loop !== undefined) out.loop = media.loop;
   if (media.muted !== undefined) out.muted = media.muted;
+  if (media.start !== undefined && media.start > 0) out.start = media.start;
+  if (media.end !== undefined && media.end > 0) out.end = media.end;
+  if (media.alt) out.alt = media.alt;
   return Object.keys(out).length ? out : null;
 }

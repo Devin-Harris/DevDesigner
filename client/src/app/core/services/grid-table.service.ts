@@ -20,6 +20,7 @@ import {
   parseGrid,
   serializeGrid,
 } from '../../features/editor/canvas/helpers/grid-table.helper';
+import type { GridBorders } from '@dbdesigner/shared';
 import { gridRowNeeds } from '../../features/editor/canvas/helpers/shape-render.helper';
 
 export interface GridCellRef {
@@ -235,6 +236,18 @@ export class GridTableService {
         if (!el) continue;
         const g = parseGrid(el.text);
         await this.store.updateElement(id, { text: serializeGrid({ ...g, header: !g.header }) });
+      }
+    });
+  }
+
+  /** Choose which borders the selected grids draw (one undo step). */
+  async setBorders(ids: string[], borders: GridBorders): Promise<void> {
+    await this.store.batchHistory(async () => {
+      for (const id of ids) {
+        const el = this.grid(id);
+        if (!el) continue;
+        const g = parseGrid(el.text);
+        await this.store.updateElement(id, { text: serializeGrid({ ...g, borders }) });
       }
     });
   }

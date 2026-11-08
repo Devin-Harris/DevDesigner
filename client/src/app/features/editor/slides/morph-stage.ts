@@ -762,6 +762,9 @@ export class MorphStage {
   private readonly liveRels: RelationshipModel[] = [];
   private readonly outgoing: SVGGElement[] = [];
   private readonly incoming: SVGGElement[] = [];
+  /** Unpaired objects set to "no transition": they switch instantly instead of fading. */
+  private readonly cutOut = new Set<SVGGElement>();
+  private readonly cutIn = new Set<SVGGElement>();
   private readonly restA = document.createElementNS(SVG_NS, 'g');
   private readonly restB = document.createElementNS(SVG_NS, 'g');
   private readonly live = document.createElementNS(SVG_NS, 'g');
@@ -995,6 +998,10 @@ export class MorphStage {
         g.appendChild(document.importNode(side.items.get(item.id)!, true));
         svg.appendChild(g);
         into.push(g);
+        // The earlier slide's "out" tag (its "in" tag when playing backwards) says cut.
+        const early = into === this.outgoing ? !this.reversed : this.reversed;
+        const key = early ? item.element?.morphOut : item.element?.morphIn;
+        if (key && key.startsWith('tag:cut-')) (into === this.outgoing ? this.cutOut : this.cutIn).add(g);
       }
     };
     onlyHere(a, fromItems, matchedA, this.outgoing);
@@ -1602,10 +1609,10 @@ export class MorphStage {
     this.restA.setAttribute('opacity', String(fadeOut(t)));
     this.restB.setAttribute('opacity', String(fadeIn(t)));
     for (const g of this.outgoing) {
-      g.setAttribute('opacity', String(1 - t));
+      g.setAttribute('opacity', String(this.cutOut.has(g) ? (t > 0 ? 0 : 1) : 1 - t));
     }
     for (const g of this.incoming) {
-      g.setAttribute('opacity', String(t));
+      g.setAttribute('opacity', String(this.cutIn.has(g) ? (t > 0 ? 1 : 0) : t));
     }
 
     // Matched objects are re-rendered at their in-between state, in slide-local space.

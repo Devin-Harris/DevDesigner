@@ -18,6 +18,15 @@ export const routes: Routes = [
       import('./features/workspace/workspace.component').then((m) => m.WorkspaceComponent),
   },
   {
+    path: 'guide',
+    redirectTo: 'guide/select',
+    pathMatch: 'full',
+  },
+  {
+    path: 'guide/:tool',
+    loadComponent: () => import('./features/guide/guide.component').then((m) => m.GuideComponent),
+  },
+  {
     path: 'shared/:token',
     loadComponent: () => import('./features/share/share.component').then((m) => m.ShareComponent),
   },

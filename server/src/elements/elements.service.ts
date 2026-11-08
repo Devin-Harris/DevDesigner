@@ -89,6 +89,8 @@ export class ElementsService {
       zIndex: dto.zIndex ?? (await this.nextZIndex(projectId)),
       cornerRadius: dto.cornerRadius ?? null,
       ellipticCorners: dto.ellipticCorners ?? null,
+      elbow: dto.elbow ?? null,
+      clipContent: dto.clipContent ?? null,
       pointsJson: dto.points ? JSON.stringify(dto.points) : null,
       text: dto.text ?? null,
       fontSize: dto.fontSize ?? null,
@@ -119,6 +121,8 @@ export class ElementsService {
       expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
       slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
       morphId: dto.morphId ?? null,
+      morphIn: dto.morphIn ?? null,
+      morphOut: dto.morphOut ?? null,
       placeholderJson: dto.placeholder ? JSON.stringify(dto.placeholder) : null,
       overrides: dto.overrides ?? null,
       step: dto.step ?? null,
@@ -245,6 +249,8 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     'zIndex',
     'cornerRadius',
     'ellipticCorners',
+    'elbow',
+    'clipContent',
     'fontSize',
     'fontFamily',
     'bold',
@@ -310,6 +316,12 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.overrides !== undefined) {
     element.overrides = dto.overrides;
+  }
+  if (dto.morphIn !== undefined) {
+    element.morphIn = dto.morphIn;
+  }
+  if (dto.morphOut !== undefined) {
+    element.morphOut = dto.morphOut;
   }
   if (dto.morphId !== undefined) {
     element.morphId = dto.morphId;

@@ -103,6 +103,14 @@ export class CreateElementDto implements ICreateElementDto {
   ellipticCorners?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  elbow?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  clipContent?: boolean;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PointDto)
@@ -245,6 +253,16 @@ export class CreateElementDto implements ICreateElementDto {
   @IsString()
   @MaxLength(100)
   morphId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphIn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  morphOut?: string;
 
   @IsOptional()
   @IsInt()

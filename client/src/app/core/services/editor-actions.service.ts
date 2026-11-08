@@ -12,6 +12,36 @@ export interface EditorActionHandlers {
   exportSelectionFile: () => void;
   importFile: (file: unknown) => Promise<number>;
   deleteSelection: () => void;
+  focusDeck: (name: string) => void;
+  enterDeckFocus: (name: string) => void;
+  exitDeckFocus: () => void;
+  jumpToParticipant: (participantId: string) => void;
+  followParticipant: (participantId: string | null) => void;
+  addFrameToPresentation: (frameId: string, deck: string | null) => void;
+  exportFrame: (frameId: string, format: 'png' | 'svg' | 'pdf') => void;
+  presentDeck: (name: string) => void;
+  followPresenter: (participantId: string) => void;
+  newDeck: () => void;
+  setTool: (tool: string) => void;
+  resetView: () => void;
+  setHome: () => void;
+  canvasItems: () => CanvasItemRef[];
+  jumpTo: (item: CanvasItemRef) => void;
+}
+
+/** Something on the canvas the command palette can jump to. */
+export interface CanvasItemRef {
+  kind: 'table' | 'code' | 'text' | 'frame' | 'sequence';
+  id: string;
+  label: string;
+}
+
+/** One presentation in the project, for the top-right Presentations menu. */
+export interface DeckSummary {
+  name: string;
+  slides: number;
+  /** Someone else presenting this deck right now (offer Follow). */
+  presenter: { id: string; name: string; color: string } | null;
 }
 
 /**
@@ -35,6 +65,12 @@ export class EditorActionsService {
   readonly presentationName = signal<string | null>(null);
   /** True when the project has frames that are not slides. */
   readonly hasPlainFrames = signal(false);
+  /** Every presentation in the open project. */
+  readonly decks = signal<DeckSummary[]>([]);
+  /** The presentation open in focus mode (app chrome steps aside for the deck bars), or null. */
+  readonly focusedDeck = signal<string | null>(null);
+  /** The collaborator whose cursor the canvas is following, or null. */
+  readonly following = signal<string | null>(null);
   private handlers: EditorActionHandlers | null = null;
 
   register(handlers: EditorActionHandlers): void {
@@ -44,6 +80,8 @@ export class EditorActionsService {
 
   clear(): void {
     this.handlers = null;
+    this.decks.set([]);
+    this.focusedDeck.set(null);
     this.active.set(false);
   }
 
@@ -71,5 +109,50 @@ export class EditorActionsService {
   }
   exportSlidesPdf(): void {
     this.handlers?.exportSlidesPdf();
+  }
+  focusDeck(name: string): void {
+    this.handlers?.focusDeck(name);
+  }
+  enterDeckFocus(name: string): void {
+    this.handlers?.enterDeckFocus(name);
+  }
+  exitDeckFocus(): void {
+    this.handlers?.exitDeckFocus();
+  }
+  addFrameToPresentation(frameId: string, deck: string | null): void {
+    this.handlers?.addFrameToPresentation(frameId, deck);
+  }
+  exportFrame(frameId: string, format: 'png' | 'svg' | 'pdf'): void {
+    this.handlers?.exportFrame(frameId, format);
+  }
+  jumpToParticipant(participantId: string): void {
+    this.handlers?.jumpToParticipant(participantId);
+  }
+  followParticipant(participantId: string | null): void {
+    this.handlers?.followParticipant(participantId);
+  }
+  presentDeck(name: string): void {
+    this.handlers?.presentDeck(name);
+  }
+  followPresenter(participantId: string): void {
+    this.handlers?.followPresenter(participantId);
+  }
+  newDeck(): void {
+    this.handlers?.newDeck();
+  }
+  setTool(tool: string): void {
+    this.handlers?.setTool(tool);
+  }
+  resetView(): void {
+    this.handlers?.resetView();
+  }
+  setHome(): void {
+    this.handlers?.setHome();
+  }
+  canvasItems(): CanvasItemRef[] {
+    return this.handlers?.canvasItems() ?? [];
+  }
+  jumpTo(item: CanvasItemRef): void {
+    this.handlers?.jumpTo(item);
   }
 }

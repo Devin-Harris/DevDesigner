@@ -97,6 +97,8 @@ export interface GridTableView {
   header: { x: number; y: number; width: number; height: number; fill: string } | null;
   /** Inner cell borders (world coords). */
   lines: { x1: number; y1: number; x2: number; y2: number }[];
+  /** Draw the outer border (off for the "inner" and "none" border modes). */
+  outline: boolean;
   cells: TextBlockView[];
   /** Per-cell background fills (cells with a fill override). */
   fills: { x: number; y: number; width: number; height: number; fill: string }[];
@@ -114,6 +116,8 @@ export interface GridTableView {
  * component stays purely presentational.
  */
 export interface ShapeView {
+  /** Set when a clip-content frame holds this shape: the frame's box (world coords). */
+  frameClip?: { x: number; y: number; width: number; height: number };
   id: string;
   type: ElementType;
   selected: boolean;
@@ -179,6 +183,11 @@ export interface ImageView {
   playback?: MediaPlayback;
   loop: boolean;
   muted: boolean;
+  /** Videos: trim (seconds); absent = the whole video. */
+  start?: number;
+  end?: number;
+  /** Description for screen readers. */
+  alt?: string;
 }
 
 export interface ImageClipView {

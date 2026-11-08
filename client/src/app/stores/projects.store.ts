@@ -15,6 +15,9 @@ import type {
 } from '@dbdesigner/shared';
 import { ProjectsService } from '../core/services/projects.service';
 
+/** `description` the guide's sandbox projects carry (see features/guide). */
+export const GUIDE_SANDBOX_MARK = 'dbd-guide-sandbox';
+
 /**
  * Workspace state: the project list plus the current selection, search term, and archived
  * filter. Mutations go through the granular ProjectsService and update local
@@ -73,7 +76,13 @@ export const ProjectsStore = signalStore(
         tap(() => patchState(store, { loading: true, error: null })),
         switchMap(() =>
           service.list(store.showArchived()).pipe(
-            tap((projects) => patchState(store, { projects, loading: false })),
+            tap((projects) =>
+              patchState(store, {
+                // Guide sandboxes are private scratch copies; keep them out of the list.
+                projects: projects.filter((p) => p.description !== GUIDE_SANDBOX_MARK),
+                loading: false,
+              }),
+            ),
             catchError((err) => {
               patchState(store, { loading: false, error: errorMessage(err) });
               return of([] as ProjectSummary[]);

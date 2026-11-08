@@ -1,5 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from '@angular/core';
+import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
+import { AutofocusDirective } from './features/editor/autofocus.directive';
+import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
+import { ToolbarPrefsService } from './features/editor/shape-toolbar/toolbar-prefs.service';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -34,7 +40,7 @@ import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, PopoverTriggerDirective],
+  imports: [CommandPaletteComponent, ShortcutsSheetComponent, AutofocusDirective, RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, PopoverTriggerDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -45,18 +51,120 @@ export class AppComponent {
   protected readonly projects = inject(ProjectsStore);
   protected readonly editorStore = inject(ProjectStore);
   protected readonly editorActions = inject(EditorActionsService);
+  private readonly router = inject(Router);
+  /** The canvas guide embeds sandbox editors in its own layout: no floating islands there. */
+  protected readonly onGuide = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects.startsWith('/guide')),
+    ),
+    { initialValue: this.router.url.startsWith('/guide') },
+  );
   protected readonly realtime = inject(RealtimeService);
   private readonly overlay = inject(ProjectsOverlayService);
   private readonly projectFile = inject(ProjectFileService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly projectsApi = inject(ProjectsService);
 
+  protected readonly toolbarPrefs = inject(ToolbarPrefsService);
+
+  /** Ctrl/Cmd+K command palette. */
+  protected readonly paletteOpen = signal(false);
+  /** Keyboard shortcuts sheet (?). */
+  protected readonly shortcutsOpen = signal(false);
+  /** The project name in the top-left island is being edited. */
+  protected readonly renaming = signal(false);
+
   constructor() {
     void this.auth.loadMe();
   }
 
+  @HostListener('window:keydown', ['$event'])
+  protected onKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+      // Presenting owns the keyboard.
+      if (document.querySelector('app-present-mode')) return;
+      event.preventDefault();
+      this.paletteOpen.update((v) => !v);
+      return;
+    }
+    if (event.key === '?' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const t = event.target as HTMLElement | null;
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (typing || document.querySelector('app-present-mode')) return;
+      event.preventDefault();
+      this.shortcutsOpen.update((v) => !v);
+    }
+  }
+
+  // ---- this project (main menu) ----
+  private nameClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Single click opens the project switcher, but waits briefly so a double-click can rename instead. */
+  protected onNameClick(event: MouseEvent): void {
+    if (event.detail > 1) return;
+    if (this.nameClickTimer) clearTimeout(this.nameClickTimer);
+    this.nameClickTimer = setTimeout(() => {
+      this.nameClickTimer = null;
+      this.openProjects();
+    }, 250);
+  }
+
+  protected onNameDblClick(): void {
+    if (this.nameClickTimer) {
+      clearTimeout(this.nameClickTimer);
+      this.nameClickTimer = null;
+    }
+    if (this.editorStore.accessMode() === 'OWNER') this.startRename();
+  }
+
+  protected startRename(): void {
+    this.renaming.set(true);
+  }
+  protected async commitRename(value: string): Promise<void> {
+    if (!this.renaming()) return;
+    this.renaming.set(false);
+    const project = this.projects.selected();
+    const name = value.trim();
+    if (!project || !name || name === project.name) return;
+    try {
+      await this.projects.rename(project.id, { name });
+    } catch (err) {
+      console.error('Could not rename project', err);
+      this.snackBar.open('Could not rename project', 'Dismiss', { duration: 5000 });
+    }
+  }
+  protected async duplicateProject(): Promise<void> {
+    const project = this.projects.selected();
+    if (!project) return;
+    try {
+      await this.projects.duplicate(project.id);
+      this.snackBar.open(`Duplicated “${project.name}” (find it in All projects)`, undefined, { duration: 3000 });
+    } catch (err) {
+      console.error('Could not duplicate project', err);
+      this.snackBar.open('Could not duplicate project', 'Dismiss', { duration: 5000 });
+    }
+  }
+  protected async archiveProject(): Promise<void> {
+    const project = this.projects.selected();
+    if (!project) return;
+    const archived = !project.archived;
+    try {
+      await this.projects.setArchived(project.id, archived);
+      this.snackBar.open(archived ? `Archived “${project.name}”` : `Unarchived “${project.name}”`, undefined, { duration: 3000 });
+    } catch (err) {
+      console.error('Could not archive project', err);
+      this.snackBar.open('Could not change archive state', 'Dismiss', { duration: 5000 });
+    }
+  }
+
   protected openProjects(): void {
     this.overlay.open();
+  }
+
+  /** Leave the editor for the landing page. */
+  protected goHome(): void {
+    this.projects.select(null);
   }
 
   // ---- editor actions bridged to the top bar ----

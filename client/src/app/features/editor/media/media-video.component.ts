@@ -33,7 +33,8 @@ import type { ImageView } from '../canvas/models/shape-view.model';
       #video
       [src]="src()"
       [poster]="poster() ?? ''"
-      [loop]="view().loop"
+      [loop]="view().loop && !hasTrim()"
+      [attr.aria-label]="view().alt || null"
       [muted]="muted()"
       [style.left.%]="frame().left"
       [style.top.%]="frame().top"
@@ -44,8 +45,8 @@ import type { ImageView } from '../canvas/models/shape-view.model';
       (play)="playing.set(true)"
       (pause)="playing.set(false)"
       (ended)="playing.set(false)"
-      (timeupdate)="time.set($any($event.target).currentTime)"
-      (loadedmetadata)="duration.set($any($event.target).duration || 0)"
+      (timeupdate)="onTime($any($event.target))"
+      (loadedmetadata)="onMeta($any($event.target))"
       (volumechange)="muted.set($any($event.target).muted)"
     ></video>
     <div
@@ -200,8 +201,35 @@ export class MediaVideoComponent {
     });
   }
 
+  /** A start or end trim is set (looping is then done by hand, within the trim). */
+  protected readonly hasTrim = computed(() => this.view().start != null || this.view().end != null);
+
+  protected onMeta(el: HTMLVideoElement): void {
+    this.duration.set(el.duration || 0);
+    const start = this.view().start;
+    if (start != null && start > 0 && start < (el.duration || Infinity)) el.currentTime = start;
+  }
+
+  /** Keep playback inside the trim: at the end, loop back to the start or stop. */
+  protected onTime(el: HTMLVideoElement): void {
+    this.time.set(el.currentTime);
+    const { start, end, loop } = this.view();
+    const stop = end != null && end > (start ?? 0) ? end : null;
+    if ((stop != null && el.currentTime >= stop) || (el.ended && this.hasTrim())) {
+      if (loop) {
+        el.currentTime = start ?? 0;
+        if (el.paused) void el.play().catch(() => undefined);
+      } else {
+        el.pause();
+        el.currentTime = stop ?? el.currentTime;
+      }
+    }
+  }
+
   protected toggle(): void {
     const el = this.video().nativeElement;
+    const { start, end } = this.view();
+    if (el.paused && end != null && el.currentTime >= end - 0.05) el.currentTime = start ?? 0;
     if (el.paused) {
       void el.play().catch(() => undefined);
     } else {

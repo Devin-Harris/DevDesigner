@@ -1,43 +1,55 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
 const STORAGE_KEY = 'dbd-theme';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 /**
- * Light/dark theme state. Toggling flips a `dark` class on the document root
- * (which swaps the Material color theme and our --dbd tokens) and remembers the
- * choice in localStorage.
+ * Light/dark theme state. The chosen mode (light, dark, or following the system)
+ * flips a `dark` class on the document root (which swaps the Material color theme
+ * and our --dbd tokens) and is remembered in localStorage.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly doc = inject(DOCUMENT);
-  readonly dark = signal<boolean>(this.readInitial());
+  private readonly media = this.doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
+  private readonly systemDark = signal<boolean>(this.media?.matches ?? false);
+
+  readonly mode = signal<ThemeMode>(this.readInitial());
+  readonly dark = computed(() => (this.mode() === 'system' ? this.systemDark() : this.mode() === 'dark'));
 
   constructor() {
+    this.media?.addEventListener?.('change', (e) => this.systemDark.set(e.matches));
     effect(() => {
+      const mode = this.mode();
       const isDark = this.dark();
       this.doc.documentElement.classList.toggle('dark', isDark);
       try {
-        this.doc.defaultView?.localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light');
+        this.doc.defaultView?.localStorage.setItem(STORAGE_KEY, mode);
       } catch {
         // ignore storage errors (private mode, etc.)
       }
     });
   }
 
-  toggle(): void {
-    this.dark.update((v) => !v);
+  setMode(mode: ThemeMode): void {
+    this.mode.set(mode);
   }
 
-  private readInitial(): boolean {
+  toggle(): void {
+    this.mode.set(this.dark() ? 'light' : 'dark');
+  }
+
+  private readInitial(): ThemeMode {
     try {
       const saved = this.doc.defaultView?.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return saved === 'dark';
+      if (saved === 'light' || saved === 'dark' || saved === 'system') {
+        return saved;
       }
     } catch {
       // ignore
     }
-    return this.doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return 'system';
   }
 }

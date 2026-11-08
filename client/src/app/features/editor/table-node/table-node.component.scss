@@ -357,19 +357,15 @@
 // (display: none); the name ellipsizes to make room when it appears.
 // Collapsed to zero width (and the flex gap cancelled by a negative margin) and
 // animated open, so the name's width eases instead of jumping on hover.
+// The per-row delete always keeps its space (so the row never reflows under the
+// pointer, e.g. when a type menu opens and hover ends); it is just dimmed at rest.
 .row .icon-btn.tiny {
   flex: 0 0 auto;
   box-sizing: content-box;
-  width: 0;
-  padding: 2px 0;
-  margin-left: calc(-1 * var(--dbd-space-1));
-  overflow: hidden;
-  opacity: 0;
-  transition:
-    width 0.15s ease,
-    padding 0.15s ease,
-    margin 0.15s ease,
-    opacity 0.15s ease;
+  width: 15px;
+  padding: 2px;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
 }
 
 .chips {
@@ -378,9 +374,6 @@
 
 :host(:hover) .row .icon-btn.tiny,
 :host(.selected) .row .icon-btn.tiny {
-  width: 15px;
-  padding: 2px;
-  margin-left: 0;
   opacity: 1;
 }
 
@@ -486,16 +479,14 @@
     color: var(--dbd-text-muted);
   }
 
-  // Collapsed at rest so there is no dead space after the type; eases open on hover.
+  // Always takes its width (no reflow when hover ends); only fades in on hover.
   .chev {
     --dbd-icon-size: 16px;
     display: inline-block;
-    width: 0;
+    width: 16px;
     overflow: hidden;
     opacity: 0;
-    transition:
-      width 0.15s ease,
-      opacity 0.15s ease;
+    transition: opacity 0.15s ease;
   }
 }
 
@@ -509,7 +500,6 @@
   }
 
   .chev {
-    width: 16px;
     opacity: 0.6;
   }
 }

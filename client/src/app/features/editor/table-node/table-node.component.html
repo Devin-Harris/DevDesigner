@@ -104,8 +104,10 @@
           appAutofocus
           [value]="column.name"
           (pointerdown)="$event.stopPropagation()"
-          (keydown.enter)="commitColumn(column, $event)"
+          (keydown)="onColumnKey(column, $event)"
           (keydown.escape)="cancelInline()"
+          placeholder="name type"
+          title="Type “name type” (e.g. price numeric). Tab: next row · Enter on the last row: new column"
           (blur)="commitColumn(column, $event)"
           maxlength="120"
         />
@@ -113,7 +115,7 @@
         <span
           class="col-name"
           (dblclick)="startEditColumn($event, column)"
-          title="Double-click to rename"
+          title="Double-click to edit (name type)"
         >
           {{ column.name }}
         </span>

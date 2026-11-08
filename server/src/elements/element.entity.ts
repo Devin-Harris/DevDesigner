@@ -80,6 +80,14 @@ export class ElementEntity {
   @Column({ type: 'boolean', nullable: true })
   ellipticCorners!: boolean | null;
 
+  // Line/arrow drawn with right-angle bends.
+  @Column({ type: 'boolean', nullable: true })
+  elbow!: boolean | null;
+
+  // Plain frame clips the shapes inside it to its edges.
+  @Column({ type: 'boolean', nullable: true })
+  clipContent!: boolean | null;
+
   // JSON-encoded PointModel[] for line/arrow/freedraw vertices, relative to x/y.
   @Column({ type: 'text', nullable: true })
   pointsJson!: string | null;
@@ -198,6 +206,13 @@ export class ElementEntity {
   /** Morph lineage shared with the element this was copied from; null = its own id. */
   @Column({ type: 'varchar', nullable: true })
   morphId!: string | null;
+
+  /** Split morph tags: key against the previous slide (in) / the next slide (out). */
+  @Column({ type: 'varchar', nullable: true })
+  morphIn!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  morphOut!: string | null;
 
   /** Build step the element is revealed on while presenting; null = always visible. */
   @Column({ type: 'integer', nullable: true })

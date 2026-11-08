@@ -1,0 +1,127 @@
+<div class="home">
+  <header class="wrap top">
+    <span class="logo">
+      <span class="brand-tile"><dbd-icon name="code" /></span>
+      <span class="disp">DevDesigner</span>
+    </span>
+    <nav aria-label="Main">
+      <a routerLink="/guide">Canvas guide</a>
+      <a href="#features">Features</a>
+      <a href="#ai">AI &amp; MCP</a>
+    </nav>
+    <div class="top-actions">
+      <button
+        class="icon-btn"
+        (click)="theme.toggle()"
+        [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+        [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+      >
+        <dbd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+      </button>
+      @if (auth.currentUser(); as user) {
+        <button class="link-btn" [dbdPopoverTrigger]="accountMenu" placement="below-end">
+          {{ user.email ?? 'Account' }}
+        </button>
+        <ng-template #accountMenu let-close>
+          <div class="dbd-menu">
+            <button class="dbd-menu-item" (click)="openApiTokens(); close()"><dbd-icon name="key" />API tokens</button>
+            <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
+          </div>
+        </ng-template>
+      } @else {
+        <button class="link-btn" (click)="openAuth()">Sign in</button>
+      }
+      <button class="btn primary" (click)="openProjects()">Open my projects</button>
+    </div>
+  </header>
+
+  <section class="wrap hero">
+    <span class="lab">Whiteboard · Diagrams · Code · Slides</span>
+    <h1 class="disp">One canvas for explaining how your software works.</h1>
+    <p class="lede">
+      Sketch architecture, map a request with a sequence diagram, drop in the code that
+      matters, model the data — then turn any part of the board into a slide deck and
+      present it live with your team.
+    </p>
+    <div class="ctas">
+      <button class="btn primary lg" (click)="newCanvas()"><dbd-icon name="add" />Start a blank canvas</button>
+      <button class="btn lg" (click)="openProjects()"><dbd-icon name="template" />Browse projects &amp; templates</button>
+      <a class="btn lg" routerLink="/guide"><dbd-icon name="play_circle" />Learn the tools</a>
+    </div>
+    <p class="fine">Works in the browser · bring SQL, images, video or a project file</p>
+  </section>
+
+  @if (recent().length) {
+    <section class="wrap recent">
+      <div class="sec-head">
+        <h2 class="disp">Jump back in</h2>
+        <button class="link-btn" (click)="openProjects()">All projects →</button>
+      </div>
+      <div class="recent-grid">
+        @for (p of recent(); track p.id) {
+          <button class="recent-card" (click)="open(p.id)">
+            <span class="rc-name">{{ p.name }}</span>
+            @if (p.description) {
+              <span class="rc-desc">{{ p.description }}</span>
+            }
+            <span class="rc-date">Edited {{ p.updatedAt | date: 'mediumDate' }}</span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <section id="features" class="band">
+    <div class="wrap">
+      <div class="sec-intro">
+        <h2 class="disp">Every way developers explain things, side by side</h2>
+        <p>Mix them freely on one infinite board. The sketch, the code and the deck stay in sync.</p>
+        <a class="link-btn accent" routerLink="/guide">Try every tool in the canvas guide →</a>
+      </div>
+      <div class="feat-grid">
+        @for (f of features; track f.title) {
+          <div class="feat">
+            <span class="feat-icon" [attr.data-tone]="f.tone"><dbd-icon [name]="f.icon" /></span>
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.body }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap uses">
+    <h2 class="disp">Made for the moments you have to explain it</h2>
+    <div class="use-grid">
+      @for (u of uses; track u.title) {
+        <div class="use"><b>{{ u.title }}</b><p>{{ u.body }}</p></div>
+      }
+    </div>
+  </section>
+
+  <section id="ai" class="wrap ai">
+    <div>
+      <span class="lab">Built-in MCP server</span>
+      <h2 class="disp">Ask your AI assistant to draw it</h2>
+      <p>
+        Create an API token, connect any MCP client, and have it build diagrams, data
+        models, code walk-throughs or a whole deck. Every change lands live for everyone
+        in the project — and can be undone.
+      </p>
+      <button class="link-btn accent" (click)="openApiTokens()">Set up an API token →</button>
+    </div>
+    <div class="ai-chat mono">
+      <div class="muted">// you</div>
+      <div>Sketch our checkout flow as a sequence diagram,</div>
+      <div>then make a 3-slide deck explaining the queue.</div>
+      <div class="muted gap">// assistant</div>
+      <div><span class="ok">✓</span> create_sequence_diagram · 4 participants</div>
+      <div><span class="ok">✓</span> create_presentation · “Checkout v2 review”</div>
+    </div>
+  </section>
+
+  <footer class="wrap foot">
+    <span class="disp">DevDesigner</span>
+    <span class="muted">Light and dark themes · real-time collaboration</span>
+  </footer>
+</div>

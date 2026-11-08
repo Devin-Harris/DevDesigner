@@ -1,13 +1,13 @@
 <!-- Left vertical tool dock. Icons are thin-stroke inline SVG (design system
      signature) rather than Material glyphs. -->
-<div class="dock">
+<div class="dock" [class]="dockClass()">
   <button
     class="dock-btn"
     [class.on]="tool() === 'select'"
     [disabled]="disabled()"
     (click)="onChange('select')"
     matTooltip="Select (V)"
-    matTooltipPosition="right"
+    [matTooltipPosition]="tipPos()"
     aria-label="Select"
   >
     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -15,282 +15,324 @@
     </svg>
   </button>
 
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'hand'"
-    [disabled]="disabled()"
-    (click)="onChange('hand')"
-    matTooltip="Hand / pan (H)"
-    matTooltipPosition="right"
-    aria-label="Hand"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M8 11V5.5a1.5 1.5 0 013 0V11m0-.5V4.5a1.5 1.5 0 013 0V11m0-.5V6a1.5 1.5 0 013 0v7.5a6.5 6.5 0 01-6.5 6.5H13a6 6 0 01-4.7-2.3L5 14.5a1.6 1.6 0 012.5-2L8 13V5.5a1.5 1.5 0 013 0"
-      />
-    </svg>
-  </button>
-
   <div class="dock-sep"></div>
 
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'table'"
-    [disabled]="disabled()"
-    (click)="onChange('table')"
-    matTooltip="ERD table (E)"
-    matTooltipPosition="right"
-    aria-label="Table"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-      <path d="M3.5 9.5h17M9.5 9.5v10" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'sequence'"
-    [disabled]="disabled()"
-    (click)="onChange('sequence')"
-    matTooltip="Sequence (Q)"
-    matTooltipPosition="right"
-    aria-label="Sequence diagram"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="3.5" width="5.5" height="3.5" rx="1" />
-      <rect x="14.5" y="3.5" width="5.5" height="3.5" rx="1" />
-      <path d="M6.75 7v13.5M17.25 7v13.5M6.75 12h9M15.75 12l-2.5-2M15.75 12l-2.5 2" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'grid'"
-    [disabled]="disabled()"
-    (click)="onChange('grid')"
-    matTooltip="Table (G)"
-    matTooltipPosition="right"
-    aria-label="Table"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-      <path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M15 4.5v15" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn shape"
-    [class.on]="isShape()"
-    [disabled]="disabled()"
-    [dbdPopoverTrigger]="shapeMenu"
-    placement="right-start"
-    popoverTrigger="hover"
-    (click)="onChange(lastShape())"
-    matTooltip="Shape"
-    matTooltipPosition="right"
-    aria-label="Shape"
-  >
-    @switch (shapeIcon()) {
-      @case ('circle') {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="8" />
-        </svg>
-      }
-      @case ('diamond') {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3l9 9-9 9-9-9 9-9z" />
-        </svg>
-      }
-      @default {
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="4" y="5" width="16" height="14" rx="2.5" />
-        </svg>
-      }
-    }
-    <span class="caret"></span>
-  </button>
-  <ng-template #shapeMenu let-close>
-    <div class="shape-flyout">
-      <button
-        class="flyout-btn"
-        [class.on]="tool() === 'rectangle'"
-        (click)="pickRectangle(0); close()"
-        matTooltip="Rectangle (R)"
-        matTooltipPosition="above"
-      >
-        <svg class="ico" viewBox="0 0 24 24">
-          <rect x="4" y="5" width="16" height="14" rx="2.5" />
-        </svg>
-      </button>
-      <button
-        class="flyout-btn"
-        [class.on]="tool() === 'ellipse'"
-        (click)="onChange('ellipse'); close()"
-        matTooltip="Ellipse (O)"
-        matTooltipPosition="above"
-      >
-        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
-      </button>
-      <button
-        class="flyout-btn"
-        [class.on]="tool() === 'diamond'"
-        (click)="onChange('diamond'); close()"
-        matTooltip="Diamond (D)"
-        matTooltipPosition="above"
-      >
-        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
-      </button>
-    </div>
-  </ng-template>
-
-  <button
-    class="dock-btn shape"
-    [class.on]="tool() === 'frame'"
-    [disabled]="disabled()"
-    [dbdPopoverTrigger]="frameMenu"
-    placement="right-start"
-    (click)="onChange('frame')"
-    matTooltip="Frame (F) — a fixed-ratio page to export"
-    matTooltipPosition="right"
-    aria-label="Frame"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 3.5v17M17 3.5v17M3.5 7h17M3.5 17h17" />
-    </svg>
-    <span class="caret"></span>
-  </button>
-  <ng-template #frameMenu let-close>
-    <div class="dbd-menu">
-      @for (p of framePresets; track p.id) {
+  @for (id of dockTools(); track id) {
+    @switch (id) {
+      @case ('hand') {
         <button
-          class="dbd-menu-item"
-          [class.on]="framePreset() === p.id"
-          (click)="pickFrame(p.id); close()"
+          class="dock-btn"
+          [class.on]="tool() === 'hand'"
+          [disabled]="disabled()"
+          (click)="onChange('hand')"
+          matTooltip="Hand / pan (H)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Hand"
         >
-          {{ p.label }}
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M8 11V5.5a1.5 1.5 0 013 0V11m0-.5V4.5a1.5 1.5 0 013 0V11m0-.5V6a1.5 1.5 0 013 0v7.5a6.5 6.5 0 01-6.5 6.5H13a6 6 0 01-4.7-2.3L5 14.5a1.6 1.6 0 012.5-2L8 13V5.5a1.5 1.5 0 013 0"
+            />
+          </svg>
         </button>
       }
-    </div>
-  </ng-template>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'slide'"
-    [disabled]="disabled()"
-    (click)="onChange('slide')"
-    matTooltip="Presentation (S) — click to place a new presentation"
-    matTooltipPosition="right"
-    aria-label="Presentation"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="11" rx="2" />
-      <path d="M12 15.5v4M8 19.5h8M10.5 8l3.5 2-3.5 2z" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'arrow'"
-    [disabled]="disabled()"
-    (click)="onChange('arrow')"
-    matTooltip="Arrow (A)"
-    matTooltipPosition="right"
-    aria-label="Arrow"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 19L19 5M11 5h8v8" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'line'"
-    [disabled]="disabled()"
-    (click)="onChange('line')"
-    matTooltip="Line (L)"
-    matTooltipPosition="right"
-    aria-label="Line"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 19L19 5" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'freedraw'"
-    [disabled]="disabled()"
-    (click)="onChange('freedraw')"
-    matTooltip="Draw (P)"
-    matTooltipPosition="right"
-    aria-label="Draw"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M15.5 5.5l3 3M5 19l1-4L16 5l3 3L9 18l-4 1z" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'text'"
-    [disabled]="disabled()"
-    (click)="onChange('text')"
-    matTooltip="Text (T)"
-    matTooltipPosition="right"
-    aria-label="Text"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [class.on]="tool() === 'code'"
-    [disabled]="disabled()"
-    (click)="onChange('code')"
-    matTooltip="Code block (C)"
-    matTooltipPosition="right"
-    aria-label="Code block"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14" />
-    </svg>
-  </button>
-
-  <button
-    class="dock-btn"
-    [disabled]="disabled()"
-    (click)="addImage.emit()"
-    matTooltip="Image — or drop / paste one onto the canvas"
-    matTooltipPosition="right"
-    aria-label="Image"
-  >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="14" rx="2.5" />
-      <circle cx="9" cy="10" r="1.6" />
-      <path d="M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4.5" />
-    </svg>
-  </button>
+      @case ('table') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'table'"
+          [disabled]="disabled()"
+          (click)="onChange('table')"
+          matTooltip="ERD table (E)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Table"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+            <path d="M3.5 9.5h17M9.5 9.5v10" />
+          </svg>
+        </button>
+      }
+      @case ('sequence') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'sequence'"
+          [disabled]="disabled()"
+          (click)="onChange('sequence')"
+          matTooltip="Sequence (Q)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Sequence diagram"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="3.5" width="5.5" height="3.5" rx="1" />
+            <rect x="14.5" y="3.5" width="5.5" height="3.5" rx="1" />
+            <path d="M6.75 7v13.5M17.25 7v13.5M6.75 12h9M15.75 12l-2.5-2M15.75 12l-2.5 2" />
+          </svg>
+        </button>
+      }
+      @case ('grid') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'grid'"
+          [disabled]="disabled()"
+          (click)="onChange('grid')"
+          matTooltip="Table (G)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Table"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+            <path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M15 4.5v15" />
+          </svg>
+        </button>
+      }
+      @case ('shape') {
+        <button
+          class="dock-btn shape"
+          [class.on]="isShape()"
+          [disabled]="disabled()"
+          [dbdPopoverTrigger]="shapeMenu"
+          [placement]="morePlacement()"
+          popoverTrigger="hover"
+          (click)="onChange(lastShape())"
+          matTooltip="Shapes (R · O · D) · press again to cycle"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Shape"
+        >
+          @switch (shapeIcon()) {
+            @case ('circle') {
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            }
+            @case ('diamond') {
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3l9 9-9 9-9-9 9-9z" />
+              </svg>
+            }
+            @default {
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="14" rx="2.5" />
+              </svg>
+            }
+          }
+          <span class="caret"></span>
+        </button>
+        <ng-template #shapeMenu let-close>
+          <div class="shape-flyout">
+            <button
+              class="flyout-btn"
+              [class.on]="tool() === 'rectangle'"
+              (click)="pickRectangle(0); close()"
+              matTooltip="Rectangle (R)"
+              matTooltipPosition="above"
+            >
+              <svg class="ico" viewBox="0 0 24 24">
+                <rect x="4" y="5" width="16" height="14" rx="2.5" />
+              </svg>
+            </button>
+            <button
+              class="flyout-btn"
+              [class.on]="tool() === 'ellipse'"
+              (click)="onChange('ellipse'); close()"
+              matTooltip="Ellipse (O)"
+              matTooltipPosition="above"
+            >
+              <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
+            </button>
+            <button
+              class="flyout-btn"
+              [class.on]="tool() === 'diamond'"
+              (click)="onChange('diamond'); close()"
+              matTooltip="Diamond (D)"
+              matTooltipPosition="above"
+            >
+              <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
+            </button>
+          </div>
+        </ng-template>
+      }
+      @case ('frame') {
+        <button
+          class="dock-btn shape"
+          [class.on]="tool() === 'frame'"
+          [disabled]="disabled()"
+          [dbdPopoverTrigger]="frameMenu"
+          [placement]="morePlacement()"
+          (click)="onChange('frame')"
+          matTooltip="Frame (F) — a fixed-ratio page to export"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Frame"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 3.5v17M17 3.5v17M3.5 7h17M3.5 17h17" />
+          </svg>
+          <span class="caret"></span>
+        </button>
+        <ng-template #frameMenu let-close>
+          <div class="dbd-menu">
+            @for (p of framePresets; track p.id) {
+              <button
+                class="dbd-menu-item"
+                [class.on]="framePreset() === p.id"
+                (click)="pickFrame(p.id); close()"
+              >
+                {{ p.label }}
+              </button>
+            }
+          </div>
+        </ng-template>
+      }
+      @case ('slide') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'slide'"
+          [disabled]="disabled()"
+          (click)="onChange('slide')"
+          matTooltip="Presentation (S) — click to place a new presentation"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Presentation"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="11" rx="2" />
+            <path d="M12 15.5v4M8 19.5h8M10.5 8l3.5 2-3.5 2z" />
+          </svg>
+        </button>
+      }
+      @case ('connector') {
+        <button
+          class="dock-btn shape"
+          [class.on]="tool() === 'arrow' || tool() === 'line'"
+          [disabled]="disabled()"
+          [dbdPopoverTrigger]="connectorMenu"
+          [placement]="morePlacement()"
+          popoverTrigger="hover"
+          (click)="onChange(lastConnector())"
+          [matTooltip]="lastConnector() === 'line' ? 'Line (L) · press again for Arrow' : 'Arrow (A) · press again for Line'"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Arrow or line"
+        >
+          @if (lastConnector() === 'line') {
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5" /></svg>
+          } @else {
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5M11 5h8v8" /></svg>
+          }
+          <span class="caret"></span>
+        </button>
+        <ng-template #connectorMenu let-close>
+          <div class="shape-flyout">
+            <button class="flyout-btn" [class.on]="tool() === 'arrow'" (click)="onChange('arrow'); close()" matTooltip="Arrow (A)" matTooltipPosition="above">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5M11 5h8v8" /></svg>
+            </button>
+            <button class="flyout-btn" [class.on]="tool() === 'line'" (click)="onChange('line'); close()" matTooltip="Line (L)" matTooltipPosition="above">
+              <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5" /></svg>
+            </button>
+          </div>
+        </ng-template>
+      }
+      @case ('freedraw') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'freedraw'"
+          [disabled]="disabled()"
+          (click)="onChange('freedraw')"
+          matTooltip="Draw (P)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Draw"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15.5 5.5l3 3M5 19l1-4L16 5l3 3L9 18l-4 1z" />
+          </svg>
+        </button>
+      }
+      @case ('text') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'text'"
+          [disabled]="disabled()"
+          (click)="onChange('text')"
+          matTooltip="Text (T)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Text"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6" />
+          </svg>
+        </button>
+      }
+      @case ('code') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'code'"
+          [disabled]="disabled()"
+          (click)="onChange('code')"
+          matTooltip="Code block (C)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Code block"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14" />
+          </svg>
+        </button>
+      }
+      @case ('image') {
+        <button
+          class="dock-btn"
+          [disabled]="disabled()"
+          (click)="addImage.emit()"
+          matTooltip="Image — or drop / paste one onto the canvas"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Image"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="5" width="16" height="14" rx="2.5" />
+            <circle cx="9" cy="10" r="1.6" />
+            <path d="M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4.5" />
+          </svg>
+        </button>
+      }
+      @case ('laser') {
+        <button
+          class="dock-btn"
+          [class.on]="tool() === 'laser'"
+          (click)="onChange('laser')"
+          matTooltip="Laser pointer (K)"
+          [matTooltipPosition]="tipPos()"
+          aria-label="Laser pointer"
+        >
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" />
+          </svg>
+        </button>
+      }
+    }
+  }
 
   <div class="dock-sep"></div>
-
-  <!-- Presenting tool: stays enabled for view-only guests, never edits the project. -->
   <button
-    class="dock-btn"
-    [class.on]="tool() === 'laser'"
-    (click)="onChange('laser')"
-    matTooltip="Laser pointer (K)"
-    matTooltipPosition="right"
-    aria-label="Laser pointer"
+    class="dock-btn customize"
+    [dbdPopoverTrigger]="moreMenu"
+    [placement]="morePlacement()"
+    matTooltip="More tools and customize"
+    [matTooltipPosition]="tipPos()"
+    aria-label="More"
   >
-    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="2.5" />
-      <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" />
-    </svg>
+    <dbd-icon name="more_horiz" />
   </button>
-
+  <ng-template #moreMenu let-close>
+    <div class="dbd-menu">
+      @if (prefs.hiddenTools().length) {
+        <div class="more-label">More tools</div>
+        @for (t of prefs.hiddenTools(); track t.id) {
+          <button class="dbd-menu-item" [disabled]="disabled()" (click)="useHidden(t.id); close()">
+            {{ t.label }}@if (t.key) {<span class="kbd">{{ t.key }}</span>}
+          </button>
+        }
+        <div class="dbd-menu-sep"></div>
+      }
+      <button class="dbd-menu-item" (click)="prefs.panelOpen.set(true); close()"><dbd-icon name="tune" />Customize toolbar…</button>
+    </div>
+  </ng-template>
 </div>
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->
@@ -298,46 +340,25 @@
   <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out">
     <dbd-icon name="remove" />
   </button>
-  <button class="zoom-label" (click)="resetView.emit()" matTooltip="Go to home view">
+  <button class="zoom-label" [dbdPopoverTrigger]="zoomMenu" placement="above-start" matTooltip="Zoom options">
     {{ zoomLabel() }}
   </button>
   <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dbd-icon name="add" /></button>
+  <ng-template #zoomMenu let-close>
+    <div class="dbd-menu">
+      <button class="dbd-menu-item" (click)="zoomFit.emit(); close()"><dbd-icon name="fit_screen" />Zoom to fit<span class="kbd">Shift 1</span></button>
+      <button class="dbd-menu-item" (click)="zoomSelection.emit(); close()"><dbd-icon name="center_focus_strong" />Zoom to selection<span class="kbd">Shift 2</span></button>
+      <button class="dbd-menu-item" (click)="resetView.emit(); close()"><dbd-icon name="home" />Go to home view<span class="kbd">Home</span></button>
+      <div class="dbd-menu-sep"></div>
+      <button class="dbd-menu-item" [disabled]="!canSetHome()" (click)="setHome.emit(); close()"><dbd-icon name="home" />Set home view to this</button>
+      <button class="dbd-menu-item" [disabled]="!canSetHome() || !hasHome()" (click)="clearHome.emit(); close()"><dbd-icon name="close" />Clear home view</button>
+    </div>
+  </ng-template>
 
   <span class="sep"></span>
 
-  <button class="sbtn" (click)="resetView.emit()" matTooltip="Go to home view (Home)">
-    <dbd-icon name="center_focus_strong" />
-  </button>
-  <button
-    class="sbtn"
-    [class.on]="hasHome()"
-    [dbdPopoverTrigger]="homeMenu"
-    placement="above-start"
-    matTooltip="Home view"
-  >
-    <dbd-icon name="home" />
-  </button>
-  <ng-template #homeMenu let-close>
-    <div class="dbd-menu">
-      <button class="dbd-menu-item" (click)="resetView.emit(); close()">
-        <dbd-icon name="home" />Go to home
-      </button>
-      <button
-        class="dbd-menu-item"
-        [disabled]="!canSetHome()"
-        (click)="setHome.emit(); close()"
-      >
-        <dbd-icon name="center_focus_strong" />Set current view as home
-      </button>
-      <button
-        class="dbd-menu-item"
-        [disabled]="!canSetHome() || !hasHome()"
-        (click)="clearHome.emit(); close()"
-      >
-        <dbd-icon name="close" />Clear home
-      </button>
-    </div>
-  </ng-template>
+  <button class="tbtn" [class.on]="hasHome()" (click)="resetView.emit()" matTooltip="Go to home view (Home)">Home view</button>
+  <span class="sep"></span>
   <button
     class="sbtn"
     [class.on]="gridSnap()"
@@ -353,6 +374,15 @@
     matTooltip="Smart guides: snap to nearby items and spacing"
   >
     <dbd-icon name="smart_guides" />
+  </button>
+
+  <button
+    class="sbtn"
+    [class.on]="minimap()"
+    (click)="toggleMinimap.emit()"
+    matTooltip="Minimap"
+  >
+    <dbd-icon name="map" />
   </button>
 
   @if (saveLabel()) {
@@ -396,4 +426,8 @@
       </button>
     }
   </div>
+}
+
+@if (prefs.panelOpen()) {
+  <app-toolbar-customize-panel />
 }

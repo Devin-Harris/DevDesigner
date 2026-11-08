@@ -421,11 +421,13 @@ function renderGridTable(view: ShapeView, dash: string): string {
   for (const t of g.cells) {
     out.push(renderTextBlock(t));
   }
-  out.push(
-    '</g>',
-    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
-      `fill="none" stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash} />`,
-  );
+  out.push('</g>');
+  if (g.outline) {
+    out.push(
+      `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
+        `fill="none" stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash} />`,
+    );
+  }
   return out.join('');
 }
 
@@ -946,7 +948,10 @@ export function buildDiagramSvg(
       -Infinity,
     );
     const shapeSvg = (v: (typeof shapeViews)[number]): string =>
-      `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`;
+      (v.frameClip
+        ? `<clipPath id="fclip-${esc(v.id)}"><rect x="${v.frameClip.x}" y="${v.frameClip.y}" width="${v.frameClip.width}" height="${v.frameClip.height}" /></clipPath>` +
+          `<g data-eid="${esc(v.id)}" clip-path="url(#fclip-${esc(v.id)})">${renderShape(v, imageData)}</g>`
+        : `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`);
     const isLine = (v: (typeof shapeViews)[number]): boolean =>
       v.type === 'line' || v.type === 'arrow';
     const frameShapes = shapeViews.filter((v) => v.type === 'frame').map(shapeSvg);

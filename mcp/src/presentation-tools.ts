@@ -1385,6 +1385,8 @@ export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): voi
         const out: Array<{ item: MorphItem; label: string }> = shown.map(({ e, layout }) => ({
           item: {
             key: slideMorphKey(e, (pid) => byId.get(pid)),
+            keyIn: e.morphIn ?? undefined,
+            keyOut: e.morphOut ?? undefined,
             ...(layout ? { source: 'layout' as const } : {}),
             kind: 'element',
             type: e.type,

@@ -11,6 +11,10 @@ export interface GridCellStyle {
   fill?: string;
 }
 
+/** Which borders a grid draws: every line, only the outline, only inside lines, only row lines, or none. */
+export const GRID_BORDER_MODES = ['all', 'outer', 'inner', 'rows', 'none'] as const;
+export type GridBorders = (typeof GRID_BORDER_MODES)[number];
+
 export const gridCellKey = (r: number, c: number): string => `${r},${c}`;
 
 /** A merged block: origin cell (r, c) spanning `rs` rows and `cs` columns. */
@@ -41,6 +45,8 @@ export interface GridData {
   styles?: Record<string, GridCellStyle>;
   /** Merged cell blocks (non-overlapping; text/style live on the origin cell). */
   merges?: GridCellMerge[];
+  /** Which borders are drawn (absent = all). */
+  borders?: GridBorders;
 }
 
 /** Smallest a column/row may be dragged to (world px). */
@@ -93,7 +99,10 @@ export function parseGrid(text: string | undefined): GridData {
     }
   }
   const merges = cleanMerges(Array.isArray(raw.merges) ? raw.merges : [], rows.length, cols.length);
-  return { cols, rows, cells, header: raw.header !== false, styles, merges };
+  const borders = (GRID_BORDER_MODES as readonly string[]).includes(raw.borders as string) && raw.borders !== 'all'
+    ? (raw.borders as GridBorders)
+    : undefined;
+  return { cols, rows, cells, header: raw.header !== false, styles, merges, ...(borders ? { borders } : {}) };
 }
 
 /** Keep only in-bounds, multi-cell, non-overlapping merges. */
@@ -221,6 +230,7 @@ export function serializeGrid(g: GridData): string {
     header: g.header,
     ...(g.merges?.length ? { merges: g.merges } : {}),
     ...(g.styles && Object.keys(g.styles).length ? { styles: g.styles } : {}),
+    ...(g.borders && g.borders !== 'all' ? { borders: g.borders } : {}),
   });
 }
 

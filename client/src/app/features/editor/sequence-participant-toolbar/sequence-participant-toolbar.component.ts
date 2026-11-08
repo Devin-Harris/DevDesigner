@@ -1,3 +1,4 @@
+import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { themeColorCss } from '@dbdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
@@ -19,6 +20,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   styleUrl: './sequence-participant-toolbar.component.scss',
 })
 export class SequenceParticipantToolbarComponent {
+  protected readonly inspector = inject(InspectorPanelService);
   protected readonly store = inject(ProjectStore);
   protected readonly lifeline = computed(() => this.store.selectedLifeline());
   protected readonly canEdit = computed(() => this.store.canEdit());

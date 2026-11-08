@@ -197,7 +197,7 @@
 // bottom toolbar, and never pushes the canvas.
 .side-panel {
   position: absolute;
-  top: 16px;
+  top: 72px; // clears the floating top islands
   right: 16px;
   bottom: 16px;
   width: 300px;
@@ -377,46 +377,44 @@
   }
 }
 
-// Collapsible canvas side panels: the content folds away, leaving a small handle.
-.side-collapse {
+// Pin / close rail hanging off the details panel's left edge (clear of each
+// inspector's own header actions).
+.side-ctrls {
   position: absolute;
   top: 8px;
-  left: -14px;
-  z-index: 1;
-  width: 24px;
-  height: 24px;
+  left: -36px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--dbd-border);
+  background: var(--dbd-surface);
+  box-shadow: var(--dbd-shadow-2);
+}
+
+.side-ctrl {
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid var(--dbd-border);
+  border: none;
+  border-radius: 7px;
   background: var(--dbd-surface);
   color: var(--dbd-text-muted);
   cursor: pointer;
-  box-shadow: var(--dbd-shadow-2);
+  --dbd-icon-size: 15px;
 
   &:hover {
+    background: var(--dbd-surface-2);
     color: var(--dbd-text);
   }
-}
-
-.side-panel {
-  overflow: visible;
-}
-
-.side-panel.collapsed {
-  bottom: auto;
-  width: 0;
-  height: 0;
-  box-shadow: none;
-
-  > :not(.side-collapse) {
-    display: none;
-  }
-
-  .side-collapse {
-    left: -24px;
+  &.on {
+    color: var(--dbd-primary);
+    background: var(--dbd-primary-weak);
   }
 }
 
@@ -564,4 +562,423 @@
   &:active::before {
     opacity: 1;
   }
+}
+
+// ---- Deck header above each presentation on the canvas ----
+.deck-header {
+  position: absolute;
+  /* Scales with the canvas zoom, like the presentation block below it. */
+  transform-origin: left bottom;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 4px 0 10px;
+  box-sizing: border-box;
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  border-radius: 10px;
+  box-shadow: var(--dbd-shadow-2);
+  color: var(--dbd-text);
+  font-size: 13px;
+  white-space: nowrap;
+
+  &.selected {
+    border-color: var(--dbd-primary);
+  }
+}
+
+.dh-ico {
+  --dbd-icon-size: 16px;
+  color: var(--dbd-text-muted);
+}
+
+.dh-name {
+  font-weight: 600;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-count {
+  font-size: 12px;
+  color: var(--dbd-text-muted);
+}
+
+.dh-present {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0 10px 0 7px;
+  border: none;
+  border-radius: 7px;
+  background: var(--dbd-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  --dbd-icon-size: 15px;
+
+  &:hover {
+    background: color-mix(in srgb, var(--dbd-primary) 88%, #000);
+  }
+}
+
+.dh-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--dbd-border);
+}
+
+.dh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dbd-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--dbd-surface-2);
+  }
+}
+
+.dh-chev {
+  --dbd-icon-size: 14px;
+  color: var(--dbd-text-muted);
+  margin-right: 2px;
+}
+
+/* ---- Deck focus mode ---- */
+.focus-dim {
+  position: absolute;
+  inset: 0;
+  /* Under the tool dock and floating toolbars (z 5), over the canvas. */
+  z-index: 4;
+  /* Opaque: in focus mode only the presentation shows. */
+  background: var(--dbd-canvas-bg, var(--dbd-bg));
+
+  &.solid {
+    background: var(--dbd-canvas-bg, var(--dbd-bg));
+  }
+}
+
+.focus-stage {
+  position: absolute;
+  z-index: 4;
+  border: 1.5px dashed var(--dbd-border-strong, var(--dbd-border));
+  border-radius: 12px;
+  pointer-events: none;
+  box-sizing: border-box;
+
+  &.amber {
+    border: 2px solid #bd7d1c;
+  }
+}
+
+.focus-bar {
+  position: absolute;
+  top: 14px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  box-sizing: border-box;
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  border: 1px solid var(--dbd-border);
+  border-radius: 12px;
+  box-shadow: var(--dbd-shadow-2);
+  font-size: 13px;
+  white-space: nowrap;
+
+  &.left { left: 16px; }
+  &.center { left: 50%; transform: translateX(-50%); }
+  &.right { right: 16px; }
+  &.amber {
+    gap: 10px;
+    padding-left: 14px;
+    background: color-mix(in srgb, #bd7d1c 14%, var(--dbd-surface));
+    border-color: #bd7d1c;
+  }
+}
+
+.fb-banner b { font-weight: 600; }
+
+.fdock {
+  position: absolute;
+  z-index: 15;
+  top: 72px;
+  bottom: 16px;
+  box-sizing: border-box;
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  border: 1px solid var(--dbd-border);
+  border-radius: 14px;
+  box-shadow: var(--dbd-shadow-2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  /* Clear of the tool dock (left), the zoom bar (bottom left) and the minimap. */
+  &.left { left: 76px; width: 196px; bottom: 76px; }
+  /* The "In container" align strip sits on top of the zoom bar. */
+  &.left.above-align { bottom: 124px; }
+  &.right { right: 16px; width: 344px; }
+  &.right.design { width: 344px; }
+  &.right.anim { width: 360px; }
+  /* Controls stay put; only the pairs list (or the animations list) scrolls. */
+  &.col { overflow: hidden; }
+
+  .inner {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    flex: none;
+  }
+  .pairs {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--dbd-border);
+  }
+}
+
+.menu-host {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.focus-compare {
+  position: absolute;
+  z-index: 12;
+  /* Between the tool dock, the top bars, the right dock and the zoom bar. */
+  /* Past the left tool dock, whatever its width (one/two columns, labels). */
+  left: calc(16px + var(--dock-w, 56px) + 24px);
+  right: calc(16px + 344px + 24px);
+  top: 112px;
+  bottom: 76px;
+  /* Zoomed / panned slides stay inside their box, never over the dock. */
+  overflow: hidden;
+}
+
+
+.focus-empty {
+  position: absolute;
+  z-index: 12;
+  left: 96px;
+  top: 120px;
+  color: var(--dbd-text-muted);
+}
+
+.fd-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 12px 0;
+  border-bottom: 1px solid var(--dbd-border);
+}
+
+.fd-tab {
+  height: 36px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dbd-text-muted);
+  cursor: pointer;
+
+  &.on {
+    border-bottom-color: var(--dbd-primary);
+    color: var(--dbd-text);
+    font-weight: 600;
+  }
+}
+
+.fd-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 14px 14px;
+}
+
+.fb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  --dbd-icon-size: 16px;
+
+  &:hover:not(:disabled) { background: var(--dbd-surface-2); }
+  &:disabled { opacity: 0.5; cursor: default; }
+  &.go {
+    background: var(--dbd-primary);
+    color: #fff;
+    font-weight: 600;
+    &:hover:not(:disabled) { background: color-mix(in srgb, var(--dbd-primary) 88%, #000); }
+  }
+  &.outline { border: 1px solid var(--dbd-border); }
+  &.on { background: var(--dbd-primary-weak); color: var(--dbd-primary); }
+}
+
+.fb-k {
+  font-family: var(--dbd-mono, monospace);
+  font-size: 11px;
+  color: var(--dbd-text-muted);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.fb-f5 { opacity: 0.75; font-weight: 400; }
+.fb-chev { --dbd-icon-size: 14px; color: var(--dbd-text-muted); }
+.fb-sep { width: 1px; height: 20px; background: var(--dbd-border); margin: 0 3px; }
+.fb-name { font-weight: 600; font-size: 14px; padding: 0 8px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.fb-count { font-size: 12px; color: var(--dbd-text-muted); padding-right: 6px; }
+
+.pen-bar {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.pen-bar.low {
+  top: 72px;
+}
+
+/* ---- Following a collaborator ---- */
+.follow-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px #0f8f86;
+}
+
+.follow-banner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  border-radius: 0 0 10px 10px;
+  background: #0f8f86;
+  color: #fff;
+  font-size: 13px;
+
+  button {
+    height: 24px;
+    padding: 0 9px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+}
+
+/* ---- Laser hint ---- */
+.laser-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--dbd-surface);
+  color: var(--dbd-text);
+  border: 1px solid var(--dbd-border);
+  border-radius: 12px;
+  box-shadow: var(--dbd-shadow-2);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.ldot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff5c5c;
+}
+
+.lk {
+  font-family: var(--dbd-mono, monospace);
+  font-size: 11px;
+  color: var(--dbd-text-muted);
+  background: var(--dbd-surface-2);
+  border: 1px solid var(--dbd-border);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.tr-pick {
+  display: flex;
+  background: var(--dbd-surface);
+  border: 1px solid var(--dbd-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  min-width: 150px;
+  button {
+    text-align: left;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dbd-text);
+    font: 500 12px system-ui, sans-serif;
+    cursor: pointer;
+    &:hover { background: var(--dbd-surface-2); }
+    &.on { background: color-mix(in srgb, var(--dbd-primary) 18%, transparent); font-weight: 700; }
+  }
+}
+
+/* Slide control, with Map pairs / Preview as its own pill centred below it. */
+.focus-row {
+  position: absolute;
+  top: 14px;
+  /* Centred over .focus-compare (left 96px, right 384px) so it lines up with the stage tip. */
+  left: calc(50% - 144px);
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  .focus-bar { position: static; }
 }

@@ -1,4 +1,4 @@
-<div class="editor">
+<div class="editor" [style.--dock-w.px]="toolbarPrefs.leftDockWidth()">
   <div
     #canvas
     class="canvas"
@@ -253,6 +253,7 @@
       ></div>
     }
 
+    @if (showMinimap() && !focusedDeck()) {
     <app-minimap
       (pointerdown)="$event.stopPropagation()"
       (wheel)="$event.stopPropagation()"
@@ -260,6 +261,7 @@
       [view]="minimapView()"
       (panTo)="panToWorld($event)"
     ></app-minimap>
+    }
 
     <app-shape-toolbar
       (pointerdown)="$event.stopPropagation()"
@@ -269,7 +271,9 @@
       [saveLabel]="saveLabel()"
       [gridSnap]="gridSnap()"
       [smartGuides]="smartGuides()"
-      [canAlign]="canAlign() || !!croppingElement()"
+      [minimap]="showMinimap()"
+      (toggleMinimap)="toggleMinimap()"
+      [canAlign]="alignToContainer() || !!croppingElement()"
       [canDistribute]="canDistribute()"
       [alignToContainer]="alignToContainer() || !!croppingElement()"
       [canExport]="!!store.projectId()"
@@ -285,6 +289,8 @@
       (zoomIn)="zoomIn()"
       (zoomOut)="zoomOut()"
       (resetView)="resetView()"
+      (zoomFit)="zoomToFit()"
+      (zoomSelection)="zoomToSelection()"
       (setHome)="setHome()"
       (clearHome)="clearHome()"
       (toggleGrid)="toggleGrid()"
@@ -293,6 +299,25 @@
       (exportSql)="openSqlExport()"
       (exportImage)="onExportImage($event)"
     ></app-shape-toolbar>
+
+    @if (followingName(); as who) {
+      <div class="follow-ring" aria-hidden="true"></div>
+      <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
+        Following {{ who }}
+        <button (click)="followingId.set(null)">Stop · Esc</button>
+      </div>
+    }
+
+    @if (activeTool() === 'laser') {
+      <div class="laser-hint" aria-live="polite">
+        <span class="ldot"></span>Laser on: drag to point, the trail fades
+        <span class="lk">K</span><span class="lk">Esc</span>
+      </div>
+    }
+
+    @if (activeTool() === 'freedraw' && store.canEdit()) {
+      <app-pen-options-bar class="pen-bar" [class.low]="!!focusedDeck() || toolbarPosTop()" (pointerdown)="$event.stopPropagation()" />
+    }
 
     @for (set of slideSets(); track set.name) {
       @if (set.layoutEdit; as le) {
@@ -303,9 +328,31 @@
           [style.width.px]="le.width"
           [style.height.px]="le.height"
         >
+          @if (focusedDeck() !== set.name) {
           <span class="layout-edit-badge"><dbd-icon name="template" />{{ le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name }}</span>
+          }
         </div>
       }
+      @if (focusedDeck() !== set.name) {
+      <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
+      <div
+        class="deck-header"
+        [class.selected]="selectedSlideSets().includes(set.name)"
+        [style.left.px]="set.outline.left"
+        [style.top.px]="set.outline.top - 36 - 10 * set.list.scale"
+        [style.transform]="'scale(' + set.list.scale + ')'"
+        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
+        (wheel)="$event.stopPropagation()"
+      >
+        <dbd-icon name="slideshow" class="dh-ico" />
+        <span class="dh-name">{{ set.name }}</span>
+        <span class="dh-count">Slide {{ deckSlideIndex(set.name, set.frameId) }} of {{ deckSlideCount(set.name) }}</span>
+        <span class="dh-sep"></span>
+        <button class="dh-btn" (click)="enterDeckFocus(set.name)" title="Focus: edit this presentation on its own (Shift+F)"><dbd-icon name="open_in_full" class="dh-chev" />Focus</button>
+        <button class="dh-present" (click)="presentDeck(set.name)" title="Present from the first slide (F5)">
+          <dbd-icon name="play_arrow" />Present
+        </button>
+      </div>
       <div
         class="slide-bounds"
         [style.left.px]="set.outline.left"
@@ -340,6 +387,7 @@
       <app-slides-panel
         class="slide-settings"
         part="settings"
+        [requestTab]="deckTabRequest()?.name === set.name ? deckTabRequest() : null"
         [presentation]="set.name"
         [folded]="settingsFolded()"
         [style.width.px]="set.settings.width"
@@ -353,6 +401,200 @@
         (wheel)="$event.stopPropagation()"
         (command)="onSlidesCommand($event, set.name)"
       ></app-slides-panel>
+      }
+    }
+
+    @if (focusedDeck(); as fd) {
+      @let fframe = store.shownByPresentation().get(fd) ?? '';
+      @let fslide = focusSlide();
+      <!-- Focus mode (DeckFocus / DeckDesign / DeckMorph / DeckAnim mocks). The canvas
+           stays live under the dim, locked to the slide. -->
+      <div
+        class="focus-dim"
+        [class.solid]="focusScreen() === 'morph'"
+        [style.clip-path]="focusScreen() === 'morph' ? null : focusDimClip()"
+        (pointerdown)="$event.stopPropagation(); $event.preventDefault()"
+        (wheel)="$event.preventDefault()"
+      ></div>
+      @if (focusStage(); as st) {
+        @if (focusScreen() !== 'morph') {
+          <div class="focus-stage" [class.amber]="focusScreen() === 'design'" [style.left.px]="st.left" [style.top.px]="st.top" [style.width.px]="st.width" [style.height.px]="st.height"></div>
+        }
+      }
+
+      @switch (focusScreen()) {
+        @case ('main') {
+          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn" (click)="exitDeckFocus()">← Canvas <span class="fb-k">Esc</span></button>
+            <span class="fb-sep"></span>
+            <span class="fb-name">{{ fd }}</span>
+            <span class="fb-count">{{ deckSlideCount(fd) }} slides</span>
+          </div>
+          <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn" [dbdPopoverTrigger]="themeMenu" placement="below-start">Theme: {{ deckThemeName(fframe) }} ▾</button>
+            <ng-template #themeMenu>
+              <app-slides-panel class="menu-host" part="theme-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
+            </ng-template>
+            <button class="fb-btn" [dbdPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
+            <ng-template #designMenu>
+              <app-slides-panel class="menu-host" part="design-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
+            </ng-template>
+            <button class="fb-btn" (click)="openFocusDesign()">Layouts &amp; master</button>
+            <button class="fb-btn" [dbdPopoverTrigger]="sizeMenu" placement="below-start" [disabled]="!store.canEdit()">{{ deckRatioLabel(fframe) }} ▾</button>
+            <ng-template #sizeMenu let-close>
+              <app-slides-panel class="menu-host" part="size-menu" [presentation]="fd" [active]="fframe" (command)="close()" />
+            </ng-template>
+            <span class="fb-sep"></span>
+            <button class="fb-btn" (click)="exportAllSlidesPdf()">Export PDF</button>
+          </div>
+          <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn go" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">▶ Present <span class="fb-f5">F5</span></button>
+            @if (store.accessMode() === 'OWNER') {
+              <button class="fb-btn outline" (click)="openShare()">Share</button>
+            }
+          </div>
+          <app-slides-panel
+            class="fdock left"
+            [class.above-align]="alignToContainer() || !!croppingElement()"
+            part="focus-list"
+            [presentation]="fd"
+            [active]="fframe"
+            [lastSlide]="lastSlideOf(fd)"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            (command)="onFocusCommand($event, fd)"
+          />
+          <app-slides-panel
+            class="fdock right"
+            part="focus-settings"
+            [presentation]="fd"
+            [active]="fframe"
+            [lastSlide]="lastSlideOf(fd)"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            (command)="onFocusCommand($event, fd)"
+          />
+        }
+
+        @case ('design') {
+          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn" (click)="closeFocusDesign(fd)">← Slides</button>
+            <span class="fb-sep"></span>
+            <span class="fb-name">{{ fd }}</span>
+          </div>
+          <div class="focus-bar center amber" (pointerdown)="$event.stopPropagation()">
+            @if (focusLayoutInfo(); as li) {
+              <span class="fb-banner">
+                @if (li.master) {
+                  <b>Editing the master</b> · shown under every layout and slide
+                } @else {
+                  <b>Editing layout “{{ li.name }}”</b> · used by {{ li.used }} slide{{ li.used === 1 ? '' : 's' }} — changes show on all of them
+                }
+              </span>
+            } @else {
+              <span class="fb-banner"><b>Design</b> · pick a layout on the left to edit it</span>
+            }
+            <button class="fb-btn go" (click)="closeFocusDesign(fd)">Done</button>
+          </div>
+          <app-slides-panel
+            class="fdock left"
+            [class.above-align]="alignToContainer() || !!croppingElement()"
+            part="design-layouts"
+            [presentation]="fd"
+            [active]="fframe"
+            [lastSlide]="lastSlideOf(fd)"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            (command)="onFocusCommand($event, fd)"
+          />
+          <app-slides-panel
+            class="fdock right design"
+            part="design-theme"
+            [presentation]="fd"
+            [active]="fframe"
+            [lastSlide]="lastSlideOf(fd)"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            (command)="onFocusCommand($event, fd)"
+          />
+        }
+
+        @case ('morph') {
+          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+            <span class="fb-sep"></span>
+            <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
+          </div>
+          @if (fslide && fslide.prev) {
+            <div class="focus-row">
+            <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
+              <button class="fb-btn" [disabled]="fslide.index <= 2" (click)="stepTransition(-1)" title="Previous transition" aria-label="Previous transition">‹</button>
+              <button class="fb-btn on" [dbdPopoverTrigger]="pickTransition" placement="below-start">Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾</button>
+              <ng-template #pickTransition let-close>
+                <div class="tr-pick" role="menu">
+                  @for (n of transitionNumbers(fd); track n) {
+                    <button role="menuitem" [class.on]="n === fslide.index" (click)="goToTransition(n); close()">Slide {{ n - 1 }} → {{ n }}</button>
+                  }
+                </div>
+              </ng-template>
+              <button class="fb-btn" [disabled]="fslide.index >= deckSlideCount(fd)" (click)="stepTransition(1)" title="Next transition" aria-label="Next transition">›</button>
+            </div>
+            <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
+              <button class="fb-btn" [class.on]="compareUi.view() === 'map'" (click)="compareUi.view.set('map')">Map pairs</button>
+              <button class="fb-btn" [class.on]="compareUi.view() === 'preview'" (click)="compareUi.view.set('preview')">Preview</button>
+            </div>
+            </div>
+            <app-deck-compare
+              class="focus-compare"
+              [slide]="fslide.frame"
+              [previous]="fslide.prev"
+              [before]="fslide.prev2"
+              [after]="fslide.next"
+              [index]="fslide.index - 1"
+              (preview)="previewTransitionFor(fslide.frame.id)"
+              (pointerdown)="$event.stopPropagation()"
+            />
+          } @else {
+            <div class="focus-empty">The first slide has no transition into it.</div>
+          }
+          <div class="fdock right design col" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+            <app-slides-panel
+              class="inner"
+              part="focus-transition"
+              [presentation]="fd"
+              [active]="fframe"
+              [lastSlide]="lastSlideOf(fd)"
+              (command)="onFocusCommand($event, fd)"
+            />
+            @if (fslide && fslide.prev) {
+              <app-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+            }
+          </div>
+        }
+
+        @case ('anim') {
+          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+            <span class="fb-sep"></span>
+            <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
+          </div>
+          <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
+            <button class="fb-btn go" (click)="presentFromCurrent(fd)">▶ Preview slide</button>
+          </div>
+          <div class="fdock right anim col" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+            <div class="fd-tabs">
+              <button class="fd-tab" (click)="stayInFocus()">Slide</button>
+              <button class="fd-tab" (click)="focusScreen.set('morph')">Transition</button>
+              <button class="fd-tab on">Animations</button>
+            </div>
+            <div class="fd-body">
+              @if (fslide) {
+                <app-animation-pane [slide]="fslide.frame" (play)="presentFromCurrent(fd)" />
+              }
+            </div>
+          </div>
+        }
+      }
     }
 
     @if (!presentation() && presenters()[0]; as who) {
@@ -508,7 +750,7 @@
         [style.background]="gc.background"
         (pointerdown)="$event.stopPropagation()"
         (keydown)="onGridCellKeydown($event)"
-        (input)="grids.setEditingText($any($event.target).value)"
+        (input)="grids.setEditingText($any($event.target).value); alignGridCellArea()"
         (blur)="onGridCellBlur(gc.key)"
       ></textarea>
     }
@@ -568,6 +810,26 @@
         [style.width.px]="m.width"
         [style.height.px]="m.height"
       ></div>
+    }
+
+    @if (multiSelectBar(); as ms) {
+      <app-multi-select-bar
+        [style.left.px]="ms.left"
+        [style.top.px]="ms.top"
+        [count]="ms.count"
+        [grouped]="ms.grouped"
+        [canDistribute]="canDistribute()"
+        [canStyle]="selectionStylable()"
+        (fill)="styleSelection('fill', $event)"
+        (stroke)="styleSelection('stroke', $event)"
+        (pointerdown)="$event.stopPropagation()"
+        (align)="onAlign($event)"
+        (group)="store.groupSelection()"
+        (ungroup)="store.ungroupSelection()"
+        (arrange)="store.arrangeSelection($event)"
+        (duplicate)="duplicateSelectionInPlace()"
+        (remove)="deleteSelection()"
+      ></app-multi-select-bar>
     }
 
     @if (tableToolbar(); as tt) {
@@ -640,73 +902,31 @@
 
     <!-- Inspectors float over the canvas (they do not push it, and clear the top
          bar and share button). -->
-    @if (store.selectedTable(); as table) {
-      <div
-        class="side-panel"
-        [class.collapsed]="sidePanelCollapsed()"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      >
-        <button
-          class="side-collapse"
-          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
-          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-        >
-          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
-        </button>
-        <app-inspector [table]="table"></app-inspector>
-      </div>
-    } @else if (store.selectedRelationship(); as relationship) {
-      <div
-        class="side-panel"
-        [class.collapsed]="sidePanelCollapsed()"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      >
-        <button
-          class="side-collapse"
-          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
-          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-        >
-          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
-        </button>
-        <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
-      </div>
-    } @else if (store.selectedElement(); as element) {
-      <div
-        class="side-panel"
-        [class.collapsed]="sidePanelCollapsed()"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      >
-        <button
-          class="side-collapse"
-          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
-          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-        >
-          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
-        </button>
-        <app-element-inspector [element]="element"></app-element-inspector>
-      </div>
-    } @else if (store.selectedLifeline() || store.selectedMessage() || store.selectedDiagram()) {
-      <div
-        class="side-panel"
-        [class.collapsed]="sidePanelCollapsed()"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      >
-        <button
-          class="side-collapse"
-          (click)="sidePanelCollapsed.set(!sidePanelCollapsed())"
-          [attr.aria-label]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-          [attr.title]="sidePanelCollapsed() ? 'Expand panel' : 'Collapse panel'"
-        >
-          <dbd-icon [name]="sidePanelCollapsed() ? 'chevron_left' : 'chevron_right'" />
-        </button>
-        <app-sequence-inspector></app-sequence-inspector>
+    @if (inspector.shown() && hasInspectable()) {
+      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+        <div class="side-ctrls">
+          <button
+            class="side-ctrl"
+            [class.on]="inspector.pinned()"
+            (click)="inspector.togglePin()"
+            [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
+            [attr.title]="inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'"
+          >
+            <dbd-icon name="push_pin" />
+          </button>
+          <button class="side-ctrl" (click)="inspector.close()" aria-label="Close details" title="Close details">
+            <dbd-icon name="close" />
+          </button>
+        </div>
+        @if (store.selectedTable(); as table) {
+          <app-inspector [table]="table"></app-inspector>
+        } @else if (store.selectedRelationship(); as relationship) {
+          <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
+        } @else if (store.selectedElement(); as element) {
+          <app-element-inspector [element]="element"></app-element-inspector>
+        } @else {
+          <app-sequence-inspector></app-sequence-inspector>
+        }
       </div>
     }
   </div>

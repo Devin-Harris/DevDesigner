@@ -32,7 +32,7 @@ const BEZIER: Record<SlideEasing, [number, number, number, number] | null> = {
 };
 
 /** Map linear progress 0..1 through a named CSS easing curve. */
-function ease(name: SlideEasing, t: number): number {
+export function ease(name: SlideEasing, t: number): number {
   const p = BEZIER[name];
   if (!p || t <= 0 || t >= 1) {
     return Math.min(1, Math.max(0, t));
@@ -87,7 +87,8 @@ const TRAVEL: Record<string, [number, number]> = {
       #root
       class="present"
       tabindex="-1"
-      [class.idle]="!barVisible()"
+      [class.idle]="!cursorVisible()"
+      [class.bar-hidden]="!barVisible()"
       (click)="next()"
       (pointermove)="onPresentMove($event)"
     >
@@ -153,6 +154,19 @@ const TRAVEL: Record<string, [number, number]> = {
       @if (following(); as who) {
         <div class="follow" (click)="$event.stopPropagation()">
           Following {{ who }} · Esc to leave
+        </div>
+      }
+
+      @if (showGrid()) {
+        <div class="slide-grid" (click)="$event.stopPropagation(); showGrid.set(false)">
+          <div class="sg-list" (click)="$event.stopPropagation()">
+            @for (u of gridThumbs(); track $index) {
+              <button class="sg-item" [class.on]="$index === index()" (click)="jumpTo($index)">
+                <img [src]="u" alt="" draggable="false" />
+                <span class="sg-n">{{ $index + 1 }}</span>
+              </button>
+            }
+          </div>
         </div>
       }
 
@@ -227,6 +241,16 @@ const TRAVEL: Record<string, [number, number]> = {
           title="Speaker notes (N)"
         >
           <dbd-icon name="notes" />
+        </button>
+        <button
+          class="btn"
+          [class.on]="showGrid()"
+          (click)="toggleGrid()"
+          [disabled]="!!following()"
+          aria-label="All slides (G)"
+          title="All slides (G)"
+        >
+          <dbd-icon name="grid_view" />
         </button>
         <button class="btn" (click)="exit()" aria-label="Exit (Esc)" title="Exit (Esc)">
           <dbd-icon name="close" />
@@ -356,7 +380,7 @@ const TRAVEL: Record<string, [number, number]> = {
       .bar.dragging .grip {
         cursor: grabbing;
       }
-      .idle .bar {
+      .bar-hidden .bar {
         opacity: 0;
         pointer-events: none;
       }
@@ -433,6 +457,51 @@ const TRAVEL: Record<string, [number, number]> = {
         fill: currentColor;
         filter: drop-shadow(0 0 4px currentColor);
       }
+      .slide-grid {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: rgba(5, 7, 11, 0.86);
+        overflow-y: auto;
+        padding: 48px;
+        box-sizing: border-box;
+      }
+      .sg-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .sg-item {
+        position: relative;
+        padding: 0;
+        border: 2px solid transparent;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        overflow: hidden;
+        line-height: 0;
+      }
+      .sg-item.on {
+        border-color: #6f8bff;
+        box-shadow: 0 0 0 3px rgba(111, 139, 255, 0.35);
+      }
+      .sg-item img {
+        width: 100%;
+        height: auto;
+      }
+      .sg-n {
+        position: absolute;
+        left: 6px;
+        bottom: 6px;
+        line-height: 1;
+        padding: 3px 6px;
+        border-radius: 4px;
+        background: rgba(20, 24, 32, 0.8);
+        color: #fff;
+        font-size: 12px;
+      }
       .follow {
         position: absolute;
         top: 14px;
@@ -474,7 +543,14 @@ export class PresentModeComponent {
   protected readonly step = signal(0);
   protected readonly busy = signal(false);
   protected readonly showNotes = signal(false);
-  protected readonly barVisible = signal(true);
+  /** Overview of every slide (G); click one to jump there. */
+  protected readonly showGrid = signal(false);
+  /** One picture per slide for the overview: the slide with everything shown. */
+  protected readonly gridThumbs = computed(() => this.urlList().map((per) => per[per.length - 1]));
+  protected readonly barVisible = signal(false);
+  /** Cursor shows on any mouse movement and hides after a stretch of stillness. */
+  protected readonly cursorVisible = signal(true);
+  private cursorTimer: ReturnType<typeof setTimeout> | null = null;
   protected readonly laserOn = signal(false);
   protected readonly resized = signal(0);
   /** How far the user has dragged the control bar from its bottom-centre home. */
@@ -629,6 +705,9 @@ export class PresentModeComponent {
       if (this.idleTimer) {
         clearTimeout(this.idleTimer);
       }
+      if (this.cursorTimer) {
+        clearTimeout(this.cursorTimer);
+      }
       this.cancelRun?.();
       if (!this.follow() && !this.autoplay()) {
         this.realtime.sendPresenting(null);
@@ -701,6 +780,19 @@ export class PresentModeComponent {
     }
   }
 
+  protected toggleGrid(): void {
+    if (this.follow()) return;
+    this.showGrid.update((v) => !v);
+  }
+
+  /** Jump straight to a slide from the overview, at its first step. */
+  protected jumpTo(i: number): void {
+    this.showGrid.set(false);
+    if (this.follow() || i === this.index()) return;
+    this.cancelRun?.();
+    void this.go(i, this.firstStep(i), true);
+  }
+
   protected toggleNotes(): void {
     this.showNotes.update((v) => !v);
   }
@@ -717,34 +809,47 @@ export class PresentModeComponent {
     this.closed.emit(this.slides()[this.index()]?.id ?? null);
   }
 
-  protected wake(): void {
-    this.barVisible.set(true);
-    if (this.idleTimer) {
-      clearTimeout(this.idleTimer);
+  /** Show the cursor and restart its stillness countdown (PowerPoint-style). */
+  private wakeCursor(): void {
+    this.cursorVisible.set(true);
+    if (this.cursorTimer) {
+      clearTimeout(this.cursorTimer);
     }
-    this.idleTimer = setTimeout(() => this.barVisible.set(false), 2600);
+    this.cursorTimer = setTimeout(() => {
+      this.cursorTimer = null;
+      // Keep the cursor while it rests on the visible bar or a drag is underway.
+      if (!this.barVisible() && !this.barDrag) {
+        this.cursorVisible.set(false);
+      }
+    }, 2600);
   }
 
-  /** The control bar only reveals when the mouse reaches the bottom edge of the
-   *  screen; once shown it stays while the pointer is over (or dragging) the bar. */
+  /** The cursor reveals on any movement; the control bar only while the pointer
+   *  is over it (or dragging it), hiding shortly after the pointer leaves. */
   protected onPresentMove(event: PointerEvent): void {
-    const overBar = !!(event.target as HTMLElement | null)?.closest?.('.bar');
-    if (overBar || this.barDrag) {
-      if (this.barVisible()) {
-        if (this.idleTimer) {
-          clearTimeout(this.idleTimer);
-          this.idleTimer = null;
-        }
-        return;
-      }
-    }
+    this.wakeCursor();
     const host = event.currentTarget as HTMLElement;
-    const bottom = host.getBoundingClientRect().bottom;
-    if (event.clientY >= bottom - 8) {
-      this.wake();
+    const bar = host.querySelector('.bar');
+    const r = bar?.getBoundingClientRect();
+    const pad = 12;
+    const overBar =
+      !!this.barDrag ||
+      (!!r &&
+        event.clientX >= r.left - pad &&
+        event.clientX <= r.right + pad &&
+        event.clientY >= r.top - pad &&
+        event.clientY <= r.bottom + pad);
+    if (overBar) {
+      if (this.idleTimer) {
+        clearTimeout(this.idleTimer);
+        this.idleTimer = null;
+      }
+      this.barVisible.set(true);
     } else if (this.barVisible() && !this.idleTimer) {
-      // Left the bar: start the usual hide countdown.
-      this.idleTimer = setTimeout(() => this.barVisible.set(false), 2600);
+      this.idleTimer = setTimeout(() => {
+        this.idleTimer = null;
+        this.barVisible.set(false);
+      }, 400);
     }
   }
 
@@ -838,9 +943,26 @@ export class PresentModeComponent {
       case 'K':
         handled();
         this.toggleLaser();
+        if (!this.laserOn() && !this.barVisible() && !this.barDrag) {
+          // Turning the laser off from the keyboard drops the cursor with it.
+          if (this.cursorTimer) {
+            clearTimeout(this.cursorTimer);
+            this.cursorTimer = null;
+          }
+          this.cursorVisible.set(false);
+        }
+        break;
+      case 'g':
+      case 'G':
+        handled();
+        this.toggleGrid();
         break;
       case 'Escape':
         handled();
+        if (this.showGrid()) {
+          this.showGrid.set(false);
+          break;
+        }
         this.exit();
         break;
       default:

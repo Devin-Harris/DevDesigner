@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { withCredentialsInterceptor } from './core/interceptors/with-credentials.interceptor';
 import { shareTokenInterceptor } from './core/interceptors/share-token.interceptor';
+import { sandboxInterceptor } from './core/sandbox/sandbox.interceptor';
 
 /**
  * Application providers. Zoneless change detection is the default in Angular 22,
@@ -17,6 +18,6 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(routes),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([withCredentialsInterceptor, shareTokenInterceptor])),
+    provideHttpClient(withInterceptors([sandboxInterceptor, withCredentialsInterceptor, shareTokenInterceptor])),
   ],
 };

@@ -21,6 +21,17 @@
       ],
       "cwd": "client",
       "port": 4300
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:dev",
+        "-w",
+        "server"
+      ],
+      "port": 3000
     }
   ]
 }

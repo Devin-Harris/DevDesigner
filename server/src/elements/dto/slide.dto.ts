@@ -153,6 +153,23 @@ export class MediaDto implements MediaConfig {
   @IsOptional()
   @IsBoolean()
   muted?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(86400)
+  start?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(86400)
+  end?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  alt?: string;
 }
 
 /** A frame's place in the slide sequence plus its transition and notes. */

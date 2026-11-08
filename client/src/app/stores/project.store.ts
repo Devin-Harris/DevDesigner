@@ -263,6 +263,8 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     zIndex: e.zIndex,
     cornerRadius: e.cornerRadius,
     ellipticCorners: e.ellipticCorners,
+    elbow: e.elbow,
+    clipContent: e.clipContent,
     points: e.points,
     text: e.text,
     fontSize: e.fontSize,
@@ -292,6 +294,8 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
     placeholder: e.placeholder,
     overrides: e.overrides,
     morphId: e.morphId,
+    morphIn: e.morphIn,
+    morphOut: e.morphOut,
     step: e.step,
     slideId: e.slideId,
   };
