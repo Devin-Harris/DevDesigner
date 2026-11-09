@@ -1,5 +1,5 @@
 import { IsNumber } from 'class-validator';
-import type { UpdatePositionDto as IUpdatePositionDto } from '@dbdesigner/shared';
+import type { UpdatePositionDto as IUpdatePositionDto } from '@devdesigner/shared';
 
 /** Body for PATCH /tables/:tableId/position (drag autosave). */
 export class UpdatePositionDto implements IUpdatePositionDto {

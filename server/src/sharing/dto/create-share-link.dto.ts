@@ -1,5 +1,5 @@
 import { IsIn, IsISO8601, IsOptional } from 'class-validator';
-import type { CreateShareLinkDto as ICreateShareLinkDto, ShareAccessLevel } from '@dbdesigner/shared';
+import type { CreateShareLinkDto as ICreateShareLinkDto, ShareAccessLevel } from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/share. Owner picks the link's level. */
 export class CreateShareLinkDto implements ICreateShareLinkDto {

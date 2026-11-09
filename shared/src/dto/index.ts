@@ -118,7 +118,7 @@ export interface ProjectGraphResponse {
 }
 
 /** Marker + version stamped into exported project files so import can recognise them. */
-export const PROJECT_EXPORT_FORMAT = 'dbdesigner-project';
+export const PROJECT_EXPORT_FORMAT = 'devdesigner-project';
 export const PROJECT_EXPORT_VERSION = 1;
 
 /**
@@ -162,7 +162,7 @@ export interface UploadImageResponse {
 
 /** Body of POST /projects/:id/import-content: merge an export file into an existing project. */
 export interface ImportIntoProjectDto {
-  /** The parsed contents of a `.dbdesigner.json` file. */
+  /** The parsed contents of a `.devdesigner.json` file. */
   file: ProjectExportFile;
   /** World point to place the content's top-left corner at (e.g. the visible canvas). */
   anchor?: { x: number; y: number };

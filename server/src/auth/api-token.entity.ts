@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import type { ApiTokenScope } from '@dbdesigner/shared';
+import type { ApiTokenScope } from '@devdesigner/shared';
 
 /**
  * A per-user API token for programmatic clients such as the MCP server. Only a

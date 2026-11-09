@@ -1,5 +1,5 @@
 import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { CreateSequenceMessageDto as ICreateSequenceMessageDto } from '@dbdesigner/shared';
+import type { CreateSequenceMessageDto as ICreateSequenceMessageDto } from '@devdesigner/shared';
 
 const STYLES = ['solid', 'dashed', 'break'] as const;
 const DIRECTIONS = ['forward', 'reverse'] as const;

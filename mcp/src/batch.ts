@@ -2,8 +2,8 @@
 // PATCH /projects/:id/batch (server applies them in a single transaction and
 // broadcasts ordinary realtime mutations), instead of one REST call per item.
 
-import type { BatchUpdateDto, BatchUpdateResponse } from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+import type { BatchUpdateDto, BatchUpdateResponse } from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 
 export type BatchSection = 'tables' | 'elements' | 'diagrams' | 'lifelines' | 'messages' | 'relationships';
 
@@ -53,7 +53,7 @@ export class Batch {
   }
 
   /** Send everything in one request; returns how many entries were written (0 = no call). */
-  async send(api: DbDesignerApi, projectId: string): Promise<number> {
+  async send(api: DevDesignerApi, projectId: string): Promise<number> {
     const n = this.size;
     if (n === 0) return 0;
     await api.patch<BatchUpdateResponse>(`/projects/${projectId}/batch`, this.toDto());

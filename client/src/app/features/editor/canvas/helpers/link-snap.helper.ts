@@ -1,4 +1,4 @@
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import { HEADER_H, ROW_H } from '../constants/canvas.constants';
 import type { Point, Side } from '../models/geometry.model';
 import { columnAnchor, tableBox, tableScale } from './node-metrics.helper';

@@ -6,7 +6,7 @@ import type {
   ReorderElementsDto,
   UpdateElementDto,
   UpdateElementPositionDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular canvas-element endpoints (BUILD_INSTRUCTIONS.md section 5). */

@@ -8,7 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import type { CanvasElementModel } from '@dbdesigner/shared';
+import type { CanvasElementModel } from '@devdesigner/shared';
 import { ElementsService } from './elements.service';
 import { CreateElementDto } from './dto/create-element.dto';
 import { UpdateElementDto } from './dto/update-element.dto';

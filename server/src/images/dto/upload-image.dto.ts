@@ -1,5 +1,5 @@
 import { IsString, MaxLength } from 'class-validator';
-import type { UploadImageDto as IUploadImageDto } from '@dbdesigner/shared';
+import type { UploadImageDto as IUploadImageDto } from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/images (base64 keeps this a plain JSON route). */
 export class UploadImageDto implements IUploadImageDto {

@@ -1,4 +1,4 @@
-import type { CodeLanguage } from '@dbdesigner/shared';
+import type { CodeLanguage } from '@devdesigner/shared';
 import { isElisionLine } from './code-highlight.helper';
 
 /**
@@ -25,8 +25,8 @@ export function canFormatCode(language: CodeLanguage | undefined): boolean {
   return FORMATTABLE.includes(language ?? 'typescript');
 }
 
-const LINE_MARK = '@@dbd-elide@@';
-const INLINE_MARK = '__dbd_elide__';
+const LINE_MARK = '@@dd-elide@@';
+const INLINE_MARK = '__dd_elide__';
 const INLINE_ELISION = /(?:\.{3}|\u2026)(?=\s*(?:[)\]},;]|$))/gm;
 
 /** A comment that can carry a whole-line elision in each language. */
@@ -149,7 +149,7 @@ export async function formatCode(
     }
     // A bare method/property is only valid inside a class body.
     try {
-      out = unwrapClass(await run(`class __DbdSnippet {\n${source}\n}`));
+      out = unwrapClass(await run(`class __DdSnippet {\n${source}\n}`));
     } catch {
       throw cleanError(err);
     }

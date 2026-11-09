@@ -11,10 +11,10 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 /**
  * Bespoke text/number input replacing MatFormField + matInput. Implements
  * ControlValueAccessor so existing `[ngModel]`/`(ngModelChange)` bindings work.
- * Wrap with a `.dbd-field` label externally when a caption is needed.
+ * Wrap with a `.dd-field` label externally when a caption is needed.
  */
 @Component({
-  selector: 'dbd-input',
+  selector: 'dd-input',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
@@ -23,7 +23,7 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
   ],
   template: `
     <input
-      class="dbd-input"
+      class="dd-input"
       [type]="type()"
       [attr.placeholder]="placeholder()"
       [attr.min]="min()"
@@ -40,34 +40,34 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
       :host {
         display: block;
       }
-      .dbd-input {
+      .dd-input {
         width: 100%;
         box-sizing: border-box;
         height: 34px;
         padding: 0 10px;
         font: inherit;
-        font-family: var(--dbd-font);
+        font-family: var(--dd-font);
         font-size: 13px;
-        color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        color: var(--dd-text);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         outline: none;
         transition:
           border-color 0.12s ease,
           box-shadow 0.12s ease;
       }
-      .dbd-input::placeholder {
-        color: var(--dbd-faint, var(--dbd-text-muted));
+      .dd-input::placeholder {
+        color: var(--dd-faint, var(--dd-text-muted));
       }
-      .dbd-input:hover:not(:disabled) {
-        border-color: var(--dbd-border-strong);
+      .dd-input:hover:not(:disabled) {
+        border-color: var(--dd-border-strong);
       }
-      .dbd-input:focus {
-        border-color: var(--dbd-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dbd-primary) 22%, transparent);
+      .dd-input:focus {
+        border-color: var(--dd-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-primary) 22%, transparent);
       }
-      .dbd-input:disabled {
+      .dd-input:disabled {
         opacity: 0.55;
         cursor: default;
       }

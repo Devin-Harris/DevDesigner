@@ -38,7 +38,7 @@
       title="Flip direction"
       aria-label="Flip direction"
     >
-      <dbd-icon name="swap_horiz" />
+      <dd-icon name="swap_horiz" />
     </button>
   }
 
@@ -52,23 +52,23 @@
     aria-label="Auto-wrap label"
     [attr.aria-pressed]="m.wrap !== false"
   >
-    <dbd-icon name="wrap_text" />
+    <dd-icon name="wrap_text" />
   </button>
 
   <button
     type="button"
     class="ico-act"
-    [dbdPopoverTrigger]="colorMenu"
+    [ddPopoverTrigger]="colorMenu"
     placement="below-start"
     [disabled]="!canEdit()"
     title="Line color"
     aria-label="Line color"
   >
-    <span class="color-dot" [style.background]="css(m.color) || 'var(--dbd-connector)'"></span>
+    <span class="color-dot" [style.background]="css(m.color) || 'var(--dd-connector)'"></span>
   </button>
   <ng-template #colorMenu let-close>
     <div class="color-grid">
-      <dbd-color-swatches [value]="m.color" noneLabel="Default" themeValue="theme" (pick)="setColor($event); close()" />
+      <dd-color-swatches [value]="m.color" noneLabel="Default" themeValue="theme" (pick)="setColor($event); close()" />
     </div>
   </ng-template>
 
@@ -80,11 +80,11 @@
     title="Edit label"
     aria-label="Edit label"
   >
-    <dbd-icon name="edit" />
+    <dd-icon name="edit" />
   </button>
 
   <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-    <dbd-icon name="tune" />
+    <dd-icon name="tune" />
   </button>
   <button
     type="button"
@@ -94,6 +94,6 @@
     title="Delete message"
     aria-label="Delete message"
   >
-    <dbd-icon name="delete" />
+    <dd-icon name="delete" />
   </button>
 }

@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { ProjectType } from '@dbdesigner/shared';
+import type { ProjectType } from '@devdesigner/shared';
 
 /**
  * A diagram project. Canvas viewport state lives here (viewportX/Y/zoom) rather

@@ -19,9 +19,9 @@
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border: 1px solid var(--dd-border);
   border-radius: 14px;
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.45);
   overflow: hidden;
@@ -33,9 +33,9 @@
   gap: 10px;
   padding: 0 14px;
   height: 52px;
-  border-bottom: 1px solid var(--dbd-border);
-  color: var(--dbd-text-muted);
-  --dbd-icon-size: 19px;
+  border-bottom: 1px solid var(--dd-border);
+  color: var(--dd-text-muted);
+  --dd-icon-size: 19px;
 
   input {
     flex: 1;
@@ -43,7 +43,7 @@
     border: none;
     outline: none;
     background: transparent;
-    color: var(--dbd-text);
+    color: var(--dd-text);
     font: inherit;
     font-size: 15px;
   }
@@ -60,7 +60,7 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .row {
@@ -73,20 +73,20 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font: inherit;
   font-size: 13px;
   text-align: left;
   cursor: pointer;
 
   &.on {
-    background: var(--dbd-primary-weak);
+    background: var(--dd-primary-weak);
   }
 }
 
 .ri {
-  --dbd-icon-size: 17px;
-  color: var(--dbd-text-muted);
+  --dd-icon-size: 17px;
+  color: var(--dd-text-muted);
   flex-shrink: 0;
 }
 
@@ -100,7 +100,7 @@
 .rs {
   margin-left: auto;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -116,11 +116,11 @@
 }
 
 .k {
-  font-family: var(--dbd-mono, monospace);
+  font-family: var(--dd-mono, monospace);
   font-size: 11px;
-  color: var(--dbd-text-muted);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
+  color: var(--dd-text-muted);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
   padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
@@ -129,16 +129,16 @@
 .empty {
   padding: 18px 12px;
   font-size: 13px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .foot {
   display: flex;
   gap: 16px;
   padding: 8px 14px;
-  border-top: 1px solid var(--dbd-border);
+  border-top: 1px solid var(--dd-border);
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 
   .k {
     margin-right: 3px;

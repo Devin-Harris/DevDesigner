@@ -64,7 +64,7 @@ import {
   type ThemeColorToken,
   type ThemeFilePart,
   type ThemeFontToken,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ThemeService } from '../../../core/services/theme.service';
 import { UserThemesService } from '../../../core/services/user-themes.service';
 import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
@@ -236,7 +236,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             title="Delete presentation and its slides"
             aria-label="Delete presentation"
           >
-            <dbd-icon name="delete" />
+            <dd-icon name="delete" />
           </button>
         }
       </header>
@@ -249,7 +249,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             (click)="command.emit({ kind: 'present', from: 'start' })"
             title="Present from the first slide"
           >
-            <dbd-icon name="play_arrow" />Present
+            <dd-icon name="play_arrow" />Present
           </button>
           <button
             class="from"
@@ -269,7 +269,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                 newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'
               "
             >
-              <dbd-icon name="add" />New
+              <dd-icon name="add" />New
             </button>
             <button
               class="btn caret"
@@ -277,7 +277,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
               aria-label="Choose the new slide's layout"
               title="New slide with a layout…"
             >
-              <dbd-icon name="expand_more" />
+              <dd-icon name="expand_more" />
             </button>
             @if (newMenu()) {
               <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
@@ -344,7 +344,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   <img [src]="src" alt="" draggable="false" />
                 }
                 @if (slideForeign(f)) {
-                  <dbd-icon
+                  <dd-icon
                     name="warning"
                     class="foreign"
                     matTooltip="Its layout is not one of this design's layouts"
@@ -363,7 +363,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     "
                     aria-label="Skip slide"
                   >
-                    <dbd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
+                    <dd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
                   </button>
                   <button
                     class="icon"
@@ -371,7 +371,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     title="Duplicate slide"
                     aria-label="Duplicate slide"
                   >
-                    <dbd-icon name="content_copy" />
+                    <dd-icon name="content_copy" />
                   </button>
                   <button
                     class="icon"
@@ -379,7 +379,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     title="Delete slide and its contents"
                     aria-label="Delete slide"
                   >
-                    <dbd-icon name="delete" />
+                    <dd-icon name="delete" />
                   </button>
                 </span>
               }
@@ -415,7 +415,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             aria-label="Expand slide settings"
             title="Expand slide settings"
           >
-            <dbd-icon name="chevron_left" />
+            <dd-icon name="chevron_left" />
             <span class="vert">Slide settings</span>
           </button>
         } @else {
@@ -441,7 +441,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
               aria-label="Collapse slide settings"
               title="Collapse to the side"
             >
-              <dbd-icon name="chevron_right" />
+              <dd-icon name="chevron_right" />
             </button>
           </div>
 
@@ -458,7 +458,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       }}
                       @if (activeSlides().length <= 1) {
                         <button class="link" (click)="command.emit({ kind: 'preview', id: a.id })">
-                          <dbd-icon name="play_arrow" />Preview
+                          <dd-icon name="play_arrow" />Preview
                         </button>
                       }
                     </div>
@@ -466,7 +466,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       <p class="hint">The first slide has no transition into it.</p>
                       @if (morphRelevantNext()) {
                         <button class="btn wide map-pairs" (click)="command.emit({ kind: 'screen', screen: 'morph' })" title="See what morphs into what on the next slide, and change it">
-                          <dbd-icon name="open_in_full" />Refine
+                          <dd-icon name="open_in_full" />Refine
                         </button>
                       }
                     } @else {
@@ -475,7 +475,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           >Transition into
                           {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span
                         >
-                        <dbd-select
+                        <dd-select
                           [options]="typeOptions"
                           [ngModel]="transition().type"
                           [disabled]="!canEdit()"
@@ -485,7 +485,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       @if (transition().type === 'slide') {
                         <label class="field">
                           <span>Direction</span>
-                          <dbd-select
+                          <dd-select
                             [options]="directionOptions"
                             [ngModel]="transition().direction ?? 'left'"
                             [disabled]="!canEdit()"
@@ -509,7 +509,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           </label>
                           <label class="field">
                             <span>Easing</span>
-                            <dbd-select
+                            <dd-select
                               [options]="easingOptions"
                               [ngModel]="transition().easing"
                               [disabled]="!canEdit()"
@@ -521,7 +521,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       @if (transition().type === 'morph') {
                         <label class="field">
                           <span>Animate text by</span>
-                          <dbd-select
+                          <dd-select
                             [options]="morphByOptions"
                             [ngModel]="transition().morphBy ?? 'character'"
                             [disabled]="!canEdit()"
@@ -538,7 +538,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       }
                       @if (activeSlides().length <= 1) {
                         <button class="btn wide map-pairs" (click)="command.emit({ kind: 'screen', screen: 'morph' })" title="See what morphs into what, and change it">
-                          <dbd-icon name="open_in_full" />Refine
+                          <dd-icon name="open_in_full" />Refine
                         </button>
                       }
                     }
@@ -558,7 +558,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                         </span>
                         @if (splitTarget()?.split) {
                           <span class="sublab">In · from the slide before</span>
-                          <dbd-tag-input
+                          <dd-tag-input
                             [value]="tagText(splitTarget()!.in)"
                             [suggestions]="morphTagSuggestions()"
                             [maxlength]="80"
@@ -566,14 +566,14 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (commit)="setSplitTag('in', $event)"
                           />
                           <span class="sublab">Out · to the slide after</span>
-                          <dbd-tag-input
+                          <dd-tag-input
                             [value]="tagText(splitTarget()!.out)"
                             [maxlength]="80"
                             placeholder="type a tag…"
                             (commit)="setSplitTag('out', $event)"
                           />
                         } @else {
-                        <dbd-tag-input
+                        <dd-tag-input
                           [value]="morphTag()"
                           [suggestions]="morphTagSuggestions()"
                           [taken]="takenTags()"
@@ -611,7 +611,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   <div class="sub">
                     <span class="subt">
                       Design
-                      <dbd-icon
+                      <dd-icon
                         name="info"
                         class="info"
                         tabindex="0"
@@ -626,7 +626,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           aria-label="New design"
                           matTooltip="New design: a copy of this one (its layouts and theme) to change"
                         >
-                          <dbd-icon name="add" />
+                          <dd-icon name="add" />
                         </button>
                         @if (designIsCustom()) {
                           <button
@@ -635,7 +635,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             aria-label="Delete design"
                             matTooltip="Delete this design; the deck goes back to the Default layouts"
                           >
-                            <dbd-icon name="delete" />
+                            <dd-icon name="delete" />
                           </button>
                         }
                         <button
@@ -644,7 +644,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           aria-label="Export design"
                           matTooltip="Download this design (its layouts and theme) as one file"
                         >
-                          <dbd-icon name="download" />
+                          <dd-icon name="download" />
                         </button>
                         <button
                           class="icon"
@@ -652,12 +652,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           aria-label="Import design"
                           matTooltip="Add a design from a file and use it"
                         >
-                          <dbd-icon name="upload" />
+                          <dd-icon name="upload" />
                         </button>
                       </span>
                     }
                   </div>
-                  <dbd-select
+                  <dd-select
                     class="design-pick"
                     aria-label="Design"
                     [options]="designOptions()"
@@ -671,7 +671,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   @if (themeNote() ?? relayoutNote(); as note) {
                     <p class="hint">{{ note }}</p>
                   }
-                  <dbd-segmented
+                  <dd-segmented
                     class="design-seg"
                     [options]="designTabOptions"
                     [ngModel]="designTab()"
@@ -682,7 +682,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       <div class="sub">
                         <span class="subt">
                           {{ l.slide?.master ? 'Master' : 'Layout' }}
-                          <dbd-icon
+                          <dd-icon
                             name="info"
                             class="info"
                             tabindex="0"
@@ -709,7 +709,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       </label>
                       @if (layoutTextSelection().length; as n) {
                         <div class="field">
-                          <dbd-checkbox
+                          <dd-checkbox
                             [ngModel]="!!layoutTextSelection()[0].placeholder"
                             [disabled]="!canEdit()"
                             (ngModelChange)="setPlaceholder($event)"
@@ -719,12 +719,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                                 ? 'Selected text boxes are placeholders'
                                 : 'Selected text box is a placeholder'
                             }}
-                          </dbd-checkbox>
+                          </dd-checkbox>
                         </div>
                         @if (layoutTextSelection()[0].placeholder; as ph) {
                           <label class="field">
                             <span>Style type</span>
-                            <dbd-select
+                            <dd-select
                               [options]="roleOptions"
                               [ngModel]="ph.role ?? ''"
                               [disabled]="!canEdit()"
@@ -735,7 +735,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       }
                       <div class="row">
                         <button class="btn" (click)="backToSlide()">
-                          <dbd-icon name="chevron_left" />Back to slides
+                          <dd-icon name="chevron_left" />Back to slides
                         </button>
                         @if (canEdit() && !shownLayout()?.slide?.master) {
                           <button
@@ -743,7 +743,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (click)="command.emit({ kind: 'add' })"
                             title="Add a slide that uses this layout"
                           >
-                            <dbd-icon name="add" />New slide
+                            <dd-icon name="add" />New slide
                           </button>
                         }
                       </div>
@@ -754,7 +754,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           >Layout of
                           {{ activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span
                         >
-                        <dbd-select
+                        <dd-select
                           [options]="layoutOptions()"
                           [ngModel]="activeLayoutValue()"
                           [disabled]="!canEdit() || !layouts().length"
@@ -771,7 +771,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (click)="resetSlide(true)"
                             title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
                           >
-                            <dbd-icon name="undo" />Reset selected to layout
+                            <dd-icon name="undo" />Reset selected to layout
                           </button>
                         } @else {
                           <button
@@ -779,7 +779,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (click)="resetSlide(false)"
                             title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
                           >
-                            <dbd-icon name="undo" />Reset slide to layout
+                            <dd-icon name="undo" />Reset slide to layout
                           </button>
                         }
                       </div>
@@ -798,7 +798,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (click)="resetMaster(true)"
                             title="Show the master's version of the selected items again"
                           >
-                            <dbd-icon name="undo" />Reset selected to master
+                            <dd-icon name="undo" />Reset selected to master
                           </button>
                         } @else {
                           <button
@@ -806,7 +806,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             (click)="resetMaster(false)"
                             title="Show the master's version of every item changed here again"
                           >
-                            <dbd-icon name="undo" />Reset to master
+                            <dd-icon name="undo" />Reset to master
                           </button>
                         }
                       </div>
@@ -814,7 +814,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     <div class="listbar">
                       <span class="muted subt">
                         Layouts
-                        <dbd-icon
+                        <dd-icon
                           name="info"
                           class="info"
                           tabindex="0"
@@ -829,7 +829,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             aria-label="Export layouts"
                             matTooltip="Download this design's layouts and master as a file"
                           >
-                            <dbd-icon name="download" />
+                            <dd-icon name="download" />
                           </button>
                           <button
                             class="icon"
@@ -837,36 +837,36 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             aria-label="Import layouts"
                             matTooltip="Use layouts from a file in this design (its theme stays)"
                           >
-                            <dbd-icon name="upload" />
+                            <dd-icon name="upload" />
                           </button>
                           <button
                             class="link"
-                            [dbdPopoverTrigger]="standardMenu"
+                            [ddPopoverTrigger]="standardMenu"
                             placement="below-end"
                             matTooltip="Add ready-made layouts that follow the theme"
                           >
-                            <dbd-icon name="template" />Standard
+                            <dd-icon name="template" />Standard
                           </button>
                           <button
                             class="link"
                             (click)="command.emit({ kind: 'add', layout: true })"
                             matTooltip="Add an empty layout"
                           >
-                            <dbd-icon name="add" />Layout
+                            <dd-icon name="add" />Layout
                           </button>
                         </span>
                         <ng-template #standardMenu let-close>
-                          <div class="dbd-menu">
+                          <div class="dd-menu">
                             <button
-                              class="dbd-menu-item"
+                              class="dd-menu-item"
                               [disabled]="!missingKinds().length"
                               (click)="addStandard(missingKinds()); close()"
                             >
                               {{ missingKinds().length ? 'All missing standard layouts' : 'All standard layouts added' }}
                             </button>
-                            <div class="dbd-menu-sep"></div>
+                            <div class="dd-menu-sep"></div>
                             @for (k of missingKinds(); track k) {
-                              <button class="dbd-menu-item" (click)="addStandard([k]); close()">
+                              <button class="dd-menu-item" (click)="addStandard([k]); close()">
                                 {{ kindLabels[k] }}
                               </button>
                             }
@@ -914,7 +914,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                                 title="Duplicate layout"
                                 aria-label="Duplicate layout"
                               >
-                                <dbd-icon name="content_copy" />
+                                <dd-icon name="content_copy" />
                               </button>
                               @if (!l.slide?.defaultLayout) {
                                 <button
@@ -926,7 +926,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                                   title="Delete layout and its items"
                                   aria-label="Delete layout"
                                 >
-                                  <dbd-icon name="delete" />
+                                  <dd-icon name="delete" />
                                 </button>
                               }
                             </span>
@@ -941,7 +941,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     <div class="sub">
                       <span class="subt">
                         Theme
-                        <dbd-icon
+                        <dd-icon
                           name="info"
                           class="info"
                           tabindex="0"
@@ -957,7 +957,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                               aria-label="Delete theme"
                               matTooltip="Delete this theme; the deck takes the Default theme"
                             >
-                              <dbd-icon name="delete" />
+                              <dd-icon name="delete" />
                             </button>
                           }
                           <button
@@ -966,7 +966,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             aria-label="Export theme"
                             matTooltip="Download this theme's colors and fonts as a file"
                           >
-                            <dbd-icon name="download" />
+                            <dd-icon name="download" />
                           </button>
                           <button
                             class="icon"
@@ -974,12 +974,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                             aria-label="Import theme"
                             matTooltip="Add a theme from a file and use it in this design (its layouts stay)"
                           >
-                            <dbd-icon name="upload" />
+                            <dd-icon name="upload" />
                           </button>
                         </span>
                       }
                     </div>
-                    <dbd-select
+                    <dd-select
                       class="design-pick"
                       aria-label="Theme"
                       [options]="themeOptions()"
@@ -997,7 +997,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                           <button
                             type="button"
                             class="token"
-                            [dbdPopoverTrigger]="tokenPicker"
+                            [ddPopoverTrigger]="tokenPicker"
                             placement="below-start"
                             [disabled]="!canEdit()"
                             [title]="colorLabels[k]"
@@ -1013,14 +1013,14 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                               "
                             >
                               @if (isFollow(deckTheme().colors[k])) {
-                                <dbd-icon name="contrast" />
+                                <dd-icon name="contrast" />
                               }
                             </span>
                             <span class="tlabel">{{ colorLabels[k] }}</span>
                           </button>
                           <ng-template #tokenPicker let-close>
                             <div class="picker">
-                              <dbd-color-swatches
+                              <dd-color-swatches
                                 [value]="deckTheme().colors[k]"
                                 noneValue="transparent"
                                 noneLabel="None"
@@ -1035,7 +1035,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     <div class="two">
                       <label class="field">
                         <span>Heading font</span>
-                        <dbd-select
+                        <dd-select
                           [options]="fontOptions"
                           [ngModel]="deckTheme().fonts.heading"
                           [disabled]="!canEdit()"
@@ -1044,7 +1044,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                       </label>
                       <label class="field">
                         <span>Body font</span>
-                        <dbd-select
+                        <dd-select
                           [options]="fontOptions"
                           [ngModel]="deckTheme().fonts.body"
                           [disabled]="!canEdit()"
@@ -1058,7 +1058,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   @if (canEdit()) {
                     <label class="field">
                       <span>Size of every slide</span>
-                      <dbd-select
+                      <dd-select
                         [options]="sizeOptions()"
                         [ngModel]="sizeValue()"
                         (ngModelChange)="setSize($event)"
@@ -1115,7 +1115,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
 
     @if (part() === 'theme-menu' || part() === 'design-menu') {
       @let isTheme = part() === 'theme-menu';
-      <div class="dbd-menu rec-menu">
+      <div class="dd-menu rec-menu">
         @for (g of (isTheme ? themeGroups() : designGroups()); track g.name) {
           <div class="f-lab grp">{{ g.name }}</div>
           @for (o of g.items; track o.id) {
@@ -1132,7 +1132,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
               />
             } @else {
               <div class="rec-row" [class.on]="o.on">
-                <button class="dbd-menu-item rec-pick" [disabled]="!canEdit()" (click)="isTheme ? pickTheme(o.id) : pickDesign(o.id)">
+                <button class="dd-menu-item rec-pick" [disabled]="!canEdit()" (click)="isTheme ? pickTheme(o.id) : pickDesign(o.id)">
                   @if (isTheme && o.theme) {
                     <span class="rec-sw">
                       @for (k of ['background', 'heading', 'accent1', 'accent2']; track k) {
@@ -1144,10 +1144,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                 </button>
                 @if (o.custom && canEdit()) {
                   <button class="rec-edit" (click)="renaming.set(o.id)" [attr.aria-label]="'Rename ' + o.name" title="Rename">
-                    <dbd-icon name="edit" />
+                    <dd-icon name="edit" />
                   </button>
                   <button class="rec-edit del" (click)="isTheme ? deleteThemeById(o.id) : deleteDesignById(o.id)" [attr.aria-label]="'Delete ' + o.name" title="Delete">
-                    <dbd-icon name="delete" />
+                    <dd-icon name="delete" />
                   </button>
                 }
               </div>
@@ -1158,9 +1158,9 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
     }
 
     @if (part() === 'size-menu') {
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (o of sizeOptions(); track o.value) {
-          <button class="dbd-menu-item" [class.on]="o.value === sizeValue()" [disabled]="!canEdit()" (click)="setSize(o.value); command.emit({ kind: 'close' })">{{ o.label }}</button>
+          <button class="dd-menu-item" [class.on]="o.value === sizeValue()" [disabled]="!canEdit()" (click)="setSize(o.value); command.emit({ kind: 'close' })">{{ o.label }}</button>
         }
       </div>
     }
@@ -1201,11 +1201,11 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       @if (canEdit()) {
         <div class="f-foot">
           <button class="f-go" (click)="command.emit({ kind: 'add' })"><span>+ Slide</span></button>
-          <button class="f-tb" [dbdPopoverTrigger]="focusLayoutMenu" placement="above-start" aria-label="New slide with a layout">Layout ▾</button>
+          <button class="f-tb" [ddPopoverTrigger]="focusLayoutMenu" placement="above-start" aria-label="New slide with a layout">Layout ▾</button>
           <ng-template #focusLayoutMenu let-close>
-            <div class="dbd-menu">
+            <div class="dd-menu">
               @for (l of menuLayouts(); track l.id) {
-                <button class="dbd-menu-item lay-item" (click)="addWithLayout(l.id); close()">
+                <button class="dd-menu-item lay-item" (click)="addWithLayout(l.id); close()">
                   <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                     @if (layoutThumbs().get(l.id); as src) {
                       <img [src]="src" alt="" draggable="false" />
@@ -1237,7 +1237,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         @if (ftab() === 'transition') {
           <ng-container [ngTemplateOutlet]="transitionBody" />
           @if (active() && hasTransitionTarget()) {
-            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dbd-icon name="open_in_full" />Refine</button>
+            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dd-icon name="open_in_full" />Refine</button>
           }
         } @else if (ftab() === 'animations') {
           @if (active(); as a) {
@@ -1344,7 +1344,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                 <button
                   [class.on]="![200, 300, 500].includes(transition().duration)"
                   [disabled]="!canEdit()"
-                  [dbdPopoverTrigger]="durMenu"
+                  [ddPopoverTrigger]="durMenu"
                   placement="below-end"
                 >ms…</button>
               </span>
@@ -1364,7 +1364,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             </div>
             <div class="f-row">
               Easing
-              <dbd-select
+              <dd-select
                 class="f-select"
                 [options]="easingOptions"
                 [ngModel]="transition().easing"
@@ -1376,7 +1376,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
           @if (transition().type === 'slide') {
             <div class="f-row">
               Direction
-              <dbd-select
+              <dd-select
                 class="f-select"
                 [options]="directionOptions"
                 [ngModel]="transition().direction ?? 'left'"
@@ -1401,7 +1401,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         } @else {
           <p class="hint">The first slide has no transition into it.</p>
           @if (frames().length > 1) {
-            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dbd-icon name="open_in_full" />Refine</button>
+            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })"><dd-icon name="open_in_full" />Refine</button>
           }
         }
 
@@ -1418,7 +1418,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             @if (splitTarget()?.split) {
               <div class="f-split">
                 <span class="f-small">In · from the slide before</span>
-                <dbd-tag-input
+                <dd-tag-input
                   [value]="tagText(splitTarget()!.in)"
                   [suggestions]="morphTagSuggestions()"
                   [maxlength]="80"
@@ -1426,7 +1426,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                   (commit)="setSplitTag('in', $event)"
                 />
                 <span class="f-small">Out · to the slide after</span>
-                <dbd-tag-input
+                <dd-tag-input
                   [value]="tagText(splitTarget()!.out)"
                   [maxlength]="80"
                   placeholder="type a tag…"
@@ -1434,7 +1434,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                 />
               </div>
             } @else {
-              <dbd-tag-input
+              <dd-tag-input
                 [value]="morphTag()"
                 [suggestions]="morphTagSuggestions()"
                 [taken]="takenTags()"
@@ -1461,7 +1461,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
     @if (part() === 'design-layouts') {
       <div class="f-head">
         <span class="f-lab">Layouts
-          <dbd-icon name="info" class="info" tabindex="0" matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. The master shows under all of them." />
+          <dd-icon name="info" class="info" tabindex="0" matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. The master shows under all of them." />
         </span>
       </div>
       <div class="f-cards">
@@ -1486,7 +1486,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
             (pointerdown)="onLayoutDown(li, $event)"
           >
           @if (canEdit() && !l.slide?.defaultLayout) {
-            <button class="rec-edit del ly-del" (click)="command.emit({ kind: 'delete', id: l.id })" title="Delete layout and its items" aria-label="Delete layout"><dbd-icon name="delete" /></button>
+            <button class="rec-edit del ly-del" (click)="command.emit({ kind: 'delete', id: l.id })" title="Delete layout and its items" aria-label="Delete layout"><dd-icon name="delete" /></button>
           }
           <button class="ly" [class.on]="l.id === active_()" (click)="!lySuppress && command.emit({ kind: 'focus', id: l.id })">
             <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
@@ -1514,10 +1514,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       <div class="f-body gap14 fill">
         <div class="f-design top">
           <div class="f-lab">Design = layouts + theme
-            <dbd-icon name="info" class="info" tabindex="0" matTooltip="A design is one set of layouts plus the theme it uses." />
+            <dd-icon name="info" class="info" tabindex="0" matTooltip="A design is one set of layouts plus the theme it uses." />
           </div>
           <div class="f-acts">
-            <dbd-select class="f-select grow" [options]="designOptions()" [ngModel]="design().id" [disabled]="!canEdit()" (ngModelChange)="pickDesign($event)" (rename)="renameRecord($event.value, $event.label)" [removable]="true" (remove)="deleteDesignById($event)" />
+            <dd-select class="f-select grow" [options]="designOptions()" [ngModel]="design().id" [disabled]="!canEdit()" (ngModelChange)="pickDesign($event)" (rename)="renameRecord($event.value, $event.label)" [removable]="true" (remove)="deleteDesignById($event)" />
             @if (canEdit()) {
               <button class="f-tb sm" (click)="newDesign()">Save as new</button>
               <button class="f-tb sm" (click)="exportDesign('design')">Export</button>
@@ -1526,7 +1526,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         </div>
         <div class="f-between">
           <span class="f-lab">Theme
-            <dbd-icon name="info" class="info" tabindex="0" matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy." />
+            <dd-icon name="info" class="info" tabindex="0" matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy." />
           </span>
           @if (canEdit()) {
             <span class="f-acts">
@@ -1555,8 +1555,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                     <span>{{ t.name }}</span>
                     @if (t.custom && canEdit()) {
                       <span class="nm-acts">
-                        <button class="rec-edit" (click)="renaming.set(t.id)" [attr.aria-label]="'Rename ' + t.name" title="Rename"><dbd-icon name="edit" /></button>
-                        <button class="rec-edit del" (click)="deleteThemeById(t.id)" [attr.aria-label]="'Delete ' + t.name" title="Delete"><dbd-icon name="delete" /></button>
+                        <button class="rec-edit" (click)="renaming.set(t.id)" [attr.aria-label]="'Rename ' + t.name" title="Rename"><dd-icon name="edit" /></button>
+                        <button class="rec-edit del" (click)="deleteThemeById(t.id)" [attr.aria-label]="'Delete ' + t.name" title="Delete"><dd-icon name="delete" /></button>
                       </span>
                     }
                   </span>
@@ -1568,13 +1568,13 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         <div class="f-lab">Colors</div>
         <div class="tok-grid">
           @for (k of colorTokens; track k) {
-            <button class="tok" [dbdPopoverTrigger]="tokPick" placement="below-start" [disabled]="!canEdit()">
+            <button class="tok" [ddPopoverTrigger]="tokPick" placement="below-start" [disabled]="!canEdit()">
               <span class="sq" [style.background]="isFollow(deckTheme().colors[k]) || deckTheme().colors[k] === 'transparent' ? null : css(deckTheme().colors[k])"></span>
               {{ colorLabels[k] }}
             </button>
             <ng-template #tokPick let-close>
               <div class="picker">
-                <dbd-color-swatches
+                <dd-color-swatches
                   [value]="deckTheme().colors[k]"
                   noneValue="transparent"
                   noneLabel="None"
@@ -1587,10 +1587,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         </div>
         <div class="f-lab">Fonts</div>
         <div class="fnt"><span class="muted">Heading</span>
-          <dbd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.heading" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('heading', $event)" />
+          <dd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.heading" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('heading', $event)" />
         </div>
         <div class="fnt"><span class="muted">Body</span>
-          <dbd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.body" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('body', $event)" />
+          <dd-select class="f-select" [options]="fontOptions" [ngModel]="deckTheme().fonts.body" [disabled]="!canEdit()" (ngModelChange)="setThemeFont('body', $event)" />
         </div>
       </div>
     }
@@ -1600,124 +1600,124 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
 
       .map-pairs { margin: 10px 0 6px; }
       .tagline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      .sublab { font-size: 11px; color: var(--dbd-text-muted); }
+      .sublab { font-size: 11px; color: var(--dd-text-muted); }
       /* ---- Focus mode views (DeckFocus / DeckMorph / DeckDesign mocks) ---- */
       .rec-menu { min-width: 240px; max-height: 60vh; overflow-y: auto; }
       .grp { padding: 8px 10px 4px; }
       .rec-row { display: flex; align-items: center; }
-      .rec-row.on .rec-pick { color: var(--dbd-primary); font-weight: 600; }
+      .rec-row.on .rec-pick { color: var(--dd-primary); font-weight: 600; }
       .rec-pick { flex: 1; min-width: 0; }
       .rec-sw { display: inline-flex; margin-right: 8px; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
       .rec-sw span { width: 8px; height: 16px; }
-      .rec-edit { width: 26px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: transparent; color: var(--dbd-text-muted); cursor: pointer; --dbd-icon-size: 14px; }
-      .rec-edit:hover { background: var(--dbd-surface-2); color: var(--dbd-text); }
+      .rec-edit { width: 26px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: transparent; color: var(--dd-text-muted); cursor: pointer; --dd-icon-size: 14px; }
+      .rec-edit:hover { background: var(--dd-surface-2); color: var(--dd-text); }
       .rec-edit.del:hover { background: color-mix(in srgb, #ef6b6b 18%, transparent); color: #ef6b6b; }
       .nm-acts { display: inline-flex; }
       .lyw { position: relative; display: grid; touch-action: none; }
       .lyw.ly-dragging { opacity: .45; }
       .lyw.ly-copy { opacity: 1; cursor: copy; }
-      .lyw.ly-before::before, .lyw.ly-after::after { content: ''; position: absolute; left: 6px; right: 6px; height: 3px; border-radius: 2px; background: var(--dbd-primary); z-index: 2; }
+      .lyw.ly-before::before, .lyw.ly-after::after { content: ''; position: absolute; left: 6px; right: 6px; height: 3px; border-radius: 2px; background: var(--dd-primary); z-index: 2; }
       .lyw.ly-before::before { top: -2px; }
       .lyw.ly-after::after { bottom: -2px; }
-      .ly-del { position: absolute; top: 10px; right: 10px; z-index: 1; background: var(--dbd-surface); opacity: 0; }
+      .ly-del { position: absolute; top: 10px; right: 10px; z-index: 1; background: var(--dd-surface); opacity: 0; }
       .lyw:hover .ly-del, .ly-del:focus-visible { opacity: 1; }
-      .rec-input { margin: 2px 6px; width: calc(100% - 12px); box-sizing: border-box; height: 30px; padding: 0 8px; border: 1px solid var(--dbd-primary); border-radius: 6px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; outline: none; }
+      .rec-input { margin: 2px 6px; width: calc(100% - 12px); box-sizing: border-box; height: 30px; padding: 0 8px; border: 1px solid var(--dd-primary); border-radius: 6px; background: var(--dd-surface); color: var(--dd-text); font: inherit; outline: none; }
       .rec-input.card { margin: 4px; width: calc(100% - 8px); height: 26px; font-size: 12px; }
       .f-split { display: grid; gap: 6px; }
-      .f-sub { font-size: 12px; color: var(--dbd-text-muted); margin-bottom: -6px; }
+      .f-sub { font-size: 12px; color: var(--dd-text-muted); margin-bottom: -6px; }
       .th .pv { width: 100%; border: none; cursor: pointer; text-align: left; }
       .th .nm { align-items: center; }
-      .f-design.top { margin-top: 0; border-top: none; padding-top: 0; padding-left: 0; padding-right: 0; border-bottom: 1px solid var(--dbd-border); padding-bottom: 12px; }
+      .f-design.top { margin-top: 0; border-top: none; padding-top: 0; padding-left: 0; padding-right: 0; border-bottom: 1px solid var(--dd-border); padding-bottom: 12px; }
 
       :host(.fdock) { border-radius: 14px; }
       .f-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 6px; }
-      .f-lab { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dbd-text-muted); display: inline-flex; align-items: center; gap: 6px; }
-      .f-k { font-family: var(--dbd-mono, monospace); font-size: 11px; color: var(--dbd-text-muted); background: var(--dbd-surface-2); border: 1px solid var(--dbd-border); padding: 1px 5px; border-radius: 4px; }
+      .f-lab { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dd-text-muted); display: inline-flex; align-items: center; gap: 6px; }
+      .f-k { font-family: var(--dd-mono, monospace); font-size: 11px; color: var(--dd-text-muted); background: var(--dd-surface-2); border: 1px solid var(--dd-border); padding: 1px 5px; border-radius: 4px; }
       .btnk { cursor: pointer; }
       .f-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px; display: flex; flex-direction: column; gap: 2px; outline: none; }
       .fs { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px; border-radius: 9px; cursor: pointer; }
-      .fs.on { background: var(--dbd-primary-weak); }
+      .fs.on { background: var(--dd-primary-weak); }
       .fs.skipped { opacity: .55; }
-      .fs .n { font-size: 12px; color: var(--dbd-text-muted); text-align: right; padding-top: 4px; }
-      .fs .tn { position: relative; display: block; border-radius: 5px; border: 1px solid var(--dbd-border-strong, var(--dbd-border)); overflow: hidden; background: var(--dbd-surface-2); }
-      .fs.on .tn { border: 2px solid var(--dbd-primary); }
+      .fs .n { font-size: 12px; color: var(--dd-text-muted); text-align: right; padding-top: 4px; }
+      .fs .tn { position: relative; display: block; border-radius: 5px; border: 1px solid var(--dd-border-strong, var(--dd-border)); overflow: hidden; background: var(--dd-surface-2); }
+      .fs.on .tn { border: 2px solid var(--dd-primary); }
       .fs .tn img, .lt img { display: block; width: 100%; height: 100%; object-fit: contain; }
       .bd { position: absolute; bottom: 4px; right: 6px; display: flex; gap: 3px; }
       .bdg { font-size: 9px; font-weight: 600; padding: 1px 4px; border-radius: 3px; background: rgba(35, 38, 44, .75); color: #fff; }
       .f-foot { display: flex; gap: 4px; padding: 8px; }
       .f-foot.col { flex-direction: column; }
-      .f-go { flex: 1; height: 32px; border: none; border-radius: 7px; background: var(--dbd-primary); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
-      .f-tb { height: 32px; padding: 0 9px; border: none; border-radius: 7px; background: transparent; color: var(--dbd-text); font: inherit; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-      .f-tb:hover:not(:disabled) { background: var(--dbd-surface-2); }
-      .f-tb.outline, .f-foot .f-tb { border: 1px solid var(--dbd-border); }
+      .f-go { flex: 1; height: 32px; border: none; border-radius: 7px; background: var(--dd-primary); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      .f-tb { height: 32px; padding: 0 9px; border: none; border-radius: 7px; background: transparent; color: var(--dd-text); font: inherit; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+      .f-tb:hover:not(:disabled) { background: var(--dd-surface-2); }
+      .f-tb.outline, .f-foot .f-tb { border: 1px solid var(--dd-border); }
       .f-tb.sm { height: 26px; font-size: 12px; }
-      .f-tabs { display: flex; gap: 2px; padding: 4px 12px 0; border-bottom: 1px solid var(--dbd-border); }
-      .f-tab { height: 36px; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 0 8px; font: inherit; font-weight: 500; color: var(--dbd-text-muted); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
-      .f-tab.on { border-bottom-color: var(--dbd-primary); color: var(--dbd-text); font-weight: 600; }
-      .cnt { font-size: 10px; background: var(--dbd-surface-2); color: var(--dbd-text-muted); border-radius: 999px; padding: 0 5px; }
+      .f-tabs { display: flex; gap: 2px; padding: 4px 12px 0; border-bottom: 1px solid var(--dd-border); }
+      .f-tab { height: 36px; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 0 8px; font: inherit; font-weight: 500; color: var(--dd-text-muted); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+      .f-tab.on { border-bottom-color: var(--dd-primary); color: var(--dd-text); font-weight: 600; }
+      .cnt { font-size: 10px; background: var(--dd-surface-2); color: var(--dd-text-muted); border-radius: 999px; padding: 0 5px; }
       .f-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; }
       .f-body.gap12 { gap: 12px; }
       .f-body.gap14 { gap: 14px; }
       .f-body.fill { flex: 1 1 auto; }
       .f-between { display: flex; justify-content: space-between; align-items: center; }
-      .f-link { border: none; background: transparent; color: var(--dbd-primary); font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
-      .f-link:hover { background: var(--dbd-surface-2); }
+      .f-link { border: none; background: transparent; color: var(--dd-primary); font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+      .f-link:hover { background: var(--dd-surface-2); }
       .f-lays { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-      .lay { display: flex; flex-direction: column; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 11px; color: var(--dbd-text-secondary, var(--dbd-text)); text-align: center; cursor: pointer; }
-      .lay .lt { display: block; border-radius: 4px; border: 1px solid var(--dbd-border); background: var(--dbd-surface-2); overflow: hidden; }
-      .lay.on .lt { border: 2px solid var(--dbd-primary); }
-      .f-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; padding: 9px 0 0; border-top: 1px solid var(--dbd-border); }
+      .lay { display: flex; flex-direction: column; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 11px; color: var(--dd-text-secondary, var(--dd-text)); text-align: center; cursor: pointer; }
+      .lay .lt { display: block; border-radius: 4px; border: 1px solid var(--dd-border); background: var(--dd-surface-2); overflow: hidden; }
+      .lay.on .lt { border: 2px solid var(--dd-primary); }
+      .f-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; padding: 9px 0 0; border-top: 1px solid var(--dd-border); }
       .f-body.gap12 .f-row { border-top: none; padding: 0; }
       .f-sws { display: flex; gap: 6px; }
-      .sw { width: 22px; height: 22px; padding: 0; border: none; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--dbd-border-strong, rgba(127, 127, 127, .55)); cursor: pointer; }
-      .sw.on { outline: 2px solid var(--dbd-primary); outline-offset: 2px; }
-      .tg { position: relative; width: 34px; height: 20px; padding: 0; border: none; border-radius: 999px; background: var(--dbd-border-strong, var(--dbd-border)); cursor: pointer; }
-      .tg::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dbd-surface); transition: left .12s; }
-      .tg.on { background: var(--dbd-primary); }
+      .sw { width: 22px; height: 22px; padding: 0; border: none; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--dd-border-strong, rgba(127, 127, 127, .55)); cursor: pointer; }
+      .sw.on { outline: 2px solid var(--dd-primary); outline-offset: 2px; }
+      .tg { position: relative; width: 34px; height: 20px; padding: 0; border: none; border-radius: 999px; background: var(--dd-border-strong, var(--dd-border)); cursor: pointer; }
+      .tg::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dd-surface); transition: left .12s; }
+      .tg.on { background: var(--dd-primary); }
       .tg.on::after { left: 16px; }
-      .muted { color: var(--dbd-text-muted); }
-      .f-notes { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px 10px; border: 1px solid var(--dbd-border); border-radius: 8px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; }
-      .f-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 8px; background: var(--dbd-surface-2); }
-      .f-seg button { border: none; background: transparent; font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; color: var(--dbd-text-muted); cursor: pointer; }
-      .f-seg button.on { background: var(--dbd-surface); color: var(--dbd-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+      .muted { color: var(--dd-text-muted); }
+      .f-notes { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px 10px; border: 1px solid var(--dd-border); border-radius: 8px; background: var(--dd-surface); color: var(--dd-text); font: inherit; }
+      .f-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 8px; background: var(--dd-surface-2); }
+      .f-seg button { border: none; background: transparent; font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; color: var(--dd-text-muted); cursor: pointer; }
+      .f-seg button.on { background: var(--dd-surface); color: var(--dd-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
       .f-select { min-width: 120px; }
       .f-select.grow { flex: 1; }
-      .f-num { width: 90px; height: 28px; padding: 0 8px; border: 1px solid var(--dbd-border); border-radius: 6px; background: var(--dbd-surface); color: var(--dbd-text); font: inherit; }
-      .f-sect { border-top: 1px solid var(--dbd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-      .f-small { font-size: 12px; color: var(--dbd-text-muted); }
+      .f-num { width: 90px; height: 28px; padding: 0 8px; border: 1px solid var(--dd-border); border-radius: 6px; background: var(--dd-surface); color: var(--dd-text); font: inherit; }
+      .f-sect { border-top: 1px solid var(--dd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+      .f-small { font-size: 12px; color: var(--dd-text-muted); }
       .vt { color: #7048e8; }
-      .vt.taken { text-decoration: line-through; color: var(--dbd-text-muted); }
-      .f-hint { padding: 6px 10px; font-size: 12px; color: var(--dbd-text-muted); }
-      .ly { display: grid; gap: 4px; padding: 6px; border: none; border-radius: 9px; background: transparent; font: inherit; font-size: 12px; color: var(--dbd-text); text-align: left; cursor: pointer; }
-      .ly.on { background: var(--dbd-primary-weak); }
-      .ly .lt { display: block; border-radius: 5px; border: 1px solid var(--dbd-border); overflow: hidden; background: var(--dbd-surface-2); }
-      .ly.on .lt { border: 2px solid var(--dbd-primary); }
-      .ly .meta { display: flex; justify-content: space-between; color: var(--dbd-text-muted); }
-      .ly .meta b { color: var(--dbd-text); }
-      .ly.on .meta .nm { color: var(--dbd-primary); font-weight: 600; }
-      .f-div { height: 1px; background: var(--dbd-border); margin: 4px 6px; flex-shrink: 0; }
+      .vt.taken { text-decoration: line-through; color: var(--dd-text-muted); }
+      .f-hint { padding: 6px 10px; font-size: 12px; color: var(--dd-text-muted); }
+      .ly { display: grid; gap: 4px; padding: 6px; border: none; border-radius: 9px; background: transparent; font: inherit; font-size: 12px; color: var(--dd-text); text-align: left; cursor: pointer; }
+      .ly.on { background: var(--dd-primary-weak); }
+      .ly .lt { display: block; border-radius: 5px; border: 1px solid var(--dd-border); overflow: hidden; background: var(--dd-surface-2); }
+      .ly.on .lt { border: 2px solid var(--dd-primary); }
+      .ly .meta { display: flex; justify-content: space-between; color: var(--dd-text-muted); }
+      .ly .meta b { color: var(--dd-text); }
+      .ly.on .meta .nm { color: var(--dd-primary); font-weight: 600; }
+      .f-div { height: 1px; background: var(--dd-border); margin: 4px 6px; flex-shrink: 0; }
       .f-acts { display: flex; gap: 4px; align-items: center; }
       .th-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-      .th { padding: 0; border: 1px solid var(--dbd-border); border-radius: 10px; overflow: hidden; background: transparent; font: inherit; font-size: 12px; color: var(--dbd-text); text-align: left; cursor: pointer; }
-      .th.on { outline: 2px solid var(--dbd-primary); outline-offset: 1px; }
+      .th { padding: 0; border: 1px solid var(--dd-border); border-radius: 10px; overflow: hidden; background: transparent; font: inherit; font-size: 12px; color: var(--dd-text); text-align: left; cursor: pointer; }
+      .th.on { outline: 2px solid var(--dd-primary); outline-offset: 1px; }
       .th .pv { display: flex; justify-content: space-between; height: 52px; padding: 8px; box-sizing: border-box; font-weight: 700; font-size: 14px; }
       .th .bars { display: flex; gap: 2px; }
       .th .bars span { width: 8px; height: 22px; }
-      .th .nm { display: flex; justify-content: space-between; padding: 6px 8px; color: var(--dbd-text-muted); }
-      .th.on .nm span:first-child { color: var(--dbd-text); font-weight: 600; }
+      .th .nm { display: flex; justify-content: space-between; padding: 6px 8px; color: var(--dd-text-muted); }
+      .th.on .nm span:first-child { color: var(--dd-text); font-weight: 600; }
       .tok-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px 4px; }
-      .tok { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 10px; color: var(--dbd-text-muted); cursor: pointer; }
-      .tok .sq { width: 26px; height: 26px; box-sizing: border-box; border-radius: 5px; border: 1px solid var(--dbd-border-strong, rgba(127, 127, 127, .55)); }
-      .fnt { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--dbd-border); border-radius: 8px; font-size: 12px; }
-      .f-design { margin-top: auto; border-top: 1px solid var(--dbd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+      .tok { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: none; background: transparent; font: inherit; font-size: 10px; color: var(--dd-text-muted); cursor: pointer; }
+      .tok .sq { width: 26px; height: 26px; box-sizing: border-box; border-radius: 5px; border: 1px solid var(--dd-border-strong, rgba(127, 127, 127, .55)); }
+      .fnt { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--dd-border); border-radius: 8px; font-size: 12px; }
+      .f-design { margin-top: auto; border-top: 1px solid var(--dd-border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
       :host {
         display: flex;
         flex-direction: column;
-        background: var(--dbd-surface);
-        border: 1px solid var(--dbd-border);
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
         border-radius: 14px;
-        box-shadow: var(--dbd-shadow-2);
-        color: var(--dbd-text);
+        box-shadow: var(--dd-shadow-2);
+        color: var(--dd-text);
         overflow: hidden;
         font-size: 13px;
       }
@@ -1736,7 +1736,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         height: 30px;
         font: inherit;
         font-weight: 600;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         background: transparent;
         border: 1px solid transparent;
         border-radius: 8px;
@@ -1745,19 +1745,19 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         text-overflow: ellipsis;
       }
       .rename:hover:not(:disabled) {
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
       }
       .rename:focus {
         outline: none;
-        background: var(--dbd-surface-2);
-        border-color: var(--dbd-primary);
+        background: var(--dd-surface-2);
+        border-color: var(--dd-primary);
       }
       h3 {
         margin: 0 0 8px;
         font-size: 11px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1776,7 +1776,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .split button {
         height: 32px;
-        border: 1px solid var(--dbd-border);
+        border: 1px solid var(--dd-border);
         font: inherit;
         font-weight: 600;
         cursor: pointer;
@@ -1790,8 +1790,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         gap: 6px;
         padding: 0 10px;
         border-radius: 8px 0 0 8px;
-        background: var(--dbd-primary);
-        border-color: var(--dbd-primary);
+        background: var(--dd-primary);
+        border-color: var(--dd-primary);
         color: #fff;
       }
       .split .from {
@@ -1799,8 +1799,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         padding: 0 10px;
         border-radius: 0 8px 8px 0;
         border-left: none;
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
       }
       .split button:hover:not(:disabled) {
         filter: brightness(1.12);
@@ -1839,8 +1839,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         max-height: 320px;
         overflow-y: auto;
         padding: 4px;
-        background: var(--dbd-surface);
-        border: 1px solid var(--dbd-border);
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
         border-radius: 10px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
         display: flex;
@@ -1853,7 +1853,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         gap: 8px;
         border: none;
         background: transparent;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         font: inherit;
         font-size: 12.5px;
         text-align: left;
@@ -1862,16 +1862,16 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         cursor: pointer;
       }
       .menu button:hover {
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
       }
       .mthumb {
         width: 48px;
         flex: none;
         aspect-ratio: 16 / 9;
-        border: 1px solid var(--dbd-border);
+        border: 1px solid var(--dd-border);
         border-radius: 3px;
         overflow: hidden;
-        background: var(--dbd-bg, transparent);
+        background: var(--dd-bg, transparent);
       }
       .lay-item {
         display: flex;
@@ -1890,9 +1890,9 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         height: 30px;
         padding: 0 10px;
         border-radius: 8px;
-        border: 1px solid var(--dbd-border);
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        border: 1px solid var(--dd-border);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
         font: inherit;
         font-weight: 600;
         cursor: pointer;
@@ -1902,8 +1902,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         cursor: default;
       }
       .btn.primary {
-        background: var(--dbd-primary);
-        border-color: var(--dbd-primary);
+        background: var(--dd-primary);
+        border-color: var(--dd-primary);
         color: #fff;
       }
       .btn.wide {
@@ -1922,12 +1922,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         border: none;
         border-radius: 7px;
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         cursor: pointer;
       }
       .icon:hover {
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
       }
       .top {
         flex: none;
@@ -1951,13 +1951,13 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         flex-direction: column;
         gap: 2px;
         cursor: pointer;
-        border: 1px solid var(--dbd-border);
+        border: 1px solid var(--dd-border);
         border-radius: 6px;
         padding: 3px;
         position: relative;
       }
       .lcard.current {
-        border-color: var(--dbd-primary);
+        border-color: var(--dd-primary);
       }
       .lcard .lname {
         font-size: 11px;
@@ -2002,7 +2002,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .tab {
         border: none;
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         font: inherit;
         font-size: 12px;
         font-weight: 600;
@@ -2013,12 +2013,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         flex: none;
       }
       .tab:hover {
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
       }
       .tab.on {
-        background: var(--dbd-primary-weak);
-        color: var(--dbd-primary);
+        background: var(--dd-primary-weak);
+        color: var(--dd-primary);
       }
       .fold {
         margin-left: auto;
@@ -2035,14 +2035,14 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         padding: 12px 0;
         border: none;
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         font: inherit;
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
       }
       .strip:hover {
-        color: var(--dbd-text);
+        color: var(--dd-text);
       }
       .vert {
         writing-mode: vertical-rl;
@@ -2062,12 +2062,12 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         font-size: 11px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .empty,
       .hint {
         margin: 6px 4px 10px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         line-height: 1.45;
         font-size: 12px;
       }
@@ -2095,14 +2095,14 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         cursor: pointer;
       }
       .card:hover {
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
       }
       .card.on {
-        background: var(--dbd-primary-weak);
-        border-color: color-mix(in srgb, var(--dbd-primary) 40%, transparent);
+        background: var(--dd-primary-weak);
+        border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
       }
       .card.current .thumb {
-        border-color: var(--dbd-primary);
+        border-color: var(--dd-primary);
       }
       .card.hidden .thumb {
         opacity: 0.45;
@@ -2119,7 +2119,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .card.dragging {
         z-index: 5;
         cursor: grabbing;
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
         box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
         transition: box-shadow 120ms;
       }
@@ -2153,26 +2153,26 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         padding: 0;
       }
       .row.current .num {
-        color: var(--dbd-primary);
+        color: var(--dd-primary);
       }
       .row.current .name {
-        color: var(--dbd-primary);
+        color: var(--dd-primary);
       }
       .row.over {
-        box-shadow: 0 -2px 0 var(--dbd-primary);
+        box-shadow: 0 -2px 0 var(--dd-primary);
       }
       .row.hidden .thumb,
       .row.hidden .meta {
         opacity: 0.45;
       }
       .num {
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         font-size: 11px;
         font-weight: 700;
         text-align: center;
       }
       .card.current .num {
-        color: var(--dbd-primary);
+        color: var(--dd-primary);
       }
       .thumb {
         position: relative;
@@ -2180,8 +2180,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         width: 100%;
         border-radius: 6px;
         overflow: hidden;
-        border: 1px solid var(--dbd-border);
-        background: var(--dbd-canvas-bg);
+        border: 1px solid var(--dd-border);
+        background: var(--dd-canvas-bg);
       }
       .thumb .foreign {
         position: absolute;
@@ -2189,8 +2189,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         right: 3px;
         padding: 2px;
         border-radius: 4px;
-        background: var(--dbd-surface);
-        color: var(--dbd-warning, #d97706);
+        background: var(--dd-surface);
+        color: var(--dd-warning, #d97706);
         font-size: 14px;
       }
       .design-pick {
@@ -2216,7 +2216,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .sub {
         font-size: 11px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .more {
         justify-self: end;
@@ -2233,18 +2233,18 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         font-size: 12px;
       }
       .muted {
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .btn.on {
-        background: var(--dbd-primary-weak);
-        border-color: color-mix(in srgb, var(--dbd-primary) 40%, transparent);
-        color: var(--dbd-primary);
+        background: var(--dd-primary-weak);
+        border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+        color: var(--dd-primary);
       }
       .detail,
       .loose {
         margin-top: 14px;
         padding-top: 12px;
-        border-top: 1px solid var(--dbd-border);
+        border-top: 1px solid var(--dd-border);
       }
       .detail .link {
         margin-bottom: 8px;
@@ -2255,7 +2255,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         gap: 4px;
         border: none;
         background: transparent;
-        color: var(--dbd-primary);
+        color: var(--dd-primary);
         font: inherit;
         font-size: 12px;
         font-weight: 600;
@@ -2276,13 +2276,13 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         align-items: flex-start;
         gap: 6px;
         padding: 10px;
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         cursor: pointer;
         text-align: left;
       }
       .theme-card.on {
-        outline: 2px solid var(--dbd-primary);
+        outline: 2px solid var(--dd-primary);
         outline-offset: 1px;
       }
       .theme-card:disabled {
@@ -2307,7 +2307,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         justify-content: space-between;
         font-size: 11px;
         font-weight: 600;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         margin: 4px 0 6px;
       }
       .token-grid {
@@ -2325,7 +2325,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         background: none;
         font: inherit;
         font-size: 11px;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         cursor: pointer;
         text-align: left;
       }
@@ -2337,7 +2337,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         width: 26px;
         height: 26px;
         border-radius: 6px;
-        border: 1px solid var(--dbd-border);
+        border: 1px solid var(--dd-border);
       }
       .subt {
         display: inline-flex;
@@ -2345,26 +2345,26 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         gap: 4px;
       }
       .info {
-        --dbd-icon-size: 13px;
-        color: var(--dbd-text-muted);
+        --dd-icon-size: 13px;
+        color: var(--dd-text-muted);
         cursor: help;
       }
       .sub-actions {
         display: inline-flex;
         gap: 2px;
-        --dbd-icon-size: 15px;
+        --dd-icon-size: 15px;
       }
       .customize {
         margin: 2px 0 10px;
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         padding: 6px 10px;
       }
       .customize > summary {
         cursor: pointer;
         font-size: 12px;
         font-weight: 600;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         padding: 2px 0;
       }
       .customize[open] > summary {
@@ -2378,7 +2378,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         position: absolute;
         top: 2px;
         right: 2px;
-        --dbd-icon-size: 14px;
+        --dd-icon-size: 14px;
       }
       .theme-actions {
         display: flex;
@@ -2391,19 +2391,19 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         place-items: center;
         background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
         color: #64748b;
-        --dbd-icon-size: 14px;
+        --dd-icon-size: 14px;
       }
       .tsw.none {
         background-image: linear-gradient(
           45deg,
           transparent 45%,
-          var(--dbd-danger) 45%,
-          var(--dbd-danger) 55%,
+          var(--dd-danger) 45%,
+          var(--dd-danger) 55%,
           transparent 55%
         );
       }
       .token:hover:not(:disabled) .tsw {
-        outline: 2px solid var(--dbd-primary);
+        outline: 2px solid var(--dd-primary);
         outline-offset: 1px;
       }
       .tlabel {
@@ -2414,10 +2414,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .picker {
         display: block;
         padding: 8px;
-        background: var(--dbd-surface);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius);
-        box-shadow: var(--dbd-shadow-3);
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius);
+        box-shadow: var(--dd-shadow-3);
       }
       .field {
         display: flex;
@@ -2427,7 +2427,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       }
       .field > span {
         font-size: 11px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .two {
         display: grid;
@@ -2438,10 +2438,10 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
       .text-input,
       textarea {
         font: inherit;
-        color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        color: var(--dd-text);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         padding: 6px 8px;
         box-sizing: border-box;
         width: 100%;
@@ -2462,7 +2462,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
         cursor: pointer;
       }
       .loose-row:hover {
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
       }
     `,
   ],

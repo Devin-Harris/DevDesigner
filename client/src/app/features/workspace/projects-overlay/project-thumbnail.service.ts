@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { resolveThemedElements, resolveThemedSequences, type CanvasElementModel, type ProjectSummary } from '@dbdesigner/shared';
+import { resolveThemedElements, resolveThemedSequences, type CanvasElementModel, type ProjectSummary } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectsService } from '../../../core/services/projects.service';
 import { ThemeService } from '../../../core/services/theme.service';

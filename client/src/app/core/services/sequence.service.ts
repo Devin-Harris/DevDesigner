@@ -12,7 +12,7 @@ import type {
   UpdateSequenceDiagramDto,
   UpdateSequenceMessageDto,
   UpdateSequenceMessagePositionDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular sequence-diagram endpoints (diagrams, lifelines, messages). */

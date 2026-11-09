@@ -255,7 +255,7 @@ export const THEME_STROKE = 'theme';
 /** CSS for a stored color, resolving the theme sentinels to the app's CSS variables. */
 export function themeColorCss(color: string | undefined | null): string | null {
   if (!color) return null;
-  if (color === THEME_FILL) return 'var(--dbd-surface)';
-  if (color === THEME_STROKE) return 'var(--dbd-text)';
+  if (color === THEME_FILL) return 'var(--dd-surface)';
+  if (color === THEME_STROKE) return 'var(--dd-text)';
   return color;
 }

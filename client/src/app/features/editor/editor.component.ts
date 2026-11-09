@@ -33,7 +33,7 @@ import type {
   TableModel,
   TextRun,
   SlideConfig,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import {
   generateSql,
   PROJECT_EXPORT_FORMAT,
@@ -59,7 +59,7 @@ import {
   DEFAULT_THEME,
   type SlideTheme,
   DEFAULT_SLIDE_TRANSITION,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import {
   boxToOuter,
   inBlock,
@@ -318,8 +318,8 @@ interface Rect {
 
 /** Element kinds that can contain other items (a lone selection aligns to these). */
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
-const GRID_SNAP_KEY = 'dbd-grid-snap';
-const SMART_GUIDES_KEY = 'dbd-smart-guides';
+const GRID_SNAP_KEY = 'dd-grid-snap';
+const SMART_GUIDES_KEY = 'dd-smart-guides';
 
 function readFlag(key: string, fallback: boolean): boolean {
   try {
@@ -1307,9 +1307,9 @@ export class EditorComponent {
   private themeColors(): { canvasBg: string; text: string; surface: string } | undefined {
     try {
       const styles = getComputedStyle(this.canvasRef().nativeElement);
-      const canvasBg = styles.getPropertyValue('--dbd-canvas-bg').trim();
-      const text = styles.getPropertyValue('--dbd-text').trim();
-      const surface = styles.getPropertyValue('--dbd-surface').trim();
+      const canvasBg = styles.getPropertyValue('--dd-canvas-bg').trim();
+      const text = styles.getPropertyValue('--dd-text').trim();
+      const surface = styles.getPropertyValue('--dd-surface').trim();
       return canvasBg && text ? { canvasBg, text, surface } : undefined;
     } catch {
       return undefined;
@@ -1513,7 +1513,7 @@ export class EditorComponent {
       color: st.color ?? themeColorCss(el.strokeColor) ?? el.strokeColor,
       align: st.align ?? el.textAlign ?? 'left',
       vAlign: st.vAlign ?? el.verticalAlign ?? 'top',
-      background: bg && bg !== 'none' && !bg.startsWith('url(') ? bg : 'var(--dbd-surface)',
+      background: bg && bg !== 'none' && !bg.startsWith('url(') ? bg : 'var(--dd-surface)',
       value: g.cells[cell.row][cell.col],
     };
   });
@@ -1710,7 +1710,7 @@ export class EditorComponent {
   private readonly deckDefaults = effect(() => {
     this.store.slideFrames();
     if (!this.store.canEdit()) return;
-    untracked(() => void ensureDeckDefaults(this.store, this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE));
+    untracked(() => void ensureDeckDefaults(this.store, this.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE));
   });
 
   /** Per presentation: the last slide (not a layout) shown, so editing a layout keeps your place. */
@@ -2360,12 +2360,12 @@ export class EditorComponent {
     });
     // The transition screen shows its own preview: hide the canvas's floating toolbars.
     effect(() => {
-      document.body.classList.toggle('dbd-focus-morph', !!this.focusedDeck() && this.focusScreen() === 'morph');
+      document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck() && this.focusScreen() === 'morph');
     });
     // Floating islands fade while dragging or drawing (toolbar setting).
     effect(() => {
       const on = this.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
-      document.body.classList.toggle('dbd-gesture', on);
+      document.body.classList.toggle('dd-gesture', on);
     });
     // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
     effect(() => {
@@ -2656,7 +2656,7 @@ export class EditorComponent {
   private defaultStroke(): string {
     try {
       const c = getComputedStyle(this.canvasRef().nativeElement)
-        .getPropertyValue('--dbd-text')
+        .getPropertyValue('--dd-text')
         .trim();
       return c || DEFAULT_ELEMENT_STROKE;
     } catch {
@@ -2714,8 +2714,8 @@ export class EditorComponent {
             // A code card: a hairline border, no fill override (it picks a theme-matched surface).
             ...sticky,
             strokeColor:
-              this.themeVar('--dbd-border-strong') ??
-              this.themeVar('--dbd-text-muted') ??
+              this.themeVar('--dd-border-strong') ??
+              this.themeVar('--dd-text-muted') ??
               sticky.strokeColor,
             backgroundColor: undefined,
             fillStyle: 'none' as const,
@@ -2741,7 +2741,7 @@ export class EditorComponent {
         : type === 'frame'
           ? {
               ...sticky,
-              strokeColor: this.themeVar('--dbd-text-muted') ?? sticky.strokeColor,
+              strokeColor: this.themeVar('--dd-text-muted') ?? sticky.strokeColor,
               backgroundColor: undefined,
               fillStyle: 'none' as const,
               strokeWidth: 1.5,
@@ -4685,7 +4685,7 @@ export class EditorComponent {
     const onMouseDown = (e: MouseEvent): void => {
       const t = e.target as Element | null;
       if (
-        t?.closest('app-element-floating-toolbar, .cdk-overlay-pane, .dbd-overlay-backdrop') &&
+        t?.closest('app-element-floating-toolbar, .cdk-overlay-pane, .dd-overlay-backdrop') &&
         !t.closest('input[type=range], input[type=text], input[type=number], textarea')
       ) {
         e.preventDefault();
@@ -7248,7 +7248,7 @@ export class EditorComponent {
       width: shown?.width ?? preset.width,
       height: shown?.height ?? preset.height,
       angle: 0,
-      strokeColor: this.themeVar('--dbd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
+      strokeColor: this.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
       // Slides and layouts show the master's background unless given their own.
       fillStyle: 'none' as const,
       strokeWidth: 1.5,
@@ -7709,7 +7709,7 @@ export class EditorComponent {
     if (shownLayout && !tableIds.length && (!elementIds.length || (elementIds.length === 1 && elementIds[0] === shownLayout.id)) && !this.store.selectedDiagramIds().length) {
       this.clipboard = { tables: [], elements: [shownLayout], diagramIds: [], frame: shownLayout };
       this.pasteCount = 0;
-      const mark = `dbdesigner:${Date.now()}`;
+      const mark = `devdesigner:${Date.now()}`;
       this.clipboardMark = mark;
       void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));
       return;
@@ -7753,7 +7753,7 @@ export class EditorComponent {
     const mark =
       !tables.length && elements.length === 1 && elements[0].type === 'code'
         ? (elements[0].text ?? '')
-        : `dbdesigner:${Date.now()}`;
+        : `devdesigner:${Date.now()}`;
     this.clipboardMark = mark || null;
     if (mark) {
       void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));

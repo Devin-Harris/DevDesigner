@@ -1,30 +1,30 @@
 <div class="panel">
   @if (lifeline(); as l) {
     <div class="panel-head">
-      <span class="dot" [style.background]="l.color || 'var(--dbd-connector)'"></span>
+      <span class="dot" [style.background]="l.color || 'var(--dd-connector)'"></span>
       <div class="head-text">
         <div class="eyebrow">Participant</div>
         <div class="tname">{{ l.label }}</div>
       </div>
       <button class="icon-btn" (click)="deleteLifeline()" [disabled]="!store.canEdit()" title="Delete participant">
-        <dbd-icon name="delete" />
+        <dd-icon name="delete" />
       </button>
     </div>
 
     <div class="field-label">Label</div>
-    <dbd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
+    <dd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
 
     <div class="field-label">Header color</div>
-    <dbd-color-swatches class="swatches" [value]="l.color" noneLabel="Default" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
+    <dd-color-swatches class="swatches" [value]="l.color" noneLabel="Default" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
 
     <div class="field-label">Header stroke</div>
-    <dbd-color-swatches class="swatches" [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setStrokeColor($event)" />
+    <dd-color-swatches class="swatches" [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setStrokeColor($event)" />
 
     <div class="field-label">Header text</div>
-    <dbd-color-swatches class="swatches" [value]="l.textColor" noneLabel="Automatic" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setTextColor($event)" />
+    <dd-color-swatches class="swatches" [value]="l.textColor" noneLabel="Automatic" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setTextColor($event)" />
 
     <div class="field-label">Line color</div>
-    <dbd-color-swatches class="swatches" [value]="l.lineColor" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setLineColor($event)" />
+    <dd-color-swatches class="swatches" [value]="l.lineColor" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setLineColor($event)" />
 
 
     <div class="field-label">Width</div>
@@ -35,27 +35,27 @@
     </div>
 
     <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
-      <dbd-icon name="add" />Add participant
+      <dd-icon name="add" />Add participant
     </button>
   } @else if (message(); as m) {
     <div class="panel-head">
-      <span class="dot" style="background: var(--dbd-primary)"></span>
+      <span class="dot" style="background: var(--dd-primary)"></span>
       <div class="head-text">
         <div class="eyebrow">Message</div>
         <div class="tname">{{ m.label || '(no label)' }}</div>
       </div>
       <button class="icon-btn" (click)="deleteMessage()" [disabled]="!store.canEdit()" title="Delete message">
-        <dbd-icon name="delete" />
+        <dd-icon name="delete" />
       </button>
     </div>
 
     <div class="field-label">Label</div>
-    <dbd-input [ngModel]="m.label ?? ''" (commit)="setMsgLabel($event)" [maxlength]="200" [disabled]="!store.canEdit()" />
+    <dd-input [ngModel]="m.label ?? ''" (commit)="setMsgLabel($event)" [maxlength]="200" [disabled]="!store.canEdit()" />
 
     <div class="field-label">From</div>
-    <dbd-select [options]="lifelineOptions()" [ngModel]="m.fromLifelineId" (ngModelChange)="setFrom($event)" [disabled]="!store.canEdit()" />
+    <dd-select [options]="lifelineOptions()" [ngModel]="m.fromLifelineId" (ngModelChange)="setFrom($event)" [disabled]="!store.canEdit()" />
     <div class="field-label">To</div>
-    <dbd-select [options]="lifelineOptions()" [ngModel]="m.toLifelineId" (ngModelChange)="setTo($event)" [disabled]="!store.canEdit()" />
+    <dd-select [options]="lifelineOptions()" [ngModel]="m.toLifelineId" (ngModelChange)="setTo($event)" [disabled]="!store.canEdit()" />
 
     <div class="field-label">Style</div>
     <div class="flag-chips">
@@ -65,7 +65,7 @@
     </div>
 
     <div class="field-label">Line color</div>
-    <dbd-color-swatches class="swatches" [value]="m.color" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setMsgColor($event)" />
+    <dd-color-swatches class="swatches" [value]="m.color" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setMsgColor($event)" />
 
     <div class="field-label">Label</div>
     <div class="flag-chips">
@@ -75,12 +75,12 @@
 
     @if (m.style !== 'break') {
       <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
-        <dbd-icon name="swap_horiz" />Flip direction
+        <dd-icon name="swap_horiz" />Flip direction
       </button>
     }
   } @else if (diagram()) {
     <div class="panel-head">
-      <span class="dot" style="background: var(--dbd-primary)"></span>
+      <span class="dot" style="background: var(--dd-primary)"></span>
       <div class="head-text">
         <div class="eyebrow">Sequence diagram</div>
         <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
@@ -88,10 +88,10 @@
     </div>
 
     <div class="field-label">Background</div>
-    <dbd-color-swatches class="swatches" [value]="diagram()!.backgroundColor" noneValue="transparent" noneLabel="No background" themeValue="" [disabled]="!store.canEdit()" (pick)="setBackground($event)" />
+    <dd-color-swatches class="swatches" [value]="diagram()!.backgroundColor" noneValue="transparent" noneLabel="No background" themeValue="" [disabled]="!store.canEdit()" (pick)="setBackground($event)" />
 
     <div class="field-label">Border</div>
-    <dbd-color-swatches class="swatches" [value]="diagram()!.borderColor" noneValue="transparent" noneLabel="No border" themeValue="" [disabled]="!store.canEdit()" (pick)="setBorder($event)" />
+    <dd-color-swatches class="swatches" [value]="diagram()!.borderColor" noneValue="transparent" noneLabel="No border" themeValue="" [disabled]="!store.canEdit()" (pick)="setBorder($event)" />
 
     <div class="field-label">Arrange</div>
     <div class="flag-chips">

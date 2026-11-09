@@ -3,7 +3,7 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 
 /** Bespoke slide toggle replacing mat-slide-toggle. CVA-compatible. */
 @Component({
-  selector: 'dbd-toggle',
+  selector: 'dd-toggle',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -12,7 +12,7 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
   template: `
     <button
       type="button"
-      class="dbd-toggle"
+      class="dd-toggle"
       role="switch"
       [attr.aria-checked]="on()"
       [disabled]="disabled()"
@@ -27,7 +27,7 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
       :host {
         display: inline-flex;
       }
-      .dbd-toggle {
+      .dd-toggle {
         display: inline-flex;
         align-items: center;
         gap: 9px;
@@ -35,11 +35,11 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
         background: transparent;
         padding: 0;
         cursor: pointer;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         font: inherit;
         font-size: 12.5px;
       }
-      .dbd-toggle:disabled {
+      .dd-toggle:disabled {
         opacity: 0.5;
         cursor: default;
       }
@@ -48,11 +48,11 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
         width: 34px;
         height: 20px;
         border-radius: 999px;
-        background: var(--dbd-border-strong);
+        background: var(--dd-border-strong);
         transition: background 0.14s ease;
       }
       .track.on {
-        background: var(--dbd-primary);
+        background: var(--dd-primary);
       }
       .thumb {
         position: absolute;

@@ -1,4 +1,4 @@
-import type { IndexModel } from '@dbdesigner/shared';
+import type { IndexModel } from '@devdesigner/shared';
 import { IndexEntity } from './index.entity';
 
 /** Map an Index entity to the shared IndexModel consumed by client + SQL. */

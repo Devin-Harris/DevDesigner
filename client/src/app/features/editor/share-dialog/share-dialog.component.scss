@@ -1,6 +1,6 @@
 .dlg-title {
-  margin: 0 0 var(--dbd-space-3);
-  font-family: var(--dbd-display);
+  margin: 0 0 var(--dd-space-3);
+  font-family: var(--dd-display);
   font-size: 18px;
   font-weight: 700;
 }
@@ -12,7 +12,7 @@
 .dlg-actions {
   display: flex;
   justify-content: flex-end;
-  padding: var(--dbd-space-3) 0 0 !important;
+  padding: var(--dd-space-3) 0 0 !important;
   margin: 0;
 }
 
@@ -22,30 +22,30 @@
   gap: 6px;
   height: 36px;
   padding: 0 14px;
-  border-radius: var(--dbd-radius);
-  border: 1px solid var(--dbd-border-strong);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  border-radius: var(--dd-radius);
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   &:disabled {
     opacity: 0.5;
     cursor: default;
   }
   &.primary {
-    background: var(--dbd-primary);
-    border-color: var(--dbd-primary);
+    background: var(--dd-primary);
+    border-color: var(--dd-primary);
     color: #fff;
   }
   &.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--dbd-primary) 88%, #000);
+    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
   }
 }
 
@@ -57,23 +57,23 @@
   height: 32px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text-muted);
+  border-radius: var(--dd-radius-sm);
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover {
-    background: var(--dbd-surface-2);
-    color: var(--dbd-text);
+    background: var(--dd-surface-2);
+    color: var(--dd-text);
   }
   &.del:hover {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
 }
 
 .hint {
   margin: 0 0 16px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   font-size: 13px;
 }
 
@@ -91,7 +91,7 @@
   padding: 16px 0;
 
   &.muted {
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
     font-size: 13px;
   }
 }
@@ -118,10 +118,10 @@
   font-size: 11px;
   font-weight: 600;
   color: #fff;
-  background: var(--dbd-primary);
+  background: var(--dd-primary);
 
   &.view {
-    background: var(--dbd-text-muted);
+    background: var(--dd-text-muted);
   }
 }
 

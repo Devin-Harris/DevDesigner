@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { CanvasElementModel } from '@dbdesigner/shared';
+import type { CanvasElementModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';

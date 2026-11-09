@@ -1,5 +1,5 @@
 import { ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { CreateIndexDto as ICreateIndexDto } from '@dbdesigner/shared';
+import type { CreateIndexDto as ICreateIndexDto } from '@devdesigner/shared';
 
 /** Body for POST /tables/:tableId/indexes. */
 export class CreateIndexDto implements ICreateIndexDto {

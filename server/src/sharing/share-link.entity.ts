@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import type { ShareAccessLevel } from '@dbdesigner/shared';
+import type { ShareAccessLevel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 
 /**

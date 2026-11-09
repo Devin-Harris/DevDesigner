@@ -27,8 +27,8 @@ import {
   type RelationshipModel,
   type SchemaModel,
   type SchemaMutation,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { applySpec } from './apply';
 import { Batch, type BatchSection } from './batch';
 import { colorArg } from './colors';
@@ -73,7 +73,7 @@ function emptyFile(schema: Partial<SchemaModel>, images: ProjectExportImage[] = 
   };
 }
 
-export function registerAgentTools(tool: ToolFn, api: DbDesignerApi, journal: Journal): void {
+export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: Journal): void {
   const graph = (id: string): Promise<ProjectGraphResponse> => api.get<ProjectGraphResponse>(`/projects/${id}`);
   const importFile = async (id: string, file: ProjectExportFile, linkExisting = false): Promise<SchemaMutation[]> =>
     (await api.post<ImportIntoProjectResponse>(`/projects/${id}/import-content`, { file, joinPresentations: true, ...(linkExisting ? { linkExisting } : {}) }))

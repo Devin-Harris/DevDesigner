@@ -7,7 +7,7 @@ import {
   type CanvasElementModel,
   type CreateElementDto,
   type UpdateElementDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { MASTER_DELETED, isMasterDeletion, overriddenId } from '../canvas/helpers/frame-contents.helper';
 import { elementToCreateDto, type ProjectStore } from '../../../stores/project.store';
 

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
-import type { BatchUpdateResponse, CloneItemsDto, SchemaMutation } from '@dbdesigner/shared';
+import type { BatchUpdateResponse, CloneItemsDto, SchemaMutation } from '@devdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from '../tables/table.entity';

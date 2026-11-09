@@ -8,7 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import type { RelationshipModel } from '@dbdesigner/shared';
+import type { RelationshipModel } from '@devdesigner/shared';
 import { RelationshipsService } from './relationships.service';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';

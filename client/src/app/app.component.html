@@ -9,13 +9,13 @@
     <div class="island left">
       <button
         class="brand-btn"
-        [dbdPopoverTrigger]="mainMenu"
+        [ddPopoverTrigger]="mainMenu"
         placement="below-start"
         matTooltip="Menu"
         aria-label="Main menu"
       >
-        <span class="brand-tile"><dbd-icon name="schema" /></span>
-        <dbd-icon name="expand_more" class="brand-chev" />
+        <span class="brand-tile"><dd-icon name="schema" /></span>
+        <dd-icon name="expand_more" class="brand-chev" />
       </button>
       @if (projects.selected(); as project) {
         @if (renaming()) {
@@ -37,16 +37,16 @@
       }
       <span class="v-sep"></span>
       <button class="nav-icon" (click)="undo()" [disabled]="!editorStore.canUndo()" matTooltip="Undo (Ctrl+Z)" aria-label="Undo">
-        <dbd-icon name="undo" />
+        <dd-icon name="undo" />
       </button>
       <button class="nav-icon" (click)="redo()" [disabled]="!editorStore.canRedo()" matTooltip="Redo (Ctrl+Shift+Z)" aria-label="Redo">
-        <dbd-icon name="redo" />
+        <dd-icon name="redo" />
       </button>
     </div>
 
     <div class="island right">
       @if (realtime.participants().length > 1) {
-        <button class="avatars" [dbdPopoverTrigger]="peopleMenu" placement="below-end" aria-label="People here">
+        <button class="avatars" [ddPopoverTrigger]="peopleMenu" placement="below-end" aria-label="People here">
           @for (p of realtime.participants(); track p.id) {
             <span
               class="avatar"
@@ -57,7 +57,7 @@
           }
         </button>
         <ng-template #peopleMenu let-close>
-          <div class="dbd-menu people-menu">
+          <div class="dd-menu people-menu">
             @for (p of realtime.participants(); track p.id) {
               <div class="person">
                 <span class="avatar" [style.background]="p.color">{{ p.name.charAt(0).toUpperCase() }}</span>
@@ -75,14 +75,14 @@
                 }
               </div>
             }
-            <div class="dbd-menu-sep"></div>
+            <div class="dd-menu-sep"></div>
             <div class="people-hint">Jump goes to where they are; Follow keeps them in view.</div>
           </div>
         </ng-template>
         <span class="v-sep"></span>
       }
-      <button class="nav-btn" [dbdPopoverTrigger]="decksMenu" placement="below-end">
-        <dbd-icon name="slideshow" />
+      <button class="nav-btn" [ddPopoverTrigger]="decksMenu" placement="below-end">
+        <dd-icon name="slideshow" />
         Presentations
         @if (editorActions.decks().length) {
           <span class="count">{{ editorActions.decks().length }}</span>
@@ -90,17 +90,17 @@
       </button>
       @if (editorStore.accessMode() === 'OWNER') {
         <button class="nav-btn primary" (click)="share()">
-          <dbd-icon name="share" />
+          <dd-icon name="share" />
           Share
         </button>
       }
       @if (auth.currentUser(); as user) {
-        <button class="nav-icon" [dbdPopoverTrigger]="accountMenu" placement="below-end" matTooltip="Account" aria-label="Account">
-          <dbd-icon name="account_circle" />
+        <button class="nav-icon" [ddPopoverTrigger]="accountMenu" placement="below-end" matTooltip="Account" aria-label="Account">
+          <dd-icon name="account_circle" />
         </button>
       } @else {
         <button class="nav-btn" (click)="openAuth()">
-          <dbd-icon name="login" />
+          <dd-icon name="login" />
           Sign in
         </button>
       }
@@ -108,34 +108,34 @@
   }
 
   <ng-template #mainMenu let-close>
-    <div class="dbd-menu main-menu">
-      <div class="menu-brand"><span class="brand-tile sm"><dbd-icon name="schema" /></span>DevDesigner</div>
-      <button class="dbd-menu-item" (click)="goHome(); close()"><dbd-icon name="home" />Home page</button>
-      <button class="dbd-menu-item" (click)="paletteOpen.set(true); close()"><dbd-icon name="search" />Projects &amp; commands<span class="kbd">Ctrl K</span></button>
-      <button class="dbd-menu-item" (click)="openProjects(); close()"><dbd-icon name="table_chart" />All projects…</button>
+    <div class="dd-menu main-menu">
+      <div class="menu-brand"><span class="brand-tile sm"><dd-icon name="schema" /></span>DevDesigner</div>
+      <button class="dd-menu-item" (click)="goHome(); close()"><dd-icon name="home" />Home page</button>
+      <button class="dd-menu-item" (click)="paletteOpen.set(true); close()"><dd-icon name="search" />Projects &amp; commands<span class="kbd">Ctrl K</span></button>
+      <button class="dd-menu-item" (click)="openProjects(); close()"><dd-icon name="table_chart" />All projects…</button>
 
       @if (projects.selected(); as project) {
         <div class="menu-label">This project</div>
         @if (editorStore.accessMode() === 'OWNER') {
-          <button class="dbd-menu-item" (click)="startRename(); close()"><dbd-icon name="edit" />Rename</button>
-          <button class="dbd-menu-item" (click)="duplicateProject(); close()"><dbd-icon name="content_copy" />Duplicate</button>
-          <button class="dbd-menu-item" (click)="archiveProject(); close()"><dbd-icon name="archive" />{{ project.archived ? 'Unarchive' : 'Archive' }}</button>
+          <button class="dd-menu-item" (click)="startRename(); close()"><dd-icon name="edit" />Rename</button>
+          <button class="dd-menu-item" (click)="duplicateProject(); close()"><dd-icon name="content_copy" />Duplicate</button>
+          <button class="dd-menu-item" (click)="archiveProject(); close()"><dd-icon name="archive" />{{ project.archived ? 'Unarchive' : 'Archive' }}</button>
         }
         @if (editorStore.canEdit()) {
-          <button class="dbd-menu-item" (click)="importInput.click(); close()"><dbd-icon name="upload" />Import<span class="kbd">.json</span></button>
+          <button class="dd-menu-item" (click)="importInput.click(); close()"><dd-icon name="upload" />Import<span class="kbd">.json</span></button>
         }
-        <button class="dbd-menu-item" [dbdPopoverTrigger]="exportMenu" placement="right-start"><dbd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span></button>
+        <button class="dd-menu-item" [ddPopoverTrigger]="exportMenu" placement="right-start"><dd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span></button>
         @if (editorStore.accessMode() === 'OWNER') {
-          <button class="dbd-menu-item" (click)="share(); close()"><dbd-icon name="share" />Share &amp; link access</button>
+          <button class="dd-menu-item" (click)="share(); close()"><dd-icon name="share" />Share &amp; link access</button>
         }
         @if (editorStore.canEdit()) {
-          <button class="dbd-menu-item" (click)="editorActions.setHome(); close()"><dbd-icon name="center_focus_strong" />Set home view here</button>
+          <button class="dd-menu-item" (click)="editorActions.setHome(); close()"><dd-icon name="center_focus_strong" />Set home view here</button>
         }
       }
 
       <div class="menu-label">You</div>
       <div class="theme-row">
-        <dbd-icon [name]="theme.dark() ? 'dark_mode' : 'light_mode'" />Theme
+        <dd-icon [name]="theme.dark() ? 'dark_mode' : 'light_mode'" />Theme
         <span class="theme-seg">
           <button [class.on]="theme.mode() === 'light'" (click)="theme.setMode('light')">Light</button>
           <button [class.on]="theme.mode() === 'dark'" (click)="theme.setMode('dark')">Dark</button>
@@ -143,48 +143,48 @@
         </span>
       </div>
       @if (editorActions.active()) {
-        <button class="dbd-menu-item" (click)="toolbarPrefs.panelOpen.set(true); close()"><dbd-icon name="tune" />Customize toolbar…</button>
+        <button class="dd-menu-item" (click)="toolbarPrefs.panelOpen.set(true); close()"><dd-icon name="tune" />Customize toolbar…</button>
       }
-      <button class="dbd-menu-item" (click)="shortcutsOpen.set(true); close()"><dbd-icon name="keyboard" />Keyboard shortcuts<span class="kbd">?</span></button>
+      <button class="dd-menu-item" (click)="shortcutsOpen.set(true); close()"><dd-icon name="keyboard" />Keyboard shortcuts<span class="kbd">?</span></button>
       @if (auth.currentUser()) {
-        <button class="dbd-menu-item" (click)="openApiTokens(); close()"><dbd-icon name="key" />API tokens for MCP</button>
-        <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
+        <button class="dd-menu-item" (click)="openApiTokens(); close()"><dd-icon name="key" />API tokens for MCP</button>
+        <button class="dd-menu-item" (click)="signOut(); close()"><dd-icon name="logout" />Sign out</button>
       }
     </div>
   </ng-template>
 
   <ng-template #exportMenu let-close>
-    <div class="dbd-menu">
+    <div class="dd-menu">
       @if (editorActions.hasTableSelection()) {
         <button
-          class="dbd-menu-item"
+          class="dd-menu-item"
           [disabled]="!editorActions.canExportSql()"
           [title]="editorActions.canExportSql() ? '' : 'Selected tables share a name. Table names must be unique to export SQL.'"
           (click)="exportSql(); close()"
         >
-          <dbd-icon [name]="editorActions.canExportSql() ? 'data_object' : 'warning'" />SQL…
+          <dd-icon [name]="editorActions.canExportSql() ? 'data_object' : 'warning'" />SQL…
         </button>
       }
-      <button class="dbd-menu-item" (click)="exportImage('png'); close()"><dbd-icon name="photo" />Image (PNG)</button>
-      <button class="dbd-menu-item" (click)="exportImage('svg'); close()"><dbd-icon name="image" />Image (SVG)</button>
-      <button class="dbd-menu-item" (click)="exportImage('pdf'); close()"><dbd-icon name="picture_as_pdf" />Image (PDF)</button>
+      <button class="dd-menu-item" (click)="exportImage('png'); close()"><dd-icon name="photo" />Image (PNG)</button>
+      <button class="dd-menu-item" (click)="exportImage('svg'); close()"><dd-icon name="image" />Image (SVG)</button>
+      <button class="dd-menu-item" (click)="exportImage('pdf'); close()"><dd-icon name="picture_as_pdf" />Image (PDF)</button>
       @if (editorActions.presentationName()) {
-        <button class="dbd-menu-item" [title]="'Slides of ' + editorActions.presentationName()" (click)="exportSlidesPdf(); close()">
-          <dbd-icon name="picture_as_pdf" />All slides (PDF pages)
+        <button class="dd-menu-item" [title]="'Slides of ' + editorActions.presentationName()" (click)="exportSlidesPdf(); close()">
+          <dd-icon name="picture_as_pdf" />All slides (PDF pages)
         </button>
       }
       @if (!editorActions.presentationName() || editorActions.hasPlainFrames()) {
-        <button class="dbd-menu-item" (click)="exportFramesPdf(); close()"><dbd-icon name="picture_as_pdf" />All frames (PDF pages)</button>
+        <button class="dd-menu-item" (click)="exportFramesPdf(); close()"><dd-icon name="picture_as_pdf" />All frames (PDF pages)</button>
       }
-      <button class="dbd-menu-item" (click)="exportProjectFile(); close()"><dbd-icon name="download" />Project file (.json)</button>
+      <button class="dd-menu-item" (click)="exportProjectFile(); close()"><dd-icon name="download" />Project file (.json)</button>
       @if (editorActions.hasSelection()) {
-        <button class="dbd-menu-item" (click)="exportSelectionFile(); close()"><dbd-icon name="download" />Selection only (.json)</button>
+        <button class="dd-menu-item" (click)="exportSelectionFile(); close()"><dd-icon name="download" />Selection only (.json)</button>
       }
     </div>
   </ng-template>
 
   <ng-template #decksMenu let-close>
-    <div class="dbd-menu decks-menu">
+    <div class="dd-menu decks-menu">
       <div class="menu-label">In this project · click a name to fly there</div>
       @for (d of editorActions.decks(); track d.name) {
         <div class="deck-row">
@@ -198,31 +198,31 @@
             </button>
           }
           <button class="deck-act" (click)="editorActions.enterDeckFocus(d.name); close()" [title]="'Edit ' + d.name + ' on its own'">
-            <dbd-icon name="open_in_full" />Focus
+            <dd-icon name="open_in_full" />Focus
           </button>
           <button class="deck-act" (click)="editorActions.presentDeck(d.name); close()" [title]="'Present ' + d.name" [disabled]="!d.slides">
-            <dbd-icon name="play_arrow" />Present
+            <dd-icon name="play_arrow" />Present
           </button>
         </div>
       } @empty {
         <div class="decks-empty">No presentations yet.</div>
       }
       @if (editorStore.canEdit()) {
-        <div class="dbd-menu-sep"></div>
-        <button class="dbd-menu-item" (click)="editorActions.newDeck(); close()">
-          <dbd-icon name="add" />New presentation<span class="kbd">S</span>
+        <div class="dd-menu-sep"></div>
+        <button class="dd-menu-item" (click)="editorActions.newDeck(); close()">
+          <dd-icon name="add" />New presentation<span class="kbd">S</span>
         </button>
       }
     </div>
   </ng-template>
 
   <ng-template #accountMenu let-close>
-    <div class="dbd-menu">
+    <div class="dd-menu">
       @if (auth.currentUser()?.email; as email) {
         <div class="menu-email">{{ email }}</div>
       }
-      <button class="dbd-menu-item" (click)="openApiTokens(); close()"><dbd-icon name="key" />API tokens</button>
-      <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
+      <button class="dd-menu-item" (click)="openApiTokens(); close()"><dd-icon name="key" />API tokens</button>
+      <button class="dd-menu-item" (click)="signOut(); close()"><dd-icon name="logout" />Sign out</button>
     </div>
   </ng-template>
 

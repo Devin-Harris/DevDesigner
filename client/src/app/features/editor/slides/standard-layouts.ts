@@ -16,7 +16,7 @@ import {
   type SlideTheme,
   presentationMaster,
   DEFAULT_LAYOUT_SET,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { ProjectStore } from '../../../stores/project.store';
 import { fitTextElement } from '../canvas/helpers/text-metrics';
 import { switchLayout } from './layout-placeholders';

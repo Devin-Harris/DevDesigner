@@ -16,11 +16,11 @@
 .seq-title,
 .seq-title-edit {
   position: absolute;
-  font-family: var(--dbd-display, inherit);
+  font-family: var(--dd-display, inherit);
   font-size: 12px;
   font-weight: 700;
   line-height: 16px;
-  color: var(--seq-fg, var(--dbd-text));
+  color: var(--seq-fg, var(--dd-text));
 }
 
 .seq-title {
@@ -34,7 +34,7 @@
   &.placeholder {
     font-weight: 500;
     font-style: italic;
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
     opacity: 0.7;
   }
 }
@@ -45,8 +45,8 @@
   padding: 0 4px;
   border: 0;
   border-radius: 4px;
-  outline: 1.5px solid var(--dbd-primary);
-  background: var(--seq-bg, var(--dbd-surface));
+  outline: 1.5px solid var(--dd-primary);
+  background: var(--seq-bg, var(--dd-surface));
   pointer-events: auto;
 }
 
@@ -54,20 +54,20 @@
   position: absolute;
   box-sizing: border-box;
   border-radius: 16px;
-  border: 1.5px solid var(--seq-border, var(--dbd-border));
-  background: var(--seq-bg, var(--dbd-surface));
+  border: 1.5px solid var(--seq-border, var(--dd-border));
+  background: var(--seq-bg, var(--dd-surface));
   cursor: move;
   pointer-events: auto;
   touch-action: none;
   transition: border-color 0.12s ease;
 
   &:hover {
-    border-color: var(--dbd-border-strong);
+    border-color: var(--dd-border-strong);
   }
 
   &.selected {
-    border-color: var(--dbd-primary);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--dbd-primary) 40%, transparent);
+    border-color: var(--dd-primary);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-primary) 40%, transparent);
   }
 }
 
@@ -76,7 +76,7 @@
   width: 0;
   border-left: 1.4px dashed var(
     --line-color,
-    var(--seq-spine, var(--dbd-border))
+    var(--seq-spine, var(--dd-border))
   );
   pointer-events: none;
 }
@@ -100,13 +100,13 @@
   justify-content: center;
   padding: 0 8px;
   border-radius: 9px;
-  border: 1px solid var(--dbd-node-border);
-  background: var(--dbd-node-header);
-  color: var(--dbd-text);
-  font-family: var(--dbd-mono);
+  border: 1px solid var(--dd-node-border);
+  background: var(--dd-node-header);
+  color: var(--dd-text);
+  font-family: var(--dd-mono);
   font-size: 12px;
   font-weight: 600;
-  box-shadow: var(--dbd-shadow-1);
+  box-shadow: var(--dd-shadow-1);
   cursor: move;
   pointer-events: auto;
   touch-action: none;
@@ -122,14 +122,14 @@
 
     // Stock swatches keep the theme's text color (white in dark, dark in light).
     &.swatch {
-      color: var(--dbd-text);
+      color: var(--dd-text);
     }
   }
 
   &.selected {
     box-shadow:
-      0 0 0 2px var(--dbd-primary),
-      var(--dbd-shadow-2);
+      0 0 0 2px var(--dd-primary),
+      var(--dd-shadow-2);
   }
 }
 
@@ -142,11 +142,11 @@
 .ll-edit {
   width: 100%;
   font: inherit;
-  font-family: var(--dbd-mono);
+  font-family: var(--dd-mono);
   text-align: center;
-  color: var(--dbd-text);
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-primary);
+  color: var(--dd-text);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-primary);
   border-radius: 6px;
   outline: none;
   padding: 1px 4px;
@@ -160,9 +160,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px solid var(--dbd-border-strong);
-  background: var(--dbd-surface);
-  color: var(--dbd-text-muted);
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
   font-size: 16px;
   line-height: 1;
   display: flex;
@@ -171,15 +171,15 @@
   cursor: pointer;
   pointer-events: auto;
   z-index: 6;
-  box-shadow: var(--dbd-shadow-1);
+  box-shadow: var(--dd-shadow-1);
   transition:
     color 0.12s ease,
     border-color 0.12s ease,
     transform 0.1s ease;
 
   &:hover {
-    color: var(--dbd-primary);
-    border-color: var(--dbd-primary);
+    color: var(--dd-primary);
+    border-color: var(--dd-primary);
     transform: translate(-50%, -50%) scale(1.12);
   }
 }
@@ -191,8 +191,8 @@
   width: 11px;
   height: 11px;
   border-radius: 3px;
-  background: var(--dbd-surface);
-  border: 1.5px solid var(--dbd-primary);
+  background: var(--dd-surface);
+  border: 1.5px solid var(--dd-primary);
   pointer-events: auto;
   touch-action: none;
   z-index: 6;
@@ -218,16 +218,16 @@
 .msg-line {
   position: absolute;
   height: 0;
-  border-top: 1.6px solid var(--msg-color, var(--seq-fg, var(--dbd-connector)));
+  border-top: 1.6px solid var(--msg-color, var(--seq-fg, var(--dd-connector)));
   pointer-events: none;
 
   &.dashed {
     border-top-style: dashed;
     // Return messages are quieter than calls, like break dividers.
-    border-top-color: var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
+    border-top-color: var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
   }
   &.selected {
-    border-top-color: var(--dbd-primary);
+    border-top-color: var(--dd-primary);
   }
 }
 
@@ -238,16 +238,16 @@
   overflow: visible;
   pointer-events: none;
   fill: none;
-  stroke: var(--msg-color, var(--seq-fg, var(--dbd-connector)));
+  stroke: var(--msg-color, var(--seq-fg, var(--dd-connector)));
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 
   &.dashed {
-    stroke: var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
+    stroke: var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
   }
   &.selected {
-    stroke: var(--dbd-primary);
+    stroke: var(--dd-primary);
   }
 }
 
@@ -265,8 +265,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--dbd-surface);
-  border: 2px solid var(--dbd-primary);
+  background: var(--dd-surface);
+  border: 2px solid var(--dd-primary);
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
@@ -281,11 +281,11 @@
 .preview-line {
   position: absolute;
   height: 0;
-  border-top: 1.8px dashed var(--dbd-primary);
+  border-top: 1.8px dashed var(--dd-primary);
   pointer-events: none;
 
   &.invalid {
-    border-top-color: var(--dbd-text-muted);
+    border-top-color: var(--dd-text-muted);
     opacity: 0.6;
   }
 }
@@ -297,7 +297,7 @@
   overflow: visible;
   pointer-events: none;
   fill: none;
-  stroke: var(--dbd-primary);
+  stroke: var(--dd-primary);
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -315,10 +315,10 @@
 .msg-label {
   pointer-events: auto;
   cursor: text;
-  font-family: var(--dbd-mono);
+  font-family: var(--dd-mono);
   font-size: 11px;
-  color: var(--seq-fg, var(--dbd-text));
-  background: var(--seq-bg, var(--dbd-surface));
+  color: var(--seq-fg, var(--dd-text));
+  background: var(--seq-bg, var(--dd-surface));
   padding: 4px 10px;
   border-radius: 4px;
   white-space: pre; // honors Shift+Enter line breaks
@@ -326,11 +326,11 @@
   line-height: 1.35;
 
   &.selected {
-    color: var(--dbd-primary);
+    color: var(--dd-primary);
   }
 
   &.placeholder {
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
     font-style: italic;
     opacity: 0.6;
   }
@@ -340,13 +340,13 @@
   // Mirrors .msg-label exactly (font, padding, line height) so the text doesn't
   // shift or resize when editing starts; the focus ring is an outline, not a border.
   font: inherit;
-  font-family: var(--dbd-mono);
+  font-family: var(--dd-mono);
   font-size: 11px;
-  color: var(--seq-fg, var(--dbd-text));
-  background: var(--seq-bg, var(--dbd-surface));
+  color: var(--seq-fg, var(--dd-text));
+  background: var(--seq-bg, var(--dd-surface));
   border: 0;
   border-radius: 4px;
-  outline: 1.5px solid var(--dbd-primary);
+  outline: 1.5px solid var(--dd-primary);
   padding: 4px 10px;
   margin: 0;
   box-sizing: content-box;
@@ -370,8 +370,8 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--seq-fg-muted, var(--dbd-text-muted));
-    background: var(--seq-bg, var(--dbd-surface));
+    color: var(--seq-fg-muted, var(--dd-text-muted));
+    background: var(--seq-bg, var(--dd-surface));
     padding: 4px 14px;
     border-radius: 12px;
   }
@@ -385,8 +385,8 @@
   height: 18px;
   margin-top: -9px;
   border-radius: 3px;
-  background: var(--dbd-surface);
-  border: 1.5px solid var(--dbd-primary);
+  background: var(--dd-surface);
+  border: 1.5px solid var(--dd-primary);
   cursor: ew-resize;
   touch-action: none;
   z-index: 4;
@@ -403,25 +403,25 @@
 .break-line {
   position: absolute;
   height: 0;
-  border-top: 1.4px dashed var(--msg-color, var(--seq-fg-soft, var(--dbd-text-muted)));
+  border-top: 1.4px dashed var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
   pointer-events: none;
 
   &.selected {
-    border-top-color: var(--dbd-primary);
+    border-top-color: var(--dd-primary);
   }
 }
 
 .break-label {
   pointer-events: auto;
   cursor: text;
-  font-family: var(--dbd-mono);
+  font-family: var(--dd-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--seq-fg-muted, var(--dbd-text-muted));
-  background: var(--seq-bg, var(--dbd-surface));
-  border: 1px solid var(--dbd-border);
+  color: var(--seq-fg-muted, var(--dd-text-muted));
+  background: var(--seq-bg, var(--dd-surface));
+  border: 1px solid var(--dd-border);
   padding: 4px 14px;
   border-radius: 12px;
   white-space: pre;
@@ -429,16 +429,16 @@
   line-height: 1.35;
 
   &.selected {
-    color: var(--dbd-primary);
-    border-color: var(--dbd-primary);
+    color: var(--dd-primary);
+    border-color: var(--dd-primary);
   }
 }
 
 // Shift+drag selection rectangle for picking several messages.
 .seq-marquee {
   position: absolute;
-  border: 1px solid var(--dbd-primary);
-  background: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
+  border: 1px solid var(--dd-primary);
+  background: color-mix(in srgb, var(--dd-primary) 12%, transparent);
   pointer-events: none;
   z-index: 7;
 }

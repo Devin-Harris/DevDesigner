@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { CreateLifelineDto as ICreateLifelineDto } from '@dbdesigner/shared';
+import type { CreateLifelineDto as ICreateLifelineDto } from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/lifelines. */
 export class CreateLifelineDto implements ICreateLifelineDto {

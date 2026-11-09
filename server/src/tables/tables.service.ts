@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';

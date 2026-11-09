@@ -7,10 +7,10 @@
   align-items: center;
   gap: 2px;
   padding: 4px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 10px;
-  box-shadow: var(--dbd-shadow-3);
+  box-shadow: var(--dd-shadow-3);
   z-index: 5;
   white-space: nowrap;
 }
@@ -20,7 +20,7 @@
   gap: 2px;
   padding: 3px;
   border-radius: 8px;
-  background: var(--dbd-surface-2);
+  background: var(--dd-surface-2);
 }
 
 .seg {
@@ -29,13 +29,13 @@
   cursor: pointer;
   font: inherit;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   padding: 4px 9px;
   border-radius: 6px;
 
   &.on {
-    background: var(--dbd-surface);
-    color: var(--dbd-text);
+    background: var(--dd-surface);
+    color: var(--dd-text);
     font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   }
@@ -48,7 +48,7 @@
 .sep {
   width: 1px;
   height: 20px;
-  background: var(--dbd-border);
+  background: var(--dd-border);
   margin: 0 3px;
   flex-shrink: 0;
 }
@@ -62,16 +62,16 @@
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 
   &.on {
-    background: var(--dbd-primary-weak);
-    color: var(--dbd-primary);
+    background: var(--dd-primary-weak);
+    color: var(--dd-primary);
   }
 
   &:disabled {
@@ -90,14 +90,14 @@
   border-radius: 7px;
   background: transparent;
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &.del {
-    color: var(--dbd-danger, #d64545);
+    color: var(--dd-danger, #d64545);
   }
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 
   &:disabled {

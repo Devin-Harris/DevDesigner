@@ -1,10 +1,10 @@
-# DBDesigner
+# DevDesigner
 
-DBDesigner is a fullstack web application for visually designing, documenting, and exporting database schemas. It provides an interactive, canvas-based workspace, similar to [dbdiagram.io](https://dbdiagram.io/) or [Miro](https://miro.com/), where you can lay out entity-relationship diagrams (ERDs), define relationships between tables, annotate your designs, and generate ready-to-run SQL.
+DevDesigner is a fullstack web application for visually designing, documenting, and exporting database schemas. It provides an interactive, canvas-based workspace, similar to [dbdiagram.io](https://dbdiagram.io/) or [Miro](https://miro.com/), where you can lay out entity-relationship diagrams (ERDs), define relationships between tables, annotate your designs, and generate ready-to-run SQL.
 
 ## Overview
 
-Modern schema design often happens in disconnected tools: a whiteboard for brainstorming, a SQL file for the real DDL, and a wiki for documentation that quickly goes stale. DBDesigner unifies these into one place. You draw your schema on an infinite canvas, and DBDesigner keeps a structured model of it underneath, so the same design can be visualized, documented, and exported as migration-ready SQL without manual re-typing.
+Modern schema design often happens in disconnected tools: a whiteboard for brainstorming, a SQL file for the real DDL, and a wiki for documentation that quickly goes stale. DevDesigner unifies these into one place. You draw your schema on an infinite canvas, and DevDesigner keeps a structured model of it underneath, so the same design can be visualized, documented, and exported as migration-ready SQL without manual re-typing.
 
 ## Key Features
 
@@ -22,7 +22,7 @@ Define tables with columns, data types, and constraints (primary keys, foreign k
 
 ### Relationships & Referential Integrity
 
-Connect columns across tables to express foreign-key relationships. DBDesigner validates that relationship endpoints are type-compatible and flags issues such as dangling references or duplicate keys before you export.
+Connect columns across tables to express foreign-key relationships. DevDesigner validates that relationship endpoints are type-compatible and flags issues such as dangling references or duplicate keys before you export.
 
 ### Documentation Layer
 
@@ -60,7 +60,7 @@ Parse an existing `.sql` schema file or a DBML definition and reconstruct it as 
 
 ## Project Structure
 
-DBDesigner is an npm-workspaces monorepo with four packages:
+DevDesigner is an npm-workspaces monorepo with four packages:
 
 - **`client/`** the Angular frontend (Material + CDK, NgRx Signal Store, CDK/SVG canvas).
 - **`server/`** the NestJS backend, layered as controller / policy / service / repository, using TypeORM over SQLite.
@@ -72,8 +72,8 @@ Root-level scripts (`npm run dev`, `npm run dev:server`, `npm run dev:client`) a
 
 ```bash
 # Clone and install (npm workspaces install client, server, and shared together)
-git clone <repo-url> dbdesigner
-cd dbdesigner
+git clone <repo-url> devdesigner
+cd devdesigner
 npm install
 
 # Configure environment
@@ -96,7 +96,7 @@ Then open the app at `http://localhost:4242`.
 
 ## MCP server
 
-The `mcp/` package exposes DBDesigner to AI assistants (Claude Desktop, Claude Code, any MCP client) so you can say "design a schema for a blog" and watch it appear live.
+The `mcp/` package exposes DevDesigner to AI assistants (Claude Desktop, Claude Code, any MCP client) so you can say "design a schema for a blog" and watch it appear live.
 
 1. Run the app, sign in, open **Account → API tokens** and create a token (read & write, or read only). Copy the token and the generated config.
 2. Build the server once: `npm run build:mcp`.
@@ -105,12 +105,12 @@ The `mcp/` package exposes DBDesigner to AI assistants (Claude Desktop, Claude C
 ```json
 {
   "mcpServers": {
-    "dbdesigner": {
+    "devdesigner": {
       "command": "node",
-      "args": ["<path to DBDesigner>/mcp/dist/index.js"],
+      "args": ["<path to DevDesigner>/mcp/dist/index.js"],
       "env": {
-        "DBDESIGNER_API_URL": "http://localhost:3000/api",
-        "DBDESIGNER_API_TOKEN": "dbd_..."
+        "DEVDESIGNER_API_URL": "http://localhost:3000/api",
+        "DEVDESIGNER_API_TOKEN": "dd_..."
       }
     }
   }
@@ -119,7 +119,7 @@ The `mcp/` package exposes DBDesigner to AI assistants (Claude Desktop, Claude C
 
 The server talks only to the REST API as the token's owner, so permissions, validation and realtime collaboration are the same as in the UI. Tools cover projects, tables/columns/relationships, sequence diagrams, drawing shapes/text/arrows, bulk `apply_diagram_spec` (atomic, auto-laid-out), import/export, `auto_layout`, `validate_project` and `generate_sql`, images and SVGs (`add_image`: inline `<svg>`, base64, a file path or a URL; slides take image items too), a named color palette (`list_colors`: strong header colors, soft tints, neutrals; every color argument takes a name or hex), and presentations (`create_presentation`, `add_slides`, `add_to_slide`, `update_slide`, `reorder_slides`, `delete_slide`, morph tags via `set_morph_tag` / `update_participant` / `update_message` / `preview_morph`...). Morph transitions can animate text by character, word or object (`transition.morphBy`), individual words can be tagged (`runs[].morph`), and sequence participants/messages/diagrams pair across slides by name and wording or by an explicit tag; `delete_*` tools require `confirm: true`. Tokens are rate limited (`API_TOKEN_RATE_LIMIT`, default 600 requests/min).
 
-**Remote (HTTP) MCP:** `npm run build:mcp && npm run start:mcp:http` (or `MCP_TRANSPORT=http`) serves a stateless Streamable HTTP endpoint at `POST /mcp` (health: `GET /health`) on `PORT` (default 3001). Set `DBDESIGNER_API_URL` to the API (incl. `/api`). Each request sends its own `Authorization: Bearer dbd_...`, so one deployment serves many users. In this mode `filePath` images are disabled and image URLs may not point at private addresses. Claude Code: `claude mcp add --transport http dbdesigner https://YOUR-HOST/mcp --header "Authorization: Bearer dbd_..."`.
+**Remote (HTTP) MCP:** `npm run build:mcp && npm run start:mcp:http` (or `MCP_TRANSPORT=http`) serves a stateless Streamable HTTP endpoint at `POST /mcp` (health: `GET /health`) on `PORT` (default 3001). Set `DEVDESIGNER_API_URL` to the API (incl. `/api`). Each request sends its own `Authorization: Bearer dd_...`, so one deployment serves many users. In this mode `filePath` images are disabled and image URLs may not point at private addresses. Claude Code: `claude mcp add --transport http devdesigner https://YOUR-HOST/mcp --header "Authorization: Bearer dd_..."`.
 
 ## Roadmap
 

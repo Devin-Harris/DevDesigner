@@ -11,9 +11,9 @@ const cwd = process.cwd();
 
 /** Each entry becomes its own terminal window. */
 const targets = [
-  { title: 'DBDesigner Shared (watch)', script: 'watch:shared' },
-  { title: 'DBDesigner Server', script: 'dev:server' },
-  { title: 'DBDesigner Client', script: 'dev:client' },
+  { title: 'DevDesigner Shared (watch)', script: 'watch:shared' },
+  { title: 'DevDesigner Server', script: 'dev:server' },
+  { title: 'DevDesigner Client', script: 'dev:client' },
 ];
 
 function openTerminal({ title, script }) {
@@ -50,5 +50,5 @@ for (const target of targets) {
 }
 
 console.log(
-  'Opened two terminals: DBDesigner Server (http://localhost:3000) and DBDesigner Client (http://localhost:4242).',
+  'Opened two terminals: DevDesigner Server (http://localhost:3000) and DevDesigner Client (http://localhost:4242).',
 );

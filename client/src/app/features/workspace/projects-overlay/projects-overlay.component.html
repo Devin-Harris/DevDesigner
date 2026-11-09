@@ -11,20 +11,20 @@
           (change)="importFile($event)"
         />
         <button class="btn" [disabled]="busy()" (click)="importInput.click()">
-          <dbd-icon name="upload" />
+          <dd-icon name="upload" />
           Import
         </button>
         <button class="btn primary" (click)="addProject()">
-          <dbd-icon name="add" />
+          <dd-icon name="add" />
           New
         </button>
-        <button class="icon-btn" (click)="close()" aria-label="Close"><dbd-icon name="close" /></button>
+        <button class="icon-btn" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
       </div>
     </header>
 
     <div class="search-row">
-      <dbd-icon name="search" class="search-ico" />
-      <dbd-input
+      <dd-icon name="search" class="search-ico" />
+      <dd-input
         class="search-input"
         placeholder="Search projects…"
         [ngModel]="store.search()"
@@ -60,8 +60,8 @@
                   @default {
                     <div class="thumb-empty">
                       <svg viewBox="0 0 92 60" aria-hidden="true">
-                        <rect x="9" y="13" width="26" height="20" rx="3" fill="none" stroke="var(--dbd-border-strong)" stroke-dasharray="3 3" />
-                        <rect x="52" y="30" width="30" height="22" rx="3" fill="none" stroke="var(--dbd-border-strong)" stroke-dasharray="3 3" />
+                        <rect x="9" y="13" width="26" height="20" rx="3" fill="none" stroke="var(--dd-border-strong)" stroke-dasharray="3 3" />
+                        <rect x="52" y="30" width="30" height="22" rx="3" fill="none" stroke="var(--dd-border-strong)" stroke-dasharray="3 3" />
                       </svg>
                       <span>{{ thumbState.status === 'empty' ? 'Empty' : 'No preview' }}</span>
                     </div>
@@ -95,31 +95,31 @@
 
               <button
                 class="icon-btn more"
-                [dbdPopoverTrigger]="cardMenu"
+                [ddPopoverTrigger]="cardMenu"
                 placement="below-end"
                 (click)="$event.stopPropagation()"
                 aria-label="Project actions"
               >
-                <dbd-icon name="more_vert" />
+                <dd-icon name="more_vert" />
               </button>
               <ng-template #cardMenu let-close>
-                <div class="dbd-menu">
-                  <button class="dbd-menu-item" (click)="startRename(project); close()">
-                    <dbd-icon name="edit" />Rename
+                <div class="dd-menu">
+                  <button class="dd-menu-item" (click)="startRename(project); close()">
+                    <dd-icon name="edit" />Rename
                   </button>
-                  <button class="dbd-menu-item" (click)="duplicate(project); close()">
-                    <dbd-icon name="content_copy" />Duplicate
+                  <button class="dd-menu-item" (click)="duplicate(project); close()">
+                    <dd-icon name="content_copy" />Duplicate
                   </button>
-                  <button class="dbd-menu-item" (click)="exportProject(project); close()">
-                    <dbd-icon name="download" />Export
+                  <button class="dd-menu-item" (click)="exportProject(project); close()">
+                    <dd-icon name="download" />Export
                   </button>
-                  <button class="dbd-menu-item" (click)="toggleArchive(project); close()">
-                    <dbd-icon [name]="project.archived ? 'unarchive' : 'archive'" />
+                  <button class="dd-menu-item" (click)="toggleArchive(project); close()">
+                    <dd-icon [name]="project.archived ? 'unarchive' : 'archive'" />
                     {{ project.archived ? 'Unarchive' : 'Archive' }}
                   </button>
-                  <div class="dbd-menu-sep"></div>
-                  <button class="dbd-menu-item danger" (click)="remove(project); close()">
-                    <dbd-icon name="delete" />Delete
+                  <div class="dd-menu-sep"></div>
+                  <button class="dd-menu-item danger" (click)="remove(project); close()">
+                    <dd-icon name="delete" />Delete
                   </button>
                 </div>
               </ng-template>
@@ -131,19 +131,19 @@
 
     <footer class="panel-foot">
       <button class="btn ghost" (click)="view.set('templates')">
-        <dbd-icon name="template" />
+        <dd-icon name="template" />
         Templates
       </button>
-      <dbd-toggle [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
+      <dd-toggle [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
         Show archived
-      </dbd-toggle>
+      </dd-toggle>
     </footer>
   } @else {
     <header class="panel-head">
-      <button class="icon-btn" (click)="view.set('projects')" aria-label="Back"><dbd-icon name="chevron_left" /></button>
+      <button class="icon-btn" (click)="view.set('projects')" aria-label="Back"><dd-icon name="chevron_left" /></button>
       <h2 class="title">Templates</h2>
       <div class="head-actions">
-        <button class="icon-btn" (click)="close()" aria-label="Close"><dbd-icon name="close" /></button>
+        <button class="icon-btn" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
       </div>
     </header>
 
@@ -153,10 +153,10 @@
           <button class="tcard" [disabled]="busy()" (click)="useTemplate(t)">
             <div class="thumb" [style.--a]="t.accent">
               <svg viewBox="0 0 92 60" aria-hidden="true">
-                <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dbd-connector)" stroke-width="1.4" />
-                <rect x="9" y="11" width="26" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dd-connector)" stroke-width="1.4" />
+                <rect x="9" y="11" width="26" height="20" rx="3" fill="var(--dd-node-surface)" stroke="var(--dd-border-strong)" />
                 <rect x="9" y="11" width="26" height="6" rx="3" fill="var(--a)" />
-                <rect x="52" y="30" width="30" height="20" rx="3" fill="var(--dbd-node-surface)" stroke="var(--dbd-border-strong)" />
+                <rect x="52" y="30" width="30" height="20" rx="3" fill="var(--dd-node-surface)" stroke="var(--dd-border-strong)" />
                 <rect x="52" y="30" width="30" height="6" rx="3" fill="var(--a)" />
               </svg>
             </div>

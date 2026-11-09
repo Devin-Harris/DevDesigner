@@ -90,7 +90,7 @@
           class="dock-btn shape"
           [class.on]="isShape()"
           [disabled]="disabled()"
-          [dbdPopoverTrigger]="shapeMenu"
+          [ddPopoverTrigger]="shapeMenu"
           [placement]="morePlacement()"
           popoverTrigger="hover"
           (click)="onChange(lastShape())"
@@ -156,7 +156,7 @@
           class="dock-btn shape"
           [class.on]="tool() === 'frame'"
           [disabled]="disabled()"
-          [dbdPopoverTrigger]="frameMenu"
+          [ddPopoverTrigger]="frameMenu"
           [placement]="morePlacement()"
           (click)="onChange('frame')"
           matTooltip="Frame (F) — a fixed-ratio page to export"
@@ -169,10 +169,10 @@
           <span class="caret"></span>
         </button>
         <ng-template #frameMenu let-close>
-          <div class="dbd-menu">
+          <div class="dd-menu">
             @for (p of framePresets; track p.id) {
               <button
-                class="dbd-menu-item"
+                class="dd-menu-item"
                 [class.on]="framePreset() === p.id"
                 (click)="pickFrame(p.id); close()"
               >
@@ -203,7 +203,7 @@
           class="dock-btn shape"
           [class.on]="tool() === 'arrow' || tool() === 'line'"
           [disabled]="disabled()"
-          [dbdPopoverTrigger]="connectorMenu"
+          [ddPopoverTrigger]="connectorMenu"
           [placement]="morePlacement()"
           popoverTrigger="hover"
           (click)="onChange(lastConnector())"
@@ -311,26 +311,26 @@
   <div class="dock-sep"></div>
   <button
     class="dock-btn customize"
-    [dbdPopoverTrigger]="moreMenu"
+    [ddPopoverTrigger]="moreMenu"
     [placement]="morePlacement()"
     matTooltip="More tools and customize"
     [matTooltipPosition]="tipPos()"
     aria-label="More"
   >
-    <dbd-icon name="more_horiz" />
+    <dd-icon name="more_horiz" />
   </button>
   <ng-template #moreMenu let-close>
-    <div class="dbd-menu">
+    <div class="dd-menu">
       @if (prefs.hiddenTools().length) {
         <div class="more-label">More tools</div>
         @for (t of prefs.hiddenTools(); track t.id) {
-          <button class="dbd-menu-item" [disabled]="disabled()" (click)="useHidden(t.id); close()">
+          <button class="dd-menu-item" [disabled]="disabled()" (click)="useHidden(t.id); close()">
             {{ t.label }}@if (t.key) {<span class="kbd">{{ t.key }}</span>}
           </button>
         }
-        <div class="dbd-menu-sep"></div>
+        <div class="dd-menu-sep"></div>
       }
-      <button class="dbd-menu-item" (click)="prefs.panelOpen.set(true); close()"><dbd-icon name="tune" />Customize toolbar…</button>
+      <button class="dd-menu-item" (click)="prefs.panelOpen.set(true); close()"><dd-icon name="tune" />Customize toolbar…</button>
     </div>
   </ng-template>
 </div>
@@ -338,20 +338,20 @@
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->
 <div class="statusbar">
   <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out">
-    <dbd-icon name="remove" />
+    <dd-icon name="remove" />
   </button>
-  <button class="zoom-label" [dbdPopoverTrigger]="zoomMenu" placement="above-start" matTooltip="Zoom options">
+  <button class="zoom-label" [ddPopoverTrigger]="zoomMenu" placement="above-start" matTooltip="Zoom options">
     {{ zoomLabel() }}
   </button>
-  <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dbd-icon name="add" /></button>
+  <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dd-icon name="add" /></button>
   <ng-template #zoomMenu let-close>
-    <div class="dbd-menu">
-      <button class="dbd-menu-item" (click)="zoomFit.emit(); close()"><dbd-icon name="fit_screen" />Zoom to fit<span class="kbd">Shift 1</span></button>
-      <button class="dbd-menu-item" (click)="zoomSelection.emit(); close()"><dbd-icon name="center_focus_strong" />Zoom to selection<span class="kbd">Shift 2</span></button>
-      <button class="dbd-menu-item" (click)="resetView.emit(); close()"><dbd-icon name="home" />Go to home view<span class="kbd">Home</span></button>
-      <div class="dbd-menu-sep"></div>
-      <button class="dbd-menu-item" [disabled]="!canSetHome()" (click)="setHome.emit(); close()"><dbd-icon name="home" />Set home view to this</button>
-      <button class="dbd-menu-item" [disabled]="!canSetHome() || !hasHome()" (click)="clearHome.emit(); close()"><dbd-icon name="close" />Clear home view</button>
+    <div class="dd-menu">
+      <button class="dd-menu-item" (click)="zoomFit.emit(); close()"><dd-icon name="fit_screen" />Zoom to fit<span class="kbd">Shift 1</span></button>
+      <button class="dd-menu-item" (click)="zoomSelection.emit(); close()"><dd-icon name="center_focus_strong" />Zoom to selection<span class="kbd">Shift 2</span></button>
+      <button class="dd-menu-item" (click)="resetView.emit(); close()"><dd-icon name="home" />Go to home view<span class="kbd">Home</span></button>
+      <div class="dd-menu-sep"></div>
+      <button class="dd-menu-item" [disabled]="!canSetHome()" (click)="setHome.emit(); close()"><dd-icon name="home" />Set home view to this</button>
+      <button class="dd-menu-item" [disabled]="!canSetHome() || !hasHome()" (click)="clearHome.emit(); close()"><dd-icon name="close" />Clear home view</button>
     </div>
   </ng-template>
 
@@ -365,7 +365,7 @@
     (click)="toggleGrid.emit()"
     matTooltip="Snap to grid"
   >
-    <dbd-icon name="grid_4x4" />
+    <dd-icon name="grid_4x4" />
   </button>
   <button
     class="sbtn"
@@ -373,7 +373,7 @@
     (click)="toggleSmartGuides.emit()"
     matTooltip="Smart guides: snap to nearby items and spacing"
   >
-    <dbd-icon name="smart_guides" />
+    <dd-icon name="smart_guides" />
   </button>
 
   <button
@@ -382,7 +382,7 @@
     (click)="toggleMinimap.emit()"
     matTooltip="Minimap"
   >
-    <dbd-icon name="map" />
+    <dd-icon name="map" />
   </button>
 
   @if (saveLabel()) {
@@ -398,31 +398,31 @@
       <span class="align-hint">In container</span>
     }
     <button class="sbtn" (click)="align.emit('left')" matTooltip="Align left" matTooltipPosition="above">
-      <dbd-icon name="align_horizontal_left" />
+      <dd-icon name="align_horizontal_left" />
     </button>
     <button class="sbtn" (click)="align.emit('hcenter')" matTooltip="Center horizontally" matTooltipPosition="above">
-      <dbd-icon name="align_horizontal_center" />
+      <dd-icon name="align_horizontal_center" />
     </button>
     <button class="sbtn" (click)="align.emit('right')" matTooltip="Align right" matTooltipPosition="above">
-      <dbd-icon name="align_horizontal_right" />
+      <dd-icon name="align_horizontal_right" />
     </button>
     <span class="sep"></span>
     <button class="sbtn" (click)="align.emit('top')" matTooltip="Align top" matTooltipPosition="above">
-      <dbd-icon name="align_vertical_top" />
+      <dd-icon name="align_vertical_top" />
     </button>
     <button class="sbtn" (click)="align.emit('vcenter')" matTooltip="Center vertically" matTooltipPosition="above">
-      <dbd-icon name="align_vertical_center" />
+      <dd-icon name="align_vertical_center" />
     </button>
     <button class="sbtn" (click)="align.emit('bottom')" matTooltip="Align bottom" matTooltipPosition="above">
-      <dbd-icon name="align_vertical_bottom" />
+      <dd-icon name="align_vertical_bottom" />
     </button>
     @if (canDistribute()) {
       <span class="sep"></span>
       <button class="sbtn" (click)="align.emit('dist-h')" matTooltip="Distribute horizontally" matTooltipPosition="above">
-        <dbd-icon name="horizontal_distribute" />
+        <dd-icon name="horizontal_distribute" />
       </button>
       <button class="sbtn" (click)="align.emit('dist-v')" matTooltip="Distribute vertically" matTooltipPosition="above">
-        <dbd-icon name="vertical_distribute" />
+        <dd-icon name="vertical_distribute" />
       </button>
     }
   </div>

@@ -1,4 +1,4 @@
-import type { TextRun } from '@dbdesigner/shared';
+import type { TextRun } from '@devdesigner/shared';
 
 /** Per-run style overrides. `null` clears an override (the run inherits the element's style). */
 export interface RunPatch {

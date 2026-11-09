@@ -2,22 +2,22 @@
   <button
     type="button"
     class="ico-act"
-    [dbdPopoverTrigger]="colorMenu"
+    [ddPopoverTrigger]="colorMenu"
     placement="below-start"
     [disabled]="!canEdit()"
     title="Header color"
     aria-label="Header color"
   >
-    <span class="color-dot" [style.background]="css(l.color) || 'var(--dbd-handle)'"></span>
+    <span class="color-dot" [style.background]="css(l.color) || 'var(--dd-handle)'"></span>
   </button>
   <ng-template #colorMenu let-close>
     <div class="color-grid">
       <div class="grid-label">Fill</div>
-      <dbd-color-swatches [value]="l.color" themeValue="surface" (pick)="setColor($event)" />
+      <dd-color-swatches [value]="l.color" themeValue="surface" (pick)="setColor($event)" />
       <div class="grid-label">Stroke</div>
-      <dbd-color-swatches [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" (pick)="setStroke($event)" />
+      <dd-color-swatches [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" (pick)="setStroke($event)" />
       <div class="grid-label">Text</div>
-      <dbd-color-swatches [value]="l.textColor" noneLabel="Automatic" themeValue="theme" (pick)="setText($event)" />
+      <dd-color-swatches [value]="l.textColor" noneLabel="Automatic" themeValue="theme" (pick)="setText($event)" />
     </div>
   </ng-template>
 
@@ -31,11 +31,11 @@
     title="Rename participant"
     aria-label="Rename participant"
   >
-    <dbd-icon name="edit" />
+    <dd-icon name="edit" />
   </button>
 
   <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-    <dbd-icon name="tune" />
+    <dd-icon name="tune" />
   </button>
   <button
     type="button"
@@ -45,6 +45,6 @@
     title="Delete participant"
     aria-label="Delete participant"
   >
-    <dbd-icon name="delete" />
+    <dd-icon name="delete" />
   </button>
 }

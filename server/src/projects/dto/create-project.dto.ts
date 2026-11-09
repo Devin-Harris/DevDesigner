@@ -3,7 +3,7 @@ import {
   PROJECT_TYPES,
   type CreateProjectDto as ICreateProjectDto,
   type ProjectType,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** Body for POST /projects. Implements the shared interface so client and server agree. */
 export class CreateProjectDto implements ICreateProjectDto {

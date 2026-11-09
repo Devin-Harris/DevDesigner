@@ -1,11 +1,11 @@
 // Remote MCP over Streamable HTTP (stateless). `POST /mcp` with a JSON-RPC message and
-// `Authorization: Bearer dbd_...`; the token is passed straight to the backend API, so
+// `Authorization: Bearer dd_...`; the token is passed straight to the backend API, so
 // permissions are exactly the token owner's. A fresh server is built per request, so
 // nothing is shared between callers.
 
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { DbDesignerApi } from './api';
+import { DevDesignerApi } from './api';
 import { createServer } from './server';
 
 const MAX_BODY_BYTES = 30 * 1024 * 1024; // room for a base64 image (5 MB file) and JSON overhead
@@ -40,13 +40,13 @@ export function tokenOf(req: IncomingMessage): string | null {
 
 export async function startHttp(options: { port: number; apiUrl: string }): Promise<void> {
   // Remote callers must not be able to read this machine's files or reach its network.
-  process.env.DBDESIGNER_MCP_REMOTE = '1';
+  process.env.DEVDESIGNER_MCP_REMOTE = '1';
 
   const httpServer = createHttpServer(async (req, res) => {
     const path = (req.url ?? '/').split('?')[0];
     try {
       if (path === '/health' || path === '/') {
-        send(res, 200, { ok: true, name: 'dbdesigner-mcp', endpoint: '/mcp' });
+        send(res, 200, { ok: true, name: 'devdesigner-mcp', endpoint: '/mcp' });
         return;
       }
       if (path !== '/mcp') {
@@ -65,7 +65,7 @@ export async function startHttp(options: { port: number; apiUrl: string }): Prom
           res,
           401,
           -32001,
-          'Missing API token. Send "Authorization: Bearer dbd_..." (create one in DBDesigner: Account > API tokens).',
+          'Missing API token. Send "Authorization: Bearer dd_..." (create one in DevDesigner: Account > API tokens).',
           { 'WWW-Authenticate': 'Bearer' },
         );
         return;
@@ -77,7 +77,7 @@ export async function startHttp(options: { port: number; apiUrl: string }): Prom
         rpcError(res, 400, -32700, `Invalid JSON body: ${(err as Error).message}`);
         return;
       }
-      const server = createServer(new DbDesignerApi({ baseUrl: options.apiUrl, token }));
+      const server = createServer(new DevDesignerApi({ baseUrl: options.apiUrl, token }));
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,
@@ -98,6 +98,6 @@ export async function startHttp(options: { port: number; apiUrl: string }): Prom
   // need when their proxy reaches the service over an IPv6 private network.
   await new Promise<void>((resolve) => httpServer.listen(options.port, resolve));
   console.error(
-    `DBDesigner MCP server ready (HTTP) on port ${options.port} (PORT=${process.env.PORT ?? "unset"}), POST /mcp, API ${options.apiUrl}`,
+    `DevDesigner MCP server ready (HTTP) on port ${options.port} (PORT=${process.env.PORT ?? "unset"}), POST /mcp, API ${options.apiUrl}`,
   );
 }

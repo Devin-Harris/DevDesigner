@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { ProjectSummary } from '@dbdesigner/shared';
+import type { ProjectSummary } from '@devdesigner/shared';
 import { ProjectFileService } from '../../../core/services/project-file.service';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -147,7 +147,7 @@ export class ProjectsOverlayComponent {
     }
   }
 
-  /** Download the project as a `.dbdesigner.json` file that can be imported elsewhere. */
+  /** Download the project as a `.devdesigner.json` file that can be imported elsewhere. */
   protected exportProject(project: ProjectSummary): Promise<void> {
     return this.projectFile.download(project.id, project.name);
   }

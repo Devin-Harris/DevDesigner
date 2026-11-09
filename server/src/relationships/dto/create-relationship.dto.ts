@@ -5,7 +5,7 @@ import {
   type ConnectorSide,
   type CreateRelationshipDto as ICreateRelationshipDto,
   type RelationshipType,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/relationships. */
 export class CreateRelationshipDto implements ICreateRelationshipDto {

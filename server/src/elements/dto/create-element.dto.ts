@@ -38,7 +38,7 @@ import {
   type StrokeStyle,
   type TextAlign,
   type VerticalAlign,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
 import { MediaDto, PlaceholderDto, SlideDto } from './slide.dto';

@@ -20,19 +20,19 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
   template: `
     <span class="count">{{ count() }} selected</span>
     <span class="sep"></span>
-    <button class="tb" [dbdPopoverTrigger]="alignMenu" placement="below-start">
-      <dbd-icon name="align_horizontal_left" />Align<dbd-icon name="expand_more" class="chev" />
+    <button class="tb" [ddPopoverTrigger]="alignMenu" placement="below-start">
+      <dd-icon name="align_horizontal_left" />Align<dd-icon name="expand_more" class="chev" />
     </button>
     <ng-template #alignMenu let-close>
       <div class="align-pop">
         <div class="lab">Align</div>
         <div class="grid6">
-          <button class="ib" (click)="align.emit('left'); close()" matTooltip="Align left" aria-label="Align left"><dbd-icon name="align_horizontal_left" /></button>
-          <button class="ib" (click)="align.emit('hcenter'); close()" matTooltip="Center horizontally" aria-label="Center horizontally"><dbd-icon name="align_horizontal_center" /></button>
-          <button class="ib" (click)="align.emit('right'); close()" matTooltip="Align right" aria-label="Align right"><dbd-icon name="align_horizontal_right" /></button>
-          <button class="ib" (click)="align.emit('top'); close()" matTooltip="Align top" aria-label="Align top"><dbd-icon name="align_vertical_top" /></button>
-          <button class="ib" (click)="align.emit('vcenter'); close()" matTooltip="Center vertically" aria-label="Center vertically"><dbd-icon name="align_vertical_center" /></button>
-          <button class="ib" (click)="align.emit('bottom'); close()" matTooltip="Align bottom" aria-label="Align bottom"><dbd-icon name="align_vertical_bottom" /></button>
+          <button class="ib" (click)="align.emit('left'); close()" matTooltip="Align left" aria-label="Align left"><dd-icon name="align_horizontal_left" /></button>
+          <button class="ib" (click)="align.emit('hcenter'); close()" matTooltip="Center horizontally" aria-label="Center horizontally"><dd-icon name="align_horizontal_center" /></button>
+          <button class="ib" (click)="align.emit('right'); close()" matTooltip="Align right" aria-label="Align right"><dd-icon name="align_horizontal_right" /></button>
+          <button class="ib" (click)="align.emit('top'); close()" matTooltip="Align top" aria-label="Align top"><dd-icon name="align_vertical_top" /></button>
+          <button class="ib" (click)="align.emit('vcenter'); close()" matTooltip="Center vertically" aria-label="Center vertically"><dd-icon name="align_vertical_center" /></button>
+          <button class="ib" (click)="align.emit('bottom'); close()" matTooltip="Align bottom" aria-label="Align bottom"><dd-icon name="align_vertical_bottom" /></button>
         </div>
         <div class="lab gap">Distribute &amp; tidy</div>
         <div class="chips">
@@ -46,20 +46,20 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
 
     @if (canStyle()) {
       <span class="sep"></span>
-      <button class="ib" [dbdPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill for all" aria-label="Fill for all">
+      <button class="ib" [ddPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill for all" aria-label="Fill for all">
         <span class="sw fill"></span>
       </button>
       <ng-template #fillMenu let-close>
         <div class="picker">
-          <dbd-color-swatches noneValue="transparent" noneLabel="No fill" (pick)="fill.emit($event); close()" />
+          <dd-color-swatches noneValue="transparent" noneLabel="No fill" (pick)="fill.emit($event); close()" />
         </div>
       </ng-template>
-      <button class="ib" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke for all" aria-label="Stroke for all">
+      <button class="ib" [ddPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke for all" aria-label="Stroke for all">
         <span class="sw stroke"></span>
       </button>
       <ng-template #strokeMenu let-close>
         <div class="picker">
-          <dbd-color-swatches noneValue="transparent" noneLabel="No stroke" (pick)="stroke.emit($event); close()" />
+          <dd-color-swatches noneValue="transparent" noneLabel="No stroke" (pick)="stroke.emit($event); close()" />
         </div>
       </ng-template>
     }
@@ -70,23 +70,23 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
       <button class="tb" (click)="group.emit()" matTooltip="Group (Ctrl+G)">Group</button>
     }
 
-    <button class="ib" [dbdPopoverTrigger]="layerMenu" placement="below-start" matTooltip="Layer order" aria-label="Layer order">
-      <dbd-icon name="flip_to_front" />
+    <button class="ib" [ddPopoverTrigger]="layerMenu" placement="below-start" matTooltip="Layer order" aria-label="Layer order">
+      <dd-icon name="flip_to_front" />
     </button>
     <ng-template #layerMenu let-close>
-      <div class="dbd-menu">
-        <button class="dbd-menu-item" (click)="arrange.emit('front'); close()"><dbd-icon name="flip_to_front" />Bring to front<span class="kbd">Ctrl Shift ]</span></button>
-        <button class="dbd-menu-item" (click)="arrange.emit('forward'); close()"><dbd-icon name="bring_forward" />Bring forward<span class="kbd">Ctrl ]</span></button>
-        <button class="dbd-menu-item" (click)="arrange.emit('backward'); close()"><dbd-icon name="send_backward" />Send backward<span class="kbd">Ctrl [</span></button>
-        <button class="dbd-menu-item" (click)="arrange.emit('back'); close()"><dbd-icon name="flip_to_back" />Send to back<span class="kbd">Ctrl Shift [</span></button>
+      <div class="dd-menu">
+        <button class="dd-menu-item" (click)="arrange.emit('front'); close()"><dd-icon name="flip_to_front" />Bring to front<span class="kbd">Ctrl Shift ]</span></button>
+        <button class="dd-menu-item" (click)="arrange.emit('forward'); close()"><dd-icon name="bring_forward" />Bring forward<span class="kbd">Ctrl ]</span></button>
+        <button class="dd-menu-item" (click)="arrange.emit('backward'); close()"><dd-icon name="send_backward" />Send backward<span class="kbd">Ctrl [</span></button>
+        <button class="dd-menu-item" (click)="arrange.emit('back'); close()"><dd-icon name="flip_to_back" />Send to back<span class="kbd">Ctrl Shift [</span></button>
       </div>
     </ng-template>
 
     <button class="ib" (click)="duplicate.emit()" matTooltip="Duplicate" aria-label="Duplicate">
-      <dbd-icon name="content_copy" />
+      <dd-icon name="content_copy" />
     </button>
     <button class="ib del" (click)="remove.emit()" matTooltip="Delete" aria-label="Delete">
-      <dbd-icon name="delete" />
+      <dd-icon name="delete" />
     </button>
   `,
   styles: `
@@ -100,23 +100,23 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
       height: 40px;
       padding: 0 4px;
       box-sizing: border-box;
-      background: var(--dbd-surface);
-      color: var(--dbd-text);
-      border: 1px solid var(--dbd-border);
+      background: var(--dd-surface);
+      color: var(--dd-text);
+      border: 1px solid var(--dd-border);
       border-radius: 11px;
-      box-shadow: var(--dbd-shadow-2);
+      box-shadow: var(--dd-shadow-2);
       white-space: nowrap;
       font-size: 13px;
     }
     .count {
       padding: 0 8px;
       font-size: 12px;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
     }
     .sep {
       width: 1px;
       height: 20px;
-      background: var(--dbd-border);
+      background: var(--dd-border);
       margin: 0 2px;
     }
     .tb,
@@ -129,38 +129,38 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
       border: none;
       border-radius: 7px;
       background: transparent;
-      color: var(--dbd-text);
+      color: var(--dd-text);
       font: inherit;
       font-size: 13px;
       cursor: pointer;
-      --dbd-icon-size: 17px;
+      --dd-icon-size: 17px;
     }
     .tb {
       padding: 0 8px;
     }
     .ib {
       width: 30px;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
     }
     .tb:hover,
     .ib:hover {
-      background: var(--dbd-surface-2);
-      color: var(--dbd-text);
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
     }
     .del:hover {
       color: #e5484d;
     }
     .chev {
-      --dbd-icon-size: 14px;
-      color: var(--dbd-text-muted);
+      --dd-icon-size: 14px;
+      color: var(--dd-text-muted);
     }
     .align-pop {
       width: 268px;
       padding: 10px;
-      background: var(--dbd-surface);
-      border: 1px solid var(--dbd-border);
+      background: var(--dd-surface);
+      border: 1px solid var(--dd-border);
       border-radius: 12px;
-      box-shadow: var(--dbd-shadow-2);
+      box-shadow: var(--dd-shadow-2);
     }
     .lab {
       margin: 2px 0 8px;
@@ -168,7 +168,7 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
     }
     .lab.gap { margin-top: 12px; }
     .grid6 {
@@ -180,38 +180,38 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
     .chip {
       height: 26px;
       padding: 0 10px;
-      border: 1px solid var(--dbd-border);
+      border: 1px solid var(--dd-border);
       border-radius: 999px;
-      background: var(--dbd-surface);
-      color: var(--dbd-text);
+      background: var(--dd-surface);
+      color: var(--dd-text);
       font: inherit;
       font-size: 12px;
       cursor: pointer;
     }
     .chip:hover:not(:disabled) {
-      border-color: var(--dbd-primary);
-      color: var(--dbd-primary);
-      background: var(--dbd-primary-weak);
+      border-color: var(--dd-primary);
+      color: var(--dd-primary);
+      background: var(--dd-primary-weak);
     }
     .chip:disabled { opacity: 0.45; cursor: default; }
     .sw { width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; }
     .sw.fill {
-      background: linear-gradient(135deg, var(--dbd-surface-2) 50%, var(--dbd-text-muted) 50%);
-      box-shadow: inset 0 0 0 1px var(--dbd-border);
+      background: linear-gradient(135deg, var(--dd-surface-2) 50%, var(--dd-text-muted) 50%);
+      box-shadow: inset 0 0 0 1px var(--dd-border);
     }
-    .sw.stroke { border: 3px solid var(--dbd-text-muted); }
+    .sw.stroke { border: 3px solid var(--dd-text-muted); }
     .picker {
       padding: 10px;
-      background: var(--dbd-surface);
-      border: 1px solid var(--dbd-border);
+      background: var(--dd-surface);
+      border: 1px solid var(--dd-border);
       border-radius: 12px;
-      box-shadow: var(--dbd-shadow-2);
+      box-shadow: var(--dd-shadow-2);
     }
     .kbd {
       margin-left: auto;
       padding-left: 16px;
       font-size: 11px;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
     }
   `,
 })

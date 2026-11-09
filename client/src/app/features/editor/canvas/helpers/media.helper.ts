@@ -1,4 +1,4 @@
-import type { MediaConfig } from '@dbdesigner/shared';
+import type { MediaConfig } from '@devdesigner/shared';
 
 /** A rectangle in world coordinates. */
 export interface Rect {

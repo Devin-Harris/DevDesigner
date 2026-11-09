@@ -2,7 +2,7 @@ import type {
   LifelineModel,
   SequenceDiagramModel,
   SequenceMessageModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { LifelineEntity } from './lifeline.entity';
 import { SequenceMessageEntity } from './sequence-message.entity';
 import { SequenceDiagramEntity } from './sequence-diagram.entity';

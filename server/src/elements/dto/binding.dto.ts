@@ -1,5 +1,5 @@
 import { IsIn, IsString } from 'class-validator';
-import type { ElementBinding } from '@dbdesigner/shared';
+import type { ElementBinding } from '@devdesigner/shared';
 
 /** A line/arrow endpoint bound to a shape, ERD table, or sequence message label. */
 export class BindingDto implements ElementBinding {

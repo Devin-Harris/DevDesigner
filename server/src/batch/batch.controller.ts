@@ -1,5 +1,5 @@
 import { Body, Controller, Param, Patch, Post } from '@nestjs/common';
-import type { BatchUpdateResponse } from '@dbdesigner/shared';
+import type { BatchUpdateResponse } from '@devdesigner/shared';
 import { BatchService } from './batch.service';
 import { CloneService } from './clone.service';
 import { CurrentUserId } from '../auth/current-user.decorator';

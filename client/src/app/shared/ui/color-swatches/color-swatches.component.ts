@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { PICKER_SWATCHES, THEME_COLOR_LABELS, THEME_COLOR_TOKENS, themeSwatchCss, themeToken, type SlideTheme } from '@dbdesigner/shared';
+import { PICKER_SWATCHES, THEME_COLOR_LABELS, THEME_COLOR_TOKENS, themeSwatchCss, themeToken, type SlideTheme } from '@devdesigner/shared';
 import { IconComponent } from '../icon/icon.component';
 
 /**
@@ -8,7 +8,7 @@ import { IconComponent } from '../icon/icon.component';
  * `noneValue` / `themeValue` for those two, otherwise a hex.
  */
 @Component({
-  selector: 'dbd-color-swatches',
+  selector: 'dd-color-swatches',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
@@ -53,7 +53,7 @@ import { IconComponent } from '../icon/icon.component';
           [disabled]="disabled()"
           (click)="pick.emit(themeValue()!)"
         >
-          <dbd-icon name="contrast" />
+          <dd-icon name="contrast" />
         </button>
       }
       @for (c of colors(); track c) {
@@ -68,7 +68,7 @@ import { IconComponent } from '../icon/icon.component';
         ></button>
       }
       <label class="sw custom" [class.active]="isCustom()" title="Custom color" [style.background]="isCustom() ? current() : null">
-        <dbd-icon name="colorize" />
+        <dd-icon name="colorize" />
         <input
           type="color"
           [value]="isCustom() ? current() : '#ffffff'"
@@ -89,27 +89,27 @@ import { IconComponent } from '../icon/icon.component';
       }
       .deck-label {
         font-size: 11px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         margin-bottom: 4px;
       }
       .grid.deck {
         padding-bottom: 8px;
         margin-bottom: 8px;
-        border-bottom: 1px solid var(--dbd-border);
+        border-bottom: 1px solid var(--dd-border);
       }
       .sw {
         width: 26px;
         height: 26px;
         border-radius: 6px;
-        border: 1px solid var(--dbd-border);
+        border: 1px solid var(--dd-border);
         cursor: pointer;
         padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         background: transparent;
-        --dbd-icon-size: 16px;
+        --dd-icon-size: 16px;
       }
       .sw:disabled {
         cursor: default;
@@ -119,15 +119,15 @@ import { IconComponent } from '../icon/icon.component';
         background-image: linear-gradient(
           45deg,
           transparent 45%,
-          var(--dbd-danger) 45%,
-          var(--dbd-danger) 55%,
+          var(--dd-danger) 45%,
+          var(--dd-danger) 55%,
           transparent 55%
         );
       }
       .sw.theme {
         background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
         color: #64748b;
-        --dbd-icon-size: 14px;
+        --dd-icon-size: 14px;
       }
       .sw.custom {
         position: relative;
@@ -140,9 +140,9 @@ import { IconComponent } from '../icon/icon.component';
         cursor: pointer;
       }
       .sw.active {
-        outline: 2px solid var(--dbd-primary);
+        outline: 2px solid var(--dd-primary);
         outline-offset: 1px;
-        border-color: var(--dbd-primary);
+        border-color: var(--dd-primary);
       }
     `,
   ],

@@ -1,5 +1,5 @@
 /**
- * Thin-stroke SVG icon registry (Lucide/Feather-style) for the DBDesigner design
+ * Thin-stroke SVG icon registry (Lucide/Feather-style) for the DevDesigner design
  * system. Each entry is the INNER markup of a 24x24 `viewBox` icon; the wrapping
  * <svg> (fill:none, stroke:currentColor, round caps) is provided by IconComponent.
  *

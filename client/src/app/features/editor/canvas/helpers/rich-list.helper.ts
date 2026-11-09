@@ -1,4 +1,4 @@
-import type { TextRun } from '@dbdesigner/shared';
+import type { TextRun } from '@devdesigner/shared';
 import { normalizeRuns, plainOf } from './rich-text.helper';
 
 /**

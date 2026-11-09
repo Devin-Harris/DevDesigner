@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
-import type { BatchUpdateResponse, SchemaMutation } from '@dbdesigner/shared';
+import type { BatchUpdateResponse, SchemaMutation } from '@devdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from '../tables/table.entity';

@@ -1,4 +1,4 @@
-import type { CanvasElementModel, PointModel, TableModel } from '@dbdesigner/shared';
+import type { CanvasElementModel, PointModel, TableModel } from '@devdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
 import { tableHeight, tableWidth } from './node-metrics.helper';
 import { textInkInsets } from './text-metrics';

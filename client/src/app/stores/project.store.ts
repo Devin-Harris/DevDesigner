@@ -32,7 +32,7 @@ import type {
   UpdateSequenceMessageDto,
   UpdateTableDto,
   ViewportModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import {
   nextCopyName,
   presentationNames,
@@ -48,7 +48,7 @@ import {
   resolveThemeFont,
   DEFAULT_THEME,
   type SlideTheme,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { MIN_SLIDE_ZOOM, slideViewRegion } from '../features/editor/canvas/helpers/slide-zoom.helper';
 import { setThemeFontResolver } from '../features/editor/canvas/helpers/text-metrics';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';

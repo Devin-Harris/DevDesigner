@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import {
   type SequenceMessageModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';

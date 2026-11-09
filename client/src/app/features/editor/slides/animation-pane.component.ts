@@ -14,7 +14,7 @@ import {
   type SlideAnimationKind,
   type SlideAnimationTrigger,
   type SlideDirection,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
 import { ProjectStore } from '../../../stores/project.store';
@@ -92,7 +92,7 @@ interface Target {
   template: `
     @if (canEdit()) {
       <button class="add" [disabled]="!selectedTargets().length" (click)="addSelected()">
-        <dbd-icon name="add" />
+        <dd-icon name="add" />
         Add animation{{ selectedTargets().length > 1 ? ' to ' + selectedTargets().length + ' objects' : '' }}
       </button>
       @if (!selectedTargets().length && !rows().length) {
@@ -134,7 +134,7 @@ interface Target {
                 title="Remove"
                 (click)="remove(r.animation.id); $event.stopPropagation()"
               >
-                <dbd-icon name="close" />
+                <dd-icon name="close" />
               </button>
             }
           </li>
@@ -142,7 +142,7 @@ interface Target {
       </ol>
       <p class="sum">
         {{ summary() }}
-        <button class="link" (click)="play.emit()"><dbd-icon name="play_arrow" />Preview</button>
+        <button class="link" (click)="play.emit()"><dd-icon name="play_arrow" />Preview</button>
       </p>
     }
 
@@ -151,7 +151,7 @@ interface Target {
         <div class="two">
           <label class="field">
             <span>Type</span>
-            <dbd-select
+            <dd-select
               [options]="kindOptions"
               [ngModel]="a.kind"
               [disabled]="!canEdit()"
@@ -160,7 +160,7 @@ interface Target {
           </label>
           <label class="field">
             <span>Effect</span>
-            <dbd-select
+            <dd-select
               [options]="effectOptions()"
               [ngModel]="a.effect"
               [disabled]="!canEdit()"
@@ -171,7 +171,7 @@ interface Target {
         @if (directional(a)) {
           <label class="field">
             <span>Direction</span>
-            <dbd-select
+            <dd-select
               [options]="a.kind === 'exit' ? exitDirections : directions"
               [ngModel]="a.direction ?? 'left'"
               [disabled]="!canEdit()"
@@ -181,7 +181,7 @@ interface Target {
         }
         <label class="field">
           <span>Start</span>
-          <dbd-select
+          <dd-select
             [options]="triggerOptions"
             [ngModel]="a.trigger"
             [disabled]="!canEdit()"
@@ -232,10 +232,10 @@ interface Target {
         @if (canEdit()) {
           <div class="order">
             <button class="btn" [disabled]="!canMove(a.id, -1)" (click)="move(a.id, -1)">
-              <dbd-icon name="arrow_upward" />Earlier
+              <dd-icon name="arrow_upward" />Earlier
             </button>
             <button class="btn" [disabled]="!canMove(a.id, 1)" (click)="move(a.id, 1)">
-              <dbd-icon name="arrow_downward" />Later
+              <dd-icon name="arrow_downward" />Later
             </button>
           </div>
         }
@@ -256,8 +256,8 @@ interface Target {
         height: 32px;
         margin: 4px 0 8px;
         border-radius: 8px;
-        border: 1px solid var(--dbd-primary);
-        background: var(--dbd-primary);
+        border: 1px solid var(--dd-primary);
+        background: var(--dd-primary);
         color: #fff;
         font: inherit;
         font-weight: 600;
@@ -270,7 +270,7 @@ interface Target {
       .hint,
       .sum {
         margin: 6px 4px 10px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         line-height: 1.45;
         font-size: 12px;
       }
@@ -293,7 +293,7 @@ interface Target {
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .row {
         display: grid;
@@ -306,11 +306,11 @@ interface Target {
         cursor: pointer;
       }
       .row:hover {
-        background: var(--dbd-surface-2);
+        background: var(--dd-surface-2);
       }
       .row.sel {
-        background: var(--dbd-primary-weak);
-        border-color: color-mix(in srgb, var(--dbd-primary) 40%, transparent);
+        background: var(--dd-primary-weak);
+        border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
       }
       .row.gone {
         opacity: 0.55;
@@ -324,11 +324,11 @@ interface Target {
         justify-content: center;
         font-size: 11px;
         font-weight: 700;
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text-muted);
+        background: var(--dd-surface-2);
+        color: var(--dd-text-muted);
       }
       .row.sel .idx {
-        background: var(--dbd-primary);
+        background: var(--dd-primary);
         color: #fff;
       }
       .what {
@@ -344,7 +344,7 @@ interface Target {
       }
       .how {
         font-size: 11px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .icon {
         width: 24px;
@@ -355,12 +355,12 @@ interface Target {
         border: none;
         border-radius: 6px;
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         cursor: pointer;
       }
       .icon:hover {
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
       }
       .link {
         display: inline-flex;
@@ -368,7 +368,7 @@ interface Target {
         gap: 4px;
         border: none;
         background: transparent;
-        color: var(--dbd-primary);
+        color: var(--dd-primary);
         font: inherit;
         font-size: 12px;
         font-weight: 600;
@@ -378,7 +378,7 @@ interface Target {
       .detail {
         margin-top: 10px;
         padding-top: 12px;
-        border-top: 1px solid var(--dbd-border);
+        border-top: 1px solid var(--dd-border);
       }
       .field {
         display: flex;
@@ -388,7 +388,7 @@ interface Target {
       }
       .field > span {
         font-size: 11px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .two {
         display: grid;
@@ -398,10 +398,10 @@ interface Target {
       input[type='number'] {
         font: inherit;
         height: 34px;
-        color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        color: var(--dd-text);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         padding: 6px 8px;
         box-sizing: border-box;
         width: 100%;
@@ -418,9 +418,9 @@ interface Target {
         gap: 4px;
         height: 30px;
         border-radius: 8px;
-        border: 1px solid var(--dbd-border);
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        border: 1px solid var(--dd-border);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
         font: inherit;
         font-weight: 600;
         cursor: pointer;

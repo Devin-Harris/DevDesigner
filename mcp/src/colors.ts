@@ -1,7 +1,7 @@
 // Color arguments for tools: palette names ("blue", "amber-soft") or hex, resolved to
 // the hex the app stores, with an actionable error for anything else.
 
-import { COLOR_ROLES, PALETTE, PICKER_COLOR_NAMES, THEME_COLOR_TOKENS, paletteNames, resolveColor, resolveColorOrToken } from '@dbdesigner/shared';
+import { COLOR_ROLES, PALETTE, PICKER_COLOR_NAMES, THEME_COLOR_TOKENS, paletteNames, resolveColor, resolveColorOrToken } from '@devdesigner/shared';
 import { UserError } from './model';
 
 /**

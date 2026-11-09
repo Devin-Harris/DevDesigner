@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { ProjectStore } from '../../../stores/project.store';
 import { CodeActionsService } from '../../../core/services/code-actions.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
-import type { ArrowheadType } from '@dbdesigner/shared';
+import type { ArrowheadType } from '@devdesigner/shared';
 import { GridTableService, type GridStructureAction } from '../../../core/services/grid-table.service';
 import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../canvas/models/shape-view.model';
 import { MediaVideoComponent } from '../media/media-video.component';
@@ -125,7 +125,7 @@ export class CanvasShapesComponent {
 
   /** SVG marker url for an arrowhead type, or null for 'none'. */
   protected markerUrl(type: ArrowheadType): string | null {
-    return type === 'none' ? null : `url(#dbd-ah-${type})`;
+    return type === 'none' ? null : `url(#dd-ah-${type})`;
   }
 
   /** Drag a split diff's middle rule: sets the left side's share of the card's width. */

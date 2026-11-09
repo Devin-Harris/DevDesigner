@@ -14,7 +14,7 @@
   // clip, not hidden: a hidden box can still be scrolled (focus / scrollIntoView on a
   // panel panned off screen), which drags the toolbars and minimap off screen.
   overflow: clip;
-  background: var(--dbd-canvas-bg);
+  background: var(--dd-canvas-bg);
   touch-action: none;
   user-select: none;
 }
@@ -61,13 +61,13 @@
 }
 
 .grid-line {
-  stroke: var(--dbd-grid-line);
+  stroke: var(--dd-grid-line);
 }
 
 .marquee {
   position: absolute;
-  border: 1px solid var(--dbd-primary);
-  background: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
+  border: 1px solid var(--dd-primary);
+  background: color-mix(in srgb, var(--dd-primary) 12%, transparent);
   pointer-events: none;
   z-index: 4;
 }
@@ -111,8 +111,8 @@
   // a soft, layout-free halo so the text looks the same as when it is not editing.
   border: 0;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
   outline: none;
   resize: none;
   overflow: hidden;
@@ -120,7 +120,7 @@
   caret-color: currentColor;
 
   &::selection {
-    background: color-mix(in srgb, var(--dbd-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--dd-primary) 30%, transparent);
   }
   // Text elements never wrap (auto-sized to content); `.wrap` (shape labels)
   // wraps to the box width like the rendered label.
@@ -158,11 +158,11 @@
     tab-size: 2;
     // An inset ring marks edit mode (no border: it would offset the glyphs).
     background: transparent;
-    box-shadow: inset 0 0 0 1px var(--dbd-primary);
+    box-shadow: inset 0 0 0 1px var(--dd-primary);
     border-radius: 8px;
     overflow: hidden;
     &::selection {
-      background: color-mix(in srgb, var(--dbd-primary) 35%, transparent);
+      background: color-mix(in srgb, var(--dd-primary) 35%, transparent);
     }
   }
 }
@@ -173,8 +173,8 @@
   z-index: 6;
   pointer-events: none;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
 }
 
 // In-canvas file-name input over a code block's title bar.
@@ -186,10 +186,10 @@
   border-radius: 6px;
   padding: 0 8px;
   text-align: center;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  background: var(--dd-surface);
+  color: var(--dd-text);
   font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
-  box-shadow: inset 0 0 0 1px var(--dbd-primary);
+  box-shadow: inset 0 0 0 1px var(--dd-primary);
   outline: none;
 }
 
@@ -228,9 +228,9 @@
   gap: 10px;
   padding: 6px 8px 6px 14px;
   border-radius: 999px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
-  box-shadow: var(--dbd-shadow-2);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
+  box-shadow: var(--dd-shadow-2);
   font-size: 13px;
 
   .dot {
@@ -243,7 +243,7 @@
     border: none;
     border-radius: 999px;
     padding: 5px 12px;
-    background: var(--dbd-primary);
+    background: var(--dd-primary);
     color: #fff;
     font: inherit;
     font-weight: 600;
@@ -272,11 +272,11 @@
   pointer-events: none;
 
   &.muted {
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
   }
 
   &.hint {
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
     font-size: 14px;
   }
 }
@@ -284,7 +284,7 @@
 // Dashed frame around a selected group (dotted and fainter while its members are edited).
 .group-outline {
   position: absolute;
-  border: 1.5px dashed var(--dbd-primary);
+  border: 1.5px dashed var(--dd-primary);
   border-radius: 6px;
   pointer-events: none;
   box-sizing: border-box;
@@ -329,7 +329,7 @@
 }
 
 .remote-cursor-icon {
-  --dbd-icon-size: 18px;
+  --dd-icon-size: 18px;
   transform: rotate(-90deg);
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
@@ -369,7 +369,7 @@
   color: #fff;
   font-size: 13px;
   font-weight: 600;
-  border: 2px solid var(--dbd-canvas-bg);
+  border: 2px solid var(--dd-canvas-bg);
   margin-left: -8px;
 
   &:first-child {
@@ -389,9 +389,9 @@
   gap: 2px;
   padding: 3px;
   border-radius: 9px;
-  border: 1px solid var(--dbd-border);
-  background: var(--dbd-surface);
-  box-shadow: var(--dbd-shadow-2);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-surface);
+  box-shadow: var(--dd-shadow-2);
 }
 
 .side-ctrl {
@@ -403,18 +403,18 @@
   padding: 0;
   border: none;
   border-radius: 7px;
-  background: var(--dbd-surface);
-  color: var(--dbd-text-muted);
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
   cursor: pointer;
-  --dbd-icon-size: 15px;
+  --dd-icon-size: 15px;
 
   &:hover {
-    background: var(--dbd-surface-2);
-    color: var(--dbd-text);
+    background: var(--dd-surface-2);
+    color: var(--dd-text);
   }
   &.on {
-    color: var(--dbd-primary);
-    background: var(--dbd-primary-weak);
+    color: var(--dd-primary);
+    background: var(--dd-primary-weak);
   }
 }
 
@@ -424,7 +424,7 @@
   z-index: 2;
   pointer-events: none;
   box-sizing: border-box;
-  outline: 2px dashed var(--dbd-primary);
+  outline: 2px dashed var(--dd-primary);
   outline-offset: 3px;
 }
 
@@ -438,26 +438,26 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--dbd-primary);
+  background: var(--dd-primary);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: var(--dbd-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.25));
-  --dbd-icon-size: 14px;
+  box-shadow: var(--dd-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.25));
+  --dd-icon-size: 14px;
 }
 
 .slide-bounds {
   position: absolute;
   z-index: 2;
   pointer-events: none;
-  border: 1px dashed var(--dbd-border-strong);
+  border: 1px dashed var(--dd-border-strong);
   border-radius: 16px;
   // No fill: this outline stacks above the canvas world, so any tint would wash over the slides.
 }
 
 .slide-bounds.selected {
-  border: 2px solid var(--dbd-primary);
+  border: 2px solid var(--dd-primary);
 }
 
 // The border strips are the slide's grab handles (the rest stays click-through).
@@ -518,8 +518,8 @@
   z-index: 6;
   box-sizing: border-box;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--dbd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dbd-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
   pointer-events: none;
 }
 
@@ -576,22 +576,22 @@
   height: 36px;
   padding: 0 4px 0 10px;
   box-sizing: border-box;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 10px;
-  box-shadow: var(--dbd-shadow-2);
-  color: var(--dbd-text);
+  box-shadow: var(--dd-shadow-2);
+  color: var(--dd-text);
   font-size: 13px;
   white-space: nowrap;
 
   &.selected {
-    border-color: var(--dbd-primary);
+    border-color: var(--dd-primary);
   }
 }
 
 .dh-ico {
-  --dbd-icon-size: 16px;
-  color: var(--dbd-text-muted);
+  --dd-icon-size: 16px;
+  color: var(--dd-text-muted);
 }
 
 .dh-name {
@@ -603,7 +603,7 @@
 
 .dh-count {
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .dh-present {
@@ -615,23 +615,23 @@
   padding: 0 10px 0 7px;
   border: none;
   border-radius: 7px;
-  background: var(--dbd-primary);
+  background: var(--dd-primary);
   color: #fff;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  --dbd-icon-size: 15px;
+  --dd-icon-size: 15px;
 
   &:hover {
-    background: color-mix(in srgb, var(--dbd-primary) 88%, #000);
+    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
   }
 }
 
 .dh-sep {
   width: 1px;
   height: 18px;
-  background: var(--dbd-border);
+  background: var(--dd-border);
 }
 
 .dh-btn {
@@ -643,19 +643,19 @@
   border: none;
   border-radius: 7px;
   background: transparent;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 }
 
 .dh-chev {
-  --dbd-icon-size: 14px;
-  color: var(--dbd-text-muted);
+  --dd-icon-size: 14px;
+  color: var(--dd-text-muted);
   margin-right: 2px;
 }
 
@@ -666,17 +666,17 @@
   /* Under the tool dock and floating toolbars (z 5), over the canvas. */
   z-index: 4;
   /* Opaque: in focus mode only the presentation shows. */
-  background: var(--dbd-canvas-bg, var(--dbd-bg));
+  background: var(--dd-canvas-bg, var(--dd-bg));
 
   &.solid {
-    background: var(--dbd-canvas-bg, var(--dbd-bg));
+    background: var(--dd-canvas-bg, var(--dd-bg));
   }
 }
 
 .focus-stage {
   position: absolute;
   z-index: 4;
-  border: 1.5px dashed var(--dbd-border-strong, var(--dbd-border));
+  border: 1.5px dashed var(--dd-border-strong, var(--dd-border));
   border-radius: 12px;
   pointer-events: none;
   box-sizing: border-box;
@@ -695,11 +695,11 @@
   gap: 2px;
   padding: 4px;
   box-sizing: border-box;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border: 1px solid var(--dd-border);
   border-radius: 12px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
   font-size: 13px;
   white-space: nowrap;
 
@@ -709,7 +709,7 @@
   &.amber {
     gap: 10px;
     padding-left: 14px;
-    background: color-mix(in srgb, #bd7d1c 14%, var(--dbd-surface));
+    background: color-mix(in srgb, #bd7d1c 14%, var(--dd-surface));
     border-color: #bd7d1c;
   }
 }
@@ -722,11 +722,11 @@
   top: 72px;
   bottom: 16px;
   box-sizing: border-box;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border: 1px solid var(--dd-border);
   border-radius: 14px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -752,7 +752,7 @@
     min-height: 0;
     overflow-y: auto;
     padding: 12px 16px 16px;
-    border-top: 1px solid var(--dbd-border);
+    border-top: 1px solid var(--dd-border);
   }
 }
 
@@ -781,14 +781,14 @@
   z-index: 12;
   left: 96px;
   top: 120px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .fd-tabs {
   display: flex;
   gap: 2px;
   padding: 4px 12px 0;
-  border-bottom: 1px solid var(--dbd-border);
+  border-bottom: 1px solid var(--dd-border);
 }
 
 .fd-tab {
@@ -800,12 +800,12 @@
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   cursor: pointer;
 
   &.on {
-    border-bottom-color: var(--dbd-primary);
-    color: var(--dbd-text);
+    border-bottom-color: var(--dd-primary);
+    color: var(--dd-text);
     font-weight: 600;
   }
 }
@@ -830,35 +830,35 @@
   font: inherit;
   font-weight: 500;
   cursor: pointer;
-  --dbd-icon-size: 16px;
+  --dd-icon-size: 16px;
 
-  &:hover:not(:disabled) { background: var(--dbd-surface-2); }
+  &:hover:not(:disabled) { background: var(--dd-surface-2); }
   &:disabled { opacity: 0.5; cursor: default; }
   &.go {
-    background: var(--dbd-primary);
+    background: var(--dd-primary);
     color: #fff;
     font-weight: 600;
-    &:hover:not(:disabled) { background: color-mix(in srgb, var(--dbd-primary) 88%, #000); }
+    &:hover:not(:disabled) { background: color-mix(in srgb, var(--dd-primary) 88%, #000); }
   }
-  &.outline { border: 1px solid var(--dbd-border); }
-  &.on { background: var(--dbd-primary-weak); color: var(--dbd-primary); }
+  &.outline { border: 1px solid var(--dd-border); }
+  &.on { background: var(--dd-primary-weak); color: var(--dd-primary); }
 }
 
 .fb-k {
-  font-family: var(--dbd-mono, monospace);
+  font-family: var(--dd-mono, monospace);
   font-size: 11px;
-  color: var(--dbd-text-muted);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
+  color: var(--dd-text-muted);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
   padding: 1px 5px;
   border-radius: 4px;
 }
 
 .fb-f5 { opacity: 0.75; font-weight: 400; }
-.fb-chev { --dbd-icon-size: 14px; color: var(--dbd-text-muted); }
-.fb-sep { width: 1px; height: 20px; background: var(--dbd-border); margin: 0 3px; }
+.fb-chev { --dd-icon-size: 14px; color: var(--dd-text-muted); }
+.fb-sep { width: 1px; height: 20px; background: var(--dd-border); margin: 0 3px; }
 .fb-name { font-weight: 600; font-size: 14px; padding: 0 8px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-.fb-count { font-size: 12px; color: var(--dbd-text-muted); padding-right: 6px; }
+.fb-count { font-size: 12px; color: var(--dd-text-muted); padding-right: 6px; }
 
 .pen-bar {
   top: 14px;
@@ -917,11 +917,11 @@
   align-items: center;
   gap: 10px;
   padding: 7px 12px;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border: 1px solid var(--dd-border);
   border-radius: 12px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
   font-size: 13px;
   pointer-events: none;
 }
@@ -934,19 +934,19 @@
 }
 
 .lk {
-  font-family: var(--dbd-mono, monospace);
+  font-family: var(--dd-mono, monospace);
   font-size: 11px;
-  color: var(--dbd-text-muted);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
+  color: var(--dd-text-muted);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
   padding: 1px 5px;
   border-radius: 4px;
 }
 
 .tr-pick {
   display: flex;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
   flex-direction: column;
@@ -960,11 +960,11 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--dbd-text);
+    color: var(--dd-text);
     font: 500 12px system-ui, sans-serif;
     cursor: pointer;
-    &:hover { background: var(--dbd-surface-2); }
-    &.on { background: color-mix(in srgb, var(--dbd-primary) 18%, transparent); font-weight: 700; }
+    &:hover { background: var(--dd-surface-2); }
+    &.on { background: color-mix(in srgb, var(--dd-primary) 18%, transparent); font-weight: 700; }
   }
 }
 

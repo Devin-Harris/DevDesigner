@@ -1,4 +1,4 @@
-import type { ProjectGraphResponse, SchemaModel } from '@dbdesigner/shared';
+import type { ProjectGraphResponse, SchemaModel } from '@devdesigner/shared';
 import { UserError, findColumn, findTable, formatDataType, summarizeProject } from './model';
 
 const schema: SchemaModel = {

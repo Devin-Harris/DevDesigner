@@ -1,12 +1,12 @@
 <div class="bar">
   <!-- Stroke color -->
   @if (!isImage()) {
-  <button class="tb" [dbdPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
-    <span class="swatch ring" [class.none]="strokeSwatch() === 'transparent'" [style.background-color]="strokeSwatch() === 'theme' ? 'var(--dbd-text)' : colorCss(strokeSwatch())"></span>
+  <button class="tb" [ddPopoverTrigger]="strokeMenu" placement="below-start" matTooltip="Stroke color" [disabled]="!store.canEdit()">
+    <span class="swatch ring" [class.none]="strokeSwatch() === 'transparent'" [style.background-color]="strokeSwatch() === 'theme' ? 'var(--dd-text)' : colorCss(strokeSwatch())"></span>
   </button>
   <ng-template #strokeMenu let-close>
     <div class="picker">
-      <dbd-color-swatches
+      <dd-color-swatches
         [value]="strokeSwatch()"
         [allowNone]="strokeCanBeNone()"
         noneValue="transparent"
@@ -20,7 +20,7 @@
   }
 
   @if (hasFill()) {
-    <button class="tb" [dbdPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill color" [disabled]="!store.canEdit()">
+    <button class="tb" [ddPopoverTrigger]="fillMenu" placement="below-start" matTooltip="Fill color" [disabled]="!store.canEdit()">
       <span
         class="swatch"
         [class.none]="fillShown().none"
@@ -29,7 +29,7 @@
     </button>
     <ng-template #fillMenu let-close>
       <div class="picker">
-        <dbd-color-swatches
+        <dd-color-swatches
           [value]="fillShown().none ? 'transparent' : fillShown().color"
           noneValue="transparent"
           noneLabel="No fill"
@@ -47,13 +47,13 @@
 
   <!-- Stroke width -->
   @if (!isImage()) {
-  <button class="tb" [dbdPopoverTrigger]="widthMenu" placement="below-start" matTooltip="Stroke width" [disabled]="!store.canEdit()">
-    <dbd-icon name="line_weight" />
+  <button class="tb" [ddPopoverTrigger]="widthMenu" placement="below-start" matTooltip="Stroke width" [disabled]="!store.canEdit()">
+    <dd-icon name="line_weight" />
   </button>
   <ng-template #widthMenu let-close>
-    <div class="dbd-menu">
+    <div class="dd-menu">
       @for (w of strokeWidths; track w.value) {
-        <button class="dbd-menu-item" [class.on]="w.value === element().strokeWidth" (click)="setWidth(w.value); close()">
+        <button class="dd-menu-item" [class.on]="w.value === element().strokeWidth" (click)="setWidth(w.value); close()">
           <span class="wline" [style.height.px]="w.value + 1"></span>{{ w.label }}
         </button>
       }
@@ -63,13 +63,13 @@
 
   <!-- Stroke style -->
   @if (!isText() && !isImage()) {
-    <button class="tb" [dbdPopoverTrigger]="styleMenu" placement="below-start" matTooltip="Stroke style" [disabled]="!store.canEdit()">
-      <dbd-icon name="timeline" />
+    <button class="tb" [ddPopoverTrigger]="styleMenu" placement="below-start" matTooltip="Stroke style" [disabled]="!store.canEdit()">
+      <dd-icon name="timeline" />
     </button>
     <ng-template #styleMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (s of strokeStyleIcons; track s.value) {
-          <button class="dbd-menu-item" [class.on]="s.value === element().strokeStyle" (click)="setStyle(s.value); close()">
+          <button class="dd-menu-item" [class.on]="s.value === element().strokeStyle" (click)="setStyle(s.value); close()">
             <span class="wline" [class.dashed]="s.value === 'dashed'" [class.dotted]="s.value === 'dotted'"></span>{{ s.value }}
           </button>
         }
@@ -79,8 +79,8 @@
 
   <!-- Plain frames: size, export, turn into a slide -->
   @if (isPlainFrame()) {
-    <button class="tb wide" [dbdPopoverTrigger]="ratioMenu" placement="below-start" matTooltip="Frame size" [disabled]="!store.canEdit()">
-      <span class="lang">{{ frameRatioLabel() }}</span><dbd-icon name="expand_more" />
+    <button class="tb wide" [ddPopoverTrigger]="ratioMenu" placement="below-start" matTooltip="Frame size" [disabled]="!store.canEdit()">
+      <span class="lang">{{ frameRatioLabel() }}</span><dd-icon name="expand_more" />
     </button>
     <ng-template #ratioMenu let-close>
       <div class="ratio-pop">
@@ -92,32 +92,32 @@
       </div>
     </ng-template>
     <button class="tb" [class.on]="!!element().clipContent" [matTooltip]="element().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'" [disabled]="!store.canEdit()" (click)="toggleClipContent()">
-      <dbd-icon name="crop" />
+      <dd-icon name="crop" />
     </button>
-    <button class="tb wide" [dbdPopoverTrigger]="frameExportMenu" placement="below-start" matTooltip="Export frame">
-      <dbd-icon name="download" /><dbd-icon name="expand_more" />
+    <button class="tb wide" [ddPopoverTrigger]="frameExportMenu" placement="below-start" matTooltip="Export frame">
+      <dd-icon name="download" /><dd-icon name="expand_more" />
     </button>
     <ng-template #frameExportMenu let-close>
-      <div class="dbd-menu">
-        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'png'); close()"><dbd-icon name="photo" />PNG</button>
-        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'svg'); close()"><dbd-icon name="image" />SVG</button>
-        <button class="dbd-menu-item" (click)="actions.exportFrame(element().id, 'pdf'); close()"><dbd-icon name="picture_as_pdf" />PDF</button>
+      <div class="dd-menu">
+        <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'png'); close()"><dd-icon name="photo" />PNG</button>
+        <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'svg'); close()"><dd-icon name="image" />SVG</button>
+        <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'pdf'); close()"><dd-icon name="picture_as_pdf" />PDF</button>
       </div>
     </ng-template>
     @if (store.canEdit()) {
-      <button class="tb wide add-deck" [dbdPopoverTrigger]="addDeckMenu" placement="below-start" matTooltip="Make this frame a slide">
-        <dbd-icon name="add" />Add to presentation<dbd-icon name="expand_more" />
+      <button class="tb wide add-deck" [ddPopoverTrigger]="addDeckMenu" placement="below-start" matTooltip="Make this frame a slide">
+        <dd-icon name="add" />Add to presentation<dd-icon name="expand_more" />
       </button>
       <ng-template #addDeckMenu let-close>
-        <div class="dbd-menu">
+        <div class="dd-menu">
           <div class="head-label menu-head">Add as a slide to</div>
           @for (d of actions.decks(); track d.name) {
-            <button class="dbd-menu-item" (click)="actions.addFrameToPresentation(element().id, d.name); close()">
-              <dbd-icon name="slideshow" />{{ d.name }}<span class="menu-sub">{{ d.slides }} slides</span>
+            <button class="dd-menu-item" (click)="actions.addFrameToPresentation(element().id, d.name); close()">
+              <dd-icon name="slideshow" />{{ d.name }}<span class="menu-sub">{{ d.slides }} slides</span>
             </button>
           }
-          <button class="dbd-menu-item" (click)="actions.addFrameToPresentation(element().id, null); close()">
-            <dbd-icon name="add" />New presentation from this frame
+          <button class="dd-menu-item" (click)="actions.addFrameToPresentation(element().id, null); close()">
+            <dd-icon name="add" />New presentation from this frame
           </button>
         </div>
       </ng-template>
@@ -127,8 +127,8 @@
 
   <!-- Corner radius (rectangles only) -->
   @if (isRect()) {
-    <button class="tb" [dbdPopoverTrigger]="radiusMenu" placement="below-start" matTooltip="Corner radius" [disabled]="!store.canEdit()">
-      <dbd-icon name="rounded_corner" />
+    <button class="tb" [ddPopoverTrigger]="radiusMenu" placement="below-start" matTooltip="Corner radius" [disabled]="!store.canEdit()">
+      <dd-icon name="rounded_corner" />
     </button>
     <ng-template #radiusMenu>
       <div class="picker col">
@@ -146,59 +146,59 @@
 
   <!-- Code block: language + text size -->
   @if (isCode()) {
-    <button class="tb wide" [dbdPopoverTrigger]="languageMenu" placement="below-start" matTooltip="Language" [disabled]="!store.canEdit()">
-      <dbd-icon name="code" />
+    <button class="tb wide" [ddPopoverTrigger]="languageMenu" placement="below-start" matTooltip="Language" [disabled]="!store.canEdit()">
+      <dd-icon name="code" />
       <span class="lang">{{ languageLabel() }}</span>
     </button>
     <ng-template #languageMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (l of languages; track l.id) {
-          <button class="dbd-menu-item" [class.on]="l.id === (element().language ?? 'typescript')" (click)="setLanguage(l.id); close()">{{ l.label }}</button>
+          <button class="dd-menu-item" [class.on]="l.id === (element().language ?? 'typescript')" (click)="setLanguage(l.id); close()">{{ l.label }}</button>
         }
       </div>
     </ng-template>
 
     <button class="tb" matTooltip="Format code (Shift+Alt+F)" [disabled]="!store.canEdit() || !canFormat()" (click)="format()">
-      <dbd-icon name="auto_fix" />
+      <dd-icon name="auto_fix" />
     </button>
 
     <button class="tb" matTooltip="File name" [disabled]="!store.canEdit()" (click)="editFileName()">
-      <dbd-icon name="description" />
+      <dd-icon name="description" />
     </button>
 
     <button class="tb" [matTooltip]="copied() ? 'Copied' : 'Copy code'" (click)="copyCode()">
-      <dbd-icon [name]="copied() ? 'check' : 'content_copy'" />
+      <dd-icon [name]="copied() ? 'check' : 'content_copy'" />
     </button>
 
     <button class="tb" matTooltip="Fit to content (Shift+Alt+S)" [disabled]="!store.canEdit()" (click)="fitToContent()">
-      <dbd-icon name="fit_screen" />
+      <dd-icon name="fit_screen" />
     </button>
 
-    <button class="tb" [class.on]="diffOn()" [dbdPopoverTrigger]="diffMenu" placement="below-start" matTooltip="Diff" [disabled]="!store.canEdit()">
-      <dbd-icon name="difference" />
+    <button class="tb" [class.on]="diffOn()" [ddPopoverTrigger]="diffMenu" placement="below-start" matTooltip="Diff" [disabled]="!store.canEdit()">
+      <dd-icon name="difference" />
     </button>
     <ng-template #diffMenu let-close>
-      <div class="dbd-menu">
-        <div class="dbd-menu-label">Diff view</div>
+      <div class="dd-menu">
+        <div class="dd-menu-label">Diff view</div>
         @for (v of diffViews; track v.id) {
-          <button class="dbd-menu-item" [class.on]="(element().diffView ?? 'off') === v.id" (click)="setDiffView(v.id); close()">{{ v.label }}</button>
+          <button class="dd-menu-item" [class.on]="(element().diffView ?? 'off') === v.id" (click)="setDiffView(v.id); close()">{{ v.label }}</button>
         }
-        <div class="dbd-menu-sep"></div>
-        <button class="dbd-menu-item" [class.on]="!element().diffShowWhitespace" (click)="toggleWhitespace()">Ignore whitespace</button>
+        <div class="dd-menu-sep"></div>
+        <button class="dd-menu-item" [class.on]="!element().diffShowWhitespace" (click)="toggleWhitespace()">Ignore whitespace</button>
         @if (element().diffText != null) {
-          <button class="dbd-menu-item" (click)="swapDiff(); close()">Swap sides</button>
-          <button class="dbd-menu-item" (click)="clearDiff(); close()">Remove diff</button>
+          <button class="dd-menu-item" (click)="swapDiff(); close()">Swap sides</button>
+          <button class="dd-menu-item" (click)="clearDiff(); close()">Remove diff</button>
         }
       </div>
     </ng-template>
 
-    <button class="tb" [dbdPopoverTrigger]="codeSizeMenu" placement="below-start" matTooltip="Text size" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_size" />
+    <button class="tb" [ddPopoverTrigger]="codeSizeMenu" placement="below-start" matTooltip="Text size" [disabled]="!store.canEdit()">
+      <dd-icon name="format_size" />
     </button>
     <ng-template #codeSizeMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (s of codeSizes; track s) {
-          <button class="dbd-menu-item" [class.on]="s === (element().fontSize ?? 14)" (click)="setCodeSize(s); close()">{{ s }} px</button>
+          <button class="dd-menu-item" [class.on]="s === (element().fontSize ?? 14)" (click)="setCodeSize(s); close()">{{ s }} px</button>
         }
       </div>
     </ng-template>
@@ -208,24 +208,24 @@
   @if (isGrid()) {
     @if (grids.canMerge()) {
       <button class="tb" matTooltip="Merge cells (Ctrl+M)" [disabled]="!store.canEdit()" (click)="grids.mergeSelected()">
-        <dbd-icon name="merge_cells" />
+        <dd-icon name="merge_cells" />
       </button>
     }
     @if (grids.canUnmerge()) {
       <button class="tb" matTooltip="Unmerge cells" [disabled]="!store.canEdit()" (click)="grids.unmergeSelected()">
-        <dbd-icon name="split_cells" />
+        <dd-icon name="split_cells" />
       </button>
     }
     <button class="tb" [class.on]="gridHeaderOn()" matTooltip="Header row" [disabled]="!store.canEdit()" (click)="toggleGridHeader()">
-      <dbd-icon name="table_chart" />
+      <dd-icon name="table_chart" />
     </button>
-    <button class="tb wide" [dbdPopoverTrigger]="bordersMenu" placement="below-start" matTooltip="Borders" [disabled]="!store.canEdit()">
-      <dbd-icon name="grid_4x4" /><dbd-icon name="expand_more" />
+    <button class="tb wide" [ddPopoverTrigger]="bordersMenu" placement="below-start" matTooltip="Borders" [disabled]="!store.canEdit()">
+      <dd-icon name="grid_4x4" /><dd-icon name="expand_more" />
     </button>
     <ng-template #bordersMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (b of borderModes; track b.id) {
-          <button class="dbd-menu-item" [class.on]="gridBorders() === b.id" (click)="setGridBorders(b.id); close()">{{ b.label }}</button>
+          <button class="dd-menu-item" [class.on]="gridBorders() === b.id" (click)="setGridBorders(b.id); close()">{{ b.label }}</button>
         }
       </div>
     </ng-template>
@@ -234,97 +234,97 @@
   <!-- Text / label: font + size + bold/italic + alignment -->
   @if (canHaveText()) {
     @if (onSlide()) {
-      <button class="tb" [dbdPopoverTrigger]="fieldMenu" placement="below-start" [disabled]="!store.canEdit()"
+      <button class="tb" [ddPopoverTrigger]="fieldMenu" placement="below-start" [disabled]="!store.canEdit()"
         matTooltip="Insert field (slide number, date, ...)">
-        <dbd-icon name="data_object" />
+        <dd-icon name="data_object" />
       </button>
       <ng-template #fieldMenu let-close>
-        <div class="dbd-menu">
-          <div class="dbd-menu-label">Filled in on every slide</div>
-          <button class="dbd-menu-item" (click)="insertField('Slide {{slide}} of {{total}}'); close()">Slide n of N</button>
+        <div class="dd-menu">
+          <div class="dd-menu-label">Filled in on every slide</div>
+          <button class="dd-menu-item" (click)="insertField('Slide {{slide}} of {{total}}'); close()">Slide n of N</button>
           @for (f of slideFields; track f) {
-            <button class="dbd-menu-item" (click)="insertField(fieldToken(f)); close()">{{ fieldLabels[f] }}</button>
+            <button class="dd-menu-item" (click)="insertField(fieldToken(f)); close()">{{ fieldLabels[f] }}</button>
           }
         </div>
       </ng-template>
     }
-    <button class="tb wide font-pick" [dbdPopoverTrigger]="fontMenu" placement="below-start"
+    <button class="tb wide font-pick" [ddPopoverTrigger]="fontMenu" placement="below-start"
       [matTooltip]="multiText() ? 'Font (all selected text)' : 'Font'" [disabled]="!store.canEdit()">
       <span class="pick-label" [style.font-family]="fontLabelStack()">{{ fontLabel() }}</span>
-      <dbd-icon name="expand_more" />
+      <dd-icon name="expand_more" />
     </button>
     <ng-template #fontMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @if (themeFonts().length) {
-          <div class="dbd-menu-label">Theme fonts</div>
+          <div class="dd-menu-label">Theme fonts</div>
           @for (f of themeFonts(); track f.value) {
-            <button class="dbd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="f.stack" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
+            <button class="dd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="f.stack" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
           }
-          <div class="dbd-menu-sep"></div>
-          <div class="dbd-menu-label">Fonts</div>
+          <div class="dd-menu-sep"></div>
+          <div class="dd-menu-label">Fonts</div>
         }
         @for (f of fonts; track f.value) {
-          <button class="dbd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
+          <button class="dd-menu-item" [class.on]="f.value === sharedFont()" [style.font-family]="stackOf(f.value)" (click)="setFont($any(f.value)); close()">{{ f.label }}</button>
         }
       </div>
     </ng-template>
 
     <div class="size-group">
       <button class="tb sm" matTooltip="Smaller text" [disabled]="!store.canEdit()" (click)="stepFontSize(-1)">
-        <dbd-icon name="remove" />
+        <dd-icon name="remove" />
       </button>
-      <button class="tb wide size-pick" [dbdPopoverTrigger]="sizeMenu" placement="below-start"
+      <button class="tb wide size-pick" [ddPopoverTrigger]="sizeMenu" placement="below-start"
         [matTooltip]="multiText() ? 'Font size (all selected text)' : 'Font size'" [disabled]="!store.canEdit()">
         {{ sharedSize() ?? 'Mixed' }}
       </button>
       <button class="tb sm" matTooltip="Larger text" [disabled]="!store.canEdit()" (click)="stepFontSize(1)">
-        <dbd-icon name="add" />
+        <dd-icon name="add" />
       </button>
     </div>
     <ng-template #sizeMenu let-close>
-      <div class="dbd-menu">
-        <div class="dbd-menu-label">Font size</div>
+      <div class="dd-menu">
+        <div class="dd-menu-label">Font size</div>
         <input class="size-input" type="number" min="4" max="400" [value]="sharedSize() ?? ''" placeholder="Mixed"
           (keydown.enter)="setCustomFontSize($any($event.target).value); close()" />
         @for (s of fontSizes; track s) {
-          <button class="dbd-menu-item" [class.on]="s === sharedSize()" (click)="setFontSize(s); close()">{{ s }} px</button>
+          <button class="dd-menu-item" [class.on]="s === sharedSize()" (click)="setFontSize(s); close()">{{ s }} px</button>
         }
       </div>
     </ng-template>
 
-    <button class="tb" [dbdPopoverTrigger]="lineHeightMenu" placement="below-start" matTooltip="Line height" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_line_spacing" />
+    <button class="tb" [ddPopoverTrigger]="lineHeightMenu" placement="below-start" matTooltip="Line height" [disabled]="!store.canEdit()">
+      <dd-icon name="format_line_spacing" />
     </button>
     <ng-template #lineHeightMenu let-close>
-      <div class="dbd-menu">
+      <div class="dd-menu">
         @for (h of lineHeights; track h) {
-          <button class="dbd-menu-item" [class.on]="h === currentLineHeight()" (click)="setLineHeight(h); close()">{{ h }}</button>
+          <button class="dd-menu-item" [class.on]="h === currentLineHeight()" (click)="setLineHeight(h); close()">{{ h }}</button>
         }
       </div>
     </ng-template>
 
     <button class="tb" [class.on]="boldOn()" (click)="toggleBold()" matTooltip="Bold (Ctrl+B)" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_bold" />
+      <dd-icon name="format_bold" />
     </button>
     <button class="tb" [class.on]="italicOn()" (click)="toggleItalic()" matTooltip="Italic (Ctrl+I)" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_italic" />
+      <dd-icon name="format_italic" />
     </button>
     @if (isText()) {
       <button class="tb" [class.on]="element().wrap" (click)="toggleWrap()" matTooltip="Wrap text to a fixed width (drag a side handle)" [disabled]="!store.canEdit()">
-        <dbd-icon name="wrap_text" />
+        <dd-icon name="wrap_text" />
       </button>
       <button class="tb" [class.on]="underlineOn()" (click)="toggleUnderline()" matTooltip="Underline (Ctrl+U)" [disabled]="!store.canEdit()">
-        <dbd-icon name="format_underlined" />
+        <dd-icon name="format_underlined" />
       </button>
       <button class="tb" [class.on]="listKind() === 'bullet'" (click)="toggleList('bullet')" matTooltip="Bulleted list (Ctrl+Shift+8)" [disabled]="!store.canEdit()">
-        <dbd-icon name="format_list_bulleted" />
+        <dd-icon name="format_list_bulleted" />
       </button>
       <button class="tb" [class.on]="listKind() === 'number'" (click)="toggleList('number')" matTooltip="Numbered list (Ctrl+Shift+7)" [disabled]="!store.canEdit()">
-        <dbd-icon name="format_list_numbered" />
+        <dd-icon name="format_list_numbered" />
       </button>
       @if (editingRich() && element().slideId) {
-        <button class="tb" [class.on]="!!runMorphTag()" [dbdPopoverTrigger]="morphMenu" placement="below-start" matTooltip="Morph tag for the selected words" [disabled]="!store.canEdit()">
-          <dbd-icon name="link" />
+        <button class="tb" [class.on]="!!runMorphTag()" [ddPopoverTrigger]="morphMenu" placement="below-start" matTooltip="Morph tag for the selected words" [disabled]="!store.canEdit()">
+          <dd-icon name="link" />
         </button>
         <ng-template #morphMenu>
           <div class="picker col">
@@ -345,22 +345,22 @@
       }
     }
 
-    <button class="tb" [dbdPopoverTrigger]="alignMenu" placement="below-start" matTooltip="Text alignment" [disabled]="!store.canEdit()">
-      <dbd-icon name="format_align_center" />
+    <button class="tb" [ddPopoverTrigger]="alignMenu" placement="below-start" matTooltip="Text alignment" [disabled]="!store.canEdit()">
+      <dd-icon name="format_align_center" />
     </button>
     <ng-template #alignMenu>
       <div class="picker col">
         <div class="head-row">
           <span class="head-label">Horiz.</span>
-          <button class="tb sm" [class.on]="alignOn() === 'left'" matTooltip="Left" (click)="setTextAlign('left')"><dbd-icon name="format_align_left" /></button>
-          <button class="tb sm" [class.on]="alignOn() === 'center'" matTooltip="Center" (click)="setTextAlign('center')"><dbd-icon name="format_align_center" /></button>
-          <button class="tb sm" [class.on]="alignOn() === 'right'" matTooltip="Right" (click)="setTextAlign('right')"><dbd-icon name="format_align_right" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'left'" matTooltip="Left" (click)="setTextAlign('left')"><dd-icon name="format_align_left" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'center'" matTooltip="Center" (click)="setTextAlign('center')"><dd-icon name="format_align_center" /></button>
+          <button class="tb sm" [class.on]="alignOn() === 'right'" matTooltip="Right" (click)="setTextAlign('right')"><dd-icon name="format_align_right" /></button>
         </div>
         <div class="head-row">
           <span class="head-label">Vert.</span>
-          <button class="tb sm" [class.on]="vAlignOn() === 'top'" matTooltip="Top" (click)="setVerticalAlign('top')"><dbd-icon name="vertical_align_top" /></button>
-          <button class="tb sm" [class.on]="vAlignOn() === 'middle'" matTooltip="Middle" (click)="setVerticalAlign('middle')"><dbd-icon name="vertical_align_center" /></button>
-          <button class="tb sm" [class.on]="vAlignOn() === 'bottom'" matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><dbd-icon name="vertical_align_bottom" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'top'" matTooltip="Top" (click)="setVerticalAlign('top')"><dd-icon name="vertical_align_top" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'middle'" matTooltip="Middle" (click)="setVerticalAlign('middle')"><dd-icon name="vertical_align_center" /></button>
+          <button class="tb sm" [class.on]="vAlignOn() === 'bottom'" matTooltip="Bottom" (click)="setVerticalAlign('bottom')"><dd-icon name="vertical_align_bottom" /></button>
         </div>
       </div>
     </ng-template>
@@ -370,35 +370,35 @@
   @if (isLine()) {
     <span class="route-seg">
       <button class="tb sm" [class.on]="route() === 'straight'" matTooltip="Straight" [disabled]="!store.canEdit()" (click)="setRoute('straight')">
-        <dbd-icon name="remove" />
+        <dd-icon name="remove" />
       </button>
       <button class="tb sm" [class.on]="route() === 'curved'" matTooltip="Curved" [disabled]="!store.canEdit()" (click)="setRoute('curved')">
-        <dbd-icon name="curve" />
+        <dd-icon name="curve" />
       </button>
       <button class="tb sm" [class.on]="route() === 'elbow'" matTooltip="Elbow" [disabled]="!store.canEdit()" (click)="setRoute('elbow')">
-        <dbd-icon name="elbow" />
+        <dd-icon name="elbow" />
       </button>
     </span>
-    <button class="tb" [dbdPopoverTrigger]="headMenu" placement="below-start" matTooltip="Arrowheads" [disabled]="!store.canEdit()">
-      <dbd-icon name="swap_horiz" />
+    <button class="tb" [ddPopoverTrigger]="headMenu" placement="below-start" matTooltip="Arrowheads" [disabled]="!store.canEdit()">
+      <dd-icon name="swap_horiz" />
     </button>
     <ng-template #headMenu>
       <div class="picker col">
         <div class="head-row">
           <span class="head-label">Start</span>
           @for (a of arrowheads; track a.value) {
-            <button class="tb sm" [class.on]="a.value === (element().startArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setStartHead(a.value)"><dbd-icon [name]="a.icon" /></button>
+            <button class="tb sm" [class.on]="a.value === (element().startArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setStartHead(a.value)"><dd-icon [name]="a.icon" /></button>
           }
         </div>
         <div class="head-row">
           <span class="head-label">End</span>
           @for (a of arrowheads; track a.value) {
-            <button class="tb sm" [class.on]="a.value === (element().endArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setEndHead(a.value)"><dbd-icon [name]="a.icon" /></button>
+            <button class="tb sm" [class.on]="a.value === (element().endArrowhead ?? 'none')" [matTooltip]="a.label" (click)="setEndHead(a.value)"><dd-icon [name]="a.icon" /></button>
           }
         </div>
         <div class="head-row">
           <span class="head-label">Swap</span>
-          <button class="tb sm" matTooltip="Reverse arrowheads" (click)="reverseArrowheads()"><dbd-icon name="swap_horiz" /></button>
+          <button class="tb sm" matTooltip="Reverse arrowheads" (click)="reverseArrowheads()"><dd-icon name="swap_horiz" /></button>
         </div>
       </div>
     </ng-template>
@@ -407,12 +407,12 @@
   <!-- Pictures and videos: crop, clip to shape, playback -->
   @if (media.clipPair()) {
     <button class="tb" matTooltip="Clip image to shape" [disabled]="!store.canEdit()" (click)="media.clipToShape()">
-      <dbd-icon name="clip_shape" />
+      <dd-icon name="clip_shape" />
     </button>
   }
   @if (isImage()) {
-    <button class="tb" [dbdPopoverTrigger]="altMenu" placement="below-start" matTooltip="Alt text" [class.on]="!!element().media?.alt" [disabled]="!store.canEdit()">
-      <dbd-icon name="accessibility" />
+    <button class="tb" [ddPopoverTrigger]="altMenu" placement="below-start" matTooltip="Alt text" [class.on]="!!element().media?.alt" [disabled]="!store.canEdit()">
+      <dd-icon name="accessibility" />
     </button>
     <ng-template #altMenu let-close>
       <div class="picker col alt-pop">
@@ -430,29 +430,29 @@
       </div>
     </ng-template>
     <button class="tb" matTooltip="Crop (double-click)" [disabled]="!store.canEdit()" (click)="media.startCrop(element().id)">
-      <dbd-icon name="crop" />
+      <dd-icon name="crop" />
     </button>
     @if (element().media?.clip) {
       <button class="tb" matTooltip="Release clip" [disabled]="!store.canEdit()" (click)="media.releaseClip(element().id)">
-        <dbd-icon name="clip_release" />
+        <dd-icon name="clip_release" />
       </button>
     }
     @if (mediaKind(); as kind) {
-      <button class="tb" [dbdPopoverTrigger]="playMenu" placement="below-start" matTooltip="Playback" [disabled]="!store.canEdit()">
-        <dbd-icon name="play_circle" />
+      <button class="tb" [ddPopoverTrigger]="playMenu" placement="below-start" matTooltip="Playback" [disabled]="!store.canEdit()">
+        <dd-icon name="play_circle" />
       </button>
       <ng-template #playMenu let-close>
-        <div class="dbd-menu">
+        <div class="dd-menu">
           <div class="head-label menu-head">{{ kind === 'gif' ? 'Play GIF' : 'Start video' }}</div>
           @for (m of playbackModes; track m.value) {
-            <button class="dbd-menu-item" [class.on]="playback() === m.value" [attr.title]="m.hint" (click)="setPlayback(m.value); close()">
+            <button class="dd-menu-item" [class.on]="playback() === m.value" [attr.title]="m.hint" (click)="setPlayback(m.value); close()">
               {{ m.label }}
             </button>
           }
           @if (kind === 'video') {
-            <button class="dbd-menu-item" [class.on]="element().media?.loop ?? false" (click)="toggleMediaFlag('loop')">Loop</button>
-            <button class="dbd-menu-item" [class.on]="element().media?.muted ?? false" (click)="toggleMediaFlag('muted')">Start muted</button>
-            <div class="dbd-menu-sep"></div>
+            <button class="dd-menu-item" [class.on]="element().media?.loop ?? false" (click)="toggleMediaFlag('loop')">Loop</button>
+            <button class="dd-menu-item" [class.on]="element().media?.muted ?? false" (click)="toggleMediaFlag('muted')">Start muted</button>
+            <div class="dd-menu-sep"></div>
             <div class="head-label menu-head">Trim (seconds)</div>
             <div class="trim-row">
               <label>Start <input type="number" min="0" step="0.5" [value]="element().media?.start ?? ''" placeholder="0" (change)="setTrim('start', $any($event.target).value)" /></label>
@@ -468,29 +468,29 @@
 
   @if (store.canEdit() && revert().items.length) {
     <button class="tb" [matTooltip]="'Revert to ' + revert().from" (click)="revertToLayout()">
-      <dbd-icon name="undo" />
+      <dd-icon name="undo" />
     </button>
   }
 
   <!-- Layer + opacity + delete -->
-  <button class="tb" [dbdPopoverTrigger]="moreMenu" placement="below-end" matTooltip="More" [disabled]="!store.canEdit()">
-    <dbd-icon name="more_vert" />
+  <button class="tb" [ddPopoverTrigger]="moreMenu" placement="below-end" matTooltip="More" [disabled]="!store.canEdit()">
+    <dd-icon name="more_vert" />
   </button>
   <ng-template #moreMenu let-close>
-    <div class="dbd-menu">
-      <button class="dbd-menu-item" (click)="bringToFront(); close()"><dbd-icon name="flip_to_front" />Bring to front</button>
-      <button class="dbd-menu-item" (click)="sendToBack(); close()"><dbd-icon name="flip_to_back" />Send to back</button>
+    <div class="dd-menu">
+      <button class="dd-menu-item" (click)="bringToFront(); close()"><dd-icon name="flip_to_front" />Bring to front</button>
+      <button class="dd-menu-item" (click)="sendToBack(); close()"><dd-icon name="flip_to_back" />Send to back</button>
       <div class="opacity-row">
-        <dbd-icon name="opacity" />
+        <dd-icon name="opacity" />
         <input type="range" min="10" max="100" step="10" [value]="element().opacity" [style.--fill]="((element().opacity - 10) / 90) * 100 + '%'" (input)="setOpacity(+$any($event.target).value)" />
       </div>
     </div>
   </ng-template>
 
   <button type="button" class="tb details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-    <dbd-icon name="tune" />
+    <dd-icon name="tune" />
   </button>
   <button class="tb del" matTooltip="Delete" (click)="remove()" [disabled]="!store.canEdit()">
-    <dbd-icon name="delete" />
+    <dd-icon name="delete" />
   </button>
 </div>

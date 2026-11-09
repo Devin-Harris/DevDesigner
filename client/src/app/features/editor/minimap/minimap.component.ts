@@ -34,7 +34,7 @@ export interface MinimapView {
 const WIDTH = 200;
 const HEIGHT = 140;
 const PAD_FRACTION = 0.08;
-const COLLAPSED_KEY = 'dbd-minimap-collapsed';
+const COLLAPSED_KEY = 'dd-minimap-collapsed';
 
 function readCollapsed(): boolean {
   try {
@@ -58,7 +58,7 @@ function readCollapsed(): boolean {
   template: `
     @if (collapsed()) {
       <button class="mm-toggle" (click)="toggle()" matTooltip="Show minimap" aria-label="Show minimap">
-        <dbd-icon name="map" />
+        <dd-icon name="map" />
       </button>
     } @else {
       <div class="mm" [style.width.px]="width" [style.height.px]="height">
@@ -72,7 +72,7 @@ function readCollapsed(): boolean {
           (pointercancel)="onUp($event)"
         ></canvas>
         <button class="mm-hide" (click)="toggle()" matTooltip="Hide minimap" aria-label="Hide minimap">
-          <dbd-icon name="close" />
+          <dd-icon name="close" />
         </button>
       </div>
     }
@@ -86,9 +86,9 @@ function readCollapsed(): boolean {
     }
     .mm,
     .mm-toggle {
-      background: var(--dbd-surface);
-      border: 1px solid var(--dbd-border);
-      box-shadow: var(--dbd-shadow-2);
+      background: var(--dd-surface);
+      border: 1px solid var(--dd-border);
+      box-shadow: var(--dd-shadow-2);
       border-radius: 13px;
     }
     .mm {
@@ -111,12 +111,12 @@ function readCollapsed(): boolean {
       justify-content: center;
       border: none;
       border-radius: 6px;
-      background: color-mix(in srgb, var(--dbd-surface) 80%, transparent);
-      color: var(--dbd-text-muted);
+      background: color-mix(in srgb, var(--dd-surface) 80%, transparent);
+      color: var(--dd-text-muted);
       cursor: pointer;
       opacity: 0;
       transition: opacity 0.1s ease;
-      --dbd-icon-size: 14px;
+      --dd-icon-size: 14px;
     }
     .mm:hover .mm-hide {
       opacity: 1;
@@ -127,13 +127,13 @@ function readCollapsed(): boolean {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
       cursor: pointer;
-      --dbd-icon-size: 19px;
+      --dd-icon-size: 19px;
     }
     .mm-toggle:hover {
-      color: var(--dbd-text);
-      background: var(--dbd-surface-2);
+      color: var(--dd-text);
+      background: var(--dd-surface-2);
     }
   `,
 })
@@ -225,12 +225,12 @@ export class MinimapComponent {
     const style = getComputedStyle(this.host.nativeElement);
     const css = (name: string, fallback: string): string =>
       style.getPropertyValue(name).trim() || fallback;
-    const tableFill = css('--dbd-node-header', '#f4f2ec');
-    const tableStroke = css('--dbd-border-strong', '#d6d1c5');
-    const seq = css('--dbd-teal', '#0f8f86');
-    const muted = css('--dbd-text-muted', '#767b86');
-    const faint = css('--dbd-faint', '#a6a9b0');
-    const primary = css('--dbd-primary', '#3b5bdb');
+    const tableFill = css('--dd-node-header', '#f4f2ec');
+    const tableStroke = css('--dd-border-strong', '#d6d1c5');
+    const seq = css('--dd-teal', '#0f8f86');
+    const muted = css('--dd-text-muted', '#767b86');
+    const faint = css('--dd-faint', '#a6a9b0');
+    const primary = css('--dd-primary', '#3b5bdb');
 
     const sx = (x: number): number => (x - b.x0) * this.scale + this.offsetX;
     const sy = (y: number): number => (y - b.y0) * this.scale + this.offsetY;

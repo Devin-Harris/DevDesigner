@@ -1,5 +1,5 @@
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import type { RegisterDto as RegisterDtoShape } from '@dbdesigner/shared';
+import type { RegisterDto as RegisterDtoShape } from '@devdesigner/shared';
 
 /** Body for POST /auth/register. Implements the shared RegisterDto shape. */
 export class RegisterDto implements RegisterDtoShape {

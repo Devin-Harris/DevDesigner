@@ -5,10 +5,10 @@
   align-items: center;
   gap: 2px;
   padding: 3px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 999px;
-  box-shadow: var(--dbd-shadow-3);
+  box-shadow: var(--dd-shadow-3);
   z-index: 5;
 }
 
@@ -19,18 +19,18 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   padding: 3px 9px;
   border-radius: 999px;
   line-height: 1.4;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 
   &.active {
-    background: var(--dbd-primary-weak);
-    color: var(--dbd-primary);
+    background: var(--dd-primary-weak);
+    color: var(--dd-primary);
   }
 
   &:disabled {
@@ -42,7 +42,7 @@
 .divider {
   width: 1px;
   height: 18px;
-  background: var(--dbd-border);
+  background: var(--dd-border);
   margin: 0 2px;
 }
 
@@ -53,18 +53,18 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   border-radius: 999px;
   padding: 5px;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    color: var(--dbd-text);
-    background: var(--dbd-surface-2);
+    color: var(--dd-text);
+    background: var(--dd-surface-2);
   }
 
   &.active {
-    color: var(--dbd-primary);
+    color: var(--dd-primary);
   }
 
   &:disabled {
@@ -73,22 +73,22 @@
   }
 
   &.del:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
 }
 .color-dot {
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  border: 1px solid var(--dbd-border-strong);
+  border: 1px solid var(--dd-border-strong);
 }
 .color-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--dbd-space-2);
-  padding: var(--dbd-space-3);
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius);
-  box-shadow: var(--dbd-shadow-3);
+  gap: var(--dd-space-2);
+  padding: var(--dd-space-3);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: var(--dd-shadow-3);
 }

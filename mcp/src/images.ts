@@ -13,7 +13,7 @@ import {
   imageSize,
   textToBase64,
   type ImageSize,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { UserError } from './model';
 
 export interface ImageInput {
@@ -48,7 +48,7 @@ const BY_EXTENSION: Record<string, string> = {
 const FETCH_TIMEOUT_MS = 15_000;
 
 /** True when running as a shared remote endpoint (see http.ts). */
-const isRemote = (): boolean => process.env.DBDESIGNER_MCP_REMOTE === '1';
+const isRemote = (): boolean => process.env.DEVDESIGNER_MCP_REMOTE === '1';
 
 /** Loopback, link-local and private-network addresses (IPv4 and the common IPv6 forms). */
 export function isPrivateAddress(ip: string): boolean {

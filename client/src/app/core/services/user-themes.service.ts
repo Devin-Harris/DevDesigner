@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { SlideTheme, UserThemeResponse } from '@dbdesigner/shared';
+import type { SlideTheme, UserThemeResponse } from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /**

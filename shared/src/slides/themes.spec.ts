@@ -62,10 +62,10 @@ describe('theme files', () => {
   });
 
   it('explains what is wrong with a bad file', () => {
-    expect(parseThemeFile({ format: 'other' })).toMatch(/not a DBDesigner theme/);
-    expect(parseThemeFile({ format: 'dbdesigner-theme', version: 99, theme: bold })).toMatch(/newer version/);
+    expect(parseThemeFile({ format: 'other' })).toMatch(/not a DevDesigner theme/);
+    expect(parseThemeFile({ format: 'devdesigner-theme', version: 99, theme: bold })).toMatch(/newer version/);
     const noAccent = { ...bold, colors: { ...bold.colors, accent1: undefined } };
-    expect(parseThemeFile({ format: 'dbdesigner-theme', version: 1, theme: noAccent })).toMatch(/accent1/);
+    expect(parseThemeFile({ format: 'devdesigner-theme', version: 1, theme: noAccent })).toMatch(/accent1/);
   });
 
   it('strips designs for slide frames', () => {

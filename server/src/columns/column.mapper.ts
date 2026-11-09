@@ -1,4 +1,4 @@
-import { isUnsignedType, parseDataType, type ColumnModel, type DataType } from '@dbdesigner/shared';
+import { isUnsignedType, parseDataType, type ColumnModel, type DataType } from '@devdesigner/shared';
 import { ColumnEntity } from './column.entity';
 
 /** Map a Column entity to the shared ColumnModel consumed by client + SQL/validation. */

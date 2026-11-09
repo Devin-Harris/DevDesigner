@@ -13,7 +13,7 @@ import {
   resolveThemeFont,
   themeToken,
   type SlideTheme,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
@@ -196,7 +196,7 @@ export class ElementInspectorComponent {
   }
   /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
   protected fillCss(color: string | undefined): string {
-    return color === SURFACE_FILL ? 'var(--dbd-surface)' : color || '#ffffff';
+    return color === SURFACE_FILL ? 'var(--dd-surface)' : color || '#ffffff';
   }
 
   protected setFill(color: string): void {

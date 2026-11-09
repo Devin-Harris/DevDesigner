@@ -32,24 +32,24 @@ const POSITIONS: Record<PopoverPlacement, ConnectedPosition> = {
 /**
  * Lightweight bespoke popover/menu trigger built on CDK Overlay — the design
  * system's replacement for `matMenuTriggerFor`. Attach a `<ng-template>` holding
- * the popover content (e.g. a `.dbd-menu`); clicking the host toggles it, and it
+ * the popover content (e.g. a `.dd-menu`); clicking the host toggles it, and it
  * dismisses on backdrop click or Escape. Surface styling lives globally in
- * styles.scss (`.dbd-popover-surface`, `.dbd-menu`, `.dbd-menu-item`).
+ * styles.scss (`.dd-popover-surface`, `.dd-menu`, `.dd-menu-item`).
  *
- *   <button [dbdPopoverTrigger]="menu" placement="below-end">…</button>
- *   <ng-template #menu><div class="dbd-menu">…</div></ng-template>
+ *   <button [ddPopoverTrigger]="menu" placement="below-end">…</button>
+ *   <ng-template #menu><div class="dd-menu">…</div></ng-template>
  */
 @Directive({
-  selector: '[dbdPopoverTrigger]',
+  selector: '[ddPopoverTrigger]',
   standalone: true,
-  exportAs: 'dbdPopoverTrigger',
+  exportAs: 'ddPopoverTrigger',
 })
 export class PopoverTriggerDirective implements OnDestroy {
   private readonly overlay = inject(Overlay);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly vcr = inject(ViewContainerRef);
 
-  readonly content = input.required<TemplateRef<unknown>>({ alias: 'dbdPopoverTrigger' });
+  readonly content = input.required<TemplateRef<unknown>>({ alias: 'ddPopoverTrigger' });
   readonly placement = input<PopoverPlacement>('below-start');
   readonly disabled = input<boolean>(false);
   /** 'click' toggles on click (default); 'hover' opens on pointer enter and
@@ -120,8 +120,8 @@ export class PopoverTriggerDirective implements OnDestroy {
     this.ref = this.overlay.create({
       positionStrategy,
       hasBackdrop: !hover,
-      backdropClass: 'dbd-overlay-backdrop',
-      panelClass: 'dbd-popover-panel',
+      backdropClass: 'dd-overlay-backdrop',
+      panelClass: 'dd-popover-panel',
       scrollStrategy: this.overlay.scrollStrategies.reposition(),
     });
 

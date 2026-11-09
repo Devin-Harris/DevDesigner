@@ -7,7 +7,7 @@ import {
   type PointModel,
   type RelationshipType,
   type UpdateRelationshipDto as IUpdateRelationshipDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { PointDto } from './point.dto';
 
 /** Body for PATCH /relationships/:relationshipId. */

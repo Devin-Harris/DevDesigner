@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { CanvasElementModel, CodeDiffView } from '@dbdesigner/shared';
+import type { CanvasElementModel, CodeDiffView } from '@devdesigner/shared';
 import { ProjectStore } from '../../stores/project.store';
 import { formatCode } from '../../features/editor/canvas/helpers/code-format.helper';
 import {

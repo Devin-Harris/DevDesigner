@@ -1,6 +1,6 @@
 import { computed, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { CurrentUserResponse, LoginDto, RegisterDto } from '@dbdesigner/shared';
+import type { CurrentUserResponse, LoginDto, RegisterDto } from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /**

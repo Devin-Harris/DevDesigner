@@ -6,7 +6,7 @@ import type {
   PlaceholderConfig,
   MediaConfig,
   TextRun,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ElementEntity } from './element.entity';
 
 /** Reassemble a binding from its stored kind/id columns. */

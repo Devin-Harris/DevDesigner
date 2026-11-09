@@ -7,7 +7,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import type { CreateColumnDto as ICreateColumnDto } from '@dbdesigner/shared';
+import type { CreateColumnDto as ICreateColumnDto } from '@devdesigner/shared';
 import { DataTypeDto } from './data-type.dto';
 
 /** Body for POST /tables/:tableId/columns. */

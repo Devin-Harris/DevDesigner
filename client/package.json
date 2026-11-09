@@ -1,8 +1,8 @@
 {
-  "name": "@dbdesigner/client",
+  "name": "@devdesigner/client",
   "version": "0.1.0",
   "private": true,
-  "description": "Angular (standalone) + Material + CDK + NgRx Signal Store frontend for DBDesigner.",
+  "description": "Angular (standalone) + Material + CDK + NgRx Signal Store frontend for DevDesigner.",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -22,7 +22,7 @@
     "@angular/material": "^22.0.0",
     "@angular/platform-browser": "^22.0.0",
     "@angular/router": "^22.0.0",
-    "@dbdesigner/shared": "*",
+    "@devdesigner/shared": "*",
     "@ngrx/signals": "^21.1.1",
     "perfect-freehand": "^1.2.3",
     "prettier": "^3.9.6",

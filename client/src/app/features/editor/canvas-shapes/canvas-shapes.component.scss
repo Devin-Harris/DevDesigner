@@ -24,8 +24,8 @@
 
 // Stand-in drawn while a picture's file is still loading.
 .image-pending {
-  fill: color-mix(in srgb, var(--dbd-text-muted) 12%, transparent);
-  stroke: var(--dbd-border-strong);
+  fill: color-mix(in srgb, var(--dd-text-muted) 12%, transparent);
+  stroke: var(--dd-border-strong);
   stroke-dasharray: 4 3;
   pointer-events: none;
 }
@@ -50,8 +50,8 @@
 
 // Highlight around a shape/table an arrow endpoint will bind to while dragging.
 .bind-highlight {
-  fill: color-mix(in srgb, var(--dbd-primary) 12%, transparent);
-  stroke: var(--dbd-primary);
+  fill: color-mix(in srgb, var(--dd-primary) 12%, transparent);
+  stroke: var(--dd-primary);
   stroke-width: 2;
   stroke-dasharray: 6 4;
   pointer-events: none;
@@ -87,14 +87,14 @@
 
 .sel-box {
   fill: none;
-  stroke: var(--dbd-connector-selected);
+  stroke: var(--dd-connector-selected);
   stroke-width: 1;
   stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
 }
 
 .rotate-stem {
-  stroke: var(--dbd-connector-selected);
+  stroke: var(--dd-connector-selected);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -103,13 +103,13 @@
 .endpoint,
 .bend,
 .rotate {
-  fill: var(--dbd-surface);
-  stroke: var(--dbd-connector-selected);
+  fill: var(--dd-surface);
+  stroke: var(--dd-connector-selected);
   stroke-width: 2;
   pointer-events: all;
 
   &:hover {
-    fill: var(--dbd-primary-weak);
+    fill: var(--dd-primary-weak);
   }
 }
 
@@ -127,7 +127,7 @@
 
 .bend {
   cursor: grab;
-  fill: var(--dbd-connector-selected);
+  fill: var(--dd-connector-selected);
   fill-opacity: 0.35;
 }
 
@@ -148,8 +148,8 @@
 }
 
 .grid-active {
-  fill: color-mix(in srgb, var(--dbd-primary) 10%, transparent);
-  stroke: var(--dbd-primary);
+  fill: color-mix(in srgb, var(--dd-primary) 10%, transparent);
+  stroke: var(--dd-primary);
   stroke-width: 1.5;
   pointer-events: none;
 }
@@ -163,19 +163,19 @@
   pointer-events: all;
   cursor: pointer;
   circle {
-    fill: var(--dbd-surface);
-    stroke: var(--dbd-border-strong);
+    fill: var(--dd-surface);
+    stroke: var(--dd-border-strong);
     stroke-width: 1;
   }
   path {
-    stroke: var(--dbd-text-muted);
+    stroke: var(--dd-text-muted);
     stroke-width: 1.6;
     stroke-linecap: round;
     fill: none;
   }
   &.add:hover circle {
-    fill: var(--dbd-primary);
-    stroke: var(--dbd-primary);
+    fill: var(--dd-primary);
+    stroke: var(--dd-primary);
   }
   &.del:hover circle {
     fill: #e5484d;
@@ -193,7 +193,7 @@
   cursor: col-resize;
 
   &:hover {
-    fill: var(--dbd-accent, #4c8dff);
+    fill: var(--dd-accent, #4c8dff);
     fill-opacity: 0.25;
   }
 }

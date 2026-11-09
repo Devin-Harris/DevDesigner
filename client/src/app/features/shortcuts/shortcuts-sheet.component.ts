@@ -78,7 +78,7 @@ const GROUPS: ShortcutGroup[] = [
     <div class="sheet" role="dialog" aria-label="Keyboard shortcuts">
       <div class="head">
         <span class="title">Keyboard shortcuts</span>
-        <button class="x" (click)="closed.emit()" aria-label="Close"><dbd-icon name="close" /></button>
+        <button class="x" (click)="closed.emit()" aria-label="Close"><dd-icon name="close" /></button>
       </div>
       <div class="cols">
         @for (g of groups; track g.name) {
@@ -98,24 +98,24 @@ const GROUPS: ShortcutGroup[] = [
     .sheet {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto;
-      background: var(--dbd-surface); color: var(--dbd-text);
-      border: 1px solid var(--dbd-border); border-radius: 14px;
+      background: var(--dd-surface); color: var(--dd-text);
+      border: 1px solid var(--dd-border); border-radius: 14px;
       box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.45); font-size: 13px;
     }
-    .head { display: flex; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--dbd-border); }
+    .head { display: flex; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--dd-border); }
     .title { font-weight: 600; font-size: 15px; }
     .x {
       margin-left: auto; width: 30px; height: 30px; border: none; border-radius: 7px; background: transparent;
-      color: var(--dbd-text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+      color: var(--dd-text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
     }
-    .x:hover { background: var(--dbd-surface-2); color: var(--dbd-text); }
+    .x:hover { background: var(--dd-surface-2); color: var(--dd-text); }
     .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 24px; padding: 14px 18px 18px; }
-    h3 { margin: 6px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dbd-text-muted); }
+    h3 { margin: 6px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dd-text-muted); }
     .row { display: flex; align-items: center; gap: 12px; min-height: 28px; }
     .lbl { min-width: 0; }
     .k {
-      margin-left: auto; font-family: var(--dbd-mono, monospace); font-size: 11px; color: var(--dbd-text-muted);
-      background: var(--dbd-surface-2); border: 1px solid var(--dbd-border); padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+      margin-left: auto; font-family: var(--dd-mono, monospace); font-size: 11px; color: var(--dd-text-muted);
+      background: var(--dd-surface-2); border: 1px solid var(--dd-border); padding: 1px 6px; border-radius: 4px; white-space: nowrap;
     }
   `,
 })

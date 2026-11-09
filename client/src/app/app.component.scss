@@ -18,11 +18,11 @@
   height: 44px;
   padding: 0 5px;
   box-sizing: border-box;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border: 1px solid var(--dd-border);
   border-radius: 12px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
 
   &.left {
     left: 16px;
@@ -42,14 +42,14 @@
   border: none;
   border-radius: 9px;
   background: transparent;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   cursor: pointer;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   .brand-chev {
-    --dbd-icon-size: 16px;
+    --dd-icon-size: 16px;
   }
 }
 
@@ -59,7 +59,7 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 // Accent-filled logo tile (design system wordmark lockup).
@@ -70,9 +70,9 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--dbd-primary);
+  background: var(--dd-primary);
   color: #fff;
-  --dbd-icon-size: 18px;
+  --dd-icon-size: 18px;
 }
 
 
@@ -85,16 +85,16 @@
   white-space: nowrap;
   border: none;
   background: transparent;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   padding: 4px 8px;
-  border-radius: var(--dbd-radius-sm);
+  border-radius: var(--dd-radius-sm);
   cursor: pointer;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 }
 
@@ -110,7 +110,7 @@
   width: 1px;
   height: 22px;
   margin: 0 4px;
-  background: var(--dbd-border);
+  background: var(--dd-border);
 }
 
 .nav-icon {
@@ -119,16 +119,16 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--dbd-radius-sm);
+  border-radius: var(--dd-radius-sm);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   cursor: pointer;
-  --dbd-icon-size: 19px;
+  --dd-icon-size: 19px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
-    color: var(--dbd-text);
+    background: var(--dd-surface-2);
+    color: var(--dd-text);
   }
   &:disabled {
     opacity: 0.4;
@@ -142,27 +142,27 @@
   gap: 6px;
   height: 34px;
   padding: 0 12px;
-  border-radius: var(--dbd-radius);
-  border: 1px solid var(--dbd-border-strong);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  border-radius: var(--dd-radius);
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 
   &.primary {
-    background: var(--dbd-primary);
-    border-color: var(--dbd-primary);
+    background: var(--dd-primary);
+    border-color: var(--dd-primary);
     color: #fff;
   }
   &.primary:hover {
-    background: color-mix(in srgb, var(--dbd-primary) 88%, #000);
+    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
   }
 }
 
@@ -181,7 +181,7 @@
   color: #fff;
   font-size: 12px;
   font-weight: 600;
-  border: 2px solid var(--dbd-surface);
+  border: 2px solid var(--dd-surface);
   margin-left: -8px;
 
   &:first-child {
@@ -192,8 +192,8 @@
 .menu-email {
   padding: 6px 10px 8px;
   font-size: 12px;
-  color: var(--dbd-text-muted);
-  border-bottom: 1px solid var(--dbd-border);
+  color: var(--dd-text-muted);
+  border-bottom: 1px solid var(--dd-border);
   margin-bottom: 4px;
   max-width: 240px;
   overflow: hidden;
@@ -206,8 +206,8 @@
   font-weight: 600;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--dbd-surface-2);
-  color: var(--dbd-text-muted);
+  background: var(--dd-surface-2);
+  color: var(--dd-text-muted);
 }
 
 // ---- Presentations menu ----
@@ -223,7 +223,7 @@
   border-radius: 8px;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 }
 
@@ -236,7 +236,7 @@
   padding: 6px 8px;
   border: none;
   background: transparent;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -251,7 +251,7 @@
   }
   .ds {
     font-size: 12px;
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
   }
 }
 
@@ -261,20 +261,20 @@
   gap: 4px;
   height: 28px;
   padding: 0 9px 0 7px;
-  border: 1px solid var(--dbd-border-strong);
+  border: 1px solid var(--dd-border-strong);
   border-radius: 7px;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  background: var(--dd-surface);
+  color: var(--dd-text);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  --dbd-icon-size: 15px;
+  --dd-icon-size: 15px;
 
   &:hover:not(:disabled) {
-    border-color: var(--dbd-primary);
-    color: var(--dbd-primary);
+    border-color: var(--dd-primary);
+    color: var(--dd-primary);
   }
   &:disabled {
     opacity: 0.4;
@@ -291,23 +291,23 @@
 .decks-empty {
   padding: 10px 12px;
   font-size: 13px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .kbd {
   margin-left: auto;
   font-size: 11px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .crumb-input {
   width: 220px;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid var(--dbd-primary);
-  border-radius: var(--dbd-radius-sm);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
+  border: 1px solid var(--dd-primary);
+  border-radius: var(--dd-radius-sm);
+  background: var(--dd-surface);
+  color: var(--dd-text);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -327,7 +327,7 @@
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  --dbd-icon-size: 15px;
+  --dd-icon-size: 15px;
 }
 
 .theme-row {
@@ -337,10 +337,10 @@
   min-height: 34px;
   padding: 0 6px 0 10px;
   font-size: 13px;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
-  dbd-icon {
-    color: var(--dbd-text-muted);
+  dd-icon {
+    color: var(--dd-text-muted);
   }
 }
 
@@ -350,7 +350,7 @@
   margin-left: auto;
   padding: 2px;
   border-radius: 7px;
-  background: var(--dbd-surface-2);
+  background: var(--dd-surface-2);
 
   button {
     height: 24px;
@@ -358,16 +358,16 @@
     border: none;
     border-radius: 5px;
     background: transparent;
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
 
     &.on {
-      background: var(--dbd-surface);
-      color: var(--dbd-text);
+      background: var(--dd-surface);
+      color: var(--dd-text);
       font-weight: 600;
-      box-shadow: var(--dbd-shadow-1);
+      box-shadow: var(--dd-shadow-1);
     }
   }
 }
@@ -411,7 +411,7 @@ button.avatars {
 
     small {
       font-size: 11px;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
     }
   }
 }
@@ -422,13 +422,13 @@ button.avatars {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--dbd-primary);
+  color: var(--dd-primary);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 
   &:hover {
-    background: var(--dbd-primary-weak);
+    background: var(--dd-primary-weak);
   }
 
   &.on {
@@ -440,5 +440,5 @@ button.avatars {
 .people-hint {
   padding: 4px 10px 6px;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { SlideTheme, UserThemeResponse } from '@dbdesigner/shared';
+import type { SlideTheme, UserThemeResponse } from '@devdesigner/shared';
 import { UserThemeEntity } from './user-theme.entity';
 import { SaveUserThemeDto } from './dto/save-user-theme.dto';
 

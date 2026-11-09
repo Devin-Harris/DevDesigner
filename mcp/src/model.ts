@@ -2,7 +2,7 @@
 // summaries returned to the model. No network, no MCP types, so they unit-test.
 
 import {
-  gridSummary, colorName, isSoloTag, morphTagOf } from '@dbdesigner/shared';
+  gridSummary, colorName, isSoloTag, morphTagOf } from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -12,7 +12,7 @@ import type {
   SchemaModel,
   SequenceDiagramModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** A failure the model can act on (bad name, ambiguous reference...). Shown verbatim. */
 export class UserError extends Error {}

@@ -4,7 +4,7 @@ import type {
   CreateShareLinkDto,
   ProjectGraphResponse,
   ShareLinkResponse,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /**

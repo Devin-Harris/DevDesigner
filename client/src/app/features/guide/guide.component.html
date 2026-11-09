@@ -2,7 +2,7 @@
   <aside class="rail" [class.open]="navOpen()" aria-label="Canvas tools">
     <div class="rail-head">
       <a class="logo" routerLink="/">
-        <span class="brand-tile"><dbd-icon name="code" /></span>
+        <span class="brand-tile"><dd-icon name="code" /></span>
         <span class="disp">DevDesigner</span>
       </a>
       <button
@@ -12,20 +12,20 @@
         [attr.aria-expanded]="!railCollapsed()"
         [title]="railCollapsed() ? 'Expand' : 'Collapse'"
       >
-        <dbd-icon [name]="railCollapsed() ? 'chevron_right' : 'chevron_left'" />
+        <dd-icon [name]="railCollapsed() ? 'chevron_right' : 'chevron_left'" />
       </button>
       <button
         class="icon-btn theme-btn"
         (click)="theme.toggle()"
         [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
       >
-        <dbd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+        <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
       </button>
     </div>
     <div class="rail-title">
       <button class="rail-toggle" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()">
-        <dbd-icon [name]="tool().icon" />{{ tool().name }}
-        <dbd-icon name="expand_more" />
+        <dd-icon [name]="tool().icon" />{{ tool().name }}
+        <dd-icon name="expand_more" />
       </button>
     </div>
     <nav class="tabs">
@@ -40,19 +40,19 @@
           [attr.title]="railCollapsed() ? (t.keys ? t.name + ' (' + t.keys + ')' : t.name) : null"
           [attr.aria-label]="t.name"
         >
-          <span class="tab-icon" [attr.data-tone]="t.tone"><dbd-icon [name]="t.icon" /></span>
+          <span class="tab-icon" [attr.data-tone]="t.tone"><dd-icon [name]="t.icon" /></span>
           <span class="tab-name">{{ t.name }}</span>
           @if (t.keys) { <span class="k">{{ t.keys }}</span> }
         </button>
         }
       }
     </nav>
-    <a class="rail-foot" routerLink="/"><dbd-icon name="arrow_back" />Back to home</a>
+    <a class="rail-foot" routerLink="/"><dd-icon name="arrow_back" />Back to home</a>
   </aside>
 
   <main class="page" #page>
     <header class="hero">
-      <span class="hero-icon" [attr.data-tone]="tool().tone"><dbd-icon [name]="tool().icon" /></span>
+      <span class="hero-icon" [attr.data-tone]="tool().tone"><dd-icon [name]="tool().icon" /></span>
       <div class="hero-text">
         <h1 class="disp">{{ tool().name }} @if (tool().keys) { <span class="k lg">{{ tool().keys }}</span> }</h1>
         <p class="tagline">{{ tool().tagline }}</p>
@@ -69,23 +69,23 @@
         <span class="sb-note">Your own scratch copy, kept for this browser session only. Reset any time.</span>
         @if (tool().sandboxActions === 'export') {
           <span class="sb-group" role="group" aria-label="Export and import">
-            <button class="btn sm" (click)="actions.exportImage('png')"><dbd-icon name="photo" />PNG</button>
+            <button class="btn sm" (click)="actions.exportImage('png')"><dd-icon name="photo" />PNG</button>
             <button class="btn sm" (click)="actions.exportImage('svg')">SVG</button>
             <button class="btn sm" (click)="actions.exportImage('pdf')">PDF</button>
             <button class="btn sm" (click)="actions.exportSelectionFile()" [disabled]="!actions.hasSelection()">
-              <dbd-icon name="download" />Selection
+              <dd-icon name="download" />Selection
             </button>
-            <button class="btn sm" (click)="importInput.click()"><dbd-icon name="upload" />Import</button>
+            <button class="btn sm" (click)="importInput.click()"><dd-icon name="upload" />Import</button>
             <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
           </span>
         }
-        <button class="btn sm" (click)="reset()"><dbd-icon name="undo" />Reset</button>
+        <button class="btn sm" (click)="reset()"><dd-icon name="undo" />Reset</button>
         <button
           class="btn sm"
           (click)="expanded.set(!expanded())"
           [attr.aria-label]="expanded() ? 'Exit full screen' : 'Full screen'"
         >
-          <dbd-icon [name]="expanded() ? 'close' : 'open_in_full'" />{{ expanded() ? 'Close' : 'Expand' }}
+          <dd-icon [name]="expanded() ? 'close' : 'open_in_full'" />{{ expanded() ? 'Close' : 'Expand' }}
         </button>
       </div>
       <div class="sb-stage">
@@ -96,7 +96,7 @@
           }
         } @else if (sandboxError(); as err) {
           <div class="sb-msg">
-            <dbd-icon name="warning" />{{ err }}
+            <dd-icon name="warning" />{{ err }}
             <button class="btn sm" (click)="reset()">Try again</button>
           </div>
         } @else {
@@ -188,14 +188,14 @@
     <nav class="pager" aria-label="Next and previous tool">
       @if (prev(); as p) {
         <button class="pg" (click)="go(p)">
-          <span class="muted">Previous</span><span><dbd-icon name="chevron_left" />{{ p.name }}</span>
+          <span class="muted">Previous</span><span><dd-icon name="chevron_left" />{{ p.name }}</span>
         </button>
       } @else {
         <span></span>
       }
       @if (next(); as n) {
         <button class="pg right" (click)="go(n)">
-          <span class="muted">Next</span><span>{{ n.name }}<dbd-icon name="chevron_right" /></span>
+          <span class="muted">Next</span><span>{{ n.name }}<dd-icon name="chevron_right" /></span>
         </button>
       }
     </nav>

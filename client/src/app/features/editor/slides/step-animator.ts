@@ -1,4 +1,4 @@
-import type { AnimationGroup, PlannedAnimation, SlideDirection } from '@dbdesigner/shared';
+import type { AnimationGroup, PlannedAnimation, SlideDirection } from '@devdesigner/shared';
 import type { RenderedSlide } from './slide-render.service';
 
 /** How long undoing a group (stepping back) takes. */

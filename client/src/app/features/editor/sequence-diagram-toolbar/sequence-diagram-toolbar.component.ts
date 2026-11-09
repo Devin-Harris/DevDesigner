@@ -19,7 +19,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
       <button
         type="button"
         class="ico-act"
-        [dbdPopoverTrigger]="bgMenu"
+        [ddPopoverTrigger]="bgMenu"
         placement="below-start"
         [disabled]="!canEdit()"
         title="Background"
@@ -28,13 +28,13 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
         <span
           class="color-dot"
           [class.none]="d.backgroundColor === 'transparent'"
-          [style.background]="d.backgroundColor && d.backgroundColor !== 'transparent' ? d.backgroundColor : 'var(--dbd-surface)'"
+          [style.background]="d.backgroundColor && d.backgroundColor !== 'transparent' ? d.backgroundColor : 'var(--dd-surface)'"
         ></span>
       </button>
       <ng-template #bgMenu let-close>
         <div class="color-grid">
           <div class="grid-label">Background</div>
-          <dbd-color-swatches
+          <dd-color-swatches
             [value]="d.backgroundColor"
             noneValue="transparent"
             noneLabel="No background"
@@ -47,7 +47,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
       <button
         type="button"
         class="ico-act"
-        [dbdPopoverTrigger]="borderMenu"
+        [ddPopoverTrigger]="borderMenu"
         placement="below-start"
         [disabled]="!canEdit()"
         title="Border"
@@ -56,13 +56,13 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
         <span
           class="color-dot ring"
           [class.none]="d.borderColor === 'transparent'"
-          [style.border-color]="d.borderColor && d.borderColor !== 'transparent' ? d.borderColor : 'var(--dbd-border-strong)'"
+          [style.border-color]="d.borderColor && d.borderColor !== 'transparent' ? d.borderColor : 'var(--dd-border-strong)'"
         ></span>
       </button>
       <ng-template #borderMenu let-close>
         <div class="color-grid">
           <div class="grid-label">Border</div>
-          <dbd-color-swatches
+          <dd-color-swatches
             [value]="d.borderColor"
             noneValue="transparent"
             noneLabel="No border"
@@ -72,7 +72,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
         </div>
       </ng-template>
       <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-        <dbd-icon name="tune" />
+        <dd-icon name="tune" />
       </button>
     }
   `,

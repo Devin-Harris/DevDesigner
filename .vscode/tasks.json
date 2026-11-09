@@ -6,7 +6,7 @@
       "type": "npm",
       "script": "build:shared",
       "problemMatcher": ["$tsc"],
-      "presentation": { "group": "dbdesigner", "panel": "shared", "reveal": "silent" }
+      "presentation": { "group": "devdesigner", "panel": "shared", "reveal": "silent" }
     },
     {
       "label": "Watch: Shared",
@@ -15,7 +15,7 @@
       "isBackground": true,
       "problemMatcher": ["$tsc-watch"],
       "dependsOn": ["Build: Shared"],
-      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+      "presentation": { "group": "devdesigner-dev", "panel": "dedicated", "reveal": "always" }
     },
     {
       "label": "Dev: Server",
@@ -24,7 +24,7 @@
       "isBackground": true,
       "problemMatcher": [],
       "dependsOn": ["Build: Shared"],
-      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+      "presentation": { "group": "devdesigner-dev", "panel": "dedicated", "reveal": "always" }
     },
     {
       "label": "Dev: Client",
@@ -33,7 +33,7 @@
       "isBackground": true,
       "problemMatcher": [],
       "dependsOn": ["Build: Shared"],
-      "presentation": { "group": "dbdesigner-dev", "panel": "dedicated", "reveal": "always" }
+      "presentation": { "group": "devdesigner-dev", "panel": "dedicated", "reveal": "always" }
     },
     {
       "label": "Dev: All",

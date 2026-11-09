@@ -1,6 +1,6 @@
 // Generates src/environments/environment.ts from environment variables at build
 // time (Angular inlines config into the bundle; it cannot read env vars at runtime).
-// Set API_URL to the server's public origin, e.g. https://dbdesigner-api.up.railway.app
+// Set API_URL to the server's public origin, e.g. https://devdesigner-api.up.railway.app
 // (no trailing /api). With API_URL unset this does nothing, so local builds keep
 // using the checked-in localhost defaults.
 import { writeFileSync } from 'node:fs';

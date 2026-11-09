@@ -1,11 +1,11 @@
-import { isEmptyPlaceholder, type PlaceholderConfig } from '@dbdesigner/shared';
+import { isEmptyPlaceholder, type PlaceholderConfig } from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   LifelineModel,
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { Box } from '../models/geometry.model';
 import { elementBox, tableBox } from './element-geometry.helper';
 

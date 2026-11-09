@@ -1,4 +1,4 @@
-import type { ProjectType, RelationshipType } from '@dbdesigner/shared';
+import type { ProjectType, RelationshipType } from '@devdesigner/shared';
 
 /** A column within a template table. `ref` marks it as a foreign key that seeds a
  *  relationship to `"tableKey.columnName"`. */

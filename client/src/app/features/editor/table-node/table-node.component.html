@@ -19,18 +19,18 @@
 >
   <button
     class="icon-btn color"
-    [dbdPopoverTrigger]="colorMenu"
+    [ddPopoverTrigger]="colorMenu"
     placement="below-start"
     (pointerdown)="$event.stopPropagation()"
     [disabled]="!editable()"
     title="Header color"
     aria-label="Header color"
   >
-    <span class="color-dot" [style.background]="css(table().color) || 'var(--dbd-handle)'"></span>
+    <span class="color-dot" [style.background]="css(table().color) || 'var(--dd-handle)'"></span>
   </button>
   <ng-template #colorMenu let-close>
     <div class="color-grid">
-      <dbd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
+      <dd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
     </div>
   </ng-template>
 
@@ -82,10 +82,10 @@
 
       <span class="keyslot">
         @if (column.isPrimaryKey) {
-          <dbd-icon name="key" class="keyglyph pk" title="Primary key" />
+          <dd-icon name="key" class="keyglyph pk" title="Primary key" />
         }
         @if (uniqueTitle(column); as title) {
-          <dbd-icon
+          <dd-icon
             name="key"
             class="keyglyph uq"
             [title]="title"
@@ -94,7 +94,7 @@
           />
         }
         @if (!column.isPrimaryKey && fkColumnIds().has(column.id)) {
-          <dbd-icon name="link" class="keyglyph fk" title="Foreign key" />
+          <dd-icon name="link" class="keyglyph fk" title="Foreign key" />
         }
       </span>
 
@@ -127,35 +127,35 @@
         <button
           class="chip uq"
           [class.on]="column.isUnique || uniqueSets().has(column.id)"
-          [dbdPopoverTrigger]="uniqueMenu"
+          [ddPopoverTrigger]="uniqueMenu"
           placement="below-end"
           (pointerdown)="$event.stopPropagation()"
           [disabled]="!editable()"
           title="Unique"
         >UQ</button>
         <ng-template #uniqueMenu let-close>
-          <div class="dbd-menu">
-            <button class="dbd-menu-item" [class.on]="column.isUnique" (click)="toggleUnique(column); close()">
-              <dbd-icon [name]="column.isUnique ? 'check' : 'key'" />
+          <div class="dd-menu">
+            <button class="dd-menu-item" [class.on]="column.isUnique" (click)="toggleUnique(column); close()">
+              <dd-icon [name]="column.isUnique ? 'check' : 'key'" />
               Unique on its own
             </button>
             @if (uniqueIndexes().length) {
-              <div class="dbd-menu-sep"></div>
+              <div class="dd-menu-sep"></div>
               @for (ix of uniqueIndexes(); track ix.id) {
                 <button
-                  class="dbd-menu-item"
+                  class="dd-menu-item"
                   [class.on]="ix.columnIds.includes(column.id)"
                   (click)="toggleIndexMember(ix, column)"
                   [title]="indexColumnNames(ix)"
                 >
-                  <dbd-icon [name]="ix.columnIds.includes(column.id) ? 'check' : 'add'" />
+                  <dd-icon [name]="ix.columnIds.includes(column.id) ? 'check' : 'add'" />
                   {{ ix.name }} <span class="ix-cols">({{ indexColumnNames(ix) }})</span>
                 </button>
               }
             }
-            <div class="dbd-menu-sep"></div>
-            <button class="dbd-menu-item" (click)="newUniqueIndex(column); close()">
-              <dbd-icon name="add" />
+            <div class="dd-menu-sep"></div>
+            <button class="dd-menu-item" (click)="newUniqueIndex(column); close()">
+              <dd-icon name="add" />
               New multi-column unique set
             </button>
           </div>
@@ -168,18 +168,18 @@
 
       <button
         class="type"
-        [dbdPopoverTrigger]="typeMenu"
+        [ddPopoverTrigger]="typeMenu"
         placement="below-end"
         (pointerdown)="$event.stopPropagation()"
         title="Change type"
       >
         <span class="type-name">{{ column.dataType.name }}</span>
-        <dbd-icon name="arrow_drop_down" class="chev" />
+        <dd-icon name="arrow_drop_down" class="chev" />
       </button>
       <ng-template #typeMenu let-close>
-        <div class="dbd-menu type-menu">
+        <div class="dd-menu type-menu">
           @for (name of dataTypeNames; track name) {
-            <button class="dbd-menu-item" [class.on]="name === column.dataType.name" (click)="setType(column, name); close()">{{ name }}</button>
+            <button class="dd-menu-item" [class.on]="name === column.dataType.name" (click)="setType(column, name); close()">{{ name }}</button>
           }
         </div>
       </ng-template>
@@ -204,7 +204,7 @@
         title="Delete column"
         aria-label="Delete column"
       >
-        <dbd-icon name="close" />
+        <dd-icon name="close" />
       </button>
 
       <span

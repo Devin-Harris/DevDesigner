@@ -13,27 +13,27 @@ import { ICON_PATHS } from './icon-registry';
  * font) with inline SVG from {@link ICON_PATHS}, so the app renders the design
  * system's Lucide/Feather-style glyphs and drops the Material Icons + Roboto font
  * dependency. Size and color follow the surrounding text (`1em`, `currentColor`);
- * override via the host `--dbd-icon-size` custom property or plain CSS.
+ * override via the host `--dd-icon-size` custom property or plain CSS.
  *
- *   <dbd-icon name="add" />
+ *   <dd-icon name="add" />
  */
 @Component({
-  selector: 'dbd-icon',
+  selector: 'dd-icon',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="dbd-icon-host" [innerHTML]="svg()"></span>`,
+  template: `<span class="dd-icon-host" [innerHTML]="svg()"></span>`,
   styles: [
     `
       :host {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: var(--dbd-icon-size, 1.25em);
-        height: var(--dbd-icon-size, 1.25em);
+        width: var(--dd-icon-size, 1.25em);
+        height: var(--dd-icon-size, 1.25em);
         flex: 0 0 auto;
         line-height: 0;
       }
-      .dbd-icon-host,
+      .dd-icon-host,
       :host ::ng-deep svg {
         width: 100%;
         height: 100%;

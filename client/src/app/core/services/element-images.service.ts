@@ -7,7 +7,7 @@ import {
   maxMediaBytes,
   type UploadImageDto,
   type UploadImageResponse,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
 import { ApiService } from './api.service';
 

@@ -5,7 +5,7 @@ import type {
   CreateColumnDto,
   ReorderColumnsDto,
   UpdateColumnDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular column endpoints (BUILD_INSTRUCTIONS.md section 5). */

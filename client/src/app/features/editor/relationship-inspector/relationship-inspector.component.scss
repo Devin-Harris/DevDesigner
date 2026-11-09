@@ -2,19 +2,19 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--dbd-surface);
+  background: var(--dd-surface);
   overflow: auto;
 }
 
 .panel {
-  padding: var(--dbd-space-3) var(--dbd-space-4) var(--dbd-space-4);
+  padding: var(--dd-space-3) var(--dd-space-4) var(--dd-space-4);
 }
 
 .panel-head {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
-  margin-bottom: var(--dbd-space-2);
+  gap: var(--dd-space-2);
+  margin-bottom: var(--dd-space-2);
 }
 
 .head-text {
@@ -28,11 +28,11 @@
   font-weight: 600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .field-label {
-  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  margin: var(--dd-space-3) 0 var(--dd-space-2);
 }
 
 .icon-btn {
@@ -43,16 +43,16 @@
   height: 30px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text-muted);
+  border-radius: var(--dd-radius-sm);
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   &.del:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
   &:disabled {
     opacity: 0.4;
@@ -63,14 +63,14 @@
 .arrow {
   display: flex;
   justify-content: center;
-  padding: var(--dbd-space-2) 0 0;
-  color: var(--dbd-text-muted);
-  --dbd-icon-size: 18px;
+  padding: var(--dd-space-2) 0 0;
+  color: var(--dd-text-muted);
+  --dd-icon-size: 18px;
 }
 
 .two-col {
   display: flex;
-  gap: var(--dbd-space-3);
+  gap: var(--dd-space-3);
 
   > div {
     flex: 1;

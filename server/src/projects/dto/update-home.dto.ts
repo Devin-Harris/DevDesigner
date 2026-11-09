@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsNumber, IsObject, IsOptional, ValidateNested } from 'class-validator';
-import type { UpdateHomeDto as IUpdateHomeDto } from '@dbdesigner/shared';
+import type { UpdateHomeDto as IUpdateHomeDto } from '@devdesigner/shared';
 
 class HomeViewDto {
   @IsNumber()

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { RelationshipType } from '@dbdesigner/shared';
+import type { RelationshipType } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 /**

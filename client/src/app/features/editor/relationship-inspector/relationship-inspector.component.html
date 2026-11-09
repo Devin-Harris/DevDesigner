@@ -4,22 +4,22 @@
       <div class="eyebrow">Relationship</div>
     </div>
     <button class="icon-btn del" (click)="remove()" [disabled]="!store.canEdit()" title="Delete relationship">
-      <dbd-icon name="delete" />
+      <dd-icon name="delete" />
     </button>
   </div>
 
   <div class="field-label">Source column</div>
-  <dbd-select
+  <dd-select
     [options]="columnOptions()"
     [ngModel]="relationship().sourceColumnId"
     (ngModelChange)="setSource($event)"
     [disabled]="!store.canEdit()"
   />
 
-  <div class="arrow"><dbd-icon name="arrow_downward" /></div>
+  <div class="arrow"><dd-icon name="arrow_downward" /></div>
 
   <div class="field-label">Target column</div>
-  <dbd-select
+  <dd-select
     [options]="columnOptions()"
     [ngModel]="relationship().targetColumnId"
     (ngModelChange)="setTarget($event)"
@@ -27,7 +27,7 @@
   />
 
   <div class="field-label">Type</div>
-  <dbd-select
+  <dd-select
     [options]="typeOptions"
     [ngModel]="relationship().type"
     (ngModelChange)="setType($event)"
@@ -37,7 +37,7 @@
   <div class="two-col">
     <div>
       <div class="field-label">On delete</div>
-      <dbd-select
+      <dd-select
         [options]="actionOptions"
         [ngModel]="relationship().onDelete ?? ''"
         (ngModelChange)="setOnDelete($event)"
@@ -46,7 +46,7 @@
     </div>
     <div>
       <div class="field-label">On update</div>
-      <dbd-select
+      <dd-select
         [options]="actionOptions"
         [ngModel]="relationship().onUpdate ?? ''"
         (ngModelChange)="setOnUpdate($event)"

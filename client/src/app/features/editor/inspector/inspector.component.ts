@@ -8,7 +8,7 @@ import {
   type IndexModel,
   type TableModel,
   type UpdateColumnDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';

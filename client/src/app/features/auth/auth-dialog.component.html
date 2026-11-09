@@ -5,18 +5,18 @@
     @if (isRegister()) {
       <div class="field">
         <label class="field-label">Display name (optional)</label>
-        <dbd-input type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
+        <dd-input type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
       </div>
     }
 
     <div class="field">
       <label class="field-label">Email</label>
-      <dbd-input type="email" [ngModel]="email()" (ngModelChange)="set(email, $event)" />
+      <dd-input type="email" [ngModel]="email()" (ngModelChange)="set(email, $event)" />
     </div>
 
     <div class="field">
       <label class="field-label">Password</label>
-      <dbd-input type="password" [ngModel]="password()" (ngModelChange)="set(password, $event)" />
+      <dd-input type="password" [ngModel]="password()" (ngModelChange)="set(password, $event)" />
       @if (isRegister()) {
         <span class="hint">At least 8 characters.</span>
       }

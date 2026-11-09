@@ -1,4 +1,4 @@
-import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@dbdesigner/shared';
+import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@devdesigner/shared';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import { fontStack, fontWeightFor } from './shape-render.helper';
 

@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import type { CurrentUserResponse } from '@dbdesigner/shared';
+import type { CurrentUserResponse } from '@devdesigner/shared';
 import { User } from './user.entity';
 import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth.types';
 import { RegisterDto } from './dto/register.dto';

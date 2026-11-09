@@ -12,11 +12,11 @@ import type {
   CreateProjectDto,
   ProjectSummary,
   UpdateProjectDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ProjectsService } from '../core/services/projects.service';
 
 /** `description` the guide's sandbox projects carry (see features/guide). */
-export const GUIDE_SANDBOX_MARK = 'dbd-guide-sandbox';
+export const GUIDE_SANDBOX_MARK = 'dd-guide-sandbox';
 
 /**
  * Workspace state: the project list plus the current selection, search term, and archived

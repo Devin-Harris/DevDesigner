@@ -14,7 +14,7 @@ import type {
   UpdateThemesDto,
   UpdateProjectDto,
   UpdateViewportDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /**

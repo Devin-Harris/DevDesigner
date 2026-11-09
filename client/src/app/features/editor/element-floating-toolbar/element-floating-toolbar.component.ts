@@ -5,7 +5,7 @@ import { GridTableService } from '../../../core/services/grid-table.service';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { MediaActionsService } from '../../../core/services/media-actions.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
-import type { GridBorders } from '@dbdesigner/shared';
+import type { GridBorders } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -33,7 +33,7 @@ import {
   resolveThemeFont,
   themeToken,
   type SlideTheme,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { RichTextSessionService } from '../../../core/services/rich-text-session.service';
@@ -462,7 +462,7 @@ export class ElementFloatingToolbarComponent {
 
   /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
   protected fillCss(color: string | undefined): string {
-    return color === SURFACE_FILL ? 'var(--dbd-surface)' : this.colorCss(color) || '#ffffff';
+    return color === SURFACE_FILL ? 'var(--dd-surface)' : this.colorCss(color) || '#ffffff';
   }
 
   protected setFill(color: string): void {

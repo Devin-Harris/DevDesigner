@@ -13,7 +13,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { generateSql, type CanvasElementModel, type SchemaMutation, type SequenceMessageModel } from '@dbdesigner/shared';
+import { generateSql, type CanvasElementModel, type SchemaMutation, type SequenceMessageModel } from '@devdesigner/shared';
 import { EditorComponent } from '../editor/editor.component';
 import { CompareUiState, DeckCompareComponent } from '../editor/slides/deck-compare.component';
 import { ColorSwatchesComponent } from '../../shared/ui/color-swatches/color-swatches.component';
@@ -496,7 +496,7 @@ export class HomeComponent {
     this.cursorAt.set({ ...at, box: selection });
     await sleep(380);
     const i = items.findIndex((x) => x.label === pick);
-    const row = this.demo()?.nativeElement.querySelectorAll('.sc-ctx .dbd-menu-item')[i];
+    const row = this.demo()?.nativeElement.querySelectorAll('.sc-ctx .dd-menu-item')[i];
     await this.pointAt(row, undefined, 420, selection);
     this.ctxMenu.update((m) => (m ? { ...m, hot: i } : m));
     await sleep(320);
@@ -520,7 +520,7 @@ export class HomeComponent {
     const items = [{ label: 'New slide' }, { label: 'Duplicate slide', kbd: 'Ctrl+D' }, { label: 'Delete slide', kbd: 'Del' }];
     this.ctxMenu.set({ left: r.right - box.left - 6, top: r.top - box.top + r.height / 2, items, hot: null });
     await sleep(380);
-    const row = root.querySelectorAll('.sc-ctx .dbd-menu-item')[1];
+    const row = root.querySelectorAll('.sc-ctx .dd-menu-item')[1];
     await this.pointAt(row, undefined, 420);
     this.ctxMenu.update((m) => (m ? { ...m, hot: 1 } : m));
     await sleep(320);

@@ -17,7 +17,7 @@ interface RequestWithUser extends Request {
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * Populates `request.user` from an `Authorization: Bearer dbd_...` API token or,
+ * Populates `request.user` from an `Authorization: Bearer dd_...` API token or,
  * failing that, the session cookie, and leaves it null otherwise. Anonymous
  * callers are allowed through so the app keeps working without an account
  * (owned projects are then protected in the policy layer, not here). A bearer

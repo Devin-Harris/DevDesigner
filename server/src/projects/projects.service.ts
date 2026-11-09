@@ -12,7 +12,7 @@ import {
   type SchemaMutation,
   type SchemaModel,
   type SlideTheme,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
 import { ElementsService } from '../elements/elements.service';

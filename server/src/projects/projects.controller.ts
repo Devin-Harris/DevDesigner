@@ -19,7 +19,7 @@ import type {
   ProjectExportFile,
   ProjectGraphResponse,
   ProjectSummary,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { Request, Response } from 'express';
 import { writeRevisionTag } from '../common/write-revision';
 import { ProjectsService } from './projects.service';

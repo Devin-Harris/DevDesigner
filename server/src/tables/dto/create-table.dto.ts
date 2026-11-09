@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { CreateTableDto as ICreateTableDto } from '@dbdesigner/shared';
+import type { CreateTableDto as ICreateTableDto } from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/tables. */
 export class CreateTableDto implements ICreateTableDto {

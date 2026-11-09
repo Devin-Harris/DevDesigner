@@ -21,7 +21,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
     anchorDownload(blob, filename);
     return;
   }
-  // Everything after the first dot is the extension (".dbdesigner.json" stays whole).
+  // Everything after the first dot is the extension (".devdesigner.json" stays whole).
   const dot = filename.indexOf('.');
   const ext = dot > 0 ? filename.slice(dot) : '';
   const mime = blob.type.split(';')[0] || 'application/octet-stream';

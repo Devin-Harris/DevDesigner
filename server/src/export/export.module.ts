@@ -4,7 +4,7 @@ import { ExportController } from './export.controller';
 import { ExportService } from './export.service';
 
 /**
- * Export: generates SQL via the shared pure generator (@dbdesigner/shared/sql)
+ * Export: generates SQL via the shared pure generator (@devdesigner/shared/sql)
  * and returns it as text for the selected dialect.
  *
  * Layers (section 7): ExportController (routing + DTO validation only) ->

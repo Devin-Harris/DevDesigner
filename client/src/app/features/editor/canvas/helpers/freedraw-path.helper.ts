@@ -1,4 +1,4 @@
-import type { PointModel } from '@dbdesigner/shared';
+import type { PointModel } from '@devdesigner/shared';
 import { getStroke } from 'perfect-freehand';
 
 /** Turn a perfect-freehand outline into a filled SVG path (quadratic segments). */

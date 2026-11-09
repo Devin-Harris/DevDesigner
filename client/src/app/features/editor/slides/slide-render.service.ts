@@ -25,7 +25,7 @@ import {
   type FieldContext,
   resolveThemedElements,
   resolveThemedSequences,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectStore } from '../../../stores/project.store';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';

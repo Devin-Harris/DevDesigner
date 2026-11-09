@@ -2,7 +2,7 @@
 // repeated look-alike items (accent bars, logos, matching boxes) pair by kind, so a
 // slide on one layout morphs sensibly into a slide on another.
 
-import type { CanvasElementModel } from '@dbdesigner/shared';
+import type { CanvasElementModel } from '@devdesigner/shared';
 
 interface FrameLike {
   id: string;

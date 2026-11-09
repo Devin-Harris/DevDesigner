@@ -11,8 +11,8 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
-import { DEFAULT_PRESENTATION } from '@dbdesigner/shared';
+} from '@devdesigner/shared';
+import { DEFAULT_PRESENTATION } from '@devdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
 import { fromDataType } from '../columns/column.mapper';
 import { ElementEntity } from '../elements/element.entity';

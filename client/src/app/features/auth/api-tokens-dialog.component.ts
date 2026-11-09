@@ -14,7 +14,7 @@ import type {
   ApiTokenResponse,
   ApiTokenScope,
   CreatedApiTokenResponse,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from '../../core/services/api.service';
 import { environment } from '../../../environments/environment';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -67,7 +67,7 @@ export class ApiTokensDialogComponent {
       return JSON.stringify(
         {
           mcpServers: {
-            dbdesigner: {
+            devdesigner: {
               type: 'http',
               url: this.remoteMcpUrl,
               headers: { Authorization: `Bearer ${created.token}` },
@@ -82,10 +82,10 @@ export class ApiTokensDialogComponent {
     return JSON.stringify(
       {
         mcpServers: {
-          dbdesigner: {
+          devdesigner: {
             command: 'node',
-            args: ['<path to DBDesigner>/mcp/dist/index.js'],
-            env: { DBDESIGNER_API_URL: apiUrl, DBDESIGNER_API_TOKEN: created.token },
+            args: ['<path to DevDesigner>/mcp/dist/index.js'],
+            env: { DEVDESIGNER_API_URL: apiUrl, DEVDESIGNER_API_TOKEN: created.token },
           },
         },
       },

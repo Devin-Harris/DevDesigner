@@ -39,12 +39,12 @@ export interface FrameOrderDialogData {
             (drop)="drop(i)"
             (dragend)="overIndex.set(null)"
           >
-            <dbd-icon name="drag_indicator" class="grip" />
+            <dd-icon name="drag_indicator" class="grip" />
             <span class="num">{{ i + 1 }}</span>
             <span class="name">{{ f.name }}</span>
             <span class="size">{{ f.width }} × {{ f.height }}</span>
             <button class="mv" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up">
-              <dbd-icon name="arrow_upward" />
+              <dd-icon name="arrow_upward" />
             </button>
             <button
               class="mv"
@@ -52,7 +52,7 @@ export interface FrameOrderDialogData {
               (click)="move(i, 1)"
               aria-label="Move down"
             >
-              <dbd-icon name="arrow_downward" />
+              <dd-icon name="arrow_downward" />
             </button>
           </li>
         }
@@ -61,7 +61,7 @@ export interface FrameOrderDialogData {
     <mat-dialog-actions class="dlg-actions">
       <button class="btn" mat-dialog-close>Cancel</button>
       <button class="btn primary" (click)="confirm()">
-        <dbd-icon name="picture_as_pdf" />Export PDF
+        <dd-icon name="picture_as_pdf" />Export PDF
       </button>
     </mat-dialog-actions>
   `,

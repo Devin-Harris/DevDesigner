@@ -17,7 +17,7 @@ import type {
   ApiTokenResponse,
   CreatedApiTokenResponse,
   CurrentUserResponse,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';

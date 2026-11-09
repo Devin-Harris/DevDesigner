@@ -6,7 +6,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import type { UpdateColumnDto as IUpdateColumnDto } from '@dbdesigner/shared';
+import type { UpdateColumnDto as IUpdateColumnDto } from '@devdesigner/shared';
 import { DataTypeDto } from './data-type.dto';
 
 /** Body for PATCH /columns/:columnId. All fields optional. */

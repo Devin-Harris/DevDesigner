@@ -10,7 +10,7 @@ import {
   type SpecColumn,
   type SpecRelationship,
   type SpecTable,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { formatDataType } from './model';
 
 export interface ColumnChange {
@@ -40,7 +40,7 @@ function splitRef(ref: string): { table: string; column: string } {
   return { table: ref.slice(0, i).trim(), column: ref.slice(i + 1).trim() };
 }
 
-/** Desired column flags with DBDesigner's defaults filled in. */
+/** Desired column flags with DevDesigner's defaults filled in. */
 function desired(c: SpecColumn): Omit<ColumnModel, 'id' | 'note'> {
   const pk = !!c.primaryKey;
   return {

@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { AccessLevel } from '@dbdesigner/shared';
+import type { AccessLevel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';

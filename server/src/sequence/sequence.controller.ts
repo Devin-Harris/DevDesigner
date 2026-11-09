@@ -12,7 +12,7 @@ import type {
   LifelineModel,
   SequenceDiagramModel,
   SequenceMessageModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { SequenceService } from './sequence.service';
 import { CreateSequenceDiagramDto } from './dto/create-sequence-diagram.dto';
 import { UpdateSequenceDiagramDto } from './dto/update-sequence-diagram.dto';

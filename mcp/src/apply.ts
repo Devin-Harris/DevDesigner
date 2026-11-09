@@ -16,8 +16,8 @@ import {
   type SchemaModel,
   type SchemaMutation,
   type SpecRelationship,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { UserError, findColumn, findTable } from './model';
 
 export type Placement = 'auto' | { x: number; y: number };
@@ -52,7 +52,7 @@ function specBounds(schema: SchemaModel): Rect | null {
 }
 
 export async function applySpec(
-  api: DbDesignerApi,
+  api: DevDesignerApi,
   projectId: string,
   spec: DiagramSpec,
   options: ApplyOptions = {},

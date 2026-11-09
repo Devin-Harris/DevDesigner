@@ -15,8 +15,8 @@
     "declaration": true,
     "sourceMap": true,
     "paths": {
-      "@dbdesigner/shared": ["./shared/src/index.ts"],
-      "@dbdesigner/shared/*": ["./shared/src/*"]
+      "@devdesigner/shared": ["./shared/src/index.ts"],
+      "@devdesigner/shared/*": ["./shared/src/*"]
     }
   }
 }

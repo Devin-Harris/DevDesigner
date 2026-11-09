@@ -1,4 +1,4 @@
-/** Thin REST client for the DBDesigner backend. Every call acts as the token's owner. */
+/** Thin REST client for the DevDesigner backend. Every call acts as the token's owner. */
 
 export class ApiError extends Error {
   constructor(
@@ -31,21 +31,21 @@ export function normalizeApiUrl(raw: string): string {
 
 /** Read connection settings from the environment, failing with a helpful message. */
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ApiConfig {
-  const token = env.DBDESIGNER_API_TOKEN?.trim();
+  const token = env.DEVDESIGNER_API_TOKEN?.trim();
   if (!token) {
     throw new Error(
-      'DBDESIGNER_API_TOKEN is not set. Create an API token in DBDesigner (account settings) ' +
+      'DEVDESIGNER_API_TOKEN is not set. Create an API token in DevDesigner (account settings) ' +
         'and pass it to the MCP server through this environment variable.',
     );
   }
-  const baseUrl = normalizeApiUrl(env.DBDESIGNER_API_URL ?? 'http://localhost:3000/api');
+  const baseUrl = normalizeApiUrl(env.DEVDESIGNER_API_URL ?? 'http://localhost:3000/api');
   return { baseUrl, token };
 }
 
 /** Image files are immutable (new bytes get a new id), so this cache never goes stale. */
 const IMAGE_CACHE_BYTES = 64 * 1024 * 1024;
 
-export class DbDesignerApi {
+export class DevDesignerApi {
   /** Last body + ETag per GET path: unchanged reads come back as a cheap 304. */
   private readonly etags = new Map<string, { tag: string; text: string }>();
   private readonly images = new Map<string, { mimeType: string; data: Buffer }>();
@@ -84,7 +84,7 @@ export class DbDesignerApi {
         headers: { Authorization: `Bearer ${this.config.token}`, 'X-Client-Id': 'mcp-server' },
       });
     } catch (err) {
-      throw new ApiError(0, `Cannot reach the DBDesigner API at ${this.config.baseUrl} (${(err as Error).message}).`);
+      throw new ApiError(0, `Cannot reach the DevDesigner API at ${this.config.baseUrl} (${(err as Error).message}).`);
     }
     if (!response.ok) throw new ApiError(response.status, await describeFailure(response));
     const out = {
@@ -119,8 +119,8 @@ export class DbDesignerApi {
     } catch (err) {
       throw new ApiError(
         0,
-        `Cannot reach the DBDesigner API at ${this.config.baseUrl} (${(err as Error).message}). ` +
-          'Is the server running, and is DBDESIGNER_API_URL correct?',
+        `Cannot reach the DevDesigner API at ${this.config.baseUrl} (${(err as Error).message}). ` +
+          'Is the server running, and is DEVDESIGNER_API_URL correct?',
       );
     }
     if (method === 'GET' && response.status === 304) {

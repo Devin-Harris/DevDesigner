@@ -1,5 +1,5 @@
 import { ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { UpdateIndexDto as IUpdateIndexDto } from '@dbdesigner/shared';
+import type { UpdateIndexDto as IUpdateIndexDto } from '@devdesigner/shared';
 
 /** Body for PATCH /indexes/:indexId. All fields optional (partial update). */
 export class UpdateIndexDto implements IUpdateIndexDto {

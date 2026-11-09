@@ -11,7 +11,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 export function buildDataSourceOptions(env: NodeJS.ProcessEnv = process.env): DataSourceOptions {
   return {
     type: 'better-sqlite3',
-    database: env.DATABASE_PATH ?? 'dbdesigner.sqlite',
+    database: env.DATABASE_PATH ?? 'devdesigner.sqlite',
     // Entities are added per feature module; glob keeps registration automatic.
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../../migrations/*{.ts,.js}'],

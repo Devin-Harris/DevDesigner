@@ -1,17 +1,17 @@
 <div class="panel">
   <div class="panel-head">
-    <span class="dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+    <span class="dot" [style.background]="table().color || 'var(--dd-handle)'"></span>
     <div class="head-text">
       <div class="eyebrow">Table</div>
       <div class="tname">{{ table().name }}</div>
     </div>
     <button class="icon-btn del" (click)="deleteTable()" [disabled]="!store.canEdit()" title="Delete table">
-      <dbd-icon name="delete" />
+      <dd-icon name="delete" />
     </button>
   </div>
 
   <div class="field-label">Name</div>
-  <dbd-input
+  <dd-input
     [ngModel]="table().name"
     (commit)="renameTable($event)"
     [maxlength]="120"
@@ -19,7 +19,7 @@
   />
 
   <div class="field-label">Header color</div>
-  <dbd-color-swatches class="swatches" [value]="table().color" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
+  <dd-color-swatches class="swatches" [value]="table().color" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
 
   <div class="field-label">Note</div>
   <textarea
@@ -42,7 +42,7 @@
       <div class="section-head">
         <span class="panel-title">Columns</span>
         <button class="add-btn" (click)="addColumn()" [disabled]="!store.canEdit()">
-          <dbd-icon name="add" />Add
+          <dd-icon name="add" />Add
         </button>
       </div>
 
@@ -50,8 +50,8 @@
         @for (column of table().columns; track column.id) {
           <div cdkDrag [cdkDragDisabled]="!store.canEdit()" class="col-card">
             <div class="col-row">
-              <dbd-icon cdkDragHandle name="drag_indicator" class="drag" />
-              <dbd-input
+              <dd-icon cdkDragHandle name="drag_indicator" class="drag" />
+              <dd-input
                 class="grow"
                 [ngModel]="column.name"
                 (commit)="renameColumn(column, $event)"
@@ -59,12 +59,12 @@
                 [disabled]="!store.canEdit()"
               />
               <button class="icon-btn del" (click)="deleteColumn(column)" [disabled]="!store.canEdit()" title="Delete column">
-                <dbd-icon name="close" />
+                <dd-icon name="close" />
               </button>
             </div>
 
             <div class="col-row">
-              <dbd-select
+              <dd-select
                 class="grow"
                 [options]="typeOptions"
                 [ngModel]="column.dataType.name"
@@ -72,7 +72,7 @@
                 [disabled]="!store.canEdit()"
               />
               @if (column.dataType.name === 'VARCHAR') {
-                <dbd-input
+                <dd-input
                   class="len"
                   type="number"
                   [min]="1"
@@ -98,7 +98,7 @@
       <div class="section-head">
         <span class="panel-title">Indexes</span>
         <button class="add-btn" (click)="addIndex()" [disabled]="!store.canEdit() || table().columns.length === 0">
-          <dbd-icon name="add" />Add
+          <dd-icon name="add" />Add
         </button>
       </div>
 
@@ -109,7 +109,7 @@
           @for (index of table().indexes ?? []; track index.id) {
             <div class="col-card">
               <div class="col-row">
-                <dbd-input
+                <dd-input
                   class="grow"
                   [ngModel]="index.name"
                   (commit)="renameIndex(index, $event)"
@@ -117,22 +117,22 @@
                   [disabled]="!store.canEdit()"
                 />
                 <button class="icon-btn del" (click)="deleteIndex(index)" [disabled]="!store.canEdit()" title="Delete index">
-                  <dbd-icon name="close" />
+                  <dd-icon name="close" />
                 </button>
               </div>
 
               <div class="idx-cols">
                 @for (column of table().columns; track column.id) {
-                  <dbd-checkbox
+                  <dd-checkbox
                     [ngModel]="indexHasColumn(index, column.id)"
                     (ngModelChange)="toggleIndexColumn(index, column.id, $event)"
                     [disabled]="!store.canEdit()"
-                  >{{ column.name }}</dbd-checkbox>
+                  >{{ column.name }}</dd-checkbox>
                 }
               </div>
 
               <div class="col-flags">
-                <dbd-checkbox [ngModel]="index.isUnique" (ngModelChange)="setIndexUnique(index, $event)" [disabled]="!store.canEdit()">Unique</dbd-checkbox>
+                <dd-checkbox [ngModel]="index.isUnique" (ngModelChange)="setIndexUnique(index, $event)" [disabled]="!store.canEdit()">Unique</dd-checkbox>
               </div>
             </div>
           }

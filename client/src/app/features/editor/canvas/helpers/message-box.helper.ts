@@ -1,9 +1,9 @@
-import { messageLabelLines } from '@dbdesigner/shared';
+import { messageLabelLines } from '@devdesigner/shared';
 import type {
   LifelineModel,
   SequenceDiagramModel,
   SequenceMessageModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { Box } from '../models/geometry.model';
 
 // Mirrors `.msg-label` in sequence-diagram.component.scss (11px mono, 4px/10px padding, 1.35 line height).

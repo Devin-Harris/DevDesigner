@@ -48,7 +48,7 @@ describe('loadImage', () => {
   it('loads base64 with a mime type or a data URL, and a file by extension', async () => {
     expect((await loadImage({ data: png, mimeType: 'image/png' })).size).toEqual({ width: 1, height: 1 });
     expect((await loadImage({ data: 'data:image/png;base64,' + png })).mimeType).toBe('image/png');
-    const dir = mkdtempSync(join(tmpdir(), 'dbd-img-'));
+    const dir = mkdtempSync(join(tmpdir(), 'dd-img-'));
     const file = join(dir, 'a.svg');
     writeFileSync(file, svg);
     expect((await loadImage({ filePath: file })).mimeType).toBe('image/svg+xml');

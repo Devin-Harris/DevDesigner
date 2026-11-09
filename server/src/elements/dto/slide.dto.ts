@@ -45,7 +45,7 @@ import {
   type SlideTransition,
   type SlideTheme,
   type SlideTransitionType,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** The transition into a slide: type, direction, duration (ms) and easing. */
 export class SlideTransitionDto implements SlideTransition {

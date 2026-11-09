@@ -1,4 +1,4 @@
-import type { CodeLanguage } from '@dbdesigner/shared';
+import type { CodeLanguage } from '@devdesigner/shared';
 
 /**
  * A tiny dependency-free syntax highlighter for canvas code blocks. It is a

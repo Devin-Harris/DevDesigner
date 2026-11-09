@@ -9,7 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import type { CanvasElementModel } from '@dbdesigner/shared';
+import type { CanvasElementModel } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { MediaActionsService, cleanMedia } from '../../../core/services/media-actions.service';
 import { ProjectStore } from '../../../stores/project.store';
@@ -103,7 +103,7 @@ const MIN_SIDE = 8;
     .source {
       position: absolute;
       opacity: 0.35;
-      outline: 1px dashed var(--dbd-border-strong, #94a3b8);
+      outline: 1px dashed var(--dd-border-strong, #94a3b8);
       cursor: grab;
       touch-action: none;
     }
@@ -119,7 +119,7 @@ const MIN_SIDE = 8;
     .box {
       position: absolute;
       cursor: move;
-      outline: calc(1.5px * var(--inv, 1)) solid var(--dbd-primary, #3b82f6);
+      outline: calc(1.5px * var(--inv, 1)) solid var(--dd-primary, #3b82f6);
       touch-action: none;
     }
     .kept {
@@ -133,7 +133,7 @@ const MIN_SIDE = 8;
       height: calc(var(--s) * 1px);
       margin: calc(var(--s) * -0.5px);
       background: #fff;
-      border: 1.5px solid var(--dbd-primary, #3b82f6);
+      border: 1.5px solid var(--dd-primary, #3b82f6);
       border-radius: 2px;
       box-sizing: border-box;
     }

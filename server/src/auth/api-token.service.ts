@@ -2,13 +2,13 @@ import { createHash, randomBytes } from 'crypto';
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { ApiTokenResponse, CreatedApiTokenResponse } from '@dbdesigner/shared';
+import type { ApiTokenResponse, CreatedApiTokenResponse } from '@devdesigner/shared';
 import { ApiToken } from './api-token.entity';
 import type { AuthUser } from './auth.types';
 import { CreateApiTokenDto } from './dto/create-api-token.dto';
 
 /** Every API token starts with this, so leaked ones are easy to spot and scan for. */
-export const API_TOKEN_PREFIX = 'dbd_';
+export const API_TOKEN_PREFIX = 'dd_';
 
 const RATE_WINDOW_MS = 60_000;
 const LAST_USED_WRITE_INTERVAL_MS = 60_000;

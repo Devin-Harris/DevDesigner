@@ -50,7 +50,7 @@ async function bootstrap(): Promise<void> {
   const port = config.get<number>('PORT', 3000);
   await app.listen(port);
 
-  console.log(`DBDesigner API listening on http://localhost:${port}/api`);
+  console.log(`DevDesigner API listening on http://localhost:${port}/api`);
 }
 
 void bootstrap();

@@ -1,5 +1,5 @@
 import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import type { UpdateTableDto as IUpdateTableDto } from '@dbdesigner/shared';
+import type { UpdateTableDto as IUpdateTableDto } from '@devdesigner/shared';
 
 /** Body for PATCH /tables/:tableId (name / color / note). */
 export class UpdateTableDto implements IUpdateTableDto {

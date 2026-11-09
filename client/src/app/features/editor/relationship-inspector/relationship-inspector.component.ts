@@ -4,7 +4,7 @@ import {
   RELATIONSHIP_TYPES,
   type RelationshipModel,
   type RelationshipType,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';

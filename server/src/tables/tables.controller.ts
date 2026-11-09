@@ -1,4 +1,4 @@
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUserId } from '../auth/current-user.decorator';
 import { ClientId, ShareToken } from '../common/request.decorators';

@@ -1,5 +1,5 @@
 import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { UpdateLifelineDto as IUpdateLifelineDto } from '@dbdesigner/shared';
+import type { UpdateLifelineDto as IUpdateLifelineDto } from '@devdesigner/shared';
 
 /** Body for PATCH /projects/:projectId/lifelines/:lifelineId. */
 export class UpdateLifelineDto implements IUpdateLifelineDto {

@@ -1,4 +1,4 @@
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 
 /** Which side of a table node a connector attaches to. */
 export type Side = 'left' | 'right';

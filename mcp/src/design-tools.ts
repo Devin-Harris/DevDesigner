@@ -40,8 +40,8 @@ import {
   type SchemaModel,
   type SlideTheme,
   type UserThemeResponse,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { Batch } from './batch';
 import { UserError } from './model';
 import { resolvePresentation, resolveSlide, slideFrames, type Frame, type ToolFn } from './presentation-tools';
@@ -65,7 +65,7 @@ const STARTER_KINDS = LAYOUT_KINDS.filter((k) => k !== 'blank');
 
 type Lib = { project: SlideTheme[]; mine: UserThemeResponse[] };
 
-export function registerDesignTools(tool: ToolFn, api: DbDesignerApi): void {
+export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): void {
   const graph = (id: string): Promise<ProjectGraphResponse> => api.get<ProjectGraphResponse>(`/projects/${id}`);
 
   // ---- Library ------------------------------------------------------------------

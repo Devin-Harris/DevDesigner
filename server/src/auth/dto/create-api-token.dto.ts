@@ -3,7 +3,7 @@ import {
   API_TOKEN_SCOPES,
   type ApiTokenScope,
   type CreateApiTokenDto as CreateApiTokenDtoShape,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** Body for POST /auth/api-tokens. */
 export class CreateApiTokenDto implements CreateApiTokenDtoShape {

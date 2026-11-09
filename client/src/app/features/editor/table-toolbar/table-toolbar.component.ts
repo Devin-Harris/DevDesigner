@@ -1,7 +1,7 @@
 import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -22,22 +22,22 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
   template: `
     <div class="bar">
       <button class="add" (click)="addColumn()" [disabled]="!store.canEdit()">
-        <dbd-icon name="add" />Column
+        <dd-icon name="add" />Column
       </button>
 
       <span class="sep"></span>
 
-      <button class="tb" [dbdPopoverTrigger]="colorMenu" placement="below-start" matTooltip="Header color" [disabled]="!store.canEdit()">
-        <span class="dot" [style.background]="table().color || 'var(--dbd-handle)'"></span>
+      <button class="tb" [ddPopoverTrigger]="colorMenu" placement="below-start" matTooltip="Header color" [disabled]="!store.canEdit()">
+        <span class="dot" [style.background]="table().color || 'var(--dd-handle)'"></span>
       </button>
       <ng-template #colorMenu let-close>
         <div class="color-grid">
-          <dbd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
+          <dd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
         </div>
       </ng-template>
 
-      <button class="tb" [dbdPopoverTrigger]="noteMenu" placement="below-start" matTooltip="Note" [disabled]="!store.canEdit()">
-        <dbd-icon name="edit_note" />
+      <button class="tb" [ddPopoverTrigger]="noteMenu" placement="below-start" matTooltip="Note" [disabled]="!store.canEdit()">
+        <dd-icon name="edit_note" />
       </button>
       <ng-template #noteMenu>
         <div class="note-pop">
@@ -51,16 +51,16 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
       <button class="tb txt" (click)="actions.exportSql()" matTooltip="SQL for the selected tables">SQL</button>
 
       <button class="tb" (click)="duplicate()" matTooltip="Duplicate table" [disabled]="!store.canEdit()">
-        <dbd-icon name="content_copy" />
+        <dd-icon name="content_copy" />
       </button>
 
       <span class="sep"></span>
 
       <button type="button" class="tb details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-        <dbd-icon name="tune" />
+        <dd-icon name="tune" />
       </button>
       <button class="tb del" (click)="remove()" matTooltip="Delete table" [disabled]="!store.canEdit()">
-        <dbd-icon name="delete" />
+        <dd-icon name="delete" />
       </button>
     </div>
   `,

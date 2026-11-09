@@ -20,7 +20,7 @@ export interface SelectOption<T = string> {
  * use (e.g. column type in a table row).
  */
 @Component({
-  selector: 'dbd-select',
+  selector: 'dd-select',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent, PopoverTriggerDirective],
@@ -45,25 +45,25 @@ export interface SelectOption<T = string> {
       <div class="wrap">
         <button
           type="button"
-          class="dbd-select-trigger"
+          class="dd-select-trigger"
           [class.compact]="compact()"
-          [dbdPopoverTrigger]="menu"
+          [ddPopoverTrigger]="menu"
           placement="below-start"
           [disabled]="disabled()"
         >
           <span class="val" [style.font-family]="selectedFont()">{{ selectedLabel() }}</span>
-          <dbd-icon name="arrow_drop_down" class="chev" />
+          <dd-icon name="arrow_drop_down" class="chev" />
         </button>
         @if (selectedOption()?.renamable && !disabled()) {
           <button type="button" class="pen outer" aria-label="Rename" title="Rename"
             (click)="startInlineRename()">
-            <dbd-icon name="edit" />
+            <dd-icon name="edit" />
           </button>
         }
       </div>
     }
     <ng-template #menu let-close>
-      <div class="dbd-menu dbd-select-menu">
+      <div class="dd-menu dd-select-menu">
         @for (opt of options(); track opt.value; let i = $index) {
           @if (opt.group && opt.group !== options()[i - 1]?.group) {
             <div class="group">{{ opt.group }}</div>
@@ -83,7 +83,7 @@ export interface SelectOption<T = string> {
             <div class="row">
               <button
                 type="button"
-                class="dbd-menu-item"
+                class="dd-menu-item"
                 [class.on]="opt.value === value()"
                 [style.font-family]="opt.font"
                 (click)="pick(opt.value); close()"
@@ -93,12 +93,12 @@ export interface SelectOption<T = string> {
               @if (opt.renamable) {
                 <button type="button" class="pen" aria-label="Rename" title="Rename"
                   (click)="startRename(opt.value, $event)">
-                  <dbd-icon name="edit" />
+                  <dd-icon name="edit" />
                 </button>
                 @if (removable()) {
                   <button type="button" class="pen del" aria-label="Delete" title="Delete"
                     (click)="$event.stopPropagation(); remove.emit(opt.value)">
-                    <dbd-icon name="delete" />
+                    <dd-icon name="delete" />
                   </button>
                 }
               }
@@ -113,7 +113,7 @@ export interface SelectOption<T = string> {
       :host {
         display: block;
       }
-      .dbd-select-trigger {
+      .dd-select-trigger {
         display: inline-flex;
         align-items: center;
         justify-content: space-between;
@@ -123,26 +123,26 @@ export interface SelectOption<T = string> {
         height: 34px;
         padding: 0 6px 0 10px;
         font: inherit;
-        font-family: var(--dbd-font);
+        font-family: var(--dd-font);
         font-size: 13px;
-        color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        color: var(--dd-text);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         cursor: pointer;
         transition: border-color 0.12s ease;
       }
-      .dbd-select-trigger.compact {
+      .dd-select-trigger.compact {
         height: 24px;
-        font-family: var(--dbd-mono);
+        font-family: var(--dd-mono);
         font-size: 11px;
         padding: 0 3px 0 7px;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
-      .dbd-select-trigger:hover:not(:disabled) {
-        border-color: var(--dbd-border-strong);
+      .dd-select-trigger:hover:not(:disabled) {
+        border-color: var(--dd-border-strong);
       }
-      .dbd-select-trigger:disabled {
+      .dd-select-trigger:disabled {
         opacity: 0.55;
         cursor: default;
       }
@@ -157,18 +157,18 @@ export interface SelectOption<T = string> {
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .group:not(:first-child) {
         margin-top: 4px;
-        border-top: 1px solid var(--dbd-border);
+        border-top: 1px solid var(--dd-border);
         padding-top: 8px;
       }
       .row {
         display: flex;
         align-items: center;
       }
-      .row .dbd-menu-item {
+      .row .dd-menu-item {
         flex: 1 1 auto;
         min-width: 0;
       }
@@ -177,16 +177,16 @@ export interface SelectOption<T = string> {
         display: inline-flex;
         border: none;
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         padding: 4px;
         border-radius: 6px;
         cursor: pointer;
-        --dbd-icon-size: 14px;
+        --dd-icon-size: 14px;
       }
       .pen.del:hover { color: #ef6b6b; }
       .pen:hover {
-        background: var(--dbd-surface-2);
-        color: var(--dbd-text);
+        background: var(--dd-surface-2);
+        color: var(--dd-text);
       }
       .rename {
         box-sizing: border-box;
@@ -196,10 +196,10 @@ export interface SelectOption<T = string> {
         padding: 0 8px;
         font: inherit;
         font-size: 13px;
-        color: var(--dbd-text);
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-primary);
-        border-radius: var(--dbd-radius-sm);
+        color: var(--dd-text);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-primary);
+        border-radius: var(--dd-radius-sm);
         outline: none;
       }
       .wrap {
@@ -207,7 +207,7 @@ export interface SelectOption<T = string> {
         align-items: center;
         gap: 2px;
       }
-      .wrap .dbd-select-trigger {
+      .wrap .dd-select-trigger {
         flex: 1 1 auto;
         min-width: 0;
       }
@@ -219,8 +219,8 @@ export interface SelectOption<T = string> {
         margin: 0;
       }
       .chev {
-        --dbd-icon-size: 16px;
-        color: var(--dbd-text-muted);
+        --dd-icon-size: 16px;
+        color: var(--dd-text-muted);
       }
     `,
   ],
@@ -260,7 +260,7 @@ export class SelectComponent<T = string> implements ControlValueAccessor {
     this.editing.set(v);
     // Focus the field once it renders.
     setTimeout(() => {
-      const el = document.querySelector<HTMLInputElement>('.dbd-select-menu input.rename');
+      const el = document.querySelector<HTMLInputElement>('.dd-select-menu input.rename');
       el?.focus();
       el?.select();
     });

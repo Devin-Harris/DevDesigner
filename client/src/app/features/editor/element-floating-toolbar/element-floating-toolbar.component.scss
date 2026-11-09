@@ -9,10 +9,10 @@
   align-items: center;
   gap: 2px;
   padding: 4px 5px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 13px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
 }
 
 .lang {
@@ -29,15 +29,15 @@
   height: 32px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   border-radius: 8px;
   cursor: pointer;
-  --dbd-icon-size: 20px;
+  --dd-icon-size: 20px;
 
   &.sm {
     width: 28px;
     height: 28px;
-    --dbd-icon-size: 18px;
+    --dd-icon-size: 18px;
   }
 
   // Icon + label (the code language picker).
@@ -48,19 +48,19 @@
   }
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
-    color: var(--dbd-text);
+    background: var(--dd-surface-2);
+    color: var(--dd-text);
   }
   &:disabled {
     opacity: 0.4;
     cursor: default;
   }
   &.on {
-    color: var(--dbd-primary);
-    background: var(--dbd-primary-weak);
+    color: var(--dd-primary);
+    background: var(--dd-primary-weak);
   }
   &.del:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
 }
 
@@ -69,9 +69,9 @@
   max-width: 132px;
   gap: 2px;
   padding: 0 4px 0 8px;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font-size: 13px;
-  --dbd-icon-size: 16px;
+  --dd-icon-size: 16px;
   .pick-label {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -81,7 +81,7 @@
 .size-group {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--dbd-border);
+  border: 1px solid var(--dd-border);
   border-radius: 8px;
   margin: 0 2px;
 }
@@ -89,7 +89,7 @@
   min-width: 40px;
   height: 28px;
   padding: 0 4px;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -99,9 +99,9 @@
   margin: 2px 8px 6px;
   padding: 4px 6px;
   font: inherit;
-  color: var(--dbd-text);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
+  color: var(--dd-text);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
   border-radius: 6px;
 }
 
@@ -109,7 +109,7 @@
   width: 1px;
   height: 22px;
   margin: 0 3px;
-  background: var(--dbd-border);
+  background: var(--dd-border);
 }
 
 .swatch {
@@ -117,18 +117,18 @@
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  border: 1px solid var(--dbd-border-strong);
+  border: 1px solid var(--dd-border-strong);
 
   &.ring {
-    box-shadow: inset 0 0 0 2px var(--dbd-surface);
+    box-shadow: inset 0 0 0 2px var(--dd-surface);
   }
 
   &.none {
     background-image: linear-gradient(
       45deg,
       transparent 45%,
-      var(--dbd-danger) 45%,
-      var(--dbd-danger) 55%,
+      var(--dd-danger) 45%,
+      var(--dd-danger) 55%,
       transparent 55%
     );
   }
@@ -138,10 +138,10 @@
 .picker {
   display: block;
   padding: 8px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius);
-  box-shadow: var(--dbd-shadow-3);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: var(--dd-shadow-3);
 
   &.col {
     display: flex;
@@ -155,21 +155,21 @@
   width: 26px;
   height: 26px;
   border-radius: 6px;
-  border: 1px solid var(--dbd-border);
+  border: 1px solid var(--dd-border);
   cursor: pointer;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--dbd-text-muted);
-  --dbd-icon-size: 16px;
+  color: var(--dd-text-muted);
+  --dd-icon-size: 16px;
 
   &.none {
     background-image: linear-gradient(
       45deg,
       transparent 45%,
-      var(--dbd-danger) 45%,
-      var(--dbd-danger) 55%,
+      var(--dd-danger) 45%,
+      var(--dd-danger) 55%,
       transparent 55%
     );
   }
@@ -187,9 +187,9 @@
   }
 
   &.active {
-    outline: 2px solid var(--dbd-primary);
+    outline: 2px solid var(--dd-primary);
     outline-offset: 1px;
-    border-color: var(--dbd-primary);
+    border-color: var(--dd-primary);
   }
 }
 
@@ -220,12 +220,12 @@
 .head-label {
   width: 40px;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .opacity-row {
-  --dbd-icon-size: 18px;
-  color: var(--dbd-text-muted);
+  --dd-icon-size: 18px;
+  color: var(--dd-text-muted);
 }
 .opacity-row input {
   flex: 1;
@@ -237,10 +237,10 @@
   padding: 5px 8px;
   font: inherit;
   font-size: 12px;
-  color: var(--dbd-text);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
 }
 
 .morph-tag-hint {
@@ -248,7 +248,7 @@
   max-width: 180px;
   font-size: 11px;
   line-height: 1.35;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .menu-head {
@@ -264,10 +264,10 @@
     box-sizing: border-box;
     resize: vertical;
     padding: 6px 8px;
-    border: 1px solid var(--dbd-border);
+    border: 1px solid var(--dd-border);
     border-radius: 7px;
-    background: var(--dbd-surface);
-    color: var(--dbd-text);
+    background: var(--dd-surface);
+    color: var(--dd-text);
     font: inherit;
     font-size: 13px;
   }
@@ -278,7 +278,7 @@
   gap: 8px;
   padding: 2px 10px 8px;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 
   label {
     display: flex;
@@ -290,10 +290,10 @@
     width: 56px;
     height: 26px;
     padding: 0 6px;
-    border: 1px solid var(--dbd-border);
+    border: 1px solid var(--dd-border);
     border-radius: 6px;
-    background: var(--dbd-surface);
-    color: var(--dbd-text);
+    background: var(--dd-surface);
+    color: var(--dd-text);
     font: inherit;
   }
 }
@@ -302,10 +302,10 @@
   display: flex;
   gap: 4px;
   padding: 8px;
-  background: var(--dbd-surface);
-  border: 1px solid var(--dbd-border);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
   border-radius: 12px;
-  box-shadow: var(--dbd-shadow-2);
+  box-shadow: var(--dd-shadow-2);
 }
 
 .ratio {
@@ -320,18 +320,18 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 
   &:hover {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
 
   &.on {
-    background: var(--dbd-primary-weak);
-    color: var(--dbd-primary);
+    background: var(--dd-primary-weak);
+    color: var(--dd-primary);
     font-weight: 600;
   }
 }
@@ -342,7 +342,7 @@
 }
 
 .add-deck {
-  color: var(--dbd-primary);
+  color: var(--dd-primary);
   font-weight: 600;
 }
 
@@ -350,7 +350,7 @@
   margin-left: auto;
   padding-left: 12px;
   font-size: 11px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .add-deck {
@@ -362,5 +362,5 @@
   gap: 1px;
   padding: 2px;
   border-radius: 8px;
-  background: var(--dbd-surface-2);
+  background: var(--dd-surface-2);
 }

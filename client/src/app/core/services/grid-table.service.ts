@@ -20,7 +20,7 @@ import {
   parseGrid,
   serializeGrid,
 } from '../../features/editor/canvas/helpers/grid-table.helper';
-import type { GridBorders } from '@dbdesigner/shared';
+import type { GridBorders } from '@devdesigner/shared';
 import { gridRowNeeds } from '../../features/editor/canvas/helpers/shape-render.helper';
 
 export interface GridCellRef {

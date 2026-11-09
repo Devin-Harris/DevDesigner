@@ -1,4 +1,4 @@
-import type { CanvasElementModel, SchemaModel, TableModel } from '@dbdesigner/shared';
+import type { CanvasElementModel, SchemaModel, TableModel } from '@devdesigner/shared';
 import { Batch } from './batch';
 import { planUndo, schemaChanged } from './journal';
 import { renderSvg } from './render';

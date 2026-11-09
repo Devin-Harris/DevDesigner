@@ -1,5 +1,5 @@
 import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { CreateSequenceDiagramDto as ICreateSequenceDiagramDto } from '@dbdesigner/shared';
+import type { CreateSequenceDiagramDto as ICreateSequenceDiagramDto } from '@devdesigner/shared';
 
 /** Body for POST /projects/:projectId/sequence-diagrams. */
 export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {

@@ -12,7 +12,7 @@ export class ProjectsOverlayService {
   open(): void {
     if (this.ref) return;
     this.ref = this.dialog.open(ProjectsOverlayComponent, {
-      panelClass: 'dbd-projects-dialog',
+      panelClass: 'dd-projects-dialog',
       width: '640px',
       maxWidth: '94vw',
       autoFocus: false,

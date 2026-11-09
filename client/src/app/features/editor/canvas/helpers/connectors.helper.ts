@@ -1,4 +1,4 @@
-import type { RelationshipModel, TableModel } from '@dbdesigner/shared';
+import type { RelationshipModel, TableModel } from '@devdesigner/shared';
 import { OBSTACLE_GAP, OBSTACLE_SEARCH_MARGIN } from '../constants/canvas.constants';
 import type { Box, Point, Side } from '../models/geometry.model';
 import type { Connector, RouteSegment } from '../models/connector.model';
@@ -24,7 +24,7 @@ import { cleanElbow, routeOrthogonal, routeThroughWaypoints } from './routing.he
 import { buildConnectorPath, verticalSegments } from './svg-path.helper';
 
 function markerFor(kind: 'one' | 'many'): string {
-  return kind === 'many' ? 'url(#dbd-many)' : 'url(#dbd-one)';
+  return kind === 'many' ? 'url(#dd-many)' : 'url(#dd-one)';
 }
 
 interface Resolved {

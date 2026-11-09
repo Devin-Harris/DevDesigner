@@ -8,7 +8,7 @@ import type {
   StrokeStyle,
   TextAlign,
   VerticalAlign,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 
 /**

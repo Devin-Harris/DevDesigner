@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type { SequenceMessageModel } from '@dbdesigner/shared';
+import type { SequenceMessageModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { SequenceDiagramEntity } from './sequence-diagram.entity';
 

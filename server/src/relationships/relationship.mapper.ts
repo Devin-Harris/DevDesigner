@@ -1,4 +1,4 @@
-import type { PointModel, RelationshipModel } from '@dbdesigner/shared';
+import type { PointModel, RelationshipModel } from '@devdesigner/shared';
 import { RelationshipEntity } from './relationship.entity';
 
 /** Map a Relationship entity to the shared RelationshipModel. */

@@ -18,7 +18,7 @@
 }
 
 .marker-line {
-  stroke: var(--dbd-connector);
+  stroke: var(--dd-connector);
   stroke-width: 1.5;
 }
 
@@ -32,32 +32,32 @@
 
 .edge {
   fill: none;
-  stroke: var(--dbd-connector);
+  stroke: var(--dd-connector);
   stroke-width: 1.75;
   pointer-events: none;
   transition: stroke 0.12s ease;
 
   &.selected {
-    stroke: var(--dbd-connector-selected);
+    stroke: var(--dd-connector-selected);
     stroke-width: 2.5;
   }
 }
 
 .endpoint {
-  fill: var(--dbd-surface);
-  stroke: var(--dbd-connector-selected);
+  fill: var(--dd-surface);
+  stroke: var(--dd-connector-selected);
   stroke-width: 2;
   pointer-events: all;
   cursor: grab;
 
   &:hover {
-    fill: var(--dbd-primary-weak);
+    fill: var(--dd-primary-weak);
   }
 }
 
 .seg {
-  fill: var(--dbd-surface);
-  stroke: var(--dbd-connector-selected);
+  fill: var(--dd-surface);
+  stroke: var(--dd-connector-selected);
   stroke-width: 2;
   pointer-events: all;
   opacity: 0.85;
@@ -76,15 +76,15 @@
 }
 
 .snap {
-  fill: var(--dbd-primary-weak);
-  stroke: var(--dbd-connector-selected);
+  fill: var(--dd-primary-weak);
+  stroke: var(--dd-connector-selected);
   stroke-width: 2;
   pointer-events: none;
 }
 
 .temp {
   fill: none;
-  stroke: var(--dbd-connector-selected);
+  stroke: var(--dd-connector-selected);
   stroke-width: 1.75;
   stroke-dasharray: 5 4;
   pointer-events: none;

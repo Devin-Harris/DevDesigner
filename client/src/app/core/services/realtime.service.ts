@@ -10,7 +10,7 @@ import {
   type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
 import { ProjectStore } from '../../stores/project.store';
 import { LaserService } from './laser.service';

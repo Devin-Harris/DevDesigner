@@ -3,7 +3,7 @@ import {
   PROJECT_TYPES,
   type UpdateProjectDto as IUpdateProjectDto,
   type ProjectType,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** Body for PATCH /projects/:id. All fields optional; only what changed is sent. */
 export class UpdateProjectDto implements IUpdateProjectDto {

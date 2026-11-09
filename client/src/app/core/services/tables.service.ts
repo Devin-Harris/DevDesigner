@@ -5,7 +5,7 @@ import type {
   TableModel,
   UpdatePositionDto,
   UpdateTableDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular table endpoints (BUILD_INSTRUCTIONS.md section 5). */

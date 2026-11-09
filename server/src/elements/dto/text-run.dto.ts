@@ -1,5 +1,5 @@
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import type { TextRun } from '@dbdesigner/shared';
+import type { TextRun } from '@devdesigner/shared';
 
 /** A styled run of rich text; the runs of an element concatenate to its `text`. */
 export class TextRunDto implements TextRun {

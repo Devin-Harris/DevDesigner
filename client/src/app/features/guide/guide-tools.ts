@@ -646,7 +646,7 @@ export const GUIDE_TOOLS: GuideTool[] = [
     tone: 'blue',
     tagline: 'Images, PDFs, SQL and portable project files.',
     intro:
-      'Everything on the board can leave as an image, a PDF or SQL, and whole projects (or just a selection) travel as a .dbdesigner.json file you can import anywhere. The buttons on this sandbox’s bar run the same actions as Export in the main menu.',
+      'Everything on the board can leave as an image, a PDF or SQL, and whole projects (or just a selection) travel as a .devdesigner.json file you can import anywhere. The buttons on this sandbox’s bar run the same actions as Export in the main menu.',
     tryIt: [
       'Press PNG on the sandbox bar to export the canvas.',
       'Select two shapes and press Selection.',

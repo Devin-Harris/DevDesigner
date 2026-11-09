@@ -1,4 +1,4 @@
-import type { CanvasElementModel, SchemaModel, SequenceDiagramModel, TableModel } from '@dbdesigner/shared';
+import type { CanvasElementModel, SchemaModel, SequenceDiagramModel, TableModel } from '@devdesigner/shared';
 import {
   arrangeStack,
   buildUnits,

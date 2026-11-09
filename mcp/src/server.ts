@@ -3,11 +3,11 @@
 // server per request, token from the Authorization header).
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { DbDesignerApi } from './api';
+import type { DevDesignerApi } from './api';
 import { registerResourcesAndPrompts, registerTools } from './tools';
 
 export const INSTRUCTIONS = [
-  "Tools to create and edit DBDesigner diagrams (database schemas, sequence diagrams, free drawing).",
+  "Tools to create and edit DevDesigner diagrams (database schemas, sequence diagrams, free drawing).",
   "Workflow: list_projects / create_project, then get_project_summary to see what exists.",
   "Prefer apply_diagram_spec to build a whole diagram in one call; positions are chosen automatically.",
   "Reference tables, columns and participants by NAME; ids are returned for follow-up calls.",
@@ -26,9 +26,9 @@ export const INSTRUCTIONS = [
   "Mistakes: undo_last_change reverts the most recent change(s) this session made (list_changes shows them)."
 ].join('\n');
 
-export function createServer(api: DbDesignerApi): McpServer {
+export function createServer(api: DevDesignerApi): McpServer {
   const server = new McpServer(
-    { name: 'dbdesigner', version: '0.1.0' },
+    { name: 'devdesigner', version: '0.1.0' },
     { instructions: INSTRUCTIONS },
   );
   registerTools(server, api);

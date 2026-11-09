@@ -19,7 +19,7 @@ import {
   isLightFill,
   isSwatchColor,
   themeColorCss,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';

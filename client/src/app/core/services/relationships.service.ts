@@ -4,7 +4,7 @@ import type {
   CreateRelationshipDto,
   RelationshipModel,
   UpdateRelationshipDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular relationship endpoints (BUILD_INSTRUCTIONS.md section 5). */

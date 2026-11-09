@@ -2,22 +2,22 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--dbd-surface);
+  background: var(--dd-surface);
   overflow: auto;
 }
 
 .panel {
-  padding: var(--dbd-space-3) var(--dbd-space-4) var(--dbd-space-4);
+  padding: var(--dd-space-3) var(--dd-space-4) var(--dd-space-4);
 }
 
 .tabs {
   display: flex;
   gap: 2px;
-  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  margin: var(--dd-space-3) 0 var(--dd-space-2);
   padding: 3px;
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
 }
 
 .tab {
@@ -25,46 +25,46 @@
   padding: 5px 8px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
   font: inherit;
   font-size: 11.5px;
   font-weight: 600;
-  border-radius: calc(var(--dbd-radius-sm) - 2px);
+  border-radius: calc(var(--dd-radius-sm) - 2px);
   cursor: pointer;
 
   &:hover:not(.on) {
-    color: var(--dbd-text);
+    color: var(--dd-text);
   }
   &.on {
-    background: var(--dbd-surface);
-    color: var(--dbd-text);
-    box-shadow: var(--dbd-shadow-1);
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    box-shadow: var(--dd-shadow-1);
   }
 }
 
 .empty-hint {
-  padding: var(--dbd-space-3) 0;
+  padding: var(--dd-space-3) 0;
   font-size: 12px;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .idx-cols {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dbd-space-2) var(--dbd-space-3);
-  margin: var(--dbd-space-1) 0;
+  gap: var(--dd-space-2) var(--dd-space-3);
+  margin: var(--dd-space-1) 0;
 }
 
 .sql {
   margin: 0;
-  padding: var(--dbd-space-3);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
-  font-family: var(--dbd-font-mono, ui-monospace, monospace);
+  padding: var(--dd-space-3);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
+  font-family: var(--dd-font-mono, ui-monospace, monospace);
   font-size: 11.5px;
   line-height: 1.5;
-  color: var(--dbd-text);
+  color: var(--dd-text);
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;
@@ -73,8 +73,8 @@
 .panel-head {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
-  margin-bottom: var(--dbd-space-2);
+  gap: var(--dd-space-2);
+  margin-bottom: var(--dd-space-2);
 }
 
 .dot {
@@ -95,7 +95,7 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .panel-title,
@@ -104,15 +104,15 @@
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .field-label {
-  margin: var(--dbd-space-3) 0 7px;
+  margin: var(--dd-space-3) 0 7px;
 }
 
 .tname {
-  font-family: var(--dbd-mono);
+  font-family: var(--dd-mono);
   font-size: 14px;
   font-weight: 600;
   overflow: hidden;
@@ -128,16 +128,16 @@
   height: 30px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text-muted);
+  border-radius: var(--dd-radius-sm);
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   &.del:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
   &:disabled {
     opacity: 0.4;
@@ -150,25 +150,25 @@
   box-sizing: border-box;
   resize: vertical;
   font: inherit;
-  font-family: var(--dbd-font);
+  font-family: var(--dd-font);
   font-size: 13px;
-  color: var(--dbd-text);
-  background: var(--dbd-surface-2);
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text);
+  background: var(--dd-surface-2);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
   padding: 8px 10px;
   outline: none;
 
   &:focus {
-    border-color: var(--dbd-primary);
+    border-color: var(--dd-primary);
   }
 }
 
 .section-head {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
-  margin: var(--dbd-space-4) 0 var(--dbd-space-2);
+  gap: var(--dd-space-2);
+  margin: var(--dd-space-4) 0 var(--dd-space-2);
 }
 
 .panel-title {
@@ -181,18 +181,18 @@
   gap: 5px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--dbd-border-strong);
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  border-radius: var(--dbd-radius-sm);
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  border-radius: var(--dd-radius-sm);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  --dbd-icon-size: 16px;
+  --dd-icon-size: 16px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   &:disabled {
     opacity: 0.5;
@@ -202,7 +202,7 @@
 
 .swatches {
   display: flex;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
   flex-wrap: wrap;
 }
 
@@ -210,22 +210,22 @@
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  border: 1px solid var(--dbd-border-strong);
+  border: 1px solid var(--dd-border-strong);
   cursor: pointer;
 
   &.none {
     background-image: linear-gradient(
       45deg,
       transparent 45%,
-      var(--dbd-danger) 45%,
-      var(--dbd-danger) 55%,
+      var(--dd-danger) 45%,
+      var(--dd-danger) 55%,
       transparent 55%
     );
   }
   &.active {
     box-shadow:
-      0 0 0 2px var(--dbd-surface),
-      0 0 0 3.5px var(--dbd-primary);
+      0 0 0 2px var(--dd-surface),
+      0 0 0 3.5px var(--dd-primary);
   }
   &:disabled {
     opacity: 0.5;
@@ -236,28 +236,28 @@
 .col-list {
   display: flex;
   flex-direction: column;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 }
 
 .col-card {
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius);
-  padding: var(--dbd-space-2);
-  background: var(--dbd-surface-2);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  padding: var(--dd-space-2);
+  background: var(--dd-surface-2);
   display: flex;
   flex-direction: column;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 }
 
 .cdk-drag-preview .col-card,
 .col-card.cdk-drag-preview {
-  box-shadow: var(--dbd-shadow-3);
+  box-shadow: var(--dd-shadow-3);
 }
 
 .col-row {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 }
 
 .grow {
@@ -273,30 +273,30 @@
 .drag {
   cursor: move;
   opacity: 0.5;
-  --dbd-icon-size: 18px;
-  color: var(--dbd-text-muted);
+  --dd-icon-size: 18px;
+  color: var(--dd-text-muted);
 }
 
 .col-flags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dbd-space-2) var(--dbd-space-3);
+  gap: var(--dd-space-2) var(--dd-space-3);
 }
 
 // Compact constraint toggles (PK / NN / UQ / AI), matching the table node glyph
 // chips — denser and more on-brand than labeled checkboxes.
 .flag-chips {
   display: flex;
-  gap: var(--dbd-space-1);
+  gap: var(--dd-space-1);
 }
 
 .flag {
   flex: 1;
   padding: 4px 0;
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
-  background: var(--dbd-surface);
-  color: var(--dbd-text-muted);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
   font: inherit;
   font-size: 10.5px;
   font-weight: 700;
@@ -308,8 +308,8 @@
     border-color 0.12s ease;
 
   &:hover:not(:disabled) {
-    color: var(--dbd-text);
-    border-color: var(--dbd-border-strong);
+    color: var(--dd-text);
+    border-color: var(--dd-border-strong);
   }
 
   &.on {
@@ -317,11 +317,11 @@
     border-color: transparent;
   }
   &.pk.on {
-    background: var(--dbd-amber, #f5a623);
+    background: var(--dd-amber, #f5a623);
     color: #1a1205;
   }
   &.nn.on {
-    background: var(--dbd-primary);
+    background: var(--dd-primary);
   }
   &.uq.on {
     background: #7c5cff;

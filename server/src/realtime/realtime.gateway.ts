@@ -11,7 +11,7 @@ import {
   type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {

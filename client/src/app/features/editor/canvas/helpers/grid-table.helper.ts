@@ -1,4 +1,4 @@
-// The grid table data format lives in @dbdesigner/shared (the MCP server writes it
+// The grid table data format lives in @devdesigner/shared (the MCP server writes it
 // too); re-exported here under the short names the editor code uses.
 export {
   GRID_MIN_CELL,
@@ -23,10 +23,10 @@ export {
   gridExpandToMerges as expandToMerges,
   gridMergeBlock as mergeBlock,
   gridUnmergeBlock as unmergeBlock,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 export type {
   GridData,
   GridEdit,
   GridCellStyle as CellStyle,
   GridCellMerge as CellMerge,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';

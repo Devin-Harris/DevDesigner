@@ -8,7 +8,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import type { ProjectGraphResponse, ShareLinkResponse } from '@dbdesigner/shared';
+import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
 import { SharingService } from './sharing.service';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';

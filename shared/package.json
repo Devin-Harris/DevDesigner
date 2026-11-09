@@ -1,5 +1,5 @@
 {
-  "name": "@dbdesigner/shared",
+  "name": "@devdesigner/shared",
   "version": "0.1.0",
   "private": true,
   "description": "Environment-agnostic schema models, DTO interfaces, enums, SQL generator, and validation shared by client and server.",

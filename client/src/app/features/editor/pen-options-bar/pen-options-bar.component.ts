@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Injectable, computed, inject, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PICKER_SWATCHES, themeSwatchCss } from '@dbdesigner/shared';
+import { PICKER_SWATCHES, themeSwatchCss } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ProjectStore } from '../../../stores/project.store';
 
@@ -50,7 +50,7 @@ const WIDTHS = [
       matTooltip="Highlighter (wide, 50% opacity)"
       aria-label="Highlighter"
     >
-      <dbd-icon name="highlight" />
+      <dd-icon name="highlight" />
     </button>
   `,
   styles: `
@@ -61,10 +61,10 @@ const WIDTHS = [
       align-items: center;
       gap: 4px;
       padding: 6px;
-      background: var(--dbd-surface);
-      border: 1px solid var(--dbd-border);
+      background: var(--dd-surface);
+      border: 1px solid var(--dd-border);
       border-radius: 12px;
-      box-shadow: var(--dbd-shadow-2);
+      box-shadow: var(--dd-shadow-2);
     }
     .sw {
       width: 22px;
@@ -77,14 +77,14 @@ const WIDTHS = [
       cursor: pointer;
     }
     .sw.on {
-      outline: 2px solid var(--dbd-primary);
+      outline: 2px solid var(--dd-primary);
       outline-offset: 2px;
     }
     .sep {
       width: 1px;
       height: 22px;
       margin: 0 4px;
-      background: var(--dbd-border);
+      background: var(--dd-border);
     }
     .ib {
       width: 34px;
@@ -95,17 +95,17 @@ const WIDTHS = [
       border: none;
       border-radius: 8px;
       background: transparent;
-      color: var(--dbd-text-muted);
+      color: var(--dd-text-muted);
       cursor: pointer;
-      --dbd-icon-size: 18px;
+      --dd-icon-size: 18px;
     }
     .ib:hover {
-      background: var(--dbd-surface-2);
-      color: var(--dbd-text);
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
     }
     .ib.on {
-      background: var(--dbd-primary-weak);
-      color: var(--dbd-primary);
+      background: var(--dd-primary-weak);
+      color: var(--dd-primary);
     }
     .dot {
       border-radius: 50%;

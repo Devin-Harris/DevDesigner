@@ -1,5 +1,5 @@
 {
-  "name": "dbdesigner",
+  "name": "devdesigner",
   "version": "0.1.0",
   "private": true,
   "description": "Interactive database schema diagramming app (Angular + NestJS + shared TS package).",

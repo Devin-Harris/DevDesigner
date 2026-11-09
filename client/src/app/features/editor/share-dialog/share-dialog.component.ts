@@ -5,7 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
-import type { ShareAccessLevel, ShareLinkResponse } from '@dbdesigner/shared';
+import type { ShareAccessLevel, ShareLinkResponse } from '@devdesigner/shared';
 import { ShareLinksService } from '../../../core/services/share-links.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/segmented/segmented.component';

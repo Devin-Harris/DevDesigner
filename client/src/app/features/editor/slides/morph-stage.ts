@@ -16,13 +16,13 @@ import {
   type SequenceDiagramModel,
   type SequenceMessageModel,
   type TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../export/diagram-svg.helper';
 import { codeDiffActive } from '../canvas/helpers/shape-render.helper';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const GRID_ID = 'dbd-export-grid';
+const GRID_ID = 'dd-export-grid';
 
 /** Longest text (in characters) that is morphed glyph by glyph; longer just cross-fades. */
 const MAX_CHAR_MORPH = 360;
@@ -1098,7 +1098,7 @@ export class MorphStage {
     });
 
     // The card clip follows the live (growing) bounds; everything text-like sits inside it.
-    const clipId = `dbd-morph-clip-${(this.codeSeq += 1)}`;
+    const clipId = `dd-morph-clip-${(this.codeSeq += 1)}`;
     const clipPath = document.createElementNS(SVG_NS, 'clipPath');
     clipPath.setAttribute('id', clipId);
     const clip = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
@@ -1259,7 +1259,7 @@ export class MorphStage {
     const da = parseGrid(p.a.element!.text);
     const db = parseGrid(p.b.element!.text);
 
-    const clipId = `dbd-morph-clip-${(this.codeSeq += 1)}`;
+    const clipId = `dd-morph-clip-${(this.codeSeq += 1)}`;
     const clipPath = document.createElementNS(SVG_NS, 'clipPath');
     clipPath.setAttribute('id', clipId);
     const clip = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
@@ -1678,7 +1678,7 @@ export class MorphStage {
         // Grid/code cards clip by `grid-clip-<id>` / `code-clip-<id>`; the hidden measure
         // copies (and the editor canvas) hold the same ids, and url(#…) picks the first,
         // so the live card would be clipped by a stale rect (lines and fills vanish).
-        .body.replace(/\b(grid|code)-clip-/g, 'dbd-morph-live-$1-clip-');
+        .body.replace(/\b(grid|code)-clip-/g, 'dd-morph-live-$1-clip-');
     } else {
       this.live.innerHTML = '';
     }

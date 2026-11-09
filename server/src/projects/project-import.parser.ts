@@ -30,7 +30,7 @@ import {
   STROKE_STYLES,
   TEXT_ALIGNS,
   VERTICAL_ALIGNS,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -49,7 +49,7 @@ import type {
   TableModel,
   TextRun,
   ProjectExportImage,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** A validated, normalised project file ready to be inserted. */
 export interface ParsedProjectImport {
@@ -518,7 +518,7 @@ export function parseProjectExport(raw: unknown): ParsedProjectImport {
   // below. A marker that is present but wrong means some other kind of file.
   const format = file['format'];
   if (format !== undefined && format !== null && format !== PROJECT_EXPORT_FORMAT) {
-    fail('file', 'is not a DBDesigner project export');
+    fail('file', 'is not a DevDesigner project export');
   }
   const version = file['version'] ?? 1;
   if (typeof version !== 'number' || version < 1) {

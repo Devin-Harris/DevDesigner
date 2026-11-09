@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { generateSql } from '@dbdesigner/shared';
-import type { SqlDialect } from '@dbdesigner/shared';
+import { generateSql } from '@devdesigner/shared';
+import type { SqlDialect } from '@devdesigner/shared';
 import { ProjectsService } from '../projects/projects.service';
 
 /** Dialects the generator currently supports. Grows as generators are added. */

@@ -13,7 +13,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { BatchSection } from './batch';
 
 export interface JournalEntry {

@@ -8,7 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import type { IndexModel } from '@dbdesigner/shared';
+import type { IndexModel } from '@devdesigner/shared';
 import { IndexesService } from './indexes.service';
 import { CreateIndexDto } from './dto/create-index.dto';
 import { UpdateIndexDto } from './dto/update-index.dto';

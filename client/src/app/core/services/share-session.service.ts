@@ -9,7 +9,7 @@ function mintClientId(): string {
   }
 }
 
-const GUEST_ID_KEY = 'dbd.guestId';
+const GUEST_ID_KEY = 'dd.guestId';
 
 /** A random id for this browser, persisted so its guest projects stay its own. */
 function loadGuestId(): string {

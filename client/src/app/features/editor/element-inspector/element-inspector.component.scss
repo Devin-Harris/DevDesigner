@@ -2,19 +2,19 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--dbd-surface);
+  background: var(--dd-surface);
   overflow: auto;
 }
 
 .panel {
-  padding: var(--dbd-space-3) var(--dbd-space-4) var(--dbd-space-4);
+  padding: var(--dd-space-3) var(--dd-space-4) var(--dd-space-4);
 }
 
 .panel-head {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
-  margin-bottom: var(--dbd-space-3);
+  gap: var(--dd-space-2);
+  margin-bottom: var(--dd-space-3);
 }
 
 .head-text {
@@ -27,11 +27,11 @@
   font-weight: 600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
+  color: var(--dd-text-muted);
 }
 
 .kname {
-  font-family: var(--dbd-display);
+  font-family: var(--dd-display);
   font-size: 16px;
   font-weight: 600;
 }
@@ -44,16 +44,16 @@
   height: 30px;
   border: none;
   background: transparent;
-  color: var(--dbd-text-muted);
-  border-radius: var(--dbd-radius-sm);
+  color: var(--dd-text-muted);
+  border-radius: var(--dd-radius-sm);
   cursor: pointer;
-  --dbd-icon-size: 18px;
+  --dd-icon-size: 18px;
 
   &:hover:not(:disabled) {
-    background: var(--dbd-surface-2);
+    background: var(--dd-surface-2);
   }
   &.del:hover:not(:disabled) {
-    color: var(--dbd-danger);
+    color: var(--dd-danger);
   }
 }
 
@@ -68,42 +68,42 @@
   font-weight: 600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--dbd-text-muted);
-  margin: var(--dbd-space-3) 0 var(--dbd-space-2);
+  color: var(--dd-text-muted);
+  margin: var(--dd-space-3) 0 var(--dd-space-2);
 }
 
 .swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 }
 
 .swatch {
   width: 24px;
   height: 24px;
-  border-radius: var(--dbd-radius-sm);
-  border: 1px solid var(--dbd-border-strong);
+  border-radius: var(--dd-radius-sm);
+  border: 1px solid var(--dd-border-strong);
   cursor: pointer;
 
   &.none {
     background-image: linear-gradient(
       45deg,
       transparent 45%,
-      var(--dbd-danger) 45%,
-      var(--dbd-danger) 55%,
+      var(--dd-danger) 45%,
+      var(--dd-danger) 55%,
       transparent 55%
     );
   }
   &.active {
     box-shadow:
-      0 0 0 2px var(--dbd-surface),
-      0 0 0 3.5px var(--dbd-primary);
+      0 0 0 2px var(--dd-surface),
+      0 0 0 3.5px var(--dd-primary);
   }
 }
 
 .two-col {
   display: flex;
-  gap: var(--dbd-space-4);
+  gap: var(--dd-space-4);
 }
 
 .seg-row {
@@ -122,23 +122,23 @@
   min-width: 34px;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid var(--dbd-border);
-  background: var(--dbd-surface-2);
-  border-radius: var(--dbd-radius-sm);
-  color: var(--dbd-text-muted);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-surface-2);
+  border-radius: var(--dd-radius-sm);
+  color: var(--dd-text-muted);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    border-color: var(--dbd-border-strong);
+    border-color: var(--dd-border-strong);
   }
   &.on {
-    background: var(--dbd-primary-weak);
-    border-color: color-mix(in srgb, var(--dbd-primary) 40%, transparent);
-    color: var(--dbd-primary);
+    background: var(--dd-primary-weak);
+    border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+    color: var(--dd-primary);
   }
   &:disabled {
     opacity: 0.5;
@@ -164,19 +164,19 @@
 .hatch-btn {
   height: 24px;
   padding: 0 10px;
-  border: 1px solid var(--dbd-border);
-  background: var(--dbd-surface-2);
-  border-radius: var(--dbd-radius-sm);
-  color: var(--dbd-text-muted);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-surface-2);
+  border-radius: var(--dd-radius-sm);
+  color: var(--dd-text-muted);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 
   &.on {
-    background: var(--dbd-primary-weak);
-    color: var(--dbd-primary);
-    border-color: color-mix(in srgb, var(--dbd-primary) 40%, transparent);
+    background: var(--dd-primary-weak);
+    color: var(--dd-primary);
+    border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
   }
   &:disabled {
     opacity: 0.5;
@@ -187,7 +187,7 @@
 .slider-row {
   display: flex;
   align-items: center;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 
   input {
     flex: 1;
@@ -195,15 +195,15 @@
   .val {
     width: 42px;
     text-align: right;
-    font-family: var(--dbd-mono);
+    font-family: var(--dd-mono);
     font-size: 11px;
-    color: var(--dbd-text-muted);
+    color: var(--dd-text-muted);
   }
 }
 
 .arrange {
   display: flex;
-  gap: var(--dbd-space-2);
+  gap: var(--dd-space-2);
 }
 
 .arr-btn {
@@ -213,18 +213,18 @@
   justify-content: center;
   gap: 6px;
   height: 32px;
-  border: 1px solid var(--dbd-border);
-  background: var(--dbd-surface-2);
-  border-radius: var(--dbd-radius-sm);
-  color: var(--dbd-text);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-surface-2);
+  border-radius: var(--dd-radius-sm);
+  color: var(--dd-text);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  --dbd-icon-size: 17px;
+  --dd-icon-size: 17px;
 
   &:hover:not(:disabled) {
-    border-color: var(--dbd-border-strong);
+    border-color: var(--dd-border-strong);
   }
   &:disabled {
     opacity: 0.5;
@@ -237,15 +237,15 @@
   height: 32px;
   margin-bottom: 6px;
   padding: 0 8px;
-  border: 1px solid var(--dbd-border);
-  border-radius: var(--dbd-radius-sm);
-  background: var(--dbd-surface-2);
-  color: var(--dbd-text);
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--dd-surface-2);
+  color: var(--dd-text);
   font-size: 14px;
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid var(--dbd-primary);
+    outline: 2px solid var(--dd-primary);
     outline-offset: 1px;
   }
 }
@@ -254,16 +254,16 @@
   flex: 1;
   min-width: 0;
   height: 28px;
-  padding: 0 var(--dbd-space-2);
-  border: 1px solid var(--dbd-border);
+  padding: 0 var(--dd-space-2);
+  border: 1px solid var(--dd-border);
   border-radius: 6px;
-  background: var(--dbd-surface);
-  color: var(--dbd-text);
-  font-family: var(--dbd-mono);
+  background: var(--dd-surface);
+  color: var(--dd-text);
+  font-family: var(--dd-mono);
   font-size: 12px;
 
   &:focus {
     outline: none;
-    border-color: var(--dbd-accent, currentColor);
+    border-color: var(--dd-accent, currentColor);
   }
 }

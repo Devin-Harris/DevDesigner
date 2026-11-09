@@ -13,14 +13,14 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { codeElementContentSize } from '../../features/editor/canvas/helpers/shape-render.helper';
 
 /** Project ids served by the sandbox backend instead of the API. */
 export const SANDBOX_PREFIX = 'sandbox-';
 export const isSandboxId = (id: string | null | undefined): boolean => !!id && id.startsWith(SANDBOX_PREFIX);
 
-const STORAGE_PREFIX = 'dbd-sandbox:';
+const STORAGE_PREFIX = 'dd-sandbox:';
 
 interface SandboxProject {
   project: ProjectSummary;
@@ -652,7 +652,7 @@ export class SandboxBackendService {
   private exportFile(pid: string): ProjectExportFile {
     const p = this.get(pid)!;
     return {
-      format: 'dbdesigner-project',
+      format: 'devdesigner-project',
       version: 1,
       exportedAt: new Date().toISOString(),
       project: { name: p.project.name, description: null, type: p.project.type },

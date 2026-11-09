@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { morphTagOf, presentationOf, presentationSlides } from '@dbdesigner/shared';
+import { morphTagOf, presentationOf, presentationSlides } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 
 /**

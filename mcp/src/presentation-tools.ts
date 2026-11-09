@@ -59,8 +59,8 @@ import {
   type SlideDirection,
   type SlideItem,
   type SlideSpec,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { Batch } from './batch';
 import { loadImage } from './images';
 import { collectItems, keyOf, placement, type FramePlacement } from './layout';
@@ -408,7 +408,7 @@ export function resolveSlide(schema: SchemaModel, ref: string, presentation?: st
  * filled from `fill` by role (arrays fill same-role placeholders in reading order).
  */
 async function applyLayout(
-  api: DbDesignerApi,
+  api: DevDesignerApi,
   id: string,
   schema: SchemaModel,
   frame: CanvasElementModel,
@@ -483,7 +483,7 @@ function contentBottom(schema: SchemaModel, frame: Frame): number {
  * their presentation's spot. Returns how many items were written.
  */
 export async function applyLayoutDiff(
-  api: DbDesignerApi,
+  api: DevDesignerApi,
   projectId: string,
   before: SchemaModel,
   after: SchemaModel,
@@ -533,7 +533,7 @@ export async function applyLayoutDiff(
   return batch.send(api, projectId);
 }
 
-export function registerPresentationTools(tool: ToolFn, api: DbDesignerApi): void {
+export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): void {
   const graph = (id: string): Promise<ProjectGraphResponse> =>
     api.get<ProjectGraphResponse>(`/projects/${id}`);
 

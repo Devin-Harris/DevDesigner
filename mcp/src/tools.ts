@@ -36,8 +36,8 @@ import {
   type RelationshipModel,
   type SequenceMessageModel,
   type TableModel,
-} from '@dbdesigner/shared';
-import { ApiError, type DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import { ApiError, type DevDesignerApi } from './api';
 import { applySpec } from './apply';
 import { colorArg, describePalette, tableColorArg } from './colors';
 import { loadImage } from './images';
@@ -183,7 +183,7 @@ interface Hints {
 /** Tools whose writes are not recorded for undo (undo itself; new projects). */
 const UNJOURNALED = new Set(['undo_last_change', 'create_project']);
 
-export function registerTools(server: McpServer, api: DbDesignerApi): void {
+export function registerTools(server: McpServer, api: DevDesignerApi): void {
   const journal = new Journal();
   function tool<S extends z.ZodRawShape>(
     name: string,
@@ -1129,10 +1129,10 @@ export function registerTools(server: McpServer, api: DbDesignerApi): void {
 
 // --- Resources & prompts ---------------------------------------------------------
 
-export function registerResourcesAndPrompts(server: McpServer, api: DbDesignerApi): void {
+export function registerResourcesAndPrompts(server: McpServer, api: DevDesignerApi): void {
   server.registerResource(
     'projects',
-    'dbdesigner://projects',
+    'devdesigner://projects',
     { description: 'All projects this token can access.', mimeType: 'application/json' },
     async (uri) => ({
       contents: [
@@ -1147,7 +1147,7 @@ export function registerResourcesAndPrompts(server: McpServer, api: DbDesignerAp
 
   server.registerResource(
     'project-json',
-    new ResourceTemplate('dbdesigner://project/{projectId}/json', { list: undefined }),
+    new ResourceTemplate('devdesigner://project/{projectId}/json', { list: undefined }),
     { description: 'A project in the portable export JSON format.', mimeType: 'application/json' },
     async (uri, vars) => ({
       contents: [
@@ -1162,7 +1162,7 @@ export function registerResourcesAndPrompts(server: McpServer, api: DbDesignerAp
 
   server.registerResource(
     'project-ddl',
-    new ResourceTemplate('dbdesigner://project/{projectId}/ddl', { list: undefined }),
+    new ResourceTemplate('devdesigner://project/{projectId}/ddl', { list: undefined }),
     { description: "The project's schema as SQL DDL (MySQL).", mimeType: 'text/plain' },
     async (uri, vars) => {
       const g = await api.get<ProjectGraphResponse>(`/projects/${String(vars.projectId)}`);

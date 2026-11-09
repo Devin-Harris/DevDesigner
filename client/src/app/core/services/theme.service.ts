@@ -1,14 +1,14 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
-const STORAGE_KEY = 'dbd-theme';
+const STORAGE_KEY = 'dd-theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 /**
  * Light/dark theme state. The chosen mode (light, dark, or following the system)
  * flips a `dark` class on the document root (which swaps the Material color theme
- * and our --dbd tokens) and is remembered in localStorage.
+ * and our --dd tokens) and is remembered in localStorage.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {

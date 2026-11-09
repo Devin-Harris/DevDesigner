@@ -15,7 +15,7 @@ import {
   type PointModel,
   type Rect,
   type SchemaModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /** A sequence diagram's rounded box extends this far past its participants and rows. */
 export const SEQUENCE_BOX_PAD = 26;

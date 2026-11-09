@@ -4,7 +4,7 @@ import {
   presentationOf,
   themeToken,
   type CanvasElementModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { ProjectStore } from '../../../stores/project.store';
 import { addStandardLayouts, STARTER_KINDS } from './standard-layouts';
 

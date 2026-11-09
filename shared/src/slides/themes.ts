@@ -100,7 +100,7 @@ export function themeTokensOnly(theme: SlideTheme): SlideTheme {
  * A downloadable design file: a whole design (its theme and layout set), just a theme,
  * or just a layout set.
  */
-export const THEME_FILE_FORMAT = 'dbdesigner-theme';
+export const THEME_FILE_FORMAT = 'devdesigner-theme';
 export const THEME_FILE_VERSION = 2;
 export type ThemeFilePart = 'design' | 'theme' | 'layouts';
 export interface ThemeFile {
@@ -146,7 +146,7 @@ function badTheme(t: Partial<SlideTheme> | undefined): string | null {
 /** Read a design, theme or layouts file, or say what is wrong with it. */
 export function parseThemeFile(raw: unknown): ParsedThemeFile | string {
   const f = raw as Partial<ThemeFile> & { theme?: SlideTheme } | null;
-  if (!f || typeof f !== 'object' || f.format !== THEME_FILE_FORMAT) return 'This is not a DBDesigner design file.';
+  if (!f || typeof f !== 'object' || f.format !== THEME_FILE_FORMAT) return 'This is not a DevDesigner design file.';
   if (typeof f.version !== 'number' || f.version > THEME_FILE_VERSION) return 'This file is from a newer version.';
   if (f.version < 2) {
     // Version 1: a theme carrying its own layouts — a whole design.
@@ -319,7 +319,7 @@ const BUILT_IN_BY_ID = new Map(BUILT_IN_THEMES.map((t) => [t.id!, t]));
 
 /** A theme color as CSS for swatches: follow-the-app sentinels become CSS variables. */
 export function themeSwatchCss(color: string): string {
-  return color === THEME_FILL ? 'var(--dbd-surface)' : color === THEME_STROKE ? 'var(--dbd-text)' : color;
+  return color === THEME_FILL ? 'var(--dd-surface)' : color === THEME_STROKE ? 'var(--dd-text)' : color;
 }
 
 export function themeToken(token: ThemeColorToken | ThemeFontToken): string {

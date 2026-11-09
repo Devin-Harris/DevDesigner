@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import type { UserThemeResponse } from '@dbdesigner/shared';
+import type { UserThemeResponse } from '@devdesigner/shared';
 import { CurrentUserId } from '../auth/current-user.decorator';
 import { SaveUserThemeDto } from './dto/save-user-theme.dto';
 import { UserThemesService } from './user-themes.service';

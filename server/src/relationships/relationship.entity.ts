@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type { ConnectorSide, RelationshipType } from '@dbdesigner/shared';
+import type { ConnectorSide, RelationshipType } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { ColumnEntity } from '../columns/column.entity';
 

@@ -1,7 +1,7 @@
 <div class="home">
   <header class="wrap top">
     <span class="logo">
-      <span class="brand-tile"><dbd-icon name="code" /></span>
+      <span class="brand-tile"><dd-icon name="code" /></span>
       <span class="disp">DevDesigner</span>
     </span>
     <nav aria-label="Main">
@@ -16,16 +16,16 @@
         [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
         [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
       >
-        <dbd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+        <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
       </button>
       @if (auth.currentUser(); as user) {
-        <button class="link-btn" [dbdPopoverTrigger]="accountMenu" placement="below-end">
+        <button class="link-btn" [ddPopoverTrigger]="accountMenu" placement="below-end">
           {{ user.email ?? 'Account' }}
         </button>
         <ng-template #accountMenu let-close>
-          <div class="dbd-menu">
-            <button class="dbd-menu-item" (click)="openApiTokens(); close()"><dbd-icon name="key" />API tokens</button>
-            <button class="dbd-menu-item" (click)="signOut(); close()"><dbd-icon name="logout" />Sign out</button>
+          <div class="dd-menu">
+            <button class="dd-menu-item" (click)="openApiTokens(); close()"><dd-icon name="key" />API tokens</button>
+            <button class="dd-menu-item" (click)="signOut(); close()"><dd-icon name="logout" />Sign out</button>
           </div>
         </ng-template>
       } @else {
@@ -45,9 +45,9 @@
       present it live with your team.
     </p>
     <div class="ctas">
-      <button class="btn primary lg" (click)="newCanvas()"><dbd-icon name="add" />Start a blank canvas</button>
-      <button class="btn lg" (click)="openProjects()"><dbd-icon name="template" />Browse projects &amp; templates</button>
-      <a class="btn lg" routerLink="/guide"><dbd-icon name="play_circle" />Learn the tools</a>
+      <button class="btn primary lg" (click)="newCanvas()"><dd-icon name="add" />Start a blank canvas</button>
+      <button class="btn lg" (click)="openProjects()"><dd-icon name="template" />Browse projects &amp; templates</button>
+      <a class="btn lg" routerLink="/guide"><dd-icon name="play_circle" />Learn the tools</a>
     </div>
     <p class="fine">Works in the browser · bring SQL, images, video or a project file</p>
     </div>
@@ -98,7 +98,7 @@
     <div class="sc-tabs" role="tablist">
       @for (t of showcase; track t.id; let i = $index) {
         <button role="tab" class="sc-tab" [class.on]="active() === i" [attr.aria-selected]="active() === i" (click)="pick(i)">
-          <dbd-icon [name]="t.icon" />{{ t.label }}
+          <dd-icon [name]="t.icon" />{{ t.label }}
         </button>
       }
     </div>
@@ -150,9 +150,9 @@
           <div class="sc-badge">{{ cb }}</div>
         }
         @if (ctxMenu(); as cm) {
-          <div class="dbd-menu sc-ctx" [style.left.px]="cm.left" [style.top.px]="cm.top">
+          <div class="dd-menu sc-ctx" [style.left.px]="cm.left" [style.top.px]="cm.top">
             @for (it of cm.items; track it.label; let i = $index) {
-              <div class="dbd-menu-item" [class.hot]="i === cm.hot">
+              <div class="dd-menu-item" [class.hot]="i === cm.hot">
                 {{ it.label }}
                 @if (it.kbd) { <span class="kbd">{{ it.kbd }}</span> }
               </div>
@@ -160,8 +160,8 @@
           </div>
         }
         @if (swatches(); as sw) {
-          <div class="dbd-menu sc-swatches" [style.left.px]="sw.left" [style.top.px]="sw.top">
-            <dbd-color-swatches [value]="sw.value" noneLabel="Default" />
+          <div class="dd-menu sc-swatches" [style.left.px]="sw.left" [style.top.px]="sw.top">
+            <dd-color-swatches [value]="sw.value" noneLabel="Default" />
           </div>
         }
         @if (sqlPanel(); as q) {
@@ -252,7 +252,7 @@
       <div class="feat-grid">
         @for (f of features; track f.title; let i = $index) {
           <div class="feat" [style.--i]="i">
-            <span class="feat-icon" [attr.data-tone]="f.tone"><dbd-icon [name]="f.icon" /></span>
+            <span class="feat-icon" [attr.data-tone]="f.tone"><dd-icon [name]="f.icon" /></span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.body }}</p>
           </div>

@@ -6,7 +6,7 @@ import {
   type MutationBatchEvent,
   type MutationEvent,
   type SchemaMutation,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 
 /**
  * Thin façade feature services use to broadcast a persisted schema change to a

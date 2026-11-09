@@ -4,7 +4,7 @@ import type {
   SchemaMutation,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { columnAnchor } from '../editor/canvas/helpers/node-metrics.helper';
 
 /** The slice of ProjectStore the player drives (local only: nothing is saved). */

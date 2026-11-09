@@ -25,8 +25,8 @@ import {
   type PointModel,
   type ProjectGraphResponse,
   type SchemaModel,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { Batch } from './batch';
 import { colorArg, tableColorArg } from './colors';
 import {
@@ -112,7 +112,7 @@ const box = (r: { x: number; y: number; w: number; h: number }): { x: number; y:
   h: Math.round(r.h),
 });
 
-export function registerLayoutTools(tool: ToolFn, api: DbDesignerApi): void {
+export function registerLayoutTools(tool: ToolFn, api: DevDesignerApi): void {
   const graph = (id: string): Promise<ProjectGraphResponse> => api.get<ProjectGraphResponse>(`/projects/${id}`);
 
   // ---- Write helpers -------------------------------------------------------------------

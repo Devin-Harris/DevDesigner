@@ -15,8 +15,8 @@ import {
   messageLabelLines,
   messageLabelMaxChars,
   SEQ_LABEL_CHAR_W,
-} from '@dbdesigner/shared';
-import { DEFAULT_THEME, presentationOf, resolveThemeColor, type LifelineModel, type SequenceDiagramModel } from '@dbdesigner/shared';
+} from '@devdesigner/shared';
+import { DEFAULT_THEME, presentationOf, resolveThemeColor, type LifelineModel, type SequenceDiagramModel } from '@devdesigner/shared';
 import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';

@@ -16,11 +16,11 @@
       }
       <svg class="grid" width="1" height="1">
         <defs>
-          <pattern id="dbd-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+          <pattern id="dd-grid" width="24" height="24" patternUnits="userSpaceOnUse">
             <path class="grid-line" d="M 24 0 L 0 0 0 24" fill="none" stroke-width="1" />
           </pattern>
         </defs>
-        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dbd-grid)" />
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dd-grid)" />
       </svg>
 
       <!-- Frames sit at the very back so their fills never cover connectors. -->
@@ -234,7 +234,7 @@
     <!-- Live cursors of other participants (screen coords, above the canvas). -->
     @for (cursor of remoteCursors(); track cursor.id) {
       <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
-        <dbd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
+        <dd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
         <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
       </div>
     }
@@ -329,7 +329,7 @@
           [style.height.px]="le.height"
         >
           @if (focusedDeck() !== set.name) {
-          <span class="layout-edit-badge"><dbd-icon name="template" />{{ le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name }}</span>
+          <span class="layout-edit-badge"><dd-icon name="template" />{{ le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name }}</span>
           }
         </div>
       }
@@ -344,13 +344,13 @@
         (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
         (wheel)="$event.stopPropagation()"
       >
-        <dbd-icon name="slideshow" class="dh-ico" />
+        <dd-icon name="slideshow" class="dh-ico" />
         <span class="dh-name">{{ set.name }}</span>
         <span class="dh-count">Slide {{ deckSlideIndex(set.name, set.frameId) }} of {{ deckSlideCount(set.name) }}</span>
         <span class="dh-sep"></span>
-        <button class="dh-btn" (click)="enterDeckFocus(set.name)" title="Focus: edit this presentation on its own (Shift+F)"><dbd-icon name="open_in_full" class="dh-chev" />Focus</button>
+        <button class="dh-btn" (click)="enterDeckFocus(set.name)" title="Focus: edit this presentation on its own (Shift+F)"><dd-icon name="open_in_full" class="dh-chev" />Focus</button>
         <button class="dh-present" (click)="presentDeck(set.name)" title="Present from the first slide (F5)">
-          <dbd-icon name="play_arrow" />Present
+          <dd-icon name="play_arrow" />Present
         </button>
       </div>
       <div
@@ -431,16 +431,16 @@
             <span class="fb-count">{{ deckSlideCount(fd) }} slides</span>
           </div>
           <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" [dbdPopoverTrigger]="themeMenu" placement="below-start">Theme: {{ deckThemeName(fframe) }} ▾</button>
+            <button class="fb-btn" [ddPopoverTrigger]="themeMenu" placement="below-start">Theme: {{ deckThemeName(fframe) }} ▾</button>
             <ng-template #themeMenu>
               <app-slides-panel class="menu-host" part="theme-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
             </ng-template>
-            <button class="fb-btn" [dbdPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
+            <button class="fb-btn" [ddPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
             <ng-template #designMenu>
               <app-slides-panel class="menu-host" part="design-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
             </ng-template>
             <button class="fb-btn" (click)="openFocusDesign()">Layouts &amp; master</button>
-            <button class="fb-btn" [dbdPopoverTrigger]="sizeMenu" placement="below-start" [disabled]="!store.canEdit()">{{ deckRatioLabel(fframe) }} ▾</button>
+            <button class="fb-btn" [ddPopoverTrigger]="sizeMenu" placement="below-start" [disabled]="!store.canEdit()">{{ deckRatioLabel(fframe) }} ▾</button>
             <ng-template #sizeMenu let-close>
               <app-slides-panel class="menu-host" part="size-menu" [presentation]="fd" [active]="fframe" (command)="close()" />
             </ng-template>
@@ -529,7 +529,7 @@
             <div class="focus-row">
             <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
               <button class="fb-btn" [disabled]="fslide.index <= 2" (click)="stepTransition(-1)" title="Previous transition" aria-label="Previous transition">‹</button>
-              <button class="fb-btn on" [dbdPopoverTrigger]="pickTransition" placement="below-start">Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾</button>
+              <button class="fb-btn on" [ddPopoverTrigger]="pickTransition" placement="below-start">Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾</button>
               <ng-template #pickTransition let-close>
                 <div class="tr-pick" role="menu">
                   @for (n of transitionNumbers(fd); track n) {
@@ -695,7 +695,7 @@
         [style.padding.px]="t.padding"
         [style.padding-left.px]="t.padLeft"
         [style.color]="t.color"
-        [style.caret-color]="t.code ? 'var(--dbd-text)' : null"
+        [style.caret-color]="t.code ? 'var(--dd-text)' : null"
         [value]="t.value"
         (pointerdown)="$event.stopPropagation()"
         (keydown)="onEditorKeydown($event)"
@@ -721,7 +721,7 @@
         [style.font-family]="p.fontFamily"
         [style.padding.px]="p.padding"
         [style.padding-left.px]="p.padLeft"
-        style="color: transparent; caret-color: var(--dbd-text)"
+        style="color: transparent; caret-color: var(--dd-text)"
         [value]="p.value"
         (pointerdown)="$event.stopPropagation()"
         (keydown)="onEditorKeydown($event)"
@@ -912,10 +912,10 @@
             [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
             [attr.title]="inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'"
           >
-            <dbd-icon name="push_pin" />
+            <dd-icon name="push_pin" />
           </button>
           <button class="side-ctrl" (click)="inspector.close()" aria-label="Close details" title="Close details">
-            <dbd-icon name="close" />
+            <dd-icon name="close" />
           </button>
         </div>
         @if (store.selectedTable(); as table) {

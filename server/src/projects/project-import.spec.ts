@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { PROJECT_EXPORT_FORMAT, type ProjectExportFile } from '@dbdesigner/shared';
+import { PROJECT_EXPORT_FORMAT, type ProjectExportFile } from '@devdesigner/shared';
 import { buildDataSourceOptions } from '../database/data-source';
 import { ColumnEntity } from '../columns/column.entity';
 import { ElementEntity } from '../elements/element.entity';

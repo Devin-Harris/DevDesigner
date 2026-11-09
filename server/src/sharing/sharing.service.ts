@@ -1,4 +1,4 @@
-import type { ProjectGraphResponse, ShareLinkResponse } from '@dbdesigner/shared';
+import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';

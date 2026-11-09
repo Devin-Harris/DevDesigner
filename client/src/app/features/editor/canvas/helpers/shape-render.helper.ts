@@ -1,4 +1,4 @@
-import { THEME_STROKE } from '@dbdesigner/shared';
+import { THEME_STROKE } from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   CodeLanguage,
@@ -7,7 +7,7 @@ import type {
   TextAlign,
   TextRun,
   VerticalAlign,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import type { Box, Point } from '../models/geometry.model';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import { isFullCrop, mediaSourceRect } from './media.helper';
@@ -140,16 +140,16 @@ export function fontStack(key: string | undefined): string {
 
 /** Live theme colors used by the contrast guard (resolved CSS values). */
 export interface ThemeColors {
-  /** The canvas background a shape sits on (`--dbd-canvas-bg`). */
+  /** The canvas background a shape sits on (`--dd-canvas-bg`). */
   canvasBg: string;
-  /** The theme's foreground/text color to fall back to (`--dbd-text`). */
+  /** The theme's foreground/text color to fall back to (`--dd-text`). */
   text: string;
-  /** The raised surface color (`--dbd-surface`) used by the "surface" fill. */
+  /** The raised surface color (`--dd-surface`) used by the "surface" fill. */
   surface?: string;
 }
 
 /**
- * Sentinel `backgroundColor` meaning "the theme surface" (`--dbd-surface`). It is
+ * Sentinel `backgroundColor` meaning "the theme surface" (`--dd-surface`). It is
  * resolved at render time so the fill follows light/dark mode, and — unlike
  * `fillStyle: 'none'` — it is opaque, hiding the canvas grid behind the shape.
  */

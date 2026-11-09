@@ -1,4 +1,4 @@
-import { isNumericType, isSwatchColor, messageLabelLines, readableTextOn, THEME_FILL, THEME_STROKE } from '@dbdesigner/shared';
+import { isNumericType, isSwatchColor, messageLabelLines, readableTextOn, THEME_FILL, THEME_STROKE } from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
@@ -7,7 +7,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { contrastText } from '../sequence-diagram/contrast';
 import { HEADER_H, ROW_H } from '../canvas/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableBox, tableScale } from '../canvas/helpers/node-metrics.helper';
@@ -19,7 +19,7 @@ import type { CodeBlockView, ShapeView, TextBlockView } from '../canvas/models/s
 
 /**
  * Build a standalone vector SVG of the diagram that mirrors the on-screen canvas
- * exactly: it reads the app's live theme tokens (the --dbd-* CSS custom
+ * exactly: it reads the app's live theme tokens (the --dd-* CSS custom
  * properties) so the export matches the active light or dark scheme, and it
  * reproduces the real node, chip, type-pill, connector, and grid styling. Table
  * geometry and connector routing reuse the same canvas helpers, so the export
@@ -27,7 +27,7 @@ import type { CodeBlockView, ShapeView, TextBlockView } from '../canvas/models/s
  */
 
 const PADDING = 48;
-const RADIUS = 14; // --dbd-radius-lg
+const RADIUS = 14; // --dd-radius-lg
 const FONT = "'IBM Plex Mono', 'SFMono-Regular', ui-monospace, 'Cascadia Mono', Menlo, monospace";
 
 // Approximate monospace advance widths, used only for placing/truncating text.
@@ -82,7 +82,7 @@ const UQ_BG = '#2f6bff';
 const UQ_TEXT = '#ffffff';
 
 /**
- * Resolve a `var(--token)` expression (including aliases like --dbd-handle that
+ * Resolve a `var(--token)` expression (including aliases like --dd-handle that
  * point at another token) to a concrete rgb() color via a probe element. Returns
  * the fallback if the DOM is unavailable or resolution yields nothing.
  */
@@ -114,21 +114,21 @@ function readTheme(): { theme: Theme; dispose: () => void } {
   }
   const resolve = makeResolver();
   const t: Theme = {
-    canvasBg: resolve('var(--dbd-canvas-bg)', FALLBACK_THEME.canvasBg),
-    gridLine: resolve('var(--dbd-grid-line)', FALLBACK_THEME.gridLine),
-    nodeSurface: resolve('var(--dbd-node-surface)', FALLBACK_THEME.nodeSurface),
-    nodeHeader: resolve('var(--dbd-node-header)', FALLBACK_THEME.nodeHeader),
-    nodeBorder: resolve('var(--dbd-node-border)', FALLBACK_THEME.nodeBorder),
-    rowBorder: resolve('var(--dbd-node-row-border)', FALLBACK_THEME.rowBorder),
-    text: resolve('var(--dbd-text)', FALLBACK_THEME.text),
-    textMuted: resolve('var(--dbd-text-muted)', FALLBACK_THEME.textMuted),
-    primary: resolve('var(--dbd-primary)', FALLBACK_THEME.primary),
-    connector: resolve('var(--dbd-connector)', FALLBACK_THEME.connector),
-    border: resolve('var(--dbd-border)', FALLBACK_THEME.border),
-    chipBg: resolve('var(--dbd-chip-bg)', FALLBACK_THEME.chipBg),
-    chipActive: resolve('var(--dbd-chip-active)', FALLBACK_THEME.chipActive),
-    surface: resolve('var(--dbd-surface)', FALLBACK_THEME.surface),
-    borderStrong: resolve('var(--dbd-border-strong)', FALLBACK_THEME.borderStrong),
+    canvasBg: resolve('var(--dd-canvas-bg)', FALLBACK_THEME.canvasBg),
+    gridLine: resolve('var(--dd-grid-line)', FALLBACK_THEME.gridLine),
+    nodeSurface: resolve('var(--dd-node-surface)', FALLBACK_THEME.nodeSurface),
+    nodeHeader: resolve('var(--dd-node-header)', FALLBACK_THEME.nodeHeader),
+    nodeBorder: resolve('var(--dd-node-border)', FALLBACK_THEME.nodeBorder),
+    rowBorder: resolve('var(--dd-node-row-border)', FALLBACK_THEME.rowBorder),
+    text: resolve('var(--dd-text)', FALLBACK_THEME.text),
+    textMuted: resolve('var(--dd-text-muted)', FALLBACK_THEME.textMuted),
+    primary: resolve('var(--dd-primary)', FALLBACK_THEME.primary),
+    connector: resolve('var(--dd-connector)', FALLBACK_THEME.connector),
+    border: resolve('var(--dd-border)', FALLBACK_THEME.border),
+    chipBg: resolve('var(--dd-chip-bg)', FALLBACK_THEME.chipBg),
+    chipActive: resolve('var(--dd-chip-active)', FALLBACK_THEME.chipActive),
+    surface: resolve('var(--dd-surface)', FALLBACK_THEME.surface),
+    borderStrong: resolve('var(--dd-border-strong)', FALLBACK_THEME.borderStrong),
   };
   return {
     theme: t,
@@ -320,10 +320,10 @@ function renderTable(table: TableModel, theme: Theme): string {
 
 /** Crow's-foot marker defs, colored with the theme connector color. */
 function markerDefs(theme: Theme): string {
-  return `<marker id="dbd-one" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  return `<marker id="dd-one" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M11 3 L11 15" fill="none" stroke="${theme.connector}" stroke-width="1.5" />
   </marker>
-  <marker id="dbd-many" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  <marker id="dd-many" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" stroke="${theme.connector}" stroke-width="1.5" />
   </marker>`;
 }
@@ -376,8 +376,8 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
   } else if (view.freehand && view.path) {
     body.push(`<path d="${view.path}" fill="${view.fill}" stroke="none" />`);
   } else if (view.path) {
-    const ms = view.markerStart !== 'none' ? ` marker-start="url(#dbd-ah-${view.markerStart})"` : '';
-    const me = view.markerEnd !== 'none' ? ` marker-end="url(#dbd-ah-${view.markerEnd})"` : '';
+    const ms = view.markerStart !== 'none' ? ` marker-start="url(#dd-ah-${view.markerStart})"` : '';
+    const me = view.markerEnd !== 'none' ? ` marker-end="url(#dd-ah-${view.markerEnd})"` : '';
     body.push(
       `<path d="${view.path}" fill="none" ${stroke} stroke-linecap="round" stroke-linejoin="round"${ms}${me} />`,
     );
@@ -521,16 +521,16 @@ function renderTextBlock(t: TextBlockView): string {
 /** Arrowhead markers for exported lines/arrows (colored with the theme text color). */
 function arrowheadDef(theme: Theme): string {
   const c = theme.text;
-  return `<marker id="dbd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  return `<marker id="dd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M1 1 L9 5 L1 9" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
   </marker>
-  <marker id="dbd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M1 1 L10 5 L1 9 Z" fill="${c}" stroke="${c}" stroke-linejoin="round" />
   </marker>
-  <marker id="dbd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
     <circle cx="5" cy="5" r="3.2" fill="${c}" />
   </marker>
-  <marker id="dbd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M4 1 L4 11" stroke="${c}" stroke-width="1.6" stroke-linecap="round" />
   </marker>`;
 }
@@ -987,7 +987,7 @@ export function buildDiagramSvg(
     const body = stack;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs>
-  <pattern id="dbd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${shiftX % 24}, ${shiftY % 24})">
+  <pattern id="dd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${shiftX % 24}, ${shiftY % 24})">
     <path d="M 24 0 L 0 0 0 24" fill="none" stroke="${theme.gridLine}" stroke-width="1" />
   </pattern>
   ${markerDefs(theme)}
@@ -995,7 +995,7 @@ export function buildDiagramSvg(
   ${hatchDefs}
 </defs>
 <rect x="0" y="0" width="${width}" height="${height}" fill="${theme.canvasBg}" />
-<rect x="0" y="0" width="${width}" height="${height}" fill="url(#dbd-export-grid)" />
+<rect x="0" y="0" width="${width}" height="${height}" fill="url(#dd-export-grid)" />
 <g transform="translate(${shiftX}, ${shiftY})">
 ${stack}
 </g>

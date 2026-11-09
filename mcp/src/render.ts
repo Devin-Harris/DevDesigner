@@ -21,7 +21,7 @@ import {
   type TableModel,
   resolveThemedElements,
   resolveThemedSequences,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { collectItems, unionOf } from './layout';
 import { formatDataType } from './model';
 

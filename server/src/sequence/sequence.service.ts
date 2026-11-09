@@ -5,7 +5,7 @@ import type {
   LifelineModel,
   SequenceDiagramModel,
   SequenceMessageModel,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';

@@ -1,4 +1,4 @@
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import {
   ANCHOR_GAP,
   GRID_SIZE,
@@ -15,7 +15,7 @@ import {
   UNSIGNED_CHIP_W,
   VARCHAR_FIXED_W,
 } from '../constants/canvas.constants';
-import { isNumericType } from '@dbdesigner/shared';
+import { isNumericType } from '@devdesigner/shared';
 import type { Box, ColumnLocation, Point, Side } from '../models/geometry.model';
 
 // Memoize by table reference: the store hands the same object to the renderer

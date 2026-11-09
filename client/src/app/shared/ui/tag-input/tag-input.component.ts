@@ -19,16 +19,16 @@ import { IconComponent } from '../icon/icon.component';
 /**
  * Single-line tag field with type-ahead suggestions (e.g. the morph tags used on the
  * previous slide). Free text is always allowed: the suggestions only complete it.
- * Commits on Enter / blur / picking a suggestion (`commit`), like `dbd-input`.
+ * Commits on Enter / blur / picking a suggestion (`commit`), like `dd-input`.
  */
 @Component({
-  selector: 'dbd-tag-input',
+  selector: 'dd-tag-input',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     <div class="box" [class.disabled]="disabled()" [class.focus]="focused()" [class.bad]="conflict()">
-      <dbd-icon name="link" class="lead" />
+      <dd-icon name="link" class="lead" />
       <input
         #field
         type="text"
@@ -45,7 +45,7 @@ import { IconComponent } from '../icon/icon.component';
       />
       @if (text() && !disabled()) {
         <button type="button" class="clear" tabindex="-1" title="Clear tag" (mousedown)="$event.preventDefault()" (click)="clear()">
-          <dbd-icon name="close" />
+          <dd-icon name="close" />
         </button>
       }
     </div>
@@ -53,12 +53,12 @@ import { IconComponent } from '../icon/icon.component';
       <p class="warn">{{ takenLabel() }}</p>
     }
     <ng-template #list>
-      <div class="dbd-menu tag-menu" [style.width.px]="menuWidth()">
+      <div class="dd-menu tag-menu" [style.width.px]="menuWidth()">
         <div class="tag-menu-head">{{ headLabel() }}</div>
         @for (s of visible(); track s; let i = $index) {
           <button
             type="button"
-            class="dbd-menu-item"
+            class="dd-menu-item"
             [class.on]="i === active()"
             (mousedown)="$event.preventDefault()"
             (mouseenter)="active.set(i)"
@@ -82,36 +82,36 @@ import { IconComponent } from '../icon/icon.component';
         height: 34px;
         box-sizing: border-box;
         padding: 0 6px 0 9px;
-        background: var(--dbd-surface-2);
-        border: 1px solid var(--dbd-border);
-        border-radius: var(--dbd-radius-sm);
+        background: var(--dd-surface-2);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-sm);
         transition:
           border-color 0.12s ease,
           box-shadow 0.12s ease;
       }
       .box:hover:not(.disabled) {
-        border-color: var(--dbd-border-strong);
+        border-color: var(--dd-border-strong);
       }
       .box.focus {
-        border-color: var(--dbd-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dbd-primary) 22%, transparent);
+        border-color: var(--dd-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-primary) 22%, transparent);
       }
       .box.bad,
       .box.bad.focus {
-        border-color: var(--dbd-danger);
+        border-color: var(--dd-danger);
         box-shadow: none;
       }
       .warn {
         margin: 4px 2px 0;
         font-size: 11px;
-        color: var(--dbd-danger);
+        color: var(--dd-danger);
       }
       .box.disabled {
         opacity: 0.55;
       }
       .lead {
-        --dbd-icon-size: 15px;
-        color: var(--dbd-text-muted);
+        --dd-icon-size: 15px;
+        color: var(--dd-text-muted);
         flex: none;
       }
       input {
@@ -123,12 +123,12 @@ import { IconComponent } from '../icon/icon.component';
         outline: none;
         background: transparent;
         font: inherit;
-        font-family: var(--dbd-font);
+        font-family: var(--dd-font);
         font-size: 13px;
-        color: var(--dbd-text);
+        color: var(--dd-text);
       }
       input::placeholder {
-        color: var(--dbd-faint, var(--dbd-text-muted));
+        color: var(--dd-faint, var(--dd-text-muted));
       }
       .clear {
         flex: none;
@@ -139,15 +139,15 @@ import { IconComponent } from '../icon/icon.component';
         height: 22px;
         padding: 0;
         border: none;
-        border-radius: var(--dbd-radius-sm);
+        border-radius: var(--dd-radius-sm);
         background: transparent;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
         cursor: pointer;
-        --dbd-icon-size: 14px;
+        --dd-icon-size: 14px;
       }
       .clear:hover {
-        background: var(--dbd-surface);
-        color: var(--dbd-text);
+        background: var(--dd-surface);
+        color: var(--dd-text);
       }
       .tag-menu {
         min-width: 0;
@@ -157,7 +157,7 @@ import { IconComponent } from '../icon/icon.component';
         font-size: 10.5px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: var(--dbd-text-muted);
+        color: var(--dd-text-muted);
       }
       .tag-name {
         overflow: hidden;
@@ -308,7 +308,7 @@ export class TagInputComponent implements OnDestroy {
           { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
         ]),
       scrollStrategy: this.overlay.scrollStrategies.reposition(),
-      panelClass: 'dbd-popover-panel',
+      panelClass: 'dd-popover-panel',
     });
     this.ref.attach(new TemplatePortal(this.list(), this.vcr));
   }

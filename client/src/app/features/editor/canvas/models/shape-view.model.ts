@@ -1,4 +1,4 @@
-import type { ArrowheadType, ElementType, MediaPlayback } from '@dbdesigner/shared';
+import type { ArrowheadType, ElementType, MediaPlayback } from '@devdesigner/shared';
 
 /** One wrapped line with its absolute baseline position. */
 export interface TextLineView {

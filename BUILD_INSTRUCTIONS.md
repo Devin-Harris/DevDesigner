@@ -1,6 +1,6 @@
-# DBDesigner: Build Instructions for Claude
+# DevDesigner: Build Instructions for Claude
 
-This document instructs you (Claude) how to build **DBDesigner**, a fullstack web app for diagramming database schemas on an interactive canvas. Read it fully before writing code. Build in the phases listed; do not skip ahead. After each phase, ensure the app runs and the phase's acceptance criteria are met before continuing.
+This document instructs you (Claude) how to build **DevDesigner**, a fullstack web app for diagramming database schemas on an interactive canvas. Read it fully before writing code. Build in the phases listed; do not skip ahead. After each phase, ensure the app runs and the phase's acceptance criteria are met before continuing.
 
 ---
 
@@ -49,7 +49,7 @@ This document instructs you (Claude) how to build **DBDesigner**, a fullstack we
 ## 3. Repository Structure
 
 ```
-dbdesigner/
+devdesigner/
 ├── README.md
 ├── BUILD_INSTRUCTIONS.md
 ├── package.json                 # root: npm workspaces + run scripts (§3.2)
@@ -98,7 +98,7 @@ dbdesigner/
 
 ### 3.1 Shared workspace
 
-`shared/` is a real workspace package (e.g. `@dbdesigner/shared`) referenced by both apps through npm workspaces and TypeScript path mappings. It contains only environment-agnostic code: types, enums, DTO interfaces, and pure functions. It must not import Angular, Nest, TypeORM, Node, or browser APIs. The server derives its TypeORM entities and DTO classes from these shared shapes; the client types its store and API calls from them. Changing a shared model updates both sides at compile time.
+`shared/` is a real workspace package (e.g. `@devdesigner/shared`) referenced by both apps through npm workspaces and TypeScript path mappings. It contains only environment-agnostic code: types, enums, DTO interfaces, and pure functions. It must not import Angular, Nest, TypeORM, Node, or browser APIs. The server derives its TypeORM entities and DTO classes from these shared shapes; the client types its store and API calls from them. Changing a shared model updates both sides at compile time.
 
 ### 3.2 Root scripts & VS Code tasks
 

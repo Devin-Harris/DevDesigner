@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { RelationshipModel } from '@dbdesigner/shared';
+import type { RelationshipModel } from '@devdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
 import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';

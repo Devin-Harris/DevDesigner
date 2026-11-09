@@ -7,9 +7,9 @@
   </p>
 
   <div class="create-row">
-    <dbd-segmented [options]="levelOptions" [ngModel]="newLevel()" (ngModelChange)="setLevel($event)" />
+    <dd-segmented [options]="levelOptions" [ngModel]="newLevel()" (ngModelChange)="setLevel($event)" />
     <button class="btn primary" [disabled]="creating()" (click)="create()">
-      <dbd-icon name="add_link" />
+      <dd-icon name="add_link" />
       Create link
     </button>
   </div>
@@ -27,10 +27,10 @@
           <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
           <span class="url" [title]="link.url">{{ link.url }}</span>
           <button class="icon-btn" matTooltip="Copy link" (click)="copy(link)" aria-label="Copy link">
-            <dbd-icon name="content_copy" />
+            <dd-icon name="content_copy" />
           </button>
           <button class="icon-btn del" matTooltip="Revoke link" (click)="revoke(link)" aria-label="Revoke link">
-            <dbd-icon name="link_off" />
+            <dd-icon name="link_off" />
           </button>
         </li>
       }

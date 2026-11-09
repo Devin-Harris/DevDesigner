@@ -17,13 +17,13 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { fontStack } from '../editor/canvas/helpers/shape-render.helper';
-import type { ProjectExportFile } from '@dbdesigner/shared';
+import type { ProjectExportFile } from '@devdesigner/shared';
 import { EditorActionsService } from '../../core/services/editor-actions.service';
 import { EditorComponent } from '../editor/editor.component';
 import { GUIDE_GROUPS, GUIDE_TOOLS, type GuideTool } from './guide-tools';
 
 /** Bump when the seeds change so a session picks up the new examples. */
-export const STORAGE_PREFIX = 'dbd-guide-sandbox:v5:';
+export const STORAGE_PREFIX = 'dd-guide-sandbox:v5:';
 
 /** Seed project files, bundled as lazy chunks (exported from real projects, see seeds/). */
 export const SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
@@ -128,7 +128,7 @@ export class GuideComponent {
   protected readonly sandboxError = signal<string | null>(null);
   protected readonly expanded = signal(false);
   /** Desktop: tool rail collapsed to icons (remembered per browser). */
-  protected readonly railCollapsed = signal(readFlag('dbd-guide-rail-collapsed'));
+  protected readonly railCollapsed = signal(readFlag('dd-guide-rail-collapsed'));
   /** Mobile: tool rail collapsed into a dropdown. */
   protected readonly navOpen = signal(false);
 
@@ -151,7 +151,7 @@ export class GuideComponent {
   protected toggleRail(): void {
     this.railCollapsed.update((v) => !v);
     try {
-      localStorage.setItem('dbd-guide-rail-collapsed', this.railCollapsed() ? '1' : '0');
+      localStorage.setItem('dd-guide-rail-collapsed', this.railCollapsed() ? '1' : '0');
     } catch {
       /* not remembered */
     }

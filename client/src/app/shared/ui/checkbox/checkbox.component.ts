@@ -4,7 +4,7 @@ import { IconComponent } from '../icon/icon.component';
 
 /** Bespoke checkbox replacing mat-checkbox. CVA-compatible (`[ngModel]`). */
 @Component({
-  selector: 'dbd-checkbox',
+  selector: 'dd-checkbox',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
@@ -14,7 +14,7 @@ import { IconComponent } from '../icon/icon.component';
   template: `
     <button
       type="button"
-      class="dbd-checkbox"
+      class="dd-checkbox"
       role="checkbox"
       [attr.aria-checked]="checked()"
       [disabled]="disabled()"
@@ -22,7 +22,7 @@ import { IconComponent } from '../icon/icon.component';
     >
       <span class="box" [class.on]="checked()">
         @if (checked()) {
-          <dbd-icon name="check" />
+          <dd-icon name="check" />
         }
       </span>
       <span class="label"><ng-content /></span>
@@ -33,7 +33,7 @@ import { IconComponent } from '../icon/icon.component';
       :host {
         display: inline-flex;
       }
-      .dbd-checkbox {
+      .dd-checkbox {
         display: inline-flex;
         align-items: center;
         gap: 7px;
@@ -41,11 +41,11 @@ import { IconComponent } from '../icon/icon.component';
         background: transparent;
         padding: 2px 0;
         cursor: pointer;
-        color: var(--dbd-text);
+        color: var(--dd-text);
         font: inherit;
         font-size: 12.5px;
       }
-      .dbd-checkbox:disabled {
+      .dd-checkbox:disabled {
         opacity: 0.5;
         cursor: default;
       }
@@ -55,17 +55,17 @@ import { IconComponent } from '../icon/icon.component';
         justify-content: center;
         width: 16px;
         height: 16px;
-        border: 1.5px solid var(--dbd-border-strong);
+        border: 1.5px solid var(--dd-border-strong);
         border-radius: 5px;
         color: #fff;
-        --dbd-icon-size: 12px;
+        --dd-icon-size: 12px;
         transition:
           background 0.12s ease,
           border-color 0.12s ease;
       }
       .box.on {
-        background: var(--dbd-primary);
-        border-color: var(--dbd-primary);
+        background: var(--dd-primary);
+        border-color: var(--dd-primary);
       }
     `,
   ],

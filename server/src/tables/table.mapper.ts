@@ -1,4 +1,4 @@
-import type { TableModel } from '@dbdesigner/shared';
+import type { TableModel } from '@devdesigner/shared';
 import { toColumnModel } from '../columns/column.mapper';
 import { toIndexModel } from '../indexes/index.mapper';
 import { TableEntity } from './table.entity';

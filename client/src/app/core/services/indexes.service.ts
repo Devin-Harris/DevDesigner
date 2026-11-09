@@ -5,7 +5,7 @@ import type {
   IndexModel,
   ReorderIndexesDto,
   UpdateIndexDto,
-} from '@dbdesigner/shared';
+} from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /** Granular table-index endpoints (mirrors ColumnsService). */

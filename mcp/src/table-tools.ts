@@ -1,6 +1,6 @@
 // Spreadsheet-style table tools (the `grid` drawing element: rows/columns of text,
 // header row, merged cells, per-cell styling). Not ERD tables - those are add_table.
-// Content is the JSON grid format from @dbdesigner/shared, written through the
+// Content is the JSON grid format from @devdesigner/shared, written through the
 // granular element endpoints so realtime + permissions stay the server's.
 
 import { z } from 'zod';
@@ -19,8 +19,8 @@ import {
   type CanvasElementModel,
   type GridOp,
   type ProjectGraphResponse,
-} from '@dbdesigner/shared';
-import type { DbDesignerApi } from './api';
+} from '@devdesigner/shared';
+import type { DevDesignerApi } from './api';
 import { colorArg } from './colors';
 import { UserError, findTarget } from './model';
 import { resolveSlide, type ToolFn } from './presentation-tools';
@@ -101,7 +101,7 @@ function describeGrid(el: CanvasElementModel): object {
   };
 }
 
-export function registerTableTools(tool: ToolFn, api: DbDesignerApi): void {
+export function registerTableTools(tool: ToolFn, api: DevDesignerApi): void {
   const graph = async (id: string): Promise<Schema> =>
     (await api.get<ProjectGraphResponse>(`/projects/${id}`)).schema;
 

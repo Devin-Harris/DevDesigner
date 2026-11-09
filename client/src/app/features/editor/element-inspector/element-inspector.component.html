@@ -5,13 +5,13 @@
       <div class="kname">{{ kindLabel() }}</div>
     </div>
     <button class="icon-btn del" (click)="remove()" [disabled]="!store.canEdit()" title="Delete">
-      <dbd-icon name="delete" />
+      <dd-icon name="delete" />
     </button>
   </div>
 
   <!-- Stroke -->
   <div class="field-label">Stroke</div>
-  <dbd-color-swatches
+  <dd-color-swatches
     [value]="element().strokeColor"
     [allowNone]="strokeCanBeNone()"
     noneValue="transparent"
@@ -52,7 +52,7 @@
   @if (hasFill()) {
     <div class="field-label">Fill</div>
     <div class="swatches">
-      <dbd-color-swatches
+      <dd-color-swatches
         [value]="element().fillStyle === 'none' || !element().backgroundColor ? 'transparent' : element().backgroundColor"
         noneValue="transparent"
         noneLabel="No fill"
@@ -109,8 +109,8 @@
       </optgroup>
     </select>
     <div class="seg-row">
-      <button class="seg" [class.on]="element().bold" [disabled]="!store.canEdit()" (click)="toggleBold()"><dbd-icon name="format_bold" /></button>
-      <button class="seg" [class.on]="element().italic" [disabled]="!store.canEdit()" (click)="toggleItalic()"><dbd-icon name="format_italic" /></button>
+      <button class="seg" [class.on]="element().bold" [disabled]="!store.canEdit()" (click)="toggleBold()"><dd-icon name="format_bold" /></button>
+      <button class="seg" [class.on]="element().italic" [disabled]="!store.canEdit()" (click)="toggleItalic()"><dd-icon name="format_italic" /></button>
     </div>
   }
 
@@ -165,7 +165,7 @@
   <!-- Arrange -->
   <div class="field-label">Arrange</div>
   <div class="arrange">
-    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="bringToFront()"><dbd-icon name="flip_to_front" />Front</button>
-    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="sendToBack()"><dbd-icon name="flip_to_back" />Back</button>
+    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="bringToFront()"><dd-icon name="flip_to_front" />Front</button>
+    <button class="arr-btn" [disabled]="!store.canEdit()" (click)="sendToBack()"><dd-icon name="flip_to_back" />Back</button>
   </div>
 </div>

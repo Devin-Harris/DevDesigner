@@ -3,7 +3,7 @@
 // only needs to understand structure (tables, columns, keys, references), so anything
 // else (indexes, views, CHECKs, storage options) is skipped and counted.
 
-import type { DiagramSpec, SpecColumn, SpecRelationship, SpecTable } from '@dbdesigner/shared';
+import type { DiagramSpec, SpecColumn, SpecRelationship, SpecTable } from '@devdesigner/shared';
 
 export interface ParsedSql {
   spec: Required<Pick<DiagramSpec, 'tables' | 'relationships'>>;
@@ -105,7 +105,7 @@ const CONSTRAINT_WORDS = new Set([
   'AUTOINCREMENT', 'IDENTITY', 'GENERATED', 'COMMENT', 'COLLATE', 'ON', 'CHARACTER', 'CHARSET', 'UNSIGNED',
 ]);
 
-/** Normalise a raw SQL type to what DBDesigner's parseDataType understands. */
+/** Normalise a raw SQL type to what DevDesigner's parseDataType understands. */
 function normalizeType(raw: string): { type: string; serial: boolean } {
   let t = raw.trim().replace(/\s+/g, ' ');
   const upper = t.toUpperCase();

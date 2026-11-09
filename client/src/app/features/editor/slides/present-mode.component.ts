@@ -13,7 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import type { SlideEasing } from '@dbdesigner/shared';
+import type { SlideEasing } from '@devdesigner/shared';
 import { LOCAL_LASER, LaserService } from '../../../core/services/laser.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
@@ -202,7 +202,7 @@ const TRAVEL: Record<string, [number, number]> = {
           [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
           aria-label="Previous"
         >
-          <dbd-icon name="chevron_left" />
+          <dd-icon name="chevron_left" />
         </button>
         <span class="count">
           {{ index() + 1 }} / {{ slides().length }}
@@ -218,7 +218,7 @@ const TRAVEL: Record<string, [number, number]> = {
           "
           aria-label="Next"
         >
-          <dbd-icon name="chevron_right" />
+          <dd-icon name="chevron_right" />
         </button>
         <span class="sep"></span>
         <span class="name">{{ current().name }}</span>
@@ -231,7 +231,7 @@ const TRAVEL: Record<string, [number, number]> = {
           aria-label="Laser pointer (K)"
           title="Laser pointer (K): drag on the slide"
         >
-          <dbd-icon name="near_me" />
+          <dd-icon name="near_me" />
         </button>
         <button
           class="btn"
@@ -240,7 +240,7 @@ const TRAVEL: Record<string, [number, number]> = {
           aria-label="Speaker notes (N)"
           title="Speaker notes (N)"
         >
-          <dbd-icon name="notes" />
+          <dd-icon name="notes" />
         </button>
         <button
           class="btn"
@@ -250,10 +250,10 @@ const TRAVEL: Record<string, [number, number]> = {
           aria-label="All slides (G)"
           title="All slides (G)"
         >
-          <dbd-icon name="grid_view" />
+          <dd-icon name="grid_view" />
         </button>
         <button class="btn" (click)="exit()" aria-label="Exit (Esc)" title="Exit (Esc)">
-          <dbd-icon name="close" />
+          <dd-icon name="close" />
         </button>
       </div>
     </div>

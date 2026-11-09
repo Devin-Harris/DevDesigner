@@ -193,7 +193,7 @@ export class AppComponent {
       void this.projectFile.download(id, this.projects.selected()?.name ?? 'project');
     }
   }
-  /** Merge a chosen `.dbdesigner.json` file into the open project. */
+  /** Merge a chosen `.devdesigner.json` file into the open project. */
   protected async importProjectFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];

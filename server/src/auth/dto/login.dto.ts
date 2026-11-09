@@ -1,5 +1,5 @@
 import { IsEmail, IsString, MaxLength } from 'class-validator';
-import type { LoginDto as LoginDtoShape } from '@dbdesigner/shared';
+import type { LoginDto as LoginDtoShape } from '@devdesigner/shared';
 
 /** Body for POST /auth/login. Implements the shared LoginDto shape. */
 export class LoginDto implements LoginDtoShape {
