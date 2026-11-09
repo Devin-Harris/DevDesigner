@@ -236,3 +236,7 @@
 @if (shortcutsOpen()) {
   <app-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
 }
+
+@if (toolbarPrefs.panelOpen()) {
+  <app-toolbar-customize-panel />
+}

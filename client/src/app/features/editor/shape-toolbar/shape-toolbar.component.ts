@@ -18,7 +18,6 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
 import { ProjectStore } from '../../../stores/project.store';
 import { DockToolId, ToolbarPrefsService } from './toolbar-prefs.service';
-import { ToolbarCustomizePanelComponent } from './toolbar-customize-panel.component';
 import type { AlignAction, ExportImageFormat } from '../canvas/models/toolbar-actions';
 
 /** Default corner radius (px) applied when the rounded-rectangle variant is picked. */
@@ -63,7 +62,7 @@ const SHAPE_ICONS: Record<string, string> = {
   selector: 'app-shape-toolbar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective, ToolbarCustomizePanelComponent],
+  imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
   templateUrl: './shape-toolbar.component.html',
   styleUrl: './shape-toolbar.component.scss',
 })
@@ -103,12 +102,14 @@ export class ShapeToolbarComponent {
     // (mirrors the CSS max-height, which getComputedStyle may report as a calc()).
     const host = this.host.nativeElement;
     const avail = host.clientHeight - dock.offsetTop - 76;
-    if (!this.wrapped()) {
-      this.singleColumnHeight = dock.scrollHeight;
-      if (dock.scrollHeight > avail + 1) this.wrapped.set(true);
-    } else if (this.singleColumnHeight && this.singleColumnHeight <= avail) {
-      this.wrapped.set(false);
-    }
+    // Measure the single-column height fresh each time (labels/compact change it),
+    // briefly dropping the wrap class if it is on.
+    const hadWrap = dock.classList.contains('wrap');
+    if (hadWrap) dock.classList.remove('wrap');
+    this.singleColumnHeight = dock.scrollHeight;
+    if (hadWrap) dock.classList.add('wrap');
+    const needWrap = this.singleColumnHeight > avail + 1;
+    if (needWrap !== this.wrapped()) this.wrapped.set(needWrap);
   }
 
   /** Use a tool the dock hides (from the More menu). */

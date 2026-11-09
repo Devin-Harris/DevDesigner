@@ -1989,7 +1989,20 @@ export class EditorComponent {
   private readonly movingItems = signal(false);
 
   /** Slide blocks stop clipping while anything is carried, so it stays visible past the block. */
-  protected readonly slideUnclipped = computed(() => this.dragging() || this.movingItems());
+  protected readonly slideUnclipped = computed(() => {
+    if (this.dragging()) return true;
+    if (!this.movingItems()) return false;
+    // Only a carried slide item needs the block unclipped; moving canvas items must not
+    // reveal the staging content around every slide.
+    const els = new Set(this.store.selectedElementIds());
+    const tbls = new Set(this.store.selectedTableIds());
+    const dgs = new Set(this.store.selectedDiagramIds());
+    return (
+      this.store.elements().some((e) => els.has(e.id) && (!!e.slideId || e.type === 'frame')) ||
+      this.store.tables().some((t) => tbls.has(t.id) && !!t.slideId) ||
+      this.store.sequenceDiagrams().some((d) => dgs.has(d.id) && !!d.slideId)
+    );
+  });
 
   /**
    * Column row the in-flight link / re-point would attach to if released now.
@@ -6504,6 +6517,21 @@ export class EditorComponent {
 
   protected previewTransitionFor(id: string): void {
     void this.previewTransition(id);
+  }
+
+  /**
+   * Embedded use (the home page showcase): open a deck's transition screen on the
+   * transition into slide `n`, optionally in its Map pairs or Preview view.
+   */
+  showTransitionScreen(name: string, n: number, view: 'map' | 'preview' = 'map'): void {
+    if (this.focusedDeck() !== name || this.focusScreen() !== 'morph') this.enterDeckFocus(name, 'morph');
+    this.goToTransition(n);
+    this.compareUi.view.set(view);
+  }
+
+  /** Embedded use: leave deck focus mode if it is open. */
+  leaveDeckFocus(): void {
+    this.exitDeckFocus();
   }
 
   protected presentFromCurrent(name: string): void {

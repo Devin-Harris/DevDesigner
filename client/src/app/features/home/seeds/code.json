@@ -1,0 +1,87 @@
+{
+ "format": "dbdesigner-project",
+ "version": 1,
+ "exportedAt": "2026-11-08T21:02:33.552Z",
+ "project": {
+  "name": "Home · Code",
+  "description": null,
+  "type": "SCRATCH"
+ },
+ "schema": {
+  "tables": [],
+  "relationships": [],
+  "notes": [],
+  "elements": [
+   {
+    "id": "fea275fa-24f1-4008-aea9-bc047c11cc8f",
+    "angle": 0,
+    "strokeColor": "#1e1e1e",
+    "fillStyle": "none",
+    "strokeWidth": 2,
+    "strokeStyle": "solid",
+    "opacity": 100,
+    "zIndex": 0,
+    "type": "code",
+    "x": 0,
+    "y": 0,
+    "width": 886,
+    "height": 185,
+    "text": "export async function checkout(cart: Cart) {\n  const order = await orders.create(cart);\n  await payments.charge(order.total);\n  return order.id;\n}",
+    "diffText": "export async function checkout(cart: Cart) {\n  const order = await orders.create(cart);\n  const ok = await payments.charge(order.total);\n  if (!ok) throw new PaymentError(order.id);\n  return order.id;\n}",
+    "diffView": "split",
+    "language": "typescript",
+    "fileName": "checkout.ts",
+    "fontSize": 14
+   },
+   {
+    "id": "b7d0c6a2-5f1e-4c51-9a8f-3e2d1c0b9a01",
+    "angle": 0,
+    "strokeColor": "#1e1e1e",
+    "fillStyle": "none",
+    "strokeWidth": 2,
+    "strokeStyle": "solid",
+    "opacity": 100,
+    "zIndex": 1,
+    "type": "code",
+    "x": 0,
+    "y": 235,
+    "width": 423.0,
+    "height": 164,
+    "text": "ALTER TABLE payments\n  ADD COLUMN attempts INT NOT NULL DEFAULT 0,\n  ADD COLUMN last_error TEXT;\n\nCREATE INDEX payments_retry_idx\n  ON payments (status, attempts);",
+    "language": "sql",
+    "fileName": "0042_payment_retries.sql",
+    "fontSize": 14
+   },
+   {
+    "id": "c4e1a7d2-8b3f-4e6a-9d10-5f2b7c8e9a02",
+    "angle": 0,
+    "strokeColor": "#1e1e1e",
+    "fillStyle": "none",
+    "strokeWidth": 2,
+    "strokeStyle": "solid",
+    "opacity": 100,
+    "zIndex": 2,
+    "type": "code",
+    "x": 463.0,
+    "y": 235,
+    "width": 423.0,
+    "height": 164,
+    "text": "it('charges once', async () => {\n  await checkout(cart);\n  expect(payments.charge)\n    .toHaveBeenCalledTimes(1);\n});",
+    "language": "typescript",
+    "fileName": "checkout.test.ts",
+    "fontSize": 14
+   }
+  ],
+  "sequenceDiagrams": [],
+  "lifelines": [],
+  "sequenceMessages": [],
+  "viewport": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1
+  },
+  "home": null,
+  "themes": []
+ },
+ "images": []
+}

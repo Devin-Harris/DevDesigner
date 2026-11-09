@@ -387,6 +387,9 @@ const GAP = 8;
     .pairview.focusing .hit:not(.rel):not(.target) { opacity: .25; }
     .pairview.focusing .lines path:not(.lit):not(.live) { opacity: .08; }
     .pairview.focusing .end:not(.rel), .pairview.focusing .cut-line:not(.rel) { opacity: .15; }
+    /* ...and the slide pictures darken around the pair in focus (a cut-out shadow on its outlines). */
+    .pairview.focusing .sl { overflow: hidden; }
+    .pairview.focusing .hit.rel { box-shadow: 0 0 0 999px rgba(8, 10, 14, .55), 0 0 14px color-mix(in srgb, var(--c, var(--dbd-primary)) 55%, transparent); }
     .hit.rel { border-width: 3px; box-shadow: 0 0 14px color-mix(in srgb, var(--c, var(--dbd-primary)) 55%, transparent); }
     .hit.cut { border: 2px dotted var(--dbd-text-muted); }
     .hit.solo { border-style: dashed; }

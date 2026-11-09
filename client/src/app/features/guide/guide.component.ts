@@ -3,6 +3,9 @@ import {
   Component,
   computed,
   effect,
+  ElementRef,
+  untracked,
+  viewChild,
   inject,
   signal,
 } from '@angular/core';
@@ -20,10 +23,10 @@ import { EditorComponent } from '../editor/editor.component';
 import { GUIDE_GROUPS, GUIDE_TOOLS, type GuideTool } from './guide-tools';
 
 /** Bump when the seeds change so a session picks up the new examples. */
-const STORAGE_PREFIX = 'dbd-guide-sandbox:v5:';
+export const STORAGE_PREFIX = 'dbd-guide-sandbox:v5:';
 
 /** Seed project files, bundled as lazy chunks (exported from real projects, see seeds/). */
-const SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
+export const SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
   select: () => import('./seeds/select.json'),
   tables: () => import('./seeds/tables.json'),
   sequence: () => import('./seeds/sequence.json'),
@@ -39,7 +42,7 @@ const SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
   export: () => import('./seeds/export.json'),
 };
 
-async function waitForCodeFont(): Promise<void> {
+export async function waitForCodeFont(): Promise<void> {
   try {
     const stack = fontStack('code');
     await Promise.race([
@@ -59,7 +62,7 @@ function readFlag(key: string): boolean {
   }
 }
 
-function readStored(seed: string): string | null {
+export function readStored(seed: string): string | null {
   try {
     return sessionStorage.getItem(STORAGE_PREFIX + seed);
   } catch {
@@ -67,7 +70,7 @@ function readStored(seed: string): string | null {
   }
 }
 
-function writeStored(seed: string, id: string | null): void {
+export function writeStored(seed: string, id: string | null): void {
   try {
     if (id) sessionStorage.setItem(STORAGE_PREFIX + seed, id);
     else sessionStorage.removeItem(STORAGE_PREFIX + seed);
@@ -129,7 +132,17 @@ export class GuideComponent {
   /** Mobile: tool rail collapsed into a dropdown. */
   protected readonly navOpen = signal(false);
 
+  private readonly page = viewChild<ElementRef<HTMLElement>>('page');
+
   constructor() {
+    // New tool → start at the top (the page scrolls; on narrow screens the window does).
+    effect(() => {
+      this.tool();
+      untracked(() => {
+        this.page()?.nativeElement.scrollTo({ top: 0 });
+        window.scrollTo({ top: 0 });
+      });
+    });
     effect(() => {
       void this.loadSandbox(this.seed());
     });
@@ -177,21 +190,32 @@ export class GuideComponent {
     this.sandboxId.set(null);
     this.sandboxError.set(null);
     const current = (): boolean => this.seed() === seed;
-    const stored = readStored(seed);
-    if (stored && this.sandboxes.exists(stored)) {
-      if (current()) this.sandboxId.set(stored);
-      return;
-    }
     try {
-      const file = (await SEEDS[seed]()).default as ProjectExportFile;
-      // Code blocks are sized from the measured code font: make sure it has loaded.
-      await waitForCodeFont();
-      const id = this.sandboxes.create(structuredClone(file), seed);
-      writeStored(seed, id);
+      const id = await prepareSandbox(this.sandboxes, seed, SEEDS[seed]);
       if (current()) this.sandboxId.set(id);
     } catch (err) {
       console.error('Could not prepare guide sandbox', err);
       if (current()) this.sandboxError.set('Could not load the sandbox examples.');
     }
   }
+}
+
+/**
+ * Sandbox project for a seed file: reuses this browser session's copy (by `key`),
+ * else builds one from `load()`. View-only sandboxes render read-only.
+ */
+export async function prepareSandbox(
+  sandboxes: SandboxBackendService,
+  key: string,
+  load: () => Promise<{ default: unknown }>,
+  viewOnly = false,
+): Promise<string> {
+  const stored = readStored(key);
+  if (stored && sandboxes.exists(stored)) return stored;
+  const file = (await load()).default as ProjectExportFile;
+  // Code blocks are sized from the measured code font: make sure it has loaded.
+  await waitForCodeFont();
+  const id = sandboxes.create(structuredClone(file), key, { viewOnly });
+  writeStored(key, id);
+  return id;
 }

@@ -27,6 +27,8 @@ interface SandboxProject {
   schema: SchemaModel;
   /** Uploaded / seeded media: id -> { mimeType, base64 data }. */
   images: Record<string, { mimeType: string; data: string }>;
+  /** Served with VIEW access: the editor renders it read-only (home page showcase). */
+  viewOnly?: boolean;
 }
 
 /** Thrown for a request the sandbox can not satisfy (becomes an HTTP error). */
@@ -67,7 +69,7 @@ export class SandboxBackendService {
   // ------------------------------------------------------------------ lifecycle
 
   /** Create a sandbox project from a project export file (fresh ids, like a server import). */
-  create(file: ProjectExportFile, key: string): string {
+  create(file: ProjectExportFile, key: string, opts: { viewOnly?: boolean } = {}): string {
     const id = SANDBOX_PREFIX + key + '-' + uuid().slice(0, 8);
     const { schema, images } = remapIds(file.schema, file.images ?? []);
     const now = new Date().toISOString();
@@ -83,6 +85,7 @@ export class SandboxBackendService {
       },
       schema: fitCodeBlocks(normalizeSchema(schema)),
       images,
+      viewOnly: opts.viewOnly,
     });
     this.save(id, true);
     return id;
@@ -643,7 +646,7 @@ export class SandboxBackendService {
 
   private graph(pid: string): ProjectGraphResponse {
     const p = this.get(pid)!;
-    return { project: p.project, schema: structuredClone(p.schema), accessLevel: 'OWNER' as ProjectGraphResponse['accessLevel'] };
+    return { project: p.project, schema: structuredClone(p.schema), accessLevel: (p.viewOnly ? 'VIEW' : 'OWNER') as ProjectGraphResponse['accessLevel'] };
   }
 
   private exportFile(pid: string): ProjectExportFile {

@@ -104,7 +104,7 @@ import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from './too
     </div>
   `,
   styles: `
-    :host { position: fixed; inset: 0; z-index: 1000; }
+    :host { position: fixed; inset: 0; z-index: 1000; pointer-events: auto; }
     .scrim { position: absolute; inset: 0; background: rgba(10, 12, 18, 0.35); }
     .panel {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);

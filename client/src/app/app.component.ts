@@ -3,6 +3,7 @@ import { CommandPaletteComponent } from './features/command-palette/command-pale
 import { AutofocusDirective } from './features/editor/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
 import { ToolbarPrefsService } from './features/editor/shape-toolbar/toolbar-prefs.service';
+import { ToolbarCustomizePanelComponent } from './features/editor/shape-toolbar/toolbar-customize-panel.component';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
@@ -40,7 +41,7 @@ import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommandPaletteComponent, ShortcutsSheetComponent, AutofocusDirective, RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, PopoverTriggerDirective],
+  imports: [CommandPaletteComponent, ShortcutsSheetComponent, AutofocusDirective, RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, PopoverTriggerDirective, ToolbarCustomizePanelComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -52,13 +53,13 @@ export class AppComponent {
   protected readonly editorStore = inject(ProjectStore);
   protected readonly editorActions = inject(EditorActionsService);
   private readonly router = inject(Router);
-  /** The canvas guide embeds sandbox editors in its own layout: no floating islands there. */
+  /** The canvas guide and the home page embed sandbox editors in their own layout: no floating islands there. */
   protected readonly onGuide = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map((e) => e.urlAfterRedirects.startsWith('/guide')),
+      map((e) => isEmbedUrl(e.urlAfterRedirects)),
     ),
-    { initialValue: this.router.url.startsWith('/guide') },
+    { initialValue: isEmbedUrl(this.router.url) },
   );
   protected readonly realtime = inject(RealtimeService);
   private readonly overlay = inject(ProjectsOverlayService);
@@ -282,4 +283,10 @@ export class AppComponent {
     this.projects.select(null);
     this.projects.loadProjects();
   }
+}
+
+/** Pages that embed sandbox editors in their own layout (the guide, the home showcase). */
+function isEmbedUrl(url: string): boolean {
+  const path = url.split(/[?#]/)[0];
+  return path.startsWith('/guide') || path === '/' || path === '';
 }
