@@ -13,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ToolbarPrefsService } from './shape-toolbar/toolbar-prefs.service';
-import { PenOptionsBarComponent, PenPrefsService } from './pen-options-bar/pen-options-bar.component';
+import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN, PenOptionsBarComponent, PenPrefsService } from './pen-options-bar/pen-options-bar.component';
 import { InspectorPanelService } from './inspector-panel.service';
 import type { CanvasItemRef } from '../../core/services/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -80,7 +80,8 @@ import { ElementImagesService } from '../../core/services/element-images.service
 import { MediaActionsService } from '../../core/services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
-import { ProjectStore, type SequenceLayoutSnapshot } from '../../stores/project.store';
+import { ProjectStore, elementToCreateDto, type SequenceLayoutSnapshot } from '../../stores/project.store';
+import { splitAtGaps } from './canvas/helpers/shape-render.helper';
 import { AutofocusDirective } from './autofocus.directive';
 import { CodeActionsService } from '../../core/services/code-actions.service';
 import { GridTableService } from '../../core/services/grid-table.service';
@@ -200,7 +201,7 @@ import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';
 import { findLinkSnap, type LinkSnap } from './canvas/helpers/link-snap.helper';
-import { smartSnap, snapTargets, type SmartSnap } from './canvas/helpers/smart-guides.helper';
+import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './canvas/helpers/smart-guides.helper';
 import type { Box, Point, Side } from './canvas/models/geometry.model';
 import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
 import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
@@ -255,6 +256,8 @@ type DragMode =
   | 'spacing'
   | 'arrow-endpoint'
   | 'arrow-bend'
+  /** Pen eraser: dragging removes the pen strokes it touches. */
+  | 'erase'
   /** Alt-drag: waiting for the copies to be created before the drag can start. */
   | 'duplicating';
 
@@ -809,6 +812,7 @@ export class EditorComponent {
   /** Embedded use (the canvas guide): frame the content once after it loads, at most 100%. */
   readonly fitOnLoad = input(false);
   private fittedProjectId: string | null = null;
+  private homeAppliedFor: string | null = null;
   /** Embedded use: the tool to have active once the project loads (e.g. the guide's current tool). */
   readonly initialTool = input<EditorTool | null>(null);
   private toolAppliedFor: string | null = null;
@@ -965,6 +969,12 @@ export class EditorComponent {
     }
     if (tool === 'select') {
       return 'default';
+    }
+    if (tool === 'freedraw' && this.penPrefs.eraser()) {
+      // A ring the size of the eraser's reach (browsers cap cursors at 128px).
+      const d = Math.min(126, Math.max(6, Math.round(this.penPrefs.eraserSize())));
+      const c = d / 2 + 1;
+      return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${d + 2}' height='${d + 2}'%3E%3Ccircle cx='${c}' cy='${c}' r='${d / 2}' fill='rgba(255,255,255,0.35)' stroke='black' stroke-width='1'/%3E%3C/svg%3E") ${c} ${c}, cell`;
     }
     return 'crosshair';
   });
@@ -2274,9 +2284,24 @@ export class EditorComponent {
     effect(() => {
       const id = this.store.projectId();
       if (!this.fitOnLoad() || !id || this.store.loading() || this.fittedProjectId === id) return;
+      // The store is app-wide: only frame the project this editor was given.
+      if (id !== (this.projectId() ?? id)) return;
       if (!this.minimapItems().length) return;
       this.fittedProjectId = id;
-      setTimeout(() => this.fitContent());
+      setTimeout(() => {
+        if (!this.destroyRef.destroyed && this.store.projectId() === id) this.fitContent();
+      });
+    });
+    // Opening (or refreshing) a project starts at its home view, or origin/100%.
+    effect(() => {
+      const id = this.store.projectId();
+      if (this.fitOnLoad() || !id || this.store.loading() || !this.store.schema()) return;
+      if (this.homeAppliedFor === id) return;
+      this.homeAppliedFor = id;
+      untracked(() => {
+        const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
+        this.store.setViewport(home.x, home.y, home.zoom);
+      });
     });
     effect(() => {
       const id = this.store.projectId();
@@ -2576,6 +2601,10 @@ export class EditorComponent {
         this.afterPlace();
         return;
       }
+      if (tool === 'freedraw' && this.penPrefs.eraser()) {
+        this.beginErase(event);
+        return;
+      }
       this.beginDraw(tool, event);
       return;
     }
@@ -2697,6 +2726,100 @@ export class EditorComponent {
     void this.store.addSequenceStarter(x, y);
   }
 
+  /** Pen strokes cut by the current eraser drag: their state before the drag. */
+  private erased = new Map<string, CanvasElementModel>();
+  private lastErasePoint: { x: number; y: number } | null = null;
+
+  private beginErase(event: PointerEvent): void {
+    this.mode = 'erase';
+    this.gestureActive.set(true);
+    this.erased.clear();
+    this.lastErasePoint = null;
+    this.eraseAt(event.clientX, event.clientY);
+  }
+
+  /**
+   * Cut the parts of pen strokes under the eraser (from the last sample to here).
+   * Erased points become NaN gaps locally; pointer-up splits the stroke into pieces.
+   */
+  private eraseAt(clientX: number, clientY: number): void {
+    const raw = this.toWorldRaw(clientX, clientY);
+    const view = this.slideViews().find((v) => inBlock(v, raw));
+    const p = view ? toInner(view, raw) : raw;
+    const from = this.lastErasePoint ?? p;
+    this.lastErasePoint = p;
+    const r = this.penPrefs.eraserSize() / 2 / this.store.viewport().zoom;
+    for (const el of this.store.elements()) {
+      if (el.type !== 'freedraw') continue;
+      const reach = r + el.strokeWidth;
+      if (!hitTestElement(el, p, reach) && !hitTestElement(el, from, reach)) {
+        // Cheap reject unless the eraser segment crosses the stroke's box.
+        const b = elementBox(el);
+        if (Math.max(p.x, from.x) < b.x0 - reach || Math.min(p.x, from.x) > b.x1 + reach ||
+            Math.max(p.y, from.y) < b.y0 - reach || Math.min(p.y, from.y) > b.y1 + reach) continue;
+      }
+      if (!this.erased.has(el.id)) this.erased.set(el.id, el);
+      // Subdivide only the segments the eraser touches, so a cut can land between
+      // widely spaced samples. (Densifying the whole stroke would make the brush
+      // read it as slow and draw it thicker.)
+      const pts = densify(el.points ?? [], Math.max(1, r / 3), (a, b) =>
+        segDistance({ x: el.x + a.x, y: el.y + a.y }, { x: el.x + b.x, y: el.y + b.y }, from, p) <= reach,
+      );
+      let changed = false;
+      const next = pts.map((q) => {
+        if (!Number.isFinite(q.x)) return q;
+        const a = { x: el.x + q.x, y: el.y + q.y };
+        if (distanceToSegment(a, from, p) <= reach) {
+          changed = true;
+          return { x: NaN, y: NaN };
+        }
+        return q;
+      });
+      if (changed) this.store.patchElementLocal(el.id, { points: next });
+    }
+  }
+
+  /** Replace each cut stroke by its remaining pieces, as one undo step. */
+  private commitErase(): void {
+    const erased = [...this.erased];
+    this.erased.clear();
+    this.lastErasePoint = null;
+    const work: { before: CanvasElementModel; pieces: { x: number; y: number }[][] }[] = [];
+    for (const [id, before] of erased) {
+      const now = this.store.elements().find((e) => e.id === id);
+      if (!now) continue;
+      const pieces = splitAtGaps(absolutePoints(now)).filter((run) => run.length > 1);
+      // Restore the original first so undo re-creates the stroke as it was.
+      this.store.patchElementLocal(id, { points: before.points });
+      if (pieces.length === 1 && pieces[0].length === (now.points ?? []).length) continue;
+      work.push({ before, pieces });
+    }
+    if (work.length === 0) return;
+    void this.store.batchHistory(async () => {
+      for (const { before, pieces } of work) {
+        await this.store.deleteElement(before.id);
+        for (const run of pieces) {
+          const o = run[0];
+          let x1 = o.x, y1 = o.y, x0 = o.x, y0 = o.y;
+          for (const q of run) {
+            x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+            x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+          }
+          const dto = elementToCreateDto({
+            ...before,
+            x: o.x,
+            y: o.y,
+            width: x1 - x0,
+            height: y1 - y0,
+            points: run.map((q) => ({ x: q.x - o.x, y: q.y - o.y })),
+          });
+          delete (dto as { id?: string }).id;
+          await this.store.addElement(dto, false);
+        }
+      }
+    });
+  }
+
   /** Start drawing an element of the active tool at the pointer. */
   private beginDraw(
     tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence' | 'laser' | 'slide'>,
@@ -2761,7 +2884,12 @@ export class EditorComponent {
       strokeColor: style.strokeColor ?? this.defaultStroke(),
       backgroundColor: style.backgroundColor,
       fillStyle: style.fillStyle,
-      strokeWidth: type === 'freedraw' && this.penPrefs.highlighter() ? Math.max(style.strokeWidth, 2) * 4 : style.strokeWidth,
+      strokeWidth:
+        type === 'freedraw'
+          ? this.penPrefs.highlighter()
+            ? Math.max(this.penPrefs.width(), 2) * 4
+            : this.penPrefs.width()
+          : style.strokeWidth,
       strokeStyle: style.strokeStyle,
       opacity: type === 'freedraw' && this.penPrefs.highlighter() ? 50 : style.opacity,
       zIndex: this.store.elements().length,
@@ -2834,13 +2962,53 @@ export class EditorComponent {
       return;
     }
     if (draft.type === 'line' || draft.type === 'arrow') {
-      const end = {
-        x: (snap ? snapToGrid(world.x) : world.x) - draft.x,
-        y: (snap ? snapToGrid(world.y) : world.y) - draft.y,
-      };
+      // Highlight the shape/table the free end would bind to; binding beats snapping.
+      const bindBox = this.bindingTargetAt(world, draft.id)?.box ?? null;
+      this.bindHighlight.set(bindBox);
+      const space = { ctx: this.drawSlideId() ?? null, view };
+      const spanOf = (px: number, py: number) => ({
+        x0: Math.min(px, draft.x),
+        y0: Math.min(py, draft.y),
+        x1: Math.max(px, draft.x),
+        y1: Math.max(py, draft.y),
+      });
+      let end: { x: number; y: number };
+      if (shift) {
+        // Lock to 45° steps from the start point, keeping the cursor's distance along it,
+        // then slide along that direction to line up with nearby items.
+        const vx = world.x - draft.x;
+        const vy = world.y - draft.y;
+        const step = Math.PI / 4;
+        const ang = Math.round(Math.atan2(vy, vx) / step) * step;
+        const ux = Math.cos(ang);
+        const uy = Math.sin(ang);
+        let len = vx * ux + vy * uy;
+        const px = draft.x + ux * len;
+        const py = draft.y + uy * len;
+        const smart = bindBox
+          ? null
+          : this.smartEdges(draft.id, spanOf(px, py), Math.abs(ux) > 1e-6 ? [px] : [], Math.abs(uy) > 1e-6 ? [py] : [], space);
+        const lx = smart?.snappedX ? (px + smart.ox - draft.x) / ux : null;
+        const ly = smart?.snappedY ? (py + smart.oy - draft.y) / uy : null;
+        const pick = [lx, ly].filter((v): v is number => v !== null).sort((a, b) => Math.abs(a - len) - Math.abs(b - len))[0];
+        if (pick !== undefined && smart) {
+          len = pick;
+          if (pick !== lx) Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
+          if (pick !== ly) Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
+          this.smartSnapState.set(smart.guides.length ? { snap: smart, view: this.smartBase?.view } : null);
+        } else {
+          if (bindBox) this.smartSnapState.set(null);
+          if (snap) len = snapToGrid(len);
+        }
+        end = { x: Math.round(ux * len), y: Math.round(uy * len) };
+      } else {
+        const smart = bindBox ? null : this.smartEdges(draft.id, spanOf(world.x, world.y), [world.x], [world.y], space);
+        if (bindBox) this.smartSnapState.set(null);
+        const ex = smart?.snappedX ? world.x + smart.ox : snap ? snapToGrid(world.x) : world.x;
+        const ey = smart?.snappedY ? world.y + smart.oy : snap ? snapToGrid(world.y) : world.y;
+        end = { x: ex - draft.x, y: ey - draft.y };
+      }
       this.draft.set({ ...draft, points: [{ x: 0, y: 0 }, end] });
-      // Highlight the shape/table the free end would bind to.
-      this.bindHighlight.set(this.bindingTargetAt(world, draft.id)?.box ?? null);
       return;
     }
     // Rectangle / ellipse / diamond: grow the box from the anchor. Shift forces a
@@ -3374,7 +3542,7 @@ export class EditorComponent {
     const my = (y: number): number => ay + (y - ay) * sy;
 
     for (const e of g.elements) {
-      if (e.type === 'line' || e.type === 'arrow') {
+      if (e.type === 'line' || e.type === 'arrow' || e.type === 'freedraw') {
         const pts = absolutePoints(e).map((p) => ({ x: mx(p.x), y: my(p.y) }));
         const o = pts[0];
         this.store.patchElementLocal(e.id, {
@@ -3577,7 +3745,7 @@ export class EditorComponent {
     }
     const now = new Map(this.store.elements().map((e) => [e.id, e] as const));
     const pick = (e: CanvasElementModel): UpdateElementDto =>
-      e.type === 'line' || e.type === 'arrow'
+      e.type === 'line' || e.type === 'arrow' || e.type === 'freedraw'
         ? { x: e.x, y: e.y, points: e.points }
         : {
             x: e.x,
@@ -3650,10 +3818,14 @@ export class EditorComponent {
     this.startClientX = payload.event.clientX;
     this.startClientY = payload.event.clientY;
     this.gestureScale = this.itemScale(el.id);
+    // A pen stroke's x/y is its first point, not its bounds: resize from the drawn box.
+    const pb = el.type === 'freedraw' ? elementBox(el) : null;
     this.elementGesture = {
       id: el.id,
       handle: payload.handle,
-      start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
+      start: pb
+        ? { x: pb.x0, y: pb.y0, width: Math.max(1, pb.x1 - pb.x0), height: Math.max(1, pb.y1 - pb.y0), angle: el.angle }
+        : { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
       snapshot: el,
     };
   }
@@ -3897,7 +4069,13 @@ export class EditorComponent {
         : 0;
       const minScale = Math.max(8 / Math.min(s.width, s.height), frameMinH);
       let scale = Math.max(minScale, 1 + (grow * s.width + growY * s.height) / diag);
-      if (this.gridSnap()) {
+      const smart = ev.altKey || resized?.type === 'text' ? null : this.resizeSnap(g.id, s, left, top, s.width * scale, s.height * scale);
+      if (smart?.snappedX || smart?.snappedY) {
+        const w = s.width * scale + (smart.snappedX ? (left ? -smart.ox : smart.ox) : 0);
+        const h = s.height * scale + (smart.snappedY ? (top ? -smart.oy : smart.oy) : 0);
+        // Follow whichever edge snapped (X wins when both did).
+        scale = Math.max(minScale, smart.snappedX ? w / s.width : h / s.height);
+      } else if (this.gridSnap()) {
         // Snap one dimension and derive the other so the ratio survives snapping.
         scale = Math.max(minScale, snapToGrid(s.width * scale) / s.width);
       }
@@ -3910,10 +4088,11 @@ export class EditorComponent {
         : 8;
       width = Math.max(8, s.width + grow);
       height = Math.max(minH, s.height + growY);
-      if (this.gridSnap()) {
-        width = Math.max(8, snapToGrid(width));
-        height = Math.max(minH, snapToGrid(height));
-      }
+      const smart = ev.altKey || resized?.type === 'text' ? null : this.resizeSnap(g.id, s, left, top, width, height);
+      if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox));
+      else if (this.gridSnap()) width = Math.max(8, snapToGrid(width));
+      if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy));
+      else if (this.gridSnap()) height = Math.max(minH, snapToGrid(height));
     }
 
     let x: number;
@@ -3970,7 +4149,40 @@ export class EditorComponent {
       return;
     }
 
+    if (el?.type === 'freedraw') {
+      // Scale the stroke's points from the start box into the new one.
+      const sx = width / s.width;
+      const sy = height / s.height;
+      const pts = absolutePoints(g.snapshot).map((p) => ({ x: x + (p.x - s.x) * sx, y: y + (p.y - s.y) * sy }));
+      const o = pts[0] ?? { x, y };
+      this.store.patchElementLocal(g.id, {
+        x: o.x,
+        y: o.y,
+        width,
+        height,
+        points: pts.map((p) => ({ x: p.x - o.x, y: p.y - o.y })),
+      });
+      return;
+    }
+
     this.store.patchElementLocal(g.id, { x, y, width, height });
+  }
+
+  /** Smart-guide snap of the dragged corner's edges for a resize to (width, height). */
+  private resizeSnap(
+    id: string,
+    s: { x: number; y: number; width: number; height: number; angle?: number | null },
+    left: boolean,
+    top: boolean,
+    width: number,
+    height: number,
+  ): SmartSnap | null {
+    // Rotated boxes have no axis-aligned edges to line up.
+    if (s.angle) return null;
+    const x0 = left ? s.x + s.width - width : s.x;
+    const y0 = top ? s.y + s.height - height : s.y;
+    const box = { x0, y0, x1: x0 + width, y1: y0 + height };
+    return this.smartEdges(id, box, [left ? box.x0 : box.x1], [top ? box.y0 : box.y1]);
   }
 
   private rotateElement(ev: PointerEvent): void {
@@ -4000,12 +4212,58 @@ export class EditorComponent {
     if (!el) {
       return;
     }
-    const world = this.toWorld(clientX, clientY);
+    let world = this.toWorld(clientX, clientY);
     const target = this.bindingTargetAt(world, g.id);
     this.bindHighlight.set(target?.box ?? null);
     const binding = target?.binding ?? null;
     const pts = g.points.map((p) => ({ ...p }));
     const idx = g.which === 'start' ? 0 : pts.length - 1;
+    if (!binding) {
+      // The neighbouring point anchors the Shift angle lock.
+      const anchor = pts[g.which === 'start' ? 1 : pts.length - 2] ?? pts[idx];
+      if (this.shiftHeld) {
+        // Lock to 45° steps around the anchor, keeping the cursor's distance along it.
+        const vx = world.x - anchor.x;
+        const vy = world.y - anchor.y;
+        const step = Math.PI / 4;
+        const ang = Math.round(Math.atan2(vy, vx) / step) * step;
+        const ux = Math.cos(ang);
+        const uy = Math.sin(ang);
+        let len = vx * ux + vy * uy;
+        const px = anchor.x + ux * len;
+        const py = anchor.y + uy * len;
+        const box = { x0: Math.min(px, anchor.x), y0: Math.min(py, anchor.y), x1: Math.max(px, anchor.x), y1: Math.max(py, anchor.y) };
+        // Snap along the locked direction: slide the point until its x or y hits a guide.
+        const smart = this.smartEdges(g.id, box, Math.abs(ux) > 1e-6 ? [px] : [], Math.abs(uy) > 1e-6 ? [py] : []);
+        const lx = smart?.snappedX ? (px + smart.ox - anchor.x) / ux : null;
+        const ly = smart?.snappedY ? (py + smart.oy - anchor.y) / uy : null;
+        const pick = [lx, ly].filter((v): v is number => v !== null).sort((a, b) => Math.abs(a - len) - Math.abs(b - len))[0];
+        if (pick !== undefined) {
+          len = pick;
+          if (smart && pick !== lx) Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
+          if (smart && pick !== ly) Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
+          this.smartSnapState.set(smart?.guides.length ? { snap: smart, view: this.smartBase?.view } : null);
+        } else if (this.gridSnap()) {
+          len = snapToGrid(len);
+        }
+        world = { x: Math.round(anchor.x + ux * len), y: Math.round(anchor.y + uy * len) };
+      } else {
+        const box = {
+          x0: Math.min(world.x, anchor.x),
+          y0: Math.min(world.y, anchor.y),
+          x1: Math.max(world.x, anchor.x),
+          y1: Math.max(world.y, anchor.y),
+        };
+        const smart = this.smartEdges(g.id, box, [world.x], [world.y]);
+        const grid = this.gridSnap();
+        world = {
+          x: smart?.snappedX ? world.x + smart.ox : grid ? snapToGrid(world.x) : Math.round(world.x),
+          y: smart?.snappedY ? world.y + smart.oy : grid ? snapToGrid(world.y) : Math.round(world.y),
+        };
+      }
+    } else {
+      this.smartSnapState.set(null);
+    }
     pts[idx] = world;
     // Points are stored relative to the element origin (its first point).
     const origin = pts[0];
@@ -4084,6 +4342,7 @@ export class EditorComponent {
           height: snap.height,
           ...(scaled ? { fontSize: snap.fontSize, wrap: snap.wrap ?? false } : {}),
           ...(el.type === 'grid' ? { text: snap.text ?? '', fontSize: snap.fontSize } : {}),
+          ...(el.type === 'freedraw' ? { points: snap.points } : {}),
         },
         {
           x: el.x,
@@ -4092,6 +4351,7 @@ export class EditorComponent {
           height: el.height,
           ...(scaled ? { fontSize: el.fontSize, wrap: el.wrap ?? false } : {}),
           ...(el.type === 'grid' ? { text: el.text ?? '', fontSize: el.fontSize } : {}),
+          ...(el.type === 'freedraw' ? { points: el.points } : {}),
         },
       );
     } else if (this.mode === 'element-rotate') {
@@ -5446,6 +5706,10 @@ export class EditorComponent {
       this.updateDraw(event.clientX, event.clientY, event.shiftKey, event.altKey);
       return;
     }
+    if (this.mode === 'erase') {
+      this.eraseAt(event.clientX, event.clientY);
+      return;
+    }
     if (this.mode === 'element') {
       this.moveElements(event.clientX, event.clientY);
       return;
@@ -5545,6 +5809,7 @@ export class EditorComponent {
       return;
     }
     this.commitLinkSnap();
+    const edgeGesture = this.mode === 'element-resize' || this.mode === 'arrow-endpoint' || this.mode === 'draw';
     const moved =
       this.mode === 'element' || this.mode === 'node'
         ? { elements: [...this.store.selectedElementIds()], tables: [...this.store.selectedTableIds()] }
@@ -5553,6 +5818,8 @@ export class EditorComponent {
       this.commitMarquee();
     } else if (this.mode === 'draw') {
       void this.commitDraft(false);
+    } else if (this.mode === 'erase') {
+      this.commitErase();
     } else if (this.mode === 'element') {
       this.recordMoveGesture();
     } else if (this.mode === 'node') {
@@ -5586,7 +5853,7 @@ export class EditorComponent {
     this.clearLinking();
     this.gestureScale = 1;
     // Sequence diagrams run their own drags and clear this after their final shift.
-    if (moved) this.smartDragEnd();
+    if (moved || edgeGesture) this.smartDragEnd();
     if (moved) {
       this.releaseDroppedOutOfSlides(moved);
     }
@@ -6026,7 +6293,34 @@ export class EditorComponent {
         return;
       }
     }
+    if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.activeTool() === 'freedraw') {
+      // [ / ]: shrink / grow the pen or eraser.
+      event.preventDefault();
+      const up = event.key === ']';
+      if (this.penPrefs.eraser()) {
+        const v = this.penPrefs.eraserSize();
+        this.penPrefs.eraserSize.set(Math.min(ERASER_MAX, Math.max(ERASER_MIN, Math.round(up ? v * 1.25 + 1 : v / 1.25 - 1))));
+      } else {
+        const v = this.penPrefs.width();
+        const next = Math.round((up ? v * 1.25 + 0.5 : v / 1.25 - 0.5) * 2) / 2;
+        this.penPrefs.width.set(Math.min(PEN_MAX, Math.max(PEN_MIN, next)));
+      }
+      return;
+    }
+    if (!mod && !event.altKey && event.key.toLowerCase() === 'x' && this.store.canEdit()) {
+      // X: the pen's eraser (switches to the pen if another tool is active).
+      event.preventDefault();
+      if (this.activeTool() !== 'freedraw') {
+        this.activeTool.set('freedraw');
+        this.penPrefs.eraser.set(true);
+      } else {
+        this.penPrefs.eraser.update((v) => !v);
+      }
+      return;
+    }
     const tool = mod || event.altKey ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
+    // P always means the pen itself, so it leaves the eraser.
+    if (tool === 'freedraw') this.penPrefs.eraser.set(false);
     // The laser pointer is a presenting tool, so view-only guests may use it too.
     if (tool && (this.store.canEdit() || tool === 'laser')) {
       // Pressing a shape / line key again cycles through its family (R → O → D, A → L).
@@ -7519,6 +7813,7 @@ export class EditorComponent {
   }
 
   protected onToolChange(tool: EditorTool): void {
+    if (tool === 'freedraw') this.penPrefs.eraser.set(false);
     this.activeTool.set(tool);
   }
 
@@ -8247,9 +8542,12 @@ export class EditorComponent {
   private animateViewport(x: number, y: number, zoom: number): void {
     cancelAnimationFrame(this.viewAnim);
     const from = this.store.viewport();
+    const projectId = this.store.projectId();
     const start = performance.now();
     const duration = 250;
     const step = (now: number): void => {
+      // The store is app-wide: never write this view into another project or after teardown.
+      if (this.destroyRef.destroyed || this.store.projectId() !== projectId) return;
       const t = Math.min(1, (now - start) / duration);
       const e = 1 - Math.pow(1 - t, 3);
       this.store.setViewport(
@@ -8471,6 +8769,49 @@ export class EditorComponent {
       this.smartSnapState.set(null);
       return null;
     }
+    const base = this.ensureSmartBase(grabbedId, elementIds, tableIds, diagramIds);
+    if (!base) return null;
+    const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
+    const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
+    const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId), parts);
+    // Shift constrains the drag to one axis; don't let a snap pull it off.
+    if (this.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
+    if (this.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
+    this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+    return snap;
+  }
+
+  /**
+   * Smart-guide correction for a resize / endpoint drag of one element: only the
+   * moving edge positions `xs` / `ys` (world coords) snap. `box` spans the guides.
+   */
+  private smartEdges(
+    id: string,
+    box: Box,
+    xs: number[],
+    ys: number[],
+    draft?: { ctx: string | null; view?: SlideView },
+  ): SmartSnap | null {
+    if (!this.smartGuides()) {
+      this.smartSnapState.set(null);
+      return null;
+    }
+    const base = this.ensureSmartBase(id, [id], [], [], draft ? { ...draft, box } : undefined);
+    if (!base) return null;
+    const scale = draft ? (draft.view?.scale ?? 1) : this.itemScale(id);
+    const snap = smartSnapEdges(box, xs, ys, base.targets, this.store.viewport().zoom * scale);
+    this.smartSnapState.set(snap.guides.length ? { snap, view: base.view } : null);
+    return snap;
+  }
+
+  /** Snap targets for a gesture on the given items, built once per gesture. */
+  private ensureSmartBase(
+    grabbedId: string,
+    elementIds: Iterable<string>,
+    tableIds: Iterable<string>,
+    diagramIds: Iterable<string> = [],
+    draft?: { box: Box; ctx: string | null; view?: SlideView },
+  ): { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null {
     if (!this.smartBase) {
       const moving = new Set([...elementIds, ...tableIds, ...diagramIds]);
       const els = this.store.elements();
@@ -8482,8 +8823,9 @@ export class EditorComponent {
         els.find((e) => e.id === grabbedId) ??
         tables.find((t) => t.id === grabbedId) ??
         diagrams.find((d) => d.id === grabbedId);
-      const ctx = grabbed?.slideId ?? null;
-      const boxes: Box[] = [];
+      // A shape being drawn isn't in the store yet: it brings its own box and space.
+      const ctx = draft ? draft.ctx : (grabbed?.slideId ?? null);
+      const boxes: Box[] = draft ? [draft.box] : [];
       for (const e of els) if (moving.has(e.id)) boxes.push(elementBox(e));
       for (const t of tables) if (moving.has(t.id)) boxes.push(tableBox(t));
       const diagramBoxes = new Map<string, Box>();
@@ -8501,7 +8843,8 @@ export class EditorComponent {
       };
       const all: Box[] = [];
       for (const e of els) {
-        if (moving.has(e.id) || isPathElement(e.type)) continue;
+        // Lines/arrows count (their box edges are their ends); freehand strokes don't.
+        if (moving.has(e.id) || (isPathElement(e.type) && e.type !== 'line' && e.type !== 'arrow')) continue;
         if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(elementBox(e));
       }
       for (const t of tables) {
@@ -8515,18 +8858,12 @@ export class EditorComponent {
       for (const p of this.presentationOutlineBoxes()) {
         if (ctx === null || p.frameId === ctx) all.push(p.box);
       }
-      const view = this.itemScale(grabbedId) !== 1 ? this.viewOf(grabbedId) : undefined;
+      const view = draft
+        ? draft.view && draft.view.scale !== 1 ? draft.view : undefined
+        : this.itemScale(grabbedId) !== 1 ? this.viewOf(grabbedId) : undefined;
       this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
     }
-    const base = this.smartBase;
-    const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
-    const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
-    const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId), parts);
-    // Shift constrains the drag to one axis; don't let a snap pull it off.
-    if (this.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
-    if (this.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
-    this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
-    return snap;
+    return this.smartBase;
   }
 
   /**
@@ -9307,4 +9644,53 @@ export class EditorComponent {
       rowSpacing: cfg?.rowSpacing ?? 48,
     };
   }
+}
+
+/** Resample a polyline so consecutive points are at most `step` apart. */
+function densify(
+  pts: readonly { x: number; y: number }[],
+  step: number,
+  near: (a: { x: number; y: number }, b: { x: number; y: number }) => boolean,
+): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = [];
+  for (let i = 0; i < pts.length; i += 1) {
+    const a = pts[i];
+    out.push(a);
+    const b = pts[i + 1];
+    if (!b) break;
+    if (!Number.isFinite(a.x) || !Number.isFinite(b.x) || !near(a, b)) continue;
+    const n = Math.floor(Math.hypot(b.x - a.x, b.y - a.y) / step);
+    for (let k = 1; k < n; k += 1) out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
+  }
+  return out;
+}
+
+function distanceToSegment(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = dx * dx + dy * dy;
+  const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** Shortest distance between segments ab and cd. */
+function segDistance(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+  d: { x: number; y: number },
+): number {
+  const cross = (o: { x: number; y: number }, p: { x: number; y: number }, q: { x: number; y: number }) =>
+    (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  if (d1 * d2 < 0 && d3 * d4 < 0) return 0;
+  return Math.min(
+    distanceToSegment(a, c, d),
+    distanceToSegment(b, c, d),
+    distanceToSegment(c, a, b),
+    distanceToSegment(d, a, b),
+  );
 }

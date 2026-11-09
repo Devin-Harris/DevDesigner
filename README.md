@@ -121,6 +121,32 @@ The server talks only to the REST API as the token's owner, so permissions, vali
 
 **Remote (HTTP) MCP:** `npm run build:mcp && npm run start:mcp:http` (or `MCP_TRANSPORT=http`) serves a stateless Streamable HTTP endpoint at `POST /mcp` (health: `GET /health`) on `PORT` (default 3001). Set `DEVDESIGNER_API_URL` to the API (incl. `/api`). Each request sends its own `Authorization: Bearer dd_...`, so one deployment serves many users. In this mode `filePath` images are disabled and image URLs may not point at private addresses. Claude Code: `claude mcp add --transport http devdesigner https://YOUR-HOST/mcp --header "Authorization: Bearer dd_..."`.
 
+### Connecting to the production DevDesigner MCP
+
+No build needed — the hosted server runs at `https://devdesignermcp-production.up.railway.app/mcp`.
+
+1. Sign in to the production app, open **Account → API tokens** and create a token (read & write, or read only).
+2. Add it to a `.mcp.json` at your project root (Claude Code picks this up automatically; approve the server when prompted):
+
+```json
+{
+  "mcpServers": {
+    "devdesigner-prod": {
+      "type": "http",
+      "url": "https://devdesignermcp-production.up.railway.app/mcp",
+      "headers": {
+        "Authorization": "Bearer dd_..."
+      }
+    }
+  }
+}
+```
+
+   Or from the CLI: `claude mcp add --transport http --scope project devdesigner-prod https://devdesignermcp-production.up.railway.app/mcp --header "Authorization: Bearer dd_..."`.
+3. Restart the client (or run `/mcp` in Claude Code) and check that `devdesigner-prod` shows as connected; `list_projects` should return your projects.
+
+You can keep a local entry (stdio, as above) and the prod entry side by side under different names. `.mcp.json` holds your token, so keep it out of git (add it to `.gitignore`) or use an env var: `"Authorization": "Bearer ${DEVDESIGNER_API_TOKEN}"`.
+
 ## Roadmap
 
 - [ ] Project dashboard & CRUD

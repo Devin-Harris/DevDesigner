@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -57,11 +57,24 @@ export class ProjectsOverlayComponent {
   protected readonly editName = signal('');
   protected readonly busy = signal(false);
   protected readonly templateDefs: ProjectTemplate[] = PROJECT_TEMPLATES;
+  /** Projects ticked for a bulk action. */
+  protected readonly checked = signal<ReadonlySet<string>>(new Set());
+  /** Keyboard cursor (arrow keys move it; Delete/Enter act on it). */
+  protected readonly cursorId = signal<string | null>(null);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor() {
     // Project content can change while the dialog is closed; rebuild previews
     // (the cached pictures keep showing until the fresh ones arrive).
     this.thumbs.invalidate();
+    // Arrow keys start from the project that's open in the editor.
+    this.cursorId.set(this.store.selectedId());
+    this.resetAnchor(this.store.selectedId());
+    // While projects are selected, Escape clears the selection instead of
+    // closing the dialog (handled in onKeydown).
+    effect(() => {
+      this.dialogRef.disableClose = this.checked().size > 0;
+    });
   }
 
   /** Deterministic accent per project so a card keeps its thumbnail color. */
@@ -99,15 +112,20 @@ export class ProjectsOverlayComponent {
    */
   protected onCardClick(project: ProjectSummary, event: MouseEvent): void {
     this.cancelPendingOpen();
-    const onName = (event.target as HTMLElement).closest('.name-row');
-    if (!onName) {
-      this.select(project);
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      event.preventDefault();
+      this.toggleCheck(project, event);
       return;
     }
-    this.openTimer = setTimeout(() => {
-      this.openTimer = null;
+    // Only the thumbnail opens the project; the rest of the card just
+    // moves the keyboard highlight (the name double-clicks to rename).
+    if ((event.target as HTMLElement).closest('.project-thumb')) {
       this.select(project);
-    }, 250);
+    } else {
+      this.checked.set(new Set());
+      this.cursorId.set(project.id);
+      this.resetAnchor(project.id);
+    }
   }
 
   private cancelPendingOpen(): void {
@@ -216,24 +234,195 @@ export class ProjectsOverlayComponent {
     }
   }
 
-  protected remove(project: ProjectSummary): void {
+  // ---- selection & keyboard -------------------------------------------
+
+  protected toggleCheck(project: ProjectSummary, event?: MouseEvent): void {
+    if (event?.shiftKey && this.cursorId()) {
+      this.extendRange(project.id);
+    } else {
+      const next = new Set(this.checked());
+      if (next.has(project.id)) next.delete(project.id);
+      else next.add(project.id);
+      this.checked.set(next);
+      this.resetAnchor(project.id);
+    }
+    this.cursorId.set(project.id);
+  }
+
+  /**
+   * Shift-range state: the anchor where the range started and the selection
+   * that existed before it. Each shift move recomputes base ∪ anchor..target,
+   * so moving back toward the anchor un-selects cards again.
+   */
+  private anchorId: string | null = null;
+  private rangeBase: ReadonlySet<string> = new Set();
+
+  private resetAnchor(id: string | null): void {
+    this.anchorId = id;
+    this.rangeBase = this.checked();
+  }
+
+  private extendRange(toId: string): void {
+    const list = this.store.visibleProjects();
+    if (!this.anchorId || !list.some((p) => p.id === this.anchorId)) {
+      this.resetAnchor(this.cursorId() ?? toId);
+    }
+    const a = list.findIndex((p) => p.id === this.anchorId);
+    const b = list.findIndex((p) => p.id === toId);
+    if (a < 0 || b < 0) return;
+    const next = new Set(this.rangeBase);
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) next.add(list[i].id);
+    this.checked.set(next);
+  }
+
+  /** Click on empty space in the list (not on a card) drops the selection. */
+  protected onListClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('.card')) return;
+    if (this.checked().size > 0) this.clearChecked();
+  }
+
+  protected selectAll(): void {
+    this.checked.set(new Set(this.store.visibleProjects().map((p) => p.id)));
+  }
+  protected clearChecked(): void {
+    this.checked.set(new Set());
+    this.resetAnchor(this.cursorId());
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  protected onKeydown(event: KeyboardEvent): void {
+    // Only when this overlay is the top-most dialog (not while confirming).
+    const open = this.dialog.openDialogs;
+    if (open[open.length - 1] !== this.dialogRef) return;
+    if (this.view() !== 'projects' || this.editingId()) return;
+    if (event.key === 'Escape' && this.checked().size > 0) {
+      event.preventDefault();
+      this.clearChecked();
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+
+    const list = this.store.visibleProjects();
+    if (list.length === 0) return;
+    const idx = list.findIndex((p) => p.id === this.cursorId());
+    const current = idx >= 0 ? list[idx] : null;
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        const nextIdx = idx < 0 ? (step > 0 ? 0 : list.length - 1) : Math.min(list.length - 1, Math.max(0, idx + step));
+        const next = list[nextIdx];
+        if (event.shiftKey) {
+          this.extendRange(next.id);
+        } else {
+          // A plain arrow (Shift released) drops the multi-selection.
+          this.checked.set(new Set());
+          this.resetAnchor(next.id);
+        }
+        this.moveCursor(next.id);
+        break;
+      }
+      case ' ':
+        if (current) {
+          event.preventDefault();
+          this.toggleCheck(current);
+        }
+        break;
+      case 'Delete':
+      case 'Backspace':
+        if (this.checked().size > 0) {
+          event.preventDefault();
+          this.removeChecked(event.shiftKey);
+        } else if (current) {
+          event.preventDefault();
+          this.removeOne(current, event.shiftKey);
+        }
+        break;
+      case 'Enter':
+        // Skip only when a button was tabbed to (Enter should press it);
+        // a mouse-focused button (e.g. after the confirm dialog) doesn't count.
+        if (current && !target?.closest('button:focus-visible, a:focus-visible')) {
+          event.preventDefault();
+          this.select(current);
+        }
+        break;
+      case 'a':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          this.selectAll();
+        }
+        break;
+    }
+  }
+
+  private moveCursor(id: string | null): void {
+    this.cursorId.set(id);
+    if (!id) return;
+    requestAnimationFrame(() =>
+      this.host.nativeElement
+        .querySelector(`.card[data-id="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: 'nearest' }),
+    );
+  }
+
+  // ---- deletion -------------------------------------------------------
+
+  protected removeOne(project: ProjectSummary, skipConfirm = false): void {
+    this.confirmThenDelete([project], skipConfirm);
+  }
+
+  protected removeChecked(skipConfirm = false): void {
+    const ids = this.checked();
+    const projects = this.store.visibleProjects().filter((p) => ids.has(p.id));
+    if (projects.length) this.confirmThenDelete(projects, skipConfirm);
+  }
+
+  private confirmThenDelete(projects: ProjectSummary[], skipConfirm: boolean): void {
+    if (skipConfirm) {
+      void this.doRemove(projects);
+      return;
+    }
+    const single = projects.length === 1;
     const data: ConfirmDialogData = {
-      title: 'Delete project',
-      message: `Delete "${project.name}"? This cannot be undone.`,
+      title: single ? 'Delete project' : `Delete ${projects.length} projects`,
+      message: single
+        ? `Delete "${projects[0].name}"? This cannot be undone.`
+        : `Delete ${projects.length} projects? This cannot be undone.`,
       confirmLabel: 'Delete',
     };
     this.dialog
       .open(ConfirmDialogComponent, { data, width: '420px' })
       .afterClosed()
-      .subscribe(async (confirmed) => {
-        if (!confirmed) return;
-        try {
-          await this.store.remove(project.id);
-          this.notify('Project deleted');
-        } catch (err) {
-          this.notifyError('Could not delete project', err);
-        }
+      .subscribe((confirmed) => {
+        if (confirmed) void this.doRemove(projects);
       });
+  }
+
+  private async doRemove(projects: ProjectSummary[]): Promise<void> {
+    // Remember where the cursor should land: the next surviving project.
+    const before = this.store.visibleProjects();
+    const doomed = new Set(projects.map((p) => p.id));
+    const anchor = Math.max(
+      0,
+      before.findIndex((p) => doomed.has(p.id)),
+    );
+    const results = await Promise.allSettled(projects.map((p) => this.store.remove(p.id)));
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    const left = new Set(this.checked());
+    doomed.forEach((id) => left.delete(id));
+    this.checked.set(left);
+    const after = this.store.visibleProjects();
+    this.moveCursor(after.length ? after[Math.min(anchor, after.length - 1)].id : null);
+
+    if (failed) {
+      this.notifyError(`Could not delete ${failed} project${failed === 1 ? '' : 's'}`, results);
+    } else {
+      this.notify(projects.length === 1 ? `Deleted "${projects[0].name}"` : `Deleted ${projects.length} projects`);
+    }
   }
 
   protected close(): void {

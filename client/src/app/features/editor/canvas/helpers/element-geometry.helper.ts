@@ -25,6 +25,7 @@ export function elementBox(element: CanvasElementModel): Box {
     let x1 = -Infinity;
     let y1 = -Infinity;
     for (const p of pts) {
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue; // eraser gap
       x0 = Math.min(x0, p.x);
       y0 = Math.min(y0, p.y);
       x1 = Math.max(x1, p.x);

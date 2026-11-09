@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
 import { AutofocusDirective } from './features/editor/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
@@ -53,14 +53,24 @@ export class AppComponent {
   protected readonly editorStore = inject(ProjectStore);
   protected readonly editorActions = inject(EditorActionsService);
   private readonly router = inject(Router);
-  /** The canvas guide and the home page embed sandbox editors in their own layout: no floating islands there. */
-  protected readonly onGuide = toSignal(
+  private readonly routeUrl = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map((e) => isEmbedUrl(e.urlAfterRedirects)),
+      map((e) => e.urlAfterRedirects),
     ),
-    { initialValue: isEmbedUrl(this.router.url) },
+    { initialValue: this.router.url },
   );
+  /**
+   * The canvas guide and the home page embed sandbox editors in their own layout: no floating islands there.
+   * The workspace swaps between home and a project with location.replaceState (no router navigation), so the
+   * home check keys off the selected project rather than the URL.
+   */
+  protected readonly onGuide = computed(() => {
+    const path = this.routeUrl().split(/[?#]/)[0];
+    if (path.startsWith('/guide')) return true;
+    const onWorkspace = path === '/' || path === '' || path.startsWith('/projects/');
+    return onWorkspace && !this.projects.selectedId();
+  });
   protected readonly realtime = inject(RealtimeService);
   private readonly overlay = inject(ProjectsOverlayService);
   private readonly projectFile = inject(ProjectFileService);
@@ -283,10 +293,4 @@ export class AppComponent {
     this.projects.select(null);
     this.projects.loadProjects();
   }
-}
-
-/** Pages that embed sandbox editors in their own layout (the guide, the home showcase). */
-function isEmbedUrl(url: string): boolean {
-  const path = url.split(/[?#]/)[0];
-  return path.startsWith('/guide') || path === '/' || path === '';
 }

@@ -9,12 +9,31 @@ import { ProjectStore } from '../../../stores/project.store';
 export class PenPrefsService {
   /** Strokes are drawn wide and half see-through, like a marker. */
   readonly highlighter = signal(false);
+  /** Dragging erases the pen strokes it touches instead of drawing. */
+  readonly eraser = signal(false);
+  /** Eraser diameter in screen pixels. */
+  readonly eraserSize = signal(24);
+  /** Pen thickness, kept apart from the shapes' stroke width. */
+  readonly width = signal(2);
 }
+
+export const PEN_MIN = 0.5;
+export const PEN_MAX = 24;
+export const ERASER_MIN = 4;
+export const ERASER_MAX = 120;
 
 const WIDTHS = [
   { value: 1, label: 'Thin', dot: 4 },
   { value: 2, label: 'Medium', dot: 8 },
   { value: 4, label: 'Thick', dot: 13 },
+  { value: 8, label: 'Extra thick', dot: 18 },
+];
+
+const ERASERS = [
+  { value: 12, label: 'Small eraser', dot: 6 },
+  { value: 24, label: 'Medium eraser', dot: 11 },
+  { value: 48, label: 'Large eraser', dot: 16 },
+  { value: 96, label: 'Huge eraser', dot: 22 },
 ];
 
 /**
@@ -32,15 +51,47 @@ const WIDTHS = [
         class="sw"
         [class.on]="c === current()"
         [style.background]="css(c)"
-        (click)="setColor(c)"
+        (click)="setColor(c); pen.eraser.set(false)"
         [attr.aria-label]="'Pen color ' + c"
       ></button>
     }
     <span class="sep"></span>
-    @for (w of widths; track w.value) {
-      <button class="ib" [class.on]="w.value === width()" (click)="setWidth(w.value)" [matTooltip]="w.label" [attr.aria-label]="w.label">
-        <span class="dot" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
-      </button>
+    @if (pen.eraser()) {
+      @for (w of erasers; track w.value) {
+        <button class="ib" [class.on]="w.value === pen.eraserSize()" (click)="pen.eraserSize.set(w.value)" [matTooltip]="w.label" [attr.aria-label]="w.label">
+          <span class="dot ring" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
+        </button>
+      }
+      <input
+        class="size"
+        type="range"
+        [min]="eraserMin"
+        [max]="eraserMax"
+        step="1"
+        [value]="pen.eraserSize()"
+        (input)="pen.eraserSize.set(+$any($event.target).value)"
+        matTooltip="Eraser size ( [ and ] )"
+        aria-label="Eraser size"
+      />
+      <span class="num">{{ pen.eraserSize() }}</span>
+    } @else {
+      @for (w of widths; track w.value) {
+        <button class="ib" [class.on]="w.value === width()" (click)="setWidth(w.value)" [matTooltip]="w.label" [attr.aria-label]="w.label">
+          <span class="dot" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
+        </button>
+      }
+      <input
+        class="size"
+        type="range"
+        [min]="penMin"
+        [max]="penMax"
+        step="0.5"
+        [value]="width()"
+        (input)="setWidth(+$any($event.target).value)"
+        matTooltip="Pen size ( [ and ] )"
+        aria-label="Pen size"
+      />
+      <span class="num">{{ width() }}</span>
     }
     <span class="sep"></span>
     <button
@@ -51,6 +102,15 @@ const WIDTHS = [
       aria-label="Highlighter"
     >
       <dd-icon name="highlight" />
+    </button>
+    <button
+      class="ib"
+      [class.on]="pen.eraser()"
+      (click)="pen.eraser.set(!pen.eraser())"
+      matTooltip="Eraser (X): drag to rub out parts of strokes"
+      aria-label="Eraser"
+    >
+      <dd-icon name="eraser" />
     </button>
   `,
   styles: `
@@ -111,6 +171,21 @@ const WIDTHS = [
       border-radius: 50%;
       background: currentColor;
     }
+    .dot.ring {
+      background: transparent;
+      border: 1.5px solid currentColor;
+    }
+    .size {
+      width: 96px;
+      margin: 0 4px;
+      accent-color: var(--dd-primary);
+    }
+    .num {
+      min-width: 26px;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      color: var(--dd-text-muted);
+    }
   `,
 })
 export class PenOptionsBarComponent {
@@ -118,9 +193,14 @@ export class PenOptionsBarComponent {
   protected readonly pen = inject(PenPrefsService);
   protected readonly colors = PICKER_SWATCHES.filter((c) => c.toLowerCase() !== '#ffffff').slice(0, 7);
   protected readonly widths = WIDTHS;
+  protected readonly erasers = ERASERS;
+  protected readonly penMin = PEN_MIN;
+  protected readonly penMax = PEN_MAX;
+  protected readonly eraserMin = ERASER_MIN;
+  protected readonly eraserMax = ERASER_MAX;
 
   protected readonly current = computed(() => this.store.elementStyle().strokeColor);
-  protected readonly width = computed(() => this.store.elementStyle().strokeWidth);
+  protected readonly width = this.pen.width;
 
   protected css(c: string): string {
     return themeSwatchCss(c);
@@ -131,6 +211,6 @@ export class PenOptionsBarComponent {
   }
 
   protected setWidth(w: number): void {
-    this.store.setElementStyle({ strokeWidth: w });
+    this.pen.width.set(w);
   }
 }

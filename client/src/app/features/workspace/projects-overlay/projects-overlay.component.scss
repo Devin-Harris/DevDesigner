@@ -92,6 +92,9 @@
 // ---- search ----
 .search-row {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--dd-space-3);
   padding: 0 var(--dd-space-4) var(--dd-space-3);
 
   .search-ico {
@@ -106,6 +109,12 @@
 
   .search-input {
     display: block;
+    flex: 1;
+    min-width: 0;
+  }
+  .archived-toggle {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   .search-input ::ng-deep .dd-input {
     height: 38px;
@@ -123,6 +132,8 @@
 }
 
 .cards {
+  /* room for the highlight ring so the scroller doesn't clip it */
+  padding-top: 3px;
   display: flex;
   flex-direction: column;
   gap: var(--dd-space-2);
@@ -168,9 +179,10 @@
   }
 }
 
-.card.sel {
-  border-color: var(--dd-primary);
-  box-shadow: 0 0 0 2px var(--dd-primary-weak);
+/* The project currently open in the editor: a quiet badge, not a ring,
+   so it can't be confused with the keyboard highlight. */
+.badge.current {
+  color: var(--dd-primary);
 }
 
 .thumb {
@@ -316,6 +328,17 @@
   flex: 0 0 auto;
 }
 
+/* One-click delete, revealed on card hover/focus. */
+.quick-delete {
+  flex: 0 0 auto;
+  margin-left: auto;
+  transition: color 120ms ease;
+
+  &:hover {
+    color: var(--dd-danger);
+  }
+}
+
 .rename {
   width: 100%;
   border: 1px solid var(--dd-primary);
@@ -342,4 +365,38 @@
   gap: var(--dd-space-3);
   padding: var(--dd-space-3) var(--dd-space-4);
   border-top: 1px solid var(--dd-border);
+}
+
+.card.cursor {
+  outline: 2px solid var(--dd-primary);
+  outline-offset: 1px;
+}
+.card.checked {
+  background: var(--dd-primary-weak);
+}
+
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--dd-space-2);
+  padding: var(--dd-space-2) var(--dd-space-4);
+  border-top: 1px solid var(--dd-border);
+
+  > span {
+    margin-right: auto;
+    font-weight: 600;
+  }
+}
+
+.kbd-hint {
+  color: var(--dd-text-muted);
+  font-size: 12px;
+}
+
+.card {
+  cursor: default;
+}
+.project-thumb {
+  cursor: pointer;
 }

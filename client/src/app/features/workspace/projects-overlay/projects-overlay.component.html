@@ -30,9 +30,12 @@
         [ngModel]="store.search()"
         (ngModelChange)="setSearch($event)"
       />
+      <dd-toggle class="archived-toggle" [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
+        Show archived
+      </dd-toggle>
     </div>
 
-    <div class="cards-scroll">
+    <div class="cards-scroll" (click)="onListClick($event)">
       @if (store.loading()) {
         <div class="state">Loading…</div>
       } @else if (store.error()) {
@@ -47,7 +50,14 @@
       } @else {
         <div class="cards">
           @for (project of store.visibleProjects(); track project.id) {
-            <div class="card" [class.sel]="project.id === store.selectedId()" (click)="onCardClick(project, $event)">
+            <div
+              class="card"
+              [attr.data-id]="project.id"
+              [class.sel]="project.id === store.selectedId()"
+              [class.checked]="checked().has(project.id)"
+              [class.cursor]="project.id === cursorId()"
+              (click)="onCardClick(project, $event)"
+            >
               @let thumbState = thumbs.state(project);
               <div class="thumb project-thumb" [style.--a]="accent(project.id)">
                 @switch (thumbState.status) {
@@ -86,6 +96,9 @@
                   } @else {
                     <span class="name">{{ project.name }}</span>
                   }
+                  @if (project.id === store.selectedId()) {
+                    <span class="badge current">Open</span>
+                  }
                   @if (project.archived) {
                     <span class="badge">Archived</span>
                   }
@@ -93,6 +106,14 @@
                 <div class="sub">{{ edited(project.updatedAt) }}</div>
               </div>
 
+              <button
+                class="icon-btn quick-delete"
+                (click)="removeOne(project, $event.shiftKey); $event.stopPropagation()"
+                title="Delete (Shift+click to skip confirmation)"
+                aria-label="Delete project"
+              >
+                <dd-icon name="delete" />
+              </button>
               <button
                 class="icon-btn more"
                 [ddPopoverTrigger]="cardMenu"
@@ -118,7 +139,7 @@
                     {{ project.archived ? 'Unarchive' : 'Archive' }}
                   </button>
                   <div class="dd-menu-sep"></div>
-                  <button class="dd-menu-item danger" (click)="remove(project); close()">
+                  <button class="dd-menu-item danger" (click)="removeOne(project); close()">
                     <dd-icon name="delete" />Delete
                   </button>
                 </div>
@@ -129,14 +150,20 @@
       }
     </div>
 
+    @if (checked().size > 0) {
+      <div class="bulk-bar">
+        <span>{{ checked().size }} selected</span>
+        <button class="btn ghost" (click)="selectAll()">Select all</button>
+        <button class="btn ghost" (click)="clearChecked()">Clear</button>
+        <button class="btn danger" (click)="removeChecked()"><dd-icon name="delete" />Delete {{ checked().size }}</button>
+      </div>
+    }
     <footer class="panel-foot">
+      <span class="kbd-hint">↑↓ move · Shift+↑↓ / Shift+click range · Alt+click toggle · Del delete · Enter open</span>
       <button class="btn ghost" (click)="view.set('templates')">
         <dd-icon name="template" />
         Templates
       </button>
-      <dd-toggle [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
-        Show archived
-      </dd-toggle>
     </footer>
   } @else {
     <header class="panel-head">

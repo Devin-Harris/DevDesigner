@@ -391,10 +391,17 @@ nav {
 .ai {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 40px;
-  align-items: center;
+  column-gap: 40px;
+  row-gap: 0;
+  align-items: stretch;
   padding-top: 64px;
   padding-bottom: 64px;
+
+  // Intro + note on the left; config block and chat card share row 2 so they line up.
+  .ai-intro { grid-column: 1; grid-row: 1; }
+  .mcp-config { grid-column: 1; grid-row: 2; }
+  .mcp-note { grid-column: 1; grid-row: 3; }
+  .ai-chat { grid-column: 2; grid-row: 2; }
 
   h2 {
     margin: 10px 0 0;
@@ -408,7 +415,63 @@ nav {
 
   @media (max-width: 760px) {
     grid-template-columns: minmax(0, 1fr);
+
+    .ai-chat { grid-column: 1; grid-row: 4; margin-top: 16px; }
   }
+}
+
+.mcp-steps {
+  margin: 16px 0 10px;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--dd-text-muted);
+}
+
+.mcp-config {
+  position: relative;
+
+  pre {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #11151c;
+    color: #e7ecf3;
+    border: 1px solid #262e39;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+}
+
+.mcp-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #343d4a;
+  background: #1b222c;
+  color: #e7ecf3;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover { background: #262e39; }
+}
+
+.ai .mcp-note {
+  p {
+    font-size: 13px;
+    margin: 12px 0 6px;
+  }
+  code { font-size: 12px; }
+}
+
+.mcp-cmd pre {
+  padding-right: 72px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ai-chat {

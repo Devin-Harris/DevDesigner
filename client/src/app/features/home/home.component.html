@@ -271,7 +271,7 @@
   </section>
 
   <section id="ai" class="wrap ai reveal" #reveal>
-    <div>
+    <div class="ai-intro">
       <span class="lab">Built-in MCP server</span>
       <h2 class="disp">Ask your AI assistant to draw it</h2>
       <p>
@@ -279,8 +279,34 @@
         models, code walk-throughs or a whole deck. Every change lands live for everyone
         in the project — and can be undone.
       </p>
-      <button class="link-btn accent" (click)="openApiTokens()">Set up an API token →</button>
+      <ol class="mcp-steps">
+        <li>
+          <button class="link-btn accent" (click)="openApiTokens()">Create an API token</button>
+          (Account → API tokens).
+        </li>
+        <li>
+          Add the hosted server to <code>.mcp.json</code> at your project root, with your token:
+        </li>
+      </ol>
     </div>
+    <div class="mcp-config">
+        <button class="mcp-copy" type="button" (click)="copyMcp('config')">
+          {{ mcpCopied() === 'config' ? 'Copied' : 'Copy' }}
+        </button>
+        <pre class="mono">{{ mcpConfig }}</pre>
+      </div>
+      <div class="mcp-note">
+        <p>Or add it from the Claude Code CLI:</p>
+        <div class="mcp-config mcp-cmd">
+          <button class="mcp-copy" type="button" (click)="copyMcp('command')">
+            {{ mcpCopied() === 'command' ? 'Copied' : 'Copy' }}
+          </button>
+          <pre class="mono">{{ mcpCommand }}</pre>
+        </div>
+        <p>
+          Restart your client and check it's connected. Keep <code>.mcp.json</code> out of git; it holds your token.
+        </p>
+      </div>
     <div class="ai-chat mono">
       <div class="muted">// you</div>
       <div>Sketch our checkout flow as a sequence diagram,</div>

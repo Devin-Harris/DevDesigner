@@ -33,6 +33,7 @@ import { ProjectsStore } from '../../stores/projects.store';
 import { ProjectsOverlayService } from '../workspace/projects-overlay/projects-overlay.service';
 import { AuthDialogComponent } from '../auth/auth-dialog.component';
 import { ApiTokensDialogComponent } from '../auth/api-tokens-dialog.component';
+import { environment } from '../../../environments/environment';
 
 /** Bump when the showcase seeds change, so a browser session drops its old copies. */
 const SHOWCASE_VERSION = 25;
@@ -89,6 +90,39 @@ export class HomeComponent {
     { icon: 'image', tone: 'slate', title: 'Grids, images & video', body: 'Spreadsheet-style grids with merged cells, plus media you can crop and clip.' },
     { icon: 'slideshow', tone: 'red', title: 'Decks from the board', body: 'Any number of presentations per project, with layouts, themes, animations and morph.' },
   ];
+
+  // MCP endpoint from the build env (scripts/set-env.mjs `mcpUrl`). Unset: deployed builds
+  // fall back to the production server, local dev to the local HTTP MCP (npm run start:mcp:http).
+  protected readonly mcpUrl =
+    environment.mcpUrl ||
+    (environment.production
+      ? 'https://devdesignermcp-production.up.railway.app/mcp'
+      : 'http://localhost:3001/mcp');
+  protected readonly mcpConfig = JSON.stringify(
+    {
+      mcpServers: {
+        devdesigner: {
+          type: 'http',
+          url: this.mcpUrl,
+          headers: { Authorization: 'Bearer dd_...' },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  protected readonly mcpCommand = `claude mcp add --transport http devdesigner ${this.mcpUrl} --header "Authorization: Bearer dd_..."`;
+  protected readonly mcpCopied = signal<'config' | 'command' | null>(null);
+
+  protected async copyMcp(which: 'config' | 'command'): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(which === 'config' ? this.mcpConfig : this.mcpCommand);
+      this.mcpCopied.set(which);
+      setTimeout(() => this.mcpCopied.set(null), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
 
   protected readonly uses = [
     { title: 'Design reviews', body: 'Proposal, diagrams and the diff in one place.' },

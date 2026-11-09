@@ -1503,7 +1503,10 @@ export function buildShapeViews(
         break;
       }
       case 'freedraw':
-        base.path = freehandFillPath(absolutePoints(element), element.strokeWidth);
+        // Non-finite points are gaps a live eraser drag has cut; draw each piece apart.
+        base.path = splitAtGaps(absolutePoints(element))
+          .map((run) => freehandFillPath(run, element.strokeWidth))
+          .join(' ');
         base.freehand = true;
         base.fill = stroke;
         break;
@@ -1641,4 +1644,19 @@ export function buildShapeViews(
 function clipKey(el: { x: number; y: number; width: number; height: number }): string {
   const r = (n: number) => Math.round(n * 10);
   return `${r(el.x)}_${r(el.y)}_${r(el.width)}_${r(el.height)}`.replace(/-/g, 'm');
+}
+
+/** Split a point run at non-finite (gap) points. */
+export function splitAtGaps<T extends { x: number; y: number }>(points: readonly T[]): T[][] {
+  const runs: T[][] = [];
+  let cur: T[] = [];
+  for (const p of points) {
+    if (Number.isFinite(p.x) && Number.isFinite(p.y)) cur.push(p);
+    else if (cur.length) {
+      runs.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length) runs.push(cur);
+  return runs;
 }

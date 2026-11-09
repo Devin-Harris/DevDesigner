@@ -167,6 +167,59 @@ export function smartSnap(moving: Box, targets: readonly Box[], zoom: number, pa
 }
 
 /**
+ * Smart guides for a resize or a point drag: only the given moving edge
+ * positions (`xs` / `ys`, world coords) snap to target edges/centers. `box` is
+ * the item as it stands (unsnapped), used to span the guide lines.
+ */
+export function smartSnapEdges(
+  box: Box,
+  xs: readonly number[],
+  ys: readonly number[],
+  targets: readonly Box[],
+  zoom: number,
+): SmartSnap {
+  const thr = SNAP_PX / zoom;
+  const best = (vals: readonly number[], a: Axis): { d: number; at: number } | null => {
+    let out: { d: number; at: number } | null = null;
+    for (const t of targets) {
+      for (const tl of [lo(t, a), (lo(t, a) + hi(t, a)) / 2, hi(t, a)]) {
+        for (const v of vals) {
+          const d = tl - v;
+          if (Math.abs(d) <= thr && (!out || Math.abs(d) < Math.abs(out.d))) out = { d, at: tl };
+        }
+      }
+    }
+    return out;
+  };
+  const bx = best(xs, 'x');
+  const by = best(ys, 'y');
+  const s: Box = {
+    x0: Math.min(box.x0, bx?.at ?? box.x0),
+    x1: Math.max(box.x1, bx?.at ?? box.x1),
+    y0: Math.min(box.y0, by?.at ?? box.y0),
+    y1: Math.max(box.y1, by?.at ?? box.y1),
+  };
+  const guideAt = (pos: number, a: Axis): AlignGuide => {
+    const c = other(a);
+    const g: AlignGuide = { axis: a, pos, from: lo(s, c), to: hi(s, c) };
+    for (const t of targets) {
+      if (![lo(t, a), (lo(t, a) + hi(t, a)) / 2, hi(t, a)].some((tl) => Math.abs(tl - pos) < 0.5)) continue;
+      g.from = Math.min(g.from, lo(t, c));
+      g.to = Math.max(g.to, hi(t, c));
+    }
+    return g;
+  };
+  return {
+    ox: bx?.d ?? 0,
+    oy: by?.d ?? 0,
+    snappedX: !!bx,
+    snappedY: !!by,
+    guides: [...(bx ? [guideAt(bx.at, 'x')] : []), ...(by ? [guideAt(by.at, 'y')] : [])],
+    gaps: [],
+  };
+}
+
+/**
  * The snap only names the gap(s) it matched; also mark every other neighbour
  * pair in the same row/column whose gap equals one of them, so a whole evenly
  * spaced run lights up rather than just the reference pair.
