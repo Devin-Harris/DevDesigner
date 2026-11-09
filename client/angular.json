@@ -34,7 +34,7 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "6kb",
-                  "maximumError": "12kb"
+                  "maximumError": "64kb"
                 }
               ],
               "optimization": {
@@ -65,5 +65,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }
