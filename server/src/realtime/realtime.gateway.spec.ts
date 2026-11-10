@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Test } from '@nestjs/testing';
@@ -45,6 +46,7 @@ describe('RealtimeGateway', () => {
         RealtimePublisher,
         { provide: AccessService, useValue: access },
         { provide: AuthService, useValue: auth },
+        { provide: ConfigService, useValue: new ConfigService({}) },
       ],
     }).compile();
     app = moduleRef.createNestApplication({ logger: false });

@@ -35,12 +35,27 @@ export type RelayKind = keyof typeof RELAY_BUDGETS;
 
 // --- origin ------------------------------------------------------------------
 
-/** The configured client origins (read at call time, so .env values apply). */
-export function allowedOrigins(): string[] {
-  return (process.env.CORS_ORIGIN ?? 'http://localhost:4242')
+const DEFAULT_ORIGIN = 'http://localhost:4242';
+let origins = parseOrigins(DEFAULT_ORIGIN);
+
+function parseOrigins(raw: string): string[] {
+  return raw
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+}
+
+/**
+ * Set the client origins from the validated CORS_ORIGIN (the gateway does this
+ * from ConfigService at construction, before any handshake is accepted).
+ */
+export function configureAllowedOrigins(raw: string | undefined): void {
+  origins = parseOrigins(raw && raw.trim() ? raw : DEFAULT_ORIGIN);
+}
+
+/** The configured client origins. */
+export function allowedOrigins(): string[] {
+  return origins;
 }
 
 /**

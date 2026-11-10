@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import type { Repository } from 'typeorm';
 import { ApiTokenService } from './api-token.service';
 import type { ApiToken } from './api-token.entity';
@@ -19,7 +20,10 @@ describe('ApiTokenService.verify', () => {
       save: jest.fn(async (v) => ({ id: 'new', createdAt: new Date('2026-01-01T00:00:00Z'), ...v })),
       create: jest.fn((v) => v),
     };
-    service = new ApiTokenService(tokens as unknown as Repository<ApiToken>);
+    service = new ApiTokenService(
+      tokens as unknown as Repository<ApiToken>,
+      new ConfigService({ API_TOKEN_RATE_LIMIT: 600 }),
+    );
   });
 
   const store = (raw: string, extra: Partial<ApiToken> = {}): void => {

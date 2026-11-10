@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import type { Observable } from 'rxjs';
+import { originClientIdOf, type CallerRequest } from './caller';
 
 /** Per-request facts shared by logging, error reporting and (later) analytics. */
 export interface RequestContext {
@@ -20,6 +21,10 @@ export interface RequestContext {
   guestId: string | null;
   /** True when the caller presents an X-Share-Token (link-based access). */
   viaShareToken: boolean;
+  /**
+   * The trusted X-Client-Id (see originClientIdOf), set once the auth guard has
+   * run; null when absent or not trusted. Realtime broadcasts skip this tab.
+   */
   clientId: string | null;
 }
 
@@ -67,7 +72,7 @@ export class RequestContextMiddleware implements NestMiddleware {
         userId: null,
         guestId: header(req, 'x-guest-id'),
         viaShareToken: header(req, 'x-share-token') !== null,
-        clientId: header(req, 'x-client-id'),
+        clientId: null,
       },
       next,
     );
@@ -80,9 +85,15 @@ export class RequestContextInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const ctx = storage.getStore();
     if (ctx && context.getType() === 'http') {
-      const req = context.switchToHttp().getRequest<Request & { user?: { id?: string } | null }>();
+      const req = context.switchToHttp().getRequest<CallerRequest>();
       ctx.userId = req.user?.id ?? null;
+      ctx.clientId = originClientIdOf(req);
     }
     return next.handle();
   }
+}
+
+/** The trusted realtime client id of the current request (null outside one). */
+export function originClientId(): string | null {
+  return storage.getStore()?.clientId ?? null;
 }

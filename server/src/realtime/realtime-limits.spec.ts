@@ -2,6 +2,7 @@ import {
   RelayLimiter,
   TokenBucket,
   clientIp,
+  configureAllowedOrigins,
   isAllowedOrigin,
   parseCursor,
   parseLaser,
@@ -101,14 +102,10 @@ describe('realtime limits', () => {
   });
 
   describe('origin and address', () => {
-    const saved = process.env.CORS_ORIGIN;
-    afterEach(() => {
-      if (saved === undefined) delete process.env.CORS_ORIGIN;
-      else process.env.CORS_ORIGIN = saved;
-    });
+    afterEach(() => configureAllowedOrigins(undefined));
 
     it('accepts listed and same-origin, refuses the rest', () => {
-      process.env.CORS_ORIGIN = 'https://app.example.com, https://other.example.com';
+      configureAllowedOrigins('https://app.example.com, https://other.example.com');
       expect(isAllowedOrigin('https://other.example.com', 'api.example.com')).toBe(true);
       expect(isAllowedOrigin('https://api.example.com', 'api.example.com')).toBe(true);
       expect(isAllowedOrigin('https://evil.example.com', 'api.example.com')).toBe(false);
@@ -117,7 +114,7 @@ describe('realtime limits', () => {
     });
 
     it('defaults to the local dev client', () => {
-      delete process.env.CORS_ORIGIN;
+      configureAllowedOrigins(undefined);
       expect(isAllowedOrigin('http://localhost:4242', 'localhost:3000')).toBe(true);
     });
 

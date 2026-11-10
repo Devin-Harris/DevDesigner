@@ -20,6 +20,7 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
@@ -44,6 +45,7 @@ import {
   RelayLimiter,
   allowRealtimeRequest,
   allowedOrigins,
+  configureAllowedOrigins,
   clientIp,
   parseCursor,
   parseLaser,
@@ -112,7 +114,7 @@ function clientRoomOf(clientId: string): string {
  */
 @WebSocketGateway({
   namespace: REALTIME_NAMESPACE,
-  // Evaluated per request, so a CORS_ORIGIN from .env applies too.
+  // Evaluated per request against the origins set from ConfigService (CORS_ORIGIN).
   cors: {
     origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) =>
       cb(null, !origin || allowedOrigins().includes(origin)),
@@ -143,7 +145,10 @@ export class RealtimeGateway
   constructor(
     private readonly access: AccessService,
     private readonly auth: AuthService,
-  ) {}
+    config: ConfigService,
+  ) {
+    configureAllowedOrigins(config.get<string>('CORS_ORIGIN'));
+  }
 
   onModuleInit(): void {
     this.reauthorizeTimer = setInterval(() => void this.reauthorizeAll(), REAUTHORIZE_INTERVAL_MS);

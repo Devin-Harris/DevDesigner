@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { ApiTokenResponse, CreatedApiTokenResponse } from '@devdesigner/shared';
@@ -30,12 +31,16 @@ function hashToken(token: string): string {
 export class ApiTokenService {
   private readonly hits = new Map<string, number[]>();
   private readonly lastTouched = new Map<string, number>();
-  private readonly limit = Number(process.env.API_TOKEN_RATE_LIMIT ?? 600);
+  private readonly limit: number;
 
   constructor(
     @InjectRepository(ApiToken)
     private readonly tokens: Repository<ApiToken>,
-  ) {}
+    config: ConfigService,
+  ) {
+    // Validated and defaulted by platform/config (600 when unset).
+    this.limit = config.get<number>('API_TOKEN_RATE_LIMIT', 600);
+  }
 
   async create(userId: string, dto: CreateApiTokenDto): Promise<CreatedApiTokenResponse> {
     const secret = API_TOKEN_PREFIX + randomBytes(32).toString('base64url');
