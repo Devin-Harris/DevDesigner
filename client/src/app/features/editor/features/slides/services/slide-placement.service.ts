@@ -22,11 +22,6 @@ import type { Box } from '../../../models/geometry.model';
 import { DEFAULT_ELEMENT_STROKE } from '../../../shared/constants/canvas.constants';
 import { SlideshowService } from './slideshow.service';
 import { CanvasViewService } from '../../../services/canvas-view.service';
-/** What slide placement reads from the editor entry; the entry wires it with `connect`. */
-export interface SlidePlacementHost {
-   sequenceStart(diagramId: string): SequenceStart | null;
-}
-
 /**
  * Where slides and their content live on the canvas: slides move together, content dropped on a
  * shown slide joins it, legacy/stacked decks get their own spot, and new/duplicated slides.
@@ -37,12 +32,6 @@ export class SlidePlacementService {
    private readonly viewport = inject(EditorViewportService);
    private readonly slideshow = inject(SlideshowService);
    private readonly canvasView = inject(CanvasViewService);
-   private host!: SlidePlacementHost;
-
-   connect(host: SlidePlacementHost): void {
-      this.host = host;
-   }
-
    private migratingSlides = false;
 
    /** Project whose misplaced slides stackLegacySlides already gathered (once per load). */
@@ -327,7 +316,7 @@ export class SlidePlacementService {
          // originY only lands after the server answers, so shifting lifelines/messages
          // and originY separately let a second shift read a stale originY and tear the
          // header away from its messages.
-         const start = this.host.sequenceStart(d.id);
+         const start = this.canvasView.sequenceStart(d.id);
          if (!start) {
             continue;
          }
@@ -455,7 +444,7 @@ export class SlidePlacementService {
                   }
                }
                for (const id of geo.diagramIds) {
-                  const start = this.host.sequenceStart(id);
+                  const start = this.canvasView.sequenceStart(id);
                   await this.store.updateSequenceConfig(id, { slideId: f.id });
                   if (start && moved) {
                      this.store.shiftSequence(id, start.xs, dx, start.originY, dy, start.rows);

@@ -3,6 +3,8 @@ import type { DragMode } from '../models/drag-mode.model';
 import { inject, signal, Injectable } from '@angular/core';
 import { RealtimeService } from '../../../core/realtime/realtime.service';
 import { ProjectStore } from '../state/project/project.store';
+import type { Point } from '../models/geometry.model';
+import type { SequenceStart } from '../models/sequence-start.model';
 /**
  * State shared by the editor's canvas pointer gestures: what the current drag is doing, where it
  * started, the live modifier keys and the last pointer event.
@@ -92,4 +94,23 @@ export class PointerGestureService {
       }
       return { dx, dy };
    }
+
+   // --- items carried by a table drag (tables, their routes, other selected items) ---
+
+   /** Non-table selection members dragged along when a table is grabbed (groups, mixed selections). */
+   nodeExtras: {
+      elements: Map<string, { x: number; y: number }>;
+      sequences: Map<string, SequenceStart>;
+   } | null = null;
+
+   dragTableId: string | null = null;
+
+   multiDragStart = new Map<string, { x: number; y: number }>();
+
+   // Manual routes touching the dragged tables. `both` true when both endpoints
+   // move together (rigid translate). Otherwise only one end moves: the waypoint
+   // nearest that anchor follows it vertically (so the closest vertical run
+   // shrinks) while its x is absorbed by the horizontal run. `sourceMoved` picks
+   // which end (first vs last waypoint) is the one being dragged.
+   waypointDragStart = new Map<string, { wp: Point[]; both: boolean; sourceMoved: boolean }>();
 }

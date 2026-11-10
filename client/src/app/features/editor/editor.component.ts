@@ -152,6 +152,14 @@ import { AnimationPaneComponent } from './features/slides/features/slides-panel/
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
 import type { RelinkPreview } from './services/canvas-view.service';
+import { PANEL_FOLDED_W } from './shared/constants/slide-panels.constants';
+import { PANEL_GAP } from './shared/constants/slide-panels.constants';
+import { PANEL_LIST_W } from './shared/constants/slide-panels.constants';
+import { PANEL_MIN_H } from './shared/constants/slide-panels.constants';
+import { PANEL_MIN_PAD_PX } from './shared/constants/slide-panels.constants';
+import { PANEL_PAD } from './shared/constants/slide-panels.constants';
+import { PANEL_RADIUS } from './shared/constants/slide-panels.constants';
+import { PANEL_SETTINGS_W } from './shared/constants/slide-panels.constants';
 interface ElementGesture {
    id: string;
    /** Starting geometry of the element(s) at gesture start (for delta math). */
@@ -325,19 +333,6 @@ export class EditorComponent {
       ].join('|')
    );
 
-   /** Panels hug the frame: this is the gap to its edge, and the outline's padding. */
-   private static readonly PANEL_GAP = 8;
-   private static readonly PANEL_PAD = 6;
-   /** Smallest outline padding on screen, so the dashed border clears the panels at any zoom. */
-   private static readonly PANEL_MIN_PAD_PX = 2;
-   /** The panels' own corner radius (world units); the outline's is concentric with it. */
-   private static readonly PANEL_RADIUS = 14;
-   private static readonly LIST_W = 296;
-   private static readonly SETTINGS_W = 400;
-   private static readonly FOLDED_W = 44;
-   /** As tall as the frame on screen, but never so short that the panel stops being usable. */
-   private static readonly PANEL_MIN_H = 320;
-
    /**
     * The panels are part of the frame's world: laid out in world units (width fixed,
     * height = the frame's) and scaled by the zoom with a CSS transform, so they keep
@@ -351,22 +346,22 @@ export class EditorComponent {
     */
    /** World-space box of each presentation's dashed outline (list + frame + settings, as laid out in slideSets). */
    presentationOutlineBoxes(): { frameId: string; box: Box }[] {
-      const gap = EditorComponent.PANEL_GAP;
+      const gap = PANEL_GAP;
       const zoom = this.store.viewport().zoom;
-      const pad = Math.max(EditorComponent.PANEL_PAD, EditorComponent.PANEL_MIN_PAD_PX / zoom);
+      const pad = Math.max(PANEL_PAD, PANEL_MIN_PAD_PX / zoom);
       const frames = this.store.slideFrames();
       const shown = this.store.shownByPresentation();
-      const settingsW = this.deckFocus.settingsFolded() ? EditorComponent.FOLDED_W : EditorComponent.SETTINGS_W;
+      const settingsW = this.deckFocus.settingsFolded() ? PANEL_FOLDED_W : PANEL_SETTINGS_W;
       return this.store.presentations().flatMap((name) => {
          const f = frames.find((fr) => fr.id === shown.get(name));
          if (!f) return [];
          const y0 = f.y;
-         const y1 = f.y + Math.max(f.height, EditorComponent.PANEL_MIN_H);
+         const y1 = f.y + Math.max(f.height, PANEL_MIN_H);
          return [
             {
                frameId: f.id,
                box: {
-                  x0: f.x - gap - EditorComponent.LIST_W - pad,
+                  x0: f.x - gap - PANEL_LIST_W - pad,
                   y0: y0 - pad,
                   x1: f.x + f.width + gap + settingsW + pad,
                   y1: y1 + pad,
@@ -378,7 +373,7 @@ export class EditorComponent {
 
    protected readonly slideSets = computed(() => {
       const v = this.store.viewport();
-      const gap = EditorComponent.PANEL_GAP;
+      const gap = PANEL_GAP;
       const frames = this.store.slideFrames();
       const shown = this.store.shownByPresentation();
       const folded = this.deckFocus.settingsFolded();
@@ -388,26 +383,26 @@ export class EditorComponent {
             return [];
          }
          const top = frame.y * v.zoom + v.y;
-         const height = Math.max(frame.height, EditorComponent.PANEL_MIN_H);
+         const height = Math.max(frame.height, PANEL_MIN_H);
          const list = {
-            left: (frame.x - EditorComponent.LIST_W - gap) * v.zoom + v.x,
+            left: (frame.x - PANEL_LIST_W - gap) * v.zoom + v.x,
             top,
-            width: EditorComponent.LIST_W,
+            width: PANEL_LIST_W,
             height,
             scale: v.zoom,
          };
          const settings = {
             left: (frame.x + frame.width + gap) * v.zoom + v.x,
             top,
-            width: folded ? EditorComponent.FOLDED_W : EditorComponent.SETTINGS_W,
+            width: folded ? PANEL_FOLDED_W : PANEL_SETTINGS_W,
             height,
             scale: v.zoom,
          };
          // Padding and corner radius scale with the panels so the outline keeps the same
          // shape at every zoom; only the hairline border stays in screen px, so keep just
          // enough padding for it to clear the panels.
-         const pad = Math.max(EditorComponent.PANEL_PAD * v.zoom, EditorComponent.PANEL_MIN_PAD_PX);
-         const radius = EditorComponent.PANEL_RADIUS * v.zoom + pad;
+         const pad = Math.max(PANEL_PAD * v.zoom, PANEL_MIN_PAD_PX);
+         const radius = PANEL_RADIUS * v.zoom + pad;
          const bottom = top + height * v.zoom;
          return [
             {
@@ -974,7 +969,6 @@ export class EditorComponent {
       this.tableDrag.connect(this);
       this.cellEditors.connect(this);
       this.textEditing.connect(this);
-      this.placement.connect(this);
       this.deckFocus.connect(this);
       this.viewport.connect(this);
       this.clipboard.connect(this);
@@ -2110,7 +2104,7 @@ export class EditorComponent {
       }
       const sequences = new Map<string, SequenceStart>();
       for (const id of inner.diagramIds) {
-         const start = this.sequenceStart(id);
+         const start = this.canvasView.sequenceStart(id);
          if (start) {
             sequences.set(id, start);
          }
@@ -2138,34 +2132,9 @@ export class EditorComponent {
       );
       g.sequences = new Map(
          diagramIds
-            .map((id) => [id, this.sequenceStart(id)] as const)
+            .map((id) => [id, this.canvasView.sequenceStart(id)] as const)
             .filter((e): e is readonly [string, SequenceStart] => !!e[1])
       );
-   }
-
-   /** A sequence diagram's current layout, captured so it can be shifted rigidly. */
-   sequenceStart(diagramId: string): SequenceStart | null {
-      const d = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
-      if (!d) {
-         return null;
-      }
-      const hb = d.originY + d.headerHeight;
-      const rowOf = (y: number): number => Math.max(1, Math.round((y - hb) / d.rowSpacing));
-      return {
-         xs: new Map(
-            this.store
-               .lifelines()
-               .filter((l) => l.diagramId === diagramId)
-               .map((l) => [l.id, l.x])
-         ),
-         originY: d.originY,
-         rows: new Map(
-            this.store
-               .sequenceMessages()
-               .filter((m) => m.diagramId === diagramId)
-               .map((m) => [m.id, rowOf(m.y)])
-         ),
-      };
    }
 
    private groupResize: GroupResize | null = null;
@@ -2200,10 +2169,10 @@ export class EditorComponent {
       const seqs: GroupResize['diagrams'] = [];
       for (const d of diagrams) {
          const b = this.canvasView.diagramBox(d);
-         const start = this.sequenceStart(d.id);
+         const start = this.canvasView.sequenceStart(d.id);
          if (!b || !start) continue;
          grow(b.minX, b.minY, b.maxX, b.maxY);
-         seqs.push({ id: d.id, start, rowSpacing: d.rowSpacing, before: this.layoutSnapshot(d.id) });
+         seqs.push({ id: d.id, start, rowSpacing: d.rowSpacing, before: this.canvasView.layoutSnapshot(d.id) });
       }
       if (!Number.isFinite(box.x0)) {
          return false;
@@ -2494,7 +2463,7 @@ export class EditorComponent {
             })
          );
          for (const d of g.diagrams) {
-            const after = this.layoutSnapshot(d.id);
+            const after = this.canvasView.layoutSnapshot(d.id);
             for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
             for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
             void this.store.updateSequenceConfig(d.id, {
@@ -2670,7 +2639,7 @@ export class EditorComponent {
 
    /** After a table-grabbed drag, record/persist the elements and diagrams that rode along. */
    private settleNodeExtras(): void {
-      const ex = this.tableDrag.nodeExtras;
+      const ex = this.gesture.nodeExtras;
       if (!ex) {
          return;
       }
@@ -2687,7 +2656,7 @@ export class EditorComponent {
 
    /** Where the elements/diagrams riding with a grabbed table go when it has moved (mx, my). */
    private nodeExtrasMoves(mx: number, my: number): Pick<ItemMoves, 'elements' | 'sequences'> {
-      const ex = this.tableDrag.nodeExtras;
+      const ex = this.gesture.nodeExtras;
       if (!ex) {
          return {};
       }
@@ -2810,9 +2779,7 @@ export class EditorComponent {
          // Project the drag onto the box's diagonal so the corner tracks the cursor
          // smoothly instead of jumping between the two axes.
          const diag = s.width * s.width + s.height * s.height;
-         const frameMinH = this.store.slideFrames().some((f) => f.id === g.id)
-            ? EditorComponent.PANEL_MIN_H / s.height
-            : 0;
+         const frameMinH = this.store.slideFrames().some((f) => f.id === g.id) ? PANEL_MIN_H / s.height : 0;
          const minScale = Math.max(8 / Math.min(s.width, s.height), frameMinH);
          let scale = Math.max(minScale, 1 + (grow * s.width + growY * s.height) / diag);
          const smart =
@@ -2832,7 +2799,7 @@ export class EditorComponent {
          height = s.height * scale;
       } else {
          // A slide frame is never shorter than the panels pinned to it.
-         const minH = this.store.slideFrames().some((f) => f.id === g.id) ? EditorComponent.PANEL_MIN_H : 8;
+         const minH = this.store.slideFrames().some((f) => f.id === g.id) ? PANEL_MIN_H : 8;
          width = Math.max(8, s.width + grow);
          height = Math.max(minH, s.height + growY);
          const smart =
@@ -3160,7 +3127,7 @@ export class EditorComponent {
       }
       this.gesture.dragCopied = true;
       const grabbedElement = this.elementGesture?.id ?? null;
-      const grabbedTable = this.tableDrag.dragTableId;
+      const grabbedTable = this.gesture.dragTableId;
       if (kind === 'element') {
          const g = this.elementGesture;
          this.store.moveItemsLocal({
@@ -3178,8 +3145,8 @@ export class EditorComponent {
          });
       } else {
          this.store.moveItemsLocal({
-            tables: this.tableDrag.multiDragStart,
-            waypoints: new Map([...this.tableDrag.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
+            tables: this.gesture.multiDragStart,
+            waypoints: new Map([...this.gesture.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
             ...this.nodeExtrasMoves(0, 0),
          });
       }
@@ -3442,19 +3409,19 @@ export class EditorComponent {
          const dy = event.clientY - this.gesture.startClientY;
          const v = this.store.viewport();
          this.store.setViewport(this.gesture.startViewportX + dx, this.gesture.startViewportY + dy, v.zoom);
-      } else if (this.gesture.mode === 'node' && this.tableDrag.dragTableId) {
+      } else if (this.gesture.mode === 'node' && this.gesture.dragTableId) {
          if (this.gesture.belowDragThreshold(event.clientX, event.clientY)) {
             return;
          }
          this.gesture.movingItems.set(true);
          let { dx, dy } = this.gesture.dragDelta(event.clientX, event.clientY);
          const smart = this.snap.smartDelta(
-            this.tableDrag.dragTableId,
-            this.tableDrag.nodeExtras?.elements.keys() ?? [],
-            this.tableDrag.multiDragStart.keys(),
+            this.gesture.dragTableId,
+            this.gesture.nodeExtras?.elements.keys() ?? [],
+            this.gesture.multiDragStart.keys(),
             dx,
             dy,
-            this.tableDrag.nodeExtras?.sequences.keys() ?? []
+            this.gesture.nodeExtras?.sequences.keys() ?? []
          );
          dx += smart?.ox ?? 0;
          dy += smart?.oy ?? 0;
@@ -3462,11 +3429,11 @@ export class EditorComponent {
          // The tables' actual (snapped) move, so routes carried with them stay attached.
          let moved: { x: number; y: number } | null = null;
          const tables = new Map<string, { x: number; y: number }>();
-         for (const [id, start] of this.tableDrag.multiDragStart) {
+         for (const [id, start] of this.gesture.multiDragStart) {
             const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
             const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
             tables.set(id, { x: nx, y: ny });
-            if (id === this.tableDrag.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
+            if (id === this.gesture.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
          }
          const mx = moved?.x ?? dx;
          const my = moved?.y ?? dy;
@@ -3476,7 +3443,7 @@ export class EditorComponent {
          // the waypoint nearest that anchor follows it in y (its horizontal run
          // stays parallel, the vertical run to it shrinks or grows); its x is
          // absorbed by the horizontal run, and every other waypoint stays put.
-         for (const [relId, start] of this.tableDrag.waypointDragStart) {
+         for (const [relId, start] of this.gesture.waypointDragStart) {
             if (!start.wp.length) {
                continue;
             }
@@ -3543,14 +3510,14 @@ export class EditorComponent {
       }
       this.gesture.mode = 'idle';
       this.panning.set(false);
-      this.tableDrag.dragTableId = null;
-      this.tableDrag.nodeExtras = null;
+      this.gesture.dragTableId = null;
+      this.gesture.nodeExtras = null;
       this.elementGesture = null;
       this.gesture.gestureActive.set(false);
       this.gesture.movingItems.set(false);
       this.bindHighlight.set(null);
-      this.tableDrag.multiDragStart.clear();
-      this.tableDrag.waypointDragStart.clear();
+      this.gesture.multiDragStart.clear();
+      this.gesture.waypointDragStart.clear();
       this.marqueeStart.set(null);
       this.marqueeCurrent.set(null);
       this.relLink.persistFlippedSides();
@@ -4382,7 +4349,7 @@ export class EditorComponent {
                const rx = Math.round(dx);
                const ry = Math.round(dy);
                if (!rx && !ry) return;
-               seqMoves.push({ id: d.id, before: this.layoutSnapshot(d.id) });
+               seqMoves.push({ id: d.id, before: this.canvasView.layoutSnapshot(d.id) });
                this.store.shiftSequence(d.id, snap.startXs, rx, snap.startOriginY, ry, snap.startRows);
             },
          });
@@ -4483,7 +4450,7 @@ export class EditorComponent {
       this.relLink.followRoutes(tableStart);
       this.store.recordElementMove(moves);
       for (const { id, before } of seqMoves) {
-         const after = this.layoutSnapshot(id);
+         const after = this.canvasView.layoutSnapshot(id);
          for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
          for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
          void this.store.updateSequenceConfig(id, {
@@ -4492,26 +4459,6 @@ export class EditorComponent {
          });
          this.store.recordSequenceLayout(id, before, after);
       }
-   }
-
-   private layoutSnapshot(diagramId: string): SequenceLayoutSnapshot {
-      const cfg = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
-      return {
-         lifelineXs: new Map(
-            this.store
-               .lifelines()
-               .filter((l) => l.diagramId === diagramId)
-               .map((l) => [l.id, l.x])
-         ),
-         messageYs: new Map(
-            this.store
-               .sequenceMessages()
-               .filter((m) => m.diagramId === diagramId)
-               .map((m) => [m.id, m.y])
-         ),
-         originY: cfg?.originY ?? 0,
-         rowSpacing: cfg?.rowSpacing ?? 48,
-      };
    }
 }
 

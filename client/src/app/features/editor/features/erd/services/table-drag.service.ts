@@ -7,7 +7,6 @@ import type { Point } from '../../../models/geometry.model';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What table drags read from the editor entry; the entry wires it with `connect`. */
 export interface TableDragHost {
-   sequenceStart(diagramId: string): SequenceStart | null;
    duplicateAndDrag(): Promise<void>;
 }
 
@@ -22,23 +21,6 @@ export class TableDragService {
    connect(host: TableDragHost): void {
       this.host = host;
    }
-
-   /** Non-table selection members dragged along when a table is grabbed (groups, mixed selections). */
-   nodeExtras: {
-      elements: Map<string, { x: number; y: number }>;
-      sequences: Map<string, SequenceStart>;
-   } | null = null;
-
-   dragTableId: string | null = null;
-
-   multiDragStart = new Map<string, { x: number; y: number }>();
-
-   // Manual routes touching the dragged tables. `both` true when both endpoints
-   // move together (rigid translate). Otherwise only one end moves: the waypoint
-   // nearest that anchor follows it vertically (so the closest vertical run
-   // shrinks) while its x is absorbed by the horizontal run. `sourceMoved` picks
-   // which end (first vs last waypoint) is the one being dragged.
-   waypointDragStart = new Map<string, { wp: Point[]; both: boolean; sourceMoved: boolean }>();
 
    // --- node pointer (select / drag) ---
 
@@ -70,8 +52,8 @@ export class TableDragService {
    /** Start moving the current table selection, grabbed by `tableId`. */
    beginNodeDrag(tableId: string): void {
       this.gesture.mode = 'node';
-      this.dragTableId = tableId;
-      this.multiDragStart = new Map(
+      this.gesture.dragTableId = tableId;
+      this.gesture.multiDragStart = new Map(
          this.store
             .tables()
             .filter((t) => this.store.selectedTableIds().includes(t.id))
@@ -80,7 +62,7 @@ export class TableDragService {
 
       const elementIds = new Set(this.store.selectedElementIds());
       const diagramIds = this.store.selectedDiagramIds();
-      this.nodeExtras =
+      this.gesture.nodeExtras =
          elementIds.size || diagramIds.length
             ? {
                  elements: new Map(
@@ -91,7 +73,7 @@ export class TableDragService {
                  ),
                  sequences: new Map(
                     diagramIds
-                       .map((id) => [id, this.host.sequenceStart(id)] as const)
+                       .map((id) => [id, this.canvasView.sequenceStart(id)] as const)
                        .filter((e): e is readonly [string, SequenceStart] => !!e[1])
                  ),
               }
@@ -99,14 +81,14 @@ export class TableDragService {
 
       const moved = new Set(this.store.selectedTableIds());
       const locs = this.canvasView.columnLocations();
-      this.waypointDragStart = new Map();
+      this.gesture.waypointDragStart = new Map();
       for (const rel of this.store.relationships()) {
          const st = locs.get(rel.sourceColumnId)?.table.id;
          const tt = locs.get(rel.targetColumnId)?.table.id;
          const srcMoved = !!st && moved.has(st);
          const tgtMoved = !!tt && moved.has(tt);
          if (srcMoved || tgtMoved) {
-            this.waypointDragStart.set(rel.id, {
+            this.gesture.waypointDragStart.set(rel.id, {
                wp: (rel.waypoints ?? []).map((w) => ({ ...w })),
                both: srcMoved && tgtMoved,
                sourceMoved: srcMoved,

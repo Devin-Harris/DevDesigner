@@ -24,7 +24,7 @@ import {
 import { FontMetricsService } from './font-metrics.service';
 import type { ShapeView } from '../models/shape-view.model';
 import { ThemeService } from '../../../core/theme/theme.service';
-import { ProjectStore } from '../state/project/project.store';
+import { ProjectStore, type SequenceLayoutSnapshot } from '../state/project/project.store';
 import { slotFollower, slotStyle } from '../helpers/layout-placeholders';
 import type { MinimapItem } from '../models/minimap-item.model';
 import { ConnectorRouteCache, computeConnectors } from '../helpers/connectors.helper';
@@ -34,9 +34,9 @@ import { buildColumnLocations, tableHeight, tableWidth } from '../helpers/node-m
 import { messageLabelBoxes } from '../helpers/message-box.helper';
 import { buildShapeViews, ShapeViewCache, codeDiffActive } from '../helpers/render';
 import { elbowPath } from '../helpers/svg-path.helper';
-import type { Box, Rect } from '../models/geometry.model';
+import type { Box, Rect, Point } from '../models/geometry.model';
 import { DEFAULT_ELEMENT_STROKE } from '../shared/constants/canvas.constants';
-import type { Point } from '../models/geometry.model';
+import type { SequenceStart } from '../models/sequence-start.model';
 const dim = (v: ShapeView): ShapeView => ({ ...v, opacity: v.opacity * 0.5 });
 const lock = (v: ShapeView): ShapeView => ({ ...v, locked: true });
 /** `make(v)`, made once per view object. */
@@ -676,4 +676,49 @@ export class CanvasViewService {
       }
       return items;
    });
+
+   /** A sequence diagram's current layout, captured so it can be shifted rigidly. */
+   sequenceStart(diagramId: string): SequenceStart | null {
+      const d = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
+      if (!d) {
+         return null;
+      }
+      const hb = d.originY + d.headerHeight;
+      const rowOf = (y: number): number => Math.max(1, Math.round((y - hb) / d.rowSpacing));
+      return {
+         xs: new Map(
+            this.store
+               .lifelines()
+               .filter((l) => l.diagramId === diagramId)
+               .map((l) => [l.id, l.x])
+         ),
+         originY: d.originY,
+         rows: new Map(
+            this.store
+               .sequenceMessages()
+               .filter((m) => m.diagramId === diagramId)
+               .map((m) => [m.id, rowOf(m.y)])
+         ),
+      };
+   }
+
+   layoutSnapshot(diagramId: string): SequenceLayoutSnapshot {
+      const cfg = this.store.sequenceDiagrams().find((x) => x.id === diagramId);
+      return {
+         lifelineXs: new Map(
+            this.store
+               .lifelines()
+               .filter((l) => l.diagramId === diagramId)
+               .map((l) => [l.id, l.x])
+         ),
+         messageYs: new Map(
+            this.store
+               .sequenceMessages()
+               .filter((m) => m.diagramId === diagramId)
+               .map((m) => [m.id, m.y])
+         ),
+         originY: cfg?.originY ?? 0,
+         rowSpacing: cfg?.rowSpacing ?? 48,
+      };
+   }
 }
