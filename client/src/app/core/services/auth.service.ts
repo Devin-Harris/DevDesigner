@@ -17,9 +17,12 @@ export class AuthService {
    /** True once the initial /auth/me hydration has completed. */
    private readonly _ready = signal(false);
 
+   private loading: Promise<void> | null = null;
+
    readonly currentUser = this._currentUser.asReadonly();
    readonly ready = this._ready.asReadonly();
    readonly isAuthenticated = computed(() => this._currentUser() !== null);
+   readonly isAdmin$ = computed(() => this._currentUser()?.isAdmin === true);
 
    /** A friendly label for the signed-in user (display name, else email). */
    readonly displayLabel = computed(() => {
@@ -31,7 +34,20 @@ export class AuthService {
    });
 
    /** Hydrate the session from the cookie on app start. Safe to call repeatedly. */
-   async loadMe(): Promise<void> {
+   loadMe(): Promise<void> {
+      this.loading = this.fetchMe();
+      return this.loading;
+   }
+
+   /** Resolves once the first /auth/me hydration has finished, starting it if nobody has. */
+   whenReady(): Promise<void> {
+      if (this._ready()) {
+         return Promise.resolve();
+      }
+      return this.loading ?? this.loadMe();
+   }
+
+   private async fetchMe(): Promise<void> {
       try {
          const user = await firstValueFrom(this.api.get<CurrentUserResponse | null>('/auth/me'));
          this._currentUser.set(user);

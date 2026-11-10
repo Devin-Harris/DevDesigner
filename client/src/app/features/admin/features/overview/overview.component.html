@@ -1,0 +1,19 @@
+<header class="overview-header">
+   <h1 class="overview-title">Overview</h1>
+   <p class="overview-subtitle">Usage, storage and health dashboards arrive with analytics Phase 2.</p>
+</header>
+
+<section class="overview-card" aria-live="polite">
+   <h2 class="overview-card-title">Admin API</h2>
+   @if (loading$()) {
+      <p class="overview-status">Checking…</p>
+   } @else if (failed$()) {
+      <p class="overview-status is-error"><dd-icon name="warning"></dd-icon>Unreachable</p>
+      <button class="overview-retry" type="button" (click)="retry()">Retry</button>
+   } @else {
+      <p class="overview-status is-ok"><dd-icon name="check"></dd-icon>Connected</p>
+      @if (serverTime$(); as serverTime) {
+         <p class="overview-meta">Server time {{ serverTime | date: 'medium' }}</p>
+      }
+   }
+</section>

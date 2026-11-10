@@ -1,0 +1,18 @@
+<div class="admin-layout">
+   <nav class="admin-rail" aria-label="Admin sections">
+      <a class="admin-brand" routerLink="/" aria-label="Back to DevDesigner">
+         <span class="admin-brand-tile"><dd-icon name="schema"></dd-icon></span>
+         <span class="admin-brand-name">Admin</span>
+      </a>
+      <a class="admin-rail-link" routerLink="." routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">
+         <dd-icon name="grid_view"></dd-icon>Overview
+      </a>
+      <div class="admin-rail-footer">
+         <span class="admin-rail-user">{{ userLabel$() }}</span>
+         <a class="admin-rail-link" routerLink="/"><dd-icon name="arrow_back"></dd-icon>Back to app</a>
+      </div>
+   </nav>
+   <main class="admin-main">
+      <router-outlet></router-outlet>
+   </main>
+</div>

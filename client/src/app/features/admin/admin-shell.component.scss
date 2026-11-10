@@ -1,0 +1,132 @@
+:host {
+   display: block;
+   height: 100%;
+   background: var(--dd-canvas-bg);
+   color: var(--dd-text);
+   font-family: var(--dd-font);
+}
+
+.admin-layout {
+   display: grid;
+   grid-template-columns: 220px 1fr;
+   height: 100%;
+}
+
+.admin-rail {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   padding: 14px 10px;
+   background: var(--dd-surface);
+   border-right: 1px solid var(--dd-border);
+}
+
+.admin-brand {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 4px 8px 14px;
+   color: var(--dd-text);
+   text-decoration: none;
+}
+
+.admin-brand-tile {
+   display: grid;
+   place-items: center;
+   width: 30px;
+   height: 30px;
+   border-radius: var(--dd-radius-sm);
+   background: var(--dd-primary-weak);
+   color: var(--dd-primary);
+}
+
+.admin-brand-name {
+   font-family: var(--dd-display);
+   font-size: 15px;
+   font-weight: 600;
+}
+
+.admin-rail-link {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   height: 34px;
+   padding: 0 10px;
+   border-radius: var(--dd-radius-sm);
+   color: var(--dd-text-muted);
+   font-size: 13px;
+   text-decoration: none;
+   --dd-icon-size: 16px;
+
+   &:hover {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
+
+   &:focus-visible {
+      outline: 2px solid var(--dd-primary);
+      outline-offset: 1px;
+   }
+
+   &.on {
+      background: var(--dd-primary-weak);
+      color: var(--dd-primary);
+   }
+}
+
+.admin-rail-footer {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   margin-top: auto;
+   padding-top: 10px;
+   border-top: 1px solid var(--dd-border);
+}
+
+.admin-rail-user {
+   overflow: hidden;
+   padding: 4px 10px;
+   color: var(--dd-faint);
+   font-size: 12px;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+
+.admin-main {
+   overflow: auto;
+   padding: 28px 32px;
+}
+
+@media (max-width: 720px) {
+   .admin-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+   }
+
+   .admin-rail {
+      flex-direction: row;
+      align-items: center;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--dd-border);
+   }
+
+   .admin-brand {
+      padding-bottom: 4px;
+   }
+
+   .admin-rail-footer {
+      flex-direction: row;
+      margin: 0 0 0 auto;
+      padding: 0;
+      border: 0;
+   }
+
+   .admin-rail-user {
+      display: none;
+   }
+
+   .admin-main {
+      padding: 20px 16px;
+   }
+}

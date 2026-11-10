@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/guards/admin.guard';
 
 /**
  * Top-level routes (BUILD_INSTRUCTIONS.md section 8). The workspace shell hosts
@@ -27,6 +28,13 @@ export const routes: Routes = [
    {
       path: 'shared/:token',
       loadComponent: () => import('./features/share/share.component').then((m) => m.ShareComponent),
+   },
+   {
+      // canMatch keeps non-admins from even downloading the chunk (they fall through to **).
+      path: 'admin',
+      canMatch: [adminGuard],
+      canActivate: [adminGuard],
+      loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
    },
    { path: '**', redirectTo: '' },
 ];

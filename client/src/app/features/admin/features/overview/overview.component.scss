@@ -1,0 +1,77 @@
+:host {
+   display: block;
+   max-width: 960px;
+}
+
+.overview-header {
+   margin-bottom: 20px;
+}
+
+.overview-title {
+   margin: 0 0 4px;
+   font-family: var(--dd-display);
+   font-size: 22px;
+   font-weight: 600;
+}
+
+.overview-subtitle {
+   margin: 0;
+   color: var(--dd-text-muted);
+   font-size: 13px;
+}
+
+.overview-card {
+   max-width: 360px;
+   padding: 16px 18px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   box-shadow: var(--dd-shadow-1);
+}
+
+.overview-card-title {
+   margin: 0 0 10px;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+   font-weight: 500;
+}
+
+.overview-status {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   margin: 0;
+   font-size: 15px;
+   font-weight: 600;
+   --dd-icon-size: 16px;
+
+   &.is-ok {
+      color: var(--dd-success);
+   }
+
+   &.is-error {
+      color: var(--dd-danger);
+   }
+}
+
+.overview-meta {
+   margin: 6px 0 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.overview-retry {
+   margin-top: 10px;
+   padding: 6px 12px;
+   background: var(--dd-surface-2);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
+
+   &:hover {
+      border-color: var(--dd-border-strong);
+   }
+}
