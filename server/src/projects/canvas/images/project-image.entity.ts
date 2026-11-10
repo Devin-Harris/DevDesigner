@@ -10,10 +10,12 @@ import {
 import { Project } from '../../projects/project.entity';
 
 /**
- * An image uploaded for use by image elements on a project's canvas. The bytes
- * live in this table (referenced by `ElementEntity.fileId`) rather than inline in
- * element JSON, so realtime syncs and project loads stay small. Deleting the
- * project cascades to its images.
+ * An image or video uploaded for use by image elements on a project's canvas
+ * (referenced by `ElementEntity.fileId`). The bytes live in the content-addressed
+ * media store under `sha256` (`location = 'media'`); rows written before that store
+ * existed still carry them in `data` (`location = 'db'`) until they are moved, lazily
+ * on first read or by `npm run media:migrate`. Deleting the project cascades to these
+ * rows; files no row references any more are removed by the orphan pruning / GC.
  */
 @Entity('project_images')
 @Index('idx_project_images_hash', ['projectId', 'sha256'])
@@ -32,8 +34,13 @@ export class ProjectImageEntity {
   @Column({ type: 'varchar' })
   mimeType!: string;
 
-  @Column({ type: 'blob' })
-  data!: Buffer;
+  /** Legacy in-database bytes; null once the file lives in the media store. */
+  @Column({ type: 'blob', nullable: true })
+  data!: Buffer | null;
+
+  /** Where the bytes are: 'media' (media store, by sha256) or 'db' (legacy `data`). */
+  @Column({ type: 'varchar', default: 'db' })
+  location!: 'db' | 'media';
 
   /** Hex SHA-256 of `data`: the same bytes uploaded or imported twice share one row. */
   @Column({ type: 'varchar', nullable: true })

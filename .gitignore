@@ -19,6 +19,8 @@ out-tsc/
 *.sqlite
 *.sqlite3
 *.db
+# media store files (MEDIA_DIR default: next to the database)
+server/media/
 
 # logs
 *.log

@@ -34,6 +34,10 @@ export interface ImportedImage {
   id: string;
   mimeType: string;
   data: Buffer;
+  /** Hex SHA-256 of `data`, when already computed. */
+  sha256?: string;
+  /** True when the bytes are already in the media store (the row then stores no blob). */
+  stored?: boolean;
 }
 
 export interface WriteOptions {

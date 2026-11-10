@@ -5,7 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import 'reflect-metadata';
 import compression from 'compression';
-import { json, urlencoded } from 'body-parser';
+import { json, raw, urlencoded } from 'body-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { REQUEST_ID_HEADER } from './platform/http/request-context';
@@ -40,6 +40,8 @@ async function bootstrap(): Promise<void> {
   app.set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 1));
 
   // Route-scoped parsers first: once one has parsed a body, the global one skips it.
+  // Raw media upload: the body is the file itself (40 MB video max, checked again in the service).
+  app.use('/api/projects/:projectId/images/raw', raw({ type: () => true, limit: '41mb', inflate: false }));
   for (const { path, limit } of LARGE_BODY_ROUTES) {
     app.use(path, json({ limit, inflate: false }));
   }

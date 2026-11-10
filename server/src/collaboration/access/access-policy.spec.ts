@@ -66,6 +66,7 @@ const EXPECTED: Record<string, string> = {
   'PATCH /elements/:elementId/position': 'write:element(elementId)',
   'DELETE /elements/:elementId': 'write:element(elementId)',
   'POST /projects/:projectId/images': 'write:project(projectId)',
+  'POST /projects/:projectId/images/raw': 'write:project(projectId)',
   'GET /images/:imageId': 'read:image(imageId)',
   // sequence (children are additionally scoped `where { id, projectId }` in the service)
   'POST /projects/:projectId/sequence-diagrams': 'write:project(projectId)',

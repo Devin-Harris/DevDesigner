@@ -16,7 +16,7 @@ export async function writeImages(
   // pointed at the existing file. With linkExisting, a fileId already in this project
   // may be referenced without embedding its bytes at all (same-project duplicates).
   const imageIds = new IdMap();
-  const imported = (ctx.options.images ?? []).map((img) => ({ ...img, sha256: imageHash(img.data) }));
+  const imported = (ctx.options.images ?? []).map((img) => ({ ...img, sha256: img.sha256 ?? imageHash(img.data) }));
   const reuse = new Map<string, string>();
   if (imported.length) {
     const have = await ctx.manager.find(ProjectImageEntity, {
@@ -37,7 +37,9 @@ export async function writeImages(
       id: imageIds.get(img.id)!,
       projectId: ctx.projectId,
       mimeType: img.mimeType,
-      data: img.data,
+      // Files already in the media store keep no copy in SQLite.
+      data: img.stored ? null : img.data,
+      location: img.stored ? ('media' as const) : ('db' as const),
       sha256: img.sha256,
       byteSize: img.data.length,
     })),

@@ -208,10 +208,11 @@ export class ProjectsService {
     requireOwner(ownerId);
     await this.quota.assertCanCreateProjects(ownerId);
     const parsed = parseProjectExport(raw);
-    const images = this.decodeImages(parsed.images);
-    const footprint = importFootprint(parsed.schema, images);
+    const decoded = this.decodeImages(parsed.images);
+    const footprint = importFootprint(parsed.schema, decoded);
     this.quota.assertImportFits(footprint);
     await this.quota.assertImageRoom(null, footprint.imageBytes, ownerId);
+    const images = await this.images.storeImported(decoded);
     const saved = await this.dataSource.transaction((manager) =>
       writeImportedProject(manager, parsed, ownerId, images),
     );
@@ -236,11 +237,12 @@ export class ProjectsService {
       anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)
         ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
         : { dx: 0, dy: 0 };
-    const images = this.decodeImages(parsed.images);
-    const footprint = importFootprint(parsed.schema, images);
+    const decoded = this.decodeImages(parsed.images);
+    const footprint = importFootprint(parsed.schema, decoded);
     this.quota.assertImportFits(footprint);
     await this.quota.assertProjectRoom(projectId, footprint);
-    await this.quota.assertImageRoom(projectId, await this.images.newBytes(projectId, images));
+    await this.quota.assertImageRoom(projectId, await this.images.newBytes(projectId, decoded));
+    const images = await this.images.storeImported(decoded);
     const added = await this.dataSource.transaction(async (manager) => {
       // Optionally let slide ownership / arrow bindings point at content already here.
       const linked =
@@ -294,7 +296,7 @@ export class ProjectsService {
     this.realtime.accessRevoked(id);
   }
 
-  /** Validate (type, size, SVG safety) and decode the images embedded in an import file. */
+  /** Validate (type, size, magic bytes; SVG sanitized) and decode the images embedded in an import file. */
   private decodeImages(images: ProjectExportImage[]): ImportedImage[] {
     return images.map((img) => ({
       id: img.id,
