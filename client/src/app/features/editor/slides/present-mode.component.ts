@@ -16,6 +16,7 @@ import {
 import type { SlideEasing } from '@devdesigner/shared';
 import { LOCAL_LASER, LaserService } from '../../../core/services/laser.service';
 import { RealtimeService } from '../../../core/services/realtime.service';
+import { notifySignal } from '../../../shared/helpers/signals';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { MorphStage } from './morph-stage';
 import { parseSafeSvg } from '../export/svg-sanitize.helper';
@@ -508,7 +509,7 @@ const TRAVEL: Record<string, [number, number]> = {
    host: {
       '(document:keydown)': 'onKey($event)',
       '(document:fullscreenchange)': 'onFullscreenChange()',
-      '(window:resize)': 'resized.update(n => n + 1)',
+      '(window:resize)': 'resized$.notify()',
    },
 })
 export class PresentModeComponent {
@@ -542,7 +543,7 @@ export class PresentModeComponent {
    protected readonly cursorVisible = signal(true);
    private cursorTimer: ReturnType<typeof setTimeout> | null = null;
    protected readonly laserOn = signal(false);
-   protected readonly resized = signal(0);
+   protected readonly resized$ = notifySignal();
    /** How far the user has dragged the control bar from its bottom-centre home. */
    protected readonly barOffset = signal({ x: 0, y: 0 });
    protected readonly barTransform = computed(() => {
@@ -594,7 +595,7 @@ export class PresentModeComponent {
 
    /** Laser trails (ours and collaborators') mapped from canvas space onto the shown slide. */
    protected readonly lasers = computed(() => {
-      this.resized();
+      this.resized$();
       const slide = this.slides()[this.index()];
       const views = this.laserState.views();
       if (!slide || !views.length) {

@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, type Signal, signal } from '@angular/core';
 import type { ExportImageFormat } from '../../features/editor/canvas/models/toolbar-actions';
+import { proxySignal } from '../../shared/helpers/signals';
 
 /** Callbacks the editor registers so app-level chrome (the top bar) can invoke
  *  editor-scoped actions (Export, Share) that depend on canvas-local state. */
@@ -44,33 +45,46 @@ export interface DeckSummary {
    presenter: { id: string; name: string; color: string } | null;
 }
 
+/** The editor-owned signals the app chrome reads through `EditorActionsService`. */
+export interface EditorStateSources {
+   canExportSql: Signal<boolean>;
+   hasTableSelection: Signal<boolean>;
+   hasSelection: Signal<boolean>;
+   presentationName: Signal<string | null>;
+   hasPlainFrames: Signal<boolean>;
+   decks: Signal<DeckSummary[]>;
+   focusedDeck: Signal<string | null>;
+   following: Signal<string | null>;
+}
+
 /**
  * Bridge between the mounted editor and the global top bar. The editor registers
- * its Export/Share handlers on init and clears them on destroy; the top bar reads
- * `active()` to know an editor is present and calls the handlers. Undo/redo,
- * project id and access mode already live on the root `ProjectStore`, so the top
- * bar reads those directly — only these canvas-dependent actions need bridging.
+ * its Export/Share handlers and its state signals (proxies) on init and clears them
+ * on destroy; the top bar reads `active()` to know an editor is present and calls
+ * the handlers. Undo/redo, project id and access mode already live on the root
+ * `ProjectStore`, so the top bar reads those directly — only canvas-dependent
+ * actions and state need bridging.
  */
 @Injectable({ providedIn: 'root' })
 export class EditorActionsService {
    /** True while an editor is mounted with a project loaded. */
    readonly active = signal(false);
    /** False when the tables in the export scope share a name (SQL would be invalid). */
-   readonly canExportSql = signal(true);
+   readonly canExportSql = proxySignal(true);
    /** True when at least one table is selected (SQL export is offered only then). */
-   readonly hasTableSelection = signal(false);
+   readonly hasTableSelection = proxySignal(false);
    /** True when anything (table, shape, sequence part) is selected. */
-   readonly hasSelection = signal(false);
+   readonly hasSelection = proxySignal(false);
    /** The selected presentation's name, or null when the project has no slides. */
-   readonly presentationName = signal<string | null>(null);
+   readonly presentationName = proxySignal<string | null>(null);
    /** True when the project has frames that are not slides. */
-   readonly hasPlainFrames = signal(false);
+   readonly hasPlainFrames = proxySignal(false);
    /** Every presentation in the open project. */
-   readonly decks = signal<DeckSummary[]>([]);
+   readonly decks = proxySignal<DeckSummary[]>([]);
    /** The presentation open in focus mode (app chrome steps aside for the deck bars), or null. */
-   readonly focusedDeck = signal<string | null>(null);
+   readonly focusedDeck = proxySignal<string | null>(null);
    /** The collaborator whose cursor the canvas is following, or null. */
-   readonly following = signal<string | null>(null);
+   readonly following = proxySignal<string | null>(null);
    private handlers: EditorActionHandlers | null = null;
 
    register(handlers: EditorActionHandlers): void {
@@ -78,10 +92,28 @@ export class EditorActionsService {
       this.active.set(true);
    }
 
+   /** Point the chrome's state signals at the mounted editor's (until `clear()`). */
+   registerState(state: EditorStateSources): void {
+      this.canExportSql.register(state.canExportSql);
+      this.hasTableSelection.register(state.hasTableSelection);
+      this.hasSelection.register(state.hasSelection);
+      this.presentationName.register(state.presentationName);
+      this.hasPlainFrames.register(state.hasPlainFrames);
+      this.decks.register(state.decks);
+      this.focusedDeck.register(state.focusedDeck);
+      this.following.register(state.following);
+   }
+
    clear(): void {
       this.handlers = null;
-      this.decks.set([]);
-      this.focusedDeck.set(null);
+      this.canExportSql.reset();
+      this.hasTableSelection.reset();
+      this.hasSelection.reset();
+      this.presentationName.reset();
+      this.hasPlainFrames.reset();
+      this.decks.reset();
+      this.focusedDeck.reset();
+      this.following.reset();
       this.active.set(false);
    }
 

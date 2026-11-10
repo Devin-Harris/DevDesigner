@@ -80,7 +80,8 @@ import {
 } from './canvas/helpers/slide-zoom.helper';
 import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
 import { RealtimeService } from '../../core/services/realtime.service';
-import { EditorActionsService } from '../../core/services/editor-actions.service';
+import { type DeckSummary, EditorActionsService } from '../../core/services/editor-actions.service';
+import { FontMetricsService } from './services/font-metrics.service';
 import { ProjectFileService } from '../../core/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from '../../core/services/element-images.service';
@@ -814,6 +815,7 @@ export class EditorComponent {
    }
    private readonly destroyRef = inject(DestroyRef);
    private readonly editorActions = inject(EditorActionsService);
+   private readonly fontMetrics = inject(FontMetricsService);
    private readonly theme = inject(ThemeService);
    protected readonly svgOffset = SVG_OFFSET;
 
@@ -1307,8 +1309,10 @@ export class EditorComponent {
       const diffEditingId = editedDiff?.type === 'code' && codeDiffActive(editedDiff) ? editing : null;
       // Deck theme tokens ($accent1, $heading, ...) resolve against each item's presentation.
       const elements = resolveThemedElements(draft ? [...filled, draft] : filled, this.store.slideFrames());
-      // Depend on the theme so colors re-resolve (and re-contrast) on toggle.
+      // Depend on the theme so colors re-resolve (and re-contrast) on toggle, and re-measure
+      // text once web fonts arrive.
       this.theme.dark();
+      this.fontMetrics.fontsLoaded$();
       const views = buildShapeViews(
          elements,
          this.visibleTables(),
@@ -2383,7 +2387,6 @@ export class EditorComponent {
       // Following a collaborator: keep their cursor in the middle part of the view.
       effect(() => {
          const id = this.followingId();
-         this.editorActions.following.set(id);
          if (!id) return;
          if (!this.realtime.participants().some((p) => p.id === id)) {
             untracked(() => this.followingId.set(null));
@@ -2425,51 +2428,20 @@ export class EditorComponent {
          const name = this.focusedDeck();
          if (name && !this.store.presentations().includes(name)) {
             untracked(() => this.focusedDeck.set(null));
-            return;
          }
-         this.editorActions.focusedDeck.set(name);
       });
-      effect(() => {
-         const frames = this.store.slideFrames();
-         const presenters = this.presenters();
-         this.editorActions.decks.set(
-            this.store.presentations().map((name) => {
-               const p = presenters.find((x) => {
-                  const f = frames.find((fr) => fr.id === x.presenting?.frameId);
-                  return !!f && presentationOf(f) === name;
-               });
-               return {
-                  name,
-                  slides: presentationSlides(frames, name).length,
-                  presenter: p ? { id: p.id, name: p.name, color: p.color } : null,
-               };
-            })
-         );
+      // The app chrome (top bar, Presentations menu, palette) reads this editor's state.
+      this.editorActions.registerState({
+         canExportSql: this.canExportSql$,
+         hasTableSelection: this.hasTableSelection$,
+         hasSelection: this.hasSelection$,
+         presentationName: this.store.presentation,
+         hasPlainFrames: this.hasPlainFrames$,
+         decks: this.deckSummaries$,
+         focusedDeck: this.focusedDeck,
+         following: this.followingId,
       });
       this.destroyRef.onDestroy(() => this.editorActions.clear());
-      // SQL needs unique table names within the exported scope (selection or whole diagram).
-      effect(() => {
-         const selected = this.store.selectedTableIds();
-         const tables = this.store.tables();
-         const scope = selected.length ? tables.filter((t) => selected.includes(t.id)) : tables;
-         const names = scope.map((t) => t.name.trim().toLowerCase());
-         this.editorActions.hasTableSelection.set(selected.length > 0);
-         this.editorActions.canExportSql.set(new Set(names).size === names.length);
-      });
-      // The export menu offers the selected presentation's slides, and plain frames apart from them.
-      effect(() => {
-         this.editorActions.presentationName.set(this.store.presentation());
-         this.editorActions.hasPlainFrames.set(this.store.elements().some((e) => e.type === 'frame' && !e.slide));
-      });
-      effect(() => {
-         this.editorActions.hasSelection.set(
-            this.store.selectedTableIds().length > 0 ||
-               this.store.selectedElementIds().length > 0 ||
-               this.store.selectedMessageIds().length > 0 ||
-               this.store.selectedLifelineIds().length > 0 ||
-               this.store.selectedDiagramIds().length > 0
-         );
-      });
       // An unpinned details panel belongs to one selection: fold it when that changes.
       let lastSelection: string | null = null;
       effect(() => {
@@ -6596,6 +6568,41 @@ export class EditorComponent {
    // ---- Following a collaborator -----------------------------------------
    /** Participant whose cursor the view keeps in sight, or null. */
    protected readonly followingId = signal<string | null>(null);
+   /** Every presentation with its slide count and current presenter (top-right Presentations menu). */
+   private readonly deckSummaries$ = computed<DeckSummary[]>(() => {
+      const frames = this.store.slideFrames();
+      const presenters = this.presenters();
+      return this.store.presentations().map((name) => {
+         const p = presenters.find((x) => {
+            const f = frames.find((fr) => fr.id === x.presenting?.frameId);
+            return !!f && presentationOf(f) === name;
+         });
+         return {
+            name,
+            slides: presentationSlides(frames, name).length,
+            presenter: p ? { id: p.id, name: p.name, color: p.color } : null,
+         };
+      });
+   });
+   private readonly hasTableSelection$ = computed(() => this.store.selectedTableIds().length > 0);
+   /** SQL needs unique table names within the exported scope (selection or whole diagram). */
+   private readonly canExportSql$ = computed(() => {
+      const selected = this.store.selectedTableIds();
+      const tables = this.store.tables();
+      const scope = selected.length ? tables.filter((t) => selected.includes(t.id)) : tables;
+      const names = scope.map((t) => t.name.trim().toLowerCase());
+      return new Set(names).size === names.length;
+   });
+   /** The export menu offers plain frames apart from the selected presentation's slides. */
+   private readonly hasPlainFrames$ = computed(() => this.store.elements().some((e) => e.type === 'frame' && !e.slide));
+   private readonly hasSelection$ = computed(
+      () =>
+         this.store.selectedTableIds().length > 0 ||
+         this.store.selectedElementIds().length > 0 ||
+         this.store.selectedMessageIds().length > 0 ||
+         this.store.selectedLifelineIds().length > 0 ||
+         this.store.selectedDiagramIds().length > 0
+   );
    protected readonly followingName = computed(() => {
       const id = this.followingId();
       return id ? (this.realtime.participants().find((p) => p.id === id)?.name ?? null) : null;

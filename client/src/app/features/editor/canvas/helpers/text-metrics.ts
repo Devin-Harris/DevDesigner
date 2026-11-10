@@ -200,9 +200,12 @@ const NO_INK: TextInk = { top: 0, right: 0, bottom: 0, left: 0 };
 const inkCache = new Map<string, TextInk>();
 let inkCtx: CanvasRenderingContext2D | null | undefined;
 
-if (typeof document !== 'undefined' && document.fonts) {
-   // Metrics taken before a web font arrives are the fallback face's.
-   document.fonts.addEventListener?.('loadingdone', () => inkCache.clear());
+/**
+ * Drop measurements taken before a web font arrived (they used the fallback face).
+ * `FontMetricsService` calls this on `document.fonts` `loadingdone`.
+ */
+export function clearTextMetricsCaches(): void {
+   inkCache.clear();
 }
 
 /**

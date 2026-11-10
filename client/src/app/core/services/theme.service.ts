@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { notifySignal } from '../../shared/helpers/signals';
 
 const STORAGE_KEY = 'dd-theme';
 
@@ -18,6 +19,11 @@ export class ThemeService {
 
    readonly mode = signal<ThemeMode>(this.readInitial());
    readonly dark = computed(() => (this.mode() === 'system' ? this.systemDark() : this.mode() === 'dark'));
+   /**
+    * Fires after the root's `dark` class flips, so computeds that read theme tokens
+    * through `getComputedStyle` re-read them (and only then).
+    */
+   readonly themeChanged$ = notifySignal();
 
    constructor() {
       this.media?.addEventListener?.('change', (e) => this.systemDark.set(e.matches));
@@ -25,6 +31,7 @@ export class ThemeService {
          const mode = this.mode();
          const isDark = this.dark();
          this.doc.documentElement.classList.toggle('dark', isDark);
+         this.themeChanged$.notify();
          try {
             this.doc.defaultView?.localStorage.setItem(STORAGE_KEY, mode);
          } catch {
