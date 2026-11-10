@@ -1,3 +1,6 @@
+import { FloatingToolbarsService } from './features/elements/services/floating-toolbars.service';
+import { AlignService } from './services/align.service';
+import { RemotePresenceService } from './features/collaboration/services/remote-presence.service';
 import { EditorPointerService } from './editor-pointer.service';
 import { CanvasDblClickService } from './features/elements/services/canvas-dblclick.service';
 import { DeckPanelsService } from './features/slides/services/deck-panels.service';
@@ -48,7 +51,7 @@ import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { CanvasElementModel } from '@devdesigner/shared';
-import { presentationOf, presentationSlides, sequenceDiagramRect } from '@devdesigner/shared';
+import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
@@ -59,19 +62,16 @@ import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
-import { ProjectStore, type SequenceLayoutSnapshot } from './state/project/project.store';
+import { ProjectStore } from './state/project/project.store';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from './services/code-actions.service';
 import { GridTableService } from './services/grid-table.service';
 import { CanvasConnectorsComponent } from './features/canvas/components/canvas-connectors/canvas-connectors.component';
 import { CanvasShapesComponent } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
-import { type AlignAction } from './models/toolbar-actions';
 import { MinimapComponent } from './features/minimap/minimap.component';
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
-import { sequenceDiagramBox } from './helpers/frame-contents.helper';
 import { framePreset } from './shared/constants/frame-presets';
-import { elementBox, tableBox } from './helpers/element-geometry.helper';
-import { tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
+import { snapToGrid } from './helpers/node-metrics.helper';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
 import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
@@ -102,9 +102,6 @@ import { AnimationPaneComponent } from './features/slides/features/slides-panel/
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
 import type { RelinkPreview } from './services/canvas-view.service';
-/** Element kinds that can contain other items (a lone selection aligns to these). */
-const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
-
 function readFlag(key: string, fallback: boolean): boolean {
    try {
       const v = globalThis.localStorage?.getItem(key);
@@ -182,11 +179,17 @@ function readFlag(key: string, fallback: boolean): boolean {
       DeckPanelsService,
       CanvasDblClickService,
       EditorPointerService,
+      AlignService,
+      FloatingToolbarsService,
+      RemotePresenceService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly presence = inject(RemotePresenceService);
+   protected readonly bars = inject(FloatingToolbarsService);
+   protected readonly align = inject(AlignService);
    protected readonly pointer = inject(EditorPointerService);
    protected readonly dblClick = inject(CanvasDblClickService);
    protected readonly deckPanels = inject(DeckPanelsService);
@@ -272,50 +275,6 @@ export class EditorComponent {
    private toolAppliedFor: string | null = null;
    readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
 
-   /** Other participants' cursors projected to screen coordinates for rendering. */
-   protected readonly remoteCursors = computed(() => {
-      const v = this.store.viewport();
-      return this.realtime.remoteCursors().map((c) => ({
-         id: c.participantId,
-         name: c.name,
-         color: c.color,
-         left: c.x * v.zoom + v.x,
-         top: c.y * v.zoom + v.y,
-      }));
-   });
-
-   /** Highlight rings (world coords) for tables another participant has selected. */
-   protected readonly remoteTableHighlights = computed(() => {
-      const highlights = this.realtime.tableHighlights();
-      const rings: {
-         id: string;
-         x: number;
-         y: number;
-         width: number;
-         height: number;
-         color: string;
-      }[] = [];
-      for (const table of this.store.tables()) {
-         const colors = highlights[table.id];
-         if (colors?.length) {
-            rings.push({
-               id: table.id,
-               x: table.x,
-               y: table.y,
-               width: tableWidth(table),
-               height: tableHeight(table),
-               color: colors[0],
-            });
-         }
-      }
-      return rings;
-   });
-
-   /** The image element being cropped inline (crop overlay), while it still exists. */
-   protected readonly croppingElement = computed(() => {
-      const id = this.mediaActions.croppingId();
-      return id ? (this.store.elements().find((e) => e.id === id && e.type === 'image') ?? null) : null;
-   });
    protected readonly saveLabel = computed(() => {
       switch (this.store.saveStatus()) {
          case 'saving':
@@ -327,106 +286,6 @@ export class EditorComponent {
          default:
             return '';
       }
-   });
-
-   /** Placement + representative element for the floating context toolbar. */
-   protected readonly elementToolbar = computed(() => {
-      // Shown whenever element(s) are selected and no gesture/text-edit is active,
-      // even while a draw tool stays active (drawing a shape selects it).
-      const editingId = this.textEditing.editingTextId();
-      const richEditing = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type === 'text';
-      if ((editingId && !richEditing) || this.gesture.gestureActive()) {
-         return null;
-      }
-      const ids = this.store.selectedElementIds();
-      if (!ids.length) {
-         return null;
-      }
-      const idSet = new Set(ids);
-      const els = this.store.elements().filter((e) => idSet.has(e.id));
-      if (!els.length) {
-         return null;
-      }
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      for (const e of els) {
-         const b = this.canvasView.drawnBox(e.id, elementBox(e));
-         minX = Math.min(minX, b.x0);
-         minY = Math.min(minY, b.y0);
-         maxX = Math.max(maxX, b.x1);
-         maxY = Math.max(maxY, b.y1);
-      }
-      const v = this.store.viewport();
-      // Clear the rotate handle (sits ~24px above the top edge) so the bar never
-      // covers it; when there is no room above, flip the bar below the selection.
-      const ROTATE_CLEAR = 24;
-      const BAR = 52;
-      const above = minY * v.zoom + v.y - ROTATE_CLEAR * v.zoom - BAR;
-      const below = maxY * v.zoom + v.y + 16;
-      return {
-         left: ((minX + maxX) / 2) * v.zoom + v.x,
-         top: above >= 8 ? above : below,
-         element: els[0],
-      };
-   });
-
-   /**
-    * Placement for the multi-select bar: under the union box of 2+ selected units
-    * (or a single selected group, so it can be ungrouped).
-    */
-   protected readonly multiSelectBar = computed(() => {
-      if (this.gesture.gestureActive() || !this.store.canEdit() || this.textEditing.editingTextId()) {
-         return null;
-      }
-      const byItem = this.store.groupByItem();
-      const entered = this.store.enteredGroupId();
-      const ids = [
-         ...this.store.selectedTableIds(),
-         ...this.store.selectedElementIds(),
-         ...this.store.selectedDiagramIds(),
-      ];
-      const units = new Set(
-         ids.map((id) => {
-            const g = byItem.get(id);
-            return g && g !== entered ? g : id;
-         })
-      );
-      const grouped = units.size === 1 && ids.length > 1 && [...units][0] !== ids[0];
-      if (units.size < 2 && !grouped) {
-         return null;
-      }
-      const selected = new Set(ids);
-      let x0 = Infinity,
-         y0 = Infinity,
-         x1 = -Infinity,
-         y1 = -Infinity;
-      const grow = (b: Box): void => {
-         x0 = Math.min(x0, b.x0);
-         y0 = Math.min(y0, b.y0);
-         x1 = Math.max(x1, b.x1);
-         y1 = Math.max(y1, b.y1);
-      };
-      for (const t of this.store.tables()) if (selected.has(t.id)) grow(tableBox(t));
-      for (const e of this.store.elements())
-         if (selected.has(e.id)) grow(this.canvasView.drawnBox(e.id, elementBox(e)));
-      for (const d of this.store.sequenceDiagrams()) {
-         const b = selected.has(d.id) ? this.canvasView.diagramBox(d) : null;
-         if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
-      }
-      if (!Number.isFinite(x0)) {
-         return null;
-      }
-      const v = this.store.viewport();
-      const below = y1 * v.zoom + v.y + 14;
-      const maxTop = (this.viewport.canvasSize().height || window.innerHeight) - 110;
-      return {
-         left: ((x0 + x1) / 2) * v.zoom + v.x,
-         top: Math.min(below, maxTop),
-         count: grouped ? ids.length : units.size,
-         grouped,
-      };
    });
 
    /** Bottom-right minimap visibility (remembered per browser). */
@@ -445,211 +304,6 @@ export class EditorComponent {
       this.clipboard.copySelection();
       void this.clipboard.pasteClipboard();
    }
-
-   /** Placement + table for the floating table action bar (single table selected). */
-   protected readonly tableToolbar = computed(() => {
-      if (this.gesture.gestureActive()) {
-         return null;
-      }
-      const table = this.store.selectedTable();
-      if (!table) {
-         return null;
-      }
-      const v = this.store.viewport();
-      return {
-         left: (table.x + tableWidth(table) / 2) * v.zoom + v.x,
-         top: Math.max(table.y * v.zoom + v.y - 52, 8),
-         table,
-      };
-   });
-
-   /** Placement for the floating contextual bar over the selected sequence message. */
-   protected readonly sequenceMessageToolbar = computed(() => {
-      const m = this.store.selectedMessage();
-      if (!m) {
-         return null;
-      }
-      const d = this.store.sequenceDiagrams().find((x) => x.id === m.diagramId);
-      if (!d) {
-         return null;
-      }
-      const lls = this.store.lifelines();
-      const base = d.originY + d.headerHeight;
-      const row = Math.max(1, Math.round((m.y - base) / d.rowSpacing));
-      const y = base + d.rowSpacing * row;
-      let midX: number;
-      const from = lls.find((l) => l.id === m.fromLifelineId);
-      const to = lls.find((l) => l.id === m.toLifelineId);
-      if (m.style === 'break' || !from || !to) {
-         const own = lls.filter((l) => l.diagramId === m.diagramId);
-         if (!own.length) return null;
-         const minX = Math.min(...own.map((l) => l.x));
-         const maxX = Math.max(...own.map((l) => l.x));
-         midX = (minX + maxX) / 2;
-      } else {
-         midX = (from.x + to.x) / 2;
-      }
-      const v = this.store.viewport();
-      return { left: midX * v.zoom + v.x, top: y * v.zoom + v.y };
-   });
-
-   /** Placement for the floating participant (lifeline) toolbar, above its header. */
-   protected readonly sequenceParticipantToolbar = computed(() => {
-      const l = this.store.selectedLifeline();
-      if (!l) {
-         return null;
-      }
-      const d = this.store.sequenceDiagrams().find((x) => x.id === l.diagramId);
-      if (!d) {
-         return null;
-      }
-      const v = this.store.viewport();
-      return { left: l.x * v.zoom + v.x, top: d.originY * v.zoom + v.y };
-   });
-
-   /** Screen anchor (top-center of the box) for the selected sequence diagram's toolbar. */
-   protected readonly sequenceDiagramToolbar = computed(() => {
-      const d = this.store.selectedDiagram();
-      if (!d || this.store.selectedLifeline() || this.store.selectedMessage()) {
-         return null;
-      }
-      const r = sequenceDiagramRect(d, this.store.lifelines(), this.store.sequenceMessages());
-      if (!r) {
-         return null;
-      }
-      const v = this.store.viewport();
-      return { left: (r.x + r.w / 2) * v.zoom + v.x, top: r.y * v.zoom + v.y };
-   });
-
-   /**
-    * The frame / shape a lone selected unit sits fully inside, if any. A single
-    * selection aligns to this container, so no second selection is needed. Once
-    * several units are selected they align to each other instead (which already
-    * covers the "item + its container" case).
-    */
-   private readonly alignContainer = computed<Box | null>(() => {
-      if (this.canvasView.alignUnitCount() !== 1) {
-         return null;
-      }
-      const selected = new Set([
-         ...this.store.selectedTableIds(),
-         ...this.store.selectedElementIds(),
-         ...this.store.selectedDiagramIds(),
-      ]);
-      let x0 = Infinity;
-      let y0 = Infinity;
-      let x1 = -Infinity;
-      let y1 = -Infinity;
-      const grow = (b: Box): void => {
-         x0 = Math.min(x0, b.x0);
-         y0 = Math.min(y0, b.y0);
-         x1 = Math.max(x1, b.x1);
-         y1 = Math.max(y1, b.y1);
-      };
-      for (const t of this.store.tables()) {
-         if (selected.has(t.id)) grow(tableBox(t));
-      }
-      for (const e of this.store.elements()) {
-         if (selected.has(e.id)) grow(elementBox(e));
-      }
-      for (const d of this.store.sequenceDiagrams()) {
-         const b = selected.has(d.id) ? this.canvasView.diagramBox(d) : null;
-         if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
-      }
-      if (!Number.isFinite(x0)) {
-         return null;
-      }
-      const eps = 0.5;
-      let best: Box | null = null;
-      let bestArea = Infinity;
-      for (const e of this.store.elements()) {
-         if (selected.has(e.id) || !CONTAINER_TYPES.has(e.type)) continue;
-         const b = elementBox(e);
-         if (b.x0 > x0 + eps || b.y0 > y0 + eps || b.x1 < x1 - eps || b.y1 < y1 - eps) continue;
-         const area = (b.x1 - b.x0) * (b.y1 - b.y0);
-         if (area < bestArea) {
-            best = b;
-            bestArea = area;
-         }
-      }
-      return best;
-   });
-
-   /** Align buttons are live for 2+ units, or for one unit inside a container. */
-   protected readonly canAlign = computed(
-      () => this.store.canEdit() && (this.canvasView.alignUnitCount() >= 2 || !!this.alignContainer())
-   );
-   protected readonly canDistribute = computed(() => this.store.canEdit() && this.canvasView.alignUnitCount() >= 3);
-   /** True when an align action would target the surrounding container. */
-   protected readonly alignToContainer = computed(
-      () => this.canvasView.alignUnitCount() === 1 && !!this.alignContainer()
-   );
-
-   /** Dashed outlines around selected groups and the group currently entered. */
-   protected readonly groupOutlines = computed(() => {
-      const groups = this.store.groups();
-      if (!groups.size) {
-         return [];
-      }
-      const entered = this.store.enteredGroupId();
-      const selT = new Set(this.store.selectedTableIds());
-      const selE = new Set(this.store.selectedElementIds());
-      const selD = new Set(this.store.selectedDiagramIds());
-      const tables = new Map(this.store.tables().map((t) => [t.id, t] as const));
-      const elements = new Map(this.store.elements().map((e) => [e.id, e] as const));
-      const diagrams = new Map(this.store.sequenceDiagrams().map((d) => [d.id, d] as const));
-      const lifelines = this.store.lifelines();
-      const messages = this.store.sequenceMessages();
-      const pad = 8;
-      const out: {
-         id: string;
-         left: number;
-         top: number;
-         width: number;
-         height: number;
-         entered: boolean;
-      }[] = [];
-      for (const [gid, g] of groups) {
-         const active =
-            gid === entered ||
-            g.tableIds.some((id) => selT.has(id)) ||
-            g.elementIds.some((id) => selE.has(id)) ||
-            g.diagramIds.some((id) => selD.has(id));
-         if (!active) {
-            continue;
-         }
-         const boxes: Box[] = [];
-         for (const id of g.tableIds) {
-            const t = tables.get(id);
-            if (t) boxes.push(tableBox(t));
-         }
-         for (const id of g.elementIds) {
-            const e = elements.get(id);
-            if (e) boxes.push(elementBox(e));
-         }
-         for (const id of g.diagramIds) {
-            const d = diagrams.get(id);
-            const b = d ? sequenceDiagramBox(d, lifelines, messages) : null;
-            if (b) boxes.push(b);
-         }
-         if (!boxes.length) {
-            continue;
-         }
-         const x0 = Math.min(...boxes.map((b) => b.x0)) - pad;
-         const y0 = Math.min(...boxes.map((b) => b.y0)) - pad;
-         const x1 = Math.max(...boxes.map((b) => b.x1)) + pad;
-         const y1 = Math.max(...boxes.map((b) => b.y1)) + pad;
-         out.push({
-            id: gid,
-            left: x0,
-            top: y0,
-            width: x1 - x0,
-            height: y1 - y0,
-            entered: gid === entered,
-         });
-      }
-      return out;
-   });
 
    private readonly codeActions = inject(CodeActionsService);
    protected readonly grids = inject(GridTableService);
@@ -692,6 +346,7 @@ export class EditorComponent {
    });
 
    constructor() {
+      this.align.connect(this);
       this.deckPanels.connect(this);
       this.elementGestures.connect(this);
       this.snap.connect(this);
@@ -1187,6 +842,7 @@ export class EditorComponent {
    readonly orderSlideCopies = (copies: readonly CanvasElementModel[], deck: string, afterId: string | null) =>
       this.placement.orderSlideCopies(copies, deck, afterId);
    readonly copySelection = (): void => this.clipboard.copySelection();
+   readonly followRoutes = (start: Map<string, { x: number; y: number }>): void => this.relLink.followRoutes(start);
    readonly handlePointerMove = (event: PointerEvent): void => this.pointer.handlePointerMove(event);
    readonly selectedSlideSets = this.deckPanels.selectedSlideSets;
    readonly selectSlideSet = (name: string): void => this.deckPanels.selectSlideSet(name);
@@ -1223,238 +879,5 @@ export class EditorComponent {
          y = snapToGrid(y);
       }
       void this.store.addTable(x, y);
-   }
-
-   /** Element types a "fill / stroke for all" applies to. */
-   private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond']);
-   private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'arrow', 'line', 'freedraw']);
-
-   /** Some selected elements take a fill or stroke. */
-   protected readonly selectionStylable = computed(() => {
-      const ids = new Set(this.store.selectedElementIds());
-      return this.store.elements().some((e) => ids.has(e.id) && EditorComponent.STROKABLE.has(e.type));
-   });
-
-   /** Fill / stroke every selected shape (one undo step). */
-   protected styleSelection(kind: 'fill' | 'stroke', color: string): void {
-      if (!this.store.canEdit()) return;
-      const ids = new Set(this.store.selectedElementIds());
-      const allowed = kind === 'fill' ? EditorComponent.FILLABLE : EditorComponent.STROKABLE;
-      const targets = this.store.elements().filter((e) => ids.has(e.id) && allowed.has(e.type));
-      if (!targets.length) return;
-      void this.store.batchHistory(async () => {
-         for (const e of targets) {
-            if (kind === 'fill') {
-               await this.store.updateElement(
-                  e.id,
-                  color === 'transparent' ? { fillStyle: 'none' } : { backgroundColor: color, fillStyle: 'solid' }
-               );
-            } else {
-               await this.store.updateElement(e.id, { strokeColor: color });
-            }
-         }
-      });
-   }
-
-   // --- alignment ---
-
-   protected onAlign(action: AlignAction): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      // While cropping, the panel lines the clip shape up within its picture.
-      if (this.croppingElement()) {
-         this.mediaActions.requestCropAlign(action);
-         return;
-      }
-      // Tables, canvas elements (text, shapes, lines...) and sequence diagrams align
-      // together by their bounding boxes. A whole group is ONE item: its box is the
-      // union of its members, and placing it shifts every member by the same amount.
-      interface Member {
-         gid: string | null;
-         x: number;
-         y: number;
-         w: number;
-         h: number;
-         shift: (dx: number, dy: number) => void;
-      }
-      interface Item {
-         x: number;
-         y: number;
-         w: number;
-         h: number;
-         place: (x: number, y: number) => void;
-      }
-      const byItem = this.store.groupByItem();
-      const entered = this.store.enteredGroupId();
-      const gidOf = (id: string): string | null => {
-         const g = byItem.get(id);
-         return g && g !== entered ? g : null;
-      };
-      const members: Member[] = [];
-      const tableIds = this.store.selectedTableIds();
-      const tableStart = new Map(this.store.tables().map((t) => [t.id, { x: t.x, y: t.y }]));
-      for (const t of this.store.tables()) {
-         if (tableIds.includes(t.id)) {
-            members.push({
-               gid: gidOf(t.id),
-               x: t.x,
-               y: t.y,
-               w: tableWidth(t),
-               h: tableHeight(t),
-               shift: (dx, dy) => this.store.moveTable(t.id, Math.round(t.x + dx), Math.round(t.y + dy)),
-            });
-         }
-      }
-      const elementIds = this.store.selectedElementIds();
-      const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] = [];
-      for (const e of this.store.elements()) {
-         if (elementIds.includes(e.id)) {
-            const b = elementBox(e);
-            members.push({
-               gid: gidOf(e.id),
-               x: b.x0,
-               y: b.y0,
-               w: b.x1 - b.x0,
-               h: b.y1 - b.y0,
-               shift: (dx, dy) => {
-                  const nx = Math.round(e.x + dx);
-                  const ny = Math.round(e.y + dy);
-                  if (nx !== e.x || ny !== e.y) {
-                     moves.push({ id: e.id, from: { x: e.x, y: e.y }, to: { x: nx, y: ny } });
-                     this.store.moveElement(e.id, nx, ny);
-                  }
-               },
-            });
-         }
-      }
-      // Moving a sequence diagram shifts every participant and message with it (rows
-      // kept), then persists + records undo.
-      const seqMoves: { id: string; before: SequenceLayoutSnapshot }[] = [];
-      for (const d of this.store.sequenceDiagrams()) {
-         if (!this.store.selectedDiagramIds().includes(d.id)) continue;
-         const b = this.canvasView.diagramBox(d);
-         const snap = this.store.sequenceDiagramSnapshot(d.id);
-         if (!b || !snap) continue;
-         members.push({
-            gid: gidOf(d.id),
-            x: b.minX,
-            y: b.minY,
-            w: b.maxX - b.minX,
-            h: b.maxY - b.minY,
-            shift: (dx, dy) => {
-               const rx = Math.round(dx);
-               const ry = Math.round(dy);
-               if (!rx && !ry) return;
-               seqMoves.push({ id: d.id, before: this.canvasView.layoutSnapshot(d.id) });
-               this.store.shiftSequence(d.id, snap.startXs, rx, snap.startOriginY, ry, snap.startRows);
-            },
-         });
-      }
-      const items: Item[] = [];
-      const grouped = new Map<string, Member[]>();
-      for (const m of members) {
-         if (m.gid) {
-            grouped.set(m.gid, [...(grouped.get(m.gid) ?? []), m]);
-         } else {
-            items.push({
-               x: m.x,
-               y: m.y,
-               w: m.w,
-               h: m.h,
-               place: (x, y) => m.shift(x - m.x, y - m.y),
-            });
-         }
-      }
-      for (const parts of grouped.values()) {
-         const gx = Math.min(...parts.map((m) => m.x));
-         const gy = Math.min(...parts.map((m) => m.y));
-         items.push({
-            x: gx,
-            y: gy,
-            w: Math.max(...parts.map((m) => m.x + m.w)) - gx,
-            h: Math.max(...parts.map((m) => m.y + m.h)) - gy,
-            place: (x, y) => parts.forEach((m) => m.shift(x - gx, y - gy)),
-         });
-      }
-      // A lone unit aligns to the frame / shape it sits inside.
-      const container = items.length === 1 ? this.alignContainer() : null;
-      if (items.length < 2 && !container) {
-         return;
-      }
-      const minX = container ? container.x0 : Math.min(...items.map((i) => i.x));
-      const maxRight = container ? container.x1 : Math.max(...items.map((i) => i.x + i.w));
-      const minY = container ? container.y0 : Math.min(...items.map((i) => i.y));
-      const maxBottom = container ? container.y1 : Math.max(...items.map((i) => i.y + i.h));
-
-      switch (action) {
-         case 'left':
-            items.forEach((i) => i.place(minX, i.y));
-            break;
-         case 'right':
-            items.forEach((i) => i.place(maxRight - i.w, i.y));
-            break;
-         case 'hcenter': {
-            const center = (minX + maxRight) / 2;
-            items.forEach((i) => i.place(center - i.w / 2, i.y));
-            break;
-         }
-         case 'top':
-            items.forEach((i) => i.place(i.x, minY));
-            break;
-         case 'bottom':
-            items.forEach((i) => i.place(i.x, maxBottom - i.h));
-            break;
-         case 'vcenter': {
-            const center = (minY + maxBottom) / 2;
-            items.forEach((i) => i.place(i.x, center - i.h / 2));
-            break;
-         }
-         case 'dist-h': {
-            if (items.length < 2) break;
-            const sorted = [...items].sort((p, q) => p.x - q.x);
-            const first = sorted[0].x;
-            const last = sorted[sorted.length - 1].x;
-            const step = (last - first) / (sorted.length - 1);
-            sorted.forEach((i, n) => i.place(first + step * n, i.y));
-            break;
-         }
-         case 'dist-v': {
-            if (items.length < 2) break;
-            const sorted = [...items].sort((p, q) => p.y - q.y);
-            const first = sorted[0].y;
-            const last = sorted[sorted.length - 1].y;
-            const step = (last - first) / (sorted.length - 1);
-            sorted.forEach((i, n) => i.place(i.x, first + step * n));
-            break;
-         }
-         case 'gaps-h':
-         case 'gaps-v': {
-            // Tidy: same 40px gap between neighbours, starting from the first one.
-            if (items.length < 2) break;
-            const gap = 40;
-            const horizontal = action === 'gaps-h';
-            const sorted = [...items].sort((p, q) => (horizontal ? p.x - q.x : p.y - q.y));
-            let at = horizontal ? sorted[0].x : sorted[0].y;
-            for (const i of sorted) {
-               if (horizontal) i.place(at, i.y);
-               else i.place(i.x, at);
-               at += (horizontal ? i.w : i.h) + gap;
-            }
-            break;
-         }
-      }
-      this.relLink.followRoutes(tableStart);
-      this.store.recordElementMove(moves);
-      for (const { id, before } of seqMoves) {
-         const after = this.canvasView.layoutSnapshot(id);
-         for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
-         for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
-         void this.store.updateSequenceConfig(id, {
-            rowSpacing: after.rowSpacing,
-            originY: after.originY,
-         });
-         this.store.recordSequenceLayout(id, before, after);
-      }
    }
 }

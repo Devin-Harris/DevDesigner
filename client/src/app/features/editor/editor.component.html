@@ -11,7 +11,7 @@
       (drop)="mediaDrop.onCanvasDrop($event)"
    >
       <div class="world" [style.transform]="viewport.worldTransform()">
-         @if (croppingElement(); as ce) {
+         @if (align.croppingElement(); as ce) {
             <dd-image-crop-overlay [element]="ce"></dd-image-crop-overlay>
          }
          <svg class="grid" width="1" height="1">
@@ -208,7 +208,7 @@
             (bendDown)="elementGestures.onElementBendDown($event)"
          ></dd-canvas-shapes>
 
-         @for (g of groupOutlines(); track g.id) {
+         @for (g of canvasView.groupOutlines(); track g.id) {
             <div
                class="group-outline"
                [class.entered]="g.entered"
@@ -221,7 +221,7 @@
 
          <!-- Selection highlights: a colored ring around tables another participant
            currently has selected (what they are editing). -->
-         @for (ring of remoteTableHighlights(); track ring.id) {
+         @for (ring of presence.remoteTableHighlights(); track ring.id) {
             <div
                class="remote-ring"
                [style.left.px]="ring.x"
@@ -234,7 +234,7 @@
       </div>
 
       <!-- Live cursors of other participants (screen coords, above the canvas). -->
-      @for (cursor of remoteCursors(); track cursor.id) {
+      @for (cursor of presence.remoteCursors(); track cursor.id) {
          <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
             <dd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
             <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
@@ -275,9 +275,9 @@
          [smartGuides]="snap.smartGuides()"
          [minimap]="showMinimap()"
          (toggleMinimap)="toggleMinimap()"
-         [canAlign]="alignToContainer() || !!croppingElement()"
-         [canDistribute]="canDistribute()"
-         [alignToContainer]="alignToContainer() || !!croppingElement()"
+         [canAlign]="align.alignToContainer() || !!align.croppingElement()"
+         [canDistribute]="align.canDistribute()"
+         [alignToContainer]="align.alignToContainer() || !!align.croppingElement()"
          [canExport]="!!store.projectId()"
          [canUndo]="store.canUndo()"
          [canRedo]="store.canRedo()"
@@ -297,7 +297,7 @@
          (clearHome)="viewport.clearHome()"
          (toggleGrid)="snap.toggleGrid()"
          (toggleSmartGuides)="snap.toggleSmartGuides()"
-         (align)="onAlign($event)"
+         (align)="align.onAlign($event)"
          (exportSql)="exporter.openSqlExport()"
          (exportImage)="exporter.onExportImage($event)"
       ></dd-shape-toolbar>
@@ -542,7 +542,7 @@
                </div>
                <dd-slides-panel
                   class="fdock left"
-                  [class.above-align]="alignToContainer() || !!croppingElement()"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   part="focus-list"
                   [presentation]="fd"
                   [active]="fframe"
@@ -588,7 +588,7 @@
                </div>
                <dd-slides-panel
                   class="fdock left"
-                  [class.above-align]="alignToContainer() || !!croppingElement()"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   part="design-layouts"
                   [presentation]="fd"
                   [active]="fframe"
@@ -920,7 +920,7 @@
          ></textarea>
       }
 
-      @if (elementToolbar(); as et) {
+      @if (bars.elementToolbar(); as et) {
          <dd-element-floating-toolbar
             [style.left.px]="et.left"
             [style.top.px]="et.top"
@@ -983,18 +983,18 @@
          ></div>
       }
 
-      @if (multiSelectBar(); as ms) {
+      @if (bars.multiSelectBar(); as ms) {
          <dd-multi-select-bar
             [style.left.px]="ms.left"
             [style.top.px]="ms.top"
             [count]="ms.count"
             [grouped]="ms.grouped"
-            [canDistribute]="canDistribute()"
-            [canStyle]="selectionStylable()"
-            (fill)="styleSelection('fill', $event)"
-            (stroke)="styleSelection('stroke', $event)"
+            [canDistribute]="align.canDistribute()"
+            [canStyle]="bars.selectionStylable()"
+            (fill)="bars.styleSelection('fill', $event)"
+            (stroke)="bars.styleSelection('stroke', $event)"
             (pointerdown)="$event.stopPropagation()"
-            (align)="onAlign($event)"
+            (align)="align.onAlign($event)"
             (group)="store.groupSelection()"
             (ungroup)="store.ungroupSelection()"
             (arrange)="store.arrangeSelection($event)"
@@ -1003,7 +1003,7 @@
          ></dd-multi-select-bar>
       }
 
-      @if (tableToolbar(); as tt) {
+      @if (bars.tableToolbar(); as tt) {
          <dd-table-toolbar
             [style.left.px]="tt.left"
             [style.top.px]="tt.top"
@@ -1013,7 +1013,7 @@
          ></dd-table-toolbar>
       }
 
-      @if (sequenceMessageToolbar(); as mt) {
+      @if (bars.sequenceMessageToolbar(); as mt) {
          <dd-sequence-message-toolbar
             [style.left.px]="mt.left"
             [style.top.px]="mt.top"
@@ -1022,7 +1022,7 @@
          ></dd-sequence-message-toolbar>
       }
 
-      @if (sequenceDiagramToolbar(); as dt) {
+      @if (bars.sequenceDiagramToolbar(); as dt) {
          <dd-sequence-diagram-toolbar
             [diagram]="store.selectedDiagram()"
             [canEdit]="store.canEdit()"
@@ -1034,7 +1034,7 @@
          ></dd-sequence-diagram-toolbar>
       }
 
-      @if (sequenceParticipantToolbar(); as pt) {
+      @if (bars.sequenceParticipantToolbar(); as pt) {
          <dd-sequence-participant-toolbar
             [style.left.px]="pt.left"
             [style.top.px]="pt.top"

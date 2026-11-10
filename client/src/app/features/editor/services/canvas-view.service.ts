@@ -28,8 +28,8 @@ import { ProjectStore, type SequenceLayoutSnapshot } from '../state/project/proj
 import { slotFollower, slotStyle } from '../helpers/layout-placeholders';
 import type { MinimapItem } from '../models/minimap-item.model';
 import { ConnectorRouteCache, computeConnectors } from '../helpers/connectors.helper';
-import { LAYOUT_Z_OFFSET } from '../helpers/frame-contents.helper';
-import { absolutePoints, elementBox, sameBoxes } from '../helpers/element-geometry.helper';
+import { LAYOUT_Z_OFFSET, sequenceDiagramBox } from '../helpers/frame-contents.helper';
+import { absolutePoints, elementBox, sameBoxes, tableBox } from '../helpers/element-geometry.helper';
 import { buildColumnLocations, tableHeight, tableWidth } from '../helpers/node-metrics.helper';
 import { messageLabelBoxes } from '../helpers/message-box.helper';
 import { buildShapeViews, ShapeViewCache, codeDiffActive } from '../helpers/render';
@@ -721,4 +721,70 @@ export class CanvasViewService {
          rowSpacing: cfg?.rowSpacing ?? 48,
       };
    }
+
+   /** Dashed outlines around selected groups and the group currently entered. */
+   readonly groupOutlines = computed(() => {
+      const groups = this.store.groups();
+      if (!groups.size) {
+         return [];
+      }
+      const entered = this.store.enteredGroupId();
+      const selT = new Set(this.store.selectedTableIds());
+      const selE = new Set(this.store.selectedElementIds());
+      const selD = new Set(this.store.selectedDiagramIds());
+      const tables = new Map(this.store.tables().map((t) => [t.id, t] as const));
+      const elements = new Map(this.store.elements().map((e) => [e.id, e] as const));
+      const diagrams = new Map(this.store.sequenceDiagrams().map((d) => [d.id, d] as const));
+      const lifelines = this.store.lifelines();
+      const messages = this.store.sequenceMessages();
+      const pad = 8;
+      const out: {
+         id: string;
+         left: number;
+         top: number;
+         width: number;
+         height: number;
+         entered: boolean;
+      }[] = [];
+      for (const [gid, g] of groups) {
+         const active =
+            gid === entered ||
+            g.tableIds.some((id) => selT.has(id)) ||
+            g.elementIds.some((id) => selE.has(id)) ||
+            g.diagramIds.some((id) => selD.has(id));
+         if (!active) {
+            continue;
+         }
+         const boxes: Box[] = [];
+         for (const id of g.tableIds) {
+            const t = tables.get(id);
+            if (t) boxes.push(tableBox(t));
+         }
+         for (const id of g.elementIds) {
+            const e = elements.get(id);
+            if (e) boxes.push(elementBox(e));
+         }
+         for (const id of g.diagramIds) {
+            const d = diagrams.get(id);
+            const b = d ? sequenceDiagramBox(d, lifelines, messages) : null;
+            if (b) boxes.push(b);
+         }
+         if (!boxes.length) {
+            continue;
+         }
+         const x0 = Math.min(...boxes.map((b) => b.x0)) - pad;
+         const y0 = Math.min(...boxes.map((b) => b.y0)) - pad;
+         const x1 = Math.max(...boxes.map((b) => b.x1)) + pad;
+         const y1 = Math.max(...boxes.map((b) => b.y1)) + pad;
+         out.push({
+            id: gid,
+            left: x0,
+            top: y0,
+            width: x1 - x0,
+            height: y1 - y0,
+            entered: gid === entered,
+         });
+      }
+      return out;
+   });
 }
