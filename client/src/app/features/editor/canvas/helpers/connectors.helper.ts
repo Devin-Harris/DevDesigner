@@ -1,6 +1,6 @@
 import type { RelationshipModel, TableModel } from '@devdesigner/shared';
 import { OBSTACLE_GAP, OBSTACLE_SEARCH_MARGIN } from '../constants/canvas.constants';
-import type { Box, Point, Side, ColumnLocation } from '../models/geometry.model';
+import type { Box, Point, Side } from '../models/geometry.model';
 import type { Connector, RouteSegment } from '../models/connector.model';
 import { buildColumnLocations, columnAnchor, sideDir, tableBox, tableWidth } from './node-metrics.helper';
 import {
@@ -457,10 +457,9 @@ export function computeConnectors(
    tables: readonly TableModel[],
    relationships: readonly RelationshipModel[],
    selectedIds: ReadonlySet<string>,
-   frames: readonly Box[] = [],
-   /** The caller's `buildColumnLocations(tables)`, when it already has one. */
-   locations: ReadonlyMap<string, ColumnLocation> = buildColumnLocations(tables)
+   frames: readonly Box[] = []
 ): Connector[] {
+   const locations = buildColumnLocations(tables);
    const boxes = new Map<string, Box>();
    for (const table of tables) {
       boxes.set(table.id, tableBox(table));

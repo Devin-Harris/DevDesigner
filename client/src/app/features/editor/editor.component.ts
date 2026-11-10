@@ -973,8 +973,7 @@ export class EditorComponent {
          this.visibleTables(),
          this.store.relationships(),
          new Set(this.store.selectedRelationshipIds()),
-         this.frameBoxes(),
-         this.columnLocations()
+         this.frameBoxes()
       )
    );
 
