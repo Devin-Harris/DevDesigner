@@ -1,4 +1,5 @@
 import {
+  isColorValue,
   HEADER_COLOR_CYCLE,
   PALETTE,
   isLightFill,
@@ -47,5 +48,21 @@ describe('palette lists', () => {
     const strong = new Set(PALETTE.filter((c) => c.tone === 'strong').map((c) => c.hex));
     expect(HEADER_COLOR_CYCLE.every((h) => strong.has(h))).toBe(true);
     expect(paletteNames()).toContain('blue-soft');
+  });
+});
+
+describe('isColorValue', () => {
+  it('accepts every stored color form', () => {
+    for (const v of ['', '#fff', '#ffff', '#1e1e1e', '#1e1e1e80', 'transparent', 'none', 'surface', 'theme',
+      '$accent1', '$muted', 'blue', 'amber-soft', 'rgb(1, 2, 3)', 'rgba(0,0,0,.5)', 'hsl(210, 50%, 40%)']) {
+      expect([v, isColorValue(v)]).toEqual([v, true]);
+    }
+  });
+
+  it('refuses anything that could break out of an attribute', () => {
+    for (const v of ['red" onload="x', "#fff'/><script>", 'url(javascript:x)', 'chartreuse', '#12', '#ggg',
+      'expression(alert(1))', '$a b', 'x'.repeat(65), 'rgb(1,2,3);x:y', 42, null, undefined]) {
+      expect([v, isColorValue(v)]).toEqual([v, false]);
+    }
   });
 });
