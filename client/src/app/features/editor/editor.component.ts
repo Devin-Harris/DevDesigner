@@ -1,3 +1,4 @@
+import { DrawToolService } from './features/elements/services/draw-tool.service';
 import { ElementGestureService } from './features/elements/services/element-gesture.service';
 import { LaserInputService } from './features/collaboration/services/laser-input.service';
 import { GroupTransformService } from './features/elements/services/group-transform.service';
@@ -15,7 +16,6 @@ import { SlidePlacementService } from './features/slides/services/slide-placemen
 import { DeckFocusService } from './features/slides/services/deck-focus.service';
 import { SlideshowService } from './features/slides/services/slideshow.service';
 import { FollowService } from './features/collaboration/services/follow.service';
-import type { SequenceStart } from './models/sequence-start.model';
 import { EditorViewportService } from './services/editor-viewport.service';
 import { MediaDropService } from './features/elements/services/media-drop.service';
 import { ClipboardService } from './features/canvas/services/clipboard.service';
@@ -45,7 +45,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import type { CanvasElementModel, CreateElementDto, ElementType, TableModel } from '@devdesigner/shared';
+import type { CanvasElementModel, TableModel } from '@devdesigner/shared';
 import {
    presentationOf,
    presentationSlides,
@@ -54,7 +54,6 @@ import {
    sequenceDiagramRect,
    masterOf,
 } from '@devdesigner/shared';
-import { inBlock, toInner } from './helpers/slide-zoom.helper';
 import { LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
@@ -65,40 +64,22 @@ import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
-import { ProjectStore, elementToCreateDto, type SequenceLayoutSnapshot } from './state/project/project.store';
-import { splitAtGaps } from './helpers/render';
+import { ProjectStore, type SequenceLayoutSnapshot } from './state/project/project.store';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from './services/code-actions.service';
 import { GridTableService } from './services/grid-table.service';
-import { defaultGrid, gridCellAt, parseGrid, serializeGrid } from './helpers/grid-table.helper';
+import { gridCellAt } from './helpers/grid-table.helper';
 import { CanvasConnectorsComponent } from './features/canvas/components/canvas-connectors/canvas-connectors.component';
-import {
-   CanvasShapesComponent,
-   type ResizeHandle,
-} from './features/canvas/components/canvas-shapes/canvas-shapes.component';
+import { CanvasShapesComponent } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './models/toolbar-actions';
 import { standInFor } from './helpers/layout-placeholders';
 import { MinimapComponent } from './features/minimap/minimap.component';
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
 import { sequenceDiagramBox } from './helpers/frame-contents.helper';
 import { framePreset } from './shared/constants/frame-presets';
-import {
-   absolutePoints,
-   elementBox,
-   elementIntersectsRect,
-   hitTestElement,
-   tableBox,
-   toRelative,
-} from './helpers/element-geometry.helper';
+import { elementBox, elementIntersectsRect, hitTestElement, tableBox } from './helpers/element-geometry.helper';
 import { tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
-import {
-   CODE_FONT_SIZE,
-   codeDiffActive,
-   codeDiffSplit,
-   CODE_DOTS_WIDTH,
-   codeHeaderHeight,
-   SURFACE_FILL,
-} from './helpers/render';
+import { CODE_FONT_SIZE, codeDiffActive, codeDiffSplit, CODE_DOTS_WIDTH, codeHeaderHeight } from './helpers/render';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
 import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
@@ -213,11 +194,13 @@ function readFlag(key: string, fallback: boolean): boolean {
       LaserInputService,
       GroupTransformService,
       ElementGestureService,
+      DrawToolService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly drawTool = inject(DrawToolService);
    protected readonly elementGestures = inject(ElementGestureService);
    protected readonly groupTransform = inject(GroupTransformService);
    protected readonly laserInput = inject(LaserInputService);
@@ -898,8 +881,6 @@ export class EditorComponent {
    });
 
    private marqueeAdditive = false;
-   /** World-space point a shape draw started from (the corner, or the center with Alt). */
-   private drawAnchor = { x: 0, y: 0 };
 
    constructor() {
       this.elementGestures.connect(this);
@@ -1254,12 +1235,12 @@ export class EditorComponent {
       if (tool !== 'select' && tool !== 'hand' && tool !== 'laser' && this.store.canEdit() && this.store.projectId()) {
          event.preventDefault();
          if (tool === 'table') {
-            this.addTableAt(event.clientX, event.clientY);
+            this.drawTool.addTableAt(event.clientX, event.clientY);
             this.tools.afterPlace();
             return;
          }
          if (tool === 'sequence') {
-            this.addSequenceAt(event.clientX, event.clientY);
+            this.drawTool.addSequenceAt(event.clientX, event.clientY);
             this.tools.afterPlace();
             return;
          }
@@ -1270,10 +1251,10 @@ export class EditorComponent {
             return;
          }
          if (tool === 'freedraw' && this.penPrefs.eraser()) {
-            this.beginErase(event);
+            this.drawTool.beginErase(event);
             return;
          }
-         this.beginDraw(tool, event);
+         this.drawTool.beginDraw(tool, event);
          return;
       }
       // Grabbing a master or layout item drawn under a shown slide or layout gives that frame its own
@@ -1294,493 +1275,6 @@ export class EditorComponent {
       this.marqueeStart.set(p);
       this.marqueeCurrent.set(p);
       this.gesture.mode = 'marquee';
-   }
-
-   /** Add an ERD table centered near the given screen point. */
-   private addTableAt(clientX: number, clientY: number): void {
-      const world = this.viewport.toWorld(clientX, clientY);
-      let x = Math.round(world.x - NODE_WIDTH / 2);
-      let y = Math.round(world.y - 12);
-      if (this.snap.gridSnap()) {
-         x = snapToGrid(x);
-         y = snapToGrid(y);
-      }
-      void this.store.addTable(x, y);
-   }
-
-   /** Drop a starter sequence diagram (header origin + two participants) at the pointer. */
-   private addSequenceAt(clientX: number, clientY: number): void {
-      const world = this.viewport.toWorld(clientX, clientY);
-      let x = Math.round(world.x);
-      let y = Math.round(world.y);
-      if (this.snap.gridSnap()) {
-         x = snapToGrid(x);
-         y = snapToGrid(y);
-      }
-      void this.store.addSequenceStarter(x, y);
-   }
-
-   /** Pen strokes cut by the current eraser drag: their state before the drag. */
-   private erased = new Map<string, CanvasElementModel>();
-   private lastErasePoint: { x: number; y: number } | null = null;
-
-   private beginErase(event: PointerEvent): void {
-      this.gesture.mode = 'erase';
-      this.gesture.gestureActive.set(true);
-      this.erased.clear();
-      this.lastErasePoint = null;
-      this.eraseAt(event.clientX, event.clientY);
-   }
-
-   /**
-    * Cut the parts of pen strokes under the eraser (from the last sample to here).
-    * Erased points become NaN gaps locally; pointer-up splits the stroke into pieces.
-    */
-   private eraseAt(clientX: number, clientY: number): void {
-      const raw = this.viewport.toWorldRaw(clientX, clientY);
-      const view = this.canvasView.slideViews().find((v) => inBlock(v, raw));
-      const p = view ? toInner(view, raw) : raw;
-      const from = this.lastErasePoint ?? p;
-      this.lastErasePoint = p;
-      const r = this.penPrefs.eraserSize() / 2 / this.store.viewport().zoom;
-      for (const el of this.store.elements()) {
-         if (el.type !== 'freedraw') continue;
-         const reach = r + el.strokeWidth;
-         if (!hitTestElement(el, p, reach) && !hitTestElement(el, from, reach)) {
-            // Cheap reject unless the eraser segment crosses the stroke's box.
-            const b = elementBox(el);
-            if (
-               Math.max(p.x, from.x) < b.x0 - reach ||
-               Math.min(p.x, from.x) > b.x1 + reach ||
-               Math.max(p.y, from.y) < b.y0 - reach ||
-               Math.min(p.y, from.y) > b.y1 + reach
-            )
-               continue;
-         }
-         if (!this.erased.has(el.id)) this.erased.set(el.id, el);
-         // Subdivide only the segments the eraser touches, so a cut can land between
-         // widely spaced samples. (Densifying the whole stroke would make the brush
-         // read it as slow and draw it thicker.)
-         const pts = densify(
-            el.points ?? [],
-            Math.max(1, r / 3),
-            (a, b) => segDistance({ x: el.x + a.x, y: el.y + a.y }, { x: el.x + b.x, y: el.y + b.y }, from, p) <= reach
-         );
-         let changed = false;
-         const next = pts.map((q) => {
-            if (!Number.isFinite(q.x)) return q;
-            const a = { x: el.x + q.x, y: el.y + q.y };
-            if (distanceToSegment(a, from, p) <= reach) {
-               changed = true;
-               return { x: NaN, y: NaN };
-            }
-            return q;
-         });
-         if (changed) this.store.patchElementLocal(el.id, { points: next });
-      }
-   }
-
-   /** Replace each cut stroke by its remaining pieces, as one undo step. */
-   private commitErase(): void {
-      const erased = [...this.erased];
-      this.erased.clear();
-      this.lastErasePoint = null;
-      const work: { before: CanvasElementModel; pieces: { x: number; y: number }[][] }[] = [];
-      for (const [id, before] of erased) {
-         const now = this.store.elements().find((e) => e.id === id);
-         if (!now) continue;
-         const pieces = splitAtGaps(absolutePoints(now)).filter((run) => run.length > 1);
-         // Restore the original first so undo re-creates the stroke as it was.
-         this.store.patchElementLocal(id, { points: before.points });
-         if (pieces.length === 1 && pieces[0].length === (now.points ?? []).length) continue;
-         work.push({ before, pieces });
-      }
-      if (work.length === 0) return;
-      void this.store.batchHistory(async () => {
-         for (const { before, pieces } of work) {
-            await this.store.deleteElement(before.id);
-            for (const run of pieces) {
-               const o = run[0];
-               let x1 = o.x,
-                  y1 = o.y,
-                  x0 = o.x,
-                  y0 = o.y;
-               for (const q of run) {
-                  x0 = Math.min(x0, q.x);
-                  y0 = Math.min(y0, q.y);
-                  x1 = Math.max(x1, q.x);
-                  y1 = Math.max(y1, q.y);
-               }
-               const dto = elementToCreateDto({
-                  ...before,
-                  x: o.x,
-                  y: o.y,
-                  width: x1 - x0,
-                  height: y1 - y0,
-                  points: run.map((q) => ({ x: q.x - o.x, y: q.y - o.y })),
-               });
-               delete (dto as { id?: string }).id;
-               await this.store.addElement(dto, false);
-            }
-         }
-      });
-   }
-
-   /** Start drawing an element of the active tool at the pointer. */
-   private beginDraw(
-      tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence' | 'laser' | 'slide'>,
-      event: PointerEvent
-   ): void {
-      const world = this.viewport.toWorld(event.clientX, event.clientY);
-      const x = this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
-      const y = this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
-      const type = tool as ElementType;
-      const sticky = this.store.elementStyle();
-      // Frames keep their own quiet look; they don't inherit the last-used shape style.
-      const style =
-         type === 'code'
-            ? {
-                 // A code card: a hairline border, no fill override (it picks a theme-matched surface).
-                 ...sticky,
-                 strokeColor:
-                    this.canvasView.themeVar('--dd-border-strong') ??
-                    this.canvasView.themeVar('--dd-text-muted') ??
-                    sticky.strokeColor,
-                 backgroundColor: undefined,
-                 fillStyle: 'none' as const,
-                 strokeWidth: 1,
-                 strokeStyle: 'solid' as const,
-                 opacity: 100,
-                 cornerRadius: 8,
-                 fontFamily: 'code',
-                 fontSize: CODE_FONT_SIZE,
-              }
-            : type === 'grid'
-              ? {
-                   // A table: opaque surface, hairline borders, readable body text.
-                   ...sticky,
-                   strokeColor: this.canvasView.defaultStroke(),
-                   backgroundColor: SURFACE_FILL,
-                   fillStyle: 'solid' as const,
-                   strokeWidth: 1,
-                   strokeStyle: 'solid' as const,
-                   opacity: 100,
-                   cornerRadius: 4,
-                }
-              : type === 'frame'
-                ? {
-                     ...sticky,
-                     strokeColor: this.canvasView.themeVar('--dd-text-muted') ?? sticky.strokeColor,
-                     backgroundColor: undefined,
-                     fillStyle: 'none' as const,
-                     strokeWidth: 1.5,
-                     strokeStyle: 'solid' as const,
-                     opacity: 100,
-                     cornerRadius: 0,
-                  }
-                : sticky;
-      const draft: CanvasElementModel = {
-         id: `draft-${Date.now()}`,
-         type,
-         x,
-         y,
-         width: 0,
-         height: 0,
-         angle: 0,
-         strokeColor: style.strokeColor ?? this.canvasView.defaultStroke(),
-         backgroundColor: style.backgroundColor,
-         fillStyle: style.fillStyle,
-         strokeWidth:
-            type === 'freedraw'
-               ? this.penPrefs.highlighter()
-                  ? Math.max(this.penPrefs.width(), 2) * 4
-                  : this.penPrefs.width()
-               : style.strokeWidth,
-         strokeStyle: style.strokeStyle,
-         opacity: type === 'freedraw' && this.penPrefs.highlighter() ? 50 : style.opacity,
-         zIndex: this.store.elements().length,
-         cornerRadius: style.cornerRadius,
-         startArrowhead: style.startArrowhead,
-         endArrowhead: style.endArrowhead,
-         ...(type === 'line' || type === 'arrow'
-            ? {
-                 points: [
-                    { x: 0, y: 0 },
-                    { x: 0, y: 0 },
-                 ],
-              }
-            : {}),
-         ...(type === 'freedraw' ? { points: [{ x: 0, y: 0 }] } : {}),
-         ...(type === 'grid' ? { text: serializeGrid(defaultGrid()), fontSize: 14, fontFamily: 'normal' } : {}),
-         ...(type === 'code'
-            ? {
-                 text: '',
-                 fontSize: CODE_FONT_SIZE,
-                 fontFamily: 'code',
-                 language: this.textEditing.lastCodeLanguage(),
-              }
-            : {}),
-         ...(type === 'text'
-            ? {
-                 text: '',
-                 fontSize: style.fontSize,
-                 fontFamily: style.fontFamily,
-                 textAlign: 'left' as const,
-                 width: 4,
-                 height: style.fontSize,
-              }
-            : {}),
-      };
-      this.tools.draft.set(draft);
-      // Started inside a zoomed-out slide: the whole stroke is drawn in its coordinates.
-      const raw = this.viewport.toWorldRaw(event.clientX, event.clientY);
-      this.tools.drawSlideId.set(this.canvasView.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
-      this.drawAnchor = { x, y };
-      this.gesture.lastDrawPointer = { x: event.clientX, y: event.clientY };
-      this.gesture.startClientX = event.clientX;
-      this.gesture.startClientY = event.clientY;
-      if (type === 'text') {
-         // Text is placed on click; commit immediately and open the inline editor.
-         void this.commitDraft(true);
-         this.gesture.mode = 'idle';
-         return;
-      }
-      this.gesture.mode = 'draw';
-      this.gesture.gestureActive.set(true);
-   }
-
-   updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
-      const draft = this.tools.draft();
-      if (!draft) {
-         return;
-      }
-      this.gesture.lastDrawPointer = { x: clientX, y: clientY };
-      // Stay in the space the stroke started in, even when the pointer crosses a block edge.
-      const view = this.canvasView.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
-      const raw = this.viewport.toWorldRaw(clientX, clientY);
-      const world = view ? toInner(view, raw) : raw;
-      const snap = this.snap.gridSnap();
-      if (draft.type === 'freedraw') {
-         const pt = toRelative(draft, world);
-         this.tools.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
-         return;
-      }
-      if (draft.type === 'line' || draft.type === 'arrow') {
-         // Highlight the shape/table the free end would bind to; binding beats snapping.
-         const bindBox = this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null;
-         this.elementGestures.bindHighlight.set(bindBox);
-         const space = { ctx: this.tools.drawSlideId() ?? null, view };
-         const spanOf = (px: number, py: number) => ({
-            x0: Math.min(px, draft.x),
-            y0: Math.min(py, draft.y),
-            x1: Math.max(px, draft.x),
-            y1: Math.max(py, draft.y),
-         });
-         let end: { x: number; y: number };
-         if (shift) {
-            // Lock to 45° steps from the start point, keeping the cursor's distance along it,
-            // then slide along that direction to line up with nearby items.
-            const vx = world.x - draft.x;
-            const vy = world.y - draft.y;
-            const step = Math.PI / 4;
-            const ang = Math.round(Math.atan2(vy, vx) / step) * step;
-            const ux = Math.cos(ang);
-            const uy = Math.sin(ang);
-            let len = vx * ux + vy * uy;
-            const px = draft.x + ux * len;
-            const py = draft.y + uy * len;
-            const smart = bindBox
-               ? null
-               : this.snap.smartEdges(
-                    draft.id,
-                    spanOf(px, py),
-                    Math.abs(ux) > 1e-6 ? [px] : [],
-                    Math.abs(uy) > 1e-6 ? [py] : [],
-                    space
-                 );
-            const lx = smart?.snappedX ? (px + smart.ox - draft.x) / ux : null;
-            const ly = smart?.snappedY ? (py + smart.oy - draft.y) / uy : null;
-            const pick = [lx, ly]
-               .filter((v): v is number => v !== null)
-               .sort((a, b) => Math.abs(a - len) - Math.abs(b - len))[0];
-            if (pick !== undefined && smart) {
-               len = pick;
-               if (pick !== lx)
-                  Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
-               if (pick !== ly)
-                  Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
-               this.snap.smartSnapState.set(
-                  smart.guides.length ? { snap: smart, view: this.snap.smartBase?.view } : null
-               );
-            } else {
-               if (bindBox) this.snap.smartSnapState.set(null);
-               if (snap) len = snapToGrid(len);
-            }
-            end = { x: Math.round(ux * len), y: Math.round(uy * len) };
-         } else {
-            const smart = bindBox
-               ? null
-               : this.snap.smartEdges(draft.id, spanOf(world.x, world.y), [world.x], [world.y], space);
-            if (bindBox) this.snap.smartSnapState.set(null);
-            const ex = smart?.snappedX ? world.x + smart.ox : snap ? snapToGrid(world.x) : world.x;
-            const ey = smart?.snappedY ? world.y + smart.oy : snap ? snapToGrid(world.y) : world.y;
-            end = { x: ex - draft.x, y: ey - draft.y };
-         }
-         this.tools.draft.set({ ...draft, points: [{ x: 0, y: 0 }, end] });
-         return;
-      }
-      // Rectangle / ellipse / diamond: grow the box from the anchor. Shift forces a
-      // square (circle for an ellipse); Alt makes the anchor the center.
-      const ex = snap ? snapToGrid(world.x) : world.x;
-      const ey = snap ? snapToGrid(world.y) : world.y;
-      const { x: ax, y: ay } = this.drawAnchor;
-      let dx = ex - ax;
-      let dy = ey - ay;
-      if (draft.type === 'frame') {
-         // A preset frame is locked to its page ratio: width follows the pointer, height follows width.
-         const ratio = framePreset(this.tools.framePresetId()).ratio;
-         if (ratio) {
-            dy = (dy < 0 ? -1 : 1) * (Math.abs(dx) / ratio);
-         }
-      } else if (shift) {
-         const size = Math.max(Math.abs(dx), Math.abs(dy));
-         dx = (dx < 0 ? -1 : 1) * size;
-         dy = (dy < 0 ? -1 : 1) * size;
-      }
-      if (alt) {
-         this.tools.draft.set({
-            ...draft,
-            x: ax - Math.abs(dx),
-            y: ay - Math.abs(dy),
-            width: Math.abs(dx) * 2,
-            height: Math.abs(dy) * 2,
-         });
-         return;
-      }
-      this.tools.draft.set({
-         ...draft,
-         x: Math.min(ax, ax + dx),
-         y: Math.min(ay, ay + dy),
-         width: Math.abs(dx),
-         height: Math.abs(dy),
-      });
-   }
-
-   /**
-    * Persist the draft as a real element. Tiny click-only shapes get a sensible
-    * default size so a single click still produces a visible element.
-    */
-   private async commitDraft(selectAfter: boolean): Promise<void> {
-      const draft = this.tools.draft();
-      this.tools.draft.set(null);
-      const drawSlide = this.tools.drawSlideId();
-      this.tools.drawSlideId.set(null);
-      if (!draft) {
-         return;
-      }
-      const dto = this.draftToDto(draft);
-      if (drawSlide && draft.type !== 'frame') {
-         dto.slideId = drawSlide;
-      }
-      // Auto-bind an arrow/line whose endpoint was drawn on top of a shape or table,
-      // so it behaves as a flowchart connector and re-routes when the target moves.
-      if ((draft.type === 'arrow' || draft.type === 'line') && draft.points?.length) {
-         const pts = absolutePoints(draft);
-         const start = this.elementGestures.bindingTargetAt(pts[0], draft.id);
-         const end = this.elementGestures.bindingTargetAt(pts[pts.length - 1], draft.id);
-         if (start) {
-            dto.startBinding = start.binding;
-         }
-         if (end) {
-            dto.endBinding = end.binding;
-         }
-      }
-      // Freehand strokes keep the pen active (draw several in a row) and are not
-      // selected, so no bounds/toolbar pop up between strokes. Shapes and text
-      // revert to the select tool; the shape is selected for immediate styling and
-      // text jumps into its inline editor.
-      const isPen = draft.type === 'freedraw';
-      const created = await this.store.addElement(dto, !isPen);
-      if (!isPen && (draft.type === 'text' || !this.toolbarPrefs.stayOnTool())) {
-         this.tools.activeTool.set('select');
-         if (created && selectAfter && created.type === 'text') {
-            this.textEditing.editingTextId.set(created.id);
-         }
-         if (created && created.type === 'grid') {
-            // A fresh table opens its first cell for typing.
-            this.grids.beginEdit({ id: created.id, row: 0, col: 0 });
-         }
-         if (created && created.type === 'code') {
-            // A fresh code card opens straight into its editor.
-            this.textEditing.editingTextId.set(created.id);
-         }
-      }
-   }
-
-   private draftToDto(draft: CanvasElementModel): CreateElementDto {
-      const { x, y, points } = draft;
-      let { width, height } = draft;
-      let text = draft.text;
-      if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
-         if (width < 4 && height < 4) {
-            width = 120;
-            height = 80;
-         }
-      }
-      if (draft.type === 'grid' && (width < 40 || height < 24)) {
-         const g = parseGrid(draft.text);
-         width = g.cols.reduce((a, b) => a + b, 0);
-         height = g.rows.reduce((a, b) => a + b, 0);
-      }
-      let fontSize = draft.fontSize;
-      if (draft.type === 'grid') {
-         // A table drawn bigger than the default starts with proportionally bigger
-         // text (the same diagonal measure a resize uses), so it reads as drawn.
-         const g = parseGrid(draft.text);
-         const w0 = g.cols.reduce((a, b) => a + b, 0);
-         const h0 = g.rows.reduce((a, b) => a + b, 0);
-         const k = (width * w0 + height * h0) / (w0 * w0 + h0 * h0);
-         fontSize = Math.round(Math.min(96, Math.max(10, (draft.fontSize ?? 14) * k)) * 2) / 2;
-      }
-      if (draft.type === 'code' && (width < 40 || height < 40)) {
-         width = 360;
-         height = 160;
-      }
-      if (draft.type === 'frame') {
-         const preset = framePreset(this.tools.framePresetId());
-         if (width < 40 || height < 40) {
-            width = preset.width;
-            height = preset.height;
-         }
-         const count = this.store.elements().filter((e) => e.type === 'frame').length;
-         text = text || `Frame ${count + 1}`;
-      }
-      return {
-         type: draft.type,
-         x,
-         y,
-         width,
-         height,
-         angle: 0,
-         strokeColor: draft.strokeColor,
-         backgroundColor: draft.backgroundColor,
-         fillStyle: draft.fillStyle,
-         strokeWidth: draft.strokeWidth,
-         strokeStyle: draft.strokeStyle,
-         opacity: draft.opacity,
-         zIndex: draft.zIndex,
-         cornerRadius: draft.cornerRadius,
-         points,
-         text,
-         fontSize,
-         fontFamily: draft.fontFamily,
-         textAlign: draft.textAlign,
-         startArrowhead: draft.startArrowhead,
-         endArrowhead: draft.endArrowhead,
-         curvature: draft.curvature,
-         language: draft.language,
-         fileName: draft.fileName,
-      };
    }
 
    // --- rich text editing (contenteditable) ---
@@ -1826,11 +1320,11 @@ export class EditorComponent {
          return;
       }
       if (this.gesture.mode === 'draw') {
-         this.updateDraw(event.clientX, event.clientY, event.shiftKey, event.altKey);
+         this.drawTool.updateDraw(event.clientX, event.clientY, event.shiftKey, event.altKey);
          return;
       }
       if (this.gesture.mode === 'erase') {
-         this.eraseAt(event.clientX, event.clientY);
+         this.drawTool.eraseAt(event.clientX, event.clientY);
          return;
       }
       if (this.gesture.mode === 'element') {
@@ -1946,9 +1440,9 @@ export class EditorComponent {
       if (this.gesture.mode === 'marquee') {
          this.commitMarquee();
       } else if (this.gesture.mode === 'draw') {
-         void this.commitDraft(false);
+         void this.drawTool.commitDraft(false);
       } else if (this.gesture.mode === 'erase') {
-         this.commitErase();
+         this.drawTool.commitErase();
       } else if (this.gesture.mode === 'element') {
          this.elementGestures.recordMoveGesture();
       } else if (this.gesture.mode === 'node') {
@@ -2395,6 +1889,8 @@ export class EditorComponent {
    readonly orderSlideCopies = (copies: readonly CanvasElementModel[], deck: string, afterId: string | null) =>
       this.placement.orderSlideCopies(copies, deck, afterId);
    readonly copySelection = (): void => this.clipboard.copySelection();
+   readonly updateDraw = (clientX: number, clientY: number, shift: boolean, alt: boolean): void =>
+      this.drawTool.updateDraw(clientX, clientY, shift, alt);
    readonly beginNodeDrag = (tableId: string): void => this.tableDrag.beginNodeDrag(tableId);
    readonly syncSlideMoves = (): void => this.placement.syncSlideMoves();
    readonly newPresentationName = (): string => this.placement.newPresentationName();
@@ -2677,7 +2173,7 @@ export class EditorComponent {
          textAlign: 'left',
       };
       this.tools.draft.set(draft);
-      void this.commitDraft(true);
+      void this.drawTool.commitDraft(true);
    }
 
    protected addTableCentered(): void {
@@ -2924,57 +2420,4 @@ export class EditorComponent {
          this.store.recordSequenceLayout(id, before, after);
       }
    }
-}
-
-/** Resample a polyline so consecutive points are at most `step` apart. */
-function densify(
-   pts: readonly { x: number; y: number }[],
-   step: number,
-   near: (a: { x: number; y: number }, b: { x: number; y: number }) => boolean
-): { x: number; y: number }[] {
-   const out: { x: number; y: number }[] = [];
-   for (let i = 0; i < pts.length; i += 1) {
-      const a = pts[i];
-      out.push(a);
-      const b = pts[i + 1];
-      if (!b) break;
-      if (!Number.isFinite(a.x) || !Number.isFinite(b.x) || !near(a, b)) continue;
-      const n = Math.floor(Math.hypot(b.x - a.x, b.y - a.y) / step);
-      for (let k = 1; k < n; k += 1) out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
-   }
-   return out;
-}
-
-function distanceToSegment(
-   p: { x: number; y: number },
-   a: { x: number; y: number },
-   b: { x: number; y: number }
-): number {
-   const dx = b.x - a.x;
-   const dy = b.y - a.y;
-   const len = dx * dx + dy * dy;
-   const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len));
-   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
-
-/** Shortest distance between segments ab and cd. */
-function segDistance(
-   a: { x: number; y: number },
-   b: { x: number; y: number },
-   c: { x: number; y: number },
-   d: { x: number; y: number }
-): number {
-   const cross = (o: { x: number; y: number }, p: { x: number; y: number }, q: { x: number; y: number }) =>
-      (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
-   const d1 = cross(c, d, a);
-   const d2 = cross(c, d, b);
-   const d3 = cross(a, b, c);
-   const d4 = cross(a, b, d);
-   if (d1 * d2 < 0 && d3 * d4 < 0) return 0;
-   return Math.min(
-      distanceToSegment(a, c, d),
-      distanceToSegment(b, c, d),
-      distanceToSegment(c, a, b),
-      distanceToSegment(d, a, b)
-   );
 }
