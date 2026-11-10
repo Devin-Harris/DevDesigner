@@ -63,6 +63,9 @@ import { TablesService } from '../core/services/tables.service';
 import { SequenceService } from '../core/services/sequence.service';
 import { ShareLinksService } from '../core/services/share-links.service';
 import { ShareSessionService } from '../core/services/share-session.service';
+import { isSandboxId } from '../core/sandbox/sandbox-backend.service';
+import { sameItems, sameMap, sameSet } from '../shared/helpers/equality';
+import { readSavedViewport, saveViewport } from './viewport-storage';
 
 /**
  * Editor store: the single source of truth for the loaded project's schema,
@@ -75,7 +78,19 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface EditorState {
    projectId: string | null;
+   /**
+    * The loaded project's content. Its `viewport`, `home` and `themes` are only what the
+    * server sent at load: the live values are the `viewport`, `home` and `customThemes`
+    * slots, kept apart so panning or a theme save doesn't invalidate everything derived
+    * from the content.
+    */
    schema: SchemaModel | null;
+   /** This participant's pan/zoom (personal; remembered in this browser per project). */
+   viewport: ViewportModel;
+   /** The project's shared home view, or null when none is set. */
+   home: ViewportModel | null;
+   /** The project's custom presentation themes (on top of the built-in ones). */
+   customThemes: SlideTheme[];
    accessMode: AccessLevel;
    /** True when the project was opened via a /shared/:token link (anonymous mode). */
    shared: boolean;
@@ -191,6 +206,24 @@ function buildGroups(s: SchemaModel | null): ReadonlyMap<string, GroupMembers> {
    return all;
 }
 
+const sameMembers = (a: GroupMembers, b: GroupMembers): boolean =>
+   sameItems(a.tableIds, b.tableIds) && sameItems(a.elementIds, b.elementIds) && sameItems(a.diagramIds, b.diagramIds);
+
+/** What the canvas leaves out because it belongs to a slide that isn't shown. */
+interface SlideHidden {
+   elementIds: ReadonlySet<string>;
+   tableIds: ReadonlySet<string>;
+   diagramIds: ReadonlySet<string>;
+}
+
+const sameHidden = (a: SlideHidden | null, b: SlideHidden | null): boolean =>
+   a === b ||
+   (!!a &&
+      !!b &&
+      sameSet(a.elementIds, b.elementIds) &&
+      sameSet(a.tableIds, b.tableIds) &&
+      sameSet(a.diagramIds, b.diagramIds));
+
 /** One item's group membership, used to apply and undo (un)grouping. */
 interface GroupAssignment {
    kind: GroupItemKind;
@@ -199,6 +232,17 @@ interface GroupAssignment {
 }
 
 const DEFAULT_VIEWPORT: ViewportModel = { x: 0, y: 0, zoom: 1 };
+/** How long pan/zoom must settle before it is written to this browser's storage. */
+const VIEWPORT_SAVE_MS = 1000;
+
+/** The view slots for a freshly loaded project: this browser's last view of it, else the server's. */
+function viewSlotsOf(projectId: string, schema: SchemaModel): Pick<EditorState, 'viewport' | 'home' | 'customThemes'> {
+   return {
+      viewport: (!isSandboxId(projectId) && readSavedViewport(projectId)) || schema.viewport || DEFAULT_VIEWPORT,
+      home: schema.home ?? null,
+      customThemes: schema.themes ?? [],
+   };
+}
 
 /** Header colors assigned round-robin to new tables so the canvas reads clearly. */
 const TABLE_PALETTE = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#7c5cff', '#ec4899', '#64748b'];
@@ -206,6 +250,9 @@ const TABLE_PALETTE = ['#e5484d', '#f5a623', '#12b76a', '#0ea5e9', '#2f6bff', '#
 const initialState: EditorState = {
    projectId: null,
    schema: null,
+   viewport: DEFAULT_VIEWPORT,
+   home: null,
+   customThemes: [],
    accessMode: 'VIEW',
    shared: false,
    selectedTableIds: [],
@@ -350,10 +397,11 @@ export const ProjectStore = signalStore(
          undoDepth,
          redoDepth,
       }) => {
-         const slideFrames = computed(() =>
-            slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame'))
+         const slideFrames = computed(
+            () => slideSequence((schema()?.elements ?? []).filter((e) => e.type === 'frame')),
+            { equal: sameItems }
          );
-         const presentations = computed(() => presentationNames(slideFrames()));
+         const presentations = computed(() => presentationNames(slideFrames()), { equal: sameItems });
          const presentation = computed<string | null>(() => {
             const names = presentations();
             const picked = selectedPresentationKey();
@@ -365,38 +413,58 @@ export const ProjectStore = signalStore(
             return shown ? presentationOf(shown) : null;
          });
          /** The slide each presentation shows (its chosen one if it still exists, else its first). */
-         const shownByPresentation = computed(() => {
-            const picked = shownByPresentationKey();
-            const frames = slideFrames();
-            const out = new Map<string, string>();
-            for (const name of presentations()) {
-               // A layout can be shown too (to edit it); it stacks in the same spot.
-               const slides = presentationSlides(frames, name);
-               const all = frames.filter((f) => presentationOf(f) === name);
-               const hit = all.find((f) => f.id === picked[name]) ?? slides[0] ?? all[0];
-               if (hit) {
-                  out.set(name, hit.id);
+         const shownByPresentation = computed(
+            () => {
+               const picked = shownByPresentationKey();
+               const frames = slideFrames();
+               const out = new Map<string, string>();
+               for (const name of presentations()) {
+                  // A layout can be shown too (to edit it); it stacks in the same spot.
+                  const slides = presentationSlides(frames, name);
+                  const all = frames.filter((f) => presentationOf(f) === name);
+                  const hit = all.find((f) => f.id === picked[name]) ?? slides[0] ?? all[0];
+                  if (hit) {
+                     out.set(name, hit.id);
+                  }
                }
-            }
-            return out as ReadonlyMap<string, string>;
+               return out as ReadonlyMap<string, string>;
+            },
+            { equal: sameMap }
+         );
+         const shownSlideIds = computed(() => new Set(shownByPresentation().values()) as ReadonlySet<string>, {
+            equal: sameSet,
          });
-         const shownSlideIds = computed(() => new Set(shownByPresentation().values()) as ReadonlySet<string>);
          /** Layout frames drawn under a shown slide (and not shown themselves). */
-         const layoutsUnderShown = computed(() => {
-            const frames = slideFrames();
-            const shown = shownSlideIds();
-            const out = new Set<string>();
-            for (const f of frames) {
-               if (!shown.has(f.id)) continue;
-               const l = layoutOf(f, frames);
-               if (l && !shown.has(l.id)) out.add(l.id);
-               // The master is drawn under every slide and layout of its deck.
-               const m = masterOf(f, frames);
-               if (m && !shown.has(m.id)) out.add(m.id);
-            }
-            return out as ReadonlySet<string>;
-         });
-         const themes = computed(() => presentationThemes(schema()?.elements ?? []));
+         const layoutsUnderShown = computed(
+            () => {
+               const frames = slideFrames();
+               const shown = shownSlideIds();
+               const out = new Set<string>();
+               for (const f of frames) {
+                  if (!shown.has(f.id)) continue;
+                  const l = layoutOf(f, frames);
+                  if (l && !shown.has(l.id)) out.add(l.id);
+                  // The master is drawn under every slide and layout of its deck.
+                  const m = masterOf(f, frames);
+                  if (m && !shown.has(m.id)) out.add(m.id);
+               }
+               return out as ReadonlySet<string>;
+            },
+            { equal: sameSet }
+         );
+         const themes = computed(() => presentationThemes(schema()?.elements ?? []), { equal: sameMap });
+         /** Live groups (two or more members) and each member's group, built in one pass. */
+         const groupIndex = computed(
+            () => {
+               const groups = buildGroups(schema());
+               const byItem = new Map<string, string>();
+               for (const [gid, g] of groups) {
+                  [...g.tableIds, ...g.elementIds, ...g.diagramIds].forEach((id) => byItem.set(id, gid));
+               }
+               return { groups, byItem: byItem as ReadonlyMap<string, string> };
+            },
+            { equal: (a, b) => sameMap(a.groups, b.groups, sameMembers) }
+         );
          // Text measuring resolves `$heading` / `$body` against the item's deck theme.
          setThemeFontResolver((el) => {
             const frames = untracked(slideFrames);
@@ -410,36 +478,46 @@ export const ProjectStore = signalStore(
             /** The selected presentation: the one the slides panel, F5 and the PDF export act on. */
             presentation,
             /** The slides of the selected presentation, in order (skipped ones included). */
-            presentationFrames: computed(() => presentationSlides(slideFrames(), presentation())),
+            presentationFrames: computed(() => presentationSlides(slideFrames(), presentation()), { equal: sameItems }),
             /** The layouts of the selected presentation. */
-            presentationLayoutFrames: computed(() => presentationLayouts(slideFrames(), presentation())),
+            presentationLayoutFrames: computed(() => presentationLayouts(slideFrames(), presentation()), {
+               equal: sameItems,
+            }),
             /**
              * Elements of a layout drawn under a shown slide: on the canvas, but locked (they
              * are edited by showing the layout itself).
              */
             /** Master items drawn under a shown slide or layout (stacked below layout items). */
-            masterItemIds: computed(() => {
-               const masters = new Set(
-                  slideFrames()
-                     .filter((f) => f.slide?.master)
-                     .map((f) => f.id)
-               );
-               return new Set(
-                  masters.size
-                     ? (schema()?.elements ?? []).filter((e) => !!e.slideId && masters.has(e.slideId)).map((e) => e.id)
-                     : []
-               ) as ReadonlySet<string>;
-            }),
-            layoutItemIds: computed(() => {
-               const under = layoutsUnderShown();
-               return new Set(
-                  under.size
-                     ? (schema()?.elements ?? [])
-                          .filter((e) => !!e.slideId && under.has(e.slideId) && !e.placeholder)
-                          .map((e) => e.id)
-                     : []
-               ) as ReadonlySet<string>;
-            }),
+            masterItemIds: computed(
+               () => {
+                  const masters = new Set(
+                     slideFrames()
+                        .filter((f) => f.slide?.master)
+                        .map((f) => f.id)
+                  );
+                  return new Set(
+                     masters.size
+                        ? (schema()?.elements ?? [])
+                             .filter((e) => !!e.slideId && masters.has(e.slideId))
+                             .map((e) => e.id)
+                        : []
+                  ) as ReadonlySet<string>;
+               },
+               { equal: sameSet }
+            ),
+            layoutItemIds: computed(
+               () => {
+                  const under = layoutsUnderShown();
+                  return new Set(
+                     under.size
+                        ? (schema()?.elements ?? [])
+                             .filter((e) => !!e.slideId && under.has(e.slideId) && !e.placeholder)
+                             .map((e) => e.id)
+                        : []
+                  ) as ReadonlySet<string>;
+               },
+               { equal: sameSet }
+            ),
             tables: computed(() => schema()?.tables ?? []),
             relationships: computed(() => schema()?.relationships ?? []),
             /**
@@ -447,14 +525,17 @@ export const ProjectStore = signalStore(
              * set is a foreign key (the table node shows it a link glyph); a PK in it is
              * still shown as a key. Kept as a Set for O(1) per-row lookup.
              */
-            foreignKeyColumnIds: computed(() => {
-               const ids = new Set<string>();
-               for (const r of schema()?.relationships ?? []) {
-                  ids.add(r.sourceColumnId);
-                  ids.add(r.targetColumnId);
-               }
-               return ids as ReadonlySet<string>;
-            }),
+            foreignKeyColumnIds: computed(
+               () => {
+                  const ids = new Set<string>();
+                  for (const r of schema()?.relationships ?? []) {
+                     ids.add(r.sourceColumnId);
+                     ids.add(r.targetColumnId);
+                  }
+                  return ids as ReadonlySet<string>;
+               },
+               { equal: sameSet }
+            ),
             elements: computed(() => schema()?.elements ?? []),
             /** Elements with theme tokens (`$accent1`, `$heading`) resolved per presentation: what renderers draw. */
             themedElements: computed(() => resolveThemedElements(schema()?.elements ?? [])),
@@ -474,70 +555,64 @@ export const ProjectStore = signalStore(
              * presentation stacks its slides in one spot and only its shown slide is drawn;
              * things with no slide are shown always.
              */
-            hiddenBySlides: computed(() => {
-               const elements = schema()?.elements ?? [];
-               const shown = shownSlideIds();
-               if (!shown.size) {
-                  return null;
-               }
-               // The layouts under shown slides stay on the canvas (drawn locked, beneath).
-               const under = layoutsUnderShown();
-               const elementIds = new Set<string>();
-               for (const e of elements) {
-                  if (
-                     e.type === 'frame'
-                        ? !!e.slide && !shown.has(e.id)
-                        : !!e.slideId && !shown.has(e.slideId) && !(under.has(e.slideId) && !e.placeholder)
-                  ) {
-                     elementIds.add(e.id);
+            hiddenBySlides: computed(
+               () => {
+                  const elements = schema()?.elements ?? [];
+                  const shown = shownSlideIds();
+                  if (!shown.size) {
+                     return null;
                   }
-               }
-               // Master items a shown slide (or its layout) replaces with its own stand-in; a
-               // slide's stand-in also hides its layout's.
-               const bySlide = new Set<string>();
-               const byLayout = new Set<string>();
-               for (const e of elements) {
-                  const of = overriddenId(e);
-                  if (!of || !e.slideId) continue;
-                  // A deletion marker is never drawn itself.
-                  if (isMasterDeletion(e)) elementIds.add(e.id);
-                  if (shown.has(e.slideId)) bySlide.add(of);
-                  else if (under.has(e.slideId)) byLayout.add(of);
-               }
-               if (bySlide.size || byLayout.size) {
+                  // The layouts under shown slides stay on the canvas (drawn locked, beneath).
+                  const under = layoutsUnderShown();
+                  const elementIds = new Set<string>();
                   for (const e of elements) {
                      if (
-                        bySlide.has(e.id) ||
-                        byLayout.has(e.id) ||
-                        (e.overrides && e.slideId && under.has(e.slideId) && bySlide.has(overriddenId(e)!))
+                        e.type === 'frame'
+                           ? !!e.slide && !shown.has(e.id)
+                           : !!e.slideId && !shown.has(e.slideId) && !(under.has(e.slideId) && !e.placeholder)
                      ) {
                         elementIds.add(e.id);
                      }
                   }
-               }
-               const tableIds = new Set<string>();
-               for (const t of schema()?.tables ?? []) {
-                  if (t.slideId && !shown.has(t.slideId)) {
-                     tableIds.add(t.id);
+                  // Master items a shown slide (or its layout) replaces with its own stand-in; a
+                  // slide's stand-in also hides its layout's.
+                  const bySlide = new Set<string>();
+                  const byLayout = new Set<string>();
+                  for (const e of elements) {
+                     const of = overriddenId(e);
+                     if (!of || !e.slideId) continue;
+                     // A deletion marker is never drawn itself.
+                     if (isMasterDeletion(e)) elementIds.add(e.id);
+                     if (shown.has(e.slideId)) bySlide.add(of);
+                     else if (under.has(e.slideId)) byLayout.add(of);
                   }
-               }
-               const diagramIds = new Set<string>();
-               for (const d of schema()?.sequenceDiagrams ?? []) {
-                  if (d.slideId && !shown.has(d.slideId)) {
-                     diagramIds.add(d.id);
+                  if (bySlide.size || byLayout.size) {
+                     for (const e of elements) {
+                        if (
+                           bySlide.has(e.id) ||
+                           byLayout.has(e.id) ||
+                           (e.overrides && e.slideId && under.has(e.slideId) && bySlide.has(overriddenId(e)!))
+                        ) {
+                           elementIds.add(e.id);
+                        }
+                     }
                   }
-               }
-               return { elementIds, tableIds, diagramIds } as {
-                  elementIds: ReadonlySet<string>;
-                  tableIds: ReadonlySet<string>;
-                  diagramIds: ReadonlySet<string>;
-               };
-            }),
-            viewport: computed(() => schema()?.viewport ?? DEFAULT_VIEWPORT),
-            /** The user-defined home view, or null when none is set. */
-            home: computed(() => schema()?.home ?? null),
-            /** The project's custom presentation themes (on top of the built-in ones). */
-            customThemes: computed(() => schema()?.themes ?? []),
+                  const tableIds = new Set<string>();
+                  for (const t of schema()?.tables ?? []) {
+                     if (t.slideId && !shown.has(t.slideId)) {
+                        tableIds.add(t.id);
+                     }
+                  }
+                  const diagramIds = new Set<string>();
+                  for (const d of schema()?.sequenceDiagrams ?? []) {
+                     if (d.slideId && !shown.has(d.slideId)) {
+                        diagramIds.add(d.id);
+                     }
+                  }
+                  return { elementIds, tableIds, diagramIds } as SlideHidden;
+               },
+               { equal: sameHidden }
+            ),
             /** The single selected table (only when exactly one is selected), for the inspector. */
             selectedTable: computed(() => {
                const ids = selectedTableIds();
@@ -575,15 +650,9 @@ export const ProjectStore = signalStore(
             /** True when any sequence diagram's box is selected. */
             sequenceSelected: computed(() => selectedDiagramIds().length > 0),
             /** Live groups (two or more members) keyed by group id. */
-            groups: computed(() => buildGroups(schema())),
+            groups: computed(() => groupIndex().groups),
             /** Item id (table / element / diagram) -> the live group it belongs to. */
-            groupByItem: computed(() => {
-               const out = new Map<string, string>();
-               for (const [gid, g] of buildGroups(schema())) {
-                  [...g.tableIds, ...g.elementIds, ...g.diagramIds].forEach((id) => out.set(id, gid));
-               }
-               return out as ReadonlyMap<string, string>;
-            }),
+            groupByItem: computed(() => groupIndex().byItem),
             canEdit: computed(() => accessMode() !== 'VIEW'),
             canUndo: computed(() => undoDepth() > 0),
             canRedo: computed(() => redoDepth() > 0),
@@ -606,6 +675,16 @@ export const ProjectStore = signalStore(
       ) => {
          const timers = new Map<string, ReturnType<typeof setTimeout>>();
          const timerFns = new Map<string, () => void>();
+
+         /** The last pan/zoom not yet written to this browser's storage. */
+         let pendingViewport: { projectId: string; viewport: ViewportModel } | null = null;
+         function flushViewport(): void {
+            if (!pendingViewport) return;
+            saveViewport(pendingViewport.projectId, pendingViewport.viewport);
+            pendingViewport = null;
+         }
+         // Leaving the page mid-debounce still keeps the view.
+         globalThis.addEventListener?.('pagehide', flushViewport);
 
          // Element undo/redo. Entries reuse the granular element methods so an undo is
          // itself a persisted, broadcast mutation (collaboration-safe). Remote edits
@@ -1642,6 +1721,7 @@ export const ProjectStore = signalStore(
                   const graph = await firstValueFrom(projectsApi.getGraph(projectId));
                   patchState(store, {
                      schema: graph.schema,
+                     ...viewSlotsOf(projectId, graph.schema),
                      accessMode: graph.accessLevel,
                      loading: false,
                   });
@@ -1666,6 +1746,7 @@ export const ProjectStore = signalStore(
                   patchState(store, {
                      projectId: graph.project.id,
                      schema: graph.schema,
+                     ...viewSlotsOf(graph.project.id, graph.schema),
                      accessMode: graph.accessLevel,
                      loading: false,
                   });
@@ -1917,10 +1998,10 @@ export const ProjectStore = signalStore(
                      }));
                      break;
                   case 'home.updated':
-                     setSchema((s) => ({ ...s, home: mutation.home }));
+                     patchState(store, { home: mutation.home ?? null });
                      break;
                   case 'themes.updated':
-                     setSchema((s) => ({ ...s, themes: mutation.themes }));
+                     patchState(store, { customThemes: mutation.themes });
                      break;
                }
             },
@@ -1931,7 +2012,7 @@ export const ProjectStore = signalStore(
                if (!projectId) {
                   return;
                }
-               setSchema((s) => ({ ...s, themes }));
+               patchState(store, { customThemes: themes });
                await runSave(() => firstValueFrom(projectsApi.updateThemes(projectId, { themes })));
             },
 
@@ -1941,7 +2022,7 @@ export const ProjectStore = signalStore(
                if (!projectId) {
                   return;
                }
-               setSchema((s) => ({ ...s, home }));
+               patchState(store, { home });
                await runSave(() => firstValueFrom(projectsApi.updateHome(projectId, { home })));
             },
 
@@ -2977,18 +3058,27 @@ export const ProjectStore = signalStore(
                );
             },
 
-            /** Optimistic local viewport; the viewport PATCH is debounced. */
+            /**
+             * Pan/zoom. Personal view state: remembered in this browser per project (debounced),
+             * never sent to the server. Guide sandboxes keep it in their local stand-in backend.
+             */
             setViewport(x: number, y: number, zoom: number): void {
-               setSchema((s) => ({ ...s, viewport: { x, y, zoom } }));
+               const viewport = { x, y, zoom };
+               patchState(store, { viewport });
                const projectId = store.projectId();
-               if (!projectId) {
+               if (!projectId || !store.schema()) {
                   return;
                }
-               debounce('viewport', () => {
-                  void runSave(() =>
-                     firstValueFrom(projectsApi.updateViewport(projectId, { viewportX: x, viewportY: y, zoom }))
-                  );
-               });
+               if (isSandboxId(projectId)) {
+                  debounce('viewport', () => {
+                     void runSave(() =>
+                        firstValueFrom(projectsApi.updateViewport(projectId, { viewportX: x, viewportY: y, zoom }))
+                     );
+                  });
+                  return;
+               }
+               pendingViewport = { projectId, viewport };
+               debounce('viewport', flushViewport, VIEWPORT_SAVE_MS);
             },
 
             async addRelationship(

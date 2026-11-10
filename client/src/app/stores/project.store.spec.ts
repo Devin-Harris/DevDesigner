@@ -125,7 +125,14 @@ const schema = (overrides: Partial<SchemaModel> = {}): SchemaModel => ({
 
 function createStore(start: Partial<SchemaModel> = {}) {
    const api = {
-      projects: { batch: jest.fn(() => of({})), importInto: jest.fn(), updateHome: jest.fn(() => of({})) },
+      projects: {
+         batch: jest.fn(() => of({})),
+         importInto: jest.fn(),
+         updateHome: jest.fn(() => of({})),
+         updateThemes: jest.fn(() => of({})),
+         updateViewport: jest.fn(() => of(undefined)),
+         getGraph: jest.fn(),
+      },
       tables: { remove: jest.fn((): Observable<unknown> => of(undefined)), update: jest.fn(() => of({})) },
       columns: { remove: jest.fn((): Observable<unknown> => of(undefined)) },
       elements: {
@@ -378,7 +385,8 @@ describe('ProjectStore.applyRemote', () => {
    it.each(cases)('%s', (_kind, mutation, check) => {
       const { store, api } = createStore(base());
       store.applyRemote(mutation);
-      check(store.schema()!);
+      // home and themes live in their own state slots (perf P1.1); read them back as schema fields.
+      check({ ...store.schema()!, home: store.home(), themes: store.customThemes() });
       // Remote changes are already persisted: no request is ever sent.
       expect(api.projects.batch).not.toHaveBeenCalled();
       expect(api.elements.create).not.toHaveBeenCalled();
@@ -725,5 +733,106 @@ describe('ProjectStore.importFile', () => {
       const { store } = createStore();
       patchState(unprotected(store), { projectId: null });
       await expect(store.importFile({}, { x: 0, y: 0 })).rejects.toThrow('No project is open.');
+   });
+});
+
+// ---- view state (perf P1.1-P1.3) --------------------------------------------------------------
+
+describe('ProjectStore view state', () => {
+   afterEach(() => {
+      jest.useRealTimers();
+      localStorage.clear();
+   });
+
+   it('pans without touching the schema or calling the server, and remembers the view locally', () => {
+      jest.useFakeTimers();
+      const { store, api } = createStore({ elements: [element('e1')] });
+      const before = store.schema();
+      const slideFrames = store.slideFrames();
+
+      store.setViewport(10, 20, 0.5);
+      store.setViewport(30, 40, 0.75);
+
+      expect(store.viewport()).toEqual({ x: 30, y: 40, zoom: 0.75 });
+      expect(store.schema()).toBe(before);
+      expect(store.slideFrames()).toBe(slideFrames);
+      expect(localStorage.getItem('dd.viewport.p1')).toBeNull();
+      jest.advanceTimersByTime(1000);
+      expect(JSON.parse(localStorage.getItem('dd.viewport.p1')!)).toEqual({ x: 30, y: 40, zoom: 0.75 });
+      expect(api.projects.updateViewport).not.toHaveBeenCalled();
+   });
+
+   it('writes a pending view on pagehide', () => {
+      jest.useFakeTimers();
+      const { store } = createStore();
+      store.setViewport(1, 2, 3);
+      window.dispatchEvent(new Event('pagehide'));
+      expect(JSON.parse(localStorage.getItem('dd.viewport.p1')!)).toEqual({ x: 1, y: 2, zoom: 3 });
+   });
+
+   it('keeps a guide sandbox view in its local stand-in backend', () => {
+      jest.useFakeTimers();
+      const { store, api } = createStore();
+      patchState(unprotected(store), { projectId: 'sandbox-x-1' });
+      store.setViewport(5, 6, 1);
+      jest.advanceTimersByTime(600);
+      expect(api.projects.updateViewport).toHaveBeenCalledWith('sandbox-x-1', { viewportX: 5, viewportY: 6, zoom: 1 });
+      expect(localStorage.length).toBe(0);
+   });
+
+   it("opens a project at this browser's last view of it, else at the server's", async () => {
+      const { store, api } = createStore();
+      const graph = (id: string) =>
+         of({
+            project: { id },
+            accessLevel: 'OWNER',
+            schema: schema({ viewport: { x: 7, y: 8, zoom: 2 }, home: { x: 1, y: 1, zoom: 1 }, themes: [] }),
+         });
+      api.projects.getGraph.mockImplementation(graph);
+
+      await store.load('fresh');
+      expect(store.viewport()).toEqual({ x: 7, y: 8, zoom: 2 });
+      expect(store.home()).toEqual({ x: 1, y: 1, zoom: 1 });
+
+      localStorage.setItem('dd.viewport.seen', JSON.stringify({ x: -3, y: 4, zoom: 0.5 }));
+      await store.load('seen');
+      expect(store.viewport()).toEqual({ x: -3, y: 4, zoom: 0.5 });
+
+      localStorage.setItem('dd.viewport.broken', '{"x":"nope"}');
+      await store.load('broken');
+      expect(store.viewport()).toEqual({ x: 7, y: 8, zoom: 2 });
+   });
+
+   it('saves the home view and themes into their own slots', async () => {
+      const { store, api } = createStore();
+      const before = store.schema();
+      await store.setHome({ x: 1, y: 2, zoom: 3 });
+      await store.setCustomThemes([]);
+      expect(store.home()).toEqual({ x: 1, y: 2, zoom: 3 });
+      expect(api.projects.updateHome).toHaveBeenCalledWith('p1', { home: { x: 1, y: 2, zoom: 3 } });
+      expect(api.projects.updateThemes).toHaveBeenCalledWith('p1', { themes: [] });
+      expect(store.schema()).toBe(before);
+   });
+
+   it('keeps derived slide and group collections stable across unrelated edits', () => {
+      const frame = element('f1', { type: 'frame' as CanvasElementModel['type'], slide: { order: 0 } });
+      const { store } = createStore({
+         elements: [frame, element('a', { groupId: 'g', slideId: 'f1' }), element('b', { groupId: 'g' })],
+      });
+      const slideFrames = store.slideFrames();
+      const groups = store.groups();
+      const byItem = store.groupByItem();
+      const hidden = store.hiddenBySlides();
+      const fks = store.foreignKeyColumnIds();
+
+      store.applyRemote({ kind: 'element.moved', elementId: 'b', x: 50, y: 60 });
+
+      expect(store.schema()!.elements[2].x).toBe(50);
+      expect(store.slideFrames()).toBe(slideFrames);
+      expect(store.groups()).toBe(groups);
+      expect(store.groupByItem()).toBe(byItem);
+      expect(store.hiddenBySlides()).toBe(hidden);
+      expect(store.foreignKeyColumnIds()).toBe(fks);
+      expect(byItem.get('a')).toBe('g');
    });
 });
