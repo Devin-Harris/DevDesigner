@@ -304,6 +304,9 @@
          @if (auth.currentUser()?.email; as email) {
             <div class="menu-email">{{ email }}</div>
          }
+         @if (auth.isAdmin$()) {
+            <button class="dd-menu-item" routerLink="/admin" (click)="close()"><dd-icon name="lock"></dd-icon>Admin</button>
+         }
          <button class="dd-menu-item" (click)="openApiTokens(); close()"><dd-icon name="key" />API tokens</button>
          <button class="dd-menu-item" (click)="signOut(); close()"><dd-icon name="logout" />Sign out</button>
       </div>

@@ -24,6 +24,11 @@
             </button>
             <ng-template #accountMenu let-close>
                <div class="dd-menu">
+                  @if (auth.isAdmin$()) {
+                     <button class="dd-menu-item" routerLink="/admin" (click)="close()">
+                        <dd-icon name="lock"></dd-icon>Admin
+                     </button>
+                  }
                   <button class="dd-menu-item" (click)="openApiTokens(); close()">
                      <dd-icon name="key" />API tokens
                   </button>

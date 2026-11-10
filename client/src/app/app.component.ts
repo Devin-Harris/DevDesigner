@@ -4,7 +4,7 @@ import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
 import { ToolbarPrefsService } from './features/editor/shape-toolbar/toolbar-prefs.service';
 import { ToolbarCustomizePanelComponent } from './features/editor/shape-toolbar/toolbar-customize-panel.component';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
@@ -44,6 +44,7 @@ import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-
       CommandPaletteComponent,
       ShortcutsSheetComponent,
       AutofocusDirective,
+      RouterLink,
       RouterOutlet,
       MatToolbarModule,
       MatTooltipModule,
