@@ -305,3 +305,7 @@ export function listAutoformat(runs: readonly TextRun[], caret: number): ListRes
    };
    return applyAndNormalize(runs, [edit]);
 }
+
+/** A list item's leading indent + marker, and a test for any list line. */
+export const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
+export const LIST_LINE = /(?:^|\n) *(?:[•◦▪]|\d+\.) /;

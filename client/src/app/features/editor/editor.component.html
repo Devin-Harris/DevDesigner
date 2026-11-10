@@ -30,7 +30,7 @@
             [svgOffset]="svgOffset"
             [dragging]="dragging()"
             [interactive]="shapesInteractive()"
-            [editingId]="editingTextId()"
+            [editingId]="textEditing.editingTextId()"
             (elementPointerDown)="onElementPointerDown($event)"
             (resizeDown)="onElementResizeDown($event)"
             (rotateDown)="onElementRotateDown($event)"
@@ -57,7 +57,7 @@
                      [svgOffset]="svgOffset"
                      [dragging]="dragging()"
                      [interactive]="shapesInteractive()"
-                     [editingId]="editingTextId()"
+                     [editingId]="textEditing.editingTextId()"
                      (elementPointerDown)="onElementPointerDown($event)"
                      (resizeDown)="onElementResizeDown($event)"
                      (rotateDown)="onElementRotateDown($event)"
@@ -84,7 +84,7 @@
                         [svgOffset]="svgOffset"
                         [dragging]="dragging()"
                         [interactive]="shapesInteractive()"
-                        [editingId]="editingTextId()"
+                        [editingId]="textEditing.editingTextId()"
                         (elementPointerDown)="onElementPointerDown($event)"
                         (resizeDown)="onElementResizeDown($event)"
                         (rotateDown)="onElementRotateDown($event)"
@@ -120,7 +120,7 @@
                      [svgOffset]="svgOffset"
                      [dragging]="dragging()"
                      [interactive]="shapesInteractive()"
-                     [editingId]="editingTextId()"
+                     [editingId]="textEditing.editingTextId()"
                      [bindHighlight]="bindHighlight()"
                      (elementPointerDown)="onElementPointerDown($event)"
                      (resizeDown)="onElementResizeDown($event)"
@@ -157,7 +157,7 @@
                [svgOffset]="svgOffset"
                [dragging]="dragging()"
                [interactive]="shapesInteractive()"
-               [editingId]="editingTextId()"
+               [editingId]="textEditing.editingTextId()"
                (elementPointerDown)="onElementPointerDown($event)"
                (resizeDown)="onElementResizeDown($event)"
                (rotateDown)="onElementRotateDown($event)"
@@ -199,7 +199,7 @@
             [svgOffset]="svgOffset"
             [dragging]="dragging()"
             [interactive]="shapesInteractive()"
-            [editingId]="editingTextId()"
+            [editingId]="textEditing.editingTextId()"
             [bindHighlight]="bindHighlight()"
             (elementPointerDown)="onElementPointerDown($event)"
             (resizeDown)="onElementResizeDown($event)"
@@ -755,7 +755,7 @@
          ></dd-present-mode>
       }
 
-      @if (fileNameEditor(); as f) {
+      @if (cellEditors.fileNameEditor(); as f) {
          <input
             ddAutofocus
             ddAutofocusSelect="textarea"
@@ -774,12 +774,12 @@
             [value]="f.value"
             (pointerdown)="$event.stopPropagation()"
             (dblclick)="$event.stopPropagation()"
-            (keydown)="onFileNameKeydown($event, f.id)"
-            (blur)="commitFileName(f.id, $any($event.target).value)"
+            (keydown)="cellEditors.onFileNameKeydown($event, f.id)"
+            (blur)="cellEditors.commitFileName(f.id, $any($event.target).value)"
          />
       }
 
-      @if (textEditor(); as t) {
+      @if (textEditing.textEditor(); as t) {
          @if (t.rich) {
             @if (t.ink; as k) {
                <div
@@ -813,11 +813,11 @@
                [style.padding.px]="t.padding"
                [style.color]="t.color"
                (pointerdown)="$event.stopPropagation()"
-               (keydown)="onRichKeydown($event)"
-               (input)="onRichInput($event)"
-               (paste)="onRichPaste($event)"
+               (keydown)="textEditing.onRichKeydown($event)"
+               (input)="textEditing.onRichInput($event)"
+               (paste)="textEditing.onRichPaste($event)"
                (drop)="$event.preventDefault()"
-               (blur)="onRichBlur()"
+               (blur)="textEditing.onRichBlur()"
             ></div>
          } @else {
             <textarea
@@ -828,7 +828,7 @@
                [class.wrap]="t.wrap"
                [class.code]="t.code"
                [class.code-pane]="t.code"
-               [class.split-pane]="t.code && !!diffPaneEditor()"
+               [class.split-pane]="t.code && !!textEditing.diffPaneEditor()"
                [attr.spellcheck]="t.code ? 'false' : null"
                [style.line-height.px]="t.lineHeight"
                [style.left.px]="t.left"
@@ -846,14 +846,14 @@
                [style.caret-color]="t.code ? 'var(--dd-text)' : null"
                [value]="t.value"
                (pointerdown)="$event.stopPropagation()"
-               (keydown)="onEditorKeydown($event)"
-               (input)="onTextInput($any($event.target).value)"
-               (blur)="t.code ? onCodePaneBlur($event) : commitTextEdit()"
+               (keydown)="textEditing.onEditorKeydown($event)"
+               (input)="textEditing.onTextInput($any($event.target).value)"
+               (blur)="t.code ? textEditing.onCodePaneBlur($event) : textEditing.commitTextEdit()"
             ></textarea>
          }
       }
 
-      @if (diffPaneEditor(); as p) {
+      @if (textEditing.diffPaneEditor(); as p) {
          <div
             class="diff-edit-frame"
             [style.left.px]="p.frame.left"
@@ -877,13 +877,13 @@
             style="color: transparent; caret-color: var(--dd-text)"
             [value]="p.value"
             (pointerdown)="$event.stopPropagation()"
-            (keydown)="onEditorKeydown($event)"
-            (input)="onDiffPaneInput($any($event.target).value)"
-            (blur)="onCodePaneBlur($event)"
+            (keydown)="textEditing.onEditorKeydown($event)"
+            (input)="textEditing.onDiffPaneInput($any($event.target).value)"
+            (blur)="textEditing.onCodePaneBlur($event)"
          ></textarea>
       }
 
-      @if (gridCellEditor(); as gc) {
+      @if (cellEditors.gridCellEditor(); as gc) {
          <textarea
             #gridCellArea
             class="text-editor wrap grid-cell-editor"
@@ -902,9 +902,9 @@
             [style.color]="gc.color"
             [style.background]="gc.background"
             (pointerdown)="$event.stopPropagation()"
-            (keydown)="onGridCellKeydown($event)"
-            (input)="grids.setEditingText($any($event.target).value); alignGridCellArea()"
-            (blur)="onGridCellBlur(gc.key)"
+            (keydown)="cellEditors.onGridCellKeydown($event)"
+            (input)="grids.setEditingText($any($event.target).value); cellEditors.alignGridCellArea()"
+            (blur)="cellEditors.onGridCellBlur(gc.key)"
          ></textarea>
       }
 
