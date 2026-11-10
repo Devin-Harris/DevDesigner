@@ -14,6 +14,7 @@ import type {
    SequenceMessageModel,
    TableModel,
 } from '@devdesigner/shared';
+import { isColorValue } from '@devdesigner/shared';
 import { codeElementContentSize } from '../../features/editor/helpers/shape-render.helper';
 
 /** Project ids served by the sandbox backend instead of the API. */
@@ -44,6 +45,36 @@ export class SandboxError extends Error {
 type Dict = Record<string, unknown>;
 
 const uuid = (): string => crypto.randomUUID();
+
+/**
+ * Mirror of the server's @IsColor (security S1.2): every color in a write body
+ * (`*Color` / `color` keys at any depth, and a theme's `colors` map) must be a color
+ * the server would accept, so sandboxes never hold data the real API refuses.
+ */
+function assertColors(value: unknown, path = 'body'): void {
+   if (Array.isArray(value)) {
+      value.forEach((v, i) => assertColors(v, `${path}[${i}]`));
+      return;
+   }
+   if (!value || typeof value !== 'object') return;
+   for (const [key, v] of Object.entries(value as Dict)) {
+      const isColorKey = /color$/i.test(key) && typeof v === 'string';
+      if (isColorKey && !isColorValue(v)) throw new SandboxError(400, `${path}.${key} must be a color.`);
+      if (key === 'colors' && v && typeof v === 'object' && !Array.isArray(v)) {
+         for (const [k, c] of Object.entries(v as Dict)) {
+            if (!isColorValue(c)) throw new SandboxError(400, `${path}.colors.${k} must be a color.`);
+         }
+      }
+      if (!isColorKey) assertColors(v, `${path}.${key}`);
+   }
+}
+
+/** Mirror of the server's assertIdsInProject (security S2.3): refs must exist in this sandbox. */
+function assertKnown(ids: unknown[], known: ReadonlyArray<{ id: string }>, what: string): void {
+   const have = new Set(known.map((x) => x.id));
+   const bad = ids.filter((id): id is string => typeof id === 'string' && id !== '' && !have.has(id));
+   if (bad.length) throw new SandboxError(400, `${what} ${bad.join(', ')} is not part of this project.`);
+}
 
 /** Shallow patch with the API's semantics: `null` clears a field, `undefined` leaves it. */
 function patch<T extends object>(target: T, dto: Dict, skip: string[] = ['id']): T {
@@ -200,6 +231,7 @@ export class SandboxBackendService {
    handle(method: string, path: string, body: unknown): { body: unknown } | undefined {
       const b = (body ?? {}) as Dict;
       const seg = path.split('?')[0].split('/').filter(Boolean);
+      if (method !== 'GET') assertColors(b);
 
       // GET /images/:id is handled by the interceptor (blob response).
       if (seg[0] === 'projects' && isSandboxId(seg[1])) {
@@ -367,6 +399,7 @@ export class SandboxBackendService {
                   t.indexes = order.map((x) => t.indexes!.find((ix) => ix.id === x)!).filter(Boolean);
                   return done(null);
                }
+               assertKnown((b['columnIds'] as unknown[]) ?? [], t.columns, 'Column');
                const ix = patch({ id: uuid(), isUnique: false, columnIds: [] } as unknown as IndexModel, b, ['id']);
                t.indexes.push(ix);
                return done(ix);
@@ -465,6 +498,7 @@ export class SandboxBackendService {
          if (b['style'] !== 'break' && b['fromLifelineId'] === b['toLifelineId']) {
             throw new SandboxError(400, 'A message must go between two different participants.');
          }
+         assertKnown([b['fromLifelineId'], b['toLifelineId']], s.lifelines, 'Lifeline');
          const m = patch(
             { id: uuid(), style: 'solid', direction: 'forward', arrowhead: 'arrow' } as SequenceMessageModel,
             b,
@@ -479,6 +513,7 @@ export class SandboxBackendService {
          s.sequenceMessages.splice(i, 1);
          return null;
       }
+      assertKnown([b['fromLifelineId'], b['toLifelineId']], s.lifelines, 'Lifeline');
       s.sequenceMessages[i] = patch(s.sequenceMessages[i], b);
       return sub === 'position' ? null : s.sequenceMessages[i];
    }
