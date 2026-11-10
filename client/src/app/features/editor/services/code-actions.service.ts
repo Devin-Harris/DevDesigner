@@ -11,7 +11,7 @@ import {
    codePrintWidth,
    codeDiffActive,
    codeElementContentSize,
-} from '../helpers/shape-render.helper';
+} from '../helpers/render';
 
 /** Actions on code-block elements shared by the inspector and the floating toolbar. */
 @Injectable({ providedIn: 'root' })

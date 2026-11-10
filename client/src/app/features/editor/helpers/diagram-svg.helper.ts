@@ -20,7 +20,7 @@ import { HEADER_H, ROW_H } from '../shared/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableBox, tableScale } from './node-metrics.helper';
 import { computeConnectors } from './connectors.helper';
 import { messageLabelBoxes } from './message-box.helper';
-import { buildShapeViews } from './shape-render.helper';
+import { buildShapeViews } from './render';
 import { elementBox } from './element-geometry.helper';
 import type { CodeBlockView, ShapeView, TextBlockView } from '../models/shape-view.model';
 

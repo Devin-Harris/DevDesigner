@@ -90,7 +90,7 @@ import {
    type ItemMoves,
    type SequenceLayoutSnapshot,
 } from './state/project/project.store';
-import { splitAtGaps } from './helpers/shape-render.helper';
+import { splitAtGaps } from './helpers/render';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from './services/code-actions.service';
 import { GridTableService } from './services/grid-table.service';
@@ -169,7 +169,7 @@ import {
    gridFont,
    gridRowNeeds,
    SURFACE_FILL,
-} from './helpers/shape-render.helper';
+} from './helpers/render';
 import { DEFAULT_LINE_HEIGHT, fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from './helpers/text-metrics';
 import {
    isPlainRuns,

@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import type { CanvasElementModel, MediaClipShape, MediaConfig } from '@devdesigner/shared';
 import { ProjectStore } from '../state/project/project.store';
 import type { AlignAction } from '../models/toolbar-actions';
-import { rectCornerRadius } from '../helpers/shape-render.helper';
+import { rectCornerRadius } from '../helpers/render';
 import { cropFor, isFullCrop, mediaSourceRect } from '../helpers/media.helper';
 
 const CLIP_SHAPES: ReadonlySet<string> = new Set<MediaClipShape>(['rectangle', 'ellipse', 'diamond']);

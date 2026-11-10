@@ -81,7 +81,7 @@ import { ProjectStore } from '../../../../state/project/project.store';
 import { FRAME_PRESETS } from '../../../../shared/constants/frame-presets';
 import { elementBox, tableBox } from '../../../../helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../../../../helpers/frame-contents.helper';
-import { FONT_OPTIONS, fontStack } from '../../../../helpers/shape-render.helper';
+import { FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { ensureFontLoaded, fitTextElement } from '../../../../helpers/text-metrics';
 import { AnimationPaneComponent } from './features/animation-pane/animation-pane.component';
 import {

@@ -19,7 +19,7 @@ import {
 } from '@devdesigner/shared';
 import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../../../helpers/diagram-svg.helper';
 import { safeSvgFragment, sanitizeSvgDom } from '../helpers/svg-sanitize.helper';
-import { codeDiffActive } from '../../../helpers/shape-render.helper';
+import { codeDiffActive } from '../../../helpers/render';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

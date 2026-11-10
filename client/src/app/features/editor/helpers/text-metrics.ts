@@ -1,6 +1,7 @@
 import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@devdesigner/shared';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
-import { clearShapeRenderCaches, fontStack, fontWeightFor } from './shape-render.helper';
+import { fontStack, fontWeightFor } from './render/fonts';
+import { clearShapeRenderCaches } from './render/text-layout';
 
 /** Default line height multiple, and the options offered in the UI. */
 export const DEFAULT_LINE_HEIGHT = 1.25;

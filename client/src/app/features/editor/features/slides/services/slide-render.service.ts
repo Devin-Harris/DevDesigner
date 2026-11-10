@@ -31,7 +31,7 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { elementBox, tableBox } from '../../../helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../../../helpers/diagram-svg.helper';
-import { imageView } from '../../../helpers/shape-render.helper';
+import { imageView } from '../../../helpers/render';
 import type { ImageView } from '../../../models/shape-view.model';
 import { embedFonts } from '../../../helpers/font-embed.helper';
 

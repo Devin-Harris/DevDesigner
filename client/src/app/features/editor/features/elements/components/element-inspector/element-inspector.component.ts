@@ -14,11 +14,11 @@ import {
    themeToken,
    type SlideTheme,
 } from '@devdesigner/shared';
-import { SURFACE_FILL } from '../../../../helpers/shape-render.helper';
+import { SURFACE_FILL } from '../../../../helpers/render';
 import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper';
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
-import { FONT_OPTIONS, fontStack } from '../../../../helpers/shape-render.helper';
+import { FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { withTextFit } from '../../../../helpers/text-metrics';
 import { ProjectStore } from '../../../../state/project/project.store';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';

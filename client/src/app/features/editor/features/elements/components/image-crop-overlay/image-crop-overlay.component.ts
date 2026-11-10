@@ -14,7 +14,7 @@ import { ElementImagesService } from '../../../../services/element-images.servic
 import { MediaActionsService, cleanMedia } from '../../../../services/media-actions.service';
 import { ProjectStore } from '../../../../state/project/project.store';
 import { cropFor, mediaSourceRect, type Rect } from '../../../../helpers/media.helper';
-import { imageView } from '../../../../helpers/shape-render.helper';
+import { imageView } from '../../../../helpers/render';
 
 type AlignMode = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom';
 

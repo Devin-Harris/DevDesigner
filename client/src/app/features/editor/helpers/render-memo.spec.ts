@@ -1,7 +1,7 @@
 import type { CanvasElementModel, ColumnModel, RelationshipModel, TableModel } from '@devdesigner/shared';
 import { tokenizeCode } from './code-highlight.helper';
 import { ConnectorRouteCache, computeConnectors } from './connectors.helper';
-import { ShapeViewCache, buildShapeViews } from './shape-render.helper';
+import { ShapeViewCache, buildShapeViews } from './render';
 
 const el = (id: string, over: Partial<CanvasElementModel> = {}): CanvasElementModel =>
    ({

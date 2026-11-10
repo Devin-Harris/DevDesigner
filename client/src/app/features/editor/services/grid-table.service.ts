@@ -21,7 +21,7 @@ import {
    serializeGrid,
 } from '../helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
-import { gridRowNeeds } from '../helpers/shape-render.helper';
+import { gridRowNeeds } from '../helpers/render';
 
 export interface GridCellRef {
    id: string;

@@ -35,7 +35,7 @@ import {
    type SlideTheme,
 } from '@devdesigner/shared';
 import { EditorActionsService } from '../../../../../../core/editor-bridge/editor-actions.service';
-import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../../../../helpers/shape-render.helper';
+import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../../../../helpers/render';
 import { RichTextSessionService } from '../../services/rich-text-session.service';
 import { clearRunKeys, isPlainRuns, patchRuns, plainOf, runsOrPlain } from '../../../../helpers/rich-text.helper';
 import { listKindOver, toggleList as toggleListRuns, type ListKind } from '../../helpers/rich-list.helper';

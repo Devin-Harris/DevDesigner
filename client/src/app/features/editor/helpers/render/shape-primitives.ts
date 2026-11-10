@@ -1,0 +1,219 @@
+import type { CanvasElementModel, ElementBinding } from '@devdesigner/shared';
+import type { Box, Point } from '../../models/geometry.model';
+import type { ImageView, ShapeView, TextBlockView } from '../../models/shape-view.model';
+import { isFullCrop, mediaSourceRect } from '../media.helper';
+import { absolutePoints, boundaryPoint, type RotatedBox } from '../element-geometry.helper';
+import { ANCHOR_GAP } from '../../shared/constants/canvas.constants';
+import { fontWeightFor } from './fonts';
+import { contrastSafe, sentinelColor, type ThemeColors } from './theme-colors';
+import { LINE_HEIGHT, layoutTextBlock } from './text-layout';
+
+/**
+ * Rectangle corner radius. By default it clamps to half the shorter side, so a big
+ * radius gives a pill; with `ellipticCorners` the raw radius is left to SVG, which
+ * clamps each axis separately and stretches the corners into an oval.
+ */
+export function rectCornerRadius(element: CanvasElementModel): number {
+   const r = element.cornerRadius ?? Math.min(12, Math.min(element.width, element.height) * 0.15);
+   return element.ellipticCorners ? r : Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+}
+
+/** An image element's picture: its crop resolved to where the source lands, and its clip. */
+export function imageView(element: CanvasElementModel, fileId: string): ImageView {
+   const box = { x: element.x, y: element.y, width: element.width, height: element.height };
+   const media = element.media;
+   const crop = isFullCrop(media?.crop) ? undefined : media?.crop;
+   const view: ImageView = {
+      ...box,
+      fileId,
+      src: mediaSourceRect(box, crop),
+      playback: media?.playback,
+      loop: media?.loop ?? false,
+      muted: media?.muted ?? false,
+      start: media?.start,
+      end: media?.end,
+      alt: media?.alt,
+   };
+   const id = `img-clip-${element.id}`;
+   const w = Math.abs(box.width);
+   const h = Math.abs(box.height);
+   if (media?.clip === 'ellipse') {
+      view.clip = {
+         id,
+         ellipse: { cx: box.x + box.width / 2, cy: box.y + box.height / 2, rx: w / 2, ry: h / 2 },
+         css: 'ellipse(50% 50% at 50% 50%)',
+      };
+   } else if (media?.clip === 'diamond') {
+      const mx = box.x + box.width / 2;
+      const my = box.y + box.height / 2;
+      view.clip = {
+         id,
+         polygon: `${mx},${box.y} ${box.x + box.width},${my} ${mx},${box.y + box.height} ${box.x},${my}`,
+         css: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+      };
+   } else if (media?.clip === 'rectangle' || crop) {
+      const rx = media?.clip === 'rectangle' ? Math.min(media.clipRadius ?? 0, w / 2, h / 2) : 0;
+      view.clip = { id, rect: { ...box, rx }, css: `inset(0 round ${rx}px)` };
+   }
+   return view;
+}
+
+export function dashArray(element: CanvasElementModel): string | null {
+   const w = Math.max(1, element.strokeWidth);
+   switch (element.strokeStyle) {
+      case 'dashed':
+         return `${w * 3} ${w * 2}`;
+      case 'dotted':
+         return `${w} ${w * 2}`;
+      default:
+         return null;
+   }
+}
+
+export function fillOf(
+   element: CanvasElementModel,
+   theme: ThemeColors | undefined
+): {
+   fill: string;
+   fillOpacity: number;
+   hatch?: { id: string; color: string };
+} {
+   if (element.fillStyle === 'none' || !element.backgroundColor) {
+      return { fill: 'none', fillOpacity: 1 };
+   }
+   const color = sentinelColor(element.backgroundColor, theme);
+   // Hachure = real diagonal-line hatching via a per-element SVG <pattern>.
+   if (element.fillStyle === 'hachure') {
+      const id = `hatch-${element.id}`;
+      return { fill: `url(#${id})`, fillOpacity: 1, hatch: { id, color } };
+   }
+   return { fill: color, fillOpacity: 1 };
+}
+
+export function rotation(element: CanvasElementModel, center: Point): string | null {
+   if (!element.angle) {
+      return null;
+   }
+   const deg = (element.angle * 180) / Math.PI;
+   return `rotate(${deg} ${center.x} ${center.y})`;
+}
+
+/**
+ * Resolve a line/arrow's two ends to absolute world points, snapping a bound end
+ * to the boundary of its target (table or element) so it re-routes as the target
+ * moves. Falls back to the stored point when the binding target is gone.
+ */
+export function resolveEnds(
+   element: CanvasElementModel,
+   targetBox: (binding: ElementBinding) => RotatedBox | null
+): Point[] {
+   const pts = absolutePoints(element);
+   if (pts.length < 2) {
+      return pts;
+   }
+   const start = pts[0];
+   const end = pts[pts.length - 1];
+   const startBox = element.startBinding ? targetBox(element.startBinding) : null;
+   const endBox = element.endBinding ? targetBox(element.endBinding) : null;
+   const resolved = pts.map((p) => ({ ...p }));
+   if (startBox) {
+      resolved[0] = boundaryPoint(startBox, pts[1] ?? end, ANCHOR_GAP);
+   }
+   if (endBox) {
+      resolved[resolved.length - 1] = boundaryPoint(endBox, pts[pts.length - 2] ?? start, ANCHOR_GAP);
+   }
+   return resolved;
+}
+
+export function boxToBbox(box: Box): ShapeView['bbox'] {
+   return { x: box.x0, y: box.y0, width: box.x1 - box.x0, height: box.y1 - box.y0 };
+}
+
+/** A shape's optional centered text label (rectangle/ellipse/diamond). */
+export function shapeLabel(
+   element: CanvasElementModel,
+   box: ShapeView['bbox'],
+   theme: ThemeColors | undefined
+): TextBlockView | undefined {
+   if (!element.text) {
+      return undefined;
+   }
+   return layoutTextBlock(element.text, box, {
+      fontSize: element.fontSize ?? 16,
+      fontFamilyKey: element.fontFamily,
+      fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+      italic: element.italic,
+      color: contrastSafe(element.strokeColor, theme),
+      align: element.textAlign ?? 'center',
+      vAlign: element.verticalAlign ?? 'middle',
+      padding: 8,
+      wrap: true,
+      lineHeight: element.lineHeight,
+   });
+}
+
+/** A line/arrow's optional label, centered just above the segment's midpoint. */
+export function arrowLabel(
+   element: CanvasElementModel,
+   start: Point,
+   end: Point,
+   theme: ThemeColors | undefined
+): TextBlockView | undefined {
+   if (!element.text) {
+      return undefined;
+   }
+   const fontSize = element.fontSize ?? 14;
+   const lineH = fontSize * LINE_HEIGHT;
+   const midX = (start.x + end.x) / 2;
+   const midY = (start.y + end.y) / 2;
+   // Ride above the line so the glyphs clear the stroke.
+   const box = { x: midX - 120, y: midY - fontSize - lineH / 2, width: 240, height: lineH };
+   return layoutTextBlock(element.text, box, {
+      fontSize,
+      fontFamilyKey: element.fontFamily,
+      fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
+      italic: element.italic,
+      color: contrastSafe(element.strokeColor, theme),
+      align: 'center',
+      vAlign: 'middle',
+      padding: 0,
+      wrap: false,
+   });
+}
+
+/**
+ * Connect two bound boxes with a STRAIGHT line: each end anchors to the exact
+ * point on its box boundary along the center-to-center ray (not snapped to a few
+ * fixed side midpoints), pushed `ANCHOR_GAP` outward so the line and its marker
+ * stay clear of the shape. A direct segment — no orthogonal/elbow routing.
+ */
+export function routeBoundConnector(sBox: RotatedBox, tBox: RotatedBox): Point[] {
+   const sc: Point = { x: (sBox.x0 + sBox.x1) / 2, y: (sBox.y0 + sBox.y1) / 2 };
+   const tc: Point = { x: (tBox.x0 + tBox.x1) / 2, y: (tBox.y0 + tBox.y1) / 2 };
+   return [boundaryPoint(sBox, tc, ANCHOR_GAP), boundaryPoint(tBox, sc, ANCHOR_GAP)];
+}
+
+/**
+ * Part of a clip path's id that changes with the box it clips to. Chrome does not always
+ * repaint the area a clipped group used to cover when only the clip rect moves, leaving
+ * a faded copy behind mid-drag; a fresh clipPath per box forces a clean repaint.
+ */
+export function clipKey(el: { x: number; y: number; width: number; height: number }): string {
+   const r = (n: number) => Math.round(n * 10);
+   return `${r(el.x)}_${r(el.y)}_${r(el.width)}_${r(el.height)}`.replace(/-/g, 'm');
+}
+
+/** Split a point run at non-finite (gap) points. */
+export function splitAtGaps<T extends { x: number; y: number }>(points: readonly T[]): T[][] {
+   const runs: T[][] = [];
+   let cur: T[] = [];
+   for (const p of points) {
+      if (Number.isFinite(p.x) && Number.isFinite(p.y)) cur.push(p);
+      else if (cur.length) {
+         runs.push(cur);
+         cur = [];
+      }
+   }
+   if (cur.length) runs.push(cur);
+   return runs;
+}
