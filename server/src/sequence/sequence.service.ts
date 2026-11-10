@@ -73,6 +73,7 @@ export class SequenceService {
     projectId: string,
     dto: CreateSequenceDiagramDto,
   ): Promise<SequenceDiagramModel> {
+    await this.access.assertIdsInProject('element', [dto.slideId], projectId);
     if (!(await this.projects.findOne({ where: { id: projectId } }))) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
@@ -100,6 +101,7 @@ export class SequenceService {
     diagramId: string,
     dto: UpdateSequenceDiagramDto,
   ): Promise<SequenceDiagramModel> {
+    await this.access.assertIdsInProject('element', [dto.slideId], projectId);
     const entity = await this.diagramOrThrow(projectId, diagramId);
     applyDiagramPatch(entity, dto);
     const saved = await this.diagrams.save(entity);
@@ -196,6 +198,7 @@ export class SequenceService {
     if (dto.style !== 'break' && dto.fromLifelineId === dto.toLifelineId) {
       throw new BadRequestException('A message must go between two different participants.');
     }
+    await this.access.assertIdsInProject('lifeline', [dto.fromLifelineId, dto.toLifelineId], projectId);
     const entity = this.messages.create({
       projectId,
       diagramId: dto.diagramId,
@@ -221,6 +224,7 @@ export class SequenceService {
     messageId: string,
     dto: UpdateSequenceMessageDto,
   ): Promise<SequenceMessageModel> {
+    await this.access.assertIdsInProject('lifeline', [dto.fromLifelineId, dto.toLifelineId], projectId);
     const entity = await this.messageOrThrow(projectId, messageId);
     applyMessagePatch(entity, dto);
     const saved = await this.messages.save(entity);

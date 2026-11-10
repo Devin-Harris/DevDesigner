@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
-import { AccessService } from '../access/access.service';
+import { AccessService, bindingRefs, mergeRefs, type ProjectRefs } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ImagesService } from '../images/images.service';
 import { ElementEntity } from './element.entity';
@@ -50,6 +50,7 @@ export class ElementsService {
     projectId: string,
     dto: CreateElementDto,
   ): Promise<CanvasElementModel> {
+    await this.access.assertRefsInProject(elementRefs(dto), projectId);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -135,6 +136,7 @@ export class ElementsService {
     elementId: string,
     dto: UpdateElementDto,
   ): Promise<CanvasElementModel> {
+    await this.access.assertRefsInProject(elementRefs(dto), projectId);
     const element = await this.findOrThrow(elementId);
     applyElementPatch(element, dto);
     await this.elements.save(element);
@@ -224,6 +226,11 @@ export class ElementsService {
     }
     return element;
   }
+}
+
+/** What an element write points at: its slide frame and its arrow bindings (security L-7). */
+export function elementRefs(dto: Pick<UpdateElementDto, 'slideId' | 'startBinding' | 'endBinding'>): ProjectRefs {
+  return mergeRefs({ element: [dto.slideId] }, bindingRefs(dto.startBinding, dto.endBinding));
 }
 
 /** Apply an update DTO onto an entity, translating points/bindings to columns. */

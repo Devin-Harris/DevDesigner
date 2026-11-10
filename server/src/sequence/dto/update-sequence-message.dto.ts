@@ -1,5 +1,6 @@
 import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { UpdateSequenceMessageDto as IUpdateSequenceMessageDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 const STYLES = ['solid', 'dashed', 'break'] as const;
 const DIRECTIONS = ['forward', 'reverse'] as const;
@@ -33,7 +34,7 @@ export class UpdateSequenceMessageDto implements IUpdateSequenceMessageDto {
   arrowhead?: (typeof ARROWHEADS)[number];
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   color?: string;
 

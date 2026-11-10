@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateLifelineDto as ICreateLifelineDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for POST /projects/:projectId/lifelines. */
 export class CreateLifelineDto implements ICreateLifelineDto {
@@ -13,22 +14,22 @@ export class CreateLifelineDto implements ICreateLifelineDto {
   label!: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   color?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   lineColor?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   strokeColor?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   textColor?: string;
 

@@ -1,5 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
+import { jsonSize } from '../common/validators';
 import {
+  MAX_THEME_DESIGN_BYTES,
+  extraLayoutsError,
+  layoutItemsError,
+  themeLayoutsError,
+} from '../common/theme-validation';
+import {
+  parseDataType,
+  MAX_COLOR_LENGTH,
+  isColorValue,
   PLACEHOLDER_ROLES,
   MEDIA_CLIP_SHAPES,
   MEDIA_PLAYBACK_MODES,
@@ -95,6 +105,28 @@ function optStr(o: Obj, key: string, path: string, max = 1000): string | undefin
   return str(o, key, path, max);
 }
 
+/** A stored color (security H-1 / S1.2: same rule as the DTOs' @IsColor). */
+function color(o: Obj, key: string, path: string): string {
+  const v = str(o, key, path, MAX_COLOR_LENGTH);
+  if (!isColorValue(v)) fail(`${path}.${key}`, 'must be a color (#hex, a palette name or a $theme token)');
+  return v;
+}
+
+function optColor(o: Obj, key: string, path: string): string | undefined {
+  const v = o[key];
+  if (v === undefined || v === null) return undefined;
+  return color(o, key, path);
+}
+
+/** A theme's free-form design part, checked like the theme DTOs (security M-4 / S2.2). */
+function themeDesign<T>(value: unknown, path: string, check: (v: unknown, p: string) => string | null): T | undefined {
+  if (value === undefined || value === null) return undefined;
+  const error = check(value, path);
+  if (error) throw new BadRequestException(`Invalid project file: ${error}.`);
+  if (jsonSize(value) > MAX_THEME_DESIGN_BYTES) fail(path, 'is too large');
+  return value as T;
+}
+
 function num(o: Obj, key: string, path: string, fallback?: number): number {
   const v = o[key];
   if (v === undefined && fallback !== undefined) return fallback;
@@ -163,7 +195,7 @@ function textRuns(value: unknown, path: string): TextRun[] | undefined {
       bold: flag('bold'),
       italic: flag('italic'),
       underline: flag('underline'),
-      color: optStr(r, 'color', `${path}[${i}]`, 64),
+      color: optColor(r, 'color', `${path}[${i}]`),
       morph: optStr(r, 'morph', `${path}[${i}]`, 80),
     };
   });
@@ -242,7 +274,7 @@ function slideTheme(value: unknown, path: string): SlideTheme | undefined {
   const c = obj(t['colors'], `${path}.colors`);
   const f = obj(t['fonts'], `${path}.fonts`);
   const colors = {} as SlideTheme['colors'];
-  for (const k of THEME_COLOR_TOKENS) colors[k] = str(c, k, `${path}.colors`, 32);
+  for (const k of THEME_COLOR_TOKENS) colors[k] = color(c, k, `${path}.colors`);
   return {
     id: optStr(t, 'id', path, 64),
     kind: optOneOf(t, 'kind', path, ['theme', 'layouts', 'design'] as const),
@@ -252,16 +284,9 @@ function slideTheme(value: unknown, path: string): SlideTheme | undefined {
     name: str(t, 'name', path, 120),
     colors,
     fonts: { heading: str(f, 'heading', `${path}.fonts`, 32), body: str(f, 'body', `${path}.fonts`, 32) },
-    layouts:
-      t['layouts'] === undefined || t['layouts'] === null
-        ? undefined
-        : (obj(t['layouts'], `${path}.layouts`) as SlideTheme['layouts']),
-    master:
-      t['master'] === undefined || t['master'] === null ? undefined : (list(t['master'], `${path}.master`) as SlideTheme['master']),
-    extraLayouts:
-      t['extraLayouts'] === undefined || t['extraLayouts'] === null
-        ? undefined
-        : (list(t['extraLayouts'], `${path}.extraLayouts`) as SlideTheme['extraLayouts']),
+    layouts: themeDesign<SlideTheme['layouts']>(t['layouts'], `${path}.layouts`, themeLayoutsError),
+    master: themeDesign<SlideTheme['master']>(t['master'], `${path}.master`, layoutItemsError),
+    extraLayouts: themeDesign<SlideTheme['extraLayouts']>(t['extraLayouts'], `${path}.extraLayouts`, extraLayoutsError),
   };
 }
 
@@ -302,7 +327,11 @@ function placeholder(value: unknown, path: string): PlaceholderConfig | undefine
 
 function parseColumn(raw: unknown, path: string): ColumnModel {
   const c = obj(raw, path);
-  const dt = obj(c['dataType'], `${path}.dataType`);
+  // Hand-written files (and the home seeds) may spell the type as SQL text: "VARCHAR(64)".
+  const dt =
+    typeof c['dataType'] === 'string' && c['dataType'].length <= 100
+      ? (parseDataType(c['dataType']) as unknown as Obj)
+      : obj(c['dataType'], `${path}.dataType`);
   const args = dt['args'] === undefined || dt['args'] === null ? undefined : list(dt['args'], `${path}.dataType.args`);
   if (args && !args.every((a) => typeof a === 'string')) {
     fail(`${path}.dataType.args`, 'must be an array of strings');
@@ -352,7 +381,7 @@ function parseTable(raw: unknown, path: string): TableModel {
     ),
     x: num(t, 'x', path, 0),
     y: num(t, 'y', path, 0),
-    color: optStr(t, 'color', path, 100),
+    color: optColor(t, 'color', path),
     note: optStr(t, 'note', path, 10_000),
     width: optNum(t, 'width', path),
     scale: optNum(t, 'scale', path),
@@ -388,8 +417,8 @@ function parseElement(raw: unknown, path: string): CanvasElementModel {
     width: num(e, 'width', path, 0),
     height: num(e, 'height', path, 0),
     angle: num(e, 'angle', path, 0),
-    strokeColor: str(e, 'strokeColor', path, 100),
-    backgroundColor: optStr(e, 'backgroundColor', path, 100),
+    strokeColor: color(e, 'strokeColor', path),
+    backgroundColor: optColor(e, 'backgroundColor', path),
     fillStyle: oneOf(e, 'fillStyle', path, FILL_STYLES, 'none'),
     strokeWidth: num(e, 'strokeWidth', path, 2),
     strokeStyle: oneOf(e, 'strokeStyle', path, STROKE_STYLES, 'solid'),
@@ -464,8 +493,8 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     zIndex: num(d, 'zIndex', path, -1),
     groupId: optStr(d, 'groupId', path, 100),
     slideId: optStr(d, 'slideId', path, 100),
-    backgroundColor: optStr(d, 'backgroundColor', path, 100),
-    borderColor: optStr(d, 'borderColor', path, 100),
+    backgroundColor: optColor(d, 'backgroundColor', path),
+    borderColor: optColor(d, 'borderColor', path),
     title: optStr(d, 'title', path, 200),
     morphId: optStr(d, 'morphId', path, 100),
   };
@@ -477,10 +506,10 @@ function parseLifeline(raw: unknown, path: string): LifelineModel {
     id: str(l, 'id', path, 100),
     diagramId: str(l, 'diagramId', path, 100),
     label: str(l, 'label', path, 255),
-    color: optStr(l, 'color', path, 100),
-    lineColor: optStr(l, 'lineColor', path, 100),
-    strokeColor: optStr(l, 'strokeColor', path, 100),
-    textColor: optStr(l, 'textColor', path, 100),
+    color: optColor(l, 'color', path),
+    lineColor: optColor(l, 'lineColor', path),
+    strokeColor: optColor(l, 'strokeColor', path),
+    textColor: optColor(l, 'textColor', path),
     morphId: optStr(l, 'morphId', path, 100),
     x: num(l, 'x', path, 0),
     width: num(l, 'width', path, 120),
@@ -500,7 +529,7 @@ function parseMessage(raw: unknown, path: string): SequenceMessageModel {
     style: oneOf(m, 'style', path, ['solid', 'dashed', 'break'] as const, 'solid'),
     direction: oneOf(m, 'direction', path, ['forward', 'reverse'] as const, 'forward'),
     arrowhead: oneOf(m, 'arrowhead', path, ['arrow', 'open', 'none'] as const, 'arrow'),
-    color: optStr(m, 'color', path, 100),
+    color: optColor(m, 'color', path),
     wrap: m['wrap'] === undefined || m['wrap'] === null ? undefined : bool(m, 'wrap', path, false),
     morphId: optStr(m, 'morphId', path, 100),
   };

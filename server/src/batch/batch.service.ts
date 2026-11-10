@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { plainToInstance, type ClassConstructor } from 'class-transformer';
-import { validateSync } from 'class-validator';
+import type { ClassConstructor } from 'class-transformer';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
 import type { BatchUpdateResponse, SchemaMutation } from '@devdesigner/shared';
+import { AccessService, mergeRefs } from '../access/access.service';
+import { validated } from '../common/validators';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from '../tables/table.entity';
 import { toTableModel } from '../tables/table.mapper';
@@ -11,7 +12,7 @@ import { applyTablePatch } from '../tables/tables.service';
 import { ElementEntity } from '../elements/element.entity';
 import { toElementModel } from '../elements/element.mapper';
 import { UpdateElementDto } from '../elements/dto/update-element.dto';
-import { applyElementPatch } from '../elements/elements.service';
+import { applyElementPatch, elementRefs } from '../elements/elements.service';
 import { SequenceDiagramEntity } from '../sequence/sequence-diagram.entity';
 import { LifelineEntity } from '../sequence/lifeline.entity';
 import { SequenceMessageEntity } from '../sequence/sequence-message.entity';
@@ -38,21 +39,10 @@ const MAX_BATCH = 2000;
 type Entry = { id: string } & Record<string, unknown>;
 
 /** Validate one entry's patch against the granular DTO class (same rules as the single routes). */
-function validated<T extends object>(
-  cls: ClassConstructor<T>,
-  section: string,
-  entry: Entry,
-  extra: string[] = [],
-): T {
+function patchOf<T extends object>(cls: ClassConstructor<T>, section: string, entry: Entry, extra: string[] = []): T {
   const { id: _id, ...rest } = entry;
   for (const key of extra) delete rest[key];
-  const dto = plainToInstance(cls, rest);
-  const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
-  if (errors.length) {
-    const detail = errors.flatMap((e) => Object.values(e.constraints ?? { [e.property]: 'invalid' }));
-    throw new BadRequestException(`${section}[${entry.id}]: ${detail.join('; ')}`);
-  }
-  return dto;
+  return validated(cls, `${section}[${entry.id}]`, rest);
 }
 
 function entriesOf(body: Record<string, unknown>, section: string): Entry[] {
@@ -94,6 +84,7 @@ function idList(raw: unknown, name: string): string[] {
 export class BatchService {
   constructor(
     private readonly dataSource: DataSource,
+    private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
 
@@ -132,26 +123,36 @@ export class BatchService {
       id: e.id,
       x: numberField(e, 'x', 'tables'),
       y: numberField(e, 'y', 'tables'),
-      dto: validated(UpdateTableDto, 'tables', e, ['x', 'y']),
+      dto: patchOf(UpdateTableDto, 'tables', e, ['x', 'y']),
     }));
-    const elementPatches = elements.map((e) => ({ id: e.id, dto: validated(UpdateElementDto, 'elements', e) }));
-    const diagramPatches = diagrams.map((e) => ({ id: e.id, dto: validated(UpdateSequenceDiagramDto, 'diagrams', e) }));
+    const elementPatches = elements.map((e) => ({ id: e.id, dto: patchOf(UpdateElementDto, 'elements', e) }));
+    const diagramPatches = diagrams.map((e) => ({ id: e.id, dto: patchOf(UpdateSequenceDiagramDto, 'diagrams', e) }));
     const lifelinePatches = lifelines.map((e) => ({
       id: e.id,
       x: numberField(e, 'x', 'lifelines'),
-      dto: validated(UpdateLifelineDto, 'lifelines', e, ['x']),
+      dto: patchOf(UpdateLifelineDto, 'lifelines', e, ['x']),
     }));
     const messagePatches = messages.map((e) => ({
       id: e.id,
       y: numberField(e, 'y', 'messages'),
-      dto: validated(UpdateSequenceMessageDto, 'messages', e, ['y']),
+      dto: patchOf(UpdateSequenceMessageDto, 'messages', e, ['y']),
     }));
     const relationshipPatches = relationships.map((e) => {
       if ('sourceColumnId' in e || 'targetColumnId' in e) {
         throw new BadRequestException(`relationships[${e.id}]: re-pointing endpoints is not supported in a batch.`);
       }
-      return { id: e.id, dto: validated(UpdateRelationshipDto, 'relationships', e) };
+      return { id: e.id, dto: patchOf(UpdateRelationshipDto, 'relationships', e) };
     });
+
+    // Every reference a patch sets must point into this project (security L-7).
+    await this.access.assertRefsInProject(
+      mergeRefs(
+        { element: [...tablePatches, ...diagramPatches].map((p) => p.dto.slideId) },
+        ...elementPatches.map((p) => elementRefs(p.dto)),
+        { lifeline: messagePatches.flatMap((p) => [p.dto.fromLifelineId, p.dto.toLifelineId]) },
+      ),
+      projectId,
+    );
 
     const mutations = await this.dataSource.transaction(async (m) => {
       const out: SchemaMutation[] = [];

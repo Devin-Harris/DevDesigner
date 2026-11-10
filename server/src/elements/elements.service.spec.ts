@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { ElementsService } from './elements.service';
 import type { ElementEntity } from './element.entity';
@@ -26,10 +26,7 @@ describe('ElementsService', () => {
   };
   let tx: { find: jest.Mock; update: jest.Mock };
   let projects: { findOne: jest.Mock };
-  let access: {
-    assertCanWrite: jest.Mock;
-    assertCanWriteElement: jest.Mock;
-  };
+  let access: { assertRefsInProject: jest.Mock };
   let realtime: { emit: jest.Mock };
   let images: { existsInProject: jest.Mock };
   let service: ElementsService;
@@ -59,10 +56,7 @@ describe('ElementsService', () => {
     };
     tx = { find: jest.fn().mockResolvedValue([]), update: jest.fn(async () => ({ affected: 1 })) };
     projects = { findOne: jest.fn().mockResolvedValue({ id: 'p1' }) };
-    access = {
-      assertCanWrite: jest.fn().mockResolvedValue('OWNER'),
-      assertCanWriteElement: jest.fn().mockResolvedValue('p1'),
-    };
+    access = { assertRefsInProject: jest.fn().mockResolvedValue(undefined) };
     realtime = { emit: jest.fn() };
     images = { existsInProject: jest.fn().mockResolvedValue(true) };
     service = new ElementsService(
@@ -139,5 +133,15 @@ describe('ElementsService', () => {
       kind: 'element.reordered',
       orderedElementIds: ['a', 'c', 'b', 'foreign'],
     });
+  });
+
+  it('checks the slide owner and arrow bindings belong to the project before writing', async () => {
+    access.assertRefsInProject.mockRejectedValue(new BadRequestException('Element x is not part of this project.'));
+    await expect(
+      service.create('p1', { ...baseDto, slideId: 'x', startBinding: { targetKind: 'table', targetId: 't' } }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(access.assertRefsInProject).toHaveBeenCalledWith({ element: ['x'], table: ['t'] }, 'p1');
+    expect(elements.save).not.toHaveBeenCalled();
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 });

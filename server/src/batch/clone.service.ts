@@ -1,7 +1,13 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
 import type { BatchUpdateResponse, CloneItemsDto, SchemaMutation } from '@devdesigner/shared';
+import { AccessService, mergeRefs } from '../access/access.service';
+import { validated } from '../common/validators';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
+import { UpdateTableDto } from '../tables/dto/update-table.dto';
+import { UpdateElementDto } from '../elements/dto/update-element.dto';
+import { elementRefs } from '../elements/elements.service';
+import { UpdateSequenceDiagramDto } from '../sequence/dto/update-sequence-diagram.dto';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
 import { IndexEntity } from '../indexes/index.entity';
@@ -37,6 +43,21 @@ function num(raw: unknown, name: string): number {
   return raw;
 }
 
+/** Refuse keys an entry may not carry, and a missing / non-string sourceId. */
+function entryShape(entry: unknown, name: string, allowed: readonly string[]): Record<string, unknown> {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new BadRequestException(`${name} must be an object.`);
+  const e = entry as Record<string, unknown>;
+  const extra = Object.keys(e).find((k) => !allowed.includes(k));
+  if (extra) throw new BadRequestException(`${name}.${extra} is not allowed.`);
+  if (typeof e.sourceId !== 'string') throw new BadRequestException(`${name}.sourceId must be a string.`);
+  return e;
+}
+
+const TABLE_KEYS = ['sourceId', 'id', 'slideId', 'columns', 'indexes'] as const;
+const DIAGRAM_KEYS = ['sourceId', 'id', 'slideId', 'lifelines', 'messages'] as const;
+const RELATIONSHIP_KEYS = ['sourceId', 'id'] as const;
+const ELEMENT_KEYS = ['sourceId', 'id', 'slideId', 'slide', 'morphId', 'zIndex', 'text', 'startBinding', 'endBinding'] as const;
+
 function idMap(raw: unknown, name: string): Map<string, string> {
   if (!raw || typeof raw !== 'object') throw new BadRequestException(`${name} must be an object.`);
   return new Map(Object.entries(raw as Record<string, unknown>).map(([k, v]) => [k, String(v)]));
@@ -52,6 +73,7 @@ function idMap(raw: unknown, name: string): Map<string, string> {
 export class CloneService {
   constructor(
     private readonly dataSource: DataSource,
+    private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
 
@@ -68,6 +90,22 @@ export class CloneService {
     );
     const diagrams = arr<NonNullable<CloneItemsDto['diagrams']>[number]>(b.diagrams, 'diagrams');
     const elements = arr<NonNullable<CloneItemsDto['elements']>[number]>(b.elements, 'elements');
+
+    // Entries carry fields that are copied onto the new rows: validate them with the
+    // same DTO rules as the granular routes and the batch endpoint (security M-4).
+    tables.forEach((t, i) => {
+      const e = entryShape(t, `tables[${i}]`, TABLE_KEYS);
+      validated(UpdateTableDto, `tables[${i}]`, { slideId: e.slideId });
+    });
+    diagrams.forEach((d, i) => {
+      const e = entryShape(d, `diagrams[${i}]`, DIAGRAM_KEYS);
+      validated(UpdateSequenceDiagramDto, `diagrams[${i}]`, { slideId: e.slideId });
+    });
+    relationships.forEach((r, i) => entryShape(r, `relationships[${i}]`, RELATIONSHIP_KEYS));
+    elements.forEach((el, i) => {
+      const { sourceId: _s, id: _id, ...rest } = entryShape(el, `elements[${i}]`, ELEMENT_KEYS);
+      validated(UpdateElementDto, `elements[${i}]`, rest);
+    });
 
     // Every new id (rows and children) must be a well-formed, distinct uuid.
     const newIds: string[] = [];
@@ -89,6 +127,20 @@ export class CloneService {
       throw new BadRequestException('Every new id must be a uuid.');
     }
     if (new Set(newIds).size !== newIds.length) throw new BadRequestException('New ids must be distinct.');
+
+    // References may point at rows of this project or at copies made by this request
+    // (a copied slide's content points at the copied frame), never anywhere else (L-7).
+    const fresh = new Set(newIds);
+    const keep = (id: string | null | undefined): string | null | undefined => (id && fresh.has(id) ? null : id);
+    const refs = mergeRefs(
+      { element: [...tables, ...diagrams].map((x) => keep(x.slideId)) },
+      ...elements.map((e) => {
+        const r = elementRefs({ slideId: keep(e.slideId), startBinding: e.startBinding, endBinding: e.endBinding });
+        for (const kind of Object.keys(r) as Array<keyof typeof r>) r[kind] = (r[kind] ?? []).map(keep);
+        return r;
+      }),
+    );
+    await this.access.assertRefsInProject(refs, projectId);
 
     const mutations = await this.dataSource.transaction(async (m) => {
       const out: SchemaMutation[] = [];

@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateTableDto as ICreateTableDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for POST /projects/:projectId/tables. */
 export class CreateTableDto implements ICreateTableDto {
@@ -15,7 +16,7 @@ export class CreateTableDto implements ICreateTableDto {
   y!: number;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   color?: string;
 

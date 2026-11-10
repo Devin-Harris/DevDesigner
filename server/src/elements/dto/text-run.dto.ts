@@ -1,5 +1,6 @@
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { TextRun } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** A styled run of rich text; the runs of an element concatenate to its `text`. */
 export class TextRunDto implements TextRun {
@@ -20,7 +21,7 @@ export class TextRunDto implements TextRun {
   underline?: boolean;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(64)
   color?: string;
 

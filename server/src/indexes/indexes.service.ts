@@ -33,6 +33,7 @@ export class IndexesService {
     tableId: string,
     dto: CreateIndexDto,
   ): Promise<IndexModel> {
+    await this.access.assertIdsInProject('column', dto.columnIds, projectId);
     const table = await this.tables.findOne({ where: { id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);
@@ -56,6 +57,7 @@ export class IndexesService {
     indexId: string,
     dto: UpdateIndexDto,
   ): Promise<IndexModel> {
+    await this.access.assertIdsInProject('column', dto.columnIds ?? [], projectId);
     const index = await this.findOrThrow(indexId);
     if (dto.name !== undefined) {
       index.name = dto.name;

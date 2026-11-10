@@ -1,5 +1,6 @@
 import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import type { UpdateTableDto as IUpdateTableDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for PATCH /tables/:tableId (name / color / note). */
 export class UpdateTableDto implements IUpdateTableDto {
@@ -9,7 +10,7 @@ export class UpdateTableDto implements IUpdateTableDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   color?: string;
 

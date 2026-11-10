@@ -44,6 +44,7 @@ import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
 import { MediaDto, PlaceholderDto, SlideDto } from './slide.dto';
 import { TextRunDto } from './text-run.dto';
+import { IsColor } from '../../common/validators';
 
 /** Body for POST /projects/:projectId/elements. */
 export class CreateElementDto implements ICreateElementDto {
@@ -70,12 +71,12 @@ export class CreateElementDto implements ICreateElementDto {
   @IsNumber()
   angle?: number;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   strokeColor!: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   backgroundColor?: string;
 

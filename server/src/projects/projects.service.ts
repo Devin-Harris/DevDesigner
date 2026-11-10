@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -96,6 +96,7 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto, ownerId: string | null): Promise<ProjectSummary> {
+    requireOwner(ownerId);
     const project = this.projects.create({
       name: dto.name,
       description: dto.description ?? null,
@@ -249,11 +250,12 @@ export class ProjectsService {
   }
 
   /**
-   * Create a new project from an exported file. The importer owns the result
-   * (or it is ownerless when anonymous), so a file moves freely between accounts
+   * Create a new project from an exported file. The importer (account or guest id)
+   * owns the result, so a file moves freely between accounts
    * and devices. All-or-nothing: a failure rolls back and leaves no partial project.
    */
   async importProject(raw: unknown, ownerId: string | null): Promise<ProjectSummary> {
+    requireOwner(ownerId);
     const parsed = parseProjectExport(raw);
     const images = this.decodeImages(parsed.images);
     const saved = await this.dataSource.transaction((manager) =>
@@ -360,6 +362,16 @@ export class ProjectsService {
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     };
+  }
+}
+
+/**
+ * Every new project needs an owner: an account, or this browser's guest id. An
+ * ownerless project would be quarantined at once (security M-1), so refuse it.
+ */
+function requireOwner(ownerId: string | null): asserts ownerId is string {
+  if (!ownerId) {
+    throw new UnauthorizedException('Sign in (or send an X-Guest-Id) to create a project.');
   }
 }
 

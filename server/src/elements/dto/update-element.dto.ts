@@ -41,6 +41,7 @@ import { PointDto } from './point.dto';
 import { BindingDto } from './binding.dto';
 import { MediaDto, PlaceholderDto, SlideDto } from './slide.dto';
 import { TextRunDto } from './text-run.dto';
+import { IsColor } from '../../common/validators';
 
 /** Body for PATCH /elements/:elementId (style / content / geometry). */
 export class UpdateElementDto implements IUpdateElementDto {
@@ -65,12 +66,12 @@ export class UpdateElementDto implements IUpdateElementDto {
   angle?: number;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   strokeColor?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   backgroundColor?: string;
 

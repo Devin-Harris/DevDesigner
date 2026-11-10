@@ -1,5 +1,6 @@
 import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CreateSequenceDiagramDto as ICreateSequenceDiagramDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for POST /projects/:projectId/sequence-diagrams. */
 export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
@@ -23,12 +24,12 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   zIndex?: number;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   backgroundColor?: string;
   
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   borderColor?: string;
 

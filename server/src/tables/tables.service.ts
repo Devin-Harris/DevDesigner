@@ -44,6 +44,7 @@ export class TablesService {
     projectId: string,
     dto: CreateTableDto,
   ): Promise<TableModel> {
+    await this.access.assertIdsInProject('element', [dto.slideId], projectId);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -68,6 +69,7 @@ export class TablesService {
     tableId: string,
     dto: UpdateTableDto,
   ): Promise<TableModel> {
+    await this.access.assertIdsInProject('element', [dto.slideId], projectId);
     const table = await this.findOrThrow(tableId);
     applyTablePatch(table, dto);
     await this.tables.save(table);

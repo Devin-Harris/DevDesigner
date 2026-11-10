@@ -1,5 +1,6 @@
 import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { UpdateLifelineDto as IUpdateLifelineDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for PATCH /projects/:projectId/lifelines/:lifelineId. */
 export class UpdateLifelineDto implements IUpdateLifelineDto {
@@ -9,22 +10,22 @@ export class UpdateLifelineDto implements IUpdateLifelineDto {
   label?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   color?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   lineColor?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   strokeColor?: string;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   textColor?: string;
 

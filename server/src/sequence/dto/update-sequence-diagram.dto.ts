@@ -1,5 +1,6 @@
 import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { UpdateSequenceDiagramDto as IUpdateSequenceDiagramDto } from '@devdesigner/shared';
+import { IsColor } from '../../common/validators';
 
 /** Body for PATCH /projects/:projectId/sequence-diagrams/:diagramId. */
 export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
@@ -34,12 +35,12 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
   slideId?: string | null;
 
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   backgroundColor?: string;
   
   @IsOptional()
-  @IsString()
+  @IsColor()
   @MaxLength(20)
   borderColor?: string;
 

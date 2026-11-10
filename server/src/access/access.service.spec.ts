@@ -1,6 +1,7 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
-import { AccessService } from './access.service';
+import { AccessService, bindingRefs } from './access.service';
+import type { EntityProjectResolver } from './entity-project-resolver';
 import type { Project } from '../projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
 
@@ -12,6 +13,10 @@ describe('AccessService', () => {
   let projects: { findOne: jest.Mock };
   let shareLinks: { findOne: jest.Mock };
   let service: AccessService;
+  const resolver = {
+    idsOutsideProject: jest.fn(async (_kind: string, ids: string[]) => ids.filter((id) => id.startsWith('other-'))),
+    labelOf: (kind: string) => kind,
+  };
 
   beforeEach(() => {
     projects = { findOne: jest.fn() };
@@ -19,6 +24,7 @@ describe('AccessService', () => {
     service = new AccessService(
       projects as unknown as Repository<Project>,
       shareLinks as unknown as Repository<ShareLink>,
+      resolver as unknown as EntityProjectResolver,
     );
   });
 
@@ -43,9 +49,17 @@ describe('AccessService', () => {
     await expect(service.readProject('p1', 'u2')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('grants OWNER on an ownerless (anonymous-open) project', async () => {
+  it('grants nothing on an ownerless (quarantined) project, links included (security M-1)', async () => {
     projects.findOne.mockResolvedValue({ id: 'p1', ownerId: null });
-    await expect(service.resolveProjectAccess('p1', null)).resolves.toBe('OWNER');
+    shareLinks.findOne.mockResolvedValue({
+      token: 't',
+      projectId: 'p1',
+      accessLevel: 'EDIT',
+      revokedAt: null,
+      expiresAt: null,
+    });
+    await expect(service.resolveProjectAccess('p1', null)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.resolveProjectAccess('p1', 'u1', 't')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('grants OWNER to the project owner', async () => {
@@ -153,6 +167,27 @@ describe('AccessService', () => {
         expiresAt: null,
       });
       await expect(service.assertOwner('p1', null, 't')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe('assertIdsInProject (security L-7)', () => {
+    it('passes when every id is in the project and ignores empty refs', async () => {
+      await expect(service.assertIdsInProject('lifeline', ['a', null, undefined, ''], 'p1')).resolves.toBeUndefined();
+      await expect(service.assertIdsInProject('lifeline', [null], 'p1')).resolves.toBeUndefined();
+      expect(resolver.idsOutsideProject).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses ids of another project with 400', async () => {
+      await expect(service.assertIdsInProject('column', ['a', 'other-1'], 'p1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('checks arrow bindings by their target kind', async () => {
+      await expect(
+        service.assertRefsInProject(bindingRefs({ targetKind: 'table', targetId: 'other-t' }), 'p1'),
+      ).rejects.toThrow('table other-t is not part of this project.');
+      expect(resolver.idsOutsideProject).toHaveBeenLastCalledWith('table', ['other-t'], 'p1');
     });
   });
 });

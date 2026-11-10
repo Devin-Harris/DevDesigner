@@ -1,4 +1,6 @@
 import { Type } from 'class-transformer';
+import { IsColor, IsExtraLayouts, IsLayoutItems, IsThemeLayouts, MaxJsonSize } from '../../common/validators';
+import { MAX_EXTRA_LAYOUTS, MAX_LAYOUT_ITEMS, MAX_THEME_DESIGN_BYTES } from '../../common/theme-validation';
 import {
   ArrayMaxSize,
   IsArray,
@@ -190,39 +192,39 @@ export class PlaceholderDto implements PlaceholderConfig {
 }
 
 class SlideThemeColorsDto {
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   background!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   surface!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   heading!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   text!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   muted!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   accent1!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   accent2!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   accent3!: string;
 
-  @IsString()
+  @IsColor()
   @MaxLength(32)
   accent4!: string;
 }
@@ -274,21 +276,27 @@ export class SlideThemeDto implements SlideTheme {
   @Type(() => SlideThemeFontsDto)
   fonts!: SlideTheme['fonts'];
 
-  /** The theme's own layout designs per kind (kept as given). */
+  /** The theme's own layout designs per kind (each item checked like an element; security M-4). */
   @IsOptional()
   @IsObject()
+  @IsThemeLayouts()
+  @MaxJsonSize(MAX_THEME_DESIGN_BYTES)
   layouts?: SlideTheme['layouts'];
 
-  /** The theme's master items (kept as given). */
+  /** The theme's master items. */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(500)
+  @ArrayMaxSize(MAX_LAYOUT_ITEMS)
+  @IsLayoutItems()
+  @MaxJsonSize(MAX_THEME_DESIGN_BYTES)
   master?: SlideTheme['master'];
 
-  /** The theme's non-standard layouts (kept as given). */
+  /** The theme's non-standard layouts. */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(100)
+  @ArrayMaxSize(MAX_EXTRA_LAYOUTS)
+  @IsExtraLayouts()
+  @MaxJsonSize(MAX_THEME_DESIGN_BYTES)
   extraLayouts?: SlideTheme['extraLayouts'];
 }
 

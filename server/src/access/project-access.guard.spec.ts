@@ -22,6 +22,7 @@ describe('ProjectAccessGuard', () => {
   const access = new AccessService(
     { findOne: jest.fn(async ({ where }: { where: { id: string } }) => projects.get(where.id) ?? null) } as unknown as Repository<Project>,
     { findOne: jest.fn(async ({ where }: { where: { token: string } }) => links.get(where.token) ?? null) } as unknown as Repository<ShareLink>,
+    {} as EntityProjectResolver,
   );
   const resolver = {
     projectIdOf: jest.fn(async (kind: ProjectEntityKind, id: string) => {
