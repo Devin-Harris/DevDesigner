@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { ColumnModel, CreateColumnDto, ReorderColumnsDto, UpdateColumnDto } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /** Granular column endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })
-export class ColumnsService {
-   private readonly api = inject(ApiService);
+export class ColumnsApiService {
+   private readonly api = inject(ApiClientService);
 
    create(tableId: string, dto: CreateColumnDto): Observable<ColumnModel> {
       return this.api.post<ColumnModel>(`/tables/${tableId}/columns`, dto);

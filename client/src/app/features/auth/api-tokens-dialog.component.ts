@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
-import { ApiService } from '../../core/services/api.service';
+import { ApiClientService } from '../../core/services/api-client.service';
 import { environment } from '../../../environments/environment';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { InputComponent } from '../../shared/ui/input/input.component';
@@ -23,7 +23,7 @@ import { SegmentedComponent } from '../../shared/ui/segmented/segmented.componen
    styleUrl: './api-tokens-dialog.component.scss',
 })
 export class ApiTokensDialogComponent {
-   private readonly api = inject(ApiService);
+   private readonly api = inject(ApiClientService);
 
    protected readonly tokens = signal<ApiTokenResponse[]>([]);
    protected readonly loading = signal(true);

@@ -16,7 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { EditorActionsService } from './core/services/editor-actions.service';
-import { ProjectsService } from './core/services/projects.service';
+import { ProjectsApiService } from './core/services/projects-api.service';
 import { ProjectFileService } from './core/services/project-file.service';
 import { RealtimeService } from './core/services/realtime.service';
 import { ProjectsStore } from './stores/projects.store';
@@ -85,7 +85,7 @@ export class AppComponent {
    private readonly overlay = inject(ProjectsOverlayService);
    private readonly projectFile = inject(ProjectFileService);
    private readonly snackBar = inject(MatSnackBar);
-   private readonly projectsApi = inject(ProjectsService);
+   private readonly projectsApi = inject(ProjectsApiService);
 
    protected readonly toolbarPrefs = inject(ToolbarPrefsService);
 

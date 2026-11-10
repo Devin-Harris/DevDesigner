@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
  * access is attached by a dedicated interceptor (core/interceptors), not here.
  */
 @Injectable({ providedIn: 'root' })
-export class ApiService {
+export class ApiClientService {
    private readonly http = inject(HttpClient);
    private readonly baseUrl = environment.apiBaseUrl;
 

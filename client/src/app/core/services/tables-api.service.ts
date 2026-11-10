@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateTableDto, TableModel, UpdatePositionDto, UpdateTableDto } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /** Granular table endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })
-export class TablesService {
-   private readonly api = inject(ApiService);
+export class TablesApiService {
+   private readonly api = inject(ApiClientService);
 
    create(projectId: string, dto: CreateTableDto): Observable<TableModel> {
       return this.api.post<TableModel>(`/projects/${projectId}/tables`, dto);

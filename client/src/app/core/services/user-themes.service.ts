@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { SlideTheme, UserThemeResponse } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /**
  * The caller's personal theme library ("My themes"): themes kept across projects.
@@ -9,7 +9,7 @@ import { ApiService } from './api.service';
  */
 @Injectable({ providedIn: 'root' })
 export class UserThemesService {
-   private readonly api = inject(ApiService);
+   private readonly api = inject(ApiClientService);
    readonly themes = signal<readonly UserThemeResponse[]>([]);
    readonly error = signal<string | null>(null);
    private loaded = false;

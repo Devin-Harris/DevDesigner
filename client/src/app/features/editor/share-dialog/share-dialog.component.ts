@@ -6,7 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import type { ShareAccessLevel, ShareLinkResponse } from '@devdesigner/shared';
-import { ShareLinksService } from '../../../core/services/share-links.service';
+import { ShareLinksApiService } from '../../../core/services/share-links-api.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/segmented/segmented.component';
 
@@ -17,7 +17,7 @@ export interface ShareDialogData {
 /**
  * Owner sharing dialog (BUILD_INSTRUCTIONS.md section 8.2): create VIEW/EDIT share
  * links, list the active ones with copy-to-clipboard of the full /shared/:token
- * URL, and revoke them. All calls go through ShareLinksService; access is enforced
+ * URL, and revoke them. All calls go through ShareLinksApiService; access is enforced
  * server-side (owner only).
  */
 @Component({
@@ -35,7 +35,7 @@ export interface ShareDialogData {
    styleUrl: './share-dialog.component.scss',
 })
 export class ShareDialogComponent {
-   private readonly links = inject(ShareLinksService);
+   private readonly links = inject(ShareLinksApiService);
    private readonly snackBar = inject(MatSnackBar);
    protected readonly data = inject<ShareDialogData>(MAT_DIALOG_DATA);
 

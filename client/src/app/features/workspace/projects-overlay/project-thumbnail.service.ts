@@ -12,7 +12,7 @@ import {
 } from '@devdesigner/shared';
 import { contentForFrame } from '../../editor/canvas/helpers/frame-contents.helper';
 import { ElementImagesService } from '../../../core/services/element-images.service';
-import { ProjectsService } from '../../../core/services/projects.service';
+import { ProjectsApiService } from '../../../core/services/projects-api.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { buildDiagramSvg } from '../../editor/export/diagram-svg.helper';
 
@@ -44,7 +44,7 @@ const LOADING: ThumbState = { status: 'loading' };
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectThumbnailService {
-   private readonly projects = inject(ProjectsService);
+   private readonly projects = inject(ProjectsApiService);
    private readonly images = inject(ElementImagesService);
    private readonly theme = inject(ThemeService);
 

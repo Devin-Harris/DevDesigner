@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateIndexDto, IndexModel, ReorderIndexesDto, UpdateIndexDto } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
-/** Granular table-index endpoints (mirrors ColumnsService). */
+/** Granular table-index endpoints (mirrors ColumnsApiService). */
 @Injectable({ providedIn: 'root' })
-export class IndexesService {
-   private readonly api = inject(ApiService);
+export class IndexesApiService {
+   private readonly api = inject(ApiClientService);
 
    create(tableId: string, dto: CreateIndexDto): Observable<IndexModel> {
       return this.api.post<IndexModel>(`/tables/${tableId}/indexes`, dto);

@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ColumnsService } from '../../../core/services/columns.service';
-import { RelationshipsService } from '../../../core/services/relationships.service';
-import { TablesService } from '../../../core/services/tables.service';
+import { ColumnsApiService } from '../../../core/services/columns-api.service';
+import { RelationshipsApiService } from '../../../core/services/relationships-api.service';
+import { TablesApiService } from '../../../core/services/tables-api.service';
 import { ProjectsStore } from '../../../stores/projects.store';
 import type { ProjectTemplate } from './project-templates';
 
@@ -15,9 +15,9 @@ import type { ProjectTemplate } from './project-templates';
 @Injectable({ providedIn: 'root' })
 export class TemplatesService {
    private readonly store = inject(ProjectsStore);
-   private readonly tablesApi = inject(TablesService);
-   private readonly columnsApi = inject(ColumnsService);
-   private readonly relationshipsApi = inject(RelationshipsService);
+   private readonly tablesApi = inject(TablesApiService);
+   private readonly columnsApi = inject(ColumnsApiService);
+   private readonly relationshipsApi = inject(RelationshipsApiService);
 
    async createFromTemplate(template: ProjectTemplate): Promise<string> {
       const project = await this.store.create({ name: template.name, type: template.type });

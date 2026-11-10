@@ -20,15 +20,15 @@ import type {
    TableModel,
 } from '@devdesigner/shared';
 import { type Observable, Subject, of, throwError } from 'rxjs';
-import { ColumnsService } from '../core/services/columns.service';
-import { ElementsService } from '../core/services/elements.service';
-import { IndexesService } from '../core/services/indexes.service';
-import { ProjectsService } from '../core/services/projects.service';
-import { RelationshipsService } from '../core/services/relationships.service';
-import { SequenceService } from '../core/services/sequence.service';
-import { ShareLinksService } from '../core/services/share-links.service';
+import { ColumnsApiService } from '../core/services/columns-api.service';
+import { ElementsApiService } from '../core/services/elements-api.service';
+import { IndexesApiService } from '../core/services/indexes-api.service';
+import { ProjectsApiService } from '../core/services/projects-api.service';
+import { RelationshipsApiService } from '../core/services/relationships-api.service';
+import { SequenceApiService } from '../core/services/sequence-api.service';
+import { ShareLinksApiService } from '../core/services/share-links-api.service';
 import { ShareSessionService } from '../core/services/share-session.service';
-import { TablesService } from '../core/services/tables.service';
+import { TablesApiService } from '../core/services/tables-api.service';
 import { ProjectStore } from './project.store';
 
 // ---- factories ---------------------------------------------------------------------------------
@@ -144,14 +144,14 @@ function createStore(start: Partial<SchemaModel> = {}) {
    };
    TestBed.configureTestingModule({
       providers: [
-         { provide: ProjectsService, useValue: api.projects },
-         { provide: TablesService, useValue: api.tables },
-         { provide: ColumnsService, useValue: api.columns },
-         { provide: IndexesService, useValue: {} },
-         { provide: RelationshipsService, useValue: {} },
-         { provide: ElementsService, useValue: api.elements },
-         { provide: SequenceService, useValue: {} },
-         { provide: ShareLinksService, useValue: {} },
+         { provide: ProjectsApiService, useValue: api.projects },
+         { provide: TablesApiService, useValue: api.tables },
+         { provide: ColumnsApiService, useValue: api.columns },
+         { provide: IndexesApiService, useValue: {} },
+         { provide: RelationshipsApiService, useValue: {} },
+         { provide: ElementsApiService, useValue: api.elements },
+         { provide: SequenceApiService, useValue: {} },
+         { provide: ShareLinksApiService, useValue: {} },
          { provide: ShareSessionService, useValue: { setToken: jest.fn() } },
          { provide: MatSnackBar, useValue: api.snackBar },
       ],

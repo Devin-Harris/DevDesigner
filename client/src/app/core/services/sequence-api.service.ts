@@ -13,12 +13,12 @@ import type {
    UpdateSequenceMessageDto,
    UpdateSequenceMessagePositionDto,
 } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /** Granular sequence-diagram endpoints (diagrams, lifelines, messages). */
 @Injectable({ providedIn: 'root' })
-export class SequenceService {
-   private readonly api = inject(ApiService);
+export class SequenceApiService {
+   private readonly api = inject(ApiClientService);
 
    // Diagrams (groups)
    createDiagram(projectId: string, dto: CreateSequenceDiagramDto): Observable<SequenceDiagramModel> {

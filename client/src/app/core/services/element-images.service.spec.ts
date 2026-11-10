@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 import { ElementImagesService } from './element-images.service';
 
 describe('ElementImagesService.stillDataUrl', () => {
@@ -14,7 +14,7 @@ describe('ElementImagesService.stillDataUrl', () => {
       TestBed.configureTestingModule({
          providers: [
             { provide: HttpClient, useValue: http },
-            { provide: ApiService, useValue: {} },
+            { provide: ApiClientService, useValue: {} },
          ],
       });
       return { http, images: TestBed.inject(ElementImagesService) };

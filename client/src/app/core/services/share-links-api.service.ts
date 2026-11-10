@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateShareLinkDto, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /**
  * Data service for the Sharing REST surface (BUILD_INSTRUCTIONS.md section 5).
@@ -9,8 +9,8 @@ import { ApiService } from './api.service';
  * the shared package so client and server stay in lockstep.
  */
 @Injectable({ providedIn: 'root' })
-export class ShareLinksService {
-   private readonly api = inject(ApiService);
+export class ShareLinksApiService {
+   private readonly api = inject(ApiClientService);
 
    /** POST /projects/:id/share : owner creates a VIEW/EDIT link. */
    create(projectId: string, dto: CreateShareLinkDto): Observable<ShareLinkResponse> {

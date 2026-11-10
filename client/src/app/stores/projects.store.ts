@@ -3,14 +3,14 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { catchError, firstValueFrom, of, pipe, switchMap, tap } from 'rxjs';
 import type { CreateProjectDto, ProjectSummary, UpdateProjectDto } from '@devdesigner/shared';
-import { ProjectsService } from '../core/services/projects.service';
+import { ProjectsApiService } from '../core/services/projects-api.service';
 
 /** `description` the guide's sandbox projects carry (see features/guide). */
 export const GUIDE_SANDBOX_MARK = 'dd-guide-sandbox';
 
 /**
  * Workspace state: the project list plus the current selection, search term, and archived
- * filter. Mutations go through the granular ProjectsService and update local
+ * filter. Mutations go through the granular ProjectsApiService and update local
  * state optimistically so the grid stays responsive (BUILD_INSTRUCTIONS.md
  * sections 8.1 and 8.4).
  */
@@ -56,7 +56,7 @@ export const ProjectsStore = signalStore(
       /** The currently open/selected project, for the top-bar breadcrumb. */
       selected: computed(() => projects().find((p) => p.id === selectedId()) ?? null),
    })),
-   withMethods((store, service = inject(ProjectsService)) => ({
+   withMethods((store, service = inject(ProjectsApiService)) => ({
       /** Load projects for the current archived filter. Call with no argument. */
       loadProjects: rxMethod<void>(
          pipe(
@@ -79,7 +79,7 @@ export const ProjectsStore = signalStore(
          )
       ),
    })),
-   withMethods((store, service = inject(ProjectsService)) => ({
+   withMethods((store, service = inject(ProjectsApiService)) => ({
       setSearch(search: string): void {
          patchState(store, { search });
       },

@@ -54,14 +54,14 @@ import { setThemeFontResolver } from '../features/editor/canvas/helpers/text-met
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
-import { ColumnsService } from '../core/services/columns.service';
-import { IndexesService } from '../core/services/indexes.service';
-import { ElementsService } from '../core/services/elements.service';
-import { ProjectsService } from '../core/services/projects.service';
-import { RelationshipsService } from '../core/services/relationships.service';
-import { TablesService } from '../core/services/tables.service';
-import { SequenceService } from '../core/services/sequence.service';
-import { ShareLinksService } from '../core/services/share-links.service';
+import { ColumnsApiService } from '../core/services/columns-api.service';
+import { IndexesApiService } from '../core/services/indexes-api.service';
+import { ElementsApiService } from '../core/services/elements-api.service';
+import { ProjectsApiService } from '../core/services/projects-api.service';
+import { RelationshipsApiService } from '../core/services/relationships-api.service';
+import { TablesApiService } from '../core/services/tables-api.service';
+import { SequenceApiService } from '../core/services/sequence-api.service';
+import { ShareLinksApiService } from '../core/services/share-links-api.service';
 import { ShareSessionService } from '../core/services/share-session.service';
 import { isSandboxId } from '../core/sandbox/sandbox-backend.service';
 import { sameItems, sameMap, sameSet } from '../shared/helpers/equality';
@@ -719,14 +719,14 @@ export const ProjectStore = signalStore(
    withMethods(
       (
          store,
-         projectsApi = inject(ProjectsService),
-         tablesApi = inject(TablesService),
-         columnsApi = inject(ColumnsService),
-         indexesApi = inject(IndexesService),
-         relationshipsApi = inject(RelationshipsService),
-         elementsApi = inject(ElementsService),
-         sequenceApi = inject(SequenceService),
-         shareLinksApi = inject(ShareLinksService),
+         projectsApi = inject(ProjectsApiService),
+         tablesApi = inject(TablesApiService),
+         columnsApi = inject(ColumnsApiService),
+         indexesApi = inject(IndexesApiService),
+         relationshipsApi = inject(RelationshipsApiService),
+         elementsApi = inject(ElementsApiService),
+         sequenceApi = inject(SequenceApiService),
+         shareLinksApi = inject(ShareLinksApiService),
          shareSession = inject(ShareSessionService),
          snackBar = inject(MatSnackBar)
       ) => {
@@ -4024,7 +4024,7 @@ export const ProjectStore = signalStore(
          };
       }
    ),
-   withMethods((store, projectsApi = inject(ProjectsService)) => ({
+   withMethods((store, projectsApi = inject(ProjectsApiService)) => ({
       /**
        * Merge an exported project file into the open project. The server persists
        * and broadcasts the additions and returns them; they are applied here exactly

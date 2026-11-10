@@ -1,7 +1,7 @@
 import { computed, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { CurrentUserResponse, LoginDto, RegisterDto } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /**
  * Client-side auth state and actions. The session lives in an httpOnly cookie the
@@ -11,7 +11,7 @@ import { ApiService } from './api.service';
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-   private readonly api = inject(ApiService);
+   private readonly api = inject(ApiClientService);
 
    private readonly _currentUser = signal<CurrentUserResponse | null>(null);
    /** True once the initial /auth/me hydration has completed. */

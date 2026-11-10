@@ -9,7 +9,7 @@ import {
    type UploadImageResponse,
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /** What a file is: a still picture, an animated GIF, or a video. */
 export type MediaKind = 'image' | 'gif' | 'video';
@@ -30,7 +30,7 @@ export interface UploadedImage {
 @Injectable({ providedIn: 'root' })
 export class ElementImagesService {
    private readonly http = inject(HttpClient);
-   private readonly api = inject(ApiService);
+   private readonly api = inject(ApiClientService);
 
    /** fileId -> object URL, for files that have finished loading. */
    private readonly urls = signal<ReadonlyMap<string, string>>(new Map());

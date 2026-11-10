@@ -7,12 +7,12 @@ import type {
    UpdateElementDto,
    UpdateElementPositionDto,
 } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /** Granular canvas-element endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })
-export class ElementsService {
-   private readonly api = inject(ApiService);
+export class ElementsApiService {
+   private readonly api = inject(ApiClientService);
 
    create(projectId: string, dto: CreateElementDto): Observable<CanvasElementModel> {
       return this.api.post<CanvasElementModel>(`/projects/${projectId}/elements`, dto);

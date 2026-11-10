@@ -16,7 +16,7 @@ import {
    type UpdateProjectDto,
    type UpdateViewportDto,
 } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 
 /**
  * Data service for the Projects REST surface (BUILD_INSTRUCTIONS.md section 5).
@@ -25,8 +25,8 @@ import { ApiService } from './api.service';
  * and server stay in lockstep.
  */
 @Injectable({ providedIn: 'root' })
-export class ProjectsService {
-   private readonly api = inject(ApiService);
+export class ProjectsApiService {
+   private readonly api = inject(ApiClientService);
 
    /** GET /projects?archived= : owner-scoped list (anonymous for now). */
    list(archived = false): Observable<ProjectSummary[]> {

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import type { CurrentUserResponse } from '@devdesigner/shared';
-import { ApiService } from './api.service';
+import { ApiClientService } from './api-client.service';
 import { AuthService } from './auth.service';
 
 describe('AuthService session hydration', () => {
@@ -9,7 +9,7 @@ describe('AuthService session hydration', () => {
 
    function setup(user: CurrentUserResponse | null) {
       const get = jest.fn(() => of(user));
-      TestBed.configureTestingModule({ providers: [{ provide: ApiService, useValue: { get } }] });
+      TestBed.configureTestingModule({ providers: [{ provide: ApiClientService, useValue: { get } }] });
       return { auth: TestBed.inject(AuthService), get };
    }
 
