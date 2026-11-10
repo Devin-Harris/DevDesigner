@@ -56,7 +56,7 @@ const KIND_ICON: Record<CanvasItemRef['kind'], string> = {
  * presentations and canvas items, and app commands. Arrow keys move, Enter runs.
  */
 @Component({
-   selector: 'app-command-palette',
+   selector: 'dd-command-palette',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    templateUrl: './command-palette.component.html',

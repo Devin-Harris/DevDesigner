@@ -12,7 +12,7 @@
    >
       <div class="world" [style.transform]="worldTransform()">
          @if (croppingElement(); as ce) {
-            <app-image-crop-overlay [element]="ce"></app-image-crop-overlay>
+            <dd-image-crop-overlay [element]="ce"></dd-image-crop-overlay>
          }
          <svg class="grid" width="1" height="1">
             <defs>
@@ -24,7 +24,7 @@
          </svg>
 
          <!-- Frames sit at the very back so their fills never cover connectors. -->
-         <app-canvas-shapes
+         <dd-canvas-shapes
             layer="frames"
             [shapes]="outerShapeViews()"
             [svgOffset]="svgOffset"
@@ -36,7 +36,7 @@
             (rotateDown)="onElementRotateDown($event)"
             (endpointDown)="onElementEndpointDown($event)"
             (bendDown)="onElementBendDown($event)"
-         ></app-canvas-shapes>
+         ></dd-canvas-shapes>
 
          <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
            items, scaled about the frame's centre and clipped to the block (not while
@@ -51,7 +51,7 @@
                [style.height.px]="z.height"
             >
                <div class="slide-zoom-inner" [style.transform]="z.transform">
-                  <app-canvas-shapes
+                  <dd-canvas-shapes
                      layer="frames"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
@@ -63,8 +63,8 @@
                      (rotateDown)="onElementRotateDown($event)"
                      (endpointDown)="onElementEndpointDown($event)"
                      (bendDown)="onElementBendDown($event)"
-                  ></app-canvas-shapes>
-                  <app-canvas-connectors
+                  ></dd-canvas-shapes>
+                  <dd-canvas-connectors
                      [connectors]="z.connectors"
                      [tempLinkPath]="null"
                      [snapAnchor]="null"
@@ -74,9 +74,9 @@
                      (endpointDown)="onEndpointDown($event)"
                      (segmentDown)="onSegmentDown($event)"
                      (resetRoute)="onAutoRoute($event)"
-                  ></app-canvas-connectors>
+                  ></dd-canvas-connectors>
                   @for (seg of contentSegments(); track seg.index) {
-                     <app-canvas-shapes
+                     <dd-canvas-shapes
                         layer="content"
                         [hostZ]="seg.z"
                         [accept]="seg.accept"
@@ -90,10 +90,10 @@
                         (rotateDown)="onElementRotateDown($event)"
                         (endpointDown)="onElementEndpointDown($event)"
                         (bendDown)="onElementBendDown($event)"
-                     ></app-canvas-shapes>
+                     ></dd-canvas-shapes>
                   }
                   @for (table of z.tables; track table.id) {
-                     <app-table-node
+                     <dd-table-node
                         [table]="table"
                         [selected]="store.selectedTableIds().includes(table.id)"
                         [editable]="store.canEdit()"
@@ -102,9 +102,9 @@
                         (nodePointerDown)="onNodePointerDown($event, table)"
                         (handleDown)="onHandleDown($event)"
                         (handleUp)="onHandleUp($event)"
-                     ></app-table-node>
+                     ></dd-table-node>
                   }
-                  <app-canvas-sequence
+                  <dd-canvas-sequence
                      [toWorld]="z.toWorld"
                      [snap]="snapWorld"
                      [smartDrag]="smartDrag"
@@ -112,8 +112,8 @@
                      [groupResize]="startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
                      [layerZ]="diagramLayers().z"
-                  ></app-canvas-sequence>
-                  <app-canvas-shapes
+                  ></dd-canvas-sequence>
+                  <dd-canvas-shapes
                      layer="lines"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
@@ -126,14 +126,14 @@
                      (rotateDown)="onElementRotateDown($event)"
                      (endpointDown)="onElementEndpointDown($event)"
                      (bendDown)="onElementBendDown($event)"
-                  ></app-canvas-shapes>
+                  ></dd-canvas-shapes>
                </div>
             </div>
          }
 
          <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
-         <app-canvas-connectors
+         <dd-canvas-connectors
             [connectors]="outerConnectors()"
             [tempLinkPath]="tempLink()"
             [snapAnchor]="linkSnap()?.anchor ?? null"
@@ -143,12 +143,12 @@
             (endpointDown)="onEndpointDown($event)"
             (segmentDown)="onSegmentDown($event)"
             (resetRoute)="onAutoRoute($event)"
-         ></app-canvas-connectors>
+         ></dd-canvas-connectors>
 
          <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
          @for (seg of contentSegments(); track seg.index) {
-            <app-canvas-shapes
+            <dd-canvas-shapes
                layer="content"
                [hostZ]="seg.z"
                [accept]="seg.accept"
@@ -162,11 +162,11 @@
                (rotateDown)="onElementRotateDown($event)"
                (endpointDown)="onElementEndpointDown($event)"
                (bendDown)="onElementBendDown($event)"
-            ></app-canvas-shapes>
+            ></dd-canvas-shapes>
          }
 
          @for (table of outerTables(); track table.id) {
-            <app-table-node
+            <dd-table-node
                [table]="table"
                [selected]="store.selectedTableIds().includes(table.id)"
                [editable]="store.canEdit()"
@@ -175,11 +175,11 @@
                (nodePointerDown)="onNodePointerDown($event, table)"
                (handleDown)="onHandleDown($event)"
                (handleUp)="onHandleUp($event)"
-            ></app-table-node>
+            ></dd-table-node>
          }
 
          <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
-         <app-canvas-sequence
+         <dd-canvas-sequence
             [toWorld]="toWorldPoint"
             [snap]="snapWorld"
             [smartDrag]="smartDrag"
@@ -187,11 +187,11 @@
             [groupResize]="startGroupResize"
             [hiddenIds]="outerHiddenDiagramIds()"
             [layerZ]="diagramLayers().z"
-         ></app-canvas-sequence>
+         ></dd-canvas-sequence>
 
          <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
            to message labels. -->
-         <app-canvas-shapes
+         <dd-canvas-shapes
             layer="lines"
             [shapes]="outerShapeViews()"
             [svgOffset]="svgOffset"
@@ -204,7 +204,7 @@
             (rotateDown)="onElementRotateDown($event)"
             (endpointDown)="onElementEndpointDown($event)"
             (bendDown)="onElementBendDown($event)"
-         ></app-canvas-shapes>
+         ></dd-canvas-shapes>
 
          @for (g of groupOutlines(); track g.id) {
             <div
@@ -242,7 +242,7 @@
       <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
-      <app-laser-layer></app-laser-layer>
+      <dd-laser-layer></dd-laser-layer>
       @if (activeTool() === 'laser') {
          <div
             class="laser-capture"
@@ -254,16 +254,16 @@
       }
 
       @if (showMinimap() && !focusedDeck()) {
-         <app-minimap
+         <dd-minimap
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
             [items]="minimapItems()"
             [view]="minimapView()"
             (panTo)="panToWorld($event)"
-         ></app-minimap>
+         ></dd-minimap>
       }
 
-      <app-shape-toolbar
+      <dd-shape-toolbar
          (pointerdown)="$event.stopPropagation()"
          [tool]="activeTool()"
          [disabled]="!store.canEdit() || !store.projectId()"
@@ -298,7 +298,7 @@
          (align)="onAlign($event)"
          (exportSql)="openSqlExport()"
          (exportImage)="onExportImage($event)"
-      ></app-shape-toolbar>
+      ></dd-shape-toolbar>
 
       @if (followingName(); as who) {
          <div class="follow-ring" aria-hidden="true"></div>
@@ -316,7 +316,7 @@
       }
 
       @if (activeTool() === 'freedraw' && store.canEdit()) {
-         <app-pen-options-bar
+         <dd-pen-options-bar
             class="pen-bar"
             [class.low]="!!focusedDeck() || toolbarPosTop()"
             (pointerdown)="$event.stopPropagation()"
@@ -385,7 +385,7 @@
                <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
                <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
             </div>
-            <app-slides-panel
+            <dd-slides-panel
                class="slides-panel"
                [style.left.px]="set.list.left"
                [style.top.px]="set.list.top"
@@ -399,8 +399,8 @@
                (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
-            ></app-slides-panel>
-            <app-slides-panel
+            ></dd-slides-panel>
+            <dd-slides-panel
                class="slide-settings"
                part="settings"
                [requestTab]="deckTabRequest()?.name === set.name ? deckTabRequest() : null"
@@ -416,7 +416,7 @@
                (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
-            ></app-slides-panel>
+            ></dd-slides-panel>
          }
       }
 
@@ -458,7 +458,7 @@
                      Theme: {{ deckThemeName(fframe) }} ▾
                   </button>
                   <ng-template #themeMenu>
-                     <app-slides-panel
+                     <dd-slides-panel
                         class="menu-host"
                         part="theme-menu"
                         [presentation]="fd"
@@ -468,7 +468,7 @@
                   </ng-template>
                   <button class="fb-btn" [ddPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
                   <ng-template #designMenu>
-                     <app-slides-panel
+                     <dd-slides-panel
                         class="menu-host"
                         part="design-menu"
                         [presentation]="fd"
@@ -486,7 +486,7 @@
                      {{ deckRatioLabel(fframe) }} ▾
                   </button>
                   <ng-template #sizeMenu let-close>
-                     <app-slides-panel
+                     <dd-slides-panel
                         class="menu-host"
                         part="size-menu"
                         [presentation]="fd"
@@ -505,7 +505,7 @@
                      <button class="fb-btn outline" (click)="openShare()">Share</button>
                   }
                </div>
-               <app-slides-panel
+               <dd-slides-panel
                   class="fdock left"
                   [class.above-align]="alignToContainer() || !!croppingElement()"
                   part="focus-list"
@@ -516,7 +516,7 @@
                   (wheel)="$event.stopPropagation()"
                   (command)="onFocusCommand($event, fd)"
                />
-               <app-slides-panel
+               <dd-slides-panel
                   class="fdock right"
                   part="focus-settings"
                   [presentation]="fd"
@@ -551,7 +551,7 @@
                   }
                   <button class="fb-btn go" (click)="closeFocusDesign(fd)">Done</button>
                </div>
-               <app-slides-panel
+               <dd-slides-panel
                   class="fdock left"
                   [class.above-align]="alignToContainer() || !!croppingElement()"
                   part="design-layouts"
@@ -562,7 +562,7 @@
                   (wheel)="$event.stopPropagation()"
                   (command)="onFocusCommand($event, fd)"
                />
-               <app-slides-panel
+               <dd-slides-panel
                   class="fdock right design"
                   part="design-theme"
                   [presentation]="fd"
@@ -635,7 +635,7 @@
                         </button>
                      </div>
                   </div>
-                  <app-deck-compare
+                  <dd-deck-compare
                      class="focus-compare"
                      [slide]="fslide.frame"
                      [previous]="fslide.prev"
@@ -653,7 +653,7 @@
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
                >
-                  <app-slides-panel
+                  <dd-slides-panel
                      class="inner"
                      part="focus-transition"
                      [presentation]="fd"
@@ -662,7 +662,7 @@
                      (command)="onFocusCommand($event, fd)"
                   />
                   @if (fslide && fslide.prev) {
-                     <app-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+                     <dd-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
                   }
                </div>
             }
@@ -688,7 +688,7 @@
                   </div>
                   <div class="fd-body">
                      @if (fslide) {
-                        <app-animation-pane [slide]="fslide.frame" (play)="presentFromCurrent(fd)" />
+                        <dd-animation-pane [slide]="fslide.frame" (play)="presentFromCurrent(fd)" />
                      }
                   </div>
                </div>
@@ -705,18 +705,19 @@
       }
 
       @if (presentation(); as p) {
-         <app-present-mode
+         <dd-present-mode
             [slides]="p.slides"
             [startIndex]="p.start"
             [autoplay]="p.preview"
             [follow]="p.follow"
             (closed)="onPresentationClosed($event)"
-         ></app-present-mode>
+         ></dd-present-mode>
       }
 
       @if (fileNameEditor(); as f) {
          <input
-            appAutofocus
+            ddAutofocus
+            ddAutofocusSelect="textarea"
             class="file-name-editor"
             type="text"
             maxlength="120"
@@ -779,7 +780,8 @@
             ></div>
          } @else {
             <textarea
-               appAutofocus
+               ddAutofocus
+               ddAutofocusSelect="textarea"
                class="text-editor"
                [class.centered]="t.center"
                [class.wrap]="t.wrap"
@@ -866,13 +868,13 @@
       }
 
       @if (elementToolbar(); as et) {
-         <app-element-floating-toolbar
+         <dd-element-floating-toolbar
             [style.left.px]="et.left"
             [style.top.px]="et.top"
             [element]="et.element"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-         ></app-element-floating-toolbar>
+         ></dd-element-floating-toolbar>
       }
 
       @if (smartGuideMarks(); as sg) {
@@ -929,7 +931,7 @@
       }
 
       @if (multiSelectBar(); as ms) {
-         <app-multi-select-bar
+         <dd-multi-select-bar
             [style.left.px]="ms.left"
             [style.top.px]="ms.top"
             [count]="ms.count"
@@ -945,48 +947,48 @@
             (arrange)="store.arrangeSelection($event)"
             (duplicate)="duplicateSelectionInPlace()"
             (remove)="deleteSelection()"
-         ></app-multi-select-bar>
+         ></dd-multi-select-bar>
       }
 
       @if (tableToolbar(); as tt) {
-         <app-table-toolbar
+         <dd-table-toolbar
             [style.left.px]="tt.left"
             [style.top.px]="tt.top"
             [table]="tt.table"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-         ></app-table-toolbar>
+         ></dd-table-toolbar>
       }
 
       @if (sequenceMessageToolbar(); as mt) {
-         <app-sequence-message-toolbar
+         <dd-sequence-message-toolbar
             [style.left.px]="mt.left"
             [style.top.px]="mt.top"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-         ></app-sequence-message-toolbar>
+         ></dd-sequence-message-toolbar>
       }
 
       @if (sequenceDiagramToolbar(); as dt) {
-         <app-sequence-diagram-toolbar
+         <dd-sequence-diagram-toolbar
             [style.left.px]="dt.left"
             [style.top.px]="dt.top"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-         ></app-sequence-diagram-toolbar>
+         ></dd-sequence-diagram-toolbar>
       }
 
       @if (sequenceParticipantToolbar(); as pt) {
-         <app-sequence-participant-toolbar
+         <dd-sequence-participant-toolbar
             [style.left.px]="pt.left"
             [style.top.px]="pt.top"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-         ></app-sequence-participant-toolbar>
+         ></dd-sequence-participant-toolbar>
       }
 
       @if (selectedRelInline(); as info) {
-         <app-relationship-toolbar
+         <dd-relationship-toolbar
             [style.left.px]="info.x"
             [style.top.px]="info.y"
             [type]="info.rel.type"
@@ -997,7 +999,7 @@
             (setType)="onSetRelType($event)"
             (resetRoute)="onResetRoute(info.rel.id)"
             (deleteRelationship)="onDeleteRel()"
-         ></app-relationship-toolbar>
+         ></dd-relationship-toolbar>
       }
 
       @if (store.loading()) {
@@ -1033,13 +1035,13 @@
                </button>
             </div>
             @if (store.selectedTable(); as table) {
-               <app-inspector [table]="table"></app-inspector>
+               <dd-inspector [table]="table"></dd-inspector>
             } @else if (store.selectedRelationship(); as relationship) {
-               <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
+               <dd-relationship-inspector [relationship]="relationship"></dd-relationship-inspector>
             } @else if (store.selectedElement(); as element) {
-               <app-element-inspector [element]="element"></app-element-inspector>
+               <dd-element-inspector [element]="element"></dd-element-inspector>
             } @else {
-               <app-sequence-inspector></app-sequence-inspector>
+               <dd-sequence-inspector></dd-sequence-inspector>
             }
          </div>
       }

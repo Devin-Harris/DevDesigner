@@ -14,7 +14,7 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
  * also editable on the canvas; this panel gathers the levers in one place.
  */
 @Component({
-   selector: 'app-sequence-inspector',
+   selector: 'dd-sequence-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, FormsModule, IconComponent, InputComponent, SelectComponent],
    templateUrl: './sequence-inspector.component.html',

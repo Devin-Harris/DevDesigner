@@ -31,7 +31,7 @@ const MIN_SIDE = 8;
  * result is saved as one change (box + crop).
  */
 @Component({
-   selector: 'app-image-crop-overlay',
+   selector: 'dd-image-crop-overlay',
    changeDetection: ChangeDetectionStrategy.OnPush,
    template: `
       @if (draft(); as d) {

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
-import { AutofocusDirective } from './features/editor/autofocus.directive';
+import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
 import { ToolbarPrefsService } from './features/editor/shape-toolbar/toolbar-prefs.service';
 import { ToolbarCustomizePanelComponent } from './features/editor/shape-toolbar/toolbar-customize-panel.component';
@@ -38,7 +38,7 @@ import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-
  * presence avatars, plus account + theme) over the routed view.
  */
 @Component({
-   selector: 'app-root',
+   selector: 'dd-root',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       CommandPaletteComponent,
@@ -103,7 +103,7 @@ export class AppComponent {
    protected onKeydown(event: KeyboardEvent): void {
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
          // Presenting owns the keyboard.
-         if (document.querySelector('app-present-mode')) return;
+         if (document.querySelector('dd-present-mode')) return;
          event.preventDefault();
          this.paletteOpen.update((v) => !v);
          return;
@@ -112,7 +112,7 @@ export class AppComponent {
          const t = event.target as HTMLElement | null;
          const typing =
             !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-         if (typing || document.querySelector('app-present-mode')) return;
+         if (typing || document.querySelector('dd-present-mode')) return;
          event.preventDefault();
          this.shortcutsOpen.update((v) => !v);
       }

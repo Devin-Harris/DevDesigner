@@ -10,7 +10,7 @@ import { EditorComponent } from '../editor/editor.component';
  * error overlay from the failed load.
  */
 @Component({
-   selector: 'app-share',
+   selector: 'dd-share',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [EditorComponent],
    templateUrl: './share.component.html',

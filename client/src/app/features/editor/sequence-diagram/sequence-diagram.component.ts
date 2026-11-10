@@ -16,7 +16,7 @@ import {
    type SequenceDiagramModel,
 } from '@devdesigner/shared';
 import { contrastText } from './contrast';
-import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
+import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';
 
 interface MessageView {
@@ -145,7 +145,7 @@ const MIN_HEADER_W = 60;
  * Lives inside the transformed `.world`, so children sit at world coordinates.
  */
 @Component({
-   selector: 'app-sequence-diagram',
+   selector: 'dd-sequence-diagram',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [AutofocusDirective],
    // pointerover/out bubble from every child (box, headers, spines, messages, buttons).

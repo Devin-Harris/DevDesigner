@@ -24,7 +24,7 @@ type InspectorTab = 'columns' | 'indexes' | 'sql';
  * note editing. Built from the bespoke form primitives (no Angular Material).
  */
 @Component({
-   selector: 'app-inspector',
+   selector: 'dd-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       ColorSwatchesComponent,

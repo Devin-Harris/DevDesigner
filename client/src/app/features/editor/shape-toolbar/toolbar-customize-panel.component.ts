@@ -8,7 +8,7 @@ import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from './too
  * button or the main menu; everything saves as it changes.
  */
 @Component({
-   selector: 'app-toolbar-customize-panel',
+   selector: 'dd-toolbar-customize-panel',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    template: `

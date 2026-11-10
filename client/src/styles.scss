@@ -373,24 +373,24 @@ input[type='range'] {
 }
 
 /* Floating islands fade while dragging or drawing (Customize toolbar setting). */
-app-root .island,
-app-shape-toolbar .dock,
-app-shape-toolbar .statusbar,
-app-minimap {
+dd-root .island,
+dd-shape-toolbar .dock,
+dd-shape-toolbar .statusbar,
+dd-minimap {
    transition: opacity 0.15s ease;
 }
-body.dd-gesture app-root .island,
-body.dd-gesture app-shape-toolbar .dock,
-body.dd-gesture app-shape-toolbar .statusbar,
-body.dd-gesture app-minimap {
+body.dd-gesture dd-root .island,
+body.dd-gesture dd-shape-toolbar .dock,
+body.dd-gesture dd-shape-toolbar .statusbar,
+body.dd-gesture dd-minimap {
    opacity: 0.25;
 }
 
 /* Focus mode transition screen: the canvas's floating toolbars stay out of the way. */
-body.dd-focus-morph app-element-floating-toolbar,
-body.dd-focus-morph app-table-toolbar,
-body.dd-focus-morph app-relationship-toolbar,
-body.dd-focus-morph app-multi-select-bar,
-body.dd-focus-morph app-shape-toolbar .alignbar {
+body.dd-focus-morph dd-element-floating-toolbar,
+body.dd-focus-morph dd-table-toolbar,
+body.dd-focus-morph dd-relationship-toolbar,
+body.dd-focus-morph dd-multi-select-bar,
+body.dd-focus-morph dd-shape-toolbar .alignbar {
    display: none !important;
 }

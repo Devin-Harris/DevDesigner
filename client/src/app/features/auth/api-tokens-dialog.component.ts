@@ -16,7 +16,7 @@ import { SegmentedComponent } from '../../shared/ui/segmented/segmented.componen
  * a ready-to-paste MCP client config; afterwards only a prefix is listed.
  */
 @Component({
-   selector: 'app-api-tokens-dialog',
+   selector: 'dd-api-tokens-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [DatePipe, FormsModule, MatDialogModule, IconComponent, InputComponent, SegmentedComponent],
    templateUrl: './api-tokens-dialog.component.html',

@@ -37,7 +37,7 @@
    @if (editingName()) {
       <input
          class="edit title-edit"
-         appAutofocus
+         ddAutofocus
          [value]="table().name"
          (pointerdown)="$event.stopPropagation()"
          (keydown.enter)="commitName($event)"
@@ -101,7 +101,7 @@
          @if (editingColumnId() === column.id) {
             <input
                class="edit"
-               appAutofocus
+               ddAutofocus
                [value]="column.name"
                (pointerdown)="$event.stopPropagation()"
                (keydown)="onColumnKey(column, $event)"

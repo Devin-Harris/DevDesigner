@@ -12,7 +12,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * edit label, and delete. The parent positions the host via left/top bindings.
  */
 @Component({
-   selector: 'app-sequence-message-toolbar',
+   selector: 'dd-sequence-message-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
    templateUrl: './sequence-message-toolbar.component.html',

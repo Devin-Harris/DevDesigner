@@ -41,7 +41,7 @@ const ERASERS = [
  * the highlighter. They set the style the next strokes are drawn with.
  */
 @Component({
-   selector: 'app-pen-options-bar',
+   selector: 'dd-pen-options-bar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, MatTooltipModule],
    template: `

@@ -14,7 +14,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * the store; the parent positions the host via left/top style bindings.
  */
 @Component({
-   selector: 'app-table-toolbar',
+   selector: 'dd-table-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, MatTooltipModule, IconComponent, PopoverTriggerDirective],
    template: `

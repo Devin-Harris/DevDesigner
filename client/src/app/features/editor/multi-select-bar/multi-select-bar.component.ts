@@ -13,7 +13,7 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
  * quick-align strip above the status bar so the view island never changes shape.
  */
 @Component({
-   selector: 'app-multi-select-bar',
+   selector: 'dd-multi-select-bar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, MatTooltipModule, PopoverTriggerDirective, ColorSwatchesComponent],
    template: `

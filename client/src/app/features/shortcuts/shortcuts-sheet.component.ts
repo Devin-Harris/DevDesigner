@@ -69,7 +69,7 @@ const GROUPS: ShortcutGroup[] = [
 
 /** Keyboard shortcuts reference (? or main menu). */
 @Component({
-   selector: 'app-shortcuts-sheet',
+   selector: 'dd-shortcuts-sheet',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    template: `

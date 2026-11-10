@@ -23,7 +23,7 @@ export interface SegmentDownEvent {
  * on the underlying table/column handles.
  */
 @Component({
-   selector: 'app-canvas-connectors',
+   selector: 'dd-canvas-connectors',
    changeDetection: ChangeDetectionStrategy.OnPush,
    templateUrl: './canvas-connectors.component.html',
    styleUrl: './canvas-connectors.component.scss',

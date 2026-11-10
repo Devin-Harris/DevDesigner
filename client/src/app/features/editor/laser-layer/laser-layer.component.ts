@@ -27,7 +27,7 @@ interface LaserDraw {
  * ephemeral LaserService state and projects it through the project viewport.
  */
 @Component({
-   selector: 'app-laser-layer',
+   selector: 'dd-laser-layer',
    changeDetection: ChangeDetectionStrategy.OnPush,
    templateUrl: './laser-layer.component.html',
    styleUrl: './laser-layer.component.scss',

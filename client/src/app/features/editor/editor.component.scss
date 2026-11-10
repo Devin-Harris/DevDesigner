@@ -22,9 +22,9 @@
 // While a drawing / pan tool is active, tables and sequence diagrams are
 // click-through so a gesture can start (and shapes can be drawn) on top of them.
 .canvas.tool-active {
-   app-table-node,
-   app-table-node ::ng-deep *,
-   app-canvas-sequence ::ng-deep * {
+   dd-table-node,
+   dd-table-node ::ng-deep *,
+   dd-canvas-sequence ::ng-deep * {
       pointer-events: none !important;
    }
 }
@@ -207,9 +207,9 @@
    z-index: 5;
 }
 
-.side-panel app-inspector,
-.side-panel app-relationship-inspector,
-.side-panel app-element-inspector {
+.side-panel dd-inspector,
+.side-panel dd-relationship-inspector,
+.side-panel dd-element-inspector {
    display: block;
    width: 100%;
    height: 100%;

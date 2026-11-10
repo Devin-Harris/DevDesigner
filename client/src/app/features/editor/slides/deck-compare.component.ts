@@ -95,7 +95,7 @@ const GAP = 8;
  * Mode "pairs" is the list for the right-hand dock.
  */
 @Component({
-   selector: 'app-deck-compare',
+   selector: 'dd-deck-compare',
    changeDetection: ChangeDetectionStrategy.OnPush,
 
    template: `

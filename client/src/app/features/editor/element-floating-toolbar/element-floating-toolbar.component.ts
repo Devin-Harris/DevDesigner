@@ -76,7 +76,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
  * elements via the granular store methods. Disabled in read-only (VIEW) mode.
  */
 @Component({
-   selector: 'app-element-floating-toolbar',
+   selector: 'dd-element-floating-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
    templateUrl: './element-floating-toolbar.component.html',

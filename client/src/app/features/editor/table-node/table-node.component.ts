@@ -20,7 +20,7 @@ import {
    isSwatchColor,
    themeColorCss,
 } from '@devdesigner/shared';
-import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
+import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -65,7 +65,7 @@ function resolveTypeName(word: string): string | undefined {
 }
 
 @Component({
-   selector: 'app-table-node',
+   selector: 'dd-table-node',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, AutofocusDirective, IconComponent, PopoverTriggerDirective],
    templateUrl: './table-node.component.html',

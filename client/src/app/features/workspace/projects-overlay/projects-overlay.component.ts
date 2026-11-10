@@ -5,7 +5,7 @@ import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@devdesigner/shared';
 import { ProjectFileService } from '../../../core/services/project-file.service';
-import { AutofocusDirective } from '../../../core/directives/autofocus.directive';
+import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
@@ -26,7 +26,7 @@ type OverlayView = 'projects' | 'templates';
  * editor takes over. No type-filter pills (removed by request).
  */
 @Component({
-   selector: 'app-projects-overlay',
+   selector: 'dd-projects-overlay',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, AutofocusDirective, IconComponent, InputComponent, ToggleComponent, PopoverTriggerDirective],
    templateUrl: './projects-overlay.component.html',

@@ -17,7 +17,7 @@
       @if (editingTitle()) {
          <input
             class="seq-title-edit"
-            appAutofocus
+            ddAutofocus
             [style.left.px]="b.left + 10"
             [style.top.px]="b.top + 4"
             [style.width.px]="b.width - 20"
@@ -108,7 +108,7 @@
          @if (editingLifelineId() === l.id) {
             <input
                class="ll-edit"
-               appAutofocus
+               ddAutofocus
                [value]="editValue()"
                (pointerdown)="$event.stopPropagation()"
                (input)="onEditInput($any($event.target).value)"
@@ -153,7 +153,7 @@
                   class="msg-edit break"
                   [class.wrap]="m.editMaxPx !== null"
                   [style.max-width.px]="m.editMaxPx"
-                  appAutofocus
+                  ddAutofocus
                   [rows]="editRows()"
                   [value]="editValue()"
                   (pointerdown)="$event.stopPropagation()"
@@ -215,7 +215,7 @@
                   class="msg-edit"
                   [class.wrap]="m.editMaxPx !== null"
                   [style.max-width.px]="m.editMaxPx"
-                  appAutofocus
+                  ddAutofocus
                   [rows]="editRows()"
                   [value]="editValue()"
                   (pointerdown)="$event.stopPropagation()"

@@ -9,7 +9,7 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
  * The parent positions the host via left/top style bindings.
  */
 @Component({
-   selector: 'app-relationship-toolbar',
+   selector: 'dd-relationship-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent],
    templateUrl: './relationship-toolbar.component.html',

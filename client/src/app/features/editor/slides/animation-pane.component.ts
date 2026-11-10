@@ -85,7 +85,7 @@ interface Target {
  * sync live and undo like any other change.
  */
 @Component({
-   selector: 'app-animation-pane',
+   selector: 'dd-animation-pane',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, IconComponent, SelectComponent],
    template: `

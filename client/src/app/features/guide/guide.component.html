@@ -109,11 +109,11 @@
                @if (sandboxId()) {
                   <!-- One-item loop so switching tools mounts a fresh editor. -->
                   @for (key of [mountKey()]; track key) {
-                     <app-editor
+                     <dd-editor
                         [projectId]="sandboxId()"
                         [fitOnLoad]="true"
                         [initialTool]="tool().editorTool ?? null"
-                     ></app-editor>
+                     ></dd-editor>
                   }
                } @else if (sandboxError(); as err) {
                   <div class="sb-msg">

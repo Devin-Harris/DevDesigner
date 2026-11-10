@@ -65,7 +65,7 @@ interface Feature {
  * ways to start, and the user's most recent projects.
  */
 @Component({
-   selector: 'app-home',
+   selector: 'dd-home',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       IconComponent,
@@ -458,7 +458,7 @@ export class HomeComponent {
             message: (i) => this.messageAt(i),
             revealLabels: () =>
                this.demo()
-                  ?.nativeElement.querySelectorAll<HTMLElement>('app-sequence-diagram > .msg-label-wrap')
+                  ?.nativeElement.querySelectorAll<HTMLElement>('dd-sequence-diagram > .msg-label-wrap')
                   .forEach((w) => (w.style.visibility = 'visible')),
          },
       });
@@ -483,7 +483,7 @@ export class HomeComponent {
          r = -Infinity,
          b = -Infinity;
       box.querySelectorAll(
-         '.world app-table-node, .world app-sequence-diagram > *, .world .slide-zoom, .world svg.layer > g > *'
+         '.world dd-table-node, .world dd-sequence-diagram > *, .world .slide-zoom, .world svg.layer > g > *'
       ).forEach((el) => {
          const rc = el.getBoundingClientRect();
          if (!rc.width || !rc.height) return;
@@ -536,7 +536,7 @@ export class HomeComponent {
    /** The index-th message line (top to bottom) of the shown sequence diagram. */
    private messageAt(index: number) {
       const root = this.demo()?.nativeElement;
-      const diagram = root?.querySelector('app-sequence-diagram');
+      const diagram = root?.querySelector('dd-sequence-diagram');
       if (!diagram) return null;
       const kids = Array.from(diagram.children) as HTMLElement[];
       const lines = kids
@@ -578,7 +578,7 @@ export class HomeComponent {
    ): Promise<void> {
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const go = () =>
-         this.demo()?.nativeElement.querySelector<HTMLButtonElement>('.sc-morph app-deck-compare button.go');
+         this.demo()?.nativeElement.querySelector<HTMLButtonElement>('.sc-morph dd-deck-compare button.go');
       this.compareUi.view.set('map');
       this.transitionIds.set({ from, to });
       try {
@@ -725,7 +725,7 @@ export class HomeComponent {
       this.store.selectMessage(m.id);
       await sleep(450);
       if (abort.aborted || !root) return;
-      const bar = root.querySelector('app-sequence-message-toolbar');
+      const bar = root.querySelector('dd-sequence-message-toolbar');
       const names: Record<string, string> = { solid: 'Sync', dashed: 'Return', break: 'Break' };
       if (m.style !== 'solid') {
          const seg = Array.from(bar?.querySelectorAll('button.seg') ?? []).find(
@@ -736,7 +736,7 @@ export class HomeComponent {
          await sleep(450);
       }
       if (m.color && !abort.aborted) {
-         const btn = root.querySelector('app-sequence-message-toolbar button[aria-label="Line color"]');
+         const btn = root.querySelector('dd-sequence-message-toolbar button[aria-label="Line color"]');
          await this.pointAt(btn, 'Line color', 450);
          if (btn) {
             const box = root.getBoundingClientRect();
@@ -1041,7 +1041,7 @@ export class HomeComponent {
          message: (i: number) => this.messageAt(i),
          revealLabels: () =>
             this.demo()
-               ?.nativeElement.querySelectorAll<HTMLElement>('app-sequence-diagram > .msg-label-wrap')
+               ?.nativeElement.querySelectorAll<HTMLElement>('dd-sequence-diagram > .msg-label-wrap')
                .forEach((w) => (w.style.visibility = 'visible')),
       };
       // Camera: the title dead centre, then a slow pull-back that stays centred on it until the
@@ -1103,7 +1103,7 @@ export class HomeComponent {
          r = -Infinity,
          b = -Infinity;
       box.querySelectorAll(
-         '.world app-table-node, .world app-sequence-diagram > *, .world .slide-zoom, .world svg.layer > g > *'
+         '.world dd-table-node, .world dd-sequence-diagram > *, .world .slide-zoom, .world svg.layer > g > *'
       ).forEach((el) => {
          const rc = el.getBoundingClientRect();
          if (!rc.width || !rc.height) return;
@@ -1165,7 +1165,7 @@ export class HomeComponent {
          editor.showTransitionScreen(deck, slides, 'preview');
          await sleep(900);
          for (let i = 0; i < 3 && !abort.aborted; i++) {
-            const go = () => this.demo()?.nativeElement.querySelector<HTMLButtonElement>('app-deck-compare button.go');
+            const go = () => this.demo()?.nativeElement.querySelector<HTMLButtonElement>('dd-deck-compare button.go');
             for (let t = 0; t < 30 && /Pause/.test(go()?.textContent ?? ''); t++) await sleep(100);
             await sleep(700);
             go()?.click();

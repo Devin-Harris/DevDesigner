@@ -10,7 +10,7 @@ export interface ConfirmDialogData {
 
 /** Generic confirm/cancel dialog. Closes with true when confirmed. */
 @Component({
-   selector: 'app-confirm-dialog',
+   selector: 'dd-confirm-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, A11yModule],
    templateUrl: './confirm-dialog.component.html',

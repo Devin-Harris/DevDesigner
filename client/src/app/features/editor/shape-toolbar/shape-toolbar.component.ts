@@ -59,7 +59,7 @@ const SHAPE_ICONS: Record<string, string> = {
  * canvas underneath stays interactive.
  */
 @Component({
-   selector: 'app-shape-toolbar',
+   selector: 'dd-shape-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
    templateUrl: './shape-toolbar.component.html',

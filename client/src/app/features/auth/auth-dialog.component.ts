@@ -14,7 +14,7 @@ type Mode = 'login' | 'register';
  * work, so this is never forced.
  */
 @Component({
-   selector: 'app-auth-dialog',
+   selector: 'dd-auth-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, MatDialogModule, MatProgressSpinnerModule, InputComponent],
    templateUrl: './auth-dialog.component.html',

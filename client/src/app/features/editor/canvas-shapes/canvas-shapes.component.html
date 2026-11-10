@@ -187,12 +187,12 @@
                         [attr.height]="img.height"
                         pointer-events="none"
                      >
-                        <app-media-video
+                        <dd-media-video
                            [view]="img"
                            [src]="$any(href)"
                            [poster]="images.posterUrl(img.fileId)"
                            [controls]="s.selected && interactive()"
-                        ></app-media-video>
+                        ></dd-media-video>
                      </foreignObject>
                   } @else if (pictureHref(s.id, img, s.selected); as href) {
                      <!-- Pictures render through <image> (static mode: SVG scripts never run). -->

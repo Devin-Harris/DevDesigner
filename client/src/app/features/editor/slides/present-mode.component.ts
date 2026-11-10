@@ -79,7 +79,7 @@ const TRAVEL: Record<string, [number, number]> = {
  * Home/End first/last · N notes · Esc exit. Click advances.
  */
 @Component({
-   selector: 'app-present-mode',
+   selector: 'dd-present-mode',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, SlideMediaLayerComponent],
    template: `
@@ -103,12 +103,12 @@ const TRAVEL: Record<string, [number, number]> = {
             <div #overlay class="overlay"></div>
             <!-- GIFs and videos play live over the settled slide (not during transitions). -->
             @if (liveMedia(); as lm) {
-               <app-slide-media-layer
+               <dd-slide-media-layer
                   [media]="lm.slide.media"
                   [hidden]="lm.hidden"
                   [slideWidth]="lm.slide.width"
                   [slideHeight]="lm.slide.height"
-               ></app-slide-media-layer>
+               ></dd-slide-media-layer>
             }
          </div>
 

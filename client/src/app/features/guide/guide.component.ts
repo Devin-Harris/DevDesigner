@@ -87,7 +87,7 @@ export function writeStored(seed: string, id: string | null): void {
  * session (sessionStorage). Reset rebuilds one from its seed.
  */
 @Component({
-   selector: 'app-guide',
+   selector: 'dd-guide',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, RouterLink, EditorComponent],
    templateUrl: './guide.component.html',

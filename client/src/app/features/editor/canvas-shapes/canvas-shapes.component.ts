@@ -39,7 +39,7 @@ export interface ShapeEndpointEvent {
  * connectors layer. Offset by svgOffset so negative coordinates are drawable.
  */
 @Component({
-   selector: 'app-canvas-shapes',
+   selector: 'dd-canvas-shapes',
    changeDetection: ChangeDetectionStrategy.OnPush,
    // Stacking inside the world: content slices + sequence diagrams interleave in
    // 10..299 (set by the editor), table nodes are 400, diagrams brought above every

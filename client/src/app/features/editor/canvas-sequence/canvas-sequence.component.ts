@@ -12,11 +12,11 @@ type SnapFn = (n: number) => number;
 
 /**
  * The sequence-diagram layer: renders every sequence diagram in the project as
- * an independent `app-sequence-diagram`, so a project can hold several separate
+ * an independent `dd-sequence-diagram`, so a project can hold several separate
  * diagrams. Each child manages its own box/participants/messages/interactions.
  */
 @Component({
-   selector: 'app-canvas-sequence',
+   selector: 'dd-canvas-sequence',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [SequenceDiagramComponent],
    templateUrl: './canvas-sequence.component.html',

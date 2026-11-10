@@ -14,7 +14,7 @@ import { ProjectsOverlayService } from './projects-overlay/projects-overlay.serv
  * the landing page (HomeComponent) shows instead.
  */
 @Component({
-   selector: 'app-workspace',
+   selector: 'dd-workspace',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [EditorComponent, HomeComponent],
    templateUrl: './workspace.component.html',

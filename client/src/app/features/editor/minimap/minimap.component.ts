@@ -51,7 +51,7 @@ function readCollapsed(): boolean {
  * canvas; the redraw is coalesced to one per animation frame.
  */
 @Component({
-   selector: 'app-minimap',
+   selector: 'dd-minimap',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent],
    template: `

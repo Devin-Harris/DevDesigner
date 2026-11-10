@@ -18,7 +18,7 @@ export interface ExportDialogData {
  * it already reflects any marquee selection.
  */
 @Component({
-   selector: 'app-export-dialog',
+   selector: 'dd-export-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, IconComponent],
    templateUrl: './export-dialog.component.html',

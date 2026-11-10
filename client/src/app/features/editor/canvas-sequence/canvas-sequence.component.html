@@ -1,6 +1,6 @@
 @for (d of store.sequenceDiagrams(); track d.id) {
    @if (!hiddenIds()?.has(d.id)) {
-      <app-sequence-diagram
+      <dd-sequence-diagram
          [diagramId]="d.id"
          [toWorld]="toWorld()"
          [snap]="snap()"

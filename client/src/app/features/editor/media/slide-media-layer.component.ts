@@ -11,7 +11,7 @@ import { MediaVideoComponent } from './media-video.component';
  * start on their own unless set to `auto`; their control bar shows on hover.
  */
 @Component({
-   selector: 'app-slide-media-layer',
+   selector: 'dd-slide-media-layer',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MediaVideoComponent],
    template: `
@@ -32,13 +32,13 @@ import { MediaVideoComponent } from './media-video.component';
             >
                @if (m.kind === 'video') {
                   @if (images.url(m.fileId); as src) {
-                     <app-media-video
+                     <dd-media-video
                         [view]="m.view"
                         [src]="src"
                         [poster]="images.posterUrl(m.fileId)"
                         [clickToPlay]="true"
                         [autoplay]="m.view.playback === 'auto'"
-                     ></app-media-video>
+                     ></dd-media-video>
                   }
                } @else {
                   <div class="clip" [style.clip-path]="m.view.clip?.css ?? null">

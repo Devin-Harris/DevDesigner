@@ -19,7 +19,7 @@ export interface FrameOrderDialogData {
  * frame ids, or undefined if cancelled.
  */
 @Component({
-   selector: 'app-frame-order-dialog',
+   selector: 'dd-frame-order-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, IconComponent],
    template: `

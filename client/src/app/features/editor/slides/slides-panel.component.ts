@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { AutofocusDirective } from '../autofocus.directive';
+import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import {
    Injectable,
    ChangeDetectionStrategy,
@@ -190,7 +190,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
  * they sync live and undo/redo like any other change.
  */
 @Component({
-   selector: 'app-slides-panel',
+   selector: 'dd-slides-panel',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       NgTemplateOutlet,
@@ -1096,7 +1096,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                         @case ('animations') {
                            @if (active(); as a) {
                               @if (activeSlides().length <= 1) {
-                                 <app-animation-pane
+                                 <dd-animation-pane
                                     [slide]="a"
                                     (play)="command.emit({ kind: 'present', from: 'current' })"
                                  />
@@ -1129,7 +1129,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                         (blur)="finishRename(o.id, $any($event.target).value)"
                         (pointerdown)="$event.stopPropagation()"
                         [attr.aria-label]="'Rename ' + o.name"
-                        appAutofocus
+                        ddAutofocus
+                        ddAutofocusSelect="textarea"
                      />
                   } @else {
                      <div class="rec-row" [class.on]="o.on">
@@ -1272,7 +1273,7 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                }
             } @else if (ftab() === 'animations') {
                @if (active(); as a) {
-                  <app-animation-pane [slide]="a" (play)="command.emit({ kind: 'present', from: 'current' })" />
+                  <dd-animation-pane [slide]="a" (play)="command.emit({ kind: 'present', from: 'current' })" />
                } @else {
                   <p class="hint">Select a slide.</p>
                }
@@ -1703,7 +1704,8 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
                               (keydown.enter)="finishRename(t.id, $any($event.target).value)"
                               (keydown.escape)="renaming.set(null)"
                               (blur)="finishRename(t.id, $any($event.target).value)"
-                              appAutofocus
+                              ddAutofocus
+                              ddAutofocusSelect="textarea"
                               [attr.aria-label]="'Rename ' + t.name"
                            />
                         } @else {

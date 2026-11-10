@@ -21,7 +21,7 @@ export interface ShareDialogData {
  * server-side (owner only).
  */
 @Component({
-   selector: 'app-share-dialog',
+   selector: 'dd-share-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       FormsModule,

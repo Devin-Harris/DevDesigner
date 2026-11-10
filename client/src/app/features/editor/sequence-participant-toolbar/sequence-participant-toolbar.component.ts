@@ -12,7 +12,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * rename, and delete. The parent positions the host via left/top bindings.
  */
 @Component({
-   selector: 'app-sequence-participant-toolbar',
+   selector: 'dd-sequence-participant-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, IconComponent, PopoverTriggerDirective],
    templateUrl: './sequence-participant-toolbar.component.html',

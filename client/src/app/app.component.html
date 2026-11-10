@@ -27,7 +27,8 @@
                   (keydown.enter)="commitRename(nameInput.value)"
                   (keydown.escape)="renaming.set(false)"
                   (blur)="commitRename(nameInput.value)"
-                  appAutofocus
+                  ddAutofocus
+                  ddAutofocusSelect="textarea"
                />
             } @else {
                <button
@@ -309,16 +310,16 @@
    </ng-template>
 
    @if (paletteOpen()) {
-      <app-command-palette (closed)="paletteOpen.set(false)" />
+      <dd-command-palette (closed)="paletteOpen.set(false)" />
    }
 
    <input #importInput type="file" accept=".json,application/json" hidden (change)="importProjectFile($event)" />
 </div>
 
 @if (shortcutsOpen()) {
-   <app-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
+   <dd-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
 }
 
 @if (toolbarPrefs.panelOpen()) {
-   <app-toolbar-customize-panel />
+   <dd-toolbar-customize-panel />
 }

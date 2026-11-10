@@ -100,7 +100,7 @@
                            @if (editingId() === project.id) {
                               <input
                                  class="rename"
-                                 appAutofocus
+                                 ddAutofocus
                                  [ngModel]="editName()"
                                  (ngModelChange)="editName.set($event)"
                                  (click)="$event.stopPropagation()"

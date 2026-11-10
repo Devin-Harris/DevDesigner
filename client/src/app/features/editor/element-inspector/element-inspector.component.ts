@@ -31,7 +31,7 @@ import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-
  * selected element via the same store methods the floating toolbar uses.
  */
 @Component({
-   selector: 'app-element-inspector',
+   selector: 'dd-element-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, IconComponent],
    templateUrl: './element-inspector.component.html',

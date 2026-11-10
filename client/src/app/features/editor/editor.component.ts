@@ -90,7 +90,7 @@ import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
 import { ProjectStore, elementToCreateDto, type SequenceLayoutSnapshot } from '../../stores/project.store';
 import { splitAtGaps } from './canvas/helpers/shape-render.helper';
-import { AutofocusDirective } from './autofocus.directive';
+import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from '../../core/services/code-actions.service';
 import { GridTableService } from '../../core/services/grid-table.service';
 import {
@@ -370,7 +370,7 @@ function readStoredGrid(): boolean {
  * Pan with middle-mouse or Space+drag; left-drag on empty canvas is a marquee.
  */
 @Component({
-   selector: 'app-editor',
+   selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       ImageCropOverlayComponent,
@@ -4968,7 +4968,7 @@ export class EditorComponent {
       const onMouseDown = (e: MouseEvent): void => {
          const t = e.target as Element | null;
          if (
-            t?.closest('app-element-floating-toolbar, .cdk-overlay-pane, .dd-overlay-backdrop') &&
+            t?.closest('dd-element-floating-toolbar, .cdk-overlay-pane, .dd-overlay-backdrop') &&
             !t.closest('input[type=range], input[type=text], input[type=number], textarea')
          ) {
             e.preventDefault();
@@ -8234,7 +8234,7 @@ export class EditorComponent {
    private replayingDblClick = false;
    /** Canvas layers that handle double-clicks themselves via (dblclick) bindings. */
    private static readonly SELF_DBLCLICK =
-      'app-table-node, app-canvas-sequence, app-sequence-diagram, app-canvas-connectors';
+      'dd-table-node, dd-canvas-sequence, dd-sequence-diagram, dd-canvas-connectors';
 
    protected onCanvasDblClick(event: MouseEvent): void {
       if (performance.now() - this.lastOwnDblClick < 600) {

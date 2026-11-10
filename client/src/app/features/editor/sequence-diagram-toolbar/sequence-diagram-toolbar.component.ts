@@ -10,7 +10,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * background and border color. The parent positions the host via left/top bindings.
  */
 @Component({
-   selector: 'app-sequence-diagram-toolbar',
+   selector: 'dd-sequence-diagram-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
    template: `

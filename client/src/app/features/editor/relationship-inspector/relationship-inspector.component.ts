@@ -19,7 +19,7 @@ const TYPE_LABELS: Record<RelationshipType, string> = {
  * dropdowns and the referential actions. Built from the bespoke form primitives.
  */
 @Component({
-   selector: 'app-relationship-inspector',
+   selector: 'dd-relationship-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, IconComponent, SelectComponent],
    templateUrl: './relationship-inspector.component.html',

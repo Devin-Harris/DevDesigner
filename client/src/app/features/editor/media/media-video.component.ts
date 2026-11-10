@@ -18,7 +18,7 @@ import type { ImageView } from '../canvas/models/shape-view.model';
  * Everything but the control bar is click-through, so the box stays grabbable.
  */
 @Component({
-   selector: 'app-media-video',
+   selector: 'dd-media-video',
    changeDetection: ChangeDetectionStrategy.OnPush,
    host: {
       class: 'media-video',
