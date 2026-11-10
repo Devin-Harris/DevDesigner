@@ -8,7 +8,6 @@ import compression from 'compression';
 import { json, urlencoded } from 'body-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { WriteRevisionInterceptor } from './common/write-revision';
 import { REQUEST_ID_HEADER } from './common/request-context';
 
 /**
@@ -55,9 +54,6 @@ async function bootstrap(): Promise<void> {
 
   // All routes are served under /api (see BUILD_INSTRUCTIONS.md section 5).
   app.setGlobalPrefix('api');
-
-  // Write counter behind the project graph's ETag (see common/write-revision.ts).
-  app.useGlobalInterceptors(new WriteRevisionInterceptor());
 
   // Global DTO validation. Controllers only parse/validate; logic lives in services.
   app.useGlobalPipes(

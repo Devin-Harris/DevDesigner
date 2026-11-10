@@ -7,11 +7,20 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
+  Res,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
 import { SharingService } from './sharing.service';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
+import {
+  etagMatches,
+  projectGraphTag,
+  projectRevision,
+  setGraphCacheHeaders,
+} from '../common/project-revision';
 
 /**
  * Sharing routes (BUILD_INSTRUCTIONS.md section 5). Owner-only link management
@@ -50,8 +59,24 @@ export class SharingController {
     return this.sharing.revoke(projectId, linkId, userId);
   }
 
+  /** The shared graph, with the same per-project ETag / 304 handling as GET /projects/:id. */
   @Get('shared/:token')
-  getShared(@Param('token') token: string): Promise<ProjectGraphResponse> {
-    return this.sharing.getSharedGraph(token);
+  async getShared(
+    @Param('token') token: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ProjectGraphResponse | undefined> {
+    const { projectId, accessLevel } = await this.sharing.sharedAccess(token);
+    // Taken BEFORE reading, so a write landing mid-read leaves this tag outdated.
+    const revision = projectRevision(projectId);
+    const tag = projectGraphTag(projectId, accessLevel, revision);
+    if (etagMatches(req.headers['if-none-match'], tag)) {
+      setGraphCacheHeaders(res, tag);
+      res.status(HttpStatus.NOT_MODIFIED);
+      return undefined;
+    }
+    const graph = await this.sharing.getSharedGraph(token);
+    setGraphCacheHeaders(res, projectGraphTag(projectId, graph.accessLevel, revision));
+    return graph;
   }
 }

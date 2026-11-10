@@ -1,4 +1,4 @@
-import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
+import type { AccessLevel, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -73,6 +73,16 @@ export class SharingService {
     const link = await this.resolveValidLink(token);
     // getGraph re-authorizes with the token and reports the effective level.
     return this.projects.getGraph(link.projectId, null, token);
+  }
+
+  /**
+   * Resolve a token to its project and the level it grants there, without loading
+   * the graph (conditional GET /shared/:token). Throws like getSharedGraph.
+   */
+  async sharedAccess(token: string): Promise<{ projectId: string; accessLevel: AccessLevel }> {
+    const link = await this.resolveValidLink(token);
+    const accessLevel = await this.access.assertCanRead(link.projectId, null, token);
+    return { projectId: link.projectId, accessLevel };
   }
 
   private async resolveValidLink(token: string): Promise<ShareLink> {

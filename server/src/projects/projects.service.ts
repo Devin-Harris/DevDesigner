@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   PROJECT_EXPORT_FORMAT,
+  type AccessLevel,
   PROJECT_EXPORT_VERSION,
   type ImportIntoProjectResponse,
   type ProjectExportFile,
@@ -35,6 +36,7 @@ import {
   type ImportedImage,
 } from './project-import.writer';
 import { ImagesService } from '../images/images.service';
+import { bumpProjectRevision } from '../common/project-revision';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -99,9 +101,13 @@ export class ProjectsService {
     return this.toSummary(saved);
   }
 
-  /** Authorize a read without loading anything (conditional graph requests). */
-  async assertCanRead(id: string, userId: string | null, shareToken: string | null = null): Promise<void> {
-    await this.access.assertCanRead(id, userId, shareToken);
+  /** Authorize a read without loading anything (conditional graph requests); returns the level. */
+  assertCanRead(
+    id: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<AccessLevel> {
+    return this.access.assertCanRead(id, userId, shareToken);
   }
 
   /** Full project graph for initial load. Authorized against the caller's access. */
@@ -220,6 +226,8 @@ export class ProjectsService {
       project.type = dto.type;
     }
     const saved = await this.projects.save(project);
+    // Name/description/type/archived ride in the graph's project summary.
+    bumpProjectRevision(id);
     return this.toSummary(saved);
   }
 
@@ -353,6 +361,8 @@ export class ProjectsService {
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
+    // Any tag issued before the delete must never match again.
+    bumpProjectRevision(id);
   }
 
   /** Validate (type, size, SVG safety) and decode the images embedded in an import file. */
