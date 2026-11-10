@@ -50,6 +50,17 @@ function roomOf(projectId: string): string {
   return `project:${projectId}`;
 }
 
+/**
+ * Every socket also joins a room named after its tab's client id, so a broadcast
+ * can skip the tab that made the change (it already applied it optimistically).
+ */
+function clientRoomOf(clientId: string): string {
+  return `client:${clientId}`;
+}
+
+/** Client ids are random UUIDs (or short fallbacks); anything else is ignored. */
+const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
 function corsOrigins(): string[] {
   const raw = process.env.CORS_ORIGIN ?? 'http://localhost:4242';
   return raw.split(',').map((o) => o.trim());
@@ -89,7 +100,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const auth = (client.handshake.auth ?? {}) as Partial<RealtimeHandshakeAuth>;
     const projectId = typeof auth.projectId === 'string' ? auth.projectId : null;
     const token = typeof auth.token === 'string' ? auth.token : null;
-    const clientId = typeof auth.clientId === 'string' ? auth.clientId : null;
+    const clientId =
+      typeof auth.clientId === 'string' && CLIENT_ID_PATTERN.test(auth.clientId)
+        ? auth.clientId
+        : null;
     const guestId = guestOwnerId(auth.guestId);
     if (!projectId) {
       client.disconnect(true);
@@ -108,7 +122,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     const participant = await this.buildParticipant(client.id, projectId, user, accessLevel);
     client.data = { projectId, participant, clientId } satisfies SocketData;
-    await client.join(roomOf(projectId));
+    await client.join(clientId ? [roomOf(projectId), clientRoomOf(clientId)] : roomOf(projectId));
     this.getRoom(projectId).set(client.id, participant);
     this.broadcastRoster(projectId);
   }
@@ -194,16 +208,27 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     client.to(roomOf(data.projectId)).emit(RT_EVENTS.selection, payload);
   }
 
-  /** Fan a persisted schema change out to everyone in the project room. */
+  /** Fan a persisted schema change out to the project room, minus the tab that made it. */
   @OnEvent(PROJECT_MUTATION_EVENT)
   handleMutation(event: MutationEvent): void {
-    this.server.to(roomOf(event.projectId)).emit(RT_EVENTS.mutation, event);
+    this.toPeersOf(event.projectId, event.originClientId).emit(RT_EVENTS.mutation, event);
   }
 
   /** Fan many changes from one request out as one message. */
   @OnEvent(PROJECT_MUTATIONS_EVENT)
   handleMutations(event: MutationBatchEvent): void {
-    this.server.to(roomOf(event.projectId)).emit(RT_EVENTS.mutations, event);
+    this.toPeersOf(event.projectId, event.originClientId).emit(RT_EVENTS.mutations, event);
+  }
+
+  /**
+   * The project room without the origin tab's sockets. The client still self-filters
+   * by originClientId as a safety net; this just saves sending it the echo.
+   */
+  private toPeersOf(projectId: string, originClientId: string | null) {
+    const room = this.server.to(roomOf(projectId));
+    return originClientId && CLIENT_ID_PATTERN.test(originClientId)
+      ? room.except(clientRoomOf(originClientId))
+      : room;
   }
 
   private async buildParticipant(
