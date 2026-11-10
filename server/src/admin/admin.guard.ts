@@ -2,8 +2,8 @@ import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@n
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
 import { Repository } from 'typeorm';
-import { User } from '../auth/user.entity';
-import type { AuthUser } from '../auth/auth.types';
+import { User } from '../identity/auth/user.entity';
+import type { AuthUser } from '../identity/auth/auth.types';
 
 interface RequestWithUser extends Request {
   user?: AuthUser | null;

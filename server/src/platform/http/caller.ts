@@ -1,8 +1,8 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AuthUser } from '../../auth/auth.types';
-import { guestOwnerId } from '../../auth/guest-id';
-import { realtimePrincipal, trustedClientId } from '../../realtime/realtime-clients';
+import type { AuthUser } from '../../identity/auth/auth.types';
+import { guestOwnerId } from '../../identity/auth/guest-id';
+import { realtimePrincipal, trustedClientId } from '../realtime/realtime-clients';
 
 /** The request after the global auth guard has resolved the account (or null). */
 export type CallerRequest = Request & { user?: Pick<AuthUser, 'id' | 'viaToken'> | null };

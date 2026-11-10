@@ -1,7 +1,7 @@
 import { ExecutionContext, NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
-import type { User } from '../auth/user.entity';
-import type { AuthUser } from '../auth/auth.types';
+import type { User } from '../identity/auth/user.entity';
+import type { AuthUser } from '../identity/auth/auth.types';
 import { AdminGuard } from './admin.guard';
 
 function contextFor(user: AuthUser | null): ExecutionContext {

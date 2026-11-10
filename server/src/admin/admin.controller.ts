@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import type { AdminPingResponse } from '@devdesigner/shared';
-import { AdminRoute } from '../access/access-policy';
+import { AdminRoute } from '../collaboration/access/access-policy';
 import { AdminGuard } from './admin.guard';
 
 /** Read-only admin API (`/api/admin/*`). Every route sits behind AdminGuard. */

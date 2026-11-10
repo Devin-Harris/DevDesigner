@@ -1,6 +1,6 @@
 import type { ConfigService } from '@nestjs/config';
 import type { Repository } from 'typeorm';
-import type { User } from '../auth/user.entity';
+import type { User } from '../identity/auth/user.entity';
 import { AdminBootstrapService } from './admin-bootstrap.service';
 
 function setup(adminEmails: string, pending: Partial<User>[] = []) {
