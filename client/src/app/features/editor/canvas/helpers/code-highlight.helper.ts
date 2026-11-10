@@ -1,3 +1,4 @@
+import { LruCache } from '../../../../shared/helpers/lru';
 import type { CodeLanguage } from '@devdesigner/shared';
 
 /**
@@ -282,6 +283,13 @@ export function expandTabs(line: string): string {
  * independent for layout. Always returns at least one (possibly empty) line.
  */
 export function tokenizeCode(code: string, language: CodeLanguage | string | undefined): CodeToken[][] {
+   return tokenCache.getOrSet(`${language ?? ''}\u0001${code}`, () => tokenizeUncached(code, language));
+}
+
+/** (language, code) -> token lines. Shared between callers: treat the result as read-only. */
+const tokenCache = new LruCache<string, CodeToken[][]>(300);
+
+function tokenizeUncached(code: string, language: CodeLanguage | string | undefined): CodeToken[][] {
    // Legacy blocks saved as 'javascript' render as TypeScript.
    const id = language === 'javascript' ? 'typescript' : language;
    const rules = LANGUAGES[(id as CodeLanguage) ?? 'plaintext'] ?? LANGUAGES.plaintext;

@@ -835,18 +835,12 @@ export class SequenceDiagramComponent {
    }
 
    private moveCompanions(c: Companions, dx: number, dy: number): void {
-      for (const [id, p] of c.tables) {
-         this.store.moveTable(id, Math.round(p.x + dx), Math.round(p.y + dy));
-      }
-      for (const [id, p] of c.elements) {
-         this.store.moveElement(id, Math.round(p.x + dx), Math.round(p.y + dy));
-      }
-      for (const [id, wp] of c.waypoints) {
-         this.store.setWaypoints(
-            id,
-            wp.map((w) => ({ x: Math.round(w.x + dx), y: Math.round(w.y + dy) }))
-         );
-      }
+      const by = (p: { x: number; y: number }) => ({ x: Math.round(p.x + dx), y: Math.round(p.y + dy) });
+      this.store.moveItemsLocal({
+         tables: new Map([...c.tables].map(([id, p]) => [id, by(p)])),
+         elements: new Map([...c.elements].map(([id, p]) => [id, by(p)])),
+         waypoints: new Map([...c.waypoints].map(([id, wp]) => [id, wp.map(by)])),
+      });
    }
 
    /** Compute new spread + vertical size for a resize drag (Shift locks, Alt centers). */

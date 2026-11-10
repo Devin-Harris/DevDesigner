@@ -82,6 +82,7 @@ import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
 import { RealtimeService } from '../../core/services/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/services/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
+import type { ShapeView } from './canvas/models/shape-view.model';
 import { ProjectFileService } from '../../core/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from '../../core/services/element-images.service';
@@ -89,7 +90,12 @@ import { MediaActionsService } from '../../core/services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
 import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/services/theme.service';
-import { ProjectStore, elementToCreateDto, type SequenceLayoutSnapshot } from '../../stores/project.store';
+import {
+   ProjectStore,
+   elementToCreateDto,
+   type ItemMoves,
+   type SequenceLayoutSnapshot,
+} from '../../stores/project.store';
 import { splitAtGaps } from './canvas/helpers/shape-render.helper';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from '../../core/services/code-actions.service';
@@ -130,7 +136,7 @@ import {
 } from './slides/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './minimap/minimap.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
-import { computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
+import { ConnectorRouteCache, computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
 import {
    contentForFrame,
    LAYOUT_Z_OFFSET,
@@ -161,6 +167,7 @@ import {
 import { messageLabelBoxes } from './canvas/helpers/message-box.helper';
 import {
    buildShapeViews,
+   ShapeViewCache,
    CODE_FONT_SIZE,
    CODE_PADDING,
    codeContentSize,
@@ -371,6 +378,18 @@ function readStoredGrid(): boolean {
  *
  * Pan with middle-mouse or Space+drag; left-drag on empty canvas is a marquee.
  */
+const dim = (v: ShapeView): ShapeView => ({ ...v, opacity: v.opacity * 0.5 });
+const lock = (v: ShapeView): ShapeView => ({ ...v, locked: true });
+/** `make(v)`, made once per view object. */
+function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: ShapeView) => ShapeView): ShapeView {
+   let out = cache.get(v);
+   if (!out) {
+      out = make(v);
+      cache.set(v, out);
+   }
+   return out;
+}
+
 @Component({
    selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
@@ -973,9 +992,12 @@ export class EditorComponent {
          this.visibleTables(),
          this.store.relationships(),
          new Set(this.store.selectedRelationshipIds()),
-         this.frameBoxes()
+         this.frameBoxes(),
+         this.connectorRoutes
       )
    );
+   /** Routes of relationships nothing moved around since the last pass (see computeConnectors). */
+   private readonly connectorRoutes = new ConnectorRouteCache();
 
    // --- drawing tools / canvas elements ---
 
@@ -1327,7 +1349,8 @@ export class EditorComponent {
          new Set(this.store.selectedElementIds()),
          this.themeColors(),
          this.messageBoxes(),
-         diffEditingId
+         diffEditingId,
+         { cache: this.shapeViewCache, generation: this.fontMetrics.generation }
       );
       // Slide items staged wholly outside their frame (morph entrances/exits) are dimmed:
       // they are part of the slide but never shown when presenting.
@@ -1342,11 +1365,16 @@ export class EditorComponent {
             })
             .map((e) => e.id)
       );
+      // Derived copies are memoized per view, so unchanged items keep their object identity.
       const out = offSlide.size
-         ? views.map((v) => (offSlide.has(v.id) ? { ...v, opacity: v.opacity * 0.5 } : v))
+         ? views.map((v) => (offSlide.has(v.id) ? variant(this.dimmedViews, v, dim) : v))
          : views;
-      return locked.size ? out.map((v) => (locked.has(v.id) ? { ...v, locked: true } : v)) : out;
+      return locked.size ? out.map((v) => (locked.has(v.id) ? variant(this.lockedViews, v, lock) : v)) : out;
    });
+   /** Unchanged elements keep their render view between rebuilds (see buildShapeViews). */
+   private readonly shapeViewCache = new ShapeViewCache();
+   private readonly dimmedViews = new WeakMap<ShapeView, ShapeView>();
+   private readonly lockedViews = new WeakMap<ShapeView, ShapeView>();
 
    /** Resolved canvas background + text color for the render-time contrast guard. */
    private readonly themeColors = computed(
@@ -3957,26 +3985,23 @@ export class EditorComponent {
       this.persistSequences(ex.sequences.keys());
    }
 
-   /** Shift elements/diagrams riding with a grabbed table by that table's net displacement. */
-   private moveNodeExtras(): void {
+   /** Where the elements/diagrams riding with a grabbed table go when it has moved (mx, my). */
+   private nodeExtrasMoves(mx: number, my: number): Pick<ItemMoves, 'elements' | 'sequences'> {
       const ex = this.nodeExtras;
-      const grabbed = this.dragTableId;
-      if (!ex || !grabbed) {
-         return;
+      if (!ex) {
+         return {};
       }
-      const start = this.multiDragStart.get(grabbed);
-      const table = this.store.tables().find((t) => t.id === grabbed);
-      if (!start || !table) {
-         return;
-      }
-      const mx = table.x - start.x;
-      const my = table.y - start.y;
-      for (const [id, p] of ex.elements) {
-         this.store.moveElement(id, p.x + mx, p.y + my);
-      }
-      for (const [id, seq] of ex.sequences) {
-         this.store.shiftSequence(id, seq.xs, mx, seq.originY, my, seq.rows);
-      }
+      return {
+         elements: new Map([...ex.elements].map(([id, p]) => [id, { x: p.x + mx, y: p.y + my }])),
+         sequences: [...ex.sequences].map(([id, seq]) => ({
+            diagramId: id,
+            startXs: seq.xs,
+            dx: mx,
+            startOriginY: seq.originY,
+            dy: my,
+            startRows: seq.rows,
+         })),
+      };
    }
 
    private moveElements(clientX: number, clientY: number): void {
@@ -3994,30 +4019,37 @@ export class EditorComponent {
       dx += smart?.ox ?? 0;
       dy += smart?.oy ?? 0;
       const grid = this.gridSnap();
+      const elements = new Map<string, { x: number; y: number }>();
       for (const [id, start] of g.others) {
          const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
          const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
-         this.store.moveElement(id, nx, ny);
+         elements.set(id, { x: nx, y: ny });
       }
+      const moves: ItemMoves = { elements };
       // Carry a frame's tables with it by the same (snapped) displacement as the frame.
       const grabbed = g.others.get(g.id);
-      if (grabbed && (g.tables?.size || g.waypoints?.size || g.sequences?.size)) {
-         const el = this.store.elements().find((e) => e.id === g.id);
-         const mx = el ? el.x - grabbed.x : 0;
-         const my = el ? el.y - grabbed.y : 0;
-         for (const [id, start] of g.tables ?? []) {
-            this.store.moveTable(id, start.x + mx, start.y + my);
-         }
-         for (const [relId, wp] of g.waypoints ?? []) {
-            this.store.setWaypoints(
+      const to = elements.get(g.id);
+      if (grabbed && to && (g.tables?.size || g.waypoints?.size || g.sequences?.size)) {
+         const mx = to.x - grabbed.x;
+         const my = to.y - grabbed.y;
+         moves.tables = new Map([...(g.tables ?? [])].map(([id, start]) => [id, { x: start.x + mx, y: start.y + my }]));
+         moves.waypoints = new Map(
+            [...(g.waypoints ?? [])].map(([relId, wp]) => [
                relId,
-               wp.map((w) => ({ x: Math.round(w.x + mx), y: Math.round(w.y + my) }))
-            );
-         }
-         for (const [id, seq] of g.sequences ?? []) {
-            this.store.shiftSequence(id, seq.xs, mx, seq.originY, my, seq.rows);
-         }
+               wp.map((w) => ({ x: Math.round(w.x + mx), y: Math.round(w.y + my) })),
+            ])
+         );
+         moves.sequences = [...(g.sequences ?? [])].map(([id, seq]) => ({
+            diagramId: id,
+            startXs: seq.xs,
+            dx: mx,
+            startOriginY: seq.originY,
+            dy: my,
+            startRows: seq.rows,
+         }));
       }
+      // One state write per frame for the whole selection.
+      this.store.moveItemsLocal(moves);
    }
 
    /**
@@ -5208,31 +5240,26 @@ export class EditorComponent {
       const grabbedElement = this.elementGesture?.id ?? null;
       const grabbedTable = this.dragTableId;
       if (kind === 'element') {
-         for (const [id, start] of this.elementGesture?.others ?? []) {
-            this.store.moveElement(id, start.x, start.y);
-         }
-         for (const [id, start] of this.elementGesture?.tables ?? []) {
-            this.store.moveTable(id, start.x, start.y);
-         }
-         for (const [relId, wp] of this.elementGesture?.waypoints ?? []) {
-            this.store.setWaypoints(relId, wp);
-         }
-         for (const [id, seq] of this.elementGesture?.sequences ?? []) {
-            this.store.shiftSequence(id, seq.xs, 0, seq.originY, 0, seq.rows);
-         }
+         const g = this.elementGesture;
+         this.store.moveItemsLocal({
+            elements: g?.others,
+            tables: g?.tables,
+            waypoints: g?.waypoints,
+            sequences: [...(g?.sequences ?? [])].map(([id, seq]) => ({
+               diagramId: id,
+               startXs: seq.xs,
+               dx: 0,
+               startOriginY: seq.originY,
+               dy: 0,
+               startRows: seq.rows,
+            })),
+         });
       } else {
-         for (const [id, start] of this.multiDragStart) {
-            this.store.moveTable(id, start.x, start.y);
-         }
-         for (const [relId, start] of this.waypointDragStart) {
-            this.store.setWaypoints(relId, start.wp);
-         }
-         for (const [id, p] of this.nodeExtras?.elements ?? []) {
-            this.store.moveElement(id, p.x, p.y);
-         }
-         for (const [id, seq] of this.nodeExtras?.sequences ?? []) {
-            this.store.shiftSequence(id, seq.xs, 0, seq.originY, 0, seq.rows);
-         }
+         this.store.moveItemsLocal({
+            tables: this.multiDragStart,
+            waypoints: new Map([...this.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
+            ...this.nodeExtrasMoves(0, 0),
+         });
       }
       this.mode = 'duplicating';
       let resume: (() => void) | null = null;
@@ -5762,15 +5789,16 @@ export class EditorComponent {
          const grid = this.gridSnap();
          // The tables' actual (snapped) move, so routes carried with them stay attached.
          let moved: { x: number; y: number } | null = null;
+         const tables = new Map<string, { x: number; y: number }>();
          for (const [id, start] of this.multiDragStart) {
             const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
             const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
-            this.store.moveTable(id, nx, ny);
+            tables.set(id, { x: nx, y: ny });
             if (id === this.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
          }
          const mx = moved?.x ?? dx;
          const my = moved?.y ?? dy;
-         this.moveNodeExtras();
+         const waypoints = new Map<string, { x: number; y: number }[]>();
          // Keep manual routes attached as their tables move. Both endpoints moving
          // together: translate the whole route rigidly. A single endpoint moving:
          // the waypoint nearest that anchor follows it in y (its horizontal run
@@ -5781,14 +5809,14 @@ export class EditorComponent {
                continue;
             }
             if (start.both) {
-               this.store.setWaypoints(
+               waypoints.set(
                   relId,
                   start.wp.map((w) => ({ x: Math.round(w.x + mx), y: Math.round(w.y + my) }))
                );
                continue;
             }
             const near = start.sourceMoved ? 0 : start.wp.length - 1;
-            this.store.setWaypoints(
+            waypoints.set(
                relId,
                start.wp.map((w, i) => ({
                   x: Math.round(w.x),
@@ -5796,6 +5824,8 @@ export class EditorComponent {
                }))
             );
          }
+         // Tables, their routes and the items riding along: one state write per frame.
+         this.store.moveItemsLocal({ tables, waypoints, ...this.nodeExtrasMoves(mx, my) });
       } else if (this.mode === 'marquee') {
          this.marqueeCurrent.set(this.screenPoint(event.clientX, event.clientY));
       }
@@ -7156,31 +7186,31 @@ export class EditorComponent {
       dy: number
    ): void {
       const elementIds = new Set(items.elements);
+      const elements = new Map<string, { x: number; y: number }>();
       for (const e of this.store.elements()) {
-         if (elementIds.has(e.id)) {
-            this.store.moveElement(e.id, e.x + dx, e.y + dy);
-         }
+         if (elementIds.has(e.id)) elements.set(e.id, { x: e.x + dx, y: e.y + dy });
       }
       const tableIds = new Set(items.tables);
+      const tables = new Map<string, { x: number; y: number }>();
       for (const t of this.store.tables()) {
-         if (tableIds.has(t.id)) {
-            this.store.moveTable(t.id, t.x + dx, t.y + dy);
-         }
+         if (tableIds.has(t.id)) tables.set(t.id, { x: t.x + dx, y: t.y + dy });
       }
+      const waypoints = new Map<string, { x: number; y: number }[]>();
+      const locs = this.columnLocations();
       for (const rel of this.store.relationships()) {
          if (!rel.waypoints?.length) {
             continue;
          }
-         const locs = this.columnLocations();
          const st = locs.get(rel.sourceColumnId)?.table.id;
          const tt = locs.get(rel.targetColumnId)?.table.id;
          if (st && tt && tableIds.has(st) && tableIds.has(tt)) {
-            this.store.setWaypoints(
+            waypoints.set(
                rel.id,
                rel.waypoints.map((w) => ({ x: w.x + dx, y: w.y + dy }))
             );
          }
       }
+      this.store.moveItemsLocal({ elements, tables, waypoints });
       const diagramIds = new Set(items.diagrams);
       for (const d of this.store.sequenceDiagrams()) {
          if (!diagramIds.has(d.id)) {

@@ -47,6 +47,7 @@ import { GRID_CELL_PAD, cellKey, edges, gridSizes, mergeAt, parseGrid, type Grid
 import { curvedPath, freehandFillPath, polylinePath } from './freedraw-path.helper';
 import { textInkInsets } from './text-metrics';
 import { ANCHOR_GAP } from '../constants/canvas.constants';
+import { LruCache } from '../../../../shared/helpers/lru';
 
 /** Map a stored font-family key to a concrete CSS font stack (see index.html). */
 export const FONT_STACKS: Record<string, string> = {
@@ -245,12 +246,27 @@ export function baselineInLine(cssFont: string, fontSize: number, lineHeight: nu
    return lineHeight / 2 + fontSize * 0.175;
 }
 
+/** (font, text) -> width. Wrapping measures the same words over and over. */
+const widthCache = new LruCache<string, number>(8000);
+/** Grid text -> parsed grid, for drawing only (never mutate the result). */
+const gridCache = new LruCache<string, GridData>(300);
+
+/**
+ * Drop text measurements (taken with a fallback face before a web font loaded). Called by
+ * `clearTextMetricsCaches` when fonts finish loading.
+ */
+export function clearShapeRenderCaches(): void {
+   widthCache.clear();
+}
+
 function measureWidth(text: string, cssFont: string): number {
    if (!measureCtx || text === '') {
       return text.length * 8;
    }
-   measureCtx.font = cssFont;
-   return measureCtx.measureText(text).width;
+   return widthCache.getOrSet(cssFont + '\u0001' + text, () => {
+      measureCtx.font = cssFont;
+      return measureCtx.measureText(text).width;
+   });
 }
 
 /** Greedily wrap a paragraph to a maximum width (word wrap, hard-breaks long words). */
@@ -1136,7 +1152,8 @@ function gridTableView(
    stroke: string,
    fill: string
 ): GridTableView {
-   const g = parseGrid(element.text);
+   const text = element.text ?? '';
+   const g = gridCache.getOrSet(text, () => parseGrid(text));
    const { cols, rows } = gridSizes(g, element.width, element.height);
    const colEdges = edges(cols).map((e) => element.x + e);
    const rowEdges = edges(rows).map((e) => element.y + e);
@@ -1362,6 +1379,51 @@ function routeBoundConnector(sBox: RotatedBox, tBox: RotatedBox): Point[] {
    return [boundaryPoint(sBox, tc, ANCHOR_GAP), boundaryPoint(tBox, sc, ANCHOR_GAP)];
 }
 
+interface ViewMemo {
+   el: CanvasElementModel;
+   key: string;
+   view: ShapeView;
+   clip?: { key: string; view: ShapeView; base: ShapeView };
+}
+
+/**
+ * Per-element memo for `buildShapeViews` (one per caller, e.g. the editor canvas). An element
+ * whose model and inputs (selection, theme guard, bound-end boxes, font generation) are
+ * unchanged keeps its previous view object, so layout work runs only for what changed and
+ * `@for` sees the same object.
+ */
+export class ShapeViewCache {
+   readonly entries = new Map<string, ViewMemo>();
+}
+
+/** Two values equal by reference, or arrays/plain objects equal one level down. */
+function sameField(a: unknown, b: unknown): boolean {
+   if (a === b) return true;
+   if (Array.isArray(a) && Array.isArray(b)) {
+      return a.length === b.length && a.every((x, i) => x === b[i] || sameShallow(x, b[i]));
+   }
+   return sameShallow(a, b);
+}
+
+function sameShallow(a: unknown, b: unknown): boolean {
+   if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) {
+      return false;
+   }
+   const ka = Object.keys(a);
+   if (ka.length !== Object.keys(b).length) return false;
+   return ka.every((k) => (a as Record<string, unknown>)[k] === (b as Record<string, unknown>)[k]);
+}
+
+/** Same element content (derived copies such as themed or placeholder elements count as equal). */
+function sameElement(a: CanvasElementModel, b: CanvasElementModel): boolean {
+   if (a === b) return true;
+   const ka = Object.keys(a) as (keyof CanvasElementModel)[];
+   if (ka.length !== Object.keys(b).length) return false;
+   return ka.every((k) => sameField(a[k], b[k]));
+}
+
+const boxKey = (b: RotatedBox | null): string => (b ? `${b.x0},${b.y0},${b.x1},${b.y1},${b.angle ?? 0}` : '-');
+
 /**
  * Build render views for every element, resolving styling, rotation, bound arrow
  * endpoints, text layout, and shape labels. Bound connectors route around other
@@ -1374,7 +1436,9 @@ export function buildShapeViews(
    canvasTheme?: ThemeColors,
    messageBoxes?: ReadonlyMap<string, Box>,
    /** A diff code block being edited: drawn as two plain halves under its two editors. */
-   diffEditingId?: string | null
+   diffEditingId?: string | null,
+   /** Reuse unchanged views from earlier calls; `generation` changes when web fonts load. */
+   memo?: { cache: ShapeViewCache; generation: number }
 ): ShapeView[] {
    const tableById = new Map(tables.map((t) => [t.id, t]));
    const elementById = new Map(elements.map((e) => [e.id, e]));
@@ -1403,7 +1467,27 @@ export function buildShapeViews(
       return e ? { ...elementBox(e), angle: e.angle } : null;
    };
 
+   const seen = memo ? new Map<string, ViewMemo>() : null;
    const views = elements.map((element) => {
+      if (!memo || !seen) return buildView(element);
+      const theme = guardFor(element);
+      const bound =
+         element.type === 'line' || element.type === 'arrow'
+            ? `|${element.startBinding ? boxKey(targetBox(element.startBinding)) : ''}|${element.endBinding ? boxKey(targetBox(element.endBinding)) : ''}`
+            : '';
+      const key = `${memo.generation}|${selectedIds.has(element.id) ? 1 : 0}|${element.id === diffEditingId ? 1 : 0}|${theme?.canvasBg}|${theme?.text}|${theme?.surface}${bound}`;
+      const prev = memo.cache.entries.get(element.id);
+      const hit = prev && prev.key === key && sameElement(prev.el, element) ? prev : null;
+      const entry: ViewMemo = hit ?? { el: element, key, view: buildView(element) };
+      seen.set(element.id, entry);
+      return entry.view;
+   });
+   if (memo && seen) {
+      memo.cache.entries.clear();
+      for (const [id, entry] of seen) memo.cache.entries.set(id, entry);
+   }
+
+   function buildView(element: CanvasElementModel): ShapeView {
       const theme = guardFor(element);
       const box = elementBox(element);
       const center = elementCenter(element);
@@ -1608,25 +1692,33 @@ export function buildShapeViews(
          }
       }
       return base;
-   });
+   }
    // Frames are page backdrops: draw them beneath everything else (stable sort).
    // Frames set to clip their content: shapes whose centre lies inside the (smallest)
    // such frame are cut to its box. Slides keep their own clipping.
    const clipFrames = elements
       .filter((e) => e.type === 'frame' && e.clipContent && !e.slide)
       .sort((a, b) => a.width * a.height - b.width * b.height);
-   if (clipFrames.length) {
-      for (const v of views) {
-         const el = elementById.get(v.id);
-         if (!el || el.type === 'frame' || el.slideId) continue;
-         const c = elementCenter(el);
-         const f = clipFrames.find(
-            (fr) => c.x >= fr.x && c.x <= fr.x + fr.width && c.y >= fr.y && c.y <= fr.y + fr.height
-         );
-         if (f) v.frameClip = { x: f.x, y: f.y, width: f.width, height: f.height };
-      }
-   }
-   return views.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
+   // Views can be shared through the memo, so a clipped one is a copy (itself memoized).
+   const out = clipFrames.length
+      ? views.map((v) => {
+           const el = elementById.get(v.id);
+           if (!el || el.type === 'frame' || el.slideId) return v;
+           const c = elementCenter(el);
+           const f = clipFrames.find(
+              (fr) => c.x >= fr.x && c.x <= fr.x + fr.width && c.y >= fr.y && c.y <= fr.y + fr.height
+           );
+           if (!f) return v;
+           const frameClip = { x: f.x, y: f.y, width: f.width, height: f.height };
+           const entry = seen?.get(v.id);
+           const key = `${f.x},${f.y},${f.width},${f.height}`;
+           if (entry?.clip && entry.clip.key === key && entry.clip.base === v) return entry.clip.view;
+           const clipped = { ...v, frameClip };
+           if (entry) entry.clip = { key, view: clipped, base: v };
+           return clipped;
+        })
+      : views;
+   return out.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
 }
 
 /**

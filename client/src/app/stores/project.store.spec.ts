@@ -870,3 +870,109 @@ describe('ProjectStore view state', () => {
       expect(byItem.get('a')).toBe('g');
    });
 });
+
+// ---- bulk local moves (perf P2.1) ---------------------------------------------------------------
+
+describe('ProjectStore.moveItemsLocal', () => {
+   beforeEach(() => jest.useFakeTimers());
+   afterEach(() => jest.useRealTimers());
+
+   const start = (): Partial<SchemaModel> => ({
+      elements: [element('a'), element('b'), element('still', { x: 500 })],
+      tables: [table('t1', { columns: [column('c1')] }), table('t2', { columns: [column('c2')] })],
+      relationships: [relationship('r1', 'c1', 'c2')],
+      sequenceDiagrams: [diagram('d1', { originY: 0, headerHeight: 40, rowSpacing: 60 })],
+      lifelines: [lifeline('l1', 'd1', { x: 10 })],
+      sequenceMessages: [message('m1', 'd1', 'l1', 'l1', 100)],
+   });
+
+   it('moves everything in one schema write and leaves untouched rows as they were', () => {
+      const { store } = createStore(start());
+      const still = store.schema()!.elements[2];
+      const writes: unknown[] = [];
+      TestBed.runInInjectionContext(() => watchState(store, (state) => writes.push(state.schema)));
+      writes.length = 0;
+
+      store.moveItemsLocal({
+         elements: new Map([
+            ['a', { x: 10, y: 20 }],
+            ['b', { x: 30, y: 40 }],
+         ]),
+         tables: new Map([['t1', { x: 5, y: 6 }]]),
+         waypoints: new Map([['r1', [{ x: 1, y: 2 }]]]),
+         sequences: [
+            {
+               diagramId: 'd1',
+               startXs: new Map([['l1', 10]]),
+               dx: 7,
+               startOriginY: 0,
+               dy: 3,
+               startRows: new Map([['m1', 1]]),
+            },
+         ],
+      });
+
+      expect(writes).toHaveLength(1);
+      const s = store.schema()!;
+      expect(s.elements.map((e) => [e.x, e.y])).toEqual([
+         [10, 20],
+         [30, 40],
+         [500, 0],
+      ]);
+      expect(s.elements[2]).toBe(still);
+      expect([s.tables[0].x, s.tables[0].y, s.tables[1].x]).toEqual([5, 6, 0]);
+      expect(s.relationships[0].waypoints).toEqual([{ x: 1, y: 2 }]);
+      expect(s.lifelines[0].x).toBe(17);
+      expect(s.sequenceDiagrams[0].originY).toBe(3);
+      expect(s.sequenceMessages[0].y).toBe(3 + 40 + 60);
+   });
+
+   it('stages the moved rows into one batch save (sequence shifts stay local)', async () => {
+      const { store, api } = createStore(start());
+      store.moveItemsLocal({
+         elements: new Map([['a', { x: 1, y: 1 }]]),
+         tables: new Map([['t2', { x: 2, y: 2 }]]),
+         waypoints: new Map([['r1', []]]),
+      });
+      await jest.advanceTimersByTimeAsync(400);
+      expect(api.projects.batch).toHaveBeenCalledTimes(1);
+      expect(api.projects.batch).toHaveBeenCalledWith('p1', {
+         tables: [{ id: 't2', x: 2, y: 2 }],
+         elements: [{ id: 'a', x: 1, y: 1 }],
+         relationships: [{ id: 'r1', waypoints: [] }],
+      });
+   });
+
+   it('undoes and redoes a recorded multi-item move in one write each', async () => {
+      const { store } = createStore(start());
+      store.moveItemsLocal({
+         elements: new Map([
+            ['a', { x: 9, y: 9 }],
+            ['b', { x: 8, y: 8 }],
+         ]),
+      });
+      store.recordElementMove([
+         { id: 'a', from: { x: 0, y: 0 }, to: { x: 9, y: 9 } },
+         { id: 'b', from: { x: 0, y: 0 }, to: { x: 8, y: 8 } },
+      ]);
+      const writes: unknown[] = [];
+      TestBed.runInInjectionContext(() => watchState(store, (state) => writes.push(state.schema)));
+      writes.length = 0;
+      const initial = store.schema();
+
+      await store.undoElement();
+      expect(
+         store
+            .schema()!
+            .elements.slice(0, 2)
+            .map((e) => [e.x, e.y])
+      ).toEqual([
+         [0, 0],
+         [0, 0],
+      ]);
+      await store.redoElement();
+      expect(store.schema()!.elements[0].x).toBe(9);
+      // Each step is one schema change (history-depth patches leave the schema as is).
+      expect(writes.filter((w, i) => w !== (i ? writes[i - 1] : initial))).toHaveLength(2);
+   });
+});

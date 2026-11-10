@@ -224,6 +224,63 @@ const sameHidden = (a: SlideHidden | null, b: SlideHidden | null): boolean =>
       sameSet(a.tableIds, b.tableIds) &&
       sameSet(a.diagramIds, b.diagramIds));
 
+/** A live (local-only) shift of one sequence diagram from where its drag started. */
+export interface SequenceShift {
+   diagramId: string;
+   startXs: ReadonlyMap<string, number>;
+   dx: number;
+   startOriginY: number;
+   dy: number;
+   startRows: ReadonlyMap<string, number>;
+}
+
+/** Everything one drag frame moves, applied by `moveItemsLocal` as a single state write. */
+export interface ItemMoves {
+   elements?: ReadonlyMap<string, PointModel>;
+   tables?: ReadonlyMap<string, PointModel>;
+   /** Relationship id -> its new waypoints. */
+   waypoints?: ReadonlyMap<string, PointModel[]>;
+   sequences?: readonly SequenceShift[];
+}
+
+function shiftSequenceIn(s: SchemaModel, shift: SequenceShift): SchemaModel {
+   const { diagramId, startXs, dx, startOriginY, dy, startRows } = shift;
+   const d = s.sequenceDiagrams.find((x) => x.id === diagramId);
+   const base = startOriginY + dy + (d?.headerHeight ?? 42);
+   const gap = d?.rowSpacing ?? 48;
+   return {
+      ...s,
+      lifelines: s.lifelines.map((l) => (l.diagramId === diagramId ? { ...l, x: (startXs.get(l.id) ?? l.x) + dx } : l)),
+      sequenceMessages: s.sequenceMessages.map((m) =>
+         m.diagramId === diagramId && startRows.has(m.id) ? { ...m, y: base + gap * (startRows.get(m.id) ?? 1) } : m
+      ),
+      sequenceDiagrams: s.sequenceDiagrams.map((x) => (x.id === diagramId ? { ...x, originY: startOriginY + dy } : x)),
+   };
+}
+
+/** Move many rows in one pass per collection; rows already in place keep their identity. */
+function applyItemMoves(s: SchemaModel, moves: ItemMoves): SchemaModel {
+   let next = s;
+   const at = <T extends { id: string; x: number; y: number }>(rows: T[], to?: ReadonlyMap<string, PointModel>): T[] =>
+      to?.size
+         ? rows.map((r) => {
+              const p = to.get(r.id);
+              return p && (p.x !== r.x || p.y !== r.y) ? { ...r, x: p.x, y: p.y } : r;
+           })
+         : rows;
+   if (moves.elements?.size) next = { ...next, elements: at(next.elements, moves.elements) };
+   if (moves.tables?.size) next = { ...next, tables: at(next.tables, moves.tables) };
+   const wps = moves.waypoints;
+   if (wps?.size) {
+      next = {
+         ...next,
+         relationships: next.relationships.map((r) => (wps.has(r.id) ? { ...r, waypoints: wps.get(r.id) } : r)),
+      };
+   }
+   for (const shift of moves.sequences ?? []) next = shiftSequenceIn(next, shift);
+   return next;
+}
+
 /** One item's group membership, used to apply and undo (un)grouping. */
 interface GroupAssignment {
    kind: GroupItemKind;
@@ -2774,25 +2831,21 @@ export const ProjectStore = signalStore(
                dy: number,
                startRows: ReadonlyMap<string, number>
             ): void {
-               setSchema((s) => {
-                  const d = s.sequenceDiagrams.find((x) => x.id === diagramId);
-                  const base = startOriginY + dy + (d?.headerHeight ?? 42);
-                  const gap = d?.rowSpacing ?? 48;
-                  return {
-                     ...s,
-                     lifelines: s.lifelines.map((l) =>
-                        l.diagramId === diagramId ? { ...l, x: (startXs.get(l.id) ?? l.x) + dx } : l
-                     ),
-                     sequenceMessages: s.sequenceMessages.map((m) =>
-                        m.diagramId === diagramId && startRows.has(m.id)
-                           ? { ...m, y: base + gap * (startRows.get(m.id) ?? 1) }
-                           : m
-                     ),
-                     sequenceDiagrams: s.sequenceDiagrams.map((x) =>
-                        x.id === diagramId ? { ...x, originY: startOriginY + dy } : x
-                     ),
-                  };
-               });
+               setSchema((s) => shiftSequenceIn(s, { diagramId, startXs, dx, startOriginY, dy, startRows }));
+            },
+
+            /**
+             * Move elements, tables, relationship waypoints and sequence diagrams together:
+             * one state write per drag frame (one pass per collection) instead of one per
+             * item. Element/table/waypoint rows are staged for the batch save like
+             * `moveElement`/`moveTable`/`setWaypoints`; sequence shifts stay local (persist
+             * them when the gesture ends).
+             */
+            moveItemsLocal(moves: ItemMoves): void {
+               for (const [id, p] of moves.elements ?? []) stage('elements', id, { x: p.x, y: p.y });
+               for (const [id, p] of moves.tables ?? []) stage('tables', id, { x: p.x, y: p.y });
+               for (const [id, waypoints] of moves.waypoints ?? []) stage('relationships', id, { waypoints });
+               setSchema((s) => applyItemMoves(s, moves));
             },
 
             /**
@@ -3703,16 +3756,9 @@ export const ProjectStore = signalStore(
                if (!moves.length) {
                   return;
                }
-               pushHistory({
-                  undo: () =>
-                     Promise.all(moves.map((m) => updateElementRaw(m.id, { x: m.from.x, y: m.from.y }))).then(
-                        () => undefined
-                     ),
-                  redo: () =>
-                     Promise.all(moves.map((m) => updateElementRaw(m.id, { x: m.to.x, y: m.to.y }))).then(
-                        () => undefined
-                     ),
-               });
+               const to = (pick: (m: (typeof moves)[number]) => PointModel) =>
+                  this.moveItemsLocal({ elements: new Map(moves.map((m) => [m.id, pick(m)])) });
+               pushHistory({ undo: () => to((m) => m.from), redo: () => to((m) => m.to) });
             },
 
             /** Run `fn`, recording everything it does as a single undo step. */

@@ -1,6 +1,6 @@
 import type { RelationshipModel, TableModel } from '@devdesigner/shared';
 import { OBSTACLE_GAP, OBSTACLE_SEARCH_MARGIN } from '../constants/canvas.constants';
-import type { Box, Point, Side } from '../models/geometry.model';
+import type { Box, ColumnLocation, Point, Side } from '../models/geometry.model';
 import type { Connector, RouteSegment } from '../models/connector.model';
 import { buildColumnLocations, columnAnchor, sideDir, tableBox, tableWidth } from './node-metrics.helper';
 import {
@@ -453,12 +453,35 @@ function clearEnds(route: Point[], dirA: number, dirB: number): void {
 }
 
 /** Build the SVG connectors for the current schema. */
+interface RouteMemo {
+   rel: RelationshipModel;
+   source: ColumnLocation;
+   target: ColumnLocation;
+   /** Obstacle and shared-frame boxes the route was found around. */
+   around: string;
+   resolved: { a: Point; b: Point; route: Point[]; ss: Side; ts: Side };
+}
+
+/**
+ * Per-relationship route memo for `computeConnectors` (one per caller). A relationship whose
+ * row, end tables and surrounding obstacles are unchanged reuses its routed path, so a drag
+ * re-routes only the relationships it actually touches.
+ */
+export class ConnectorRouteCache {
+   readonly entries = new Map<string, RouteMemo>();
+}
+
+const boxesKey = (boxes: readonly (Box | undefined)[]): string =>
+   boxes.map((b) => (b ? `${b.x0},${b.y0},${b.x1},${b.y1}` : '-')).join(';');
+
 export function computeConnectors(
    tables: readonly TableModel[],
    relationships: readonly RelationshipModel[],
    selectedIds: ReadonlySet<string>,
-   frames: readonly Box[] = []
+   frames: readonly Box[] = [],
+   cache?: ConnectorRouteCache
 ): Connector[] {
+   const seen = cache ? new Map<string, RouteMemo>() : null;
    const locations = buildColumnLocations(tables);
    const boxes = new Map<string, Box>();
    for (const table of tables) {
@@ -501,18 +524,45 @@ export function computeConnectors(
          }
       }
 
-      const resolved = resolveConnector(
+      const frame = sharedFrameBounds(sBox, tBox, frames);
+      const route = (): RouteMemo['resolved'] => {
+         const r = resolveConnector(rel, source.table, source.index, target.table, target.index, obstacles, frame);
+         // Final guard: every segment stored and drawn is strictly horizontal/vertical.
+         return { a: r.a, b: r.b, route: orthogonalize(r.route), ss: r.ss, ts: r.ts };
+      };
+      let resolved: RouteMemo['resolved'];
+      if (cache && seen) {
+         const around = boxesKey([...obstacles, frame]);
+         const prev = cache.entries.get(rel.id);
+         const hit =
+            prev &&
+            prev.rel === rel &&
+            prev.source.table === source.table &&
+            prev.source.index === source.index &&
+            prev.target.table === target.table &&
+            prev.target.index === target.index &&
+            prev.around === around
+               ? prev
+               : null;
+         const entry = hit ?? { rel, source, target, around, resolved: route() };
+         seen.set(rel.id, entry);
+         resolved = entry.resolved;
+      } else {
+         resolved = route();
+      }
+      // The lane spreading below edits routes in place: work on a copy of the memoized one.
+      pending.push({
          rel,
-         source.table,
-         source.index,
-         target.table,
-         target.index,
-         obstacles,
-         sharedFrameBounds(sBox, tBox, frames)
-      );
-      // Final guard: every segment stored and drawn is strictly horizontal/vertical.
-      const route = orthogonalize(resolved.route);
-      pending.push({ rel, a: resolved.a, b: resolved.b, route, ss: resolved.ss, ts: resolved.ts });
+         a: resolved.a,
+         b: resolved.b,
+         route: resolved.route.map((p) => ({ ...p })),
+         ss: resolved.ss,
+         ts: resolved.ts,
+      });
+   }
+   if (cache && seen) {
+      cache.entries.clear();
+      for (const [id, entry] of seen) cache.entries.set(id, entry);
    }
 
    // Keep lines headed to different destinations from running on top of each other.
