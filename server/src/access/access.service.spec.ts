@@ -3,11 +3,6 @@ import type { Repository } from 'typeorm';
 import { AccessService } from './access.service';
 import type { Project } from '../projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
-import type { TableEntity } from '../tables/table.entity';
-import type { ColumnEntity } from '../columns/column.entity';
-import type { IndexEntity } from '../indexes/index.entity';
-import type { RelationshipEntity } from '../relationships/relationship.entity';
-import type { ElementEntity } from '../elements/element.entity';
 
 /**
  * Unit tests for the access-resolution layer (BUILD_INSTRUCTIONS.md sections 6/7).
@@ -23,11 +18,6 @@ describe('AccessService', () => {
     shareLinks = { findOne: jest.fn() };
     service = new AccessService(
       projects as unknown as Repository<Project>,
-      {} as unknown as Repository<TableEntity>,
-      {} as unknown as Repository<ColumnEntity>,
-      {} as unknown as Repository<IndexEntity>,
-      {} as unknown as Repository<RelationshipEntity>,
-      {} as unknown as Repository<ElementEntity>,
       shareLinks as unknown as Repository<ShareLink>,
     );
   });

@@ -8,6 +8,7 @@ import {
   type SchemaMutation,
 } from '@devdesigner/shared';
 import { bumpProjectRevision } from '../common/project-revision';
+import { originClientId as originClientId_ } from '../platform/http/request-context';
 import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
 
 /**
@@ -24,21 +25,29 @@ import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
 export class RealtimePublisher {
   constructor(private readonly emitter: EventEmitter2) {}
 
-  emit(projectId: string, originClientId: string | null, mutation: SchemaMutation): void {
+  /**
+   * Broadcast one persisted change. The origin tab defaults to the current request's
+   * trusted X-Client-Id (RequestContext), so its own echo is skipped.
+   */
+  emit(projectId: string, mutation: SchemaMutation, originClientId: string | null = originClientId_()): void {
     bumpProjectRevision(projectId);
     const event: MutationEvent = { projectId, originClientId, mutation };
     this.emitter.emit(PROJECT_MUTATION_EVENT, event);
   }
 
   /** Broadcast many changes from one request as a single message (in order). */
-  emitMany(projectId: string, originClientId: string | null, mutations: SchemaMutation[]): void {
+  emitMany(
+    projectId: string,
+    mutations: SchemaMutation[],
+    originClientId: string | null = originClientId_(),
+  ): void {
     if (mutations.length === 0) {
       // Nothing to tell peers, but the caller did write: keep cached graphs honest.
       bumpProjectRevision(projectId);
       return;
     }
     if (mutations.length === 1) {
-      this.emit(projectId, originClientId, mutations[0]);
+      this.emit(projectId, mutations[0], originClientId);
       return;
     }
     bumpProjectRevision(projectId);

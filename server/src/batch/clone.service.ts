@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
 import type { BatchUpdateResponse, CloneItemsDto, SchemaMutation } from '@devdesigner/shared';
-import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from '../tables/table.entity';
 import { ColumnEntity } from '../columns/column.entity';
@@ -53,18 +52,11 @@ function idMap(raw: unknown, name: string): Map<string, string> {
 export class CloneService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
 
-  async clone(
-    projectId: string,
-    body: unknown,
-    userId: string | null,
-    shareToken: string | null,
-    clientId: string | null,
-  ): Promise<BatchUpdateResponse> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
+  /** The route guard has checked write access to `projectId`. */
+  async clone(projectId: string, body: unknown): Promise<BatchUpdateResponse> {
     if (!body || typeof body !== 'object') throw new BadRequestException('Body must be an object.');
     const b = body as Record<string, unknown>;
     const dx = num(b.dx, 'dx');
@@ -295,7 +287,7 @@ export class CloneService {
       return out;
     });
 
-    this.realtime.emitMany(projectId, clientId, mutations);
+    this.realtime.emitMany(projectId, mutations);
     return { mutations };
   }
 }

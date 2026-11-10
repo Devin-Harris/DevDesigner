@@ -18,7 +18,6 @@ import { TablesService } from '../tables/tables.service';
 import { RelationshipsService } from '../relationships/relationships.service';
 import { ElementsService } from '../elements/elements.service';
 import { SequenceService } from '../sequence/sequence.service';
-import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ElementEntity } from '../elements/element.entity';
 import { TableEntity } from '../tables/table.entity';
@@ -43,9 +42,10 @@ import { bumpProjectRevision } from '../common/project-revision';
  * responses are mapped to the shared ProjectSummary / ProjectGraphResponse shapes
  * so the client consumes exactly what it is typed against.
  *
- * Access control is deferred (anonymous phase): every caller currently has full
- * access. The policy layer (access/) will authorize these operations once auth
- * and sharing land (BUILD_INSTRUCTIONS.md sections 6 and 7).
+ * Authorization happens before these methods run: project routes declare
+ * `@RequiresAccess` and ProjectAccessGuard resolves the caller's level once, so
+ * the methods below take an already-authorized project id. List/create/import
+ * are scoped by the caller's owner id instead.
  */
 @Injectable()
 export class ProjectsService {
@@ -56,7 +56,6 @@ export class ProjectsService {
     private readonly relationships: RelationshipsService,
     private readonly elements: ElementsService,
     private readonly sequence: SequenceService,
-    private readonly access: AccessService,
     private readonly dataSource: DataSource,
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
@@ -67,12 +66,12 @@ export class ProjectsService {
    * projects they own; an anonymous caller sees only its own browser's guest
    * projects (userId is `guest:<id>`). Legacy ownerless projects are never listed.
    */
-  async list(userId: string | null, archived = false): Promise<ProjectSummary[]> {
-    if (!userId) {
+  async list(ownerId: string | null, archived = false): Promise<ProjectSummary[]> {
+    if (!ownerId) {
       return [];
     }
     const rows = await this.projects.find({
-      where: { archived, ownerId: userId },
+      where: { archived, ownerId },
       order: { updatedAt: 'DESC' },
     });
     return rows.map((row) => this.toSummary(row));
@@ -96,35 +95,21 @@ export class ProjectsService {
     return result.affected ?? 0;
   }
 
-  async create(dto: CreateProjectDto, userId: string | null): Promise<ProjectSummary> {
+  async create(dto: CreateProjectDto, ownerId: string | null): Promise<ProjectSummary> {
     const project = this.projects.create({
       name: dto.name,
       description: dto.description ?? null,
       type: dto.type ?? 'ERD',
       // Owned by the account when signed in, else by this browser's guest id.
-      ownerId: userId,
+      ownerId,
     });
     const saved = await this.projects.save(project);
     return this.toSummary(saved);
   }
 
-  /** Authorize a read without loading anything (conditional graph requests); returns the level. */
-  assertCanRead(
-    id: string,
-    userId: string | null,
-    shareToken: string | null = null,
-  ): Promise<AccessLevel> {
-    return this.access.assertCanRead(id, userId, shareToken);
-  }
-
-  /** Full project graph for initial load. Authorized against the caller's access. */
-  async getGraph(
-    id: string,
-    userId: string | null,
-    shareToken: string | null = null,
-  ): Promise<ProjectGraphResponse> {
-    // One read both authorizes and supplies the project row.
-    const { project, accessLevel } = await this.access.readProject(id, userId, shareToken);
+  /** Full project graph for initial load, as seen at the caller's (already resolved) level. */
+  async getGraph(id: string, accessLevel: AccessLevel): Promise<ProjectGraphResponse> {
+    const project = await this.findOrThrow(id);
     const [tables, relationships, elements, sequence] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
@@ -159,14 +144,9 @@ export class ProjectsService {
 
   /**
    * Just the database part of a project (tables + relationships), for SQL export.
-   * Authorized like getGraph; skips elements, sequence diagrams and the project row.
+   * Skips elements, sequence diagrams and the project row.
    */
-  async getDatabaseSchema(
-    id: string,
-    userId: string | null,
-    shareToken: string | null = null,
-  ): Promise<Pick<SchemaModel, 'tables' | 'relationships'>> {
-    await this.access.assertCanRead(id, userId, shareToken);
+  async getDatabaseSchema(id: string): Promise<Pick<SchemaModel, 'tables' | 'relationships'>> {
     const [tables, relationships] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
@@ -174,13 +154,7 @@ export class ProjectsService {
     return { tables, relationships };
   }
 
-  async updateViewport(
-    id: string,
-    dto: UpdateViewportDto,
-    userId: string | null,
-    shareToken: string | null = null,
-  ): Promise<void> {
-    await this.access.assertCanWrite(id, userId, shareToken);
+  async updateViewport(id: string, dto: UpdateViewportDto): Promise<void> {
     const result = await this.projects.update(
       { id },
       { viewportX: dto.viewportX, viewportY: dto.viewportY, zoom: dto.zoom },
@@ -191,14 +165,7 @@ export class ProjectsService {
   }
 
   /** Set (or clear, with `home: null`) the project's shared home view and tell collaborators. */
-  async updateHome(
-    id: string,
-    dto: UpdateHomeDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
-  ): Promise<void> {
-    await this.access.assertCanWrite(id, userId, shareToken);
+  async updateHome(id: string, dto: UpdateHomeDto): Promise<void> {
     const home = dto.home ?? null;
     const result = await this.projects.update(
       { id },
@@ -211,31 +178,19 @@ export class ProjectsService {
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
-    this.realtime.emit(id, clientId, { kind: 'home.updated', home });
+    this.realtime.emit(id, { kind: 'home.updated', home });
   }
 
   /** Replace the project's custom theme library and tell collaborators. */
-  async updateThemes(
-    id: string,
-    dto: UpdateThemesDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
-  ): Promise<void> {
-    await this.access.assertCanWrite(id, userId, shareToken);
+  async updateThemes(id: string, dto: UpdateThemesDto): Promise<void> {
     const result = await this.projects.update({ id }, { themesJson: JSON.stringify(dto.themes) });
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
-    this.realtime.emit(id, clientId, { kind: 'themes.updated', themes: dto.themes });
+    this.realtime.emit(id, { kind: 'themes.updated', themes: dto.themes });
   }
 
-  async update(
-    id: string,
-    dto: UpdateProjectDto,
-    userId: string | null,
-  ): Promise<ProjectSummary> {
-    await this.access.assertOwner(id, userId);
+  async update(id: string, dto: UpdateProjectDto): Promise<ProjectSummary> {
     const project = await this.findOrThrow(id);
     if (dto.name !== undefined) {
       project.name = dto.name;
@@ -255,8 +210,7 @@ export class ProjectsService {
     return this.toSummary(saved);
   }
 
-  async duplicate(id: string, userId: string | null): Promise<ProjectSummary> {
-    await this.access.assertOwner(id, userId);
+  async duplicate(id: string): Promise<ProjectSummary> {
     const source = await this.findOrThrow(id);
     const copy = this.projects.create({
       name: `${source.name} (copy)`,
@@ -282,12 +236,8 @@ export class ProjectsService {
    * Portable snapshot of a project for download. Anyone who can read the project
    * can export it (a view-only share link included, since they already see all of it).
    */
-  async exportProject(
-    id: string,
-    userId: string | null,
-    shareToken: string | null = null,
-  ): Promise<ProjectExportFile> {
-    const { project, schema } = await this.getGraph(id, userId, shareToken);
+  async exportProject(id: string, accessLevel: AccessLevel): Promise<ProjectExportFile> {
+    const { project, schema } = await this.getGraph(id, accessLevel);
     return {
       format: PROJECT_EXPORT_FORMAT,
       version: PROJECT_EXPORT_VERSION,
@@ -303,11 +253,11 @@ export class ProjectsService {
    * (or it is ownerless when anonymous), so a file moves freely between accounts
    * and devices. All-or-nothing: a failure rolls back and leaves no partial project.
    */
-  async importProject(raw: unknown, userId: string | null): Promise<ProjectSummary> {
+  async importProject(raw: unknown, ownerId: string | null): Promise<ProjectSummary> {
     const parsed = parseProjectExport(raw);
     const images = this.decodeImages(parsed.images);
     const saved = await this.dataSource.transaction((manager) =>
-      writeImportedProject(manager, parsed, userId, images),
+      writeImportedProject(manager, parsed, ownerId, images),
     );
     return this.toSummary(saved);
   }
@@ -318,14 +268,7 @@ export class ProjectsService {
    * above existing shapes. The additions are broadcast to collaborators and also
    * returned so the importing tab can apply them without a reload.
    */
-  async importIntoProject(
-    projectId: string,
-    body: unknown,
-    userId: string | null,
-    shareToken: string | null,
-    clientId: string | null,
-  ): Promise<ImportIntoProjectResponse> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
+  async importIntoProject(projectId: string, body: unknown): Promise<ImportIntoProjectResponse> {
     const { file, anchor, linkExisting, joinPresentations } = (body ?? {}) as {
       file?: unknown;
       joinPresentations?: unknown;
@@ -375,12 +318,11 @@ export class ProjectsService {
         (message): SchemaMutation => ({ kind: 'message.created', message }),
       ),
     ];
-    this.realtime.emitMany(projectId, clientId, mutations);
+    this.realtime.emitMany(projectId, mutations);
     return { mutations };
   }
 
-  async remove(id: string, userId: string | null): Promise<void> {
-    await this.access.assertOwner(id, userId);
+  async remove(id: string): Promise<void> {
     const result = await this.projects.delete({ id });
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);

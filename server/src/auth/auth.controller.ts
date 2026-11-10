@@ -18,6 +18,7 @@ import type {
   CreatedApiTokenResponse,
   CurrentUserResponse,
 } from '@devdesigner/shared';
+import { CallerScoped, Public } from '../access/access-policy';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -41,6 +42,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Public()
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -51,6 +53,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Public()
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -61,12 +64,14 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
     res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
   }
 
   @Get('me')
+  @Public()
   me(@CurrentUser() user: AuthUser | null): Promise<CurrentUserResponse | null> {
     return this.auth.me(user?.id ?? null);
   }
@@ -75,11 +80,13 @@ export class AuthController {
   // Managed only from a signed-in browser session: a token cannot mint or list tokens.
 
   @Get('api-tokens')
+  @CallerScoped()
   listApiTokens(@CurrentUser() user: AuthUser | null): Promise<ApiTokenResponse[]> {
     return this.apiTokens.list(this.requireSessionUser(user));
   }
 
   @Post('api-tokens')
+  @CallerScoped()
   createApiToken(
     @Body() dto: CreateApiTokenDto,
     @CurrentUser() user: AuthUser | null,
@@ -88,6 +95,7 @@ export class AuthController {
   }
 
   @Delete('api-tokens/:tokenId')
+  @CallerScoped()
   @HttpCode(HttpStatus.NO_CONTENT)
   revokeApiToken(
     @Param('tokenId') tokenId: string,
@@ -106,6 +114,7 @@ export class AuthController {
   // --- OAuth (stubbed now, implemented in Phase 8) ---
 
   @Get('oauth/:provider')
+  @Public()
   oauthStart(@Param('provider') provider: string): never {
     throw new NotImplementedException(
       `OAuth sign-in with "${provider}" is implemented in a later phase.`,
@@ -113,6 +122,7 @@ export class AuthController {
   }
 
   @Get('oauth/:provider/callback')
+  @Public()
   oauthCallback(@Param('provider') provider: string): never {
     throw new NotImplementedException(
       `OAuth callback for "${provider}" is implemented in a later phase.`,

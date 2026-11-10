@@ -12,8 +12,7 @@ import type { RelationshipModel } from '@devdesigner/shared';
 import { RelationshipsService } from './relationships.service';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /** Granular relationship routes (BUILD_INSTRUCTIONS.md section 5). */
 @Controller()
@@ -21,35 +20,31 @@ export class RelationshipsController {
   constructor(private readonly relationships: RelationshipsService) {}
 
   @Post('projects/:projectId/relationships')
+  @RequiresAccess('write')
   create(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: CreateRelationshipDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<RelationshipModel> {
-    return this.relationships.create(projectId, dto, userId, shareToken, clientId);
+    return this.relationships.create(projectId, dto);
   }
 
   @Patch('relationships/:relationshipId')
+  @RequiresAccess('write', { from: 'relationship' })
   update(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('relationshipId') relationshipId: string,
     @Body() dto: UpdateRelationshipDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<RelationshipModel> {
-    return this.relationships.update(relationshipId, dto, userId, shareToken, clientId);
+    return this.relationships.update(projectId, relationshipId, dto);
   }
 
   @Delete('relationships/:relationshipId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'relationship' })
   remove(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('relationshipId') relationshipId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.relationships.remove(relationshipId, userId, shareToken, clientId);
+    return this.relationships.remove(projectId, relationshipId);
   }
 }

@@ -1,8 +1,7 @@
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { UploadImageResponse } from '@devdesigner/shared';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { ImagesService } from './images.service';
 
@@ -12,23 +11,22 @@ export class ImagesController {
   constructor(private readonly images: ImagesService) {}
 
   @Post('projects/:projectId/images')
+  @RequiresAccess('write')
   upload(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: UploadImageDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
   ): Promise<UploadImageResponse> {
-    return this.images.upload(projectId, dto.mimeType, dto.data, userId, shareToken);
+    return this.images.upload(projectId, dto.mimeType, dto.data);
   }
 
   @Get('images/:imageId')
+  @RequiresAccess('read', { from: 'image' })
   async get(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('imageId') imageId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
     @Res() res: Response,
   ): Promise<void> {
-    const { mimeType, data } = await this.images.read(imageId, userId, shareToken);
+    const { mimeType, data } = await this.images.read(projectId, imageId);
     res
       .set({
         'Content-Type': mimeType,

@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
 import { MEDIA_MIME_TYPES, bytesMatchMediaType, maxMediaBytes } from '@devdesigner/shared';
 import type { ProjectExportImage, UploadImageResponse } from '@devdesigner/shared';
-import { AccessService } from '../access/access.service';
 import { ElementEntity } from '../elements/element.entity';
 import { imageHash } from './image-hash';
 import { ProjectImageEntity } from './project-image.entity';
@@ -24,17 +23,10 @@ export class ImagesService {
     private readonly images: Repository<ProjectImageEntity>,
     @InjectRepository(ElementEntity)
     private readonly elements: Repository<ElementEntity>,
-    private readonly access: AccessService,
   ) {}
 
-  async upload(
-    projectId: string,
-    mimeType: string,
-    base64: string,
-    userId: string | null,
-    shareToken: string | null,
-  ): Promise<UploadImageResponse> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
+  /** Store an upload for a project the caller may write to (checked by the route guard). */
+  async upload(projectId: string, mimeType: string, base64: string): Promise<UploadImageResponse> {
     const data = this.validate(mimeType, base64);
     const sha256 = imageHash(data);
     // Same bytes already stored for this project: reuse that file (and the client's cached copy).
@@ -47,19 +39,15 @@ export class ImagesService {
     return { id: saved.id };
   }
 
-  /** Bytes + type for display; the caller must be able to read the owning project. */
-  async read(
-    imageId: string,
-    userId: string | null,
-    shareToken: string | null,
-  ): Promise<{ mimeType: string; data: Buffer }> {
-    // Authorize before loading the blob, so refused requests never read the bytes.
-    const meta = await this.images.findOne({ where: { id: imageId }, select: { id: true, projectId: true } });
-    if (!meta) {
-      throw new NotFoundException(`Image ${imageId} not found.`);
-    }
-    await this.access.assertCanRead(meta.projectId, userId, shareToken);
-    const image = await this.images.findOne({ where: { id: imageId }, select: { id: true, mimeType: true, data: true } });
+  /**
+   * Bytes + type for display. The route guard has already resolved the image's
+   * project and authorized the read, so refused requests never load the blob.
+   */
+  async read(projectId: string, imageId: string): Promise<{ mimeType: string; data: Buffer }> {
+    const image = await this.images.findOne({
+      where: { id: imageId, projectId },
+      select: { id: true, mimeType: true, data: true },
+    });
     if (!image) {
       throw new NotFoundException(`Image ${imageId} not found.`);
     }

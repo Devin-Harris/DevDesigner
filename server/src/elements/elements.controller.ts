@@ -14,74 +14,65 @@ import { CreateElementDto } from './dto/create-element.dto';
 import { UpdateElementDto } from './dto/update-element.dto';
 import { UpdateElementPositionDto } from './dto/update-element-position.dto';
 import { ReorderElementsDto } from './dto/reorder-elements.dto';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /**
  * Granular canvas-element routes (BUILD_INSTRUCTIONS.md section 5). Create and
  * reorder carry the parent projectId in the path; position is its own tiny
- * endpoint for drag/reshape autosave so the client never over-saves. The share
- * token authorizes anonymous link callers; the client id lets the realtime
- * broadcast skip the origin tab.
+ * endpoint for drag/reshape autosave so the client never over-saves. Child routes
+ * authorize against the element's project (`from: 'element'`).
  */
 @Controller()
 export class ElementsController {
   constructor(private readonly elements: ElementsService) {}
 
   @Post('projects/:projectId/elements')
+  @RequiresAccess('write')
   create(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: CreateElementDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<CanvasElementModel> {
-    return this.elements.create(projectId, dto, userId, shareToken, clientId);
+    return this.elements.create(projectId, dto);
   }
 
   @Patch('projects/:projectId/elements/reorder')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write')
   reorder(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: ReorderElementsDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.elements.reorder(projectId, dto, userId, shareToken, clientId);
+    return this.elements.reorder(projectId, dto);
   }
 
   @Patch('elements/:elementId')
+  @RequiresAccess('write', { from: 'element' })
   update(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('elementId') elementId: string,
     @Body() dto: UpdateElementDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<CanvasElementModel> {
-    return this.elements.update(elementId, dto, userId, shareToken, clientId);
+    return this.elements.update(projectId, elementId, dto);
   }
 
   @Patch('elements/:elementId/position')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'element' })
   updatePosition(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('elementId') elementId: string,
     @Body() dto: UpdateElementPositionDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.elements.updatePosition(elementId, dto, userId, shareToken, clientId);
+    return this.elements.updatePosition(projectId, elementId, dto);
   }
 
   @Delete('elements/:elementId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'element' })
   remove(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('elementId') elementId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.elements.remove(elementId, userId, shareToken, clientId);
+    return this.elements.remove(projectId, elementId);
   }
 }

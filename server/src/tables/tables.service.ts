@@ -43,11 +43,7 @@ export class TablesService {
   async create(
     projectId: string,
     dto: CreateTableDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<TableModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -63,39 +59,33 @@ export class TablesService {
     });
     const saved = await this.tables.save(table);
     const model = toTableModel({ ...saved, columns: [], indexes: [] });
-    this.realtime.emit(projectId, clientId, { kind: 'table.created', table: model });
+    this.realtime.emit(projectId, { kind: 'table.created', table: model });
     return model;
   }
 
   async update(
+    projectId: string,
     tableId: string,
     dto: UpdateTableDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<TableModel> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.findOrThrow(tableId);
     applyTablePatch(table, dto);
     await this.tables.save(table);
     const model = await this.getModel(tableId);
-    this.realtime.emit(projectId, clientId, { kind: 'table.updated', table: model });
+    this.realtime.emit(projectId, { kind: 'table.updated', table: model });
     return model;
   }
 
   async updatePosition(
+    projectId: string,
     tableId: string,
     dto: UpdatePositionDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const result = await this.tables.update({ id: tableId }, { x: dto.x, y: dto.y });
     if (!result.affected) {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'table.moved',
       tableId,
       x: dto.x,
@@ -104,18 +94,15 @@ export class TablesService {
   }
 
   async remove(
+    projectId: string,
     tableId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     // Columns (and any relationships referencing them) cascade via FK.
     const result = await this.tables.delete({ id: tableId });
     if (!result.affected) {
       throw new NotFoundException(`Table ${tableId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'table.deleted', tableId });
+    this.realtime.emit(projectId, { kind: 'table.deleted', tableId });
   }
 
   private async getModel(tableId: string): Promise<TableModel> {

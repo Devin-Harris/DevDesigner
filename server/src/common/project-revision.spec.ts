@@ -43,14 +43,14 @@ describe('project revisions', () => {
 
   it('is bumped by every publisher emit, including empty batches', () => {
     const publisher = new RealtimePublisher({ emit: jest.fn() } as unknown as EventEmitter2);
-    publisher.emit('p', null, { kind: 'element.deleted', elementId: 'e' });
+    publisher.emit('p', { kind: 'element.deleted', elementId: 'e' });
     expect(projectRevision('p')).toBe(1);
-    publisher.emitMany('p', null, [
+    publisher.emitMany('p', [
       { kind: 'element.deleted', elementId: 'e1' },
       { kind: 'element.deleted', elementId: 'e2' },
     ]);
     expect(projectRevision('p')).toBe(2);
-    publisher.emitMany('p', null, []);
+    publisher.emitMany('p', []);
     expect(projectRevision('p')).toBe(3);
     expect(projectRevision('other')).toBe(0);
   });
@@ -62,7 +62,8 @@ describe('ProjectsController graph ETag', () => {
     schema: {},
     accessLevel: 'OWNER',
   } as unknown as ProjectGraphResponse;
-  let service: { getGraph: jest.Mock; assertCanRead: jest.Mock };
+  let service: { getGraph: jest.Mock };
+  const owner = { projectId: 'p', accessLevel: 'OWNER' } as const;
   let controller: ProjectsController;
 
   type FakeResponse = Response & { headers: Record<string, string>; code: number };
@@ -80,45 +81,44 @@ describe('ProjectsController graph ETag', () => {
     resetProjectRevisionsForTests();
     service = {
       getGraph: jest.fn().mockResolvedValue(graph),
-      assertCanRead: jest.fn().mockResolvedValue('OWNER'),
     };
     controller = new ProjectsController(service as unknown as ProjectsService);
   });
 
   it('serves 200 with an ETag, then 304 while nothing changed', async () => {
     const first = res();
-    await expect(controller.get('p', 'u', null, req(), first)).resolves.toBe(graph);
+    await expect(controller.get(owner, req(), first)).resolves.toBe(graph);
     const tag = first.headers.ETag;
     expect(tag).toBe(projectGraphTag('p', 'OWNER'));
     expect(first.headers['Cache-Control']).toBe('private, no-cache');
 
     const second = res();
-    await expect(controller.get('p', 'u', null, req(tag), second)).resolves.toBeUndefined();
+    await expect(controller.get(owner, req(tag), second)).resolves.toBeUndefined();
     expect(second.code).toBe(304);
     expect(service.getGraph).toHaveBeenCalledTimes(1);
   });
 
   it('rebuilds after a write to the same project but not to another one', async () => {
     const first = res();
-    await controller.get('p', 'u', null, req(), first);
+    await controller.get(owner, req(), first);
     const tag = first.headers.ETag;
 
     bumpProjectRevision('other');
     const unaffected = res();
-    await controller.get('p', 'u', null, req(tag), unaffected);
+    await controller.get(owner, req(tag), unaffected);
     expect(unaffected.code).toBe(304);
 
     bumpProjectRevision('p');
     const changed = res();
-    await expect(controller.get('p', 'u', null, req(tag), changed)).resolves.toBe(graph);
+    await expect(controller.get(owner, req(tag), changed)).resolves.toBe(graph);
     expect(changed.code).toBe(200);
     expect(changed.headers.ETag).not.toBe(tag);
   });
 
-  it('still authorizes a conditional request', async () => {
-    service.assertCanRead.mockRejectedValue(new Error('forbidden'));
-    await expect(
-      controller.get('p', 'u', null, req(projectGraphTag('p', 'OWNER')), res()),
-    ).rejects.toThrow('forbidden');
+  it('tags by the level the guard resolved (a VIEW copy never matches an OWNER tag)', async () => {
+    const view = res();
+    await controller.get({ projectId: 'p', accessLevel: 'VIEW' }, req(projectGraphTag('p', 'OWNER')), view);
+    expect(view.code).toBe(200);
+    expect(view.headers.ETag).toBe(projectGraphTag('p', 'VIEW'));
   });
 });

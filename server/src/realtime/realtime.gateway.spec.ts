@@ -16,7 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { AccessService } from '../access/access.service';
 import { AuthService } from '../auth/auth.service';
-import { originClientIdOf } from '../platform/http/request.decorators';
+import { originClientIdOf } from '../platform/http/caller';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimePublisher } from './realtime.publisher';
 
@@ -135,7 +135,7 @@ describe('RealtimeGateway', () => {
         'x-guest-id': GUEST_A,
       });
       expect(clientId).toBe(sessionIds.get(origin));
-      publisher.emit('p1', clientId, { kind: 'element.deleted', elementId: 'e1' });
+      publisher.emit('p1', { kind: 'element.deleted', elementId: 'e1' }, clientId);
       await settle();
 
       expect(atOrigin).toHaveLength(0);
@@ -156,7 +156,7 @@ describe('RealtimeGateway', () => {
         'x-guest-id': GUEST_B,
       });
       expect(clientId).toBeNull();
-      publisher.emit('p1', clientId, { kind: 'element.deleted', elementId: 'e1' });
+      publisher.emit('p1', { kind: 'element.deleted', elementId: 'e1' }, clientId);
       await settle();
 
       expect(atVictim).toHaveLength(1);
@@ -189,7 +189,7 @@ describe('RealtimeGateway', () => {
         'x-guest-id': GUEST_A,
       });
       expect(foreign).toBe(sessionIds.get(elsewhere));
-      publisher.emit('p1', foreign, { kind: 'element.deleted', elementId: 'e1' });
+      publisher.emit('p1', { kind: 'element.deleted', elementId: 'e1' }, foreign);
       await settle();
       expect(atHere).toHaveLength(1);
       expect(atElsewhere).toHaveLength(0);
@@ -205,10 +205,14 @@ describe('RealtimeGateway', () => {
   it('broadcasts to everyone when the change has no origin tab (MCP, server)', async () => {
     const a = await connect({ projectId: 'p1' });
     const seen = collect(a, RT_EVENTS.mutations);
-    publisher.emitMany('p1', null, [
-      { kind: 'element.deleted', elementId: 'e1' },
-      { kind: 'element.deleted', elementId: 'e2' },
-    ]);
+    publisher.emitMany(
+      'p1',
+      [
+        { kind: 'element.deleted', elementId: 'e1' },
+        { kind: 'element.deleted', elementId: 'e2' },
+      ],
+      null,
+    );
     await settle();
     expect(seen).toHaveLength(1);
   });

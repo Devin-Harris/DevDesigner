@@ -49,11 +49,7 @@ export class ElementsService {
   async create(
     projectId: string,
     dto: CreateElementDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<CanvasElementModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const project = await this.projects.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
@@ -130,34 +126,28 @@ export class ElementsService {
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'element.created', element: model });
+    this.realtime.emit(projectId, { kind: 'element.created', element: model });
     return model;
   }
 
   async update(
+    projectId: string,
     elementId: string,
     dto: UpdateElementDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<CanvasElementModel> {
-    const projectId = await this.access.assertCanWriteElement(elementId, userId, shareToken);
     const element = await this.findOrThrow(elementId);
     applyElementPatch(element, dto);
     await this.elements.save(element);
     const model = toElementModel(element);
-    this.realtime.emit(projectId, clientId, { kind: 'element.updated', element: model });
+    this.realtime.emit(projectId, { kind: 'element.updated', element: model });
     return model;
   }
 
   async updatePosition(
+    projectId: string,
     elementId: string,
     dto: UpdateElementPositionDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteElement(elementId, userId, shareToken);
     const patch: Partial<ElementEntity> = {};
     if (dto.x !== undefined) {
       patch.x = dto.x;
@@ -172,7 +162,7 @@ export class ElementsService {
     if (!result.affected) {
       throw new NotFoundException(`Element ${elementId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'element.moved',
       elementId,
       x: dto.x,
@@ -184,11 +174,7 @@ export class ElementsService {
   async reorder(
     projectId: string,
     dto: ReorderElementsDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     // Position in the list is the new zIndex (a repeated id keeps its last position).
     const wanted = new Map(dto.orderedElementIds.map((id, index) => [id, index]));
     // One transaction (one commit), touching only this project's rows whose index moved.
@@ -204,24 +190,21 @@ export class ElementsService {
         }
       }
     });
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'element.reordered',
       orderedElementIds: dto.orderedElementIds,
     });
   }
 
   async remove(
+    projectId: string,
     elementId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteElement(elementId, userId, shareToken);
     const result = await this.elements.delete({ id: elementId });
     if (!result.affected) {
       throw new NotFoundException(`Element ${elementId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'element.deleted', elementId });
+    this.realtime.emit(projectId, { kind: 'element.deleted', elementId });
   }
 
   /** Next stacking index for a project (max existing + 1, or 0). */

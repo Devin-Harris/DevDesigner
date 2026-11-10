@@ -27,40 +27,34 @@ import {
   projectRevision,
   setGraphCacheHeaders,
 } from '../common/project-revision';
+import { CallerScoped, ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
+import { Caller } from '../platform/http/caller';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateViewportDto } from './dto/update-viewport.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
 import { UpdateThemesDto } from './dto/update-themes.dto';
-import { CurrentUser, CurrentUserId } from '../auth/current-user.decorator';
-import { guestOwnerId } from '../auth/guest-id';
-import type { AuthUser } from '../auth/auth.types';
-import { ClientId, GuestId, ShareToken } from '../platform/http/request.decorators';
 
 /**
- * Granular project routes (BUILD_INSTRUCTIONS.md section 5). Controllers only
- * parse/validate input and delegate; logic lives in the service. Access checks
- * move into the policy layer once auth/sharing land.
+ * Project routes. Controllers only parse/validate input and delegate; every
+ * `:projectId` route declares the access it needs and ProjectAccessGuard has
+ * resolved it before the handler runs. List/create/import act for the caller.
  */
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 
   @Get()
-  list(
-    @CurrentUserId() userId: string | null,
-    @Query('archived') archived?: string,
-  ): Promise<ProjectSummary[]> {
-    return this.projects.list(userId, archived === 'true');
+  @CallerScoped()
+  list(@Caller() caller: Caller, @Query('archived') archived?: string): Promise<ProjectSummary[]> {
+    return this.projects.list(caller.ownerId, archived === 'true');
   }
 
   @Post()
-  create(
-    @Body() dto: CreateProjectDto,
-    @CurrentUserId() userId: string | null,
-  ): Promise<ProjectSummary> {
-    return this.projects.create(dto, userId);
+  @CallerScoped()
+  create(@Body() dto: CreateProjectDto, @Caller() caller: Caller): Promise<ProjectSummary> {
+    return this.projects.create(dto, caller.ownerId);
   }
 
   /**
@@ -68,144 +62,116 @@ export class ProjectsController {
    * freshly signed-in user can be offered to move them into their account.
    */
   @Get('guest-count')
-  async guestCount(
-    @CurrentUser() user: AuthUser | null,
-    @GuestId() guestId: string | null,
-  ): Promise<{ count: number }> {
-    const owner = guestOwnerId(guestId);
-    if (!user || !owner) {
+  @CallerScoped()
+  async guestCount(@Caller() caller: Caller): Promise<{ count: number }> {
+    if (!caller.userId || !caller.guestId) {
       return { count: 0 };
     }
-    return { count: await this.projects.countOwnedBy(owner) };
+    return { count: await this.projects.countOwnedBy(caller.guestId) };
   }
 
   /** Move this browser's guest projects into the signed-in account. */
   @Post('claim-guest')
-  async claimGuest(
-    @CurrentUser() user: AuthUser | null,
-    @GuestId() guestId: string | null,
-  ): Promise<{ count: number }> {
-    if (!user) {
+  @CallerScoped()
+  async claimGuest(@Caller() caller: Caller): Promise<{ count: number }> {
+    if (!caller.userId) {
       throw new UnauthorizedException('Sign in to claim guest projects.');
     }
-    const owner = guestOwnerId(guestId);
-    return { count: owner ? await this.projects.transferOwnership(owner, user.id) : 0 };
+    return {
+      count: caller.guestId ? await this.projects.transferOwnership(caller.guestId, caller.userId) : 0,
+    };
   }
 
   /** Create a project from an exported file. Declared before ':projectId' routes. */
   @Post('import')
-  import(
-    @Body() body: unknown,
-    @CurrentUserId() userId: string | null,
-  ): Promise<ProjectSummary> {
-    return this.projects.importProject(body, userId);
+  @CallerScoped()
+  import(@Body() body: unknown, @Caller() caller: Caller): Promise<ProjectSummary> {
+    return this.projects.importProject(body, caller.ownerId);
   }
 
   /** Merge an exported file into this existing project. */
   @Post(':projectId/import-content')
+  @RequiresAccess('write')
   importContent(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() body: unknown,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<ImportIntoProjectResponse> {
-    return this.projects.importIntoProject(projectId, body, userId, shareToken, clientId);
+    return this.projects.importIntoProject(projectId, body);
   }
 
   @Get(':projectId/export-file')
-  export(
-    @Param('projectId') projectId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-  ): Promise<ProjectExportFile> {
-    return this.projects.exportProject(projectId, userId, shareToken);
+  @RequiresAccess('read')
+  export(@ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess): Promise<ProjectExportFile> {
+    return this.projects.exportProject(projectId, accessLevel);
   }
 
   @Get(':projectId')
+  @RequiresAccess('read')
   async get(
-    @Param('projectId') projectId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
+    @ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ProjectGraphResponse | undefined> {
     // Taken BEFORE reading, so a write landing mid-read leaves this tag outdated.
     const revision = projectRevision(projectId);
-    const ifNoneMatch = req.headers['if-none-match'];
-    if (ifNoneMatch) {
-      const accessLevel = await this.projects.assertCanRead(projectId, userId, shareToken);
-      const tag = projectGraphTag(projectId, accessLevel, revision);
-      if (etagMatches(ifNoneMatch, tag)) {
-        // Nothing in this project changed since the caller's copy: skip rebuilding the graph.
-        setGraphCacheHeaders(res, tag);
-        res.status(HttpStatus.NOT_MODIFIED);
-        return undefined;
-      }
+    const tag = projectGraphTag(projectId, accessLevel, revision);
+    if (etagMatches(req.headers['if-none-match'], tag)) {
+      // Nothing in this project changed since the caller's copy: skip rebuilding the graph.
+      setGraphCacheHeaders(res, tag);
+      res.status(HttpStatus.NOT_MODIFIED);
+      return undefined;
     }
-    const graph = await this.projects.getGraph(projectId, userId, shareToken);
-    setGraphCacheHeaders(res, projectGraphTag(projectId, graph.accessLevel, revision));
+    const graph = await this.projects.getGraph(projectId, accessLevel);
+    setGraphCacheHeaders(res, tag);
     return graph;
   }
 
   @Patch(':projectId')
+  @RequiresAccess('owner')
   update(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: UpdateProjectDto,
-    @CurrentUserId() userId: string | null,
   ): Promise<ProjectSummary> {
-    return this.projects.update(projectId, dto, userId);
+    return this.projects.update(projectId, dto);
   }
 
   @Patch(':projectId/viewport')
+  @RequiresAccess('write')
   @HttpCode(HttpStatus.NO_CONTENT)
   updateViewport(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: UpdateViewportDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
   ): Promise<void> {
-    return this.projects.updateViewport(projectId, dto, userId, shareToken);
+    return this.projects.updateViewport(projectId, dto);
   }
 
   @Patch(':projectId/home')
+  @RequiresAccess('write')
   @HttpCode(HttpStatus.NO_CONTENT)
-  updateHome(
-    @Param('projectId') projectId: string,
-    @Body() dto: UpdateHomeDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
-  ): Promise<void> {
-    return this.projects.updateHome(projectId, dto, userId, shareToken, clientId);
+  updateHome(@ProjectAccess() { projectId }: ResolvedProjectAccess, @Body() dto: UpdateHomeDto): Promise<void> {
+    return this.projects.updateHome(projectId, dto);
   }
 
   @Put(':projectId/themes')
+  @RequiresAccess('write')
   @HttpCode(HttpStatus.NO_CONTENT)
   updateThemes(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: UpdateThemesDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.projects.updateThemes(projectId, dto, userId, shareToken, clientId);
+    return this.projects.updateThemes(projectId, dto);
   }
 
   @Post(':projectId/duplicate')
-  duplicate(
-    @Param('projectId') projectId: string,
-    @CurrentUserId() userId: string | null,
-  ): Promise<ProjectSummary> {
-    return this.projects.duplicate(projectId, userId);
+  @RequiresAccess('owner')
+  duplicate(@ProjectAccess() { projectId }: ResolvedProjectAccess): Promise<ProjectSummary> {
+    return this.projects.duplicate(projectId);
   }
 
   @Delete(':projectId')
+  @RequiresAccess('owner')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @Param('projectId') projectId: string,
-    @CurrentUserId() userId: string | null,
-  ): Promise<void> {
-    return this.projects.remove(projectId, userId);
+  remove(@ProjectAccess() { projectId }: ResolvedProjectAccess): Promise<void> {
+    return this.projects.remove(projectId);
   }
 }

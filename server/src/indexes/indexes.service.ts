@@ -29,13 +29,10 @@ export class IndexesService {
   ) {}
 
   async create(
+    projectId: string,
     tableId: string,
     dto: CreateIndexDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<IndexModel> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.tables.findOne({ where: { id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);
@@ -50,18 +47,15 @@ export class IndexesService {
     });
     const saved = await this.indexes.save(entity);
     const model = toIndexModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'index.created', tableId, index: model });
+    this.realtime.emit(projectId, { kind: 'index.created', tableId, index: model });
     return model;
   }
 
   async update(
+    projectId: string,
     indexId: string,
     dto: UpdateIndexDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<IndexModel> {
-    const projectId = await this.access.assertCanWriteIndex(indexId, userId, shareToken);
     const index = await this.findOrThrow(indexId);
     if (dto.name !== undefined) {
       index.name = dto.name;
@@ -74,7 +68,7 @@ export class IndexesService {
     }
     const saved = await this.indexes.save(index);
     const model = toIndexModel(saved);
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'index.updated',
       tableId: index.tableId,
       index: model,
@@ -83,13 +77,10 @@ export class IndexesService {
   }
 
   async reorder(
+    projectId: string,
     tableId: string,
     dto: ReorderIndexesDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const indexes = await this.indexes.find({ where: { tableId } });
     const byId = new Map(indexes.map((i) => [i.id, i]));
     const updates: IndexEntity[] = [];
@@ -103,7 +94,7 @@ export class IndexesService {
     if (updates.length) {
       await this.indexes.save(updates);
     }
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'index.reordered',
       tableId,
       orderedIndexIds: dto.orderedIndexIds,
@@ -111,19 +102,16 @@ export class IndexesService {
   }
 
   async remove(
+    projectId: string,
     indexId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteIndex(indexId, userId, shareToken);
     const index = await this.findOrThrow(indexId);
     const tableId = index.tableId;
     const result = await this.indexes.delete({ id: indexId });
     if (!result.affected) {
       throw new NotFoundException(`Index ${indexId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'index.deleted', tableId, indexId });
+    this.realtime.emit(projectId, { kind: 'index.deleted', tableId, indexId });
   }
 
   private async findOrThrow(indexId: string): Promise<IndexEntity> {

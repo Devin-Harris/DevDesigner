@@ -15,8 +15,8 @@ const TOKEN_LENGTH = 32;
 
 /**
  * Owner share-link CRUD plus account-free token resolution (BUILD_INSTRUCTIONS.md
- * sections 5 and 6). Link management requires OWNER (enforced via AccessService);
- * resolving a token grants the link's level to anyone holding it, no account
+ * sections 5 and 6). Link management requires OWNER (the routes declare
+ * `@RequiresAccess('owner')`); resolving a token grants the link's level to anyone holding it, no account
  * needed. Tokens are generated with nanoid and are unique per link.
  */
 @Injectable()
@@ -31,12 +31,7 @@ export class SharingService {
   ) {}
 
   /** Owner creates a link. Returns the token and the full shareable URL. */
-  async create(
-    projectId: string,
-    dto: CreateShareLinkDto,
-    userId: string | null,
-  ): Promise<ShareLinkResponse> {
-    await this.access.assertOwner(projectId, userId);
+  async create(projectId: string, dto: CreateShareLinkDto): Promise<ShareLinkResponse> {
     const link = this.shareLinks.create({
       projectId,
       token: nanoid(TOKEN_LENGTH),
@@ -49,8 +44,7 @@ export class SharingService {
   }
 
   /** Owner lists a project's active (non-revoked) links. */
-  async list(projectId: string, userId: string | null): Promise<ShareLinkResponse[]> {
-    await this.access.assertOwner(projectId, userId);
+  async list(projectId: string): Promise<ShareLinkResponse[]> {
     const links = await this.shareLinks.find({
       where: { projectId, revokedAt: IsNull() },
       order: { createdAt: 'DESC' },
@@ -62,8 +56,7 @@ export class SharingService {
    * Owner revokes a link, invalidating it immediately: REST calls with the token fail
    * from now on, and open sockets that joined with it are dropped.
    */
-  async revoke(projectId: string, linkId: string, userId: string | null): Promise<void> {
-    await this.access.assertOwner(projectId, userId);
+  async revoke(projectId: string, linkId: string): Promise<void> {
     const link = await this.shareLinks.findOne({
       where: { id: linkId, projectId },
       select: { id: true, token: true },
@@ -77,9 +70,8 @@ export class SharingService {
 
   /** Resolve a token to the shared project graph for the account-free entry route. */
   async getSharedGraph(token: string): Promise<ProjectGraphResponse> {
-    const link = await this.resolveValidLink(token);
-    // getGraph re-authorizes with the token and reports the effective level.
-    return this.projects.getGraph(link.projectId, null, token);
+    const { projectId, accessLevel } = await this.sharedAccess(token);
+    return this.projects.getGraph(projectId, accessLevel);
   }
 
   /**

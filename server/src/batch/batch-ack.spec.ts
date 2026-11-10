@@ -19,6 +19,7 @@ describe('batch ?return=none', () => {
   let batch: { apply: jest.Mock };
   let cloner: { clone: jest.Mock };
   let controller: BatchController;
+  const pa = { projectId: 'p1', accessLevel: 'OWNER' } as const;
 
   beforeEach(() => {
     resetProjectRevisionsForTests();
@@ -36,20 +37,20 @@ describe('batch ?return=none', () => {
   });
 
   it('returns the full mutations by default (MCP behaviour)', async () => {
-    await expect(controller.apply('p1', {}, 'u', null, 'c')).resolves.toBe(result);
-    await expect(controller.apply('p1', {}, 'u', null, 'c', 'mutations')).resolves.toBe(result);
-    await expect(controller.clone('p1', {}, 'u', null, 'c')).resolves.toBe(result);
+    await expect(controller.apply(pa, {})).resolves.toBe(result);
+    await expect(controller.apply(pa, {}, 'mutations')).resolves.toBe(result);
+    await expect(controller.clone(pa, {})).resolves.toBe(result);
   });
 
   it('returns ids and the new revision with return=none', async () => {
-    const ack = await controller.apply('p1', {}, 'u', null, 'c', 'none');
+    const ack = await controller.apply(pa, {}, 'none');
     expect(ack).toEqual({ ok: true, revision: 1, ids: ['e1', 't1', 'm1'] });
     expect(JSON.stringify(ack).length).toBeLessThan(100);
-    expect(batch.apply).toHaveBeenCalledWith('p1', {}, 'u', null, 'c');
+    expect(batch.apply).toHaveBeenCalledWith('p1', {});
   });
 
   it('works for clone too', async () => {
-    expect(await controller.clone('p1', {}, 'u', null, 'c', 'none')).toEqual({
+    expect(await controller.clone(pa, {}, 'none')).toEqual({
       ok: true,
       revision: 0,
       ids: ['e1', 't1', 'm1'],

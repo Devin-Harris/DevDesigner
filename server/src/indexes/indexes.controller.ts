@@ -13,8 +13,7 @@ import { IndexesService } from './indexes.service';
 import { CreateIndexDto } from './dto/create-index.dto';
 import { UpdateIndexDto } from './dto/update-index.dto';
 import { ReorderIndexesDto } from './dto/reorder-indexes.dto';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /**
  * Granular index routes. Create and reorder carry the parent tableId in the
@@ -25,47 +24,43 @@ export class IndexesController {
   constructor(private readonly indexes: IndexesService) {}
 
   @Post('tables/:tableId/indexes')
+  @RequiresAccess('write', { from: 'table' })
   create(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('tableId') tableId: string,
     @Body() dto: CreateIndexDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<IndexModel> {
-    return this.indexes.create(tableId, dto, userId, shareToken, clientId);
+    return this.indexes.create(projectId, tableId, dto);
   }
 
   @Patch('tables/:tableId/indexes/reorder')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'table' })
   reorder(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('tableId') tableId: string,
     @Body() dto: ReorderIndexesDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.indexes.reorder(tableId, dto, userId, shareToken, clientId);
+    return this.indexes.reorder(projectId, tableId, dto);
   }
 
   @Patch('indexes/:indexId')
+  @RequiresAccess('write', { from: 'index' })
   update(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('indexId') indexId: string,
     @Body() dto: UpdateIndexDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<IndexModel> {
-    return this.indexes.update(indexId, dto, userId, shareToken, clientId);
+    return this.indexes.update(projectId, indexId, dto);
   }
 
   @Delete('indexes/:indexId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'index' })
   remove(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('indexId') indexId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.indexes.remove(indexId, userId, shareToken, clientId);
+    return this.indexes.remove(projectId, indexId);
   }
 }

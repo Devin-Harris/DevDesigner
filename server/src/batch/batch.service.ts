@@ -3,7 +3,6 @@ import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { DataSource, In, type EntityManager, type EntityTarget, type ObjectLiteral } from 'typeorm';
 import type { BatchUpdateResponse, SchemaMutation } from '@devdesigner/shared';
-import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from '../tables/table.entity';
 import { toTableModel } from '../tables/table.mapper';
@@ -95,18 +94,11 @@ function idList(raw: unknown, name: string): string[] {
 export class BatchService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
 
-  async apply(
-    projectId: string,
-    body: unknown,
-    userId: string | null,
-    shareToken: string | null,
-    clientId: string | null,
-  ): Promise<BatchUpdateResponse> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
+  /** The route guard has checked write access to `projectId`. */
+  async apply(projectId: string, body: unknown): Promise<BatchUpdateResponse> {
     if (!body || typeof body !== 'object') throw new BadRequestException('Body must be an object.');
     const b = body as Record<string, unknown>;
     const known = ['tables', 'elements', 'diagrams', 'lifelines', 'messages', 'relationships', 'deletes'];
@@ -290,7 +282,7 @@ export class BatchService {
       return out;
     });
 
-    this.realtime.emitMany(projectId, clientId, mutations);
+    this.realtime.emitMany(projectId, mutations);
     return { mutations };
   }
 }

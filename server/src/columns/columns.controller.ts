@@ -13,8 +13,7 @@ import { ColumnsService } from './columns.service';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ReorderColumnsDto } from './dto/reorder-columns.dto';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /**
  * Granular column routes (BUILD_INSTRUCTIONS.md section 5). Create and reorder
@@ -26,47 +25,43 @@ export class ColumnsController {
   constructor(private readonly columns: ColumnsService) {}
 
   @Post('tables/:tableId/columns')
+  @RequiresAccess('write', { from: 'table' })
   create(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('tableId') tableId: string,
     @Body() dto: CreateColumnDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<ColumnModel> {
-    return this.columns.create(tableId, dto, userId, shareToken, clientId);
+    return this.columns.create(projectId, tableId, dto);
   }
 
   @Patch('tables/:tableId/columns/reorder')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'table' })
   reorder(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('tableId') tableId: string,
     @Body() dto: ReorderColumnsDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.columns.reorder(tableId, dto, userId, shareToken, clientId);
+    return this.columns.reorder(projectId, tableId, dto);
   }
 
   @Patch('columns/:columnId')
+  @RequiresAccess('write', { from: 'column' })
   update(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('columnId') columnId: string,
     @Body() dto: UpdateColumnDto,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<ColumnModel> {
-    return this.columns.update(columnId, dto, userId, shareToken, clientId);
+    return this.columns.update(projectId, columnId, dto);
   }
 
   @Delete('columns/:columnId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequiresAccess('write', { from: 'column' })
   remove(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Param('columnId') columnId: string,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
   ): Promise<void> {
-    return this.columns.remove(columnId, userId, shareToken, clientId);
+    return this.columns.remove(projectId, columnId);
   }
 }

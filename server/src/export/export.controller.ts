@@ -1,6 +1,6 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Query } from '@nestjs/common';
 import { ExportService } from './export.service';
-import { CurrentUserId } from '../auth/current-user.decorator';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /**
  * Export routes (BUILD_INSTRUCTIONS.md section 5). The controller only parses
@@ -13,12 +13,12 @@ export class ExportController {
   constructor(private readonly exporter: ExportService) {}
 
   @Get(':projectId/export')
+  @RequiresAccess('read')
   @Header('Content-Type', 'text/plain; charset=utf-8')
   exportSql(
-    @Param('projectId') projectId: string,
-    @CurrentUserId() userId: string | null,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Query('dialect') dialect?: string,
   ): Promise<string> {
-    return this.exporter.exportSql(projectId, userId, dialect);
+    return this.exporter.exportSql(projectId, dialect);
   }
 }

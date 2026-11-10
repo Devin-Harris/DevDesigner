@@ -20,7 +20,7 @@ describe('SharingService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
-  let access: { assertOwner: jest.Mock };
+  let access: { assertCanRead: jest.Mock };
   let projects: { getGraph: jest.Mock };
   let config: { get: jest.Mock };
   let realtime: { accessRevoked: jest.Mock };
@@ -34,7 +34,7 @@ describe('SharingService', () => {
       findOne: jest.fn(),
       update: jest.fn(async () => ({ affected: 1 })),
     };
-    access = { assertOwner: jest.fn().mockResolvedValue(undefined) };
+    access = { assertCanRead: jest.fn().mockResolvedValue('EDIT') };
     projects = { getGraph: jest.fn() };
     config = { get: jest.fn().mockReturnValue('https://app.example.com') };
     realtime = { accessRevoked: jest.fn() };
@@ -48,8 +48,7 @@ describe('SharingService', () => {
   });
 
   it('creates a link with a 32-char token and a full share URL', async () => {
-    const response = await service.create('p1', { accessLevel: 'EDIT' }, 'owner');
-    expect(access.assertOwner).toHaveBeenCalledWith('p1', 'owner');
+    const response = await service.create('p1', { accessLevel: 'EDIT' });
     expect(response.token).toHaveLength(32);
     expect(response.accessLevel).toBe('EDIT');
     expect(response.url).toBe(`https://app.example.com/shared/${response.token}`);
@@ -57,8 +56,8 @@ describe('SharingService', () => {
   });
 
   it('generates unique tokens across calls', async () => {
-    const a = await service.create('p1', { accessLevel: 'VIEW' }, 'owner');
-    const b = await service.create('p1', { accessLevel: 'VIEW' }, 'owner');
+    const a = await service.create('p1', { accessLevel: 'VIEW' });
+    const b = await service.create('p1', { accessLevel: 'VIEW' });
     expect(a.token).not.toBe(b.token);
   });
 
@@ -71,7 +70,8 @@ describe('SharingService', () => {
     });
     projects.getGraph.mockResolvedValue({ project: {}, schema: {}, accessLevel: 'EDIT' });
     await service.getSharedGraph('t');
-    expect(projects.getGraph).toHaveBeenCalledWith('p1', null, 't');
+    expect(access.assertCanRead).toHaveBeenCalledWith('p1', null, 't');
+    expect(projects.getGraph).toHaveBeenCalledWith('p1', 'EDIT');
   });
 
   it('rejects a revoked token on the shared entry route', async () => {
@@ -102,8 +102,7 @@ describe('SharingService', () => {
 
   it('revoking a link drops the sockets that joined with its token', async () => {
     shareLinks.findOne.mockResolvedValue({ id: 'link1', token: 'tok' });
-    await service.revoke('p1', 'link1', 'owner');
-    expect(access.assertOwner).toHaveBeenCalledWith('p1', 'owner');
+    await service.revoke('p1', 'link1');
     expect(shareLinks.update).toHaveBeenCalledWith(
       { id: 'link1', projectId: 'p1' },
       { revokedAt: expect.any(Date) },
@@ -113,7 +112,7 @@ describe('SharingService', () => {
 
   it('revoking an unknown link is a 404 and revokes nothing', async () => {
     shareLinks.findOne.mockResolvedValue(null);
-    await expect(service.revoke('p1', 'nope', 'owner')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.revoke('p1', 'nope')).rejects.toBeInstanceOf(NotFoundException);
     expect(shareLinks.update).not.toHaveBeenCalled();
     expect(realtime.accessRevoked).not.toHaveBeenCalled();
   });

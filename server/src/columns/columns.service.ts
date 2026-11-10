@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import type { ColumnModel } from '@devdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
-import { AccessService } from '../access/access.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ColumnEntity } from './column.entity';
 import { fromDataType, toColumnModel } from './column.mapper';
@@ -24,18 +23,14 @@ export class ColumnsService {
     private readonly columns: Repository<ColumnEntity>,
     @InjectRepository(TableEntity)
     private readonly tables: Repository<TableEntity>,
-    private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
 
   async create(
+    projectId: string,
     tableId: string,
     dto: CreateColumnDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<ColumnModel> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const table = await this.tables.findOne({ where: { id: tableId } });
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found.`);
@@ -55,18 +50,15 @@ export class ColumnsService {
     });
     const saved = await this.columns.save(column);
     const model = toColumnModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'column.created', tableId, column: model });
+    this.realtime.emit(projectId, { kind: 'column.created', tableId, column: model });
     return model;
   }
 
   async update(
+    projectId: string,
     columnId: string,
     dto: UpdateColumnDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<ColumnModel> {
-    const projectId = await this.access.assertCanWriteColumn(columnId, userId, shareToken);
     const column = await this.findOrThrow(columnId);
     if (dto.name !== undefined) {
       column.name = dto.name;
@@ -100,7 +92,7 @@ export class ColumnsService {
     }
     const saved = await this.columns.save(column);
     const model = toColumnModel(saved);
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'column.updated',
       tableId: column.tableId,
       column: model,
@@ -109,13 +101,10 @@ export class ColumnsService {
   }
 
   async reorder(
+    projectId: string,
     tableId: string,
     dto: ReorderColumnsDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteTable(tableId, userId, shareToken);
     const columns = await this.columns.find({ where: { tableId } });
     const byId = new Map(columns.map((c) => [c.id, c]));
     const updates: ColumnEntity[] = [];
@@ -129,7 +118,7 @@ export class ColumnsService {
     if (updates.length) {
       await this.columns.save(updates);
     }
-    this.realtime.emit(projectId, clientId, {
+    this.realtime.emit(projectId, {
       kind: 'column.reordered',
       tableId,
       orderedColumnIds: dto.orderedColumnIds,
@@ -137,19 +126,16 @@ export class ColumnsService {
   }
 
   async remove(
+    projectId: string,
     columnId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    const projectId = await this.access.assertCanWriteColumn(columnId, userId, shareToken);
     const column = await this.findOrThrow(columnId);
     const tableId = column.tableId;
     const result = await this.columns.delete({ id: columnId });
     if (!result.affected) {
       throw new NotFoundException(`Column ${columnId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'column.deleted', tableId, columnId });
+    this.realtime.emit(projectId, { kind: 'column.deleted', tableId, columnId });
   }
 
   /** Unused today but handy: fetch models for a set of tables in one query. */

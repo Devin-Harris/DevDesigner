@@ -72,11 +72,7 @@ export class SequenceService {
   async createDiagram(
     projectId: string,
     dto: CreateSequenceDiagramDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<SequenceDiagramModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     if (!(await this.projects.findOne({ where: { id: projectId } }))) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
@@ -95,7 +91,7 @@ export class SequenceService {
     });
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.created', diagram: model });
+    this.realtime.emit(projectId, { kind: 'sequenceDiagram.created', diagram: model });
     return model;
   }
 
@@ -103,34 +99,26 @@ export class SequenceService {
     projectId: string,
     diagramId: string,
     dto: UpdateSequenceDiagramDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<SequenceDiagramModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.diagramOrThrow(projectId, diagramId);
     applyDiagramPatch(entity, dto);
     const saved = await this.diagrams.save(entity);
     const model = toSequenceDiagramModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.updated', diagram: model });
+    this.realtime.emit(projectId, { kind: 'sequenceDiagram.updated', diagram: model });
     return model;
   }
 
   async deleteDiagram(
     projectId: string,
     diagramId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     await this.messages.delete({ projectId, diagramId });
     await this.lifelines.delete({ projectId, diagramId });
     const result = await this.diagrams.delete({ id: diagramId, projectId });
     if (!result.affected) {
       throw new NotFoundException(`Sequence diagram ${diagramId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'sequenceDiagram.deleted', diagramId });
+    this.realtime.emit(projectId, { kind: 'sequenceDiagram.deleted', diagramId });
   }
 
   // ---- Lifelines ----
@@ -138,11 +126,7 @@ export class SequenceService {
   async createLifeline(
     projectId: string,
     dto: CreateLifelineDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<LifelineModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     await this.diagramOrThrow(projectId, dto.diagramId);
     const entity = this.lifelines.create({
       projectId,
@@ -159,7 +143,7 @@ export class SequenceService {
     });
     const saved = await this.lifelines.save(entity);
     const model = toLifelineModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'lifeline.created', lifeline: model });
+    this.realtime.emit(projectId, { kind: 'lifeline.created', lifeline: model });
     return model;
   }
 
@@ -167,16 +151,12 @@ export class SequenceService {
     projectId: string,
     lifelineId: string,
     dto: UpdateLifelineDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<LifelineModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.lifelineOrThrow(projectId, lifelineId);
     applyLifelinePatch(entity, dto);
     const saved = await this.lifelines.save(entity);
     const model = toLifelineModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'lifeline.updated', lifeline: model });
+    this.realtime.emit(projectId, { kind: 'lifeline.updated', lifeline: model });
     return model;
   }
 
@@ -184,26 +164,18 @@ export class SequenceService {
     projectId: string,
     lifelineId: string,
     dto: UpdateLifelinePositionDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const result = await this.lifelines.update({ id: lifelineId, projectId }, { x: dto.x });
     if (!result.affected) {
       throw new NotFoundException(`Lifeline ${lifelineId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'lifeline.moved', lifelineId, x: dto.x });
+    this.realtime.emit(projectId, { kind: 'lifeline.moved', lifelineId, x: dto.x });
   }
 
   async deleteLifeline(
     projectId: string,
     lifelineId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     // Remove messages touching this lifeline, then the lifeline itself.
     await this.messages.delete({ projectId, fromLifelineId: lifelineId });
     await this.messages.delete({ projectId, toLifelineId: lifelineId });
@@ -211,7 +183,7 @@ export class SequenceService {
     if (!result.affected) {
       throw new NotFoundException(`Lifeline ${lifelineId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'lifeline.deleted', lifelineId });
+    this.realtime.emit(projectId, { kind: 'lifeline.deleted', lifelineId });
   }
 
   // ---- Messages ----
@@ -219,11 +191,7 @@ export class SequenceService {
   async createMessage(
     projectId: string,
     dto: CreateSequenceMessageDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<SequenceMessageModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     await this.diagramOrThrow(projectId, dto.diagramId);
     if (dto.style !== 'break' && dto.fromLifelineId === dto.toLifelineId) {
       throw new BadRequestException('A message must go between two different participants.');
@@ -244,7 +212,7 @@ export class SequenceService {
     });
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'message.created', message: model });
+    this.realtime.emit(projectId, { kind: 'message.created', message: model });
     return model;
   }
 
@@ -252,16 +220,12 @@ export class SequenceService {
     projectId: string,
     messageId: string,
     dto: UpdateSequenceMessageDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<SequenceMessageModel> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const entity = await this.messageOrThrow(projectId, messageId);
     applyMessagePatch(entity, dto);
     const saved = await this.messages.save(entity);
     const model = toSequenceMessageModel(saved);
-    this.realtime.emit(projectId, clientId, { kind: 'message.updated', message: model });
+    this.realtime.emit(projectId, { kind: 'message.updated', message: model });
     return model;
   }
 
@@ -269,31 +233,23 @@ export class SequenceService {
     projectId: string,
     messageId: string,
     dto: UpdateSequenceMessagePositionDto,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const result = await this.messages.update({ id: messageId, projectId }, { y: dto.y });
     if (!result.affected) {
       throw new NotFoundException(`Message ${messageId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'message.moved', messageId, y: dto.y });
+    this.realtime.emit(projectId, { kind: 'message.moved', messageId, y: dto.y });
   }
 
   async deleteMessage(
     projectId: string,
     messageId: string,
-    userId: string | null,
-    shareToken: string | null = null,
-    clientId: string | null = null,
   ): Promise<void> {
-    await this.access.assertCanWrite(projectId, userId, shareToken);
     const result = await this.messages.delete({ id: messageId, projectId });
     if (!result.affected) {
       throw new NotFoundException(`Message ${messageId} not found.`);
     }
-    this.realtime.emit(projectId, clientId, { kind: 'message.deleted', messageId });
+    this.realtime.emit(projectId, { kind: 'message.deleted', messageId });
   }
 
   private async diagramOrThrow(projectId: string, id: string): Promise<SequenceDiagramEntity> {

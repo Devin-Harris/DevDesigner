@@ -3,7 +3,6 @@ import type { Repository } from 'typeorm';
 import { ImagesService } from './images.service';
 import type { ProjectImageEntity } from './project-image.entity';
 import type { ElementEntity } from '../elements/element.entity';
-import type { AccessService } from '../access/access.service';
 
 const PNG_1x1 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -14,7 +13,6 @@ describe('ImagesService.validate', () => {
   const service = new ImagesService(
     {} as Repository<ProjectImageEntity>,
     {} as Repository<ElementEntity>,
-    {} as AccessService,
   );
 
   it('accepts bytes that match the declared type', () => {

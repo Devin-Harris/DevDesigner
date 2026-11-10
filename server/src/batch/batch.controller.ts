@@ -7,8 +7,7 @@ import {
 import { BatchService } from './batch.service';
 import { CloneService } from './clone.service';
 import { batchResult } from './batch-ack';
-import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../platform/http/request.decorators';
+import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 
 /**
  * Atomic multi-item edits. The body is checked section by section in the service
@@ -25,29 +24,25 @@ export class BatchController {
   ) {}
 
   @Patch('projects/:projectId/batch')
+  @RequiresAccess('write')
   async apply(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() body: unknown,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
     @Query('return') returnMode?: string,
   ): Promise<BatchUpdateResponse | BatchUpdateAck> {
-    const result = await this.batch.apply(projectId, body, userId, shareToken, clientId);
+    const result = await this.batch.apply(projectId, body);
     return batchResult(projectId, result, returnMode === BATCH_RETURN_NONE);
   }
 
   /** Copy rows (and their children) under client-chosen ids in one transaction. */
   @Post('projects/:projectId/clone')
+  @RequiresAccess('write')
   async clone(
-    @Param('projectId') projectId: string,
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() body: unknown,
-    @CurrentUserId() userId: string | null,
-    @ShareToken() shareToken: string | null,
-    @ClientId() clientId: string | null,
     @Query('return') returnMode?: string,
   ): Promise<BatchUpdateResponse | BatchUpdateAck> {
-    const result = await this.cloner.clone(projectId, body, userId, shareToken, clientId);
+    const result = await this.cloner.clone(projectId, body);
     return batchResult(projectId, result, returnMode === BATCH_RETURN_NONE);
   }
 }

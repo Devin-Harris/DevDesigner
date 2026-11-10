@@ -1,38 +1,24 @@
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Project } from '../projects/project.entity';
-import { TableEntity } from '../tables/table.entity';
-import { ColumnEntity } from '../columns/column.entity';
-import { IndexEntity } from '../indexes/index.entity';
-import { RelationshipEntity } from '../relationships/relationship.entity';
-import { ElementEntity } from '../elements/element.entity';
 import { ShareLink } from '../sharing/share-link.entity';
 import { AccessService } from './access.service';
+import { EntityProjectResolver } from './entity-project-resolver';
+import { ProjectAccessGuard } from './project-access.guard';
 
 /**
  * Access-resolution and policy layer (BUILD_INSTRUCTIONS.md sections 6 and 7).
  *
- * Provides AccessService, which resolves the caller's effective access to a
- * project (directly or by walking a child entity's ancestry) and authorizes
- * reads and writes before services mutate anything.
- *
- * Marked @Global so every feature module can inject AccessService without
- * re-importing. Registers the entities it needs to resolve ancestry.
+ * Provides AccessService (the caller's level on a project), EntityProjectResolver
+ * (child id -> project) and ProjectAccessGuard, which `@RequiresAccess` installs on
+ * routes. Marked @Global so every feature module's routes can use the guard.
  */
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Project,
-      TableEntity,
-      ColumnEntity,
-      IndexEntity,
-      RelationshipEntity,
-      ElementEntity,
-      ShareLink,
-    ]),
+    TypeOrmModule.forFeature([Project, ShareLink]),
   ],
-  providers: [AccessService],
-  exports: [AccessService],
+  providers: [AccessService, EntityProjectResolver, ProjectAccessGuard],
+  exports: [AccessService, EntityProjectResolver, ProjectAccessGuard],
 })
 export class AccessModule {}

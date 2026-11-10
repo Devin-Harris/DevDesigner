@@ -9,9 +9,9 @@ import type { RealtimePublisher } from '../realtime/realtime.publisher';
 import type { CreateElementDto } from './dto/create-element.dto';
 
 /**
- * Unit tests for the canvas-elements service: authorization is enforced before a
- * write, the persisted change is broadcast to the realtime room, and geometry
- * round-trips through the mapper. Repositories and collaborators are mocked so no
+ * Unit tests for the canvas-elements service: the persisted change is broadcast to
+ * the realtime room and geometry round-trips through the mapper. Authorization
+ * happens in the route guard (see access/project-access.guard.spec.ts). Repositories and collaborators are mocked so no
  * database or socket is involved.
  */
 describe('ElementsService', () => {
@@ -74,14 +74,13 @@ describe('ElementsService', () => {
     );
   });
 
-  it('authorizes, persists, and broadcasts on create', async () => {
+  it('persists and broadcasts on create', async () => {
     elements.findOne.mockResolvedValue(null); // no existing element -> zIndex 0
-    const model = await service.create('p1', baseDto, 'u1', null, 'client-1');
-    expect(access.assertCanWrite).toHaveBeenCalledWith('p1', 'u1', null);
+    const model = await service.create('p1', baseDto);
     expect(model.id).toBe('el1');
     expect(model.type).toBe('rectangle');
     expect(model.zIndex).toBe(0);
-    expect(realtime.emit).toHaveBeenCalledWith('p1', 'client-1', {
+    expect(realtime.emit).toHaveBeenCalledWith('p1', {
       kind: 'element.created',
       element: model,
     });
@@ -93,7 +92,7 @@ describe('ElementsService', () => {
       { x: 0, y: 0 },
       { x: 5, y: 9 },
     ];
-    const model = await service.create('p1', { ...baseDto, type: 'freedraw', points }, 'u1');
+    const model = await service.create('p1', { ...baseDto, type: 'freedraw', points });
     expect(elements.create).toHaveBeenCalledWith(
       expect.objectContaining({ pointsJson: JSON.stringify(points) }),
     );
@@ -101,10 +100,9 @@ describe('ElementsService', () => {
   });
 
   it('broadcasts element.moved on a position update', async () => {
-    await service.updatePosition('el1', { x: 42, y: 7 }, 'u1', null, 'client-1');
-    expect(access.assertCanWriteElement).toHaveBeenCalledWith('el1', 'u1', null);
+    await service.updatePosition('p1', 'el1', { x: 42, y: 7 });
     expect(elements.update).toHaveBeenCalledWith({ id: 'el1' }, { x: 42, y: 7 });
-    expect(realtime.emit).toHaveBeenCalledWith('p1', 'client-1', {
+    expect(realtime.emit).toHaveBeenCalledWith('p1', {
       kind: 'element.moved',
       elementId: 'el1',
       x: 42,
@@ -114,9 +112,9 @@ describe('ElementsService', () => {
   });
 
   it('broadcasts element.deleted on remove', async () => {
-    await service.remove('el1', 'u1', null, 'client-1');
+    await service.remove('p1', 'el1');
     expect(elements.delete).toHaveBeenCalledWith({ id: 'el1' });
-    expect(realtime.emit).toHaveBeenCalledWith('p1', 'client-1', {
+    expect(realtime.emit).toHaveBeenCalledWith('p1', {
       kind: 'element.deleted',
       elementId: 'el1',
     });
@@ -129,8 +127,7 @@ describe('ElementsService', () => {
       { id: 'c', zIndex: 2 },
       { id: 'untouched', zIndex: 7 },
     ]);
-    await service.reorder('p1', { orderedElementIds: ['a', 'c', 'b', 'foreign'] }, 'u1', null, 'c1');
-    expect(access.assertCanWrite).toHaveBeenCalledWith('p1', 'u1', null);
+    await service.reorder('p1', { orderedElementIds: ['a', 'c', 'b', 'foreign'] });
     expect(elements.manager.transaction).toHaveBeenCalledTimes(1);
     expect(tx.find.mock.calls[0][1]).toMatchObject({ where: { projectId: 'p1' } });
     // 'a' kept index 0 and 'untouched' is not in the list; 'foreign' is not in the project.
@@ -138,27 +135,9 @@ describe('ElementsService', () => {
     expect(tx.update).toHaveBeenCalledWith(expect.anything(), { id: 'c', projectId: 'p1' }, { zIndex: 1 });
     expect(tx.update).toHaveBeenCalledWith(expect.anything(), { id: 'b', projectId: 'p1' }, { zIndex: 2 });
     expect(elements.update).not.toHaveBeenCalled();
-    expect(realtime.emit).toHaveBeenCalledWith('p1', 'c1', {
+    expect(realtime.emit).toHaveBeenCalledWith('p1', {
       kind: 'element.reordered',
       orderedElementIds: ['a', 'c', 'b', 'foreign'],
     });
-  });
-
-  it('does not reorder or broadcast without write access', async () => {
-    access.assertCanWrite.mockRejectedValue(new ForbiddenException());
-    await expect(
-      service.reorder('p1', { orderedElementIds: ['a'] }, 'u1', null, 'c1'),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(elements.manager.transaction).not.toHaveBeenCalled();
-    expect(realtime.emit).not.toHaveBeenCalled();
-  });
-
-  it('does not persist or broadcast when authorization fails', async () => {
-    access.assertCanWrite.mockRejectedValue(new ForbiddenException('This link is read-only.'));
-    await expect(service.create('p1', baseDto, null, 'view-token')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-    expect(elements.save).not.toHaveBeenCalled();
-    expect(realtime.emit).not.toHaveBeenCalled();
   });
 });
