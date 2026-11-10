@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ProjectsModule } from '../projects/projects.module';
+import { GraphLoaderModule } from '../projects/graph-loader.module';
 import { ExportController } from './export.controller';
 import { ExportService } from './export.service';
 
@@ -13,7 +13,7 @@ import { ExportService } from './export.service';
  * graph-assembly is not duplicated.
  */
 @Module({
-  imports: [ProjectsModule],
+  imports: [GraphLoaderModule],
   controllers: [ExportController],
   providers: [ExportService],
 })

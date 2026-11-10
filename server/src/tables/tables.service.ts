@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import type { TableModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { TableEntity } from './table.entity';
 import { toTableModel } from './table.mapper';
@@ -27,18 +28,6 @@ export class TablesService {
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
-
-  /** All tables (with columns) for a project, as shared TableModels. */
-  async getModelsForProject(projectId: string): Promise<TableModel[]> {
-    const rows = await this.tables.find({
-      where: { projectId },
-      relations: { columns: true, indexes: true },
-      // Columns and indexes in their own IN queries, not one columns x indexes JOIN.
-      relationLoadStrategy: 'query',
-      order: { name: 'ASC' },
-    });
-    return rows.map(toTableModel);
-  }
 
   async create(
     projectId: string,
@@ -129,26 +118,12 @@ export class TablesService {
 
 /** Apply an update DTO onto a table entity (shared with the batch endpoint). */
 export function applyTablePatch(table: TableEntity, dto: UpdateTableDto): void {
-  if (dto.name !== undefined) {
-    table.name = dto.name;
-  }
-  if (dto.color !== undefined) {
-    table.color = dto.color;
-  }
-  if (dto.note !== undefined) {
-    table.note = dto.note;
-  }
+  applyDefined(table, dto, ['name', 'color', 'note', 'groupId', 'slideId']);
   if (dto.width !== undefined) {
     table.width = dto.width > 0 ? dto.width : null;
   }
   if (dto.scale !== undefined) {
     table.scale = dto.scale > 0 && dto.scale !== 1 ? dto.scale : null;
-  }
-  if (dto.groupId !== undefined) {
-    table.groupId = dto.groupId;
-  }
-  if (dto.slideId !== undefined) {
-    table.slideId = dto.slideId;
   }
   if (dto.morphId !== undefined) {
     table.morphId = dto.morphId.trim() || null;

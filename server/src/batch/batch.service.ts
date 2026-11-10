@@ -32,6 +32,7 @@ import {
 import { RelationshipEntity } from '../relationships/relationship.entity';
 import { toRelationshipModel } from '../relationships/relationship.mapper';
 import { UpdateRelationshipDto } from '../relationships/dto/update-relationship.dto';
+import { applyRelationshipPatch } from '../relationships/relationships.service';
 
 /** Upper bound on entries per batch (keeps one transaction reasonably small). */
 const MAX_BATCH = 2000;
@@ -207,16 +208,7 @@ export class BatchService {
 
       const relRows = await load(RelationshipEntity, relationshipPatches.map((p) => p.id), 'relationship(s)');
       for (const p of relationshipPatches) {
-        const r = relRows.get(p.id) as RelationshipEntity;
-        if (p.dto.type !== undefined) r.type = p.dto.type;
-        if (p.dto.onDelete !== undefined) r.onDelete = p.dto.onDelete;
-        if (p.dto.onUpdate !== undefined) r.onUpdate = p.dto.onUpdate;
-        if (p.dto.waypoints !== undefined) {
-          r.waypointsJson = p.dto.waypoints.length ? JSON.stringify(p.dto.waypoints) : null;
-        }
-        if (p.dto.sourceSide !== undefined) r.sourceSide = p.dto.sourceSide;
-        if (p.dto.targetSide !== undefined) r.targetSide = p.dto.targetSide;
-        if (p.dto.autoRoute !== undefined) r.autoRoute = p.dto.autoRoute;
+        applyRelationshipPatch(relRows.get(p.id) as RelationshipEntity, p.dto);
       }
       await save(m, RelationshipEntity, [...relRows.values()]);
 

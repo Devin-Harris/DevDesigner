@@ -8,6 +8,7 @@ import type {
 } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService } from '../access/access.service';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { LifelineEntity } from './lifeline.entity';
 import { SequenceMessageEntity } from './sequence-message.entity';
@@ -47,25 +48,6 @@ export class SequenceService {
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
   ) {}
-
-  /** Diagrams + lifelines + messages for a project, as shared models. */
-  async getSchemaForProject(projectId: string): Promise<{
-    sequenceDiagrams: SequenceDiagramModel[];
-    lifelines: LifelineModel[];
-    sequenceMessages: SequenceMessageModel[];
-  }> {
-    const [diagramRows, lifelineRows, messageRows] = await Promise.all([
-      this.diagrams.find({ where: { projectId } }),
-      this.lifelines.find({ where: { projectId }, order: { orderIndex: 'ASC' } }),
-      this.messages.find({ where: { projectId }, order: { y: 'ASC' } }),
-    ]);
-    return {
-      sequenceDiagrams: diagramRows.map(toSequenceDiagramModel),
-      // Drop any pre-existing rows left without a diagram (dev-schema upgrade).
-      lifelines: lifelineRows.filter((r) => r.diagramId).map(toLifelineModel),
-      sequenceMessages: messageRows.filter((r) => r.diagramId).map(toSequenceMessageModel),
-    };
-  }
 
   // ---- Diagrams ----
 
@@ -283,38 +265,37 @@ export class SequenceService {
 
 /** Patch helpers shared with the batch endpoint. */
 export function applyDiagramPatch(entity: SequenceDiagramEntity, dto: UpdateSequenceDiagramDto): void {
-  if (dto.lifelineSpacing !== undefined) entity.lifelineSpacing = dto.lifelineSpacing;
-  if (dto.rowSpacing !== undefined) entity.rowSpacing = dto.rowSpacing;
-  if (dto.headerHeight !== undefined) entity.headerHeight = dto.headerHeight;
-  if (dto.originY !== undefined) entity.originY = dto.originY;
-  if (dto.zIndex !== undefined) entity.zIndex = dto.zIndex;
-  if (dto.groupId !== undefined) entity.groupId = dto.groupId;
-  if (dto.slideId !== undefined) entity.slideId = dto.slideId;
-  if (dto.backgroundColor !== undefined) entity.backgroundColor = dto.backgroundColor;
-  if (dto.borderColor !== undefined) entity.borderColor = dto.borderColor;
+  applyDefined(entity, dto, [
+    'lifelineSpacing',
+    'rowSpacing',
+    'headerHeight',
+    'originY',
+    'zIndex',
+    'groupId',
+    'slideId',
+    'backgroundColor',
+    'borderColor',
+  ]);
   if (dto.title !== undefined) entity.title = dto.title.trim() || null;
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
 }
 
 export function applyLifelinePatch(entity: LifelineEntity, dto: UpdateLifelineDto): void {
-  if (dto.label !== undefined) entity.label = dto.label;
-  if (dto.color !== undefined) entity.color = dto.color;
-  if (dto.lineColor !== undefined) entity.lineColor = dto.lineColor;
-  if (dto.strokeColor !== undefined) entity.strokeColor = dto.strokeColor;
-  if (dto.textColor !== undefined) entity.textColor = dto.textColor;
+  applyDefined(entity, dto, ['label', 'color', 'lineColor', 'strokeColor', 'textColor', 'width']);
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
-  if (dto.width !== undefined) entity.width = dto.width;
 }
 
 export function applyMessagePatch(entity: SequenceMessageEntity, dto: UpdateSequenceMessageDto): void {
-  if (dto.fromLifelineId !== undefined) entity.fromLifelineId = dto.fromLifelineId;
-  if (dto.toLifelineId !== undefined) entity.toLifelineId = dto.toLifelineId;
-  if (dto.label !== undefined) entity.label = dto.label;
-  if (dto.style !== undefined) entity.style = dto.style;
-  if (dto.direction !== undefined) entity.direction = dto.direction;
-  if (dto.arrowhead !== undefined) entity.arrowhead = dto.arrowhead;
-  if (dto.color !== undefined) entity.color = dto.color;
-  if (dto.wrap !== undefined) entity.wrap = dto.wrap;
+  applyDefined(entity, dto, [
+    'fromLifelineId',
+    'toLifelineId',
+    'label',
+    'style',
+    'direction',
+    'arrowhead',
+    'color',
+    'wrap',
+  ]);
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
   if (entity.style !== 'break' && entity.fromLifelineId === entity.toLifelineId) {
     throw new BadRequestException('A message must go between two different participants.');

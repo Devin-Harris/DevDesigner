@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import type { IndexModel } from '@devdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
 import { AccessService } from '../access/access.service';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { IndexEntity } from './index.entity';
 import { toIndexModel } from './index.mapper';
@@ -59,14 +60,9 @@ export class IndexesService {
   ): Promise<IndexModel> {
     await this.access.assertIdsInProject('column', dto.columnIds ?? [], projectId);
     const index = await this.findOrThrow(indexId);
-    if (dto.name !== undefined) {
-      index.name = dto.name;
-    }
+    applyDefined(index, dto, ['name', 'isUnique']);
     if (dto.columnIds !== undefined) {
       index.columnIdsJson = JSON.stringify(dto.columnIds);
-    }
-    if (dto.isUnique !== undefined) {
-      index.isUnique = dto.isUnique;
     }
     const saved = await this.indexes.save(index);
     const model = toIndexModel(saved);

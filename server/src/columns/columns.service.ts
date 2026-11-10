@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import type { ColumnModel } from '@devdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ColumnEntity } from './column.entity';
 import { fromDataType, toColumnModel } from './column.mapper';
@@ -60,35 +61,18 @@ export class ColumnsService {
     dto: UpdateColumnDto,
   ): Promise<ColumnModel> {
     const column = await this.findOrThrow(columnId);
-    if (dto.name !== undefined) {
-      column.name = dto.name;
-    }
+    applyDefined(column, dto, [
+      'name',
+      'isPrimaryKey',
+      'isNullable',
+      'isUnique',
+      'isAutoIncrement',
+      'isUnsigned',
+      'defaultValue',
+      'note',
+    ]);
     if (dto.dataType !== undefined) {
-      const mapped = fromDataType(dto.dataType);
-      column.dataTypeName = mapped.dataTypeName;
-      column.dataTypeLength = mapped.dataTypeLength;
-      column.dataTypeArgs = mapped.dataTypeArgs;
-    }
-    if (dto.isPrimaryKey !== undefined) {
-      column.isPrimaryKey = dto.isPrimaryKey;
-    }
-    if (dto.isNullable !== undefined) {
-      column.isNullable = dto.isNullable;
-    }
-    if (dto.isUnique !== undefined) {
-      column.isUnique = dto.isUnique;
-    }
-    if (dto.isAutoIncrement !== undefined) {
-      column.isAutoIncrement = dto.isAutoIncrement;
-    }
-    if (dto.isUnsigned !== undefined) {
-      column.isUnsigned = dto.isUnsigned;
-    }
-    if (dto.defaultValue !== undefined) {
-      column.defaultValue = dto.defaultValue;
-    }
-    if (dto.note !== undefined) {
-      column.note = dto.note;
+      Object.assign(column, fromDataType(dto.dataType));
     }
     const saved = await this.columns.save(column);
     const model = toColumnModel(saved);
@@ -136,18 +120,6 @@ export class ColumnsService {
       throw new NotFoundException(`Column ${columnId} not found.`);
     }
     this.realtime.emit(projectId, { kind: 'column.deleted', tableId, columnId });
-  }
-
-  /** Unused today but handy: fetch models for a set of tables in one query. */
-  async getModelsForTables(tableIds: string[]): Promise<ColumnModel[]> {
-    if (!tableIds.length) {
-      return [];
-    }
-    const rows = await this.columns.find({
-      where: { tableId: In(tableIds) },
-      order: { orderIndex: 'ASC' },
-    });
-    return rows.map(toColumnModel);
   }
 
   private async findOrThrow(columnId: string): Promise<ColumnEntity> {

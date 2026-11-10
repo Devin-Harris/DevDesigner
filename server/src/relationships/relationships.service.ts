@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { RelationshipModel } from '@devdesigner/shared';
 import { ColumnEntity } from '../columns/column.entity';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { RelationshipEntity } from './relationship.entity';
 import { toRelationshipModel } from './relationship.mapper';
@@ -29,11 +30,6 @@ export class RelationshipsService {
     private readonly columns: Repository<ColumnEntity>,
     private readonly realtime: RealtimePublisher,
   ) {}
-
-  async getModelsForProject(projectId: string): Promise<RelationshipModel[]> {
-    const rows = await this.relationships.find({ where: { projectId } });
-    return rows.map(toRelationshipModel);
-  }
 
   async create(
     projectId: string,
@@ -89,27 +85,7 @@ export class RelationshipsService {
       relationship.targetColumnId = nextTarget;
     }
 
-    if (dto.type !== undefined) {
-      relationship.type = dto.type;
-    }
-    if (dto.onDelete !== undefined) {
-      relationship.onDelete = dto.onDelete;
-    }
-    if (dto.onUpdate !== undefined) {
-      relationship.onUpdate = dto.onUpdate;
-    }
-    if (dto.waypoints !== undefined) {
-      relationship.waypointsJson = dto.waypoints.length ? JSON.stringify(dto.waypoints) : null;
-    }
-    if (dto.sourceSide !== undefined) {
-      relationship.sourceSide = dto.sourceSide;
-    }
-    if (dto.targetSide !== undefined) {
-      relationship.targetSide = dto.targetSide;
-    }
-    if (dto.autoRoute !== undefined) {
-      relationship.autoRoute = dto.autoRoute;
-    }
+    applyRelationshipPatch(relationship, dto);
     const saved = await this.relationships.save(relationship);
     const model = toRelationshipModel(saved);
     this.realtime.emit(projectId, { kind: 'relationship.updated', relationship: model });
@@ -169,5 +145,13 @@ export class RelationshipsService {
       throw new NotFoundException(`Relationship ${id} not found.`);
     }
     return relationship;
+  }
+}
+
+/** Apply the non-endpoint fields of an update (shared with the batch endpoint). */
+export function applyRelationshipPatch(relationship: RelationshipEntity, dto: UpdateRelationshipDto): void {
+  applyDefined(relationship, dto, ['type', 'onDelete', 'onUpdate', 'sourceSide', 'targetSide', 'autoRoute']);
+  if (dto.waypoints !== undefined) {
+    relationship.waypointsJson = dto.waypoints.length ? JSON.stringify(dto.waypoints) : null;
   }
 }

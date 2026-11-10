@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Patch, Post, Query } from '@nestjs/common';
 import {
   BATCH_RETURN_NONE,
   type BatchUpdateAck,

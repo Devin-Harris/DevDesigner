@@ -11,13 +11,9 @@ import {
   type ProjectGraphResponse,
   type ProjectSummary,
   type SchemaMutation,
-  type SchemaModel,
-  type SlideTheme,
 } from '@devdesigner/shared';
-import { TablesService } from '../tables/tables.service';
-import { RelationshipsService } from '../relationships/relationships.service';
-import { ElementsService } from '../elements/elements.service';
-import { SequenceService } from '../sequence/sequence.service';
+import { GraphLoaderService } from './graph-loader.service';
+import { toProjectSummary } from './project.mapper';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ElementEntity } from '../elements/element.entity';
 import { TableEntity } from '../tables/table.entity';
@@ -36,6 +32,7 @@ import {
 } from './project-import.writer';
 import { ImagesService } from '../images/images.service';
 import { bumpProjectRevision } from '../common/project-revision';
+import { applyDefined } from '../common/apply-patch';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -52,10 +49,7 @@ export class ProjectsService {
   constructor(
     @InjectRepository(Project)
     private readonly projects: Repository<Project>,
-    private readonly tables: TablesService,
-    private readonly relationships: RelationshipsService,
-    private readonly elements: ElementsService,
-    private readonly sequence: SequenceService,
+    private readonly graphs: GraphLoaderService,
     private readonly dataSource: DataSource,
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
@@ -74,7 +68,7 @@ export class ProjectsService {
       where: { archived, ownerId },
       order: { updatedAt: 'DESC' },
     });
-    return rows.map((row) => this.toSummary(row));
+    return rows.map((row) => toProjectSummary(row));
   }
 
   /** Number of projects (archived or not) owned by `ownerId`. */
@@ -105,54 +99,12 @@ export class ProjectsService {
       ownerId,
     });
     const saved = await this.projects.save(project);
-    return this.toSummary(saved);
+    return toProjectSummary(saved);
   }
 
   /** Full project graph for initial load, as seen at the caller's (already resolved) level. */
-  async getGraph(id: string, accessLevel: AccessLevel): Promise<ProjectGraphResponse> {
-    const project = await this.findOrThrow(id);
-    const [tables, relationships, elements, sequence] = await Promise.all([
-      this.tables.getModelsForProject(id),
-      this.relationships.getModelsForProject(id),
-      this.elements.getModelsForProject(id),
-      this.sequence.getSchemaForProject(id),
-    ]);
-    const schema: SchemaModel = {
-      tables,
-      relationships,
-      notes: [],
-      elements,
-      sequenceDiagrams: sequence.sequenceDiagrams,
-      lifelines: sequence.lifelines,
-      sequenceMessages: sequence.sequenceMessages,
-      viewport: {
-        x: project.viewportX,
-        y: project.viewportY,
-        zoom: project.zoom,
-      },
-      home:
-        project.homeX !== null && project.homeY !== null && project.homeZoom !== null
-          ? { x: project.homeX, y: project.homeY, zoom: project.homeZoom }
-          : null,
-      themes: parseThemes(project.themesJson),
-    };
-    return {
-      project: this.toSummary(project),
-      schema,
-      accessLevel,
-    };
-  }
-
-  /**
-   * Just the database part of a project (tables + relationships), for SQL export.
-   * Skips elements, sequence diagrams and the project row.
-   */
-  async getDatabaseSchema(id: string): Promise<Pick<SchemaModel, 'tables' | 'relationships'>> {
-    const [tables, relationships] = await Promise.all([
-      this.tables.getModelsForProject(id),
-      this.relationships.getModelsForProject(id),
-    ]);
-    return { tables, relationships };
+  getGraph(id: string, accessLevel: AccessLevel): Promise<ProjectGraphResponse> {
+    return this.graphs.graph(id, accessLevel);
   }
 
   async updateViewport(id: string, dto: UpdateViewportDto): Promise<void> {
@@ -193,22 +145,11 @@ export class ProjectsService {
 
   async update(id: string, dto: UpdateProjectDto): Promise<ProjectSummary> {
     const project = await this.findOrThrow(id);
-    if (dto.name !== undefined) {
-      project.name = dto.name;
-    }
-    if (dto.description !== undefined) {
-      project.description = dto.description;
-    }
-    if (dto.archived !== undefined) {
-      project.archived = dto.archived;
-    }
-    if (dto.type !== undefined) {
-      project.type = dto.type;
-    }
+    applyDefined(project, dto, ['name', 'description', 'archived', 'type']);
     const saved = await this.projects.save(project);
     // Name/description/type/archived ride in the graph's project summary.
     bumpProjectRevision(id);
-    return this.toSummary(saved);
+    return toProjectSummary(saved);
   }
 
   async duplicate(id: string): Promise<ProjectSummary> {
@@ -230,7 +171,7 @@ export class ProjectsService {
     const saved = await this.projects.save(copy);
     // NOTE: deep-copies only the project row for now. Tables, columns,
     // relationships, and notes are copied once those modules exist (Phase 2+).
-    return this.toSummary(saved);
+    return toProjectSummary(saved);
   }
 
   /**
@@ -238,7 +179,7 @@ export class ProjectsService {
    * can export it (a view-only share link included, since they already see all of it).
    */
   async exportProject(id: string, accessLevel: AccessLevel): Promise<ProjectExportFile> {
-    const { project, schema } = await this.getGraph(id, accessLevel);
+    const { project, schema } = await this.graphs.graph(id, accessLevel);
     return {
       format: PROJECT_EXPORT_FORMAT,
       version: PROJECT_EXPORT_VERSION,
@@ -261,7 +202,7 @@ export class ProjectsService {
     const saved = await this.dataSource.transaction((manager) =>
       writeImportedProject(manager, parsed, ownerId, images),
     );
-    return this.toSummary(saved);
+    return toProjectSummary(saved);
   }
 
   /**
@@ -351,18 +292,6 @@ export class ProjectsService {
     }
     return project;
   }
-
-  private toSummary(project: Project): ProjectSummary {
-    return {
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      archived: project.archived,
-      type: project.type,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString(),
-    };
-  }
 }
 
 /**
@@ -372,16 +301,5 @@ export class ProjectsService {
 function requireOwner(ownerId: string | null): asserts ownerId is string {
   if (!ownerId) {
     throw new UnauthorizedException('Sign in (or send an X-Guest-Id) to create a project.');
-  }
-}
-
-/** The stored custom theme library (bad or missing JSON reads as none). */
-function parseThemes(json: string | null): SlideTheme[] {
-  if (!json) return [];
-  try {
-    const v: unknown = JSON.parse(json);
-    return Array.isArray(v) ? (v as SlideTheme[]) : [];
-  } catch {
-    return [];
   }
 }

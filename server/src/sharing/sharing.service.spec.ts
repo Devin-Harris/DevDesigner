@@ -4,7 +4,7 @@ import type { Repository } from 'typeorm';
 import { SharingService } from './sharing.service';
 import type { ShareLink } from './share-link.entity';
 import type { AccessService } from '../access/access.service';
-import type { ProjectsService } from '../projects/projects.service';
+import type { GraphLoaderService } from '../projects/graph-loader.service';
 import type { RealtimePublisher } from '../realtime/realtime.publisher';
 
 /**
@@ -21,7 +21,7 @@ describe('SharingService', () => {
     update: jest.Mock;
   };
   let access: { assertCanRead: jest.Mock };
-  let projects: { getGraph: jest.Mock };
+  let projects: { graph: jest.Mock };
   let config: { get: jest.Mock };
   let realtime: { accessRevoked: jest.Mock };
   let service: SharingService;
@@ -35,13 +35,13 @@ describe('SharingService', () => {
       update: jest.fn(async () => ({ affected: 1 })),
     };
     access = { assertCanRead: jest.fn().mockResolvedValue('EDIT') };
-    projects = { getGraph: jest.fn() };
+    projects = { graph: jest.fn() };
     config = { get: jest.fn().mockReturnValue('https://app.example.com') };
     realtime = { accessRevoked: jest.fn() };
     service = new SharingService(
       shareLinks as unknown as Repository<ShareLink>,
       access as unknown as AccessService,
-      projects as unknown as ProjectsService,
+      projects as unknown as GraphLoaderService,
       config as unknown as ConfigService,
       realtime as unknown as RealtimePublisher,
     );
@@ -68,10 +68,10 @@ describe('SharingService', () => {
       revokedAt: null,
       expiresAt: null,
     });
-    projects.getGraph.mockResolvedValue({ project: {}, schema: {}, accessLevel: 'EDIT' });
+    projects.graph.mockResolvedValue({ project: {}, schema: {}, accessLevel: 'EDIT' });
     await service.getSharedGraph('t');
     expect(access.assertCanRead).toHaveBeenCalledWith('p1', null, 't');
-    expect(projects.getGraph).toHaveBeenCalledWith('p1', 'EDIT');
+    expect(projects.graph).toHaveBeenCalledWith('p1', 'EDIT');
   });
 
   it('rejects a revoked token on the shared entry route', async () => {
@@ -82,7 +82,7 @@ describe('SharingService', () => {
       expiresAt: null,
     });
     await expect(service.getSharedGraph('t')).rejects.toBeInstanceOf(NotFoundException);
-    expect(projects.getGraph).not.toHaveBeenCalled();
+    expect(projects.graph).not.toHaveBeenCalled();
   });
 
   it('rejects an expired token on the shared entry route', async () => {

@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import { AccessService, bindingRefs, mergeRefs, type ProjectRefs } from '../access/access.service';
+import { applyDefined } from '../common/apply-patch';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { ImagesService } from '../images/images.service';
 import { ElementEntity } from './element.entity';
@@ -36,15 +37,6 @@ export class ElementsService {
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
   ) {}
-
-  /** All elements for a project, ordered by stacking index, as shared models. */
-  async getModelsForProject(projectId: string): Promise<CanvasElementModel[]> {
-    const rows = await this.elements.find({
-      where: { projectId },
-      order: { zIndex: 'ASC' },
-    });
-    return rows.map(toElementModel);
-  }
 
   async create(
     projectId: string,
@@ -264,17 +256,19 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     'endArrowhead',
     'curvature',
     'language',
+    // Nullable fields: a present value sets it, null clears it.
+    'backgroundColor',
+    'text',
+    'groupId',
+    'overrides',
+    'morphIn',
+    'morphOut',
+    'morphId',
+    'step',
+    'slideId',
   ] as const;
-  for (const key of scalarKeys) {
-    if (dto[key] !== undefined) {
-      // Each key maps to an identically-named column of the matching type.
-      (element as unknown as Record<string, unknown>)[key] = dto[key];
-    }
-  }
-  // Nullable fields: a present value sets it, an explicit clear is handled below.
-  if (dto.backgroundColor !== undefined) {
-    element.backgroundColor = dto.backgroundColor;
-  }
+  // Each key maps to an identically-named column of the matching type.
+  applyDefined(element, dto, scalarKeys);
   if (dto.expandedHeight !== undefined && element.type === 'code') {
     element.expandedHeight = dto.expandedHeight;
   }
@@ -293,17 +287,11 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   if (dto.fileName !== undefined && element.type === 'code') {
     element.fileName = dto.fileName.trim() || null;
   }
-  if (dto.text !== undefined) {
-    element.text = dto.text;
-  }
   if (dto.points !== undefined) {
     element.pointsJson = JSON.stringify(dto.points);
   }
   if (dto.runs !== undefined) {
     element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;
-  }
-  if (dto.groupId !== undefined) {
-    element.groupId = dto.groupId;
   }
   if (dto.slide !== undefined && element.type === 'frame') {
     element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
@@ -313,24 +301,6 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.placeholder !== undefined) {
     element.placeholderJson = dto.placeholder ? JSON.stringify(dto.placeholder) : null;
-  }
-  if (dto.overrides !== undefined) {
-    element.overrides = dto.overrides;
-  }
-  if (dto.morphIn !== undefined) {
-    element.morphIn = dto.morphIn;
-  }
-  if (dto.morphOut !== undefined) {
-    element.morphOut = dto.morphOut;
-  }
-  if (dto.morphId !== undefined) {
-    element.morphId = dto.morphId;
-  }
-  if (dto.step !== undefined) {
-    element.step = dto.step;
-  }
-  if (dto.slideId !== undefined) {
-    element.slideId = dto.slideId;
   }
   if (dto.startBinding !== undefined) {
     element.startBindingKind = dto.startBinding?.targetKind ?? null;

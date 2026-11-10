@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TablesModule } from '../tables/tables.module';
-import { RelationshipsModule } from '../relationships/relationships.module';
-import { ElementsModule } from '../elements/elements.module';
 import { ImagesModule } from '../images/images.module';
-import { SequenceModule } from '../sequence/sequence.module';
+import { GraphLoaderModule } from './graph-loader.module';
 import { Project } from './project.entity';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
@@ -19,11 +16,8 @@ import { ProjectsService } from './projects.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Project]),
-    TablesModule,
-    RelationshipsModule,
-    ElementsModule,
+    GraphLoaderModule,
     ImagesModule,
-    SequenceModule,
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService],

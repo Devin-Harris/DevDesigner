@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { nanoid } from 'nanoid';
 import { IsNull, Repository } from 'typeorm';
 import { AccessService } from '../access/access.service';
-import { ProjectsService } from '../projects/projects.service';
+import { GraphLoaderService } from '../projects/graph-loader.service';
 import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ShareLink } from './share-link.entity';
@@ -25,7 +25,7 @@ export class SharingService {
     @InjectRepository(ShareLink)
     private readonly shareLinks: Repository<ShareLink>,
     private readonly access: AccessService,
-    private readonly projects: ProjectsService,
+    private readonly graphs: GraphLoaderService,
     private readonly config: ConfigService,
     private readonly realtime: RealtimePublisher,
   ) {}
@@ -71,7 +71,7 @@ export class SharingService {
   /** Resolve a token to the shared project graph for the account-free entry route. */
   async getSharedGraph(token: string): Promise<ProjectGraphResponse> {
     const { projectId, accessLevel } = await this.sharedAccess(token);
-    return this.projects.getGraph(projectId, accessLevel);
+    return this.graphs.graph(projectId, accessLevel);
   }
 
   /**

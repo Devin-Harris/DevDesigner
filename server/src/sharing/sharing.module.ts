@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProjectsModule } from '../projects/projects.module';
+import { GraphLoaderModule } from '../projects/graph-loader.module';
 import { ShareLink } from './share-link.entity';
 import { SharingController } from './sharing.controller';
 import { SharingService } from './sharing.service';
@@ -14,7 +14,7 @@ import { SharingService } from './sharing.service';
  * the shared entry route; AccessService comes from the global AccessModule.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([ShareLink]), ProjectsModule],
+  imports: [TypeOrmModule.forFeature([ShareLink]), GraphLoaderModule],
   controllers: [SharingController],
   providers: [SharingService],
 })
