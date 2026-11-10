@@ -5,7 +5,7 @@
       [class.tool-active]="tools.activeTool() !== 'select'"
       [style.cursor]="tools.canvasCursor()"
       (pointerdown)="onCanvasPointerDown($event)"
-      (dblclick)="onCanvasDblClick($event)"
+      (dblclick)="dblClick.onCanvasDblClick($event)"
       (wheel)="viewport.onWheel($event)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
