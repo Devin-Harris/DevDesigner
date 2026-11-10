@@ -379,22 +379,22 @@ Measured 2026-11-09 at the start of Wave 3, before any Wave 3 client change. Dev
 
 | Scenario | Baseline (P0) | After Wave 3 |
 |---|---|---|
-| (a) small: pan 2 s (120 frames), work per frame | 6.7 ms (p95 8.1) | _pending_ |
-| (a) small: pan, requests / socket emits | 1 `PATCH /viewport`; ~40 `presence:cursor` | _pending_ |
-| (b) small: zoom (24 wheel ticks), work per tick | 7.0 ms (p95 10.3) | _pending_ |
-| (b) small: zoom, requests | 1 `PATCH /viewport` | _pending_ |
-| (c) small: drag a table (60 frames), work per frame | 7.1 ms (p95 9.6) | _pending_ |
-| (c) small: drag a shape (60 frames), work per frame | 6.7 ms (p95 9.8) | _pending_ |
-| (c) drag, requests / socket emits | 1 `PATCH /batch`; 20 `presence:cursor` + 1 `presence:selection` | _pending_ |
-| (d) small: type 20 characters in a text element, work per character | 9.4 ms (p95 11.6) | _pending_ |
-| (d) typing, requests | none while typing; 1 `PATCH /batch` on commit | _pending_ |
-| (e) show a layout + move one of its items: theme saves | **2× `PUT /themes` + 4× `POST /me/themes`; one edit created two new "Default custom N" designs** | _pending_ |
-| Idle mouse move (no button), work per move / emits | 1.3 ms; ~20 `presence:cursor` per second | _pending_ |
-| big: pan, work per frame | **16.8 ms** (p95 18.6): over the 16.7 ms frame budget | _pending_ |
-| big: zoom, work per tick | 14.5 ms (p95 18.2) | _pending_ |
-| big: drag a table, work per frame | 14.6 ms (p95 16.3) | _pending_ |
-| big: type in a slide text element, work per character | 18.9 ms p50 (mean 21.9, p95 63) | _pending_ |
-| big: one committed text edit on a slide → images re-encoded for thumbnails | **120 `readAsDataURL` calls, 5.1 MB** (60 images × 2 panel instances) | _pending_ |
+| (a) small: pan 2 s (120 frames), work per frame | 6.7 ms (p95 8.1) | **3.5 ms** (p95 3.9) |
+| (a) small: pan, requests / socket emits | 1 `PATCH /viewport`; ~40 `presence:cursor` | none (viewport kept in this browser); no emits alone in the room |
+| (b) small: zoom (24 wheel ticks), work per tick | 7.0 ms (p95 10.3) | **3.8 ms** (p95 4.9) |
+| (b) small: zoom, requests | 1 `PATCH /viewport` | none |
+| (c) small: drag a table (60 frames), work per frame | 7.1 ms (p95 9.6) | **5.6 ms** (p95 7.3) |
+| (c) small: drag a shape (60 frames), work per frame | 6.7 ms (p95 9.8) | **4.8 ms** (p95 6.3) |
+| (c) drag, requests / socket emits | 1 `PATCH /batch`; 20 `presence:cursor` + 1 `presence:selection` | 1 `PATCH /batch?return=none` (ack body); no emits alone |
+| (d) small: type 20 characters in a text element, work per character | 9.4 ms (p95 11.6) | **6.1 ms** (p95 8.9) |
+| (d) typing, requests | none while typing; 1 `PATCH /batch` on commit | none while typing; 1 `PATCH /batch?return=none` on commit |
+| (e) show a layout + move one of its items: theme saves | **2× `PUT /themes` + 4× `POST /me/themes`; one edit created two new "Default custom N" designs** | **1× `PUT /themes` + 2× `POST /me/themes`; one design set** |
+| Idle mouse move (no button), work per move / emits | 1.3 ms; ~20 `presence:cursor` per second | 0.35 ms; no emits |
+| big: pan, work per frame | **16.8 ms** (p95 18.6): over the 16.7 ms frame budget | **6.6 ms** (p95 7.1) |
+| big: zoom, work per tick | 14.5 ms (p95 18.2) | **6.0 ms** (p95 8.4) |
+| big: drag a table, work per frame | 14.6 ms (p95 16.3) | 11.4 ms (p95 12.9) |
+| big: type in a slide text element, work per character | 18.9 ms p50 (mean 21.9, p95 63) | 16.7 ms p50 (mean 17.4, p95 26.8) |
+| big: one committed text edit on a slide → images re-encoded for thumbnails | **120 `readAsDataURL` calls, 5.1 MB** (60 images × 2 panel instances) | **0** (data URLs cached per file) |
 
 **What P0 confirms:**
 
@@ -403,3 +403,10 @@ Measured 2026-11-09 at the start of Wave 3, before any Wave 3 client change. Dev
 - C10: cursors are streamed at ~20/s while alone in the room.
 - C11: the duplicate layout save is real. Both slides-panel instances (`list` and `settings`) save the same layout edit, and on built-in layouts each creates its own custom design set (the test DB already held six such pairs). So the one-line guard from P2.6 ships in Wave 3.
 - C12: thumbnails re-encode every image in the project, twice, after any slide edit.
+
+**After Wave 3** (2026-11-10, same harness, same build mode, fresh imports of the same two projects; Wave 3 client commits `8aef6b1` … `0a158bc` plus the server track):
+
+- Pan and zoom no longer scale with the project: the viewport lives in its own state slot, so a pan frame recomputes only the transform and overlays (big project 16.8 → 6.6 ms per frame).
+- Drags, typing and other edits rebuild only the changed elements (per-element view memo, stable derived collections, bulk local moves). A table drag on the big project is still 11.4 ms: table nodes and connectors re-render, and the remaining cost is in the editor's own computeds. P2.4 (pointer pipeline) and P2.5 (culling) come after the editor split.
+- Typing into a slide text element on the big deck improved least (18.9 → 16.7 ms p50). The rest is slide-side fan-out (slides-panel computeds per instance, C11), which is left to the slides-panel split (P2.6).
+- Network: no viewport writes, no presence emits while alone, batch/clone ask for an ack, restacks send only changed rows, one save per layout edit, and no image re-encoding for thumbnails.
