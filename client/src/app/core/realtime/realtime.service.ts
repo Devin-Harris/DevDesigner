@@ -13,7 +13,7 @@ import {
    type RealtimeSession,
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectStore } from '../../features/editor/state/project/project.store';
 import { LaserService } from './laser.service';
 import { ShareSessionService } from '../auth/share-session.service';
 

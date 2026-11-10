@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RT_EVENTS, type Participant } from '@devdesigner/shared';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectStore } from '../../features/editor/state/project/project.store';
 import { LaserService } from './laser.service';
 import { RealtimeService } from './realtime.service';
 import { ShareSessionService } from '../auth/share-session.service';

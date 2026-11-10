@@ -9,7 +9,7 @@ import {
    type UpdateElementDto,
 } from '@devdesigner/shared';
 import { MASTER_DELETED, isMasterDeletion, overriddenId } from '../canvas/helpers/frame-contents.helper';
-import { elementToCreateDto, type ProjectStore } from '../../../stores/project.store';
+import { elementToCreateDto, type ProjectStore } from '../state/project/project.store';
 
 type Store = InstanceType<typeof ProjectStore>;
 

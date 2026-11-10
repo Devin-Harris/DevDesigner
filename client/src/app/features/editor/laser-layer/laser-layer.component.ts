@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { LaserService } from '../../../core/realtime/laser.service';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 
 /** Every laser is red, regardless of whose it is. */
 const LASER_COLOR = '#ff2d2d';

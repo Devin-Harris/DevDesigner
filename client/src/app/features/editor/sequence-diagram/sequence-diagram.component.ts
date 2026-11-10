@@ -17,7 +17,7 @@ import {
 } from '@devdesigner/shared';
 import { contrastText } from './contrast';
 import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
-import { ProjectStore, SequenceLayoutSnapshot } from '../../../stores/project.store';
+import { ProjectStore, SequenceLayoutSnapshot } from '../state/project/project.store';
 
 interface MessageView {
    id: string;

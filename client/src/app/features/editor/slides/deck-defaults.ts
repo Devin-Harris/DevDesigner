@@ -5,7 +5,7 @@ import {
    themeToken,
    type CanvasElementModel,
 } from '@devdesigner/shared';
-import type { ProjectStore } from '../../../stores/project.store';
+import type { ProjectStore } from '../state/project/project.store';
 import { addStandardLayouts, STARTER_KINDS } from './standard-layouts';
 
 type Store = InstanceType<typeof ProjectStore>;

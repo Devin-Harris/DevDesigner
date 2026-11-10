@@ -12,8 +12,8 @@ import {
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/theme/theme.service';
 import { EditorActionsService, type CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
-import { ProjectsStore } from '../../stores/projects.store';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectsStore } from '../workspace/state/projects/projects.store';
+import { ProjectStore } from '../editor/state/project/project.store';
 import { ProjectsOverlayService } from '../workspace/projects-overlay/projects-overlay.service';
 
 interface PaletteEntry {

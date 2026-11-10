@@ -3,7 +3,7 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { catchError, firstValueFrom, of, pipe, switchMap, tap } from 'rxjs';
 import type { CreateProjectDto, ProjectSummary, UpdateProjectDto } from '@devdesigner/shared';
-import { ProjectsApiService } from '../shared/services/projects-api.service';
+import { ProjectsApiService } from '../../../../shared/services/projects-api.service';
 
 /** `description` the guide's sandbox projects carry (see features/guide). */
 export const GUIDE_SANDBOX_MARK = 'dd-guide-sandbox';

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RELATIONSHIP_TYPES, type RelationshipModel, type RelationshipType } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 

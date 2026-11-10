@@ -21,7 +21,7 @@ import { ColorSwatchesComponent } from '../../shared/ui/components/color-swatche
 import { codePalette, tokenColor, tokenizeCode } from '../editor/canvas/helpers/code-highlight.helper';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { prepareSandbox } from '../guide/helpers/guide-sandbox.helper';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectStore } from '../editor/state/project/project.store';
 import { playBuild, type Box, type CursorFn } from './showcase-player';
 import { RouterLink } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
@@ -30,7 +30,7 @@ import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
 import { ThemeService } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { ProjectsStore } from '../../stores/projects.store';
+import { ProjectsStore } from '../workspace/state/projects/projects.store';
 import { ProjectsOverlayService } from '../workspace/projects-overlay/projects-overlay.service';
 import { AuthDialogComponent } from '../auth/auth-dialog.component';
 import { ApiTokensDialogComponent } from '../auth/api-tokens-dialog.component';

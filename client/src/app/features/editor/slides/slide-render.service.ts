@@ -27,7 +27,7 @@ import {
    resolveThemedSequences,
 } from '@devdesigner/shared';
 import { ElementImagesService } from '../services/element-images.service';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../export/diagram-svg.helper';

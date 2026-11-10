@@ -17,7 +17,7 @@ import {
    presentationMaster,
    DEFAULT_LAYOUT_SET,
 } from '@devdesigner/shared';
-import type { ProjectStore } from '../../../stores/project.store';
+import type { ProjectStore } from '../state/project/project.store';
 import { fitTextElement } from '../canvas/helpers/text-metrics';
 import { switchLayout } from './layout-placeholders';
 

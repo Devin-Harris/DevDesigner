@@ -1,7 +1,7 @@
 import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { themeColorCss } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';

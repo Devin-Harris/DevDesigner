@@ -20,7 +20,7 @@ import { canFormatCode } from '../canvas/helpers/code-format.helper';
 import { CodeActionsService } from '../services/code-actions.service';
 import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
 import { withTextFit } from '../canvas/helpers/text-metrics';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 

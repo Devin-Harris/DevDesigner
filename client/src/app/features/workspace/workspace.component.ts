@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { ProjectsStore } from '../../stores/projects.store';
+import { ProjectsStore } from './state/projects/projects.store';
 import { EditorComponent } from '../editor/editor.component';
 import { HomeComponent } from '../home/home.component';
 import { ProjectsOverlayService } from './projects-overlay/projects-overlay.service';

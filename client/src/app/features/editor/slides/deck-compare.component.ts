@@ -14,7 +14,7 @@ import {
    viewChild,
 } from '@angular/core';
 import { matchMorphItems, slideMorphKey, type CanvasElementModel, type MorphItem } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { tableBox } from '../canvas/helpers/node-metrics.helper';
 import { SlideRenderService, type RenderedSlide } from './slide-render.service';
 import { MorphStage } from './morph-stage';

@@ -24,7 +24,7 @@ import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.dire
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
-import { ProjectStore, type TableGeometry } from '../../../stores/project.store';
+import { ProjectStore, type TableGeometry } from '../state/project/project.store';
 import { HEADER_H, MAX_TABLE_SCALE, MIN_TABLE_SCALE, ROW_H } from '../canvas/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableScale } from '../canvas/helpers/node-metrics.helper';
 

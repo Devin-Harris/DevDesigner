@@ -19,8 +19,8 @@ import { EditorActionsService } from './core/editor-bridge/editor-actions.servic
 import { ProjectsApiService } from './shared/services/projects-api.service';
 import { ProjectFileService } from './shared/services/project-file.service';
 import { RealtimeService } from './core/realtime/realtime.service';
-import { ProjectsStore } from './stores/projects.store';
-import { ProjectStore } from './stores/project.store';
+import { ProjectsStore } from './features/workspace/state/projects/projects.store';
+import { ProjectStore } from './features/editor/state/project/project.store';
 import { AuthDialogComponent } from './features/auth/auth-dialog.component';
 import {
    ConfirmDialogComponent,

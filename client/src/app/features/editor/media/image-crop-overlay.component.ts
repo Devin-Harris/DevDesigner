@@ -12,7 +12,7 @@ import {
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { ElementImagesService } from '../services/element-images.service';
 import { MediaActionsService, cleanMedia } from '../services/media-actions.service';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { cropFor, mediaSourceRect, type Rect } from '../canvas/helpers/media.helper';
 import { imageView } from '../canvas/helpers/shape-render.helper';
 

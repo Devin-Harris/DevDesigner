@@ -43,7 +43,7 @@ import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
 import { CodeActionsService } from '../services/code-actions.service';
 import { DEFAULT_LINE_HEIGHT, ensureFontLoaded, LINE_HEIGHTS, withTextFit } from '../canvas/helpers/text-metrics';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { revertable, revertItems } from '../slides/layout-placeholders';
 
 const STROKE_WIDTHS: { value: number; label: string }[] = [

@@ -1,4 +1,4 @@
-import { isMasterDeletion, overriddenId } from '../features/editor/canvas/helpers/frame-contents.helper';
+import { isMasterDeletion, overriddenId } from '../../canvas/helpers/frame-contents.helper';
 import { computed, inject, untracked } from '@angular/core';
 import type {
    CreateRelationshipDto,
@@ -47,22 +47,22 @@ import {
    DEFAULT_THEME,
    type SlideTheme,
 } from '@devdesigner/shared';
-import { MIN_SLIDE_ZOOM, slideViewRegion } from '../features/editor/canvas/helpers/slide-zoom.helper';
-import { setThemeFontResolver } from '../features/editor/canvas/helpers/text-metrics';
+import { MIN_SLIDE_ZOOM, slideViewRegion } from '../../canvas/helpers/slide-zoom.helper';
+import { setThemeFontResolver } from '../../canvas/helpers/text-metrics';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
-import { ColumnsApiService } from '../shared/services/columns-api.service';
-import { IndexesApiService } from '../features/editor/services/indexes-api.service';
-import { ElementsApiService } from '../features/editor/services/elements-api.service';
-import { ProjectsApiService } from '../shared/services/projects-api.service';
-import { RelationshipsApiService } from '../shared/services/relationships-api.service';
-import { TablesApiService } from '../shared/services/tables-api.service';
-import { SequenceApiService } from '../features/editor/services/sequence-api.service';
-import { ShareLinksApiService } from '../features/editor/services/share-links-api.service';
-import { ShareSessionService } from '../core/auth/share-session.service';
-import { isSandboxId } from '../core/sandbox/sandbox-backend.service';
-import { sameItems, sameMap, sameSet } from '../shared/helpers/equality';
+import { ColumnsApiService } from '../../../../shared/services/columns-api.service';
+import { IndexesApiService } from '../../services/indexes-api.service';
+import { ElementsApiService } from '../../services/elements-api.service';
+import { ProjectsApiService } from '../../../../shared/services/projects-api.service';
+import { RelationshipsApiService } from '../../../../shared/services/relationships-api.service';
+import { TablesApiService } from '../../../../shared/services/tables-api.service';
+import { SequenceApiService } from '../../services/sequence-api.service';
+import { ShareLinksApiService } from '../../services/share-links-api.service';
+import { ShareSessionService } from '../../../../core/auth/share-session.service';
+import { isSandboxId } from '../../../../core/sandbox/sandbox-backend.service';
+import { sameItems, sameMap, sameSet } from '../../../../shared/helpers/equality';
 import { readSavedViewport, saveViewport } from './viewport-storage';
 
 /**

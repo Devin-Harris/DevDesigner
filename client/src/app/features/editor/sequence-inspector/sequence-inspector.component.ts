@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { type SequenceMessageModel } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import { InputComponent } from '../../../shared/ui/components/input/input.component';

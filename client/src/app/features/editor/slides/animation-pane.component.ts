@@ -17,7 +17,7 @@ import {
 } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { contentForFrame } from '../canvas/helpers/frame-contents.helper';
 
 const KIND_OPTIONS: SelectOption<SlideAnimationKind>[] = [

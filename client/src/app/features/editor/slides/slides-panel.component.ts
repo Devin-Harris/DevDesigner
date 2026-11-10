@@ -74,7 +74,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-t
 import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/components/segmented/segmented.component';
 import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 import { TagInputComponent } from '../../../shared/ui/components/tag-input/tag-input.component';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { FRAME_PRESETS } from '../canvas/constants/frame-presets';
 import { elementBox, tableBox } from '../canvas/helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../canvas/helpers/frame-contents.helper';

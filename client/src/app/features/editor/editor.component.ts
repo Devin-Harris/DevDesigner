@@ -82,14 +82,14 @@ import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from './services/element-images.service';
 import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
-import { ProjectsStore } from '../../stores/projects.store';
+import { ProjectsStore } from '../workspace/state/projects/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import {
    ProjectStore,
    elementToCreateDto,
    type ItemMoves,
    type SequenceLayoutSnapshot,
-} from '../../stores/project.store';
+} from './state/project/project.store';
 import { splitAtGaps } from './canvas/helpers/shape-render.helper';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from './services/code-actions.service';

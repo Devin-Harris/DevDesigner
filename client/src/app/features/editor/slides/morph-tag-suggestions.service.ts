@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { morphTagOf, presentationOf, presentationSlides } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 
 /**
  * Morph tags used on a slide, so the tag fields can offer the previous slide's (a tag

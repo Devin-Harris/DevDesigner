@@ -2,7 +2,7 @@ import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { TableModel } from '@devdesigner/shared';
-import { ProjectStore } from '../../../stores/project.store';
+import { ProjectStore } from '../state/project/project.store';
 import { EditorActionsService } from '../../../core/editor-bridge/editor-actions.service';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
