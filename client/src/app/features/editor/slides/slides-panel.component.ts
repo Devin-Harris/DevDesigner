@@ -189,6 +189,9 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
  * slide's transition and speaker notes. All edits are ordinary frame updates, so
  * they sync live and undo/redo like any other change.
  */
+/** Deck layouts signature last saved, per `deck|layout set` (shared by every panel instance). */
+const lastLayoutSave = new Map<string, string>();
+
 @Component({
    selector: 'dd-slides-panel',
    changeDetection: ChangeDetectionStrategy.OnPush,
@@ -4587,6 +4590,10 @@ export class SlidesPanelComponent {
       }
       if (s.sig === this.layoutBaseline.sig) return;
       this.layoutBaseline.sig = s.sig;
+      // Several parts of one deck are mounted at once (list + settings, focus screens) and
+      // each watches its layouts: only the first to see an edit saves it (perf P2.6 guard).
+      if (lastLayoutSave.get(s.key) === s.sig) return;
+      lastLayoutSave.set(s.key, s.sig);
       const set = this.layoutSet();
       if (!isBuiltInRecord(set.id)) {
          await this.saveRecords([{ ...set, ...s.content }]);
