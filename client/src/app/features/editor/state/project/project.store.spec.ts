@@ -701,6 +701,50 @@ describe('ProjectStore history', () => {
       expect(api.elements.create).toHaveBeenCalledWith('p1', expect.objectContaining({ id: 'e1' }));
    });
 
+   it('redo after an undone create targets the re-created element, not the old id', async () => {
+      const { store, api } = createStore();
+      const created = (await store.addElement(element('ignored', { text: '' })))!;
+      await store.updateElement(created.id, { text: 'hello' });
+
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements).toEqual([]);
+      api.projects.batch.mockClear();
+
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(400);
+
+      const [again] = store.schema()!.elements;
+      expect(again.text).toBe('hello');
+      const patched = api.projects.batch.mock.calls.flatMap(
+         (c) => ((c as unknown[])[1] as { elements?: { id: string }[] }).elements ?? []
+      );
+      expect(patched.length).toBeGreaterThan(0);
+      expect(patched.every((p) => p.id === again.id)).toBe(true);
+   });
+
+   it('history entries for a re-created element follow it through later undo/redo (moves, geometry)', async () => {
+      const { store } = createStore();
+      const created = (await store.addElement(element('ignored', { x: 0, y: 0 })))!;
+      store.moveElement(created.id, 50, 50);
+      store.recordElementMove([{ id: created.id, from: { x: 0, y: 0 }, to: { x: 50, y: 50 } }]);
+      await store.commitElementGeometry(created.id, { width: 100 }, { width: 300 });
+
+      for (let i = 0; i < 3; i++) {
+         store.undoElement();
+         await jest.advanceTimersByTimeAsync(0);
+      }
+      for (let i = 0; i < 3; i++) {
+         store.redoElement();
+         await jest.advanceTimersByTimeAsync(0);
+      }
+      expect(store.schema()!.elements).toEqual([expect.objectContaining({ x: 50, y: 50, width: 300 })]);
+   });
+
    it('undo with an empty stack is a no-op', () => {
       const { store } = createStore();
       store.undoElement();

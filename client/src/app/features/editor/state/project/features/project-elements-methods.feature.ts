@@ -9,7 +9,7 @@ import {
 import type { ElementStyleState, ItemMoves } from '../models/project-state.model';
 import { clearBindingsTo, reorderElementsIn } from '../helpers/schema-mutation.helper';
 import { applyItemMoves } from '../helpers/item-moves.helper';
-import { elementToCreateDto, captureBefore } from '../helpers/element-dto.helper';
+import { elementToCreateDto, captureBefore, resolveElementRefs } from '../helpers/element-dto.helper';
 import type { SlidePlacement } from './project-slides-methods.feature';
 import type { ProjectInternalsStore, ProjectInternalsWith } from './project-internals';
 
@@ -125,7 +125,9 @@ export function withProjectElementsMethods() {
       withMethods((store) => {
          const { setSchema, mapElement, mapDiagram } = store._schema;
          const { runSave, stage, patchTableLocal, patchDiagramLocal } = store._queue;
-         const { push: pushHistory } = store._history;
+         // Undo/redo can re-create an element under a new id; closures refer to the original id
+         // and resolve it through the history alias chain at run time.
+         const { push: pushHistory, rid, aliasTo } = store._history;
          const { sequenceApi } = store._api;
          const { createElementRaw, updateElementRaw, deleteElementRaw } = store._elementOps;
 
@@ -187,16 +189,15 @@ export function withProjectElementsMethods() {
                      selectedRelationshipIds: [],
                   });
                }
-               // Undo removes it; redo re-creates from the creation snapshot (new id).
-               const ref = { id: created.id };
+               // Undo removes it; redo re-creates from the creation snapshot (new id, aliased).
                pushHistory({
                   undo: async () => {
-                     await deleteElementRaw(ref.id);
+                     await deleteElementRaw(rid(created.id));
                   },
                   redo: async () => {
-                     const again = await createElementRaw(elementToCreateDto(created));
-                     if (again) {
-                        ref.id = again.id;
+                     const again = await createElementRaw(resolveElementRefs(elementToCreateDto(created), rid));
+                     if (again && again.id !== rid(created.id)) {
+                        aliasTo(created.id, again.id);
                      }
                   },
                });
@@ -209,8 +210,8 @@ export function withProjectElementsMethods() {
                await updateElementRaw(elementId, patch);
                if (before) {
                   pushHistory({
-                     undo: () => updateElementRaw(elementId, before),
-                     redo: () => updateElementRaw(elementId, patch),
+                     undo: () => updateElementRaw(rid(elementId), before),
+                     redo: () => updateElementRaw(rid(elementId), patch),
                   });
                }
             },
@@ -227,8 +228,8 @@ export function withProjectElementsMethods() {
             ): Promise<void> {
                await updateElementRaw(elementId, after);
                pushHistory({
-                  undo: () => updateElementRaw(elementId, before),
-                  redo: () => updateElementRaw(elementId, after),
+                  undo: () => updateElementRaw(rid(elementId), before),
+                  redo: () => updateElementRaw(rid(elementId), after),
                });
             },
 
@@ -238,7 +239,7 @@ export function withProjectElementsMethods() {
                   return;
                }
                const to = (pick: (m: (typeof moves)[number]) => PointModel) =>
-                  this.moveItemsLocal({ elements: new Map(moves.map((m) => [m.id, pick(m)])) });
+                  this.moveItemsLocal({ elements: new Map(moves.map((m) => [rid(m.id), pick(m)])) });
                pushHistory({ undo: () => to((m) => m.from), redo: () => to((m) => m.to) });
             },
 
@@ -284,17 +285,14 @@ export function withProjectElementsMethods() {
                if ((await deleteElementRaw(elementId)) && snapshot) {
                   // Undo re-creates it under the same id, so whatever points at it (a slide's
                   // layout, items on a frame, placeholder copies) still does; redo deletes it.
-                  const ref = { id: elementId };
                   pushHistory({
                      undo: async () => {
-                        if (store.schema()?.elements.some((e) => e.id === ref.id)) return;
-                        const again = await createElementRaw({ ...elementToCreateDto(snapshot), id: ref.id });
-                        if (again) {
-                           ref.id = again.id;
-                        }
+                        const id = rid(elementId);
+                        if (store.schema()?.elements.some((e) => e.id === id)) return;
+                        await createElementRaw({ ...resolveElementRefs(elementToCreateDto(snapshot), rid), id });
                      },
                      redo: async () => {
-                        await deleteElementRaw(ref.id);
+                        await deleteElementRaw(rid(elementId));
                      },
                   });
                }

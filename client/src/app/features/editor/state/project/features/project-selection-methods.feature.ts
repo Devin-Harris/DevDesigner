@@ -13,7 +13,7 @@ export function withProjectSelectionMethods() {
       withMethods((store) => {
          const { mapTable, mapElement, mapDiagram } = store._schema;
          const { runSave } = store._queue;
-         const { push: pushHistory } = store._history;
+         const { push: pushHistory, rid } = store._history;
          const { tablesApi, elementsApi, sequenceApi } = store._api;
 
          interface Sel {
@@ -159,9 +159,10 @@ export function withProjectSelectionMethods() {
          }
 
          async function setGroups(before: GroupAssignment[], after: GroupAssignment[]): Promise<void> {
+            const resolved = (list: GroupAssignment[]) => list.map((a) => ({ ...a, id: rid(a.id) }));
             pushHistory({
-               undo: () => applyGroupAssignments(before),
-               redo: () => applyGroupAssignments(after),
+               undo: () => applyGroupAssignments(resolved(before)),
+               redo: () => applyGroupAssignments(resolved(after)),
             });
             await applyGroupAssignments(after);
          }

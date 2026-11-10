@@ -81,3 +81,14 @@ export function captureBefore(element: CanvasElementModel, patch: UpdateElementD
    }
    return before as UpdateElementDto;
 }
+
+/** Point a re-created element's slide and bindings at the current ids of re-created targets. */
+export function resolveElementRefs(dto: CreateElementDto, rid: (id: string) => string): CreateElementDto {
+   const bind = (b: CreateElementDto['startBinding']) => (b ? { ...b, targetId: rid(b.targetId) } : b);
+   return {
+      ...dto,
+      slideId: dto.slideId ? rid(dto.slideId) : dto.slideId,
+      startBinding: bind(dto.startBinding),
+      endBinding: bind(dto.endBinding),
+   };
+}

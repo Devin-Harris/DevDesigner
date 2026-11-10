@@ -11,7 +11,7 @@ import {
    type SequenceMessageModel,
    type TableModel,
 } from '@devdesigner/shared';
-import { elementToCreateDto } from '../helpers/element-dto.helper';
+import { elementToCreateDto, resolveElementRefs } from '../helpers/element-dto.helper';
 import type { ElementOps } from './project-elements-methods.feature';
 import type { ProjectInternalsWith } from './project-internals';
 
@@ -25,7 +25,7 @@ export function withProjectCloneMethods() {
       withMethods((store) => {
          const { setSchema } = store._schema;
          const { flushTimers, runSave, enqueue, notifyFailure } = store._queue;
-         const { push: pushHistory } = store._history;
+         const { push: pushHistory, rid, aliasTo } = store._history;
          const { projectsApi } = store._api;
          const { createElementRaw, deleteElementRaw } = store._elementOps;
 
@@ -363,18 +363,17 @@ export function withProjectCloneMethods() {
                   selectedTableIds: [],
                   selectedRelationshipIds: [],
                });
-               const refs = created.map((c) => ({ id: c.id, snapshot: c }));
                pushHistory({
                   undo: async () => {
-                     for (const r of refs) {
-                        await deleteElementRaw(r.id);
+                     for (const c of created) {
+                        await deleteElementRaw(rid(c.id));
                      }
                   },
                   redo: async () => {
-                     for (const r of refs) {
-                        const again = await createElementRaw(elementToCreateDto(r.snapshot));
-                        if (again) {
-                           r.id = again.id;
+                     for (const c of created) {
+                        const again = await createElementRaw(resolveElementRefs(elementToCreateDto(c), rid));
+                        if (again && again.id !== rid(c.id)) {
+                           aliasTo(c.id, again.id);
                         }
                      }
                   },
