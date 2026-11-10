@@ -579,6 +579,21 @@ export interface BatchUpdateResponse {
   mutations: SchemaMutation[];
 }
 
+/** Query value for `?return=` on batch / clone that asks for a {@link BatchUpdateAck}. */
+export const BATCH_RETURN_NONE = 'none';
+
+/**
+ * Answer to `PATCH /projects/:id/batch?return=none` (and clone): an acknowledgement
+ * instead of every changed row, for callers that already applied the change locally.
+ */
+export interface BatchUpdateAck {
+  ok: true;
+  /** The project's in-memory graph revision after this write (grows with every change). */
+  revision: number;
+  /** Ids of the rows the request changed, created or deleted, in mutation order. */
+  ids: string[];
+}
+
 /**
  * POST /projects/:id/clone - copy existing rows in ONE transaction under ids the
  * client chose (so the copies can show locally before the server answers). Every

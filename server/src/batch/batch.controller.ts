@@ -1,13 +1,21 @@
-import { Body, Controller, Param, Patch, Post } from '@nestjs/common';
-import type { BatchUpdateResponse } from '@devdesigner/shared';
+import { Body, Controller, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  BATCH_RETURN_NONE,
+  type BatchUpdateAck,
+  type BatchUpdateResponse,
+} from '@devdesigner/shared';
 import { BatchService } from './batch.service';
 import { CloneService } from './clone.service';
+import { batchResult } from './batch-ack';
 import { CurrentUserId } from '../auth/current-user.decorator';
 import { ClientId, ShareToken } from '../common/request.decorators';
 
 /**
  * Atomic multi-item edits. The body is checked section by section in the service
  * against the granular DTO classes (like import-content, it is not one DTO class).
+ *
+ * Both routes answer with every changed row (the MCP reads them). Callers that have
+ * already applied the change locally pass `?return=none` and get a small ack instead.
  */
 @Controller()
 export class BatchController {
@@ -17,25 +25,29 @@ export class BatchController {
   ) {}
 
   @Patch('projects/:projectId/batch')
-  apply(
+  async apply(
     @Param('projectId') projectId: string,
     @Body() body: unknown,
     @CurrentUserId() userId: string | null,
     @ShareToken() shareToken: string | null,
     @ClientId() clientId: string | null,
-  ): Promise<BatchUpdateResponse> {
-    return this.batch.apply(projectId, body, userId, shareToken, clientId);
+    @Query('return') returnMode?: string,
+  ): Promise<BatchUpdateResponse | BatchUpdateAck> {
+    const result = await this.batch.apply(projectId, body, userId, shareToken, clientId);
+    return batchResult(projectId, result, returnMode === BATCH_RETURN_NONE);
   }
 
   /** Copy rows (and their children) under client-chosen ids in one transaction. */
   @Post('projects/:projectId/clone')
-  clone(
+  async clone(
     @Param('projectId') projectId: string,
     @Body() body: unknown,
     @CurrentUserId() userId: string | null,
     @ShareToken() shareToken: string | null,
     @ClientId() clientId: string | null,
-  ): Promise<BatchUpdateResponse> {
-    return this.cloner.clone(projectId, body, userId, shareToken, clientId);
+    @Query('return') returnMode?: string,
+  ): Promise<BatchUpdateResponse | BatchUpdateAck> {
+    const result = await this.cloner.clone(projectId, body, userId, shareToken, clientId);
+    return batchResult(projectId, result, returnMode === BATCH_RETURN_NONE);
   }
 }
