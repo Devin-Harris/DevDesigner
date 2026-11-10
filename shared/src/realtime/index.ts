@@ -33,6 +33,8 @@ export const RT_EVENTS = {
   mutation: 'project:mutation',
   /** Several changes from one request (batch, import, clone), applied as one update. */
   mutations: 'project:mutations',
+  /** Sent once per connection: the server-assigned client id for this socket (L-1). */
+  session: 'session',
   // clients -> server (cursor/selection/laser are reused by name)
 } as const;
 
@@ -80,8 +82,8 @@ export interface PresenceSelection {
 /**
  * A single broadcastable schema change. The payload of each variant matches the
  * shape the corresponding REST endpoint returns, so peers apply it directly to
- * their store. `originClientId` is the X-Client-Id of the tab that made the
- * change, so that tab can ignore its own echo (it already applied it optimistically).
+ * their store. The tab that made the change does not receive it: the server skips
+ * the socket whose server-assigned client id came with the write (X-Client-Id).
  */
 export type SchemaMutation =
   | { kind: 'table.created'; table: TableModel }
@@ -121,6 +123,7 @@ export type SchemaMutation =
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {
   projectId: string;
+  /** The writer's X-Client-Id on the server bus; always null on the wire. */
   originClientId: string | null;
   mutation: SchemaMutation;
 }
@@ -128,6 +131,7 @@ export interface MutationEvent {
 /** Envelope for many changes persisted by one request, broadcast as ONE socket message. */
 export interface MutationBatchEvent {
   projectId: string;
+  /** The writer's X-Client-Id on the server bus; always null on the wire. */
   originClientId: string | null;
   mutations: SchemaMutation[];
 }
@@ -137,13 +141,20 @@ export const PROJECT_MUTATION_EVENT = 'project.mutation';
 /** Internal bus event carrying a MutationBatchEvent. */
 export const PROJECT_MUTATIONS_EVENT = 'project.mutations';
 
+/**
+ * Sent by the server right after a socket joins. The client sends `clientId` as
+ * X-Client-Id on its writes so their broadcasts skip this socket. It is minted
+ * by the server and only honored for the principal that opened the socket.
+ */
+export interface RealtimeSession {
+  clientId: string;
+}
+
 /** Handshake auth payload the client sends when opening the socket. */
 export interface RealtimeHandshakeAuth {
   projectId: string;
   /** Present only in shared (anonymous link) mode. */
   token?: string;
-  /** The tab's X-Client-Id, so its own broadcasts can be self-filtered. */
-  clientId: string;
   /** This browser's guest id (localStorage), scoping account-free projects. */
   guestId?: string;
 }

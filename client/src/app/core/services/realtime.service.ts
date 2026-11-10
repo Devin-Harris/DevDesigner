@@ -10,6 +10,7 @@ import {
    type PresenceLaser,
    type PresenceSelection,
    type RealtimeHandshakeAuth,
+   type RealtimeSession,
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
 import { ProjectStore } from '../../stores/project.store';
@@ -93,7 +94,6 @@ export class RealtimeService {
       const auth: RealtimeHandshakeAuth = {
          projectId,
          token: this.session.token() ?? undefined,
-         clientId: this.session.clientId,
          guestId: this.session.guestId,
       };
       const socket = io(`${environment.wsBaseUrl}${REALTIME_NAMESPACE}`, {
@@ -106,7 +106,15 @@ export class RealtimeService {
          this._selfId.set(socket.id ?? null);
          this._connected.set(true);
       });
-      socket.on('disconnect', () => this._connected.set(false));
+      socket.on('disconnect', () => {
+         this._connected.set(false);
+         // The id dies with the socket; a reconnect gets a new one.
+         this.session.setClientId(null);
+      });
+      // The server names this socket; writes carry it so their broadcast skips this tab.
+      socket.on(RT_EVENTS.session, (session: RealtimeSession) => {
+         this.session.setClientId(typeof session?.clientId === 'string' ? session.clientId : null);
+      });
       socket.on(RT_EVENTS.roster, (participants: Participant[]) => {
          this._participants.set(participants);
          this.pruneStale(participants);
@@ -124,19 +132,9 @@ export class RealtimeService {
             this.laser.add(sample.participantId, sample.x, sample.y);
          }
       });
-      socket.on(RT_EVENTS.mutation, (event: MutationEvent) => {
-         // Ignore the echo of our own change: we already applied it optimistically.
-         if (event.originClientId === this.session.clientId) {
-            return;
-         }
-         this.store.applyRemote(event.mutation);
-      });
-      socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => {
-         if (event.originClientId === this.session.clientId) {
-            return;
-         }
-         this.store.applyRemoteBatch(event.mutations);
-      });
+      // The server never sends a tab its own changes, so everything here is a peer's.
+      socket.on(RT_EVENTS.mutation, (event: MutationEvent) => this.store.applyRemote(event.mutation));
+      socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => this.store.applyRemoteBatch(event.mutations));
 
       this.socket = socket;
    }
@@ -153,6 +151,7 @@ export class RealtimeService {
       this._selections.set({});
       this._connected.set(false);
       this._selfId.set(null);
+      this.session.setClientId(null);
       this.laser.clear();
    }
 

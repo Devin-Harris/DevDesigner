@@ -11,6 +11,7 @@ import {
   type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
+  type RealtimeSession,
 } from '@devdesigner/shared';
 import {
   ForbiddenException,
@@ -49,6 +50,13 @@ import {
   parsePresent,
   parseSelection,
 } from './realtime-limits';
+import {
+  mintRealtimeClientId,
+  realtimeClient,
+  realtimePrincipal,
+  registerRealtimeClient,
+  unregisterRealtimeClient,
+} from './realtime-clients';
 
 /** Colors assigned round-robin to participants so cursors read distinctly. */
 const PRESENCE_PALETTE = [
@@ -67,7 +75,8 @@ interface SocketData {
   ip: string;
   projectId: string;
   participant: Participant;
-  clientId: string | null;
+  /** Server-assigned id (L-1); writes carrying it as X-Client-Id skip this socket. */
+  clientId: string;
   /** What the socket authenticated with, kept to re-check access later (M-2). */
   token: string | null;
   guestId: string | null;
@@ -79,15 +88,13 @@ function roomOf(projectId: string): string {
 }
 
 /**
- * Every socket also joins a room named after its tab's client id, so a broadcast
- * can skip the tab that made the change (it already applied it optimistically).
+ * Every socket also joins a room named after its server-assigned client id, so a
+ * broadcast can skip the tab that made the change (it already applied it
+ * optimistically).
  */
 function clientRoomOf(clientId: string): string {
   return `client:${clientId}`;
 }
-
-/** Client ids are random UUIDs (or short fallbacks); anything else is ignored. */
-const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
  * Realtime collaboration gateway (see the plan Part 2). Authorizes every socket
@@ -161,10 +168,6 @@ export class RealtimeGateway
     const auth = (client.handshake.auth ?? {}) as Partial<RealtimeHandshakeAuth>;
     const projectId = typeof auth.projectId === 'string' ? auth.projectId : null;
     const token = typeof auth.token === 'string' ? auth.token : null;
-    const clientId =
-      typeof auth.clientId === 'string' && CLIENT_ID_PATTERN.test(auth.clientId)
-        ? auth.clientId
-        : null;
     const guestId = guestOwnerId(auth.guestId);
     if (!projectId) {
       client.disconnect(true);
@@ -190,6 +193,8 @@ export class RealtimeGateway
     if (!client.connected) {
       return; // left while we were checking; handleDisconnect already ran
     }
+    // The client id is minted here, never taken from the handshake (L-1).
+    const clientId = mintRealtimeClientId();
     const data: SocketData = {
       ip,
       projectId,
@@ -200,7 +205,13 @@ export class RealtimeGateway
       limiter: new RelayLimiter(),
     };
     client.data = data;
-    await client.join(clientId ? [roomOf(projectId), clientRoomOf(clientId)] : roomOf(projectId));
+    registerRealtimeClient(clientId, {
+      principal: realtimePrincipal(user?.id, guestId, token),
+      projectId,
+    });
+    await client.join([roomOf(projectId), clientRoomOf(clientId)]);
+    const session: RealtimeSession = { clientId };
+    client.emit(RT_EVENTS.session, session);
     this.getRoom(projectId).set(client.id, participant);
     this.broadcastRoster(projectId);
   }
@@ -213,6 +224,7 @@ export class RealtimeGateway
       else this.perIp.delete(data.ip);
     }
     data?.limiter?.dispose();
+    if (data?.clientId) unregisterRealtimeClient(data.clientId);
     if (!data?.projectId) {
       return;
     }
@@ -336,17 +348,18 @@ export class RealtimeGateway
   }
 
   /**
-   * The project room without the origin tab's sockets. The origin id is then
-   * blanked so peers never learn each other's client ids (L-1); when it is not a
-   * valid id (no client room to exclude) it is kept so the client self-filter works.
+   * The project room without the origin tab's socket. The origin id was already
+   * checked against the writer's principal (ClientId decorator); here it must
+   * also belong to a live socket in this project, else everyone gets the change.
+   * The id is always blanked so peers never learn each other's ids (L-1).
    */
   private peersOf<E extends MutationEvent | MutationBatchEvent>(event: E) {
     const room = this.server.to(roomOf(event.projectId));
     const origin = event.originClientId;
-    if (origin && CLIENT_ID_PATTERN.test(origin)) {
-      return { to: room.except(clientRoomOf(origin)), event: { ...event, originClientId: null } };
-    }
-    return { to: room, event };
+    const live = origin ? realtimeClient(origin) : undefined;
+    const to =
+      origin && live?.projectId === event.projectId ? room.except(clientRoomOf(origin)) : room;
+    return { to, event: { ...event, originClientId: null } };
   }
 
   /** Re-resolve one socket's access: drop it if gone, update its roster level if changed. */
