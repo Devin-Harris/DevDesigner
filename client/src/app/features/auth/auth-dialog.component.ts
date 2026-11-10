@@ -15,7 +15,6 @@ type Mode = 'login' | 'register';
  */
 @Component({
    selector: 'app-auth-dialog',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, MatDialogModule, MatProgressSpinnerModule, InputComponent],
    templateUrl: './auth-dialog.component.html',

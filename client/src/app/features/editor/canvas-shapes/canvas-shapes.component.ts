@@ -40,7 +40,6 @@ export interface ShapeEndpointEvent {
  */
 @Component({
    selector: 'app-canvas-shapes',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    // Stacking inside the world: content slices + sequence diagrams interleave in
    // 10..299 (set by the editor), table nodes are 400, diagrams brought above every

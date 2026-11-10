@@ -17,7 +17,6 @@ type SnapFn = (n: number) => number;
  */
 @Component({
    selector: 'app-canvas-sequence',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [SequenceDiagramComponent],
    templateUrl: './canvas-sequence.component.html',

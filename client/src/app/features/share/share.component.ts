@@ -11,7 +11,6 @@ import { EditorComponent } from '../editor/editor.component';
  */
 @Component({
    selector: 'app-share',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [EditorComponent],
    templateUrl: './share.component.html',

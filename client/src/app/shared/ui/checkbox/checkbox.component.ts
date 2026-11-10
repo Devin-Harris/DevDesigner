@@ -5,7 +5,6 @@ import { IconComponent } from '../icon/icon.component';
 /** Bespoke checkbox replacing mat-checkbox. CVA-compatible (`[ngModel]`). */
 @Component({
    selector: 'dd-checkbox',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => CheckboxComponent), multi: true }],

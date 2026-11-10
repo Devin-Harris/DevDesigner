@@ -20,7 +20,6 @@ const TYPE_LABELS: Record<RelationshipType, string> = {
  */
 @Component({
    selector: 'app-relationship-inspector',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, IconComponent, SelectComponent],
    templateUrl: './relationship-inspector.component.html',

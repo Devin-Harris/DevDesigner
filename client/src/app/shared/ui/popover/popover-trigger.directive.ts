@@ -35,7 +35,6 @@ const POSITIONS: Record<PopoverPlacement, ConnectedPosition> = {
  */
 @Directive({
    selector: '[ddPopoverTrigger]',
-   standalone: true,
    exportAs: 'ddPopoverTrigger',
 })
 export class PopoverTriggerDirective implements OnDestroy {

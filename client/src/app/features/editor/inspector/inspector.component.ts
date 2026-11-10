@@ -25,7 +25,6 @@ type InspectorTab = 'columns' | 'indexes' | 'sql';
  */
 @Component({
    selector: 'app-inspector',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       ColorSwatchesComponent,

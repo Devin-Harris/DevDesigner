@@ -11,7 +11,6 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  */
 @Component({
    selector: 'app-sequence-diagram-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
    template: `

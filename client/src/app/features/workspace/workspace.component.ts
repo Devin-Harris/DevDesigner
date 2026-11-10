@@ -15,7 +15,6 @@ import { ProjectsOverlayService } from './projects-overlay/projects-overlay.serv
  */
 @Component({
    selector: 'app-workspace',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [EditorComponent, HomeComponent],
    templateUrl: './workspace.component.html',

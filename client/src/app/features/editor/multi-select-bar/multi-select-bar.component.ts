@@ -14,7 +14,6 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
  */
 @Component({
    selector: 'app-multi-select-bar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, MatTooltipModule, PopoverTriggerDirective, ColorSwatchesComponent],
    template: `

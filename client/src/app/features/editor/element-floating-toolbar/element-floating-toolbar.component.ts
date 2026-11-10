@@ -77,7 +77,6 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
  */
 @Component({
    selector: 'app-element-floating-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
    templateUrl: './element-floating-toolbar.component.html',

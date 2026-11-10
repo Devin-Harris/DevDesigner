@@ -23,7 +23,6 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
    selector: 'dd-tag-input',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    template: `

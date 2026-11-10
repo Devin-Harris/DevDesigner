@@ -96,7 +96,6 @@ const GAP = 8;
  */
 @Component({
    selector: 'app-deck-compare',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
 
    template: `

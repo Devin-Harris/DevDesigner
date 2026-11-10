@@ -19,7 +19,6 @@ export interface ExportDialogData {
  */
 @Component({
    selector: 'app-export-dialog',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, IconComponent],
    templateUrl: './export-dialog.component.html',

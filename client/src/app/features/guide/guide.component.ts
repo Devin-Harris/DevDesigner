@@ -88,7 +88,6 @@ export function writeStored(seed: string, id: string | null): void {
  */
 @Component({
    selector: 'app-guide',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, RouterLink, EditorComponent],
    templateUrl: './guide.component.html',

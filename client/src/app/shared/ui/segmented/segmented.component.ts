@@ -12,7 +12,6 @@ export interface SegmentedOption<T = string> {
  */
 @Component({
    selector: 'dd-segmented',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SegmentedComponent), multi: true }],
    template: `

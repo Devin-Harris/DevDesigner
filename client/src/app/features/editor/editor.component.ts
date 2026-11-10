@@ -371,7 +371,6 @@ function readStoredGrid(): boolean {
  */
 @Component({
    selector: 'app-editor',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       ImageCropOverlayComponent,

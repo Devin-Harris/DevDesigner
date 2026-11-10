@@ -10,7 +10,6 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
  */
 @Component({
    selector: 'app-relationship-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent],
    templateUrl: './relationship-toolbar.component.html',

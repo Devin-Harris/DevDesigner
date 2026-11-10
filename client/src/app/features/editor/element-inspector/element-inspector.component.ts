@@ -32,7 +32,6 @@ import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-
  */
 @Component({
    selector: 'app-element-inspector',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, IconComponent],
    templateUrl: './element-inspector.component.html',

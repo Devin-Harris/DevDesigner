@@ -66,7 +66,6 @@ interface Feature {
  */
 @Component({
    selector: 'app-home',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       IconComponent,

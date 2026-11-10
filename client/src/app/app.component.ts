@@ -39,7 +39,6 @@ import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-
  */
 @Component({
    selector: 'app-root',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       CommandPaletteComponent,

@@ -4,7 +4,6 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 /** Bespoke slide toggle replacing mat-slide-toggle. CVA-compatible. */
 @Component({
    selector: 'dd-toggle',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => ToggleComponent), multi: true }],
    template: `

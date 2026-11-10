@@ -19,7 +19,6 @@ import type { ImageView } from '../canvas/models/shape-view.model';
  */
 @Component({
    selector: 'app-media-video',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    host: {
       class: 'media-video',

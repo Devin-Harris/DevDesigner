@@ -27,7 +27,6 @@ type OverlayView = 'projects' | 'templates';
  */
 @Component({
    selector: 'app-projects-overlay',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, AutofocusDirective, IconComponent, InputComponent, ToggleComponent, PopoverTriggerDirective],
    templateUrl: './projects-overlay.component.html',

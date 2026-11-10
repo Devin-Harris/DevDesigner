@@ -13,7 +13,6 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  */
 @Component({
    selector: 'app-sequence-message-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
    templateUrl: './sequence-message-toolbar.component.html',

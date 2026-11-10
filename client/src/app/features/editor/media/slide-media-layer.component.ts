@@ -12,7 +12,6 @@ import { MediaVideoComponent } from './media-video.component';
  */
 @Component({
    selector: 'app-slide-media-layer',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MediaVideoComponent],
    template: `

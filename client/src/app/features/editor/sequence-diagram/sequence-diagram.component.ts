@@ -146,7 +146,6 @@ const MIN_HEADER_W = 60;
  */
 @Component({
    selector: 'app-sequence-diagram',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [AutofocusDirective],
    // pointerover/out bubble from every child (box, headers, spines, messages, buttons).

@@ -42,7 +42,6 @@ const ERASERS = [
  */
 @Component({
    selector: 'app-pen-options-bar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, MatTooltipModule],
    template: `

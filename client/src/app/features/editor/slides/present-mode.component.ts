@@ -80,7 +80,6 @@ const TRAVEL: Record<string, [number, number]> = {
  */
 @Component({
    selector: 'app-present-mode',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, SlideMediaLayerComponent],
    template: `

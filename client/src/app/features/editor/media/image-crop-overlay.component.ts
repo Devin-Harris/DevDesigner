@@ -32,7 +32,6 @@ const MIN_SIDE = 8;
  */
 @Component({
    selector: 'app-image-crop-overlay',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    template: `
       @if (draft(); as d) {

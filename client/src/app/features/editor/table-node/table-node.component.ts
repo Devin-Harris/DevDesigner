@@ -66,7 +66,6 @@ function resolveTypeName(word: string): string | undefined {
 
 @Component({
    selector: 'app-table-node',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, AutofocusDirective, IconComponent, PopoverTriggerDirective],
    templateUrl: './table-node.component.html',

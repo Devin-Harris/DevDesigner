@@ -20,7 +20,6 @@ export interface FrameOrderDialogData {
  */
 @Component({
    selector: 'app-frame-order-dialog',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, IconComponent],
    template: `

@@ -52,7 +52,6 @@ function readCollapsed(): boolean {
  */
 @Component({
    selector: 'app-minimap',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent],
    template: `

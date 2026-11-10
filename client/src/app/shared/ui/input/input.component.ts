@@ -8,7 +8,6 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
  */
 @Component({
    selector: 'dd-input',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [],
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => InputComponent), multi: true }],

@@ -191,7 +191,6 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
  */
 @Component({
    selector: 'app-slides-panel',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       NgTemplateOutlet,

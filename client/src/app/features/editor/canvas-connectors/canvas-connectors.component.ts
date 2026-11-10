@@ -24,7 +24,6 @@ export interface SegmentDownEvent {
  */
 @Component({
    selector: 'app-canvas-connectors',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    templateUrl: './canvas-connectors.component.html',
    styleUrl: './canvas-connectors.component.scss',

@@ -70,7 +70,6 @@ const GROUPS: ShortcutGroup[] = [
 /** Keyboard shortcuts reference (? or main menu). */
 @Component({
    selector: 'app-shortcuts-sheet',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    template: `

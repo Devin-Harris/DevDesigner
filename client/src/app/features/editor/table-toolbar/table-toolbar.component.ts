@@ -15,7 +15,6 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  */
 @Component({
    selector: 'app-table-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, MatTooltipModule, IconComponent, PopoverTriggerDirective],
    template: `

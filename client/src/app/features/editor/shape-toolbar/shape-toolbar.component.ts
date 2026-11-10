@@ -60,7 +60,6 @@ const SHAPE_ICONS: Record<string, string> = {
  */
 @Component({
    selector: 'app-shape-toolbar',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective],
    templateUrl: './shape-toolbar.component.html',

@@ -31,7 +31,6 @@ export interface SelectOption<T = string> {
  */
 @Component({
    selector: 'dd-select',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent, PopoverTriggerDirective],
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SelectComponent), multi: true }],

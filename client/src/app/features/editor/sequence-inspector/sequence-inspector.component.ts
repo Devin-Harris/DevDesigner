@@ -15,7 +15,6 @@ import { SelectComponent, type SelectOption } from '../../../shared/ui/select/se
  */
 @Component({
    selector: 'app-sequence-inspector',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, FormsModule, IconComponent, InputComponent, SelectComponent],
    templateUrl: './sequence-inspector.component.html',

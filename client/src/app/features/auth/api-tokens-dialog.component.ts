@@ -17,7 +17,6 @@ import { SegmentedComponent } from '../../shared/ui/segmented/segmented.componen
  */
 @Component({
    selector: 'app-api-tokens-dialog',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [DatePipe, FormsModule, MatDialogModule, IconComponent, InputComponent, SegmentedComponent],
    templateUrl: './api-tokens-dialog.component.html',

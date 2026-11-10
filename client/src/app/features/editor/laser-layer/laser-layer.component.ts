@@ -28,7 +28,6 @@ interface LaserDraw {
  */
 @Component({
    selector: 'app-laser-layer',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    templateUrl: './laser-layer.component.html',
    styleUrl: './laser-layer.component.scss',

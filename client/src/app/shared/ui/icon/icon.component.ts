@@ -13,7 +13,6 @@ import { ICON_PATHS } from './icon-registry';
  */
 @Component({
    selector: 'dd-icon',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    template: `<span class="dd-icon-host" [innerHTML]="svg()"></span>`,
    styles: [

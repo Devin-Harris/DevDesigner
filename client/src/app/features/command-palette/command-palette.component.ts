@@ -57,7 +57,6 @@ const KIND_ICON: Record<CanvasItemRef['kind'], string> = {
  */
 @Component({
    selector: 'app-command-palette',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    templateUrl: './command-palette.component.html',

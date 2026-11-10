@@ -9,7 +9,6 @@ import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from './too
  */
 @Component({
    selector: 'app-toolbar-customize-panel',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    template: `

@@ -86,7 +86,6 @@ interface Target {
  */
 @Component({
    selector: 'app-animation-pane',
-   standalone: true,
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [FormsModule, IconComponent, SelectComponent],
    template: `
