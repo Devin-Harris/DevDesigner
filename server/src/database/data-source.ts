@@ -1,4 +1,5 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
+import { TypeOrmLogger } from './typeorm-logger';
 
 /**
  * TypeORM datasource options for the SQLite application database.
@@ -16,7 +17,9 @@ export function buildDataSourceOptions(env: NodeJS.ProcessEnv = process.env): Da
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../../migrations/*{.ts,.js}'],
     synchronize: env.DATABASE_SYNCHRONIZE === 'true',
-    logging: false,
+    logging: ['error', 'warn'],
+    logger: new TypeOrmLogger(),
+    maxQueryExecutionTime: Number(env.SLOW_QUERY_MS ?? 200) || undefined,
     // WAL lets reads run alongside a write and makes each small write transaction cheap
     // (no full fsync per commit with synchronous=NORMAL, which is still crash-safe in WAL).
     enableWAL: true,

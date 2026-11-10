@@ -19,6 +19,7 @@ import { buildDataSourceOptions } from './data-source';
           // no migrations. Set DATABASE_SYNCHRONIZE=false and use migrations
           // before any real deployment.
           DATABASE_SYNCHRONIZE: config.get<string>('DATABASE_SYNCHRONIZE', 'true'),
+          SLOW_QUERY_MS: String(config.get<number>('SLOW_QUERY_MS', 200)),
         } as NodeJS.ProcessEnv),
     }),
   ],

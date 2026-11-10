@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { SentryModule } from '@sentry/nestjs/setup';
+import { LoggerModule } from 'nestjs-pino';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
@@ -19,6 +22,10 @@ import { ExportModule } from './export/export.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { BatchModule } from './batch/batch.module';
 import { UserThemesModule } from './user-themes/user-themes.module';
+import { validateEnv } from './config/env.validation';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { RequestContextInterceptor, RequestContextMiddleware } from './common/request-context';
+import { loggerParams } from './common/logger.config';
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -27,7 +34,12 @@ import { UserThemesModule } from './user-themes/user-themes.module';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env', validate: validateEnv }),
+    SentryModule.forRoot(),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => loggerParams(config),
+    }),
     EventEmitterModule.forRoot(),
     DatabaseModule,
     AccessModule,
@@ -48,5 +60,13 @@ import { UserThemesModule } from './user-themes/user-themes.module';
     RealtimeModule,
     UserThemesModule,
   ],
+  providers: [
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

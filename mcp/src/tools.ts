@@ -209,13 +209,18 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
         const pid = (args as { projectId?: unknown })?.projectId;
         const track = !hints.readOnly && typeof pid === 'string' && !UNJOURNALED.has(name);
         let before: ProjectGraphResponse['schema'] | undefined;
+        const started = Date.now();
+        let ok = true;
         try {
           if (track) before = (await graph(pid as string)).schema;
           const result = await run(args as z.infer<z.ZodObject<S>>);
           return isRich(result) ? { content: result.__rich } : text(result);
         } catch (err) {
+          ok = false;
           return failure(err);
         } finally {
+          // stderr only: stdout is the stdio MCP transport.
+          process.stderr.write(`${JSON.stringify({ tool: name, ms: Date.now() - started, ok })}\n`);
           if (track && before) {
             try {
               const after = (await graph(pid as string)).schema;

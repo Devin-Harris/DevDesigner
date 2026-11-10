@@ -26,7 +26,8 @@ import { ApiTokenService } from './api-token.service';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'change-me-in-production'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') },
+        signOptions: { algorithm: 'HS256', expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
   ],

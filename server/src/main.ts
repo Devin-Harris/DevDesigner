@@ -1,18 +1,48 @@
+import './instrument';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import 'reflect-metadata';
 import compression from 'compression';
+import { json, urlencoded } from 'body-parser';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { WriteRevisionInterceptor } from './common/write-revision';
+import { REQUEST_ID_HEADER } from './common/request-context';
+
+/**
+ * JSON body limits. Body parsing runs before guards, so the global cap stays small;
+ * only routes that legitimately carry big payloads get more. Compressed request
+ * bodies are refused (inflate: false) so the limit is the real in-memory size.
+ */
+const GLOBAL_BODY_LIMIT = '2mb';
+const LARGE_BODY_ROUTES: Array<{ path: string; limit: string }> = [
+  // Export files embed every image/video as base64 (round-trips the old 200 MB cap).
+  { path: '/api/projects/import', limit: '200mb' },
+  { path: '/api/projects/:projectId/import-content', limit: '200mb' },
+  // 40 MB video is ~54 MB of base64 (UploadImageDto caps data at 56M chars).
+  { path: '/api/projects/:projectId/images', limit: '60mb' },
+  // Up to 2000 batch entries / 5000 clone rows, each element up to ~50k chars of text.
+  { path: '/api/projects/:projectId/batch', limit: '20mb' },
+  { path: '/api/projects/:projectId/clone', limit: '20mb' },
+  // Theme libraries (up to 100 themes with master items).
+  { path: '/api/projects/:projectId/themes', limit: '10mb' },
+  { path: '/api/me/themes', limit: '10mb' },
+];
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, bufferLogs: true });
+  app.useLogger(app.get(Logger));
+  app.enableShutdownHooks();
   const config = app.get(ConfigService);
 
-  // Project import posts a whole exported diagram; Express's 100kb default is too small.
-  app.useBodyParser('json', { limit: '200mb' });
+  // Route-scoped parsers first: once one has parsed a body, the global one skips it.
+  for (const { path, limit } of LARGE_BODY_ROUTES) {
+    app.use(path, json({ limit, inflate: false }));
+  }
+  app.use(json({ limit: GLOBAL_BODY_LIMIT, inflate: false }));
+  app.use(urlencoded({ extended: true, limit: GLOBAL_BODY_LIMIT, inflate: false }));
   // Project graphs and export files are large, repetitive JSON; gzip cuts them 5-10x.
   // Raster images are already compressed, so they are skipped (SVG is text and is not).
   app.use(
@@ -43,14 +73,15 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigin.split(',').map((o) => o.trim()),
     // Share tokens travel in X-Share-Token for anonymous link-based access;
     // X-Client-Id tags each write so its realtime broadcast can skip the origin tab.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id', 'X-Guest-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id', 'X-Guest-Id', REQUEST_ID_HEADER],
+    exposedHeaders: [REQUEST_ID_HEADER],
     credentials: true,
   });
 
   const port = config.get<number>('PORT', 3000);
   await app.listen(port);
 
-  console.log(`DevDesigner API listening on http://localhost:${port}/api`);
+  app.get(Logger).log(`DevDesigner API listening on http://localhost:${port}/api`, 'Bootstrap');
 }
 
 void bootstrap();
