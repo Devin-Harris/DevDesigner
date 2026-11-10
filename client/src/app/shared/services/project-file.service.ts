@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectExportFile } from '@devdesigner/shared';
 import { downloadText } from '../../features/editor/features/export/helpers/image-export.helper';
-import { ProjectsStore } from '../../features/workspace/state/projects/projects.store';
+import { ProjectsStore } from '../state/projects/projects.store';
 
 /**
  * Saves a project to a portable `.devdesigner.json` file (re-importable on any

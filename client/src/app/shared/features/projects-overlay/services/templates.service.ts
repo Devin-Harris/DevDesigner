@@ -3,7 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { ColumnsApiService } from '../../../services/columns-api.service';
 import { RelationshipsApiService } from '../../../services/relationships-api.service';
 import { TablesApiService } from '../../../services/tables-api.service';
-import { ProjectsStore } from '../../../../features/workspace/state/projects/projects.store';
+import { ProjectsStore } from '../../../state/projects/projects.store';
 import type { ProjectTemplate } from '../models/project-templates';
 
 /**

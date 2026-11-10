@@ -34,7 +34,7 @@ import { IconComponent } from '../../../../shared/ui/components/icon/icon.compon
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ThemeService } from '../../../../core/theme/theme.service';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { ProjectsStore } from '../../state/projects/projects.store';
+import { ProjectsStore } from '../../../../shared/state/projects/projects.store';
 import { ProjectsOverlayService } from '../../../../shared/features/projects-overlay/projects-overlay.service';
 import { AuthDialogComponent } from '../../../../shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
 import { ApiTokensDialogComponent } from '../../../../shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';

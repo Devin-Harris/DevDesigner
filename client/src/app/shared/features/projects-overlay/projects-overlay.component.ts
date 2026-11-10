@@ -10,7 +10,7 @@ import { IconComponent } from '../../ui/components/icon/icon.component';
 import { InputComponent } from '../../ui/components/input/input.component';
 import { PopoverTriggerDirective } from '../../ui/directives/popover-trigger.directive';
 import { ToggleComponent } from '../../ui/components/toggle/toggle.component';
-import { ProjectsStore } from '../../../features/workspace/state/projects/projects.store';
+import { ProjectsStore } from '../../state/projects/projects.store';
 import {
    ConfirmDialogComponent,
    type ConfirmDialogData,

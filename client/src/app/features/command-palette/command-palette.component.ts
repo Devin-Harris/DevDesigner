@@ -12,7 +12,7 @@ import {
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/theme/theme.service';
 import { EditorActionsService, type CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
-import { ProjectsStore } from '../workspace/state/projects/projects.store';
+import { ProjectsStore } from '../../shared/state/projects/projects.store';
 // Deep import on purpose: the palette is eager (app shell) and the editor barrel would pull the whole
 // editor into the initial bundle. Pass 3 moves this onto core/editor-bridge (§4.1 #1).
 import { ProjectStore } from '../editor/state/project/project.store';

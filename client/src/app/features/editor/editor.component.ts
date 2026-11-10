@@ -82,7 +82,7 @@ import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from './services/element-images.service';
 import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
-import { ProjectsStore } from '../workspace/state/projects/projects.store';
+import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import {
    ProjectStore,

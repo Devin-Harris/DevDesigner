@@ -160,14 +160,11 @@ const boundaryExceptions = [
    'src/app/core/sandbox/sandbox-backend.service.ts',
    'src/app/core/sandbox/sandbox-seeds.helper.ts',
 
-   // Pass 3 (§4.1 #1): ProjectsStore lives in workspace/state/projects but the shell-level palette, the
-   // editor's export, project-file and the projects overlay read it too. Either it moves to
-   // shared/state/projects or those consumers go through a shared projects service.
-   'src/app/features/command-palette/command-palette.component.ts', // + eager deep ProjectStore import
-   'src/app/features/editor/editor.component.ts',
-   'src/app/shared/services/project-file.service.ts', // + downloadText from the editor's export helpers
-   'src/app/shared/features/projects-overlay/projects-overlay.component.ts',
-   'src/app/shared/features/projects-overlay/services/templates.service.ts',
+   // Pass 3 (§4.1 #1): the eager palette deep-imports ProjectStore (the barrel would pull the editor into
+   // the initial bundle); it moves onto core/editor-bridge.
+   'src/app/features/command-palette/command-palette.component.ts',
+   // Pass 3: downloadText comes from the editor's export helpers (move it down to shared/helpers).
+   'src/app/shared/services/project-file.service.ts',
    // Pass 3: thumbnails render with the editor's diagram SVG/frame helpers (move them to a shared renderer).
    'src/app/shared/features/projects-overlay/services/project-thumbnail.service.ts',
 ];
