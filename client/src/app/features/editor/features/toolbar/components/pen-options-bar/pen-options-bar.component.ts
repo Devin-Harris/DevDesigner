@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PICKER_SWATCHES, themeSwatchCss } from '@devdesigner/shared';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
-import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from '../../models/pen-limits.constants';
-import { PenPrefsService } from '../../services/pen-prefs.service';
+import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from '../../../../models/pen-limits.constants';
+import { PenPrefsService } from '../../../../services/pen-prefs.service';
 
 const WIDTHS = [
    { value: 1, label: 'Thin', dot: 4 },

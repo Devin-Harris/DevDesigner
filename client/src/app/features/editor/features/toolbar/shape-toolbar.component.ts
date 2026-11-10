@@ -17,30 +17,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ProjectStore } from '../../state/project/project.store';
+import type { EditorTool } from '../../models/editor-tool.model';
 import { DockToolId, ToolbarPrefsService } from './services/toolbar-prefs.service';
 import type { AlignAction, ExportImageFormat } from '../../models/toolbar-actions';
 
 /** Default corner radius (px) applied when the rounded-rectangle variant is picked. */
 const ROUNDED_RADIUS = 12;
-
-/** The active canvas tool: 'select', the 'hand' pan tool, the ERD 'table', plus one per drawable element kind. */
-export type EditorTool =
-   | 'select'
-   | 'hand'
-   | 'table'
-   | 'sequence'
-   | 'rectangle'
-   | 'ellipse'
-   | 'diamond'
-   | 'arrow'
-   | 'line'
-   | 'text'
-   | 'freedraw'
-   | 'frame'
-   | 'slide'
-   | 'code'
-   | 'grid'
-   | 'laser';
 
 /** Shape tools grouped behind the dock's Shape flyout. */
 const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];

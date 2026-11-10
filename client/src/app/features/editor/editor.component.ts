@@ -1,3 +1,5 @@
+import { EditorShortcutsService } from './services/editor-shortcuts.service';
+import type { DragMode } from './models/drag-mode.model';
 import {
    ChangeDetectionStrategy,
    Component,
@@ -14,8 +16,7 @@ import {
 } from '@angular/core';
 import { ToolbarPrefsService } from './features/toolbar/services/toolbar-prefs.service';
 import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
-import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './features/toolbar/models/pen-limits.constants';
-import { PenPrefsService } from './features/toolbar/services/pen-prefs.service';
+import { PenPrefsService } from './services/pen-prefs.service';
 import { InspectorPanelService } from './services/inspector-panel.service';
 import type { CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -120,14 +121,7 @@ import {
    type ShapePointerEvent,
 } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './models/toolbar-actions';
-import {
-   deleteStandIn,
-   detachFromLayout,
-   fillFromLayout,
-   slotFollower,
-   slotStyle,
-   standInFor,
-} from './helpers/layout-placeholders';
+import { fillFromLayout, slotFollower, slotStyle, standInFor } from './helpers/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.component';
 import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
 import { ConnectorRouteCache, computeConnectors, segmentDrag } from './helpers/connectors.helper';
@@ -183,10 +177,6 @@ import {
    type RunBase,
    type RunPatch,
 } from './helpers/rich-text.helper';
-
-/** A list item's leading indent + marker, and a test for any list line. */
-const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
-const LIST_LINE = /(?:^|\n) *(?:[•◦▪]|\d+\.) /;
 import {
    listAutoformat,
    listBackspace,
@@ -232,7 +222,8 @@ import { TableToolbarComponent } from './features/erd/components/table-toolbar/t
 import { RelationshipToolbarComponent } from './features/erd/components/relationship-toolbar/relationship-toolbar.component';
 import { MultiSelectBarComponent } from './features/elements/components/multi-select-bar/multi-select-bar.component';
 import { LaserLayerComponent } from './features/collaboration/components/laser-layer/laser-layer.component';
-import { ShapeToolbarComponent, type EditorTool } from './features/toolbar/shape-toolbar.component';
+import { ShapeToolbarComponent } from './features/toolbar/shape-toolbar.component';
+import type { EditorTool } from './models/editor-tool.model';
 import { ShareDialogComponent } from './features/share-dialog/share-dialog.component';
 import { PresentModeComponent } from './features/slides/features/present/present-mode.component';
 import { SlideRenderService, type RenderedSlide } from './features/slides/services/slide-render.service';
@@ -245,26 +236,9 @@ import { DeckCompareComponent } from './features/slides/features/deck-compare/de
 import { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
 import { TableNodeComponent, type HandleEvent } from './features/erd/components/table-node/table-node.component';
-
-type DragMode =
-   | 'idle'
-   | 'pan'
-   | 'node'
-   | 'marquee'
-   | 'draw'
-   | 'element'
-   | 'element-resize'
-   | 'element-rotate'
-   /** Resizing a multi-selection (elements + sequence diagrams) as one box. */
-   | 'group-resize'
-   /** Dragging a gap handle to respace an evenly spaced selection. */
-   | 'spacing'
-   | 'arrow-endpoint'
-   | 'arrow-bend'
-   /** Pen eraser: dragging removes the pen strokes it touches. */
-   | 'erase'
-   /** Alt-drag: waiting for the copies to be created before the drag can start. */
-   | 'duplicating';
+/** A list item's leading indent + marker, and a test for any list line. */
+const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
+const LIST_LINE = /(?:^|\n) *(?:[•◦▪]|\d+\.) /;
 
 /** Default styling applied to a newly drawn element. */
 const DEFAULT_ELEMENT_STROKE = '#2f3a45';
@@ -408,10 +382,12 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       SlidesPanelComponent,
       PresentModeComponent,
    ],
+   providers: [EditorShortcutsService],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly shortcuts = inject(EditorShortcutsService);
    protected readonly store = inject(ProjectStore);
    protected readonly realtime = inject(RealtimeService);
    private readonly laser = inject(LaserService);
@@ -431,7 +407,7 @@ export class EditorComponent {
    /** Kept as a signal other code reads; the panel itself shows whenever a frame is selected. */
    protected readonly slidesOpen = signal(false);
    /** The running presentation (or a one-transition preview), or null when not presenting. */
-   protected readonly presentation = signal<{
+   readonly presentation = signal<{
       slides: RenderedSlide[];
       start: number;
       preview: boolean;
@@ -794,7 +770,7 @@ export class EditorComponent {
     * The presentations selected as a whole (outer border clicked, or enclosed by a
     * marquee): drawn with a selected outline, and Delete removes every slide of them.
     */
-   protected readonly selectedSlideSets = signal<string[]>([]);
+   readonly selectedSlideSets = signal<string[]>([]);
 
    /**
     * Pointer down on a slide set's outer border: select the whole presentation and grab
@@ -986,7 +962,7 @@ export class EditorComponent {
    // --- drawing tools / canvas elements ---
 
    /** The active tool. 'select' is the pointer mode; others draw that element. */
-   protected readonly activeTool = signal<EditorTool>('select');
+   readonly activeTool = signal<EditorTool>('select');
    /** Aspect-ratio preset new frames are drawn with (see frame-presets). */
    protected readonly framePresetId = signal<string>(DEFAULT_FRAME_PRESET);
 
@@ -2130,8 +2106,8 @@ export class EditorComponent {
       };
    });
 
-   private mode: DragMode = 'idle';
-   private spaceDown = false;
+   mode: DragMode = 'idle';
+   spaceDown = false;
    private marqueeAdditive = false;
    private startClientX = 0;
    private startClientY = 0;
@@ -2140,7 +2116,7 @@ export class EditorComponent {
    private dragTableId: string | null = null;
    /** World-space point a shape draw started from (the corner, or the center with Alt). */
    private drawAnchor = { x: 0, y: 0 };
-   private lastDrawPointer = { x: 0, y: 0 };
+   lastDrawPointer = { x: 0, y: 0 };
    /** In-app clipboard for copy/paste of tables and canvas elements. */
    private clipboard: {
       tables: TableModel[];
@@ -2156,9 +2132,9 @@ export class EditorComponent {
    private dragCopied = false;
    /** Pointer was released while Alt-drag copies were still being created. */
    private releasedWhileDuplicating = false;
-   private lastPointer: PointerEvent | null = null;
+   lastPointer: PointerEvent | null = null;
    /** Live Shift state, so a move drag can lock to an axis without a pointer move. */
-   private shiftHeld = false;
+   shiftHeld = false;
    private multiDragStart = new Map<string, { x: number; y: number }>();
    // Manual routes touching the dragged tables. `both` true when both endpoints
    // move together (rigid translate). Otherwise only one end moves: the waypoint
@@ -2170,6 +2146,7 @@ export class EditorComponent {
    private lastCursorSent = 0;
 
    constructor() {
+      this.shortcuts.connect(this);
       // Ctrl/Cmd+wheel (and trackpad pinch) anywhere over the editor — canvas,
       // slides panel, side panels — must never zoom the browser page. Capture
       // phase so panels that stopPropagation() on wheel are still covered; the
@@ -2393,7 +2370,7 @@ export class EditorComponent {
          exportSlidesPdf: () => void this.exportAllSlidesPdf(),
          exportSelectionFile: () => void this.exportSelectionFile(),
          importFile: (file) => this.importProjectFile(file),
-         deleteSelection: () => this.deleteSelection(),
+         deleteSelection: () => this.shortcuts.deleteSelection(),
          focusDeck: (name) => this.focusDeck(name),
          enterDeckFocus: (name) => this.enterDeckFocus(name),
          exitDeckFocus: () => this.exitDeckFocus(),
@@ -2955,7 +2932,7 @@ export class EditorComponent {
       this.gestureActive.set(true);
    }
 
-   private updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
+   updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
       const draft = this.draft();
       if (!draft) {
          return;
@@ -5215,7 +5192,7 @@ export class EditorComponent {
     * carry on dragging the copies from the same pointer origin. Works when Alt is
     * held at pointer-down or pressed part-way through the drag.
     */
-   private async duplicateAndDrag(): Promise<void> {
+   async duplicateAndDrag(): Promise<void> {
       const kind = this.mode;
       if (this.dragCopied || (kind !== 'element' && kind !== 'node') || !this.store.canEdit()) {
          return;
@@ -5700,7 +5677,7 @@ export class EditorComponent {
       this.handlePointerMove(event);
    }
 
-   private handlePointerMove(event: PointerEvent): void {
+   handlePointerMove(event: PointerEvent): void {
       if (this.mode === 'duplicating') {
          return; // copies are still being created; the drag resumes from lastPointer
       }
@@ -6100,369 +6077,13 @@ export class EditorComponent {
       return left <= rect.maxX && right >= rect.minX && top <= rect.maxY && bottom >= rect.minY;
    }
 
-   @HostListener('window:keydown', ['$event'])
-   protected onKeyDown(event: KeyboardEvent): void {
-      if (this.presentation()) {
-         // The presenter owns the keyboard; nothing behind it may react.
-         return;
-      }
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable;
-      if (typing) {
-         return;
-      }
-      // Transition screen: ← / → step to the previous / next slide pair.
-      if (
-         (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
-         !event.ctrlKey &&
-         !event.metaKey &&
-         !event.altKey &&
-         !event.shiftKey &&
-         this.focusedDeck() &&
-         this.focusScreen() === 'morph'
-      ) {
-         event.preventDefault();
-         this.stepTransition(event.key === 'ArrowLeft' ? -1 : 1);
-         return;
-      }
-      if (event.key === 'F5') {
-         // Only with a presentation selected; otherwise the browser's reload runs as usual.
-         const name = this.selectedPresentationName();
-         if (name) {
-            // Present from the beginning; Shift+F5 from the current slide (as in PowerPoint).
-            event.preventDefault();
-            this.store.selectPresentation(name);
-            void this.startPresentation(event.shiftKey ? 'current' : 'start');
-         }
-         return;
-      }
-      if (event.key === ' ') {
-         this.spaceDown = true;
-         event.preventDefault();
-         return;
-      }
-      // Shift+F: focus the selected presentation (or leave focus mode).
-      if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && event.code === 'KeyF') {
-         const name = this.focusedDeck() ?? this.selectedSlideSets()[0] ?? this.selectedPresentationName();
-         if (name) {
-            event.preventDefault();
-            if (this.focusedDeck()) this.exitDeckFocus();
-            else this.enterDeckFocus(name);
-            return;
-         }
-      }
-      if (event.shiftKey && !event.ctrlKey && !event.metaKey && (event.code === 'Digit1' || event.code === 'Digit2')) {
-         event.preventDefault();
-         if (event.code === 'Digit1') this.zoomToFit();
-         else this.zoomToSelection();
-         return;
-      }
-      if (event.key === 'Home') {
-         this.resetView();
-         event.preventDefault();
-         return;
-      }
-      if (event.key === 'Escape') {
-         if (this.followingId()) {
-            this.followingId.set(null);
-            return;
-         }
-         if (this.activeTool() === 'select' && this.focusedDeck()) {
-            if (this.focusScreen() === 'design') this.closeFocusDesign(this.focusedDeck()!);
-            else if (this.focusScreen() !== 'main') this.leaveFocusScreen();
-            else this.exitDeckFocus();
-            return;
-         }
-         this.activeTool.set('select');
-         return;
-      }
-      const mod = event.ctrlKey || event.metaKey;
-      if (mod && event.key.toLowerCase() === 'z') {
-         if (this.store.canEdit()) {
-            event.preventDefault();
-            if (event.shiftKey) {
-               this.store.redoElement();
-            } else {
-               this.store.undoElement();
-            }
-         }
-         return;
-      }
-      if (mod && event.key.toLowerCase() === 'y') {
-         if (this.store.canEdit()) {
-            event.preventDefault();
-            this.store.redoElement();
-         }
-         return;
-      }
-      if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
-         // Ctrl+[ / ] steps the selection back / forward one layer; Shift goes all the way.
-         event.preventDefault();
-         if (this.store.canEdit()) {
-            const forward = event.code === 'BracketRight';
-            this.store.arrangeSelection(
-               event.shiftKey ? (forward ? 'front' : 'back') : forward ? 'forward' : 'backward'
-            );
-         }
-         return;
-      }
-      if (event.shiftKey && event.altKey && !mod && event.code === 'KeyS') {
-         // Fit the selected code blocks to their content.
-         event.preventDefault();
-         if (this.store.canEdit()) {
-            void this.codeActions.fitToContent(this.store.selectedElementIds());
-         }
-         return;
-      }
-      if (event.shiftKey && event.altKey && !mod && event.code === 'KeyF') {
-         // Format the selected code blocks.
-         event.preventDefault();
-         if (this.store.canEdit()) {
-            void this.codeActions.format(this.store.selectedElementIds());
-         }
-         return;
-      }
-      if (mod && event.key.toLowerCase() === 'g') {
-         // Group / ungroup the selection (also stops the browser's find-next).
-         event.preventDefault();
-         if (this.store.canEdit()) {
-            if (event.shiftKey) {
-               void this.store.ungroupSelection();
-            } else {
-               void this.store.groupSelection();
-            }
-         }
-         return;
-      }
-      if (mod && event.key.toLowerCase() === 'c') {
-         this.copySelection();
-         return;
-      }
-      if (mod && event.key.toLowerCase() === 'v') {
-         // Handled by the window `paste` event, which also sees system-clipboard images.
-         return;
-      }
-      // Shift/Alt pressed or released mid-draw re-applies the constraint immediately.
-      if (event.key === 'Alt' && (this.mode === 'element' || this.mode === 'node')) {
-         event.preventDefault();
-         void this.duplicateAndDrag();
-         return;
-      }
-      if (event.key === 'Shift' && (this.mode === 'element' || this.mode === 'node')) {
-         this.shiftHeld = true;
-         if (this.lastPointer) {
-            this.handlePointerMove(this.lastPointer);
-         }
-         return;
-      }
-      if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
-         event.preventDefault(); // keep Alt from focusing the browser menu
-         this.updateDraw(
-            this.lastDrawPointer.x,
-            this.lastDrawPointer.y,
-            event.key === 'Shift' ? true : event.shiftKey,
-            event.key === 'Alt' ? true : event.altKey
-         );
-         return;
-      }
-      // Keys on a table's cell selection: Delete clears the cells, Enter/F2 edits, Esc drops back to the table.
-      const cells = this.grids.range();
-      if (cells && mod && event.key.toLowerCase() === 'm' && this.store.canEdit()) {
-         event.preventDefault();
-         void (this.grids.canMerge() ? this.grids.mergeSelected() : this.grids.unmergeSelected());
-         return;
-      }
-      if (cells && !mod) {
-         if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
-            event.preventDefault();
-            void this.grids.clearSelectedText();
-            return;
-         }
-         if (event.key === 'Enter' || event.key === 'F2') {
-            event.preventDefault();
-            this.grids.beginEdit({ id: cells.id, row: cells.r0, col: cells.c0 });
-            return;
-         }
-         if (event.key === 'Escape') {
-            event.preventDefault();
-            this.grids.clearCellSelection();
-            return;
-         }
-      }
-      if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.activeTool() === 'freedraw') {
-         // [ / ]: shrink / grow the pen or eraser.
-         event.preventDefault();
-         const up = event.key === ']';
-         if (this.penPrefs.eraser()) {
-            const v = this.penPrefs.eraserSize();
-            this.penPrefs.eraserSize.set(
-               Math.min(ERASER_MAX, Math.max(ERASER_MIN, Math.round(up ? v * 1.25 + 1 : v / 1.25 - 1)))
-            );
-         } else {
-            const v = this.penPrefs.width();
-            const next = Math.round((up ? v * 1.25 + 0.5 : v / 1.25 - 0.5) * 2) / 2;
-            this.penPrefs.width.set(Math.min(PEN_MAX, Math.max(PEN_MIN, next)));
-         }
-         return;
-      }
-      if (!mod && !event.altKey && event.key.toLowerCase() === 'x' && this.store.canEdit()) {
-         // X: the pen's eraser (switches to the pen if another tool is active).
-         event.preventDefault();
-         if (this.activeTool() !== 'freedraw') {
-            this.activeTool.set('freedraw');
-            this.penPrefs.eraser.set(true);
-         } else {
-            this.penPrefs.eraser.update((v) => !v);
-         }
-         return;
-      }
-      const tool = mod || event.altKey ? undefined : EditorComponent.TOOL_SHORTCUTS[event.key.toLowerCase()];
-      // P always means the pen itself, so it leaves the eraser.
-      if (tool === 'freedraw') this.penPrefs.eraser.set(false);
-      // The laser pointer is a presenting tool, so view-only guests may use it too.
-      if (tool && (this.store.canEdit() || tool === 'laser')) {
-         // Pressing a shape / line key again cycles through its family (R → O → D, A → L).
-         const cur = this.activeTool();
-         const family = EditorComponent.TOOL_CYCLES.find((f) => f.includes(tool));
-         if (family && family.includes(cur) && !event.repeat) {
-            this.activeTool.set(family[(family.indexOf(cur) + 1) % family.length]);
-         } else {
-            this.activeTool.set(tool);
-         }
-         return;
-      }
-      if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
-         const sets = this.selectedSlideSets();
-         if (sets.length) {
-            event.preventDefault();
-            const shown = this.store.shownByPresentation();
-            const frameIds = new Set(sets.map((set) => shown.get(set)));
-            const rest = this.store.selectedElementIds().filter((id) => !frameIds.has(id));
-            const others = [
-               [...this.store.selectedTableIds()],
-               [...this.store.selectedRelationshipIds()],
-               [...this.store.selectedMessageIds()],
-               [...this.store.selectedLifelineIds()],
-               [...this.store.selectedDiagramIds()],
-            ];
-            this.selectedSlideSets.set([]);
-            for (const set of sets) this.onSlidesCommand({ kind: 'deletePresentation' }, set);
-            this.store.setSelection(others[0], others[1], rest, others[2], others[3], others[4]);
-            if (
-               !rest.length &&
-               !this.store.selectedTableIds().length &&
-               !this.store.selectedRelationshipIds().length &&
-               !this.store.selectedMessageIds().length &&
-               !this.store.selectedLifelineIds().length &&
-               !this.store.selectedDiagramIds().length
-            ) {
-               return;
-            }
-         }
-         const relIds = [...this.store.selectedRelationshipIds()];
-         const tableIds = [...this.store.selectedTableIds()];
-         const elementIds = [...this.store.selectedElementIds()];
-         const lifelineIds = [...this.store.selectedLifelineIds()];
-         const messageIds = [...this.store.selectedMessageIds()];
-         const diagramId = this.store.selectedDiagramIds().length > 0;
-         if (
-            relIds.length ||
-            tableIds.length ||
-            elementIds.length ||
-            lifelineIds.length ||
-            messageIds.length ||
-            diagramId
-         ) {
-            event.preventDefault();
-            this.deleteSelection();
-         }
-      }
-   }
-
-   /**
-    * Delete everything selected. Deleting a frame also deletes what sits inside it
-    * (elements, tables and sequence diagrams), so a frame removes its whole page.
-    */
-   protected deleteSelection(): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      const relIds = [...this.store.selectedRelationshipIds()];
-      const tableIds = new Set(this.store.selectedTableIds());
-      const elementIds = new Set(this.store.selectedElementIds());
-      const lifelineIds = [...this.store.selectedLifelineIds()];
-      const messageIds = [...this.store.selectedMessageIds()];
-      const diagramIds = new Set<string>();
-      this.store.selectedDiagramIds().forEach((id) => diagramIds.add(id));
-      const inner = frameContents(
-         elementIds,
-         this.store.elements(),
-         this.store.tables(),
-         this.store.sequenceDiagrams(),
-         this.store.lifelines(),
-         this.store.sequenceMessages(),
-         this.store.shownSlideIds()
-      );
-      inner.elementIds.forEach((id) => elementIds.add(id));
-      inner.tableIds.forEach((id) => tableIds.add(id));
-      inner.diagramIds.forEach((id) => diagramIds.add(id));
-
-      // Slides using a deleted layout keep its look: its items are copied onto them first.
-      const layouts = this.store.slideFrames().filter((f) => f.slide?.layout && elementIds.has(f.id));
-      // A deck losing its shown slide shows the nearest surviving one: the slide above, else below.
-      const nextShown: string[] = [];
-      for (const shownId of this.store.shownSlideIds()) {
-         if (!elementIds.has(shownId)) continue;
-         const frame = this.store.slideFrames().find((f) => f.id === shownId);
-         if (!frame || frame.slide?.layout) continue;
-         const list = presentationSlides(this.store.slideFrames(), presentationOf(frame));
-         const at = list.findIndex((f) => f.id === shownId);
-         const up = list
-            .slice(0, Math.max(0, at))
-            .reverse()
-            .find((f) => !elementIds.has(f.id));
-         const down = list.slice(at + 1).find((f) => !elementIds.has(f.id));
-         const pick = up ?? down;
-         if (pick) nextShown.push(pick.id);
-      }
-      const activeDeck = this.store.presentation();
-      void this.store
-         .batchHistory(async () => {
-            // Slides deleted along with the layout need no copy of its look.
-            for (const l of layouts) await detachFromLayout(this.store, l, elementIds);
-            const jobs: unknown[] = [];
-            relIds.forEach((id) => jobs.push(this.store.deleteRelationship(id)));
-            tableIds.forEach((id) => jobs.push(this.store.deleteTable(id)));
-            elementIds.forEach((id) => {
-               // A slide's or layout's copy of a master item stays as a marker deleting it there
-               // (unless its frame goes too).
-               const el = this.store.elements().find((e) => e.id === id);
-               const keepMarker = !!el?.overrides && !(el.slideId && elementIds.has(el.slideId));
-               jobs.push(keepMarker ? deleteStandIn(this.store, el!) : this.store.deleteElement(id));
-            });
-            diagramIds.forEach((id) => jobs.push(this.store.deleteSequence(id)));
-            if (!diagramIds.size) {
-               messageIds.forEach((id) => jobs.push(this.store.deleteMessage(id)));
-               lifelineIds.forEach((id) => jobs.push(this.store.deleteLifeline(id)));
-            }
-            await Promise.all(jobs);
-         })
-         .then(() => {
-            if (!nextShown.length) return;
-            for (const id of nextShown) this.store.setActiveSlide(id);
-            // Keep the deck the user was working in selected, with its new slide highlighted.
-            const mine = nextShown.find((id) => {
-               const f = this.store.slideFrames().find((x) => x.id === id);
-               return !!f && presentationOf(f) === activeDeck;
-            });
-            if (mine) this.focusFrame(mine);
-         });
-   }
-
    // --- slides / presentation mode ---
 
-   protected onSlidesCommand(cmd: SlidesCommand, presentation: string): void {
+   deletePresentation(name: string): void {
+      this.onSlidesCommand({ kind: 'deletePresentation' }, name);
+   }
+
+   onSlidesCommand(cmd: SlidesCommand, presentation: string): void {
       // Everything below acts on the selected presentation: the one whose panel was used.
       this.store.selectPresentation(presentation);
       switch (cmd.kind) {
@@ -6500,7 +6121,7 @@ export class EditorComponent {
                .map((f) => f.id);
             if (ids.length) {
                this.store.setSelection([], [], ids);
-               this.deleteSelection();
+               this.shortcuts.deleteSelection();
             }
             break;
          }
@@ -6509,7 +6130,7 @@ export class EditorComponent {
             break;
          case 'delete':
             this.store.setSelection([], [], [cmd.id]);
-            this.deleteSelection();
+            this.shortcuts.deleteSelection();
             break;
       }
    }
@@ -6596,7 +6217,7 @@ export class EditorComponent {
 
    // ---- Following a collaborator -----------------------------------------
    /** Participant whose cursor the view keeps in sight, or null. */
-   protected readonly followingId = signal<string | null>(null);
+   readonly followingId = signal<string | null>(null);
    /** Every presentation with its slide count and current presenter (top-right Presentations menu). */
    private readonly deckSummaries$ = computed<DeckSummary[]>(() => {
       const frames = this.store.slideFrames();
@@ -6648,12 +6269,12 @@ export class EditorComponent {
 
    // ---- Deck focus mode ----------------------------------------------------
    /** The presentation being edited in focus mode (the rest of the canvas dimmed), or null. */
-   protected readonly focusedDeck = signal<string | null>(null);
+   readonly focusedDeck = signal<string | null>(null);
    /** The view before focus mode, restored when it ends. */
    private viewBeforeFocus: { x: number; y: number; zoom: number } | null = null;
 
    /** Which focus-mode screen is open: the deck (DeckFocus), design, transition or animations. */
-   protected readonly focusScreen = signal<'main' | 'design' | 'morph' | 'anim'>('main');
+   readonly focusScreen = signal<'main' | 'design' | 'morph' | 'anim'>('main');
 
    /** Screen-space frame of each focus screen's docks (left dock clears the tool dock). */
    private focusArea(): { left: number; right: number; top: number; bottom: number } {
@@ -6732,7 +6353,7 @@ export class EditorComponent {
    }
 
    /** Edit one presentation on its own: the view locks onto its slide between the focus docks. */
-   protected enterDeckFocus(name: string, screen: 'main' | 'morph' | 'anim' = 'main'): void {
+   enterDeckFocus(name: string, screen: 'main' | 'morph' | 'anim' = 'main'): void {
       if (!this.store.presentations().includes(name)) return;
       if (!this.focusedDeck()) this.viewBeforeFocus = { ...this.store.viewport() };
       this.focusFromCanvas.set(false);
@@ -6750,7 +6371,7 @@ export class EditorComponent {
    }
 
    /** Leave focus mode and go back to the view from before it. */
-   protected exitDeckFocus(): void {
+   exitDeckFocus(): void {
       if (!this.focusedDeck()) return;
       const name = this.focusedDeck()!;
       if (this.focusScreen() === 'design') this.closeFocusDesign(name);
@@ -6792,7 +6413,7 @@ export class EditorComponent {
    }
 
    /** Done: back to the slide that was shown before the design screen. */
-   protected closeFocusDesign(name: string): void {
+   closeFocusDesign(name: string): void {
       const back = this.lastSlides().get(name);
       if (back && this.focusShown()?.slide?.layout) this.focusFrame_(back);
       this.focusScreen.set('main');
@@ -6827,7 +6448,7 @@ export class EditorComponent {
       this.focusScreen.set('main');
    }
 
-   protected leaveFocusScreen(): void {
+   leaveFocusScreen(): void {
       if (this.focusFromCanvas()) {
          this.exitDeckFocus();
          return;
@@ -6836,7 +6457,7 @@ export class EditorComponent {
    }
 
    /** Transition screen: move to the previous / next pair of slides. */
-   protected stepTransition(delta: number): void {
+   stepTransition(delta: number): void {
       const name = this.focusedDeck();
       const cur = this.focusShown();
       if (!name || !cur) return;
@@ -7410,7 +7031,7 @@ export class EditorComponent {
     * Show a slide. Slides are stacked in one spot per presentation and only the shown
     * one is on the canvas, so switching just changes what is drawn there: the view never moves.
     */
-   private focusFrame(id: string): void {
+   focusFrame(id: string): void {
       if (!this.store.elements().some((e) => e.id === id)) {
          return;
       }
@@ -7452,7 +7073,7 @@ export class EditorComponent {
     * The presentation the canvas selection belongs to: a selected slide frame, or an
     * item on a slide. Null when nothing of any presentation is selected.
     */
-   private selectedPresentationName(): string | null {
+   selectedPresentationName(): string | null {
       const frames = this.store.slideFrames();
       const owner = (slideId: string | undefined): string | null => {
          const f = slideId ? frames.find((x) => x.id === slideId) : undefined;
@@ -7481,7 +7102,7 @@ export class EditorComponent {
    }
 
    /** Render the sequence and open the full-screen presenter. */
-   private async startPresentation(from: 'start' | 'current'): Promise<void> {
+   async startPresentation(from: 'start' | 'current'): Promise<void> {
       // Only the selected presentation plays (F5 from its start, Shift+F5 from the shown slide).
       const all = this.store.presentationFrames();
       const slides = all.filter((f) => !f.slide?.hidden);
@@ -7849,31 +7470,6 @@ export class EditorComponent {
       }
    }
 
-   /** Single-key tool shortcuts (Excalidraw-style). */
-   private static readonly TOOL_SHORTCUTS: Record<string, EditorTool> = {
-      v: 'select',
-      h: 'hand',
-      e: 'table',
-      r: 'rectangle',
-      o: 'ellipse',
-      d: 'diamond',
-      a: 'arrow',
-      l: 'line',
-      t: 'text',
-      p: 'freedraw',
-      f: 'frame',
-      s: 'slide',
-      c: 'code',
-      g: 'grid',
-      k: 'laser',
-   };
-
-   /** Tool families a repeated shortcut cycles through. */
-   private static readonly TOOL_CYCLES: readonly (readonly EditorTool[])[] = [
-      ['rectangle', 'ellipse', 'diamond'],
-      ['arrow', 'line'],
-   ];
-
    /** After placing something: back to Select, unless the toolbar is set to stay on the tool. */
    private afterPlace(): void {
       if (!this.toolbarPrefs.stayOnTool()) this.activeTool.set('select');
@@ -7884,30 +7480,19 @@ export class EditorComponent {
       this.activeTool.set(tool);
    }
 
-   @HostListener('window:keyup', ['$event'])
-   protected onKeyUp(event: KeyboardEvent): void {
-      if (event.key === ' ') {
-         this.spaceDown = false;
-      }
-      if (event.key === 'Shift') {
-         this.shiftHeld = false;
-         if ((this.mode === 'element' || this.mode === 'node') && this.lastPointer) {
-            this.handlePointerMove(this.lastPointer);
-         }
-      }
-      if (this.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
-         this.updateDraw(
-            this.lastDrawPointer.x,
-            this.lastDrawPointer.y,
-            event.key === 'Shift' ? false : event.shiftKey,
-            event.key === 'Alt' ? false : event.altKey
-         );
-      }
-   }
-
    // --- copy / paste ---
 
    /** Ctrl/Cmd+V: a system-clipboard picture becomes an image element, else the in-app clipboard pastes. */
+   @HostListener('window:keydown', ['$event'])
+   protected onKeyDown(event: KeyboardEvent): void {
+      this.shortcuts.onKeyDown(event);
+   }
+
+   @HostListener('window:keyup', ['$event'])
+   protected onKeyUp(event: KeyboardEvent): void {
+      this.shortcuts.onKeyUp(event);
+   }
+
    @HostListener('window:paste', ['$event'])
    protected onPaste(event: ClipboardEvent): void {
       const target = event.target as HTMLElement | null;
@@ -8062,7 +7647,7 @@ export class EditorComponent {
    }
 
    /** Snapshot the selected tables and elements into the in-app clipboard. */
-   private copySelection(): void {
+   copySelection(): void {
       const tableIds = this.store.selectedTableIds();
       let elementIds = this.store.selectedElementIds();
       // Nothing picked while a layout is shown: copy the layout itself (pasting duplicates it).
@@ -8582,7 +8167,7 @@ export class EditorComponent {
    }
 
    /** Animate back to the project's saved home view, or the default (origin, 100%). */
-   protected resetView(): void {
+   resetView(): void {
       if (this.focusedDeck()) return;
       const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
       this.animateViewport(home.x, home.y, home.zoom);
@@ -8754,7 +8339,7 @@ export class EditorComponent {
    }
 
    /** Zoom so everything on the canvas is in view (Shift+1). */
-   protected zoomToFit(): void {
+   zoomToFit(): void {
       let x0 = Infinity,
          y0 = Infinity,
          x1 = -Infinity,
@@ -8800,7 +8385,7 @@ export class EditorComponent {
    }
 
    /** Zoom so the selection fills the view (Shift+2). */
-   protected zoomToSelection(): void {
+   zoomToSelection(): void {
       const selected = new Set([
          ...this.store.selectedTableIds(),
          ...this.store.selectedElementIds(),

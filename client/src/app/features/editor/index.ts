@@ -3,7 +3,7 @@
 // eslint-plugin-boundaries rejects deep imports into features/editor from other features.
 
 export { EditorComponent } from './editor.component';
-export type { EditorTool } from './features/toolbar/shape-toolbar.component';
+export type { EditorTool } from './models/editor-tool.model';
 
 // Pass 3 (§4.1 #1, §4.4): ProjectStore moves behind provideEditor() and the shell/palette talk to the
 // editor through core/editor-bridge instead. Until then hosts that read editor state inject it from here.
