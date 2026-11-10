@@ -75,6 +75,11 @@ export class SharingService {
     return this.graphs.graph(projectId, accessLevel);
   }
 
+  /** The graph of a project already resolved by `sharedAccess`. */
+  graphFor(projectId: string, accessLevel: AccessLevel): Promise<ProjectGraphResponse> {
+    return this.graphs.graph(projectId, accessLevel);
+  }
+
   /**
    * Resolve a token to its project and the level it grants there, without loading
    * the graph (conditional GET /shared/:token). Throws like getSharedGraph.

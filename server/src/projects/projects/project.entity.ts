@@ -83,6 +83,13 @@ export class Project {
   @Column({ type: 'datetime', nullable: true })
   lastOpenedAt!: Date | null;
 
+  /**
+   * Graph revision, bumped with every persisted change (platform/http/project-revision):
+   * the ETag of the graph routes and the Projects list's "content changed" signal.
+   */
+  @Column({ type: 'integer', default: 0 })
+  revision!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

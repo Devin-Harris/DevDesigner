@@ -9,19 +9,15 @@ import {
   Post,
   Req,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
+import type { ShareLinkResponse } from '@devdesigner/shared';
 import { SharingService } from './sharing.service';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ProjectAccess, Public, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 import { RateLimit } from '../../platform/throttle/rate-limit';
-import {
-  etagMatches,
-  projectGraphTag,
-  projectRevision,
-  setGraphCacheHeaders,
-} from '../../platform/http/project-revision';
+import { GraphCache } from '../../platform/graph-cache/graph-cache';
 
 /**
  * Sharing routes (BUILD_INSTRUCTIONS.md section 5). Owner-only link management
@@ -31,7 +27,10 @@ import {
  */
 @Controller()
 export class SharingController {
-  constructor(private readonly sharing: SharingService) {}
+  constructor(
+    private readonly sharing: SharingService,
+    private readonly graphs: GraphCache,
+  ) {}
 
   @Post('projects/:projectId/share')
   @RequiresAccess('owner')
@@ -69,18 +68,8 @@ export class SharingController {
     @Param('token') token: string,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<ProjectGraphResponse | undefined> {
+  ): Promise<StreamableFile | undefined> {
     const { projectId, accessLevel } = await this.sharing.sharedAccess(token);
-    // Taken BEFORE reading, so a write landing mid-read leaves this tag outdated.
-    const revision = projectRevision(projectId);
-    const tag = projectGraphTag(projectId, accessLevel, revision);
-    if (etagMatches(req.headers['if-none-match'], tag)) {
-      setGraphCacheHeaders(res, tag);
-      res.status(HttpStatus.NOT_MODIFIED);
-      return undefined;
-    }
-    const graph = await this.sharing.getSharedGraph(token);
-    setGraphCacheHeaders(res, projectGraphTag(projectId, graph.accessLevel, revision));
-    return graph;
+    return this.graphs.respond(projectId, accessLevel, req, res, () => this.sharing.graphFor(projectId, accessLevel));
   }
 }

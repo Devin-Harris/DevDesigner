@@ -34,6 +34,7 @@ import { ImagesService } from '../canvas/images/images.service';
 import { bumpProjectRevision } from '../../platform/http/project-revision';
 import { applyDefined } from '../common/apply-patch';
 import { QuotaService, type ImportFootprint } from '../../platform/quotas/quota.service';
+import { GraphCache } from '../../platform/graph-cache/graph-cache';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -55,6 +56,7 @@ export class ProjectsService {
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
     private readonly quota: QuotaService,
+    private readonly graphCache: GraphCache,
   ) {}
 
   /**
@@ -118,6 +120,8 @@ export class ProjectsService {
     if (!result.affected) {
       throw new NotFoundException(`Project ${id} not found.`);
     }
+    // The viewport rides in the graph body but does not bump the revision.
+    this.graphCache.invalidateProject(id);
   }
 
   /** Set (or clear, with `home: null`) the project's shared home view and tell collaborators. */
@@ -285,6 +289,7 @@ export class ProjectsService {
     }
     // Any tag issued before the delete must never match again.
     bumpProjectRevision(id);
+    this.graphCache.invalidateProject(id);
     // Collaborators still in the room lose access with the project.
     this.realtime.accessRevoked(id);
   }

@@ -24,6 +24,7 @@ import { UserThemesModule } from './identity/user-themes/user-themes.module';
 import { AdminModule } from './admin/admin.module';
 import { ThrottleModule } from './platform/throttle/throttle.module';
 import { QuotasModule } from './platform/quotas/quotas.module';
+import { GraphCacheModule } from './platform/graph-cache/graph-cache.module';
 import { validateEnv } from './platform/config/env.validation';
 import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
 import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
@@ -49,6 +50,7 @@ import { loggerParams } from './platform/http/logger.config';
     AuthModule,
     ThrottleModule,
     QuotasModule,
+    GraphCacheModule,
     ProjectsModule,
     BatchModule,
     TablesModule,

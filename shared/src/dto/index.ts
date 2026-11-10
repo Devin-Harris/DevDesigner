@@ -111,6 +111,11 @@ export interface ProjectSummary {
   type: ProjectType;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Graph revision: bumped by every persisted change to the project's content (not by
+   * viewport saves). Equal revisions mean equal graphs, so thumbnails can key on it.
+   */
+  revision?: number;
 }
 /** Initial-load payload for a project: the assembled schema plus access context. */
 export interface ProjectGraphResponse {

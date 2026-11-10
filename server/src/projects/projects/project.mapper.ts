@@ -11,6 +11,7 @@ export function toProjectSummary(project: Project): ProjectSummary {
     type: project.type,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
+    revision: project.revision ?? 0,
   };
 }
 

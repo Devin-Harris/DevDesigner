@@ -11,6 +11,7 @@ import {
   Query,
   Req,
   Res,
+  StreamableFile,
   UnauthorizedException,
 } from '@nestjs/common';
 import type {
@@ -20,12 +21,7 @@ import type {
   ProjectSummary,
 } from '@devdesigner/shared';
 import type { Request, Response } from 'express';
-import {
-  etagMatches,
-  projectGraphTag,
-  projectRevision,
-  setGraphCacheHeaders,
-} from '../../platform/http/project-revision';
+import { GraphCache } from '../../platform/graph-cache/graph-cache';
 import { CallerScoped, ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../../collaboration/access/access-policy';
 import { Caller } from '../../platform/http/caller';
 import { RateLimit } from '../../platform/throttle/rate-limit';
@@ -43,7 +39,10 @@ import { UpdateThemesDto } from './dto/update-themes.dto';
  */
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projects: ProjectsService) {}
+  constructor(
+    private readonly projects: ProjectsService,
+    private readonly graphs: GraphCache,
+  ) {}
 
   @Get()
   @CallerScoped()
@@ -115,19 +114,9 @@ export class ProjectsController {
     @ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<ProjectGraphResponse | undefined> {
-    // Taken BEFORE reading, so a write landing mid-read leaves this tag outdated.
-    const revision = projectRevision(projectId);
-    const tag = projectGraphTag(projectId, accessLevel, revision);
-    if (etagMatches(req.headers['if-none-match'], tag)) {
-      // Nothing in this project changed since the caller's copy: skip rebuilding the graph.
-      setGraphCacheHeaders(res, tag);
-      res.status(HttpStatus.NOT_MODIFIED);
-      return undefined;
-    }
-    const graph = await this.projects.getGraph(projectId, accessLevel);
-    setGraphCacheHeaders(res, tag);
-    return graph;
+  ): Promise<StreamableFile | undefined> {
+    // 304 while the caller's copy is current; else the cached (pre-gzipped) body.
+    return this.graphs.respond(projectId, accessLevel, req, res, () => this.projects.getGraph(projectId, accessLevel));
   }
 
   @Patch(':projectId')
