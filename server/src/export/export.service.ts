@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { generateSql } from '@devdesigner/shared';
-import type { SqlDialect } from '@devdesigner/shared';
+import type { SchemaModel, SqlDialect } from '@devdesigner/shared';
 import { ProjectsService } from '../projects/projects.service';
 
 /** Dialects the generator currently supports. Grows as generators are added. */
@@ -28,8 +28,18 @@ export class ExportService {
         `Unsupported SQL dialect "${dialectInput}". Supported: ${SUPPORTED_DIALECTS.join(', ')}.`,
       );
     }
-    // getGraph authorizes the read against the caller's access to the project.
-    const { schema } = await this.projects.getGraph(projectId, userId);
+    // Authorizes the read; loads only what DDL needs (tables + relationships).
+    const { tables, relationships } = await this.projects.getDatabaseSchema(projectId, userId);
+    const schema: SchemaModel = {
+      tables,
+      relationships,
+      notes: [],
+      elements: [],
+      sequenceDiagrams: [],
+      lifelines: [],
+      sequenceMessages: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    };
     return generateSql(schema, { dialect });
   }
 }

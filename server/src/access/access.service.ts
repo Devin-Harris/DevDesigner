@@ -56,6 +56,30 @@ export class AccessService {
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
+    return this.levelFor(project, userId, shareToken);
+  }
+
+  /**
+   * Like resolveProjectAccess, but reads the whole project row and returns it with
+   * the level, so a graph load authorizes and reads the project in one query.
+   */
+  async readProject(
+    projectId: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<{ project: Project; accessLevel: AccessLevel }> {
+    const project = await this.projects.findOne({ where: { id: projectId } });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found.`);
+    }
+    return { project, accessLevel: await this.levelFor(project, userId, shareToken) };
+  }
+
+  private async levelFor(
+    project: Pick<Project, 'id' | 'ownerId'>,
+    userId: string | null,
+    shareToken: string | null,
+  ): Promise<AccessLevel> {
     if (project.ownerId === null) {
       return 'OWNER'; // anonymous, open project
     }
@@ -63,7 +87,7 @@ export class AccessService {
       return 'OWNER';
     }
     if (shareToken) {
-      const level = await this.resolveShareToken(projectId, shareToken);
+      const level = await this.resolveShareToken(project.id, shareToken);
       if (level) {
         return level;
       }

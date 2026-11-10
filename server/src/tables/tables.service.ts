@@ -33,6 +33,8 @@ export class TablesService {
     const rows = await this.tables.find({
       where: { projectId },
       relations: { columns: true, indexes: true },
+      // Columns and indexes in their own IN queries, not one columns x indexes JOIN.
+      relationLoadStrategy: 'query',
       order: { name: 'ASC' },
     });
     return rows.map(toTableModel);

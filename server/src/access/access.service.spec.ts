@@ -37,6 +37,22 @@ describe('AccessService', () => {
     await expect(service.resolveProjectAccess('p1', null)).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('readProject returns the full row with the level from a single read', async () => {
+    const row = { id: 'p1', ownerId: 'u1', name: 'P', themesJson: null };
+    projects.findOne.mockResolvedValue(row);
+    await expect(service.readProject('p1', 'u1')).resolves.toEqual({
+      project: row,
+      accessLevel: 'OWNER',
+    });
+    expect(projects.findOne).toHaveBeenCalledTimes(1);
+    expect(projects.findOne).toHaveBeenCalledWith({ where: { id: 'p1' } });
+  });
+
+  it('readProject applies the same rules (403 for a stranger)', async () => {
+    projects.findOne.mockResolvedValue({ id: 'p1', ownerId: 'u1' });
+    await expect(service.readProject('p1', 'u2')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('grants OWNER on an ownerless (anonymous-open) project', async () => {
     projects.findOne.mockResolvedValue({ id: 'p1', ownerId: null });
     await expect(service.resolveProjectAccess('p1', null)).resolves.toBe('OWNER');

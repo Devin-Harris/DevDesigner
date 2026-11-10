@@ -116,8 +116,8 @@ export class ProjectsService {
     userId: string | null,
     shareToken: string | null = null,
   ): Promise<ProjectGraphResponse> {
-    const accessLevel = await this.access.assertCanRead(id, userId, shareToken);
-    const project = await this.findOrThrow(id);
+    // One read both authorizes and supplies the project row.
+    const { project, accessLevel } = await this.access.readProject(id, userId, shareToken);
     const [tables, relationships, elements, sequence] = await Promise.all([
       this.tables.getModelsForProject(id),
       this.relationships.getModelsForProject(id),
@@ -148,6 +148,23 @@ export class ProjectsService {
       schema,
       accessLevel,
     };
+  }
+
+  /**
+   * Just the database part of a project (tables + relationships), for SQL export.
+   * Authorized like getGraph; skips elements, sequence diagrams and the project row.
+   */
+  async getDatabaseSchema(
+    id: string,
+    userId: string | null,
+    shareToken: string | null = null,
+  ): Promise<Pick<SchemaModel, 'tables' | 'relationships'>> {
+    await this.access.assertCanRead(id, userId, shareToken);
+    const [tables, relationships] = await Promise.all([
+      this.tables.getModelsForProject(id),
+      this.relationships.getModelsForProject(id),
+    ]);
+    return { tables, relationships };
   }
 
   async updateViewport(
