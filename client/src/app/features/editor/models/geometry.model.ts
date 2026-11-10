@@ -17,6 +17,14 @@ export interface Box {
    y1: number;
 }
 
+/** Axis-aligned rect in world coords (min/max form). */
+export interface Rect {
+   minX: number;
+   minY: number;
+   maxX: number;
+   maxY: number;
+}
+
 /** A column resolved to its owning table and row index. */
 export interface ColumnLocation {
    table: TableModel;

@@ -2,12 +2,11 @@ import { inject, Injectable, type Signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ElementImagesService } from '../../../services/element-images.service';
 import { ProjectStore } from '../../../state/project/project.store';
+import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 /** What media drops reach in the rest of the editor; the editor entry wires it with `connect`. */
 export interface MediaDropHost {
    readonly gridSnap: Signal<boolean>;
-   canvasRect(): DOMRect;
-   toWorld(clientX: number, clientY: number): { x: number; y: number };
    defaultStroke(): string;
    importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number>;
 }
@@ -17,6 +16,7 @@ export interface MediaDropHost {
 export class MediaDropService {
    private readonly store = inject(ProjectStore);
    private readonly snackBar = inject(MatSnackBar);
+   private readonly viewport = inject(EditorViewportService);
    private host!: MediaDropHost;
 
    connect(host: MediaDropHost): void {
@@ -57,7 +57,7 @@ export class MediaDropService {
       if (json.length) {
          event.preventDefault();
          if (this.store.canEdit()) {
-            void this.importDroppedJson(json, this.host.toWorld(event.clientX, event.clientY));
+            void this.importDroppedJson(json, this.viewport.toWorld(event.clientX, event.clientY));
          }
          return;
       }
@@ -73,7 +73,7 @@ export class MediaDropService {
       }
       event.preventDefault();
       if (this.store.canEdit()) {
-         void this.insertImages(files, this.host.toWorld(event.clientX, event.clientY));
+         void this.insertImages(files, this.viewport.toWorld(event.clientX, event.clientY));
       }
    }
 
@@ -87,7 +87,7 @@ export class MediaDropService {
       if (!projectId || !this.store.canEdit()) {
          return;
       }
-      const rect = this.host.canvasRect();
+      const rect = this.viewport.canvasRect();
       const v = this.store.viewport();
       const center = at ?? {
          x: (rect.width / 2 - v.x) / v.zoom,

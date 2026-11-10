@@ -2,12 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import type { CanvasElementModel, TableModel, SlideConfig } from '@devdesigner/shared';
 import { presentationOf, presentationSlides, layoutOf, layoutNameOf, presentationLayouts } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
+import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { frameContents } from '../../../helpers/frame-contents.helper';
 /** What copy/paste reaches in the rest of the editor; the editor entry wires it with `connect`. */
 export interface ClipboardHost {
    readonly lastPointer: PointerEvent | null;
-   canvasRect(): DOMRect;
-   toWorld(clientX: number, clientY: number): { x: number; y: number };
    insertImages(files: File[]): Promise<void>;
    duplicateSlides(ids: readonly string[]): Promise<void>;
    freeFrameOffset(frame: CanvasElementModel, step?: number): number;
@@ -26,6 +25,7 @@ export interface ClipboardHost {
 @Injectable()
 export class ClipboardService {
    private readonly store = inject(ProjectStore);
+   private readonly viewport = inject(EditorViewportService);
    private host!: ClipboardHost;
 
    connect(host: ClipboardHost): void {
@@ -163,11 +163,11 @@ export class ClipboardService {
    private pasteAnchor(): { x: number; y: number } | null {
       const p = this.host.lastPointer;
       if (!p) return null;
-      const rect = this.host.canvasRect();
+      const rect = this.viewport.canvasRect();
       if (p.clientX < rect.left || p.clientX > rect.right || p.clientY < rect.top || p.clientY > rect.bottom) {
          return null;
       }
-      return this.host.toWorld(p.clientX, p.clientY);
+      return this.viewport.toWorld(p.clientX, p.clientY);
    }
 
    /** Paste the clipboard, each successive paste stepping further from the original. */

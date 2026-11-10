@@ -1,3 +1,4 @@
+import { EditorViewportService } from './services/editor-viewport.service';
 import { MediaDropService } from './features/elements/services/media-drop.service';
 import { ClipboardService } from './features/canvas/services/clipboard.service';
 import { EditorExportService } from './features/export/services/editor-export.service';
@@ -119,7 +120,7 @@ import {
 import { type AlignAction } from './models/toolbar-actions';
 import { fillFromLayout, slotFollower, slotStyle, standInFor } from './helpers/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.component';
-import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
+import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
 import { ConnectorRouteCache, computeConnectors, segmentDrag } from './helpers/connectors.helper';
 import { LAYOUT_Z_OFFSET, frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
 import { DEFAULT_FRAME_PRESET, framePreset } from './shared/constants/frame-presets';
@@ -190,7 +191,7 @@ import { formatCode } from './helpers/code-format.helper';
 import { elbowPath } from './helpers/svg-path.helper';
 import { findLinkSnap, type LinkSnap } from './features/canvas/helpers/link-snap.helper';
 import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './features/canvas/helpers/smart-guides.helper';
-import type { Box, Point, Side } from './models/geometry.model';
+import type { Box, Point, Rect, Side } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
 import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
 import { RelationshipInspectorComponent } from './features/erd/components/relationship-inspector/relationship-inspector.component';
@@ -271,13 +272,6 @@ interface GroupResize {
 interface RelinkState {
    relationshipId: string;
    which: 'source' | 'target';
-}
-
-interface Rect {
-   minX: number;
-   minY: number;
-   maxX: number;
-   maxY: number;
 }
 
 /** Element kinds that can contain other items (a lone selection aligns to these). */
@@ -364,11 +358,12 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       SlidesPanelComponent,
       PresentModeComponent,
    ],
-   providers: [EditorShortcutsService, EditorExportService, MediaDropService, ClipboardService],
+   providers: [EditorShortcutsService, EditorExportService, MediaDropService, ClipboardService, EditorViewportService],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly viewport = inject(EditorViewportService);
    protected readonly clipboard = inject(ClipboardService);
    protected readonly mediaDrop = inject(MediaDropService);
    protected readonly exporter = inject(EditorExportService);
@@ -456,7 +451,7 @@ export class EditorComponent {
     * and items are drawn in a layer of their own, scaled about the frame's centre and
     * clipped to the block, so the staging room around the frame shows.
     */
-   protected readonly slideViews = computed<SlideView[]>(() => {
+   readonly slideViews = computed<SlideView[]>(() => {
       // Every shown slide is drawn through its block, also at scale 1: the block is a
       // window onto the slide, so items staged outside the frame only show zoomed out.
       const zoom = this.store.slideZoom();
@@ -548,7 +543,7 @@ export class EditorComponent {
    }
 
    /** An item's box as drawn on the canvas (through its slide's zoom, if any). */
-   private drawnBox(id: string, box: Box): Box {
+   drawnBox(id: string, box: Box): Box {
       const view = this.viewOf(id);
       return view ? boxToOuter(view, box) : box;
    }
@@ -631,7 +626,7 @@ export class EditorComponent {
          hiddenDiagramIds: new Set(
             diagrams.filter((d) => z.diagrams.get(d.id) !== v || hidden?.has(d.id)).map((d) => d.id)
          ) as ReadonlySet<string>,
-         toWorld: (clientX: number, clientY: number) => toInner(v, this.toWorldRaw(clientX, clientY)),
+         toWorld: (clientX: number, clientY: number) => toInner(v, this.viewport.toWorldRaw(clientX, clientY)),
       }));
    });
 
@@ -794,7 +789,7 @@ export class EditorComponent {
    /** Embedded use: the tool to have active once the project loads (e.g. the guide's current tool). */
    readonly initialTool = input<EditorTool | null>(null);
    private toolAppliedFor: string | null = null;
-   private readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
+   readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
 
    /** Other participants' cursors projected to screen coordinates for rendering. */
    protected readonly remoteCursors = computed(() => {
@@ -902,11 +897,6 @@ export class EditorComponent {
       const id = this.mediaActions.croppingId();
       return id ? (this.store.elements().find((e) => e.id === id && e.type === 'image') ?? null) : null;
    });
-   protected readonly worldTransform = computed(() => {
-      const v = this.store.viewport();
-      return `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
-   });
-   protected readonly zoomLabel = computed(() => `${Math.round(this.store.viewport().zoom * 100)}%`);
    protected readonly saveLabel = computed(() => {
       switch (this.store.saveStatus()) {
          case 'saving':
@@ -1089,7 +1079,7 @@ export class EditorComponent {
       }
       const v = this.store.viewport();
       const below = y1 * v.zoom + v.y + 14;
-      const maxTop = (this.canvasSize().height || window.innerHeight) - 110;
+      const maxTop = (this.viewport.canvasSize().height || window.innerHeight) - 110;
       return {
          left: ((x0 + x1) / 2) * v.zoom + v.x,
          top: Math.min(below, maxTop),
@@ -2120,6 +2110,7 @@ export class EditorComponent {
    private lastCursorSent = 0;
 
    constructor() {
+      this.viewport.connect(this);
       this.clipboard.connect(this);
       this.mediaDrop.connect(this);
       this.exporter.connect(this);
@@ -2291,7 +2282,7 @@ export class EditorComponent {
          if (!this.minimapItems().length) return;
          this.fittedProjectId = id;
          setTimeout(() => {
-            if (!this.destroyRef.destroyed && this.store.projectId() === id) this.fitContent();
+            if (!this.destroyRef.destroyed && this.store.projectId() === id) this.viewport.fitContent();
          });
       });
       // Opening (or refreshing) a project starts at its home view, or origin/100%.
@@ -2323,7 +2314,7 @@ export class EditorComponent {
       // Track the canvas size for the minimap's viewport rectangle.
       effect((onCleanup) => {
          const el = this.canvasRef().nativeElement;
-         const update = (): void => this.canvasSize.set({ width: el.clientWidth, height: el.clientHeight });
+         const update = (): void => this.viewport.canvasSize.set({ width: el.clientWidth, height: el.clientHeight });
          update();
          const ro = new ResizeObserver(update);
          ro.observe(el);
@@ -2359,8 +2350,8 @@ export class EditorComponent {
          followPresenter: (id) => void this.followPresenter(id),
          newDeck: () => this.onToolChange('slide'),
          setTool: (tool) => this.onToolChange(tool as EditorTool),
-         resetView: () => this.resetView(),
-         setHome: () => this.setHome(),
+         resetView: () => this.viewport.resetView(),
+         setHome: () => this.viewport.setHome(),
          canvasItems: () => this.paletteItems(),
          jumpTo: (item) => this.jumpToItem(item),
       });
@@ -2377,7 +2368,7 @@ export class EditorComponent {
          if (!c) return;
          untracked(() => {
             const v = this.store.viewport();
-            const { width, height } = this.canvasSize();
+            const { width, height } = this.viewport.canvasSize();
             const sx = c.x * v.zoom + v.x;
             const sy = c.y * v.zoom + v.y;
             if (sx < width * 0.2 || sx > width * 0.8 || sy < height * 0.2 || sy > height * 0.8) {
@@ -2399,7 +2390,7 @@ export class EditorComponent {
          if (!this.focusedDeck()) return;
          this.focusScreen();
          const f = this.focusShown();
-         this.canvasSize();
+         this.viewport.canvasSize();
          if (!f) return;
          void [f.x, f.y, f.width, f.height];
          untracked(() => this.fitFocus(true));
@@ -2474,43 +2465,12 @@ export class EditorComponent {
          return;
       }
       this.lastCursorSent = now;
-      const world = this.toWorld(event.clientX, event.clientY);
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
       this.realtime.sendCursor(world.x, world.y);
    }
 
-   canvasRect(): DOMRect {
-      return this.canvasRef().nativeElement.getBoundingClientRect();
-   }
-
-   /**
-    * Screen -> world. Over a zoomed-out slide this is the slide's own coordinates (what
-    * is drawn under the pointer there), so drawing, dropping and picking work inside it.
-    */
-   toWorld(clientX: number, clientY: number): { x: number; y: number } {
-      const p = this.toWorldRaw(clientX, clientY);
-      const view = this.slideViews().find((v) => inBlock(v, p));
-      this.store.setPointerSlide(view?.frameId ?? null);
-      return view ? toInner(view, p) : p;
-   }
-
-   /** Screen -> canvas world, ignoring slide zoom. */
-   private toWorldRaw(clientX: number, clientY: number): { x: number; y: number } {
-      const rect = this.canvasRect();
-      const v = this.store.viewport();
-      return { x: (clientX - rect.left - v.x) / v.zoom, y: (clientY - rect.top - v.y) / v.zoom };
-   }
-
-   /** Public screen→world mapping for the sequence layer's drag-connect. */
-   protected readonly toWorldPoint = (clientX: number, clientY: number): { x: number; y: number } =>
-      this.toWorld(clientX, clientY);
-
    /** Snap a world coordinate to the grid when grid-snap is enabled, else pass through. */
    protected readonly snapWorld = (n: number): number => (this.gridSnap() ? snapToGrid(n) : n);
-
-   private screenPoint(clientX: number, clientY: number): { x: number; y: number } {
-      const rect = this.canvasRect();
-      return { x: clientX - rect.left, y: clientY - rect.top };
-   }
 
    private static additive(event: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): boolean {
       return event.ctrlKey || event.metaKey || event.shiftKey;
@@ -2555,7 +2515,7 @@ export class EditorComponent {
          }
          if (tool === 'slide') {
             // A click adds a slide: the first where you click, later ones stacked on the shown one.
-            void this.addSlide(this.toWorld(event.clientX, event.clientY));
+            void this.addSlide(this.viewport.toWorld(event.clientX, event.clientY));
             this.afterPlace();
             return;
          }
@@ -2569,7 +2529,7 @@ export class EditorComponent {
       // Grabbing a master or layout item drawn under a shown slide or layout gives that frame its own
       // copy, selected and (while the button is held) dragged like any item.
       if (tool === 'select' && this.store.canEdit() && !EditorComponent.additive(event)) {
-         const inherited = this.inheritedMasterItemAt(this.toWorld(event.clientX, event.clientY));
+         const inherited = this.inheritedMasterItemAt(this.viewport.toWorld(event.clientX, event.clientY));
          if (inherited) {
             event.preventDefault();
             void this.grabInherited(inherited.item, inherited.frame, event);
@@ -2580,7 +2540,7 @@ export class EditorComponent {
       if (!this.marqueeAdditive) {
          this.store.clearSelection();
       }
-      const p = this.screenPoint(event.clientX, event.clientY);
+      const p = this.viewport.screenPoint(event.clientX, event.clientY);
       this.marqueeStart.set(p);
       this.marqueeCurrent.set(p);
       this.mode = 'marquee';
@@ -2618,14 +2578,14 @@ export class EditorComponent {
       if (this.laserPointerId !== event.pointerId) {
          return;
       }
-      const world = this.toWorld(event.clientX, event.clientY);
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
       this.laserPointerId = null;
       this.laser.release(LOCAL_LASER);
       this.realtime.sendLaser(world.x, world.y, true);
    }
 
    private addLaserSample(event: PointerEvent, force: boolean): void {
-      const world = this.toWorld(event.clientX, event.clientY);
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
       this.laser.add(LOCAL_LASER, world.x, world.y);
       const now = Date.now();
       if (!force && now - this.lastLaserSent < 33) {
@@ -2660,7 +2620,7 @@ export class EditorComponent {
 
    /** Add an ERD table centered near the given screen point. */
    private addTableAt(clientX: number, clientY: number): void {
-      const world = this.toWorld(clientX, clientY);
+      const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x - NODE_WIDTH / 2);
       let y = Math.round(world.y - 12);
       if (this.gridSnap()) {
@@ -2672,7 +2632,7 @@ export class EditorComponent {
 
    /** Drop a starter sequence diagram (header origin + two participants) at the pointer. */
    private addSequenceAt(clientX: number, clientY: number): void {
-      const world = this.toWorld(clientX, clientY);
+      const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x);
       let y = Math.round(world.y);
       if (this.gridSnap()) {
@@ -2699,7 +2659,7 @@ export class EditorComponent {
     * Erased points become NaN gaps locally; pointer-up splits the stroke into pieces.
     */
    private eraseAt(clientX: number, clientY: number): void {
-      const raw = this.toWorldRaw(clientX, clientY);
+      const raw = this.viewport.toWorldRaw(clientX, clientY);
       const view = this.slideViews().find((v) => inBlock(v, raw));
       const p = view ? toInner(view, raw) : raw;
       const from = this.lastErasePoint ?? p;
@@ -2793,7 +2753,7 @@ export class EditorComponent {
       tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence' | 'laser' | 'slide'>,
       event: PointerEvent
    ): void {
-      const world = this.toWorld(event.clientX, event.clientY);
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
       const x = this.gridSnap() ? snapToGrid(world.x) : world.x;
       const y = this.gridSnap() ? snapToGrid(world.y) : world.y;
       const type = tool as ElementType;
@@ -2893,7 +2853,7 @@ export class EditorComponent {
       };
       this.draft.set(draft);
       // Started inside a zoomed-out slide: the whole stroke is drawn in its coordinates.
-      const raw = this.toWorldRaw(event.clientX, event.clientY);
+      const raw = this.viewport.toWorldRaw(event.clientX, event.clientY);
       this.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
       this.drawAnchor = { x, y };
       this.lastDrawPointer = { x: event.clientX, y: event.clientY };
@@ -2917,7 +2877,7 @@ export class EditorComponent {
       this.lastDrawPointer = { x: clientX, y: clientY };
       // Stay in the space the stroke started in, even when the pointer crosses a block edge.
       const view = this.slideViews().find((v) => v.frameId === this.drawSlideId());
-      const raw = this.toWorldRaw(clientX, clientY);
+      const raw = this.viewport.toWorldRaw(clientX, clientY);
       const world = view ? toInner(view, raw) : raw;
       const snap = this.gridSnap();
       if (draft.type === 'freedraw') {
@@ -3155,7 +3115,7 @@ export class EditorComponent {
       if (!unfilled(clicked)) {
          return clicked;
       }
-      const world = this.toWorld(event.clientX, event.clientY);
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
       const hits = this.shownElements()
          .filter((e) => e.type !== 'frame' && hitTestElement(e, world))
          .reverse();
@@ -3197,7 +3157,7 @@ export class EditorComponent {
          !ev.metaKey &&
          !this.store.groupIdOf(el.id)
       ) {
-         const cell = gridCellAt(el, this.toWorld(ev.clientX, ev.clientY));
+         const cell = gridCellAt(el, this.viewport.toWorld(ev.clientX, ev.clientY));
          if (cell) {
             this.grids.selectCell({ id: el.id, ...cell }, ev.shiftKey);
             this.beginCellDragSelect(el.id);
@@ -3237,7 +3197,7 @@ export class EditorComponent {
    private beginCellDragSelect(id: string): void {
       const move = (e: PointerEvent): void => {
          const el = this.store.elements().find((x) => x.id === id);
-         const cell = el ? gridCellAt(el, this.toWorld(e.clientX, e.clientY)) : null;
+         const cell = el ? gridCellAt(el, this.viewport.toWorld(e.clientX, e.clientY)) : null;
          if (cell) {
             this.grids.selectCell({ id, ...cell }, true);
          }
@@ -3860,7 +3820,7 @@ export class EditorComponent {
       if (!n) {
          return;
       }
-      const world = this.toWorld(clientX, clientY);
+      const world = this.viewport.toWorld(clientX, clientY);
       const mid = { x: (ends.start.x + ends.end.x) / 2, y: (ends.start.y + ends.end.y) / 2 };
       let curvature = (world.x - mid.x) * n.x + (world.y - mid.y) * n.y;
       // Snap back to a straight line when the handle is dragged close to the chord.
@@ -4171,7 +4131,7 @@ export class EditorComponent {
       }
       const cx = g.start.x + g.start.width / 2;
       const cy = g.start.y + g.start.height / 2;
-      const world = this.toWorld(ev.clientX, ev.clientY);
+      const world = this.viewport.toWorld(ev.clientX, ev.clientY);
       // Handle sits above the top edge, so offset by +90deg to make "up" = 0.
       let angle = Math.atan2(world.y - cy, world.x - cx) + Math.PI / 2;
       if (ev.shiftKey) {
@@ -4191,7 +4151,7 @@ export class EditorComponent {
       if (!el) {
          return;
       }
-      let world = this.toWorld(clientX, clientY);
+      let world = this.viewport.toWorld(clientX, clientY);
       const target = this.bindingTargetAt(world, g.id);
       this.bindHighlight.set(target?.box ?? null);
       const binding = target?.binding ?? null;
@@ -5484,7 +5444,7 @@ export class EditorComponent {
       }
       this.linkSourceColumnId.set(null);
       this.relinkState.set({ relationshipId: payload.relationshipId, which: payload.which });
-      this.linkCursor.set(this.toWorld(payload.event.clientX, payload.event.clientY));
+      this.linkCursor.set(this.viewport.toWorld(payload.event.clientX, payload.event.clientY));
    }
 
    protected onHandleUp(payload: HandleEvent): void {
@@ -5625,7 +5585,7 @@ export class EditorComponent {
       // Connector routing never snaps to the grid, even in snap mode: column
       // anchors sit at row centers (off grid), so grid-snapped waypoints would not
       // line up with them and the line would jump around as tables move.
-      const cursor = this.toWorld(clientX, clientY);
+      const cursor = this.viewport.toWorld(clientX, clientY);
       const waypoints = segmentDrag(active.a, active.b, active.route, active.segIndex, cursor);
       this.store.setWaypoints(active.relationshipId, waypoints);
    }
@@ -5660,7 +5620,7 @@ export class EditorComponent {
       }
       this.broadcastCursor(event);
       if (this.linkSourceColumnId() || this.relinkState()) {
-         this.linkCursor.set(this.toWorld(event.clientX, event.clientY));
+         this.linkCursor.set(this.viewport.toWorld(event.clientX, event.clientY));
          return;
       }
       if (this.activeSegment()) {
@@ -5765,7 +5725,7 @@ export class EditorComponent {
          // Tables, their routes and the items riding along: one state write per frame.
          this.store.moveItemsLocal({ tables, waypoints, ...this.nodeExtrasMoves(mx, my) });
       } else if (this.mode === 'marquee') {
-         this.marqueeCurrent.set(this.screenPoint(event.clientX, event.clientY));
+         this.marqueeCurrent.set(this.viewport.screenPoint(event.clientX, event.clientY));
       }
    }
 
@@ -6015,7 +5975,7 @@ export class EditorComponent {
    }
 
    /** A sequence diagram's bounding box as drawn (header, spines and padding). */
-   private diagramBox(d: SequenceDiagramModel): Rect | null {
+   diagramBox(d: SequenceDiagramModel): Rect | null {
       const pad = 26;
       const lls = this.store.lifelines().filter((l) => l.diagramId === d.id);
       if (!lls.length) return null;
@@ -6137,7 +6097,7 @@ export class EditorComponent {
          const t = this.store.tables().find((x) => x.id === item.id);
          if (!t) return;
          this.store.setSelection([t.id], [], []);
-         this.panToWorld({ x: t.x + 120, y: t.y + 60 });
+         this.viewport.panToWorld({ x: t.x + 120, y: t.y + 60 });
       } else if (item.kind === 'sequence') {
          const d = this.store.sequenceDiagrams().find((x) => x.id === item.id);
          if (!d) return;
@@ -6147,13 +6107,13 @@ export class EditorComponent {
             .map((l) => l.x);
          this.store.setSelection([], [], [], [], [], [d.id]);
          if (xs.length) {
-            this.panToWorld({ x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d.originY + 160 });
+            this.viewport.panToWorld({ x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d.originY + 160 });
          }
       } else {
          const e = this.store.elements().find((x) => x.id === item.id);
          if (!e) return;
          this.store.setSelection([], [], [e.id]);
-         this.panToWorld({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+         this.viewport.panToWorld({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
       }
    }
 
@@ -6239,9 +6199,9 @@ export class EditorComponent {
    protected jumpToParticipant(id: string): void {
       const c = this.realtime.remoteCursors().find((x) => x.participantId === id);
       if (!c) return;
-      const rect = this.canvasRect();
+      const rect = this.viewport.canvasRect();
       const v = this.store.viewport();
-      this.animateViewport(rect.width / 2 - c.x * v.zoom, rect.height / 2 - c.y * v.zoom, v.zoom);
+      this.viewport.animateViewport(rect.width / 2 - c.x * v.zoom, rect.height / 2 - c.y * v.zoom, v.zoom);
    }
 
    // ---- Deck focus mode ----------------------------------------------------
@@ -6255,7 +6215,7 @@ export class EditorComponent {
 
    /** Screen-space frame of each focus screen's docks (left dock clears the tool dock). */
    private focusArea(): { left: number; right: number; top: number; bottom: number } {
-      const rect = this.canvasRect();
+      const rect = this.viewport.canvasRect();
       const screen = this.focusScreen();
       const leftDock = screen === 'main' || screen === 'design' ? 76 + 196 + 32 : 84;
       const rightW = screen === 'anim' ? 360 : 344;
@@ -6305,7 +6265,7 @@ export class EditorComponent {
       // The hole is the slide itself: nothing else on the canvas shows in focus mode.
       const st = this.focusStage();
       const h = st ? { left: st.left + 40, top: st.top + 40, width: st.width - 80, height: st.height - 80 } : null;
-      const { width, height } = this.canvasSize();
+      const { width, height } = this.viewport.canvasSize();
       if (!h) return 'none';
       const W = Math.max(width, 1) + 4000;
       const H = Math.max(height, 1) + 4000;
@@ -6358,7 +6318,7 @@ export class EditorComponent {
       this.focusScreen.set('main');
       const v = this.viewBeforeFocus;
       this.viewBeforeFocus = null;
-      if (v) this.animateViewport(v.x, v.y, v.zoom);
+      if (v) this.viewport.animateViewport(v.x, v.y, v.zoom);
    }
 
    /** Fit the focused slide (plus staging room) into the space between the docks. */
@@ -6372,7 +6332,7 @@ export class EditorComponent {
       const zoom = Math.max(0.05, Math.min((availW - pad * 2) / f.width, (availH - pad * 2) / f.height, 2));
       const x = a.left + (availW - f.width * zoom) / 2 - f.x * zoom;
       const y = a.top + (availH - f.height * zoom) / 2 - f.y * zoom;
-      if (animate) this.animateViewport(x, y, zoom);
+      if (animate) this.viewport.animateViewport(x, y, zoom);
       else this.store.setViewport(x, y, zoom);
    }
 
@@ -6498,7 +6458,7 @@ export class EditorComponent {
       const id = this.store.shownByPresentation().get(name);
       const f = this.store.slideFrames().find((x) => x.id === id);
       if (f) {
-         this.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
+         this.viewport.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
       }
    }
 
@@ -7026,7 +6986,7 @@ export class EditorComponent {
          const reveal = (): void => {
             const f = this.store.elements().find((e) => e.id === frameId);
             if (f) {
-               this.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
+               this.viewport.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
             }
          };
          if (document.fullscreenElement) {
@@ -7162,8 +7122,8 @@ export class EditorComponent {
          x = shown.x;
          y = shown.y;
       } else {
-         const rect = this.canvasRect();
-         const c = at ?? this.toWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+         const rect = this.viewport.canvasRect();
+         const c = at ?? this.viewport.toWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
          x = Math.round(c.x - preset.width / 2);
          y = Math.round(c.y - preset.height / 2);
       }
@@ -7523,7 +7483,7 @@ export class EditorComponent {
          }
          return;
       }
-      const world = this.toWorld(clientX, clientY);
+      const world = this.viewport.toWorld(clientX, clientY);
       const hits = this.shownElements()
          .reverse()
          .filter((e) => hitTestElement(e, world));
@@ -7740,40 +7700,8 @@ export class EditorComponent {
       void this.commitDraft(true);
    }
 
-   protected onWheel(event: WheelEvent): void {
-      event.preventDefault();
-      // Focus mode locks the view to the presentation (leave it to move around).
-      if (this.focusedDeck() && !event.ctrlKey) return;
-      const rect = this.canvasRect();
-      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-      // Ctrl + scroll over a shown slide zooms that slide inside its block (the block keeps
-      // its size), revealing the staging room around the frame. View state only.
-      if (event.ctrlKey && !this.presentation()) {
-         const p = this.toWorldRaw(event.clientX, event.clientY);
-         const shown = this.store.shownByPresentation();
-         const frame = this.store
-            .slideFrames()
-            .find(
-               (f) =>
-                  shown.get(presentationOf(f)) === f.id &&
-                  p.x >= f.x &&
-                  p.x <= f.x + f.width &&
-                  p.y >= f.y &&
-                  p.y <= f.y + f.height
-            );
-         if (frame) {
-            const name = presentationOf(frame);
-            // Pinch / precision touchpads send small deltas: follow them smoothly.
-            const step = Math.exp(-Math.max(-50, Math.min(50, event.deltaY)) * 0.004);
-            this.store.setSlideZoom(name, (this.store.slideZoom()[name] ?? 1) * step);
-            return;
-         }
-      }
-      this.applyZoom(factor, event.clientX - rect.left, event.clientY - rect.top);
-   }
-
    protected addTableCentered(): void {
-      const rect = this.canvasRect();
+      const rect = this.viewport.canvasRect();
       const v = this.store.viewport();
       let x = Math.round((rect.width / 2 - v.x) / v.zoom - NODE_WIDTH / 2);
       let y = Math.round((rect.height / 2 - v.y) / v.zoom - 40);
@@ -7784,75 +7712,8 @@ export class EditorComponent {
       void this.store.addTable(x, y);
    }
 
-   protected zoomIn(): void {
-      const rect = this.canvasRect();
-      this.applyZoom(1.2, rect.width / 2, rect.height / 2);
-   }
-
-   protected zoomOut(): void {
-      const rect = this.canvasRect();
-      this.applyZoom(1 / 1.2, rect.width / 2, rect.height / 2);
-   }
-
-   /** Animate back to the project's saved home view, or the default (origin, 100%). */
-   resetView(): void {
-      if (this.focusedDeck()) return;
-      const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
-      this.animateViewport(home.x, home.y, home.zoom);
-   }
-
-   protected setHome(): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      const v = this.store.viewport();
-      void this.store.setHome({ x: v.x, y: v.y, zoom: v.zoom });
-   }
-
-   protected clearHome(): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      void this.store.setHome(null);
-   }
-
-   /** Pan (keeping zoom) so the given world point is at the center of the canvas. */
-   protected panToWorld(world: { x: number; y: number }): void {
-      const rect = this.canvasRect();
-      const v = this.store.viewport();
-      this.store.setViewport(rect.width / 2 - world.x * v.zoom, rect.height / 2 - world.y * v.zoom, v.zoom);
-   }
-
-   private viewAnim = 0;
-
-   /** Canvas pixel size, tracked so the minimap can show the visible world rectangle. */
-   private readonly canvasSize = signal({ width: 0, height: 0 });
-
-   private animateViewport(x: number, y: number, zoom: number): void {
-      cancelAnimationFrame(this.viewAnim);
-      const from = this.store.viewport();
-      const projectId = this.store.projectId();
-      const start = performance.now();
-      const duration = 250;
-      const step = (now: number): void => {
-         // The store is app-wide: never write this view into another project or after teardown.
-         if (this.destroyRef.destroyed || this.store.projectId() !== projectId) return;
-         const t = Math.min(1, (now - start) / duration);
-         const e = 1 - Math.pow(1 - t, 3);
-         this.store.setViewport(
-            from.x + (x - from.x) * e,
-            from.y + (y - from.y) * e,
-            from.zoom + (zoom - from.zoom) * e
-         );
-         if (t < 1) {
-            this.viewAnim = requestAnimationFrame(step);
-         }
-      };
-      this.viewAnim = requestAnimationFrame(step);
-   }
-
    /** Simplified world-space footprint of every element, for the minimap. */
-   protected readonly minimapItems = computed<MinimapItem[]>(() => {
+   readonly minimapItems = computed<MinimapItem[]>(() => {
       const items: MinimapItem[] = [];
       // Items of a shown slide are placed as drawn (through its zoom); the ones the block
       // does not show (staged outside its view) are left out, as on the canvas.
@@ -7906,7 +7767,7 @@ export class EditorComponent {
    /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
    protected readonly minimapView = computed(() => {
       const v = this.store.viewport();
-      const rect = this.canvasSize();
+      const rect = this.viewport.canvasSize();
       return {
          x0: -v.x / v.zoom,
          y0: -v.y / v.zoom,
@@ -7948,95 +7809,6 @@ export class EditorComponent {
             }
          }
       });
-   }
-
-   /** Animate the view so a world box fills the canvas (with a margin), capped at 200%. */
-   private zoomToBox(b: Box | null): void {
-      if (this.focusedDeck()) return;
-      if (!b || !Number.isFinite(b.x0)) return;
-      const rect = this.canvasRect();
-      const margin = 80;
-      const w = Math.max(b.x1 - b.x0, 1);
-      const h = Math.max(b.y1 - b.y0, 1);
-      const zoom = Math.max(0.05, Math.min((rect.width - margin * 2) / w, (rect.height - margin * 2) / h, 2));
-      this.animateViewport(
-         rect.width / 2 - ((b.x0 + b.x1) / 2) * zoom,
-         rect.height / 2 - ((b.y0 + b.y1) / 2) * zoom,
-         zoom
-      );
-   }
-
-   /** Zoom so everything on the canvas is in view (Shift+1). */
-   zoomToFit(): void {
-      let x0 = Infinity,
-         y0 = Infinity,
-         x1 = -Infinity,
-         y1 = -Infinity;
-      for (const it of this.minimapItems()) {
-         x0 = Math.min(x0, it.x0);
-         y0 = Math.min(y0, it.y0);
-         x1 = Math.max(x1, it.x1);
-         y1 = Math.max(y1, it.y1);
-      }
-      this.zoomToBox(Number.isFinite(x0) ? { x0, y0, x1, y1 } : null);
-   }
-
-   /** Center all content without animating, at most 100%, leaving room for the left tool dock. */
-   private fitContent(): void {
-      let x0 = Infinity,
-         y0 = Infinity,
-         x1 = -Infinity,
-         y1 = -Infinity;
-      for (const it of this.minimapItems()) {
-         x0 = Math.min(x0, it.x0);
-         y0 = Math.min(y0, it.y0);
-         x1 = Math.max(x1, it.x1);
-         y1 = Math.max(y1, it.y1);
-      }
-      if (!Number.isFinite(x0)) return;
-      // Decks draw their slide list and settings panels beside the slide: leave room for them.
-      if (this.store.elements().some((e) => e.type === 'frame' && e.slide)) {
-         x0 -= 300;
-         x1 += 300;
-      }
-      const rect = this.canvasRect();
-      const dock = 72;
-      const margin = 48;
-      const availW = rect.width - dock - margin * 2;
-      const availH = rect.height - margin * 2 - 56; // bottom view bar
-      const zoom = Math.max(0.1, Math.min(availW / Math.max(x1 - x0, 1), availH / Math.max(y1 - y0, 1), 1));
-      this.animateViewport(
-         dock + margin + availW / 2 - ((x0 + x1) / 2) * zoom,
-         margin + availH / 2 - ((y0 + y1) / 2) * zoom,
-         zoom
-      );
-   }
-
-   /** Zoom so the selection fills the view (Shift+2). */
-   zoomToSelection(): void {
-      const selected = new Set([
-         ...this.store.selectedTableIds(),
-         ...this.store.selectedElementIds(),
-         ...this.store.selectedDiagramIds(),
-      ]);
-      if (!selected.size) return;
-      let x0 = Infinity,
-         y0 = Infinity,
-         x1 = -Infinity,
-         y1 = -Infinity;
-      const grow = (b: Box): void => {
-         x0 = Math.min(x0, b.x0);
-         y0 = Math.min(y0, b.y0);
-         x1 = Math.max(x1, b.x1);
-         y1 = Math.max(y1, b.y1);
-      };
-      for (const t of this.store.tables()) if (selected.has(t.id)) grow(tableBox(t));
-      for (const e of this.store.elements()) if (selected.has(e.id)) grow(this.drawnBox(e.id, elementBox(e)));
-      for (const d of this.store.sequenceDiagrams()) {
-         const b = selected.has(d.id) ? this.diagramBox(d) : null;
-         if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
-      }
-      this.zoomToBox(Number.isFinite(x0) ? { x0, y0, x1, y1 } : null);
    }
 
    /** Smart-guide hooks handed to sequence diagrams, which run their own drags. */
@@ -8176,7 +7948,7 @@ export class EditorComponent {
 
    /** Merge a project file into this project, landing in the visible part of the canvas (or at `at`). */
    async importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number> {
-      const rect = this.canvasRect();
+      const rect = this.viewport.canvasRect();
       const v = this.store.viewport();
       // Top-left of the content goes a little in from the canvas's top-left corner.
       const anchor = at ?? {
@@ -8197,7 +7969,7 @@ export class EditorComponent {
             .sort((a, b) => (a.slide?.order ?? 0) - (b.slide?.order ?? 0))[0];
          if (added) {
             this.focusFrame(added.id);
-            this.panToWorld({ x: added.x + added.width / 2, y: added.y + added.height / 2 });
+            this.viewport.panToWorld({ x: added.x + added.width / 2, y: added.y + added.height / 2 });
          }
          return count;
       } finally {
@@ -8206,15 +7978,6 @@ export class EditorComponent {
             this.store.slideFrames().map((f) => [f.id, { x: f.x, y: f.y, w: f.width, h: f.height }])
          );
       }
-   }
-
-   private applyZoom(factor: number, centerX: number, centerY: number): void {
-      if (this.focusedDeck()) return;
-      const v = this.store.viewport();
-      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor));
-      const worldX = (centerX - v.x) / v.zoom;
-      const worldY = (centerY - v.y) / v.zoom;
-      this.store.setViewport(centerX - worldX * newZoom, centerY - worldY * newZoom, newZoom);
    }
 
    // --- relationship inline toolbar ---

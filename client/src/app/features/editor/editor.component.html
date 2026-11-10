@@ -6,11 +6,11 @@
       [style.cursor]="canvasCursor()"
       (pointerdown)="onCanvasPointerDown($event)"
       (dblclick)="onCanvasDblClick($event)"
-      (wheel)="onWheel($event)"
+      (wheel)="viewport.onWheel($event)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
    >
-      <div class="world" [style.transform]="worldTransform()">
+      <div class="world" [style.transform]="viewport.worldTransform()">
          @if (croppingElement(); as ce) {
             <dd-image-crop-overlay [element]="ce"></dd-image-crop-overlay>
          }
@@ -182,7 +182,7 @@
          <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
          <dd-canvas-sequence
             [diagrams]="store.sequenceDiagrams()"
-            [toWorld]="toWorldPoint"
+            [toWorld]="viewport.toWorldPoint"
             [snap]="snapWorld"
             [smartDrag]="smartDrag"
             [smartDragEnd]="smartDragEnd"
@@ -261,7 +261,7 @@
             (wheel)="$event.stopPropagation()"
             [items]="minimapItems()"
             [view]="minimapView()"
-            (panTo)="panToWorld($event)"
+            (panTo)="viewport.panToWorld($event)"
          ></dd-minimap>
       }
 
@@ -269,7 +269,7 @@
          (pointerdown)="$event.stopPropagation()"
          [tool]="activeTool()"
          [disabled]="!store.canEdit() || !store.projectId()"
-         [zoomLabel]="zoomLabel()"
+         [zoomLabel]="viewport.zoomLabel()"
          [saveLabel]="saveLabel()"
          [gridSnap]="gridSnap()"
          [smartGuides]="smartGuides()"
@@ -288,13 +288,13 @@
          (addImage)="mediaDrop.pickImages()"
          (undo)="store.undoElement()"
          (redo)="store.redoElement()"
-         (zoomIn)="zoomIn()"
-         (zoomOut)="zoomOut()"
-         (resetView)="resetView()"
-         (zoomFit)="zoomToFit()"
-         (zoomSelection)="zoomToSelection()"
-         (setHome)="setHome()"
-         (clearHome)="clearHome()"
+         (zoomIn)="viewport.zoomIn()"
+         (zoomOut)="viewport.zoomOut()"
+         (resetView)="viewport.resetView()"
+         (zoomFit)="viewport.zoomToFit()"
+         (zoomSelection)="viewport.zoomToSelection()"
+         (setHome)="viewport.setHome()"
+         (clearHome)="viewport.clearHome()"
          (toggleGrid)="toggleGrid()"
          (toggleSmartGuides)="toggleSmartGuides()"
          (align)="onAlign($event)"

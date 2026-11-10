@@ -8,6 +8,7 @@ import { CodeActionsService } from './code-actions.service';
 import { GridTableService } from './grid-table.service';
 import { deleteStandIn, detachFromLayout } from '../helpers/layout-placeholders';
 import { frameContents } from '../helpers/frame-contents.helper';
+import { EditorViewportService } from './editor-viewport.service';
 import type { EditorTool } from '../models/editor-tool.model';
 
 /** What the shortcuts reach in the rest of the editor; the editor entry wires it with `connect`. */
@@ -30,9 +31,6 @@ export interface ShortcutsHost {
    exitDeckFocus(): void;
    closeFocusDesign(name: string): void;
    leaveFocusScreen(): void;
-   zoomToFit(): void;
-   zoomToSelection(): void;
-   resetView(): void;
    copySelection(): void;
    duplicateAndDrag(): Promise<void>;
    handlePointerMove(event: PointerEvent): void;
@@ -51,6 +49,7 @@ export class EditorShortcutsService {
    private readonly codeActions = inject(CodeActionsService);
    private readonly grids = inject(GridTableService);
    private readonly penPrefs = inject(PenPrefsService);
+   private readonly viewport = inject(EditorViewportService);
    private host!: ShortcutsHost;
 
    connect(host: ShortcutsHost): void {
@@ -111,12 +110,12 @@ export class EditorShortcutsService {
       }
       if (event.shiftKey && !event.ctrlKey && !event.metaKey && (event.code === 'Digit1' || event.code === 'Digit2')) {
          event.preventDefault();
-         if (event.code === 'Digit1') this.host.zoomToFit();
-         else this.host.zoomToSelection();
+         if (event.code === 'Digit1') this.viewport.zoomToFit();
+         else this.viewport.zoomToSelection();
          return;
       }
       if (event.key === 'Home') {
-         this.host.resetView();
+         this.viewport.resetView();
          event.preventDefault();
          return;
       }
