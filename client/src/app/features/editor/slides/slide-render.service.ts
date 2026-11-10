@@ -142,10 +142,8 @@ export class SlideRenderService {
       const allElements = this.store.elements();
       const allTables = this.store.tables();
       const relationships = this.store.relationships();
-      const imageData = await this.imageData(allElements);
-      const out: RenderedSlide[] = [];
-      for (const [index, frame] of frames.entries()) {
-         const mine = contentForFrame(
+      const contents = frames.map((frame) =>
+         contentForFrame(
             frame.id,
             !!frame.slide,
             allElements,
@@ -155,7 +153,14 @@ export class SlideRenderService {
             this.store.sequenceMessages(),
             layoutOf(frame, this.store.slideFrames())?.id,
             masterOf(frame, this.store.slideFrames())?.id
-         );
+         )
+      );
+      // Only the pictures on the frames being rendered (shared by all of them, so a morph
+      // between two of them can draw either side's images).
+      const imageData = await this.imageData(contents.flatMap((c) => c.elements));
+      const out: RenderedSlide[] = [];
+      for (const [index, frame] of frames.entries()) {
+         const mine = contents[index];
          const themed = resolveThemedElements(
             options.ghosts ? [...mine.elements, ...placeholderGhosts(frame.id, allElements).ghosts] : mine.elements,
             allElements

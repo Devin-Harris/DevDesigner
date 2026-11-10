@@ -40,6 +40,11 @@ export class ElementImagesService {
    /** fileId -> object URL of the first frame (GIFs and videos), once made. */
    private readonly posters = signal<ReadonlyMap<string, string>>(new Map());
    private readonly posterBlobs = new Map<string, Promise<Blob | null>>();
+   /**
+    * fileId -> `data:` URI of its still picture. Files never change under an id, so each is
+    * base64-encoded once, not on every thumbnail or export render.
+    */
+   private readonly stillDataUrls = new Map<string, Promise<string | null>>();
 
    /**
     * The object URL for a file, or null while it loads (reading it in a template or
@@ -90,7 +95,21 @@ export class ElementImagesService {
     * The picture an export draws for a file: a still first frame for GIFs and videos
     * (a static picture cannot play), the file itself otherwise.
     */
-   async stillDataUrl(fileId: string): Promise<string | null> {
+   stillDataUrl(fileId: string): Promise<string | null> {
+      const cached = this.stillDataUrls.get(fileId);
+      if (cached) {
+         return cached;
+      }
+      const made = this.makeStillDataUrl(fileId).catch(() => null);
+      this.stillDataUrls.set(fileId, made);
+      // A failed load is retried on the next ask.
+      void made.then((url) => {
+         if (!url) this.stillDataUrls.delete(fileId);
+      });
+      return made;
+   }
+
+   private async makeStillDataUrl(fileId: string): Promise<string | null> {
       const blob = await this.blob(fileId);
       if (!blob) {
          return null;
