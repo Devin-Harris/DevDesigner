@@ -11,4 +11,6 @@ export const environment = {
   // Public URL of the hosted MCP endpoint (e.g. https://devdesignermcp-production.up.railway.app/mcp).
   // Set it in deployed builds so the API-token dialog shows a remote config; empty = local stdio config.
   mcpUrl: '',
+  // Sentry browser DSN (public). Empty = error reporting off.
+  sentryDsn: '',
 };
