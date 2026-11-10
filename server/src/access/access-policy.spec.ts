@@ -20,8 +20,6 @@ const EXPECTED: Record<string, string> = {
   'POST /auth/login': 'public',
   'POST /auth/logout': 'public',
   'GET /auth/me': 'public',
-  'GET /auth/oauth/:provider': 'public', // stub (501), removed with the dead code
-  'GET /auth/oauth/:provider/callback': 'public',
   'GET /auth/api-tokens': 'caller',
   'POST /auth/api-tokens': 'caller',
   'DELETE /auth/api-tokens/:tokenId': 'caller',

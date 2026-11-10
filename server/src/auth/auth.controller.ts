@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotImplementedException,
   Param,
   Post,
   Res,
@@ -31,7 +30,7 @@ import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
  * Auth routes (BUILD_INSTRUCTIONS.md section 5). Register and login issue a JWT
  * and set it as an httpOnly session cookie (never returned in the body, so it is
  * not exposed to client JS). The controller only routes and validates; hashing
- * and token logic live in the service. OAuth routes are stubbed for Phase 8.
+ * and token logic live in the service.
  */
 @Controller('auth')
 export class AuthController {
@@ -109,24 +108,6 @@ export class AuthController {
       throw new UnauthorizedException('Sign in to manage API tokens.');
     }
     return user.id;
-  }
-
-  // --- OAuth (stubbed now, implemented in Phase 8) ---
-
-  @Get('oauth/:provider')
-  @Public()
-  oauthStart(@Param('provider') provider: string): never {
-    throw new NotImplementedException(
-      `OAuth sign-in with "${provider}" is implemented in a later phase.`,
-    );
-  }
-
-  @Get('oauth/:provider/callback')
-  @Public()
-  oauthCallback(@Param('provider') provider: string): never {
-    throw new NotImplementedException(
-      `OAuth callback for "${provider}" is implemented in a later phase.`,
-    );
   }
 
   /**

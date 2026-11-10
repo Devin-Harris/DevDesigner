@@ -17,7 +17,7 @@ import {
   type RelationshipType,
   type UpdateRelationshipDto as IUpdateRelationshipDto,
 } from '@devdesigner/shared';
-import { PointDto } from './point.dto';
+import { PointDto } from '../../elements/dto/point.dto';
 import { MAX_ID_LENGTH, MAX_WAYPOINTS } from '../../common/limits';
 
 /** Body for PATCH /relationships/:relationshipId. */

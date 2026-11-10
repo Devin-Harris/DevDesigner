@@ -16,7 +16,6 @@ import { RelationshipsModule } from './relationships/relationships.module';
 import { ElementsModule } from './elements/elements.module';
 import { ImagesModule } from './images/images.module';
 import { SequenceModule } from './sequence/sequence.module';
-import { NotesModule } from './notes/notes.module';
 import { SharingModule } from './sharing/sharing.module';
 import { ExportModule } from './export/export.module';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -55,7 +54,6 @@ import { loggerParams } from './common/logger.config';
     ElementsModule,
     ImagesModule,
     SequenceModule,
-    NotesModule,
     SharingModule,
     ExportModule,
     RealtimeModule,

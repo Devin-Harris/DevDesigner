@@ -279,24 +279,6 @@ export interface UpdateRelationshipDto {
   autoRoute?: boolean;
 }
 
-// --- Notes ---
-export interface CreateNoteDto {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  color?: string;
-}
-export interface UpdateNoteDto {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  content?: string;
-  color?: string;
-}
-
 // --- Canvas elements (excalidraw-style drawing layer) ---
 export interface CreateElementDto {
   /** Client-generated UUID, so the canvas can show the element before the save returns. */
