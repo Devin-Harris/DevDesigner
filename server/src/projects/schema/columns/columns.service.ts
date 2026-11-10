@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import type { ColumnModel } from '@devdesigner/shared';
 import { TableEntity } from '../tables/table.entity';
 import { applyDefined } from '../../common/apply-patch';
+import { clientId } from '../../common/client-id';
 import { RealtimePublisher } from '../../../platform/realtime/realtime.publisher';
 import { ColumnEntity } from './column.entity';
 import { fromDataType, toColumnModel } from './column.mapper';
@@ -38,6 +39,7 @@ export class ColumnsService {
     }
     const count = await this.columns.count({ where: { tableId } });
     const column = this.columns.create({
+      ...(await clientId(this.columns, dto.id, 'Column')),
       tableId,
       name: dto.name,
       ...fromDataType(dto.dataType),
@@ -61,19 +63,7 @@ export class ColumnsService {
     dto: UpdateColumnDto,
   ): Promise<ColumnModel> {
     const column = await this.findOrThrow(columnId);
-    applyDefined(column, dto, [
-      'name',
-      'isPrimaryKey',
-      'isNullable',
-      'isUnique',
-      'isAutoIncrement',
-      'isUnsigned',
-      'defaultValue',
-      'note',
-    ]);
-    if (dto.dataType !== undefined) {
-      Object.assign(column, fromDataType(dto.dataType));
-    }
+    applyColumnPatch(column, dto);
     const saved = await this.columns.save(column);
     const model = toColumnModel(saved);
     this.realtime.emit(projectId, {
@@ -128,5 +118,22 @@ export class ColumnsService {
       throw new NotFoundException(`Column ${columnId} not found.`);
     }
     return column;
+  }
+}
+
+/** Apply a validated column patch in place (shared with the batch endpoint). */
+export function applyColumnPatch(column: ColumnEntity, dto: UpdateColumnDto): void {
+  applyDefined(column, dto, [
+    'name',
+    'isPrimaryKey',
+    'isNullable',
+    'isUnique',
+    'isAutoIncrement',
+    'isUnsigned',
+    'defaultValue',
+    'note',
+  ]);
+  if (dto.dataType !== undefined) {
+    Object.assign(column, fromDataType(dto.dataType));
   }
 }

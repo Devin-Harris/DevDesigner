@@ -5,9 +5,26 @@
 import type { BatchUpdateDto, BatchUpdateResponse } from '@devdesigner/shared';
 import type { DevDesignerApi } from './api';
 
-export type BatchSection = 'tables' | 'elements' | 'diagrams' | 'lifelines' | 'messages' | 'relationships';
+export type BatchSection =
+  | 'tables'
+  | 'columns'
+  | 'indexes'
+  | 'elements'
+  | 'diagrams'
+  | 'lifelines'
+  | 'messages'
+  | 'relationships';
 
-const SECTIONS: readonly BatchSection[] = ['tables', 'elements', 'diagrams', 'lifelines', 'messages', 'relationships'];
+const SECTIONS: readonly BatchSection[] = [
+  'tables',
+  'columns',
+  'indexes',
+  'elements',
+  'diagrams',
+  'lifelines',
+  'messages',
+  'relationships',
+];
 
 export class Batch {
   private readonly patches = new Map<BatchSection, Map<string, Record<string, unknown>>>(

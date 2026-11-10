@@ -5,6 +5,7 @@ import {
   PROJECT_MUTATIONS_EVENT,
   type MutationBatchEvent,
   type MutationEvent,
+  type RealtimeMutation,
   type SchemaMutation,
 } from '@devdesigner/shared';
 import { bumpProjectRevision } from '../http/project-revision';
@@ -34,16 +35,17 @@ export class RealtimePublisher {
    * Broadcast one persisted change. The origin tab defaults to the current request's
    * trusted X-Client-Id (RequestContext), so its own echo is skipped.
    */
-  emit(projectId: string, mutation: SchemaMutation, originClientId: string | null = originClientId_()): void {
+  emit(projectId: string, mutation: RealtimeMutation, originClientId: string | null = originClientId_()): void {
     bumpProjectRevision(projectId);
-    const event: MutationEvent = { projectId, originClientId, mutation };
+    // Patch kinds only travel when REALTIME_PATCH_MUTATIONS is on (see SchemaPatchMutation).
+    const event: MutationEvent = { projectId, originClientId, mutation: mutation as SchemaMutation };
     this.emitter.emit(PROJECT_MUTATION_EVENT, event);
   }
 
   /** Broadcast many changes from one request as a single message (in order). */
   emitMany(
     projectId: string,
-    mutations: SchemaMutation[],
+    mutations: RealtimeMutation[],
     originClientId: string | null = originClientId_(),
   ): void {
     if (mutations.length === 0) {
@@ -56,7 +58,7 @@ export class RealtimePublisher {
       return;
     }
     bumpProjectRevision(projectId);
-    const event: MutationBatchEvent = { projectId, originClientId, mutations };
+    const event: MutationBatchEvent = { projectId, originClientId, mutations: mutations as SchemaMutation[] };
     this.emitter.emit(PROJECT_MUTATIONS_EVENT, event);
   }
 

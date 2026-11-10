@@ -1,9 +1,25 @@
-import type { BatchUpdateAck, BatchUpdateResponse, SchemaMutation } from '@devdesigner/shared';
+import type { BatchUpdateAck, BatchUpdateResponse, RealtimeMutation } from '@devdesigner/shared';
 import { projectRevision } from '../../platform/http/project-revision';
 
 /** The id of the row a mutation is about (reorders and project-level changes have none). */
-export function mutationEntityId(mutation: SchemaMutation): string | null {
+export function mutationEntityId(mutation: RealtimeMutation): string | null {
   switch (mutation.kind) {
+    case 'table.patched':
+      return mutation.tableId;
+    case 'column.patched':
+      return mutation.columnId;
+    case 'index.patched':
+      return mutation.indexId;
+    case 'relationship.patched':
+      return mutation.relationshipId;
+    case 'element.patched':
+      return mutation.elementId;
+    case 'sequenceDiagram.patched':
+      return mutation.diagramId;
+    case 'lifeline.patched':
+      return mutation.lifelineId;
+    case 'message.patched':
+      return mutation.messageId;
     case 'table.created':
     case 'table.updated':
       return mutation.table.id;

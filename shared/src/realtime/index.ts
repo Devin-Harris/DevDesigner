@@ -120,6 +120,62 @@ export type SchemaMutation =
   | { kind: 'home.updated'; home: ViewportModel | null }
   | { kind: 'themes.updated'; themes: SlideTheme[] };
 
+/**
+ * Partial-update mutations (perf P3.1). `patch` holds only the model fields that
+ * changed, in the shape of the matching model; `unset` lists optional model fields
+ * that are now absent. Apply as `{ ...model, ...patch }` minus the `unset` keys.
+ * Creates keep the full-model kinds.
+ *
+ * Kept OUT of {@link SchemaMutation} on purpose: clients that do not handle them yet
+ * must keep type-checking. The server only emits them when REALTIME_PATCH_MUTATIONS
+ * is on; until then every partial update is still broadcast as a full `*.updated`.
+ * Once every client's applyRemote merges these, fold them into SchemaMutation.
+ */
+export interface ModelPatch<T> {
+  patch: Partial<T>;
+  unset?: Array<keyof T & string>;
+}
+
+export type SchemaPatchMutation =
+  | ({ kind: 'table.patched'; tableId: string } & ModelPatch<Omit<TableModel, 'id' | 'columns' | 'indexes'>>)
+  | ({ kind: 'column.patched'; tableId: string; columnId: string } & ModelPatch<Omit<ColumnModel, 'id'>>)
+  | ({ kind: 'index.patched'; tableId: string; indexId: string } & ModelPatch<Omit<IndexModel, 'id'>>)
+  | ({ kind: 'relationship.patched'; relationshipId: string } & ModelPatch<Omit<RelationshipModel, 'id'>>)
+  | ({ kind: 'element.patched'; elementId: string } & ModelPatch<Omit<CanvasElementModel, 'id'>>)
+  | ({ kind: 'sequenceDiagram.patched'; diagramId: string } & ModelPatch<Omit<SequenceDiagramModel, 'id'>>)
+  | ({ kind: 'lifeline.patched'; lifelineId: string } & ModelPatch<Omit<LifelineModel, 'id'>>)
+  | ({ kind: 'message.patched'; messageId: string } & ModelPatch<Omit<SequenceMessageModel, 'id'>>);
+
+/** Everything the server may broadcast: full mutations plus (when enabled) patches. */
+export type RealtimeMutation = SchemaMutation | SchemaPatchMutation;
+
+/** Fields of a model whose values differ (by JSON value), as a {@link ModelPatch} (never the id). */
+export function diffModel<T extends object>(before: T, after: T): ModelPatch<Omit<T, 'id'>> | null {
+  const patch: Partial<T> = {};
+  const unset: Array<keyof T & string> = [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<keyof T & string>;
+  for (const key of keys) {
+    if (key === ('id' as keyof T)) continue;
+    const a = before[key];
+    const b = after[key];
+    if (b === undefined) {
+      if (a !== undefined) unset.push(key);
+    } else if (a === undefined || JSON.stringify(a) !== JSON.stringify(b)) {
+      patch[key] = b;
+    }
+  }
+  if (!unset.length && !Object.keys(patch).length) return null;
+  const change = (unset.length ? { patch, unset } : { patch }) as unknown as ModelPatch<Omit<T, 'id'>>;
+  return change;
+}
+
+/** Apply a {@link ModelPatch} to a model (pure). */
+export function applyModelPatch<T extends object>(model: T, change: ModelPatch<Partial<T>>): T {
+  const next = { ...model, ...change.patch } as T;
+  for (const key of change.unset ?? []) delete (next as Record<string, unknown>)[key];
+  return next;
+}
+
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {
   projectId: string;

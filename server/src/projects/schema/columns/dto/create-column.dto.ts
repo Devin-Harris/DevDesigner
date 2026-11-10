@@ -1,17 +1,15 @@
 import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-  ValidateNested,
-} from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
 import type { CreateColumnDto as ICreateColumnDto } from '@devdesigner/shared';
 import { DataTypeDto } from './data-type.dto';
 
 /** Body for POST /tables/:tableId/columns. */
 export class CreateColumnDto implements ICreateColumnDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)

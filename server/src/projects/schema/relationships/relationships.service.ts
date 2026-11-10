@@ -1,3 +1,4 @@
+import { clientId } from '../../common/client-id';
 import {
   BadRequestException,
   ConflictException,
@@ -44,6 +45,7 @@ export class RelationshipsService {
     await this.assertNoDuplicate(projectId, dto.sourceColumnId, dto.targetColumnId);
 
     const relationship = this.relationships.create({
+      ...(await clientId(this.relationships, dto.id, 'Relationship')),
       projectId,
       sourceColumnId: dto.sourceColumnId,
       targetColumnId: dto.targetColumnId,

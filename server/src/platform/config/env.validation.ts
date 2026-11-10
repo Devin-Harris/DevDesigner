@@ -45,6 +45,8 @@ export interface EnvConfig {
   ACCESS_CACHE_TTL_MS: number;
   /** Total bytes of serialized graphs kept in memory; 0 = no graph cache. */
   GRAPH_CACHE_MAX_BYTES: number;
+  /** Broadcast batch edits as `*.patched` (changed fields only); needs patch-aware clients. */
+  REALTIME_PATCH_MUTATIONS: 'true' | 'false';
   [key: string]: unknown;
 }
 
@@ -145,6 +147,7 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     QUOTA_IMPORT_MAX_IMAGES: int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
     ACCESS_CACHE_TTL_MS: int('ACCESS_CACHE_TTL_MS', 30_000, 0, 600_000),
     GRAPH_CACHE_MAX_BYTES: int('GRAPH_CACHE_MAX_BYTES', 64 * 1024 * 1024, 0, 2 ** 40),
+    REALTIME_PATCH_MUTATIONS: bool('REALTIME_PATCH_MUTATIONS', false),
   };
 
   if (errors.length > 0) {

@@ -1,3 +1,4 @@
+import { clientId } from '../../common/client-id';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -41,6 +42,7 @@ export class IndexesService {
     }
     const count = await this.indexes.count({ where: { tableId } });
     const entity = this.indexes.create({
+      ...(await clientId(this.indexes, dto.id, 'Index')),
       tableId,
       name: dto.name,
       columnIdsJson: JSON.stringify(dto.columnIds),
@@ -60,10 +62,7 @@ export class IndexesService {
   ): Promise<IndexModel> {
     await this.access.assertIdsInProject('column', dto.columnIds ?? [], projectId);
     const index = await this.findOrThrow(indexId);
-    applyDefined(index, dto, ['name', 'isUnique']);
-    if (dto.columnIds !== undefined) {
-      index.columnIdsJson = JSON.stringify(dto.columnIds);
-    }
+    applyIndexPatch(index, dto);
     const saved = await this.indexes.save(index);
     const model = toIndexModel(saved);
     this.realtime.emit(projectId, {
@@ -118,5 +117,13 @@ export class IndexesService {
       throw new NotFoundException(`Index ${indexId} not found.`);
     }
     return index;
+  }
+}
+
+/** Apply a validated index patch in place (shared with the batch endpoint). */
+export function applyIndexPatch(index: IndexEntity, dto: UpdateIndexDto): void {
+  applyDefined(index, dto, ['name', 'isUnique']);
+  if (dto.columnIds !== undefined) {
+    index.columnIdsJson = JSON.stringify(dto.columnIds);
   }
 }

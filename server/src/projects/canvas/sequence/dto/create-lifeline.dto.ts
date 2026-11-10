@@ -1,9 +1,14 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { CreateLifelineDto as ICreateLifelineDto } from '@devdesigner/shared';
 import { IsColor } from '../../../common/validators';
 
 /** Body for POST /projects/:projectId/lifelines. */
 export class CreateLifelineDto implements ICreateLifelineDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @IsNotEmpty()
   diagramId!: string;

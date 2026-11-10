@@ -138,9 +138,9 @@ export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: J
         const batch = new Batch();
         for (const p of plan.patches) batch.set(p.section, p.id, p.patch);
         for (const d of plan.deletes) batch.delete(d.section, d.id);
+        for (const cid of plan.columnDeletes) batch.delete('columns', cid);
+        for (const c of plan.columnPatches) batch.set('columns', c.id, c.patch);
         await batch.send(api, id);
-        for (const cid of plan.columnDeletes) await api.delete(`/columns/${cid}`);
-        for (const c of plan.columnPatches) await api.patch(`/columns/${c.id}`, c.patch);
         // 2) Re-create deleted things.
         const warnings = await restore(id, entry.before, plan.restore);
         results.push({ ...summary, ...(warnings.length ? { warnings } : {}) });
@@ -890,7 +890,9 @@ export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: J
         });
       }
       done.columnsAdded = diff.addColumns.length;
-      for (const c of diff.changeColumns) await api.patch(`/columns/${c.columnId}`, c.patch);
+      const columnBatch = new Batch();
+      for (const c of diff.changeColumns) columnBatch.set('columns', c.columnId, c.patch);
+      await columnBatch.send(api, id);
       done.columnsChanged = diff.changeColumns.length;
 
       // 2) New tables + every relationship touching them (applySpec wires refs to existing tables).
@@ -935,13 +937,13 @@ export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: J
       }
       done.relationshipsAdded = diff.addRelationships.length;
 
-      // 4) Drops (atomic for tables + relationships; columns one by one).
+      // 4) Drops (tables, relationships and columns in one atomic batch).
       if (drop) {
         const batch = new Batch();
         for (const t of diff.dropTables) batch.delete('tables', t.id);
         for (const r of diff.dropRelationships) batch.delete('relationships', r.id);
+        for (const c of diff.dropColumns) batch.delete('columns', c.columnId);
         await batch.send(api, id);
-        for (const c of diff.dropColumns) await api.delete(`/columns/${c.columnId}`);
         done.tablesDropped = diff.dropTables.length;
         done.columnsDropped = diff.dropColumns.length;
         done.relationshipsDropped = diff.dropRelationships.length;

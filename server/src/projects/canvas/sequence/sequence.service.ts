@@ -1,3 +1,4 @@
+import { clientId } from '../../common/client-id';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -60,6 +61,7 @@ export class SequenceService {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
     const entity = this.diagrams.create({
+      ...(await clientId(this.diagrams, dto.id, 'Sequence diagram')),
       projectId,
       originY: dto.originY,
       lifelineSpacing: dto.lifelineSpacing ?? 160,
@@ -113,6 +115,7 @@ export class SequenceService {
   ): Promise<LifelineModel> {
     await this.diagramOrThrow(projectId, dto.diagramId);
     const entity = this.lifelines.create({
+      ...(await clientId(this.lifelines, dto.id, 'Lifeline')),
       projectId,
       diagramId: dto.diagramId,
       label: dto.label,
@@ -182,6 +185,7 @@ export class SequenceService {
     }
     await this.access.assertIdsInProject('lifeline', [dto.fromLifelineId, dto.toLifelineId], projectId);
     const entity = this.messages.create({
+      ...(await clientId(this.messages, dto.id, 'Message')),
       projectId,
       diagramId: dto.diagramId,
       fromLifelineId: dto.fromLifelineId,

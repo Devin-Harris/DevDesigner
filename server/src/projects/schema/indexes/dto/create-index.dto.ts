@@ -1,9 +1,14 @@
-import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { CreateIndexDto as ICreateIndexDto } from '@devdesigner/shared';
 import { MAX_ID_LENGTH, MAX_INDEX_COLUMNS } from '../../../common/limits';
 
 /** Body for POST /tables/:tableId/indexes. */
 export class CreateIndexDto implements ICreateIndexDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)

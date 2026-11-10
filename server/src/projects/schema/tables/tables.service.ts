@@ -5,6 +5,7 @@ import type { TableModel } from '@devdesigner/shared';
 import { Project } from '../../projects/project.entity';
 import { AccessService } from '../../../collaboration/access/access.service';
 import { applyDefined } from '../../common/apply-patch';
+import { clientId } from '../../common/client-id';
 import { RealtimePublisher } from '../../../platform/realtime/realtime.publisher';
 import { QuotaService } from '../../../platform/quotas/quota.service';
 import { TableEntity } from './table.entity';
@@ -42,6 +43,7 @@ export class TablesService {
     }
     await this.quota.assertProjectRoom(projectId, { tables: 1 });
     const table = this.tables.create({
+      ...(await clientId(this.tables, dto.id, 'Table')),
       projectId,
       name: dto.name,
       x: dto.x,

@@ -189,6 +189,8 @@ export interface ImportIntoProjectResponse {
 
 // --- Tables ---
 export interface CreateTableDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   x: number;
   y: number;
@@ -220,6 +222,8 @@ export interface UpdatePositionDto {
 
 // --- Columns ---
 export interface CreateColumnDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   dataType: DataType;
   isPrimaryKey?: boolean;
@@ -246,6 +250,8 @@ export interface ReorderColumnsDto {
 
 // --- Indexes ---
 export interface CreateIndexDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   columnIds: string[];
   isUnique?: boolean;
@@ -261,6 +267,8 @@ export interface ReorderIndexesDto {
 
 // --- Relationships ---
 export interface CreateRelationshipDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   sourceColumnId: string;
   targetColumnId: string;
   type: RelationshipType;
@@ -426,6 +434,8 @@ export interface ReorderElementsDto {
 
 // --- Sequence diagrams (groups) ---
 export interface CreateSequenceDiagramDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   originY: number;
   lifelineSpacing?: number;
   rowSpacing?: number;
@@ -464,6 +474,8 @@ export interface UpdateSequenceDiagramDto {
 
 // --- Lifelines (sequence diagram participant columns) ---
 export interface CreateLifelineDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   diagramId: string;
   label: string;
   color?: string;
@@ -496,6 +508,8 @@ export interface UpdateLifelinePositionDto {
 
 // --- Sequence messages (rows between lifelines) ---
 export interface CreateSequenceMessageDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   diagramId: string;
   fromLifelineId: string;
   toLifelineId: string;
@@ -549,6 +563,8 @@ export interface ShareLinkResponse {
  */
 export interface BatchUpdateDto {
   tables?: Array<{ id: string; x?: number; y?: number } & UpdateTableDto>;
+  columns?: Array<{ id: string } & UpdateColumnDto>;
+  indexes?: Array<{ id: string } & UpdateIndexDto>;
   elements?: Array<{ id: string } & UpdateElementDto>;
   diagrams?: Array<{ id: string } & UpdateSequenceDiagramDto>;
   lifelines?: Array<{ id: string; x?: number } & UpdateLifelineDto>;
@@ -557,6 +573,8 @@ export interface BatchUpdateDto {
   /** Ids to delete (children of a deleted parent go with it). */
   deletes?: {
     tables?: string[];
+    columns?: string[];
+    indexes?: string[];
     elements?: string[];
     relationships?: string[];
     diagrams?: string[];

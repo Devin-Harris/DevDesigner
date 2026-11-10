@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import {
   CONNECTOR_SIDES,
   RELATIONSHIP_TYPES,
@@ -9,6 +9,11 @@ import {
 
 /** Body for POST /projects/:projectId/relationships. */
 export class CreateRelationshipDto implements ICreateRelationshipDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @IsNotEmpty()
   sourceColumnId!: string;
