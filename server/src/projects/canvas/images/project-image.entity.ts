@@ -39,6 +39,10 @@ export class ProjectImageEntity {
   @Column({ type: 'varchar', nullable: true })
   sha256!: string | null;
 
+  /** Size of the file in bytes (media quotas sum it). Null only on rows from before it existed. */
+  @Column({ type: 'integer', nullable: true })
+  byteSize!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

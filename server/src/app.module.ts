@@ -23,6 +23,7 @@ import { BatchModule } from './projects/batch/batch.module';
 import { UserThemesModule } from './identity/user-themes/user-themes.module';
 import { AdminModule } from './admin/admin.module';
 import { ThrottleModule } from './platform/throttle/throttle.module';
+import { QuotasModule } from './platform/quotas/quotas.module';
 import { validateEnv } from './platform/config/env.validation';
 import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
 import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
@@ -47,6 +48,7 @@ import { loggerParams } from './platform/http/logger.config';
     HealthModule,
     AuthModule,
     ThrottleModule,
+    QuotasModule,
     ProjectsModule,
     BatchModule,
     TablesModule,

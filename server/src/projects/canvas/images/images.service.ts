@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
 import { MEDIA_MIME_TYPES, bytesMatchMediaType, maxMediaBytes } from '@devdesigner/shared';
@@ -7,6 +7,7 @@ import { ElementEntity } from '../elements/element.entity';
 import { imageHash } from './image-hash';
 import { ProjectImageEntity } from './project-image.entity';
 import { svgRejectionReason } from './svg-safety';
+import { QuotaService } from '../../../platform/quotas/quota.service';
 
 /** Orphaned uploads younger than this survive, so undo/redo can still bring them back. */
 const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
@@ -15,7 +16,7 @@ const PRUNE_INTERVAL_MS = 10 * 60 * 1000;
 
 /** Storage and access control for the images behind canvas image elements. */
 @Injectable()
-export class ImagesService {
+export class ImagesService implements OnModuleInit {
   private readonly lastPrune = new Map<string, number>();
 
   constructor(
@@ -23,7 +24,13 @@ export class ImagesService {
     private readonly images: Repository<ProjectImageEntity>,
     @InjectRepository(ElementEntity)
     private readonly elements: Repository<ElementEntity>,
+    private readonly quota: QuotaService,
   ) {}
+
+  /** Rows stored before `byteSize` existed get it from their blob (once; quotas sum it). */
+  async onModuleInit(): Promise<void> {
+    await this.images.query('UPDATE project_images SET byteSize = LENGTH(data) WHERE byteSize IS NULL AND data IS NOT NULL');
+  }
 
   /** Store an upload for a project the caller may write to (checked by the route guard). */
   async upload(projectId: string, mimeType: string, base64: string): Promise<UploadImageResponse> {
@@ -34,7 +41,8 @@ export class ImagesService {
     if (existing) {
       return { id: existing.id };
     }
-    const saved = await this.images.save(this.images.create({ projectId, mimeType, data, sha256 }));
+    await this.quota.assertImageRoom(projectId, data.length);
+    const saved = await this.images.save(this.images.create({ projectId, mimeType, data, sha256, byteSize: data.length }));
     void this.pruneOrphans(projectId);
     return { id: saved.id };
   }
@@ -52,6 +60,29 @@ export class ImagesService {
       throw new NotFoundException(`Image ${imageId} not found.`);
     }
     return { mimeType: image.mimeType, data: image.data };
+  }
+
+  /**
+   * Bytes of `files` this project does not already store (same hash and type are
+   * deduplicated on write, so they cost nothing): what a media quota should count.
+   */
+  async newBytes(projectId: string, files: Array<{ mimeType: string; data: Buffer }>): Promise<number> {
+    if (!files.length) return 0;
+    const hashed = files.map((f) => ({ ...f, sha256: imageHash(f.data) }));
+    const have = await this.images.find({
+      where: { projectId, sha256: In([...new Set(hashed.map((f) => f.sha256))]) },
+      select: { id: true, sha256: true, mimeType: true },
+    });
+    const known = new Set(have.map((h) => `${h.sha256}:${h.mimeType}`));
+    const counted = new Set<string>();
+    let total = 0;
+    for (const f of hashed) {
+      const key = `${f.sha256}:${f.mimeType}`;
+      if (known.has(key) || counted.has(key)) continue;
+      counted.add(key);
+      total += f.data.length;
+    }
+    return total;
   }
 
   async existsInProject(imageId: string, projectId: string): Promise<boolean> {

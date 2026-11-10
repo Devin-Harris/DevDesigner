@@ -6,6 +6,7 @@ import { Project } from '../../projects/project.entity';
 import { AccessService } from '../../../collaboration/access/access.service';
 import { applyDefined } from '../../common/apply-patch';
 import { RealtimePublisher } from '../../../platform/realtime/realtime.publisher';
+import { QuotaService } from '../../../platform/quotas/quota.service';
 import { TableEntity } from './table.entity';
 import { toTableModel } from './table.mapper';
 import { CreateTableDto } from './dto/create-table.dto';
@@ -27,6 +28,7 @@ export class TablesService {
     private readonly projects: Repository<Project>,
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
+    private readonly quota: QuotaService,
   ) {}
 
   async create(
@@ -38,6 +40,7 @@ export class TablesService {
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
+    await this.quota.assertProjectRoom(projectId, { tables: 1 });
     const table = this.tables.create({
       projectId,
       name: dto.name,

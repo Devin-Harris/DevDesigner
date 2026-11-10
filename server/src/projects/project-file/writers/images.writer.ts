@@ -39,6 +39,7 @@ export async function writeImages(
       mimeType: img.mimeType,
       data: img.data,
       sha256: img.sha256,
+      byteSize: img.data.length,
     })),
   );
   const embedded = new Set(imported.map((i) => i.id));

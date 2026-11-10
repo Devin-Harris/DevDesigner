@@ -34,6 +34,13 @@ export interface EnvConfig {
   RATE_LIMIT_PER_MIN: number;
   /** Requests per minute per client IP across all routes. */
   RATE_LIMIT_IP_PER_MIN: number;
+  /** Storage quotas (0 = unlimited). */
+  QUOTA_PROJECTS_PER_OWNER: number;
+  QUOTA_TABLES_PER_PROJECT: number;
+  QUOTA_ELEMENTS_PER_PROJECT: number;
+  QUOTA_IMAGE_BYTES_PER_OWNER: number;
+  QUOTA_IMAGE_BYTES_PER_PROJECT: number;
+  QUOTA_IMPORT_MAX_IMAGES: number;
   [key: string]: unknown;
 }
 
@@ -126,6 +133,12 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     RATE_LIMIT_ENABLED: bool('RATE_LIMIT_ENABLED', true),
     RATE_LIMIT_PER_MIN: int('RATE_LIMIT_PER_MIN', 1200, 1, 1_000_000),
     RATE_LIMIT_IP_PER_MIN: int('RATE_LIMIT_IP_PER_MIN', 3000, 1, 1_000_000),
+    QUOTA_PROJECTS_PER_OWNER: int('QUOTA_PROJECTS_PER_OWNER', 500, 0, 10_000_000),
+    QUOTA_TABLES_PER_PROJECT: int('QUOTA_TABLES_PER_PROJECT', 5_000, 0, 10_000_000),
+    QUOTA_ELEMENTS_PER_PROJECT: int('QUOTA_ELEMENTS_PER_PROJECT', 20_000, 0, 10_000_000),
+    QUOTA_IMAGE_BYTES_PER_OWNER: int('QUOTA_IMAGE_BYTES_PER_OWNER', 1024 ** 3, 0, 2 ** 50),
+    QUOTA_IMAGE_BYTES_PER_PROJECT: int('QUOTA_IMAGE_BYTES_PER_PROJECT', 512 * 1024 ** 2, 0, 2 ** 50),
+    QUOTA_IMPORT_MAX_IMAGES: int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
   };
 
   if (errors.length > 0) {

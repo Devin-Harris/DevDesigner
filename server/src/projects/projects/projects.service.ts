@@ -33,6 +33,7 @@ import {
 import { ImagesService } from '../canvas/images/images.service';
 import { bumpProjectRevision } from '../../platform/http/project-revision';
 import { applyDefined } from '../common/apply-patch';
+import { QuotaService, type ImportFootprint } from '../../platform/quotas/quota.service';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -53,6 +54,7 @@ export class ProjectsService {
     private readonly dataSource: DataSource,
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
+    private readonly quota: QuotaService,
   ) {}
 
   /**
@@ -91,6 +93,7 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto, ownerId: string | null): Promise<ProjectSummary> {
     requireOwner(ownerId);
+    await this.quota.assertCanCreateProjects(ownerId);
     const project = this.projects.create({
       name: dto.name,
       description: dto.description ?? null,
@@ -154,6 +157,7 @@ export class ProjectsService {
 
   async duplicate(id: string): Promise<ProjectSummary> {
     const source = await this.findOrThrow(id);
+    if (source.ownerId) await this.quota.assertCanCreateProjects(source.ownerId);
     const copy = this.projects.create({
       name: `${source.name} (copy)`,
       description: source.description,
@@ -197,8 +201,12 @@ export class ProjectsService {
    */
   async importProject(raw: unknown, ownerId: string | null): Promise<ProjectSummary> {
     requireOwner(ownerId);
+    await this.quota.assertCanCreateProjects(ownerId);
     const parsed = parseProjectExport(raw);
     const images = this.decodeImages(parsed.images);
+    const footprint = importFootprint(parsed.schema, images);
+    this.quota.assertImportFits(footprint);
+    await this.quota.assertImageRoom(null, footprint.imageBytes, ownerId);
     const saved = await this.dataSource.transaction((manager) =>
       writeImportedProject(manager, parsed, ownerId, images),
     );
@@ -224,6 +232,10 @@ export class ProjectsService {
         ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
         : { dx: 0, dy: 0 };
     const images = this.decodeImages(parsed.images);
+    const footprint = importFootprint(parsed.schema, images);
+    this.quota.assertImportFits(footprint);
+    await this.quota.assertProjectRoom(projectId, footprint);
+    await this.quota.assertImageRoom(projectId, await this.images.newBytes(projectId, images));
     const added = await this.dataSource.transaction(async (manager) => {
       // Optionally let slide ownership / arrow bindings point at content already here.
       const linked =
@@ -292,6 +304,16 @@ export class ProjectsService {
     }
     return project;
   }
+}
+
+/** What an import file adds, for the quotas (media bytes before any dedup). */
+function importFootprint(schema: { tables: unknown[]; elements: unknown[] }, images: ImportedImage[]): ImportFootprint {
+  return {
+    tables: schema.tables.length,
+    elements: schema.elements.length,
+    images: images.length,
+    imageBytes: images.reduce((sum, img) => sum + img.data.length, 0),
+  };
 }
 
 /**

@@ -7,6 +7,7 @@ import type { AccessService } from '../../../collaboration/access/access.service
 import type { ImagesService } from '../images/images.service';
 import type { RealtimePublisher } from '../../../platform/realtime/realtime.publisher';
 import type { CreateElementDto } from './dto/create-element.dto';
+import type { QuotaService } from '../../../platform/quotas/quota.service';
 
 /**
  * Unit tests for the canvas-elements service: the persisted change is broadcast to
@@ -65,6 +66,7 @@ describe('ElementsService', () => {
       access as unknown as AccessService,
       realtime as unknown as RealtimePublisher,
       images as unknown as ImagesService,
+      { assertProjectRoom: jest.fn().mockResolvedValue(undefined) } as unknown as QuotaService,
     );
   });
 

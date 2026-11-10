@@ -12,6 +12,7 @@ import { AccessService, bindingRefs, mergeRefs, type ProjectRefs } from '../../.
 import { applyDefined } from '../../common/apply-patch';
 import { RealtimePublisher } from '../../../platform/realtime/realtime.publisher';
 import { ImagesService } from '../images/images.service';
+import { QuotaService } from '../../../platform/quotas/quota.service';
 import { ElementEntity } from './element.entity';
 import { toElementModel } from './element.mapper';
 import { CreateElementDto } from './dto/create-element.dto';
@@ -36,6 +37,7 @@ export class ElementsService {
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
     private readonly images: ImagesService,
+    private readonly quota: QuotaService,
   ) {}
 
   async create(
@@ -47,6 +49,7 @@ export class ElementsService {
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
+    await this.quota.assertProjectRoom(projectId, { elements: 1 });
     if (dto.type === 'image') {
       // An image element must point at a file uploaded to THIS project.
       const owned = dto.fileId

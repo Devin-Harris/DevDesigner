@@ -24,6 +24,7 @@ import {
 } from '../canvas/sequence/sequence.mapper';
 import { RelationshipEntity } from '../schema/relationships/relationship.entity';
 import { toRelationshipModel } from '../schema/relationships/relationship.mapper';
+import { QuotaService } from '../../platform/quotas/quota.service';
 
 /** Upper bound on copied rows per request (children included). */
 const MAX_CLONE = 5000;
@@ -75,6 +76,7 @@ export class CloneService {
     private readonly dataSource: DataSource,
     private readonly access: AccessService,
     private readonly realtime: RealtimePublisher,
+    private readonly quota: QuotaService,
   ) {}
 
   /** The route guard has checked write access to `projectId`. */
@@ -141,6 +143,7 @@ export class CloneService {
       }),
     );
     await this.access.assertRefsInProject(refs, projectId);
+    await this.quota.assertProjectRoom(projectId, { tables: tables.length, elements: elements.length });
 
     const mutations = await this.dataSource.transaction(async (m) => {
       const out: SchemaMutation[] = [];
