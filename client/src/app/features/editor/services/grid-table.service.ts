@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { ProjectStore } from '../../stores/project.store';
+import { ProjectStore } from '../../../stores/project.store';
 import {
    type CellStyle,
    type GridData,
@@ -19,9 +19,9 @@ import {
    insertRow,
    parseGrid,
    serializeGrid,
-} from '../../features/editor/canvas/helpers/grid-table.helper';
+} from '../canvas/helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
-import { gridRowNeeds } from '../../features/editor/canvas/helpers/shape-render.helper';
+import { gridRowNeeds } from '../canvas/helpers/shape-render.helper';
 
 export interface GridCellRef {
    id: string;

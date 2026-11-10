@@ -77,10 +77,10 @@ import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
 import type { ShapeView } from './canvas/models/shape-view.model';
-import { ProjectFileService } from '../../core/services/project-file.service';
+import { ProjectFileService } from '../../shared/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
-import { ElementImagesService } from '../../core/services/element-images.service';
-import { MediaActionsService } from '../../core/services/media-actions.service';
+import { ElementImagesService } from './services/element-images.service';
+import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
 import { ProjectsStore } from '../../stores/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -92,8 +92,8 @@ import {
 } from '../../stores/project.store';
 import { splitAtGaps } from './canvas/helpers/shape-render.helper';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
-import { CodeActionsService } from '../../core/services/code-actions.service';
-import { GridTableService } from '../../core/services/grid-table.service';
+import { CodeActionsService } from './services/code-actions.service';
+import { GridTableService } from './services/grid-table.service';
 import {
    GRID_CELL_PAD,
    GRID_MIN_CELL,
@@ -214,7 +214,7 @@ import {
    type ListKind,
    type ListResult,
 } from './canvas/helpers/rich-list.helper';
-import { RichTextSessionService } from '../../core/services/rich-text-session.service';
+import { RichTextSessionService } from './services/rich-text-session.service';
 import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
 import { formatCode } from './canvas/helpers/code-format.helper';
 import { elbowPath } from './canvas/helpers/svg-path.helper';

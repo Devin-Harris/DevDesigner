@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { ProjectStore } from '../../../stores/project.store';
-import { CodeActionsService } from '../../../core/services/code-actions.service';
-import { ElementImagesService } from '../../../core/services/element-images.service';
+import { CodeActionsService } from '../services/code-actions.service';
+import { ElementImagesService } from '../services/element-images.service';
 import type { ArrowheadType } from '@devdesigner/shared';
-import { GridTableService, type GridStructureAction } from '../../../core/services/grid-table.service';
+import { GridTableService, type GridStructureAction } from '../services/grid-table.service';
 import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../canvas/models/shape-view.model';
 import { MediaVideoComponent } from '../media/media-video.component';
-import { MediaActionsService } from '../../../core/services/media-actions.service';
+import { MediaActionsService } from '../services/media-actions.service';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../canvas/helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */

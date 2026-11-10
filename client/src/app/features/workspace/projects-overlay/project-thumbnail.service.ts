@@ -11,8 +11,8 @@ import {
    type SchemaModel,
 } from '@devdesigner/shared';
 import { contentForFrame } from '../../editor/canvas/helpers/frame-contents.helper';
-import { ElementImagesService } from '../../../core/services/element-images.service';
-import { ProjectsApiService } from '../../../core/services/projects-api.service';
+import { ElementImagesService } from '../../editor/services/element-images.service';
+import { ProjectsApiService } from '../../../shared/services/projects-api.service';
 import { ThemeService } from '../../../core/theme/theme.service';
 import { buildDiagramSvg } from '../../editor/export/diagram-svg.helper';
 

@@ -20,15 +20,15 @@ import type {
    TableModel,
 } from '@devdesigner/shared';
 import { type Observable, Subject, of, throwError } from 'rxjs';
-import { ColumnsApiService } from '../core/services/columns-api.service';
-import { ElementsApiService } from '../core/services/elements-api.service';
-import { IndexesApiService } from '../core/services/indexes-api.service';
-import { ProjectsApiService } from '../core/services/projects-api.service';
-import { RelationshipsApiService } from '../core/services/relationships-api.service';
-import { SequenceApiService } from '../core/services/sequence-api.service';
-import { ShareLinksApiService } from '../core/services/share-links-api.service';
+import { ColumnsApiService } from '../shared/services/columns-api.service';
+import { ElementsApiService } from '../features/editor/services/elements-api.service';
+import { IndexesApiService } from '../features/editor/services/indexes-api.service';
+import { ProjectsApiService } from '../shared/services/projects-api.service';
+import { RelationshipsApiService } from '../shared/services/relationships-api.service';
+import { SequenceApiService } from '../features/editor/services/sequence-api.service';
+import { ShareLinksApiService } from '../features/editor/services/share-links-api.service';
 import { ShareSessionService } from '../core/auth/share-session.service';
-import { TablesApiService } from '../core/services/tables-api.service';
+import { TablesApiService } from '../shared/services/tables-api.service';
 import { ProjectStore } from './project.store';
 
 // ---- factories ---------------------------------------------------------------------------------

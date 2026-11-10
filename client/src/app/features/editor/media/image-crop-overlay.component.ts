@@ -10,8 +10,8 @@ import {
    untracked,
 } from '@angular/core';
 import type { CanvasElementModel } from '@devdesigner/shared';
-import { ElementImagesService } from '../../../core/services/element-images.service';
-import { MediaActionsService, cleanMedia } from '../../../core/services/media-actions.service';
+import { ElementImagesService } from '../services/element-images.service';
+import { MediaActionsService, cleanMedia } from '../services/media-actions.service';
 import { ProjectStore } from '../../../stores/project.store';
 import { cropFor, mediaSourceRect, type Rect } from '../canvas/helpers/media.helper';
 import { imageView } from '../canvas/helpers/shape-render.helper';

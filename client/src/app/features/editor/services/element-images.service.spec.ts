@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { ApiClientService } from '../http/api-client.service';
+import { ApiClientService } from '../../../core/http/api-client.service';
 import { ElementImagesService } from './element-images.service';
 
 describe('ElementImagesService.stillDataUrl', () => {

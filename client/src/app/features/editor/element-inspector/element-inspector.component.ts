@@ -17,7 +17,7 @@ import {
 import { SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
-import { CodeActionsService } from '../../../core/services/code-actions.service';
+import { CodeActionsService } from '../services/code-actions.service';
 import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
 import { withTextFit } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';

@@ -7,7 +7,7 @@ import type {
    UpdateElementDto,
    UpdateElementPositionDto,
 } from '@devdesigner/shared';
-import { ApiClientService } from '../http/api-client.service';
+import { ApiClientService } from '../../../core/http/api-client.service';
 
 /** Granular canvas-element endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })

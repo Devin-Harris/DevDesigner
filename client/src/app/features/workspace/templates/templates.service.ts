@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ColumnsApiService } from '../../../core/services/columns-api.service';
-import { RelationshipsApiService } from '../../../core/services/relationships-api.service';
-import { TablesApiService } from '../../../core/services/tables-api.service';
+import { ColumnsApiService } from '../../../shared/services/columns-api.service';
+import { RelationshipsApiService } from '../../../shared/services/relationships-api.service';
+import { TablesApiService } from '../../../shared/services/tables-api.service';
 import { ProjectsStore } from '../../../stores/projects.store';
 import type { ProjectTemplate } from './project-templates';
 

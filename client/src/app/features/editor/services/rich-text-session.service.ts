@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import type { ListKind } from '../../features/editor/canvas/helpers/rich-list.helper';
-import type { RunPatch } from '../../features/editor/canvas/helpers/rich-text.helper';
+import type { ListKind } from '../canvas/helpers/rich-list.helper';
+import type { RunPatch } from '../canvas/helpers/rich-text.helper';
 
 /** What the toolbar needs to know about the selection inside the rich-text editor. */
 export interface RichSelectionState {

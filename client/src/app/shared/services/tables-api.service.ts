@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateTableDto, TableModel, UpdatePositionDto, UpdateTableDto } from '@devdesigner/shared';
-import { ApiClientService } from '../http/api-client.service';
+import { ApiClientService } from '../../core/http/api-client.service';
 
 /** Granular table endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })

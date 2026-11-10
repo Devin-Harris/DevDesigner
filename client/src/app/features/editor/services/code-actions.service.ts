@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeDiffView } from '@devdesigner/shared';
-import { ProjectStore } from '../../stores/project.store';
-import { formatCode } from '../../features/editor/canvas/helpers/code-format.helper';
+import { ProjectStore } from '../../../stores/project.store';
+import { formatCode } from '../canvas/helpers/code-format.helper';
 import {
    CODE_FONT_SIZE,
    codeContentSize,
@@ -11,7 +11,7 @@ import {
    codePrintWidth,
    codeDiffActive,
    codeElementContentSize,
-} from '../../features/editor/canvas/helpers/shape-render.helper';
+} from '../canvas/helpers/shape-render.helper';
 
 /** Actions on code-block elements shared by the inspector and the floating toolbar. */
 @Injectable({ providedIn: 'root' })

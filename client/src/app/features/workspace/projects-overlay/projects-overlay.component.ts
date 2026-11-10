@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@devdesigner/shared';
-import { ProjectFileService } from '../../../core/services/project-file.service';
+import { ProjectFileService } from '../../../shared/services/project-file.service';
 import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { InputComponent } from '../../../shared/ui/components/input/input.component';

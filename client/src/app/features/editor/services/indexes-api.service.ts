@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateIndexDto, IndexModel, ReorderIndexesDto, UpdateIndexDto } from '@devdesigner/shared';
-import { ApiClientService } from '../http/api-client.service';
+import { ApiClientService } from '../../../core/http/api-client.service';
 
 /** Granular table-index endpoints (mirrors ColumnsApiService). */
 @Injectable({ providedIn: 'root' })

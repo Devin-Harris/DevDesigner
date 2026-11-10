@@ -1,9 +1,9 @@
 import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GridTableService } from '../../../core/services/grid-table.service';
-import { ElementImagesService } from '../../../core/services/element-images.service';
-import { MediaActionsService } from '../../../core/services/media-actions.service';
+import { GridTableService } from '../services/grid-table.service';
+import { ElementImagesService } from '../services/element-images.service';
+import { MediaActionsService } from '../services/media-actions.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
@@ -36,12 +36,12 @@ import {
 } from '@devdesigner/shared';
 import { EditorActionsService } from '../../../core/editor-bridge/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
-import { RichTextSessionService } from '../../../core/services/rich-text-session.service';
+import { RichTextSessionService } from '../services/rich-text-session.service';
 import { clearRunKeys, isPlainRuns, patchRuns, plainOf, runsOrPlain } from '../canvas/helpers/rich-text.helper';
 import { listKindOver, toggleList as toggleListRuns, type ListKind } from '../canvas/helpers/rich-list.helper';
 import { CODE_LANGUAGE_LABELS } from '../canvas/helpers/code-highlight.helper';
 import { canFormatCode } from '../canvas/helpers/code-format.helper';
-import { CodeActionsService } from '../../../core/services/code-actions.service';
+import { CodeActionsService } from '../services/code-actions.service';
 import { DEFAULT_LINE_HEIGHT, ensureFontLoaded, LINE_HEIGHTS, withTextFit } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
 import { revertable, revertItems } from '../slides/layout-placeholders';

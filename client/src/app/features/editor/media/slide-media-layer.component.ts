@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { ElementImagesService } from '../../../core/services/element-images.service';
+import { ElementImagesService } from '../services/element-images.service';
 import type { SlideMedia } from '../slides/slide-render.service';
 import { MediaVideoComponent } from './media-video.component';
 

@@ -8,8 +8,8 @@ import {
    type UploadImageDto,
    type UploadImageResponse,
 } from '@devdesigner/shared';
-import { environment } from '../../../environments/environment';
-import { ApiClientService } from '../http/api-client.service';
+import { environment } from '../../../../environments/environment';
+import { ApiClientService } from '../../../core/http/api-client.service';
 
 /** What a file is: a still picture, an animated GIF, or a video. */
 export type MediaKind = 'image' | 'gif' | 'video';
