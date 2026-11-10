@@ -9,13 +9,13 @@ import { GridTableService } from './grid-table.service';
 import { deleteStandIn, detachFromLayout } from '../helpers/layout-placeholders';
 import { frameContents } from '../helpers/frame-contents.helper';
 import { PointerGestureService } from './pointer-gesture.service';
+import { EditorToolService } from './editor-tool.service';
 import { EditorViewportService } from './editor-viewport.service';
 import type { EditorTool } from '../models/editor-tool.model';
 
 /** What the shortcuts reach in the rest of the editor; the editor entry wires it with `connect`. */
 export interface ShortcutsHost {
    readonly presentation: Signal<unknown>;
-   readonly activeTool: WritableSignal<EditorTool>;
    readonly focusedDeck: Signal<string | null>;
    readonly focusScreen: Signal<'main' | 'design' | 'morph' | 'anim'>;
    readonly followingId: WritableSignal<string | null>;
@@ -47,6 +47,7 @@ export class EditorShortcutsService {
    private readonly penPrefs = inject(PenPrefsService);
    private readonly viewport = inject(EditorViewportService);
    private readonly gesture = inject(PointerGestureService);
+   private readonly tools = inject(EditorToolService);
    private host!: ShortcutsHost;
 
    connect(host: ShortcutsHost): void {
@@ -121,13 +122,13 @@ export class EditorShortcutsService {
             this.host.followingId.set(null);
             return;
          }
-         if (this.host.activeTool() === 'select' && this.host.focusedDeck()) {
+         if (this.tools.activeTool() === 'select' && this.host.focusedDeck()) {
             if (this.host.focusScreen() === 'design') this.host.closeFocusDesign(this.host.focusedDeck()!);
             else if (this.host.focusScreen() !== 'main') this.host.leaveFocusScreen();
             else this.host.exitDeckFocus();
             return;
          }
-         this.host.activeTool.set('select');
+         this.tools.activeTool.set('select');
          return;
       }
       const mod = event.ctrlKey || event.metaKey;
@@ -243,7 +244,7 @@ export class EditorShortcutsService {
             return;
          }
       }
-      if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.host.activeTool() === 'freedraw') {
+      if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.tools.activeTool() === 'freedraw') {
          // [ / ]: shrink / grow the pen or eraser.
          event.preventDefault();
          const up = event.key === ']';
@@ -262,8 +263,8 @@ export class EditorShortcutsService {
       if (!mod && !event.altKey && event.key.toLowerCase() === 'x' && this.store.canEdit()) {
          // X: the pen's eraser (switches to the pen if another tool is active).
          event.preventDefault();
-         if (this.host.activeTool() !== 'freedraw') {
-            this.host.activeTool.set('freedraw');
+         if (this.tools.activeTool() !== 'freedraw') {
+            this.tools.activeTool.set('freedraw');
             this.penPrefs.eraser.set(true);
          } else {
             this.penPrefs.eraser.update((v) => !v);
@@ -276,12 +277,12 @@ export class EditorShortcutsService {
       // The laser pointer is a presenting tool, so view-only guests may use it too.
       if (tool && (this.store.canEdit() || tool === 'laser')) {
          // Pressing a shape / line key again cycles through its family (R → O → D, A → L).
-         const cur = this.host.activeTool();
+         const cur = this.tools.activeTool();
          const family = EditorShortcutsService.TOOL_CYCLES.find((f) => f.includes(tool));
          if (family && family.includes(cur) && !event.repeat) {
-            this.host.activeTool.set(family[(family.indexOf(cur) + 1) % family.length]);
+            this.tools.activeTool.set(family[(family.indexOf(cur) + 1) % family.length]);
          } else {
-            this.host.activeTool.set(tool);
+            this.tools.activeTool.set(tool);
          }
          return;
       }

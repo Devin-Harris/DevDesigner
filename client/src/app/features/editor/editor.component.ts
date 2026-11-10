@@ -1,3 +1,4 @@
+import { EditorToolService } from './services/editor-tool.service';
 import { TableDragService } from './features/erd/services/table-drag.service';
 import { RelationshipLinkService } from './features/erd/services/relationship-link.service';
 import { PointerGestureService } from './services/pointer-gesture.service';
@@ -28,7 +29,7 @@ import {
    untracked,
    viewChild,
 } from '@angular/core';
-import { ToolbarPrefsService } from './features/toolbar/services/toolbar-prefs.service';
+import { ToolbarPrefsService } from './services/toolbar-prefs.service';
 import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
 import { PenPrefsService } from './services/pen-prefs.service';
 import { InspectorPanelService } from './services/inspector-panel.service';
@@ -112,7 +113,7 @@ import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.c
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
 import { ConnectorRouteCache, computeConnectors } from './helpers/connectors.helper';
 import { LAYOUT_Z_OFFSET, frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
-import { DEFAULT_FRAME_PRESET, framePreset } from './shared/constants/frame-presets';
+import { framePreset } from './shared/constants/frame-presets';
 import {
    absolutePoints,
    elementBox,
@@ -303,11 +304,13 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       PointerGestureService,
       TableDragService,
       RelationshipLinkService,
+      EditorToolService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly tools = inject(EditorToolService);
    protected readonly relLink = inject(RelationshipLinkService);
    protected readonly tableDrag = inject(TableDragService);
    protected readonly gesture = inject(PointerGestureService);
@@ -413,8 +416,8 @@ export class EditorComponent {
       const tables = new Map<string, SlideView>();
       const diagrams = new Map<string, SlideView>();
       // A shape being drawn inside a zoomed slide is drawn there before it is saved.
-      const draft = this.draft();
-      const draftView = draft ? views.get(this.drawSlideId() ?? '') : undefined;
+      const draft = this.tools.draft();
+      const draftView = draft ? views.get(this.tools.drawSlideId() ?? '') : undefined;
       if (draft && draftView) elements.set(draft.id, draftView);
       if (views.size) {
          // A zoomed slide's layout and master items are drawn in its layer too, beneath its own.
@@ -451,9 +454,6 @@ export class EditorComponent {
       }
       return { elements, tables, diagrams };
    });
-
-   /** The zoomed-out slide the current drawing gesture started in (its draft is drawn there). */
-   private readonly drawSlideId = signal<string | null>(null);
 
    /** The zoomed slide view an item is drawn in, if any. */
    private viewOf(id: string): SlideView | undefined {
@@ -875,13 +875,6 @@ export class EditorComponent {
    /** Routes of relationships nothing moved around since the last pass (see computeConnectors). */
    private readonly connectorRoutes = new ConnectorRouteCache();
 
-   // --- drawing tools / canvas elements ---
-
-   /** The active tool. 'select' is the pointer mode; others draw that element. */
-   readonly activeTool = signal<EditorTool>('select');
-   /** Aspect-ratio preset new frames are drawn with (see frame-presets). */
-   protected readonly framePresetId = signal<string>(DEFAULT_FRAME_PRESET);
-
    /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
    protected readonly panning = signal(false);
 
@@ -894,7 +887,7 @@ export class EditorComponent {
       if (this.panning()) {
          return 'grabbing';
       }
-      const tool = this.activeTool();
+      const tool = this.tools.activeTool();
       if (tool === 'hand') {
          return 'grab';
       }
@@ -910,8 +903,6 @@ export class EditorComponent {
       return 'crosshair';
    });
 
-   /** The element currently being drawn (local only until committed on pointer-up). */
-   private readonly draft = signal<CanvasElementModel | null>(null);
    private elementGesture: ElementGesture | null = null;
 
    /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
@@ -1167,7 +1158,7 @@ export class EditorComponent {
 
    /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
    readonly shapeViews = computed(() => {
-      const draft = this.draft();
+      const draft = this.tools.draft();
       const hide = this.focusHidden();
       const shown = hide ? this.store.elements().filter((e) => !hide.elementIds.has(e.id)) : this.store.elements();
       // A shown slide's layout items draw beneath it, locked.
@@ -1409,7 +1400,7 @@ export class EditorComponent {
       return out;
    });
 
-   protected readonly shapesInteractive = computed(() => this.activeTool() === 'select' && this.store.canEdit());
+   protected readonly shapesInteractive = computed(() => this.tools.activeTool() === 'select' && this.store.canEdit());
 
    private readonly codeActions = inject(CodeActionsService);
    protected readonly grids = inject(GridTableService);
@@ -1783,7 +1774,7 @@ export class EditorComponent {
          const tool = this.initialTool();
          if (!tool || !id || this.store.loading() || this.toolAppliedFor === id) return;
          this.toolAppliedFor = id;
-         setTimeout(() => this.onToolChange(tool));
+         setTimeout(() => this.tools.onToolChange(tool));
       });
       // Join / re-join the realtime room whenever the loaded project changes.
       effect(() => {
@@ -1830,8 +1821,8 @@ export class EditorComponent {
          exportFrame: (id, format) => this.exporter.exportOneFrame(id, format),
          presentDeck: (name) => this.deckFocus.presentDeck(name),
          followPresenter: (id) => void this.slideshow.followPresenter(id),
-         newDeck: () => this.onToolChange('slide'),
-         setTool: (tool) => this.onToolChange(tool as EditorTool),
+         newDeck: () => this.tools.onToolChange('slide'),
+         setTool: (tool) => this.tools.onToolChange(tool as EditorTool),
          resetView: () => this.viewport.resetView(),
          setHome: () => this.viewport.setHome(),
          canvasItems: () => this.paletteItems(),
@@ -1932,7 +1923,7 @@ export class EditorComponent {
       }
       if (
          !this.deckFocus.focusedDeck() &&
-         (event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.activeTool() === 'hand')))
+         (event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.tools.activeTool() === 'hand')))
       ) {
          event.preventDefault();
          this.gesture.mode = 'pan';
@@ -1947,23 +1938,23 @@ export class EditorComponent {
       if (event.button !== 0) {
          return;
       }
-      const tool = this.activeTool();
+      const tool = this.tools.activeTool();
       if (tool !== 'select' && tool !== 'hand' && tool !== 'laser' && this.store.canEdit() && this.store.projectId()) {
          event.preventDefault();
          if (tool === 'table') {
             this.addTableAt(event.clientX, event.clientY);
-            this.afterPlace();
+            this.tools.afterPlace();
             return;
          }
          if (tool === 'sequence') {
             this.addSequenceAt(event.clientX, event.clientY);
-            this.afterPlace();
+            this.tools.afterPlace();
             return;
          }
          if (tool === 'slide') {
             // A click adds a slide: the first where you click, later ones stacked on the shown one.
             void this.placement.addSlide(this.viewport.toWorld(event.clientX, event.clientY));
-            this.afterPlace();
+            this.tools.afterPlace();
             return;
          }
          if (tool === 'freedraw' && this.penPrefs.eraser()) {
@@ -2298,10 +2289,10 @@ export class EditorComponent {
               }
             : {}),
       };
-      this.draft.set(draft);
+      this.tools.draft.set(draft);
       // Started inside a zoomed-out slide: the whole stroke is drawn in its coordinates.
       const raw = this.viewport.toWorldRaw(event.clientX, event.clientY);
-      this.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
+      this.tools.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
       this.drawAnchor = { x, y };
       this.gesture.lastDrawPointer = { x: event.clientX, y: event.clientY };
       this.gesture.startClientX = event.clientX;
@@ -2317,26 +2308,26 @@ export class EditorComponent {
    }
 
    updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
-      const draft = this.draft();
+      const draft = this.tools.draft();
       if (!draft) {
          return;
       }
       this.gesture.lastDrawPointer = { x: clientX, y: clientY };
       // Stay in the space the stroke started in, even when the pointer crosses a block edge.
-      const view = this.slideViews().find((v) => v.frameId === this.drawSlideId());
+      const view = this.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
       const raw = this.viewport.toWorldRaw(clientX, clientY);
       const world = view ? toInner(view, raw) : raw;
       const snap = this.gridSnap();
       if (draft.type === 'freedraw') {
          const pt = toRelative(draft, world);
-         this.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
+         this.tools.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
          return;
       }
       if (draft.type === 'line' || draft.type === 'arrow') {
          // Highlight the shape/table the free end would bind to; binding beats snapping.
          const bindBox = this.bindingTargetAt(world, draft.id)?.box ?? null;
          this.bindHighlight.set(bindBox);
-         const space = { ctx: this.drawSlideId() ?? null, view };
+         const space = { ctx: this.tools.drawSlideId() ?? null, view };
          const spanOf = (px: number, py: number) => ({
             x0: Math.min(px, draft.x),
             y0: Math.min(py, draft.y),
@@ -2391,7 +2382,7 @@ export class EditorComponent {
             const ey = smart?.snappedY ? world.y + smart.oy : snap ? snapToGrid(world.y) : world.y;
             end = { x: ex - draft.x, y: ey - draft.y };
          }
-         this.draft.set({ ...draft, points: [{ x: 0, y: 0 }, end] });
+         this.tools.draft.set({ ...draft, points: [{ x: 0, y: 0 }, end] });
          return;
       }
       // Rectangle / ellipse / diamond: grow the box from the anchor. Shift forces a
@@ -2403,7 +2394,7 @@ export class EditorComponent {
       let dy = ey - ay;
       if (draft.type === 'frame') {
          // A preset frame is locked to its page ratio: width follows the pointer, height follows width.
-         const ratio = framePreset(this.framePresetId()).ratio;
+         const ratio = framePreset(this.tools.framePresetId()).ratio;
          if (ratio) {
             dy = (dy < 0 ? -1 : 1) * (Math.abs(dx) / ratio);
          }
@@ -2413,7 +2404,7 @@ export class EditorComponent {
          dy = (dy < 0 ? -1 : 1) * size;
       }
       if (alt) {
-         this.draft.set({
+         this.tools.draft.set({
             ...draft,
             x: ax - Math.abs(dx),
             y: ay - Math.abs(dy),
@@ -2422,7 +2413,7 @@ export class EditorComponent {
          });
          return;
       }
-      this.draft.set({
+      this.tools.draft.set({
          ...draft,
          x: Math.min(ax, ax + dx),
          y: Math.min(ay, ay + dy),
@@ -2436,10 +2427,10 @@ export class EditorComponent {
     * default size so a single click still produces a visible element.
     */
    private async commitDraft(selectAfter: boolean): Promise<void> {
-      const draft = this.draft();
-      this.draft.set(null);
-      const drawSlide = this.drawSlideId();
-      this.drawSlideId.set(null);
+      const draft = this.tools.draft();
+      this.tools.draft.set(null);
+      const drawSlide = this.tools.drawSlideId();
+      this.tools.drawSlideId.set(null);
       if (!draft) {
          return;
       }
@@ -2467,7 +2458,7 @@ export class EditorComponent {
       const isPen = draft.type === 'freedraw';
       const created = await this.store.addElement(dto, !isPen);
       if (!isPen && (draft.type === 'text' || !this.toolbarPrefs.stayOnTool())) {
-         this.activeTool.set('select');
+         this.tools.activeTool.set('select');
          if (created && selectAfter && created.type === 'text') {
             this.textEditing.editingTextId.set(created.id);
          }
@@ -2512,7 +2503,7 @@ export class EditorComponent {
          height = 160;
       }
       if (draft.type === 'frame') {
-         const preset = framePreset(this.framePresetId());
+         const preset = framePreset(this.tools.framePresetId());
          if (width < 40 || height < 40) {
             width = preset.width;
             height = preset.height;
@@ -4562,16 +4553,6 @@ export class EditorComponent {
          this.store.selectedDiagramIds().length > 0
    );
 
-   /** After placing something: back to Select, unless the toolbar is set to stay on the tool. */
-   private afterPlace(): void {
-      if (!this.toolbarPrefs.stayOnTool()) this.activeTool.set('select');
-   }
-
-   protected onToolChange(tool: EditorTool): void {
-      if (tool === 'freedraw') this.penPrefs.eraser.set(false);
-      this.activeTool.set(tool);
-   }
-
    // --- copy / paste ---
 
    /** Ctrl/Cmd+V: a system-clipboard picture becomes an image element, else the in-app clipboard pastes. */
@@ -4888,7 +4869,7 @@ export class EditorComponent {
          fontFamily: style.fontFamily,
          textAlign: 'left',
       };
-      this.draft.set(draft);
+      this.tools.draft.set(draft);
       void this.commitDraft(true);
    }
 

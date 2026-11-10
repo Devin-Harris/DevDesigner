@@ -2,7 +2,7 @@
    <div
       #canvas
       class="canvas"
-      [class.tool-active]="activeTool() !== 'select'"
+      [class.tool-active]="tools.activeTool() !== 'select'"
       [style.cursor]="canvasCursor()"
       (pointerdown)="onCanvasPointerDown($event)"
       (dblclick)="onCanvasDblClick($event)"
@@ -245,7 +245,7 @@
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
       <dd-laser-layer [viewport]="store.viewport()"></dd-laser-layer>
-      @if (activeTool() === 'laser') {
+      @if (tools.activeTool() === 'laser') {
          <div
             class="laser-capture"
             (pointerdown)="onLaserPointerDown($event)"
@@ -267,7 +267,7 @@
 
       <dd-shape-toolbar
          (pointerdown)="$event.stopPropagation()"
-         [tool]="activeTool()"
+         [tool]="tools.activeTool()"
          [disabled]="!store.canEdit() || !store.projectId()"
          [zoomLabel]="viewport.zoomLabel()"
          [saveLabel]="saveLabel()"
@@ -283,8 +283,8 @@
          [canRedo]="store.canRedo()"
          [hasHome]="!!store.home()"
          [canSetHome]="store.canEdit() && !!store.projectId()"
-         [(framePreset)]="framePresetId"
-         (toolChange)="onToolChange($event)"
+         [(framePreset)]="tools.framePresetId"
+         (toolChange)="tools.onToolChange($event)"
          (addImage)="mediaDrop.pickImages()"
          (undo)="store.undoElement()"
          (redo)="store.redoElement()"
@@ -310,14 +310,14 @@
          </div>
       }
 
-      @if (activeTool() === 'laser') {
+      @if (tools.activeTool() === 'laser') {
          <div class="laser-hint" aria-live="polite">
             <span class="ldot"></span>Laser on: drag to point, the trail fades <span class="lk">K</span
             ><span class="lk">Esc</span>
          </div>
       }
 
-      @if (activeTool() === 'freedraw' && store.canEdit()) {
+      @if (tools.activeTool() === 'freedraw' && store.canEdit()) {
          <dd-pen-options-bar
             class="pen-bar"
             [class.low]="!!deckFocus.focusedDeck() || toolbarPosTop()"

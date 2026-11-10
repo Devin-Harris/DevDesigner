@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, HostListener, computed, inject, sig
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
 import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
-import { ToolbarPrefsService } from './features/editor/features/toolbar/services/toolbar-prefs.service';
+import { ToolbarPrefsService } from './features/editor/services/toolbar-prefs.service';
 import { ToolbarCustomizePanelComponent } from './features/editor/features/toolbar/components/toolbar-customize-panel/toolbar-customize-panel.component';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';

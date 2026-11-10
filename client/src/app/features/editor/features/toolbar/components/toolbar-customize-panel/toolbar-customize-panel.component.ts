@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from '@angular/core';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
-import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from '../../services/toolbar-prefs.service';
+import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from '../../../../services/toolbar-prefs.service';
 
 /**
  * Customize toolbar panel: presets, drag-to-reorder tool list, a drop zone that

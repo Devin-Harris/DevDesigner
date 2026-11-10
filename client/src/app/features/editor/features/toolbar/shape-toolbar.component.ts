@@ -18,7 +18,7 @@ import { IconComponent } from '../../../../shared/ui/components/icon/icon.compon
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ProjectStore } from '../../state/project/project.store';
 import type { EditorTool } from '../../models/editor-tool.model';
-import { DockToolId, ToolbarPrefsService } from './services/toolbar-prefs.service';
+import { DockToolId, ToolbarPrefsService } from '../../services/toolbar-prefs.service';
 import type { AlignAction, ExportImageFormat } from '../../models/toolbar-actions';
 
 /** Default corner radius (px) applied when the rounded-rectangle variant is picked. */
