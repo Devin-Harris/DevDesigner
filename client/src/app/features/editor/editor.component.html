@@ -4,7 +4,7 @@
       class="canvas"
       [class.tool-active]="tools.activeTool() !== 'select'"
       [style.cursor]="tools.canvasCursor()"
-      (pointerdown)="onCanvasPointerDown($event)"
+      (pointerdown)="pointer.onCanvasPointerDown($event)"
       (dblclick)="dblClick.onCanvasDblClick($event)"
       (wheel)="viewport.onWheel($event)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
@@ -973,7 +973,7 @@
          }
       }
 
-      @if (marqueeRect(); as m) {
+      @if (pointer.marqueeRect(); as m) {
          <div
             class="marquee"
             [style.left.px]="m.left"
