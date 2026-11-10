@@ -1,3 +1,5 @@
+import { MediaDropService } from './features/elements/services/media-drop.service';
+import { ClipboardService } from './features/canvas/services/clipboard.service';
 import { EditorExportService } from './features/export/services/editor-export.service';
 import { EditorShortcutsService } from './services/editor-shortcuts.service';
 import type { DragMode } from './models/drag-mode.model';
@@ -35,7 +37,6 @@ import type {
    RelationshipType,
    TableModel,
    TextRun,
-   SlideConfig,
 } from '@devdesigner/shared';
 import {
    presentationOf,
@@ -76,7 +77,6 @@ import { FontMetricsService } from './services/font-metrics.service';
 import type { ShapeView } from './models/shape-view.model';
 import { ProjectFileService } from '../../shared/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
-import { ElementImagesService } from './services/element-images.service';
 import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
@@ -364,11 +364,13 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       SlidesPanelComponent,
       PresentModeComponent,
    ],
-   providers: [EditorShortcutsService, EditorExportService],
+   providers: [EditorShortcutsService, EditorExportService, MediaDropService, ClipboardService],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly clipboard = inject(ClipboardService);
+   protected readonly mediaDrop = inject(MediaDropService);
    protected readonly exporter = inject(EditorExportService);
    protected readonly shortcuts = inject(EditorShortcutsService);
    protected readonly store = inject(ProjectStore);
@@ -833,7 +835,7 @@ export class EditorComponent {
       return rings;
    });
 
-   protected readonly gridSnap = signal(readStoredGrid());
+   readonly gridSnap = signal(readStoredGrid());
    /** Snap drags to nearby items' edges, centers and spacing (Figma-style guides). */
    protected readonly smartGuides = signal(readStoredSmartGuides());
    /** What the moving selection snaps against, captured when a drag starts. */
@@ -1109,8 +1111,8 @@ export class EditorComponent {
    }
 
    protected duplicateSelectionInPlace(): void {
-      this.copySelection();
-      void this.pasteClipboard();
+      this.clipboard.copySelection();
+      void this.clipboard.pasteClipboard();
    }
 
    /** Placement + table for the floating table action bar (single table selected). */
@@ -2100,17 +2102,6 @@ export class EditorComponent {
    /** World-space point a shape draw started from (the corner, or the center with Alt). */
    private drawAnchor = { x: 0, y: 0 };
    lastDrawPointer = { x: 0, y: 0 };
-   /** In-app clipboard for copy/paste of tables and canvas elements. */
-   private clipboard: {
-      tables: TableModel[];
-      elements: CanvasElementModel[];
-      diagramIds: string[];
-      /** The first copied frame, so pasted slides land on free canvas. */
-      frame: CanvasElementModel | null;
-   } | null = null;
-   /** Text put on the system clipboard at the last in-app copy, to notice a newer outside copy. */
-   private clipboardMark: string | null = null;
-   private pasteCount = 0;
    /** True once the current drag has switched to dragging Alt-made copies. */
    private dragCopied = false;
    /** Pointer was released while Alt-drag copies were still being created. */
@@ -2129,6 +2120,8 @@ export class EditorComponent {
    private lastCursorSent = 0;
 
    constructor() {
+      this.clipboard.connect(this);
+      this.mediaDrop.connect(this);
       this.exporter.connect(this);
       this.shortcuts.connect(this);
       // Ctrl/Cmd+wheel (and trackpad pinch) anywhere over the editor — canvas,
@@ -2485,7 +2478,7 @@ export class EditorComponent {
       this.realtime.sendCursor(world.x, world.y);
    }
 
-   private canvasRect(): DOMRect {
+   canvasRect(): DOMRect {
       return this.canvasRef().nativeElement.getBoundingClientRect();
    }
 
@@ -2493,7 +2486,7 @@ export class EditorComponent {
     * Screen -> world. Over a zoomed-out slide this is the slide's own coordinates (what
     * is drawn under the pointer there), so drawing, dropping and picking work inside it.
     */
-   private toWorld(clientX: number, clientY: number): { x: number; y: number } {
+   toWorld(clientX: number, clientY: number): { x: number; y: number } {
       const p = this.toWorldRaw(clientX, clientY);
       const view = this.slideViews().find((v) => inBlock(v, p));
       this.store.setPointerSlide(view?.frameId ?? null);
@@ -2647,7 +2640,7 @@ export class EditorComponent {
    // --- drawing new elements ---
 
    /** Default stroke color for new elements: the theme's text color, so it reads on either theme. */
-   private defaultStroke(): string {
+   defaultStroke(): string {
       try {
          const c = getComputedStyle(this.canvasRef().nativeElement).getPropertyValue('--dd-text').trim();
          return c || DEFAULT_ELEMENT_STROKE;
@@ -7287,7 +7280,7 @@ export class EditorComponent {
     * Horizontal offset that puts a copy of `frame` on free canvas: `step` page
     * widths to the right, pushed further right while it would land on another frame.
     */
-   private freeFrameOffset(frame: CanvasElementModel, step = 1): number {
+   freeFrameOffset(frame: CanvasElementModel, step = 1): number {
       const frames = this.store.elements().filter((e) => e.type === 'frame');
       let dx = (frame.width + 160) * step;
       for (let i = 0; i < 40; i += 1) {
@@ -7311,7 +7304,7 @@ export class EditorComponent {
     * Clone tables (plus the relationships between them), sequence diagrams and
     * elements by (dx, dy). Callers wrap this in `batchHistory` for one undo step.
     */
-   private async cloneItems(
+   async cloneItems(
       tableIds: ReadonlySet<string>,
       diagramIds: ReadonlySet<string>,
       elements: readonly CanvasElementModel[],
@@ -7330,7 +7323,7 @@ export class EditorComponent {
     * Give pasted/duplicated slide copies their place in `deck`: at `toIndex` when given
     * (Alt-drag in the panel), else right after `afterId`, keeping their relative order.
     */
-   private async orderSlideCopies(
+   async orderSlideCopies(
       copies: readonly CanvasElementModel[],
       deck: string,
       afterId: string | null,
@@ -7378,7 +7371,7 @@ export class EditorComponent {
     * Duplicate slides with everything on them. The copies land right after the last
     * source in the sequence, or at `toIndex` when given (Alt-drag in the panel).
     */
-   private async duplicateSlides(ids: readonly string[], toIndex?: number): Promise<void> {
+   async duplicateSlides(ids: readonly string[], toIndex?: number): Promise<void> {
       const frames = ids
          .map((id) => this.store.elements().find((e) => e.id === id))
          .filter((f): f is CanvasElementModel => !!f);
@@ -7471,360 +7464,17 @@ export class EditorComponent {
       this.shortcuts.onKeyUp(event);
    }
 
-   @HostListener('window:paste', ['$event'])
-   protected onPaste(event: ClipboardEvent): void {
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
-         return;
-      }
-      if (!this.store.canEdit()) {
-         return;
-      }
-      const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
-      if (files.length) {
-         event.preventDefault();
-         void this.insertImages(files);
-         return;
-      }
-      // Something copied elsewhere since our last copy replaces it: don't paste the stale one.
-      const text = event.clipboardData?.getData('text/plain') ?? '';
-      // Line endings are compared loosely: the Windows clipboard turns \n into \r\n.
-      const eol = (s: string) => s.replace(/\r\n?/g, '\n');
-      if (this.clipboard && this.clipboardMark !== null && text && eol(text) !== eol(this.clipboardMark)) {
-         this.clipboard = null;
-         this.clipboardMark = null;
-      }
-      if (this.clipboard) {
-         event.preventDefault();
-         void this.pasteClipboard();
-      }
-   }
-
-   // --- images ---
-
-   private readonly images = inject(ElementImagesService);
    private readonly mediaActions = inject(MediaActionsService);
 
-   /** Toolbar "Image": pick one or more files and drop them at the center of the view. */
-   protected pickImages(): void {
-      if (!this.store.canEdit() || !this.store.projectId()) {
-         return;
-      }
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.multiple = true;
-      input.accept =
-         'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg,video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.mov';
-      input.onchange = () => {
-         const files = Array.from(input.files ?? []);
-         if (files.length) {
-            void this.insertImages(files);
-         }
-      };
-      input.click();
+   @HostListener('window:paste', ['$event'])
+   protected onPaste(event: ClipboardEvent): void {
+      this.clipboard.onPaste(event);
    }
 
-   protected onCanvasDragOver(event: DragEvent): void {
-      if (this.store.canEdit() && event.dataTransfer?.types.includes('Files')) {
-         event.preventDefault();
-         event.dataTransfer.dropEffect = 'copy';
-      }
-   }
+   // --- ports: calls the editor's services make into sibling sub-features ---
 
-   protected onCanvasDrop(event: DragEvent): void {
-      const all = Array.from(event.dataTransfer?.files ?? []);
-      const json = all.filter((f) => f.type === 'application/json' || /\.json$/i.test(f.name));
-      if (json.length) {
-         event.preventDefault();
-         if (this.store.canEdit()) {
-            void this.importDroppedJson(json, this.toWorld(event.clientX, event.clientY));
-         }
-         return;
-      }
-      // Some OSes leave `type` empty (or odd) for media, so fall back to the extension.
-      const files = all.filter(
-         (f) =>
-            f.type.startsWith('image/') ||
-            f.type.startsWith('video/') ||
-            /\.(svg|png|jpe?g|gif|webp|mp4|m4v|webm|mov|ogv)$/i.test(f.name)
-      );
-      if (!files.length) {
-         return;
-      }
-      event.preventDefault();
-      if (this.store.canEdit()) {
-         void this.insertImages(files, this.toWorld(event.clientX, event.clientY));
-      }
-   }
-
-   /**
-    * Upload image files and add each as an image element, centered on `at` (or the
-    * middle of the view) and staggered so several don't stack exactly. Large
-    * pictures are scaled down to a comfortable on-canvas size, keeping proportions.
-    */
-   private async insertImages(files: File[], at?: { x: number; y: number }): Promise<void> {
-      const projectId = this.store.projectId();
-      if (!projectId || !this.store.canEdit()) {
-         return;
-      }
-      const rect = this.canvasRect();
-      const v = this.store.viewport();
-      const center = at ?? {
-         x: (rect.width / 2 - v.x) / v.zoom,
-         y: (rect.height / 2 - v.y) / v.zoom,
-      };
-      const maxSide = 400;
-      let index = 0;
-      for (const file of files) {
-         try {
-            // Some sources (an SVG from a file picker) report no MIME type; infer it.
-            const ext = /\.([a-z0-9]+)$/i.exec(file.name)?.[1]?.toLowerCase() ?? '';
-            const byExt: Record<string, string> = {
-               svg: 'image/svg+xml',
-               png: 'image/png',
-               jpg: 'image/jpeg',
-               jpeg: 'image/jpeg',
-               gif: 'image/gif',
-               webp: 'image/webp',
-               mp4: 'video/mp4',
-               m4v: 'video/mp4',
-               webm: 'video/webm',
-               mov: 'video/quicktime',
-               ogv: 'video/ogg',
-            };
-            const typed = file.type || !byExt[ext] ? file : new Blob([file], { type: byExt[ext] });
-            const uploaded = await this.images.upload(projectId, typed);
-            const scale = Math.min(1, maxSide / Math.max(uploaded.width, uploaded.height));
-            const width = Math.max(8, Math.round(uploaded.width * scale));
-            const height = Math.max(8, Math.round(uploaded.height * scale));
-            const shift = index * 24;
-            const x = Math.round(center.x - width / 2 + shift);
-            const y = Math.round(center.y - height / 2 + shift);
-            await this.store.addElement({
-               type: 'image',
-               x: this.gridSnap() ? snapToGrid(x) : x,
-               y: this.gridSnap() ? snapToGrid(y) : y,
-               width,
-               height,
-               angle: 0,
-               strokeColor: this.defaultStroke(),
-               fillStyle: 'none',
-               strokeWidth: 0,
-               strokeStyle: 'solid',
-               opacity: 100,
-               fileId: uploaded.fileId,
-            });
-            index += 1;
-         } catch (err) {
-            this.snackBar.open(err instanceof Error ? err.message : 'Could not add the image.', undefined, {
-               duration: 4000,
-            });
-         }
-      }
-   }
-
-   /** Snapshot the selected tables and elements into the in-app clipboard. */
-   copySelection(): void {
-      const tableIds = this.store.selectedTableIds();
-      let elementIds = this.store.selectedElementIds();
-      // Nothing picked while a layout is shown: copy the layout itself (pasting duplicates it).
-      const shownLayout = this.store
-         .elements()
-         .find((e) => e.id === this.store.activeSlideId() && e.slide?.layout && !e.slide.master);
-      if (
-         shownLayout &&
-         !tableIds.length &&
-         (!elementIds.length || (elementIds.length === 1 && elementIds[0] === shownLayout.id)) &&
-         !this.store.selectedDiagramIds().length
-      ) {
-         this.clipboard = { tables: [], elements: [shownLayout], diagramIds: [], frame: shownLayout };
-         this.pasteCount = 0;
-         const mark = `devdesigner:${Date.now()}`;
-         this.clipboardMark = mark;
-         void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));
-         return;
-      }
-      // A slide left selected next to items picked on the canvas means "copy those items",
-      // not the whole slide around them.
-      const slideIds = new Set(this.store.slideFrames().map((f) => f.id));
-      const picked = elementIds.filter((id) => !slideIds.has(id));
-      if (picked.length && picked.length < elementIds.length) {
-         elementIds = picked;
-      }
-      // Copying a frame (slide) copies everything inside it too.
-      const inner = frameContents(
-         new Set(elementIds),
-         this.store.elements(),
-         this.store.tables(),
-         this.store.sequenceDiagrams(),
-         this.store.lifelines(),
-         this.store.sequenceMessages(),
-         this.store.shownSlideIds()
-      );
-      const selectedDiagrams = new Set(this.store.selectedDiagramIds());
-      const tables = this.store.tables().filter((t) => tableIds.includes(t.id) || inner.tableIds.has(t.id));
-      const elements = this.store.elements().filter((e) => elementIds.includes(e.id) || inner.elementIds.has(e.id));
-      if (!tables.length && !elements.length && !selectedDiagrams.size && !inner.diagramIds.size) {
-         return;
-      }
-      this.clipboard = {
-         tables,
-         elements,
-         diagramIds: [...new Set([...inner.diagramIds, ...selectedDiagrams])],
-         frame: elements.find((e) => e.type === 'frame' && elementIds.includes(e.id)) ?? null,
-      };
-      this.pasteCount = 0;
-      // A lone code block also lands on the system clipboard as plain text; anything else
-      // leaves a marker there, so a later copy in another app is noticed on paste.
-      const mark =
-         !tables.length && elements.length === 1 && elements[0].type === 'code'
-            ? (elements[0].text ?? '')
-            : `devdesigner:${Date.now()}`;
-      this.clipboardMark = mark || null;
-      if (mark) {
-         void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));
-      }
-   }
-
-   /**
-    * A pasted slide's config moved into `target`: ordered right after `after`, wearing
-    * that deck's theme, and using its layout of the same kind or name (else its default).
-    */
-   private slideForPresentation(copy: CanvasElementModel, target: string, after: CanvasElementModel): SlideConfig {
-      const frames = this.store.slideFrames();
-      const slides = presentationSlides(frames, target).filter((f) => f.id !== copy.id);
-      const at = slides.findIndex((f) => f.id === after.id);
-      const lo = at >= 0 ? slides[at].slide!.order : slides[slides.length - 1]?.slide?.order;
-      const hi = at >= 0 ? slides[at + 1]?.slide?.order : undefined;
-      const order = lo === undefined ? 0 : hi === undefined ? lo + 1 : (lo + hi) / 2;
-      const own = layoutOf(copy, frames);
-      const layouts = presentationLayouts(frames, target).filter((l) => !l.slide?.master);
-      const layout =
-         (own?.slide?.layoutKind && layouts.find((l) => l.slide?.layoutKind === own.slide?.layoutKind)) ||
-         (own && layouts.find((l) => layoutNameOf(l, frames) === layoutNameOf(own, frames))) ||
-         layouts.find((l) => l.slide?.defaultLayout);
-      const theme = frames.find((f) => presentationOf(f) === target && f.slide?.theme)?.slide?.theme;
-      return { ...copy.slide!, presentation: target, order, layoutId: layout?.id, theme };
-   }
-
-   /** The cursor in world coordinates, if it is over the canvas. */
-   private pasteAnchor(): { x: number; y: number } | null {
-      const p = this.lastPointer;
-      if (!p) return null;
-      const rect = this.canvasRect();
-      if (p.clientX < rect.left || p.clientX > rect.right || p.clientY < rect.top || p.clientY > rect.bottom) {
-         return null;
-      }
-      return this.toWorld(p.clientX, p.clientY);
-   }
-
-   /** Paste the clipboard, each successive paste stepping further from the original. */
-   private async pasteClipboard(): Promise<void> {
-      const clip = this.clipboard;
-      if (!clip) {
-         return;
-      }
-      // A copied layout pastes as a duplicate right after it.
-      const layoutSrc =
-         clip.frame?.slide?.layout && !clip.frame.slide.master
-            ? this.store.elements().find((e) => e.id === clip.frame!.id)
-            : null;
-      if (layoutSrc) {
-         await this.duplicateSlides([layoutSrc.id]);
-         return;
-      }
-      this.pasteCount++;
-      // Slides are pasted a page-width away on free canvas, other things nudged diagonally.
-      const slide = clip.frame ? this.store.elements().find((e) => e.id === clip.frame?.id) : null;
-      const frame = slide ?? clip.frame;
-      const isSlide = !!frame?.slide;
-      // A slide pasted while another presentation is selected joins that one: it lands
-      // on that deck's spot, right after the slide it shows.
-      const target = this.store.presentation();
-      const targetShown = this.store.elements().find((e) => e.id === this.store.activeSlideId());
-      const intoOther =
-         isSlide && !frame?.slide?.layout && !!target && !!targetShown && presentationOf(frame!) !== target;
-      let dx = isSlide ? 0 : frame ? this.freeFrameOffset(frame, this.pasteCount) : 24 * this.pasteCount;
-      let dy = frame && !isSlide ? 0 : isSlide ? 0 : 24 * this.pasteCount;
-      if (intoOther) {
-         dx = targetShown!.x - frame!.x;
-         dy = targetShown!.y - frame!.y;
-      } else if (!frame) {
-         // Loose items paste centered on the cursor when it is over the canvas.
-         const at = this.pasteAnchor();
-         const boxes = [
-            ...clip.elements.map((e) => ({ x: e.x, y: e.y, w: e.width ?? 0, h: e.height ?? 0 })),
-            ...clip.tables.map((t) => ({ x: t.x, y: t.y, w: 0, h: 0 })),
-         ];
-         if (at && boxes.length) {
-            const minX = Math.min(...boxes.map((b) => b.x));
-            const minY = Math.min(...boxes.map((b) => b.y));
-            const maxX = Math.max(...boxes.map((b) => b.x + b.w));
-            const maxY = Math.max(...boxes.map((b) => b.y + b.h));
-            dx = Math.round(at.x - (minX + maxX) / 2);
-            dy = Math.round(at.y - (minY + maxY) / 2);
-         }
-      }
-      let result: { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null = null;
-      await this.store.batchHistory(async () => {
-         result = await this.cloneItems(
-            new Set(clip.tables.map((t) => t.id).filter((id) => this.store.tables().some((t) => t.id === id))),
-            new Set(clip.diagramIds.filter((id) => this.store.sequenceDiagrams().some((d) => d.id === id))),
-            clip.elements.map((e) => this.store.elements().find((x) => x.id === e.id) ?? e),
-            dx,
-            dy
-         );
-         const slideCopies = result
-            ? [...result.copies.values()].filter((c) => c.type === 'frame' && c.slide && !c.slide.layout)
-            : [];
-         if (intoOther && target && targetShown) {
-            for (const copy of slideCopies) {
-               await this.store.updateElement(copy.id, { slide: this.slideForPresentation(copy, target, targetShown) });
-            }
-            await this.orderSlideCopies(slideCopies, target, targetShown.id);
-         } else if (slideCopies.length) {
-            // Pasted slides go right after the slide shown in their deck, in their copied order.
-            const deck = presentationOf(slideCopies[0]);
-            await this.orderSlideCopies(slideCopies, deck, this.store.shownByPresentation().get(deck) ?? null);
-         }
-      });
-      const r = result as { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null;
-      if (!r) {
-         return;
-      }
-      const pastedSlides = [...r.copies.values()].filter((c) => c.type === 'frame' && c.slide);
-      if (pastedSlides.length) {
-         this.focusFrame(pastedSlides[pastedSlides.length - 1].id);
-         if (pastedSlides.length > 1)
-            this.store.setSelection(
-               [],
-               [],
-               pastedSlides.map((c) => c.id)
-            );
-         return;
-      }
-      // Pasted content lands on the slide that is shown, not on the one it was copied from.
-      const shown = this.store.activeSlideId();
-      if (shown) {
-         await this.store.assignSlide(
-            {
-               elements: [...r.copies.values()].filter((c) => c.type !== 'frame').map((c) => c.id),
-               tables: r.tableIds,
-               diagrams: r.diagramIds,
-            },
-            shown
-         );
-      }
-      this.store.setSelection(
-         r.tableIds,
-         [],
-         [...r.copies.values()].map((c) => c.id),
-         [],
-         [],
-         r.diagramIds
-      );
-   }
+   readonly copySelection = (): void => this.clipboard.copySelection();
+   readonly insertImages = (files: File[]): Promise<void> => this.mediaDrop.insertImages(files);
 
    // --- toolbar: add / zoom / grid / align ---
 
@@ -8524,38 +8174,8 @@ export class EditorComponent {
       return this.smartBase;
    }
 
-   /** Merge a project file into this project, landing in the visible part of the canvas. */
-   /** Dropped project/selection `.json` files: import each like File → Import, at the drop point. */
-   private async importDroppedJson(files: File[], at: { x: number; y: number }): Promise<void> {
-      let total = 0;
-      for (const [i, file] of files.entries()) {
-         try {
-            let parsed: unknown;
-            try {
-               parsed = JSON.parse(await file.text());
-            } catch {
-               throw new Error(`${file.name} is not valid JSON.`);
-            }
-            const anchor = { x: Math.round(at.x + i * 40), y: Math.round(at.y + i * 40) };
-            total += await this.importProjectFile(parsed, anchor);
-         } catch (err) {
-            const e = err as { error?: { message?: string }; message?: string };
-            const detail = e?.error?.message ?? e?.message;
-            // eslint-disable-next-line no-console
-            console.error('Could not import file', err);
-            this.snackBar.open(`Could not import file${detail ? `: ${detail}` : ''}`, 'Dismiss', {
-               duration: 6000,
-            });
-            return;
-         }
-      }
-      this.snackBar.open(`Imported ${total} item${total === 1 ? '' : 's'}`, undefined, {
-         duration: 2500,
-      });
-   }
-
    /** Merge a project file into this project, landing in the visible part of the canvas (or at `at`). */
-   protected async importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number> {
+   async importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number> {
       const rect = this.canvasRect();
       const v = this.store.viewport();
       // Top-left of the content goes a little in from the canvas's top-left corner.

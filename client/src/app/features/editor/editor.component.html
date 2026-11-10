@@ -7,8 +7,8 @@
       (pointerdown)="onCanvasPointerDown($event)"
       (dblclick)="onCanvasDblClick($event)"
       (wheel)="onWheel($event)"
-      (dragover)="onCanvasDragOver($event)"
-      (drop)="onCanvasDrop($event)"
+      (dragover)="mediaDrop.onCanvasDragOver($event)"
+      (drop)="mediaDrop.onCanvasDrop($event)"
    >
       <div class="world" [style.transform]="worldTransform()">
          @if (croppingElement(); as ce) {
@@ -285,7 +285,7 @@
          [canSetHome]="store.canEdit() && !!store.projectId()"
          [(framePreset)]="framePresetId"
          (toolChange)="onToolChange($event)"
-         (addImage)="pickImages()"
+         (addImage)="mediaDrop.pickImages()"
          (undo)="store.undoElement()"
          (redo)="store.redoElement()"
          (zoomIn)="zoomIn()"
