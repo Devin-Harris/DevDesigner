@@ -19,6 +19,7 @@
 >
    <button
       class="icon-btn color"
+      type="button"
       [ddPopoverTrigger]="colorMenu"
       placement="below-start"
       (pointerdown)="$event.stopPropagation()"
@@ -124,6 +125,7 @@
          <div class="chips">
             <button
                class="chip pk"
+               type="button"
                [class.on]="column.isPrimaryKey"
                (pointerdown)="$event.stopPropagation()"
                (click)="togglePk(column)"
@@ -133,6 +135,7 @@
             </button>
             <button
                class="chip nn"
+               type="button"
                [class.on]="!column.isNullable"
                (pointerdown)="$event.stopPropagation()"
                (click)="toggleNotNull(column)"
@@ -142,6 +145,7 @@
             </button>
             <button
                class="chip uq"
+               type="button"
                [class.on]="column.isUnique || uniqueSets().has(column.id)"
                [ddPopoverTrigger]="uniqueMenu"
                placement="below-end"
@@ -153,7 +157,12 @@
             </button>
             <ng-template #uniqueMenu let-close>
                <div class="dd-menu">
-                  <button class="dd-menu-item" [class.on]="column.isUnique" (click)="toggleUnique(column); close()">
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     [class.on]="column.isUnique"
+                     (click)="toggleUnique(column); close()"
+                  >
                      <dd-icon [name]="column.isUnique ? 'check' : 'key'" />
                      Unique on its own
                   </button>
@@ -162,6 +171,7 @@
                      @for (ix of uniqueIndexes(); track ix.id) {
                         <button
                            class="dd-menu-item"
+                           type="button"
                            [class.on]="ix.columnIds.includes(column.id)"
                            (click)="toggleIndexMember(ix, column)"
                            [title]="indexColumnNames(ix)"
@@ -172,7 +182,7 @@
                      }
                   }
                   <div class="dd-menu-sep"></div>
-                  <button class="dd-menu-item" (click)="newUniqueIndex(column); close()">
+                  <button class="dd-menu-item" type="button" (click)="newUniqueIndex(column); close()">
                      <dd-icon name="add" />
                      New multi-column unique set
                   </button>
@@ -180,6 +190,7 @@
             </ng-template>
             <button
                class="chip ai"
+               type="button"
                [class.on]="column.isAutoIncrement"
                (pointerdown)="$event.stopPropagation()"
                (click)="toggleAuto(column)"
@@ -190,6 +201,7 @@
             @if (isNumeric(column.dataType.name)) {
                <button
                   class="chip un"
+                  type="button"
                   [class.on]="!!column.isUnsigned"
                   (pointerdown)="$event.stopPropagation()"
                   (click)="toggleUnsigned(column)"
@@ -202,6 +214,7 @@
 
          <button
             class="type"
+            type="button"
             [ddPopoverTrigger]="typeMenu"
             placement="below-end"
             (pointerdown)="$event.stopPropagation()"
@@ -215,6 +228,7 @@
                @for (name of dataTypeNames; track name) {
                   <button
                      class="dd-menu-item"
+                     type="button"
                      [class.on]="name === column.dataType.name"
                      (click)="setType(column, name); close()"
                   >
@@ -238,6 +252,7 @@
 
          <button
             class="icon-btn tiny"
+            type="button"
             (pointerdown)="$event.stopPropagation()"
             (click)="deleteColumn(column)"
             [disabled]="!editable()"

@@ -22,9 +22,13 @@
 
       <div class="fitwrap">
          <div class="zoombar">
-            <button (click)="setZoom(zoom() / 1.25)" [disabled]="zoom() <= 1" aria-label="Zoom out">−</button>
-            <button class="pct" (click)="setZoom(1)" title="Fit">{{ (zoom() * 100).toFixed(0) }}%</button>
-            <button (click)="setZoom(zoom() * 1.25)" [disabled]="zoom() >= 4" aria-label="Zoom in">+</button>
+            <button type="button" (click)="setZoom(zoom() / 1.25)" [disabled]="zoom() <= 1" aria-label="Zoom out">
+               −
+            </button>
+            <button class="pct" type="button" (click)="setZoom(1)" title="Fit">{{ (zoom() * 100).toFixed(0) }}%</button>
+            <button type="button" (click)="setZoom(zoom() * 1.25)" [disabled]="zoom() >= 4" aria-label="Zoom in">
+               +
+            </button>
          </div>
          <div
             class="fit"
@@ -50,6 +54,7 @@
                      @for (h of side === 'a' ? hitsA() : hitsB(); track h.key) {
                         <button
                            class="hit"
+                           type="button"
                            [style.z-index]="hitZ(h)"
                            [class.paired]="!!h.num"
                            [class.armed]="isArmed($any(side), h)"
@@ -129,6 +134,7 @@
                      @if (!drag()) {
                         <button
                            class="cut-line"
+                           type="button"
                            [class.rel]="isRel(l.a) || isRel(l.b)"
                            [disabled]="!!armed() && !isRel(l.a) && !isRel(l.b)"
                            [style.left.%]="(l.x1 + l.x2) / 2"
@@ -183,13 +189,14 @@
    @if (view() === 'map' && armedHit(); as h) {
       <div class="actions">
          @if (h.partner) {
-            <button class="btn" (click)="unpairArmed()">
+            <button class="btn" type="button" (click)="unpairArmed()">
                {{ h.forced ? 'Remove pairing' : "Don't morph: fade instead" }}
             </button>
          }
          @if (!h.cut) {
             <button
                class="btn"
+               type="button"
                (click)="cutArmed()"
                title="No fade, no morph: it just switches at the start of the transition"
             >
@@ -197,9 +204,9 @@
             </button>
          }
          @if (h.forced || h.cut || h.solo) {
-            <button class="btn" (click)="resetArmed()">Reset to automatic</button>
+            <button class="btn" type="button" (click)="resetArmed()">Reset to automatic</button>
          }
-         <button class="btn ghost" (click)="armed.set(null)">Done <span class="k">Esc</span></button>
+         <button class="btn ghost" type="button" (click)="armed.set(null)">Done <span class="k">Esc</span></button>
       </div>
    }
 
@@ -230,7 +237,7 @@
             }
          }
       </div>
-      <button class="go" (click)="togglePlay()">
+      <button class="go" type="button" (click)="togglePlay()">
          {{ playing() ? '❚❚ Pause' : progress() >= 1 ? '↻ Restart' : '▶ Preview' }}
       </button>
       <div class="track">
@@ -267,7 +274,13 @@
             p.cut ? 'no transition' : p.forced ? 'set by you' : p.why
          }}</span>
          @if (canEdit() && p.forced) {
-            <button class="act" (click)="resetPair(p)" title="Reset to automatic" aria-label="Reset to automatic">
+            <button
+               class="act"
+               type="button"
+               (click)="resetPair(p)"
+               title="Reset to automatic"
+               aria-label="Reset to automatic"
+            >
                ↺
             </button>
          } @else {

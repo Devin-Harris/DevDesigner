@@ -261,6 +261,7 @@
       @for (s of addSlots(); track s.key) {
          <button
             class="add-ll-btn"
+            type="button"
             [style.left.px]="s.x"
             [style.top.px]="originY() + headerH() / 2"
             (pointerdown)="$event.stopPropagation()"

@@ -4,15 +4,17 @@
          <h2 class="title">Projects</h2>
          <div class="head-actions">
             <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
-            <button class="btn" [disabled]="busy()" (click)="importInput.click()">
+            <button class="btn" type="button" [disabled]="busy()" (click)="importInput.click()">
                <dd-icon name="upload" />
                Import
             </button>
-            <button class="btn primary" (click)="addProject()">
+            <button class="btn primary" type="button" (click)="addProject()">
                <dd-icon name="add" />
                New
             </button>
-            <button class="icon-btn" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
+            <button class="icon-btn" type="button" (click)="close()" aria-label="Close">
+               <dd-icon name="close" />
+            </button>
          </div>
       </header>
 
@@ -35,7 +37,7 @@
          } @else if (store.error()) {
             <div class="state">
                <p>{{ store.error() }}</p>
-               <button class="btn" (click)="store.loadProjects()">Retry</button>
+               <button class="btn" type="button" (click)="store.loadProjects()">Retry</button>
             </div>
          } @else if (store.visibleProjects().length === 0) {
             <div class="state">
@@ -124,6 +126,7 @@
 
                      <button
                         class="icon-btn quick-delete"
+                        type="button"
                         (click)="removeOne(project, $event.shiftKey); $event.stopPropagation()"
                         title="Delete (Shift+click to skip confirmation)"
                         aria-label="Delete project"
@@ -132,6 +135,7 @@
                      </button>
                      <button
                         class="icon-btn more"
+                        type="button"
                         [ddPopoverTrigger]="cardMenu"
                         placement="below-end"
                         (click)="$event.stopPropagation()"
@@ -141,21 +145,21 @@
                      </button>
                      <ng-template #cardMenu let-close>
                         <div class="dd-menu">
-                           <button class="dd-menu-item" (click)="startRename(project); close()">
+                           <button class="dd-menu-item" type="button" (click)="startRename(project); close()">
                               <dd-icon name="edit" />Rename
                            </button>
-                           <button class="dd-menu-item" (click)="duplicate(project); close()">
+                           <button class="dd-menu-item" type="button" (click)="duplicate(project); close()">
                               <dd-icon name="content_copy" />Duplicate
                            </button>
-                           <button class="dd-menu-item" (click)="exportProject(project); close()">
+                           <button class="dd-menu-item" type="button" (click)="exportProject(project); close()">
                               <dd-icon name="download" />Export
                            </button>
-                           <button class="dd-menu-item" (click)="toggleArchive(project); close()">
+                           <button class="dd-menu-item" type="button" (click)="toggleArchive(project); close()">
                               <dd-icon [name]="project.archived ? 'unarchive' : 'archive'" />
                               {{ project.archived ? 'Unarchive' : 'Archive' }}
                            </button>
                            <div class="dd-menu-sep"></div>
-                           <button class="dd-menu-item danger" (click)="removeOne(project); close()">
+                           <button class="dd-menu-item danger" type="button" (click)="removeOne(project); close()">
                               <dd-icon name="delete" />Delete
                            </button>
                         </div>
@@ -169,9 +173,9 @@
       @if (checked().size > 0) {
          <div class="bulk-bar">
             <span>{{ checked().size }} selected</span>
-            <button class="btn ghost" (click)="selectAll()">Select all</button>
-            <button class="btn ghost" (click)="clearChecked()">Clear</button>
-            <button class="btn danger" (click)="removeChecked()">
+            <button class="btn ghost" type="button" (click)="selectAll()">Select all</button>
+            <button class="btn ghost" type="button" (click)="clearChecked()">Clear</button>
+            <button class="btn danger" type="button" (click)="removeChecked()">
                <dd-icon name="delete" />Delete {{ checked().size }}
             </button>
          </div>
@@ -180,26 +184,28 @@
          <span class="kbd-hint"
             >↑↓ move · Shift+↑↓ / Shift+click range · Alt+click toggle · Del delete · Enter open</span
          >
-         <button class="btn ghost" (click)="view.set('templates')">
+         <button class="btn ghost" type="button" (click)="view.set('templates')">
             <dd-icon name="template" />
             Templates
          </button>
       </footer>
    } @else {
       <header class="panel-head">
-         <button class="icon-btn" (click)="view.set('projects')" aria-label="Back">
+         <button class="icon-btn" type="button" (click)="view.set('projects')" aria-label="Back">
             <dd-icon name="chevron_left" />
          </button>
          <h2 class="title">Templates</h2>
          <div class="head-actions">
-            <button class="icon-btn" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
+            <button class="icon-btn" type="button" (click)="close()" aria-label="Close">
+               <dd-icon name="close" />
+            </button>
          </div>
       </header>
 
       <div class="cards-scroll">
          <div class="cards templates">
             @for (t of templateDefs; track t.id) {
-               <button class="tcard" [disabled]="busy()" (click)="useTemplate(t)">
+               <button class="tcard" type="button" [disabled]="busy()" (click)="useTemplate(t)">
                   <div class="thumb" [style.--a]="t.accent">
                      <svg viewBox="0 0 92 60" aria-hidden="true">
                         <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dd-connector)" stroke-width="1.4" />

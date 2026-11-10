@@ -14,6 +14,7 @@
       @if (canEdit()) {
          <button
             class="icon"
+            type="button"
             (click)="command.emit({ kind: 'deletePresentation' })"
             title="Delete presentation and its slides"
             aria-label="Delete presentation"
@@ -27,6 +28,7 @@
       <div class="split">
          <button
             class="main"
+            type="button"
             [disabled]="!playable()"
             (click)="command.emit({ kind: 'present', from: 'start' })"
             title="Present from the first slide"
@@ -35,6 +37,7 @@
          </button>
          <button
             class="from"
+            type="button"
             [disabled]="!playable()"
             (click)="command.emit({ kind: 'present', from: 'current' })"
             title="Present from the selected slide"
@@ -46,6 +49,7 @@
          <div class="newsplit">
             <button
                class="btn new"
+               type="button"
                (click)="command.emit({ kind: 'add' })"
                [title]="newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'"
             >
@@ -53,6 +57,7 @@
             </button>
             <button
                class="btn caret"
+               type="button"
                (click)="newMenu.set(!newMenu())"
                aria-label="Choose the new slide's layout"
                title="New slide with a layout…"
@@ -62,7 +67,7 @@
             @if (newMenu()) {
                <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
                   @for (l of menuLayouts(); track l.id) {
-                     <button role="menuitem" (click)="addWithLayout(l.id)">
+                     <button role="menuitem" type="button" (click)="addWithLayout(l.id)">
                         <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                            @if (layoutThumbs().get(l.id); as src) {
                               <img [src]="src" alt="" draggable="false" />
@@ -90,7 +95,7 @@
       @if (frames().length > 1) {
          <div class="listbar">
             <span class="muted">{{ selectedCount() }} selected</span>
-            <button class="link" (click)="selectAll()">Select all</button>
+            <button class="link" type="button" (click)="selectAll()">Select all</button>
          </div>
       }
    </div>
@@ -129,6 +134,7 @@
                   <span class="icons" (click)="$event.stopPropagation()">
                      <button
                         class="icon"
+                        type="button"
                         (click)="toggleHidden(f)"
                         [title]="f.slide?.hidden ? 'Skipped: include in the presentation' : 'Skip in the presentation'"
                         aria-label="Skip slide"
@@ -137,6 +143,7 @@
                      </button>
                      <button
                         class="icon"
+                        type="button"
                         (click)="command.emit({ kind: 'duplicate', id: f.id })"
                         title="Duplicate slide"
                         aria-label="Duplicate slide"
@@ -145,6 +152,7 @@
                      </button>
                      <button
                         class="icon"
+                        type="button"
                         (click)="command.emit({ kind: 'delete', id: f.id })"
                         title="Delete slide and its contents"
                         aria-label="Delete slide"
@@ -181,6 +189,7 @@
       @if (folded()) {
          <button
             class="strip"
+            type="button"
             (click)="command.emit({ kind: 'fold' })"
             aria-label="Expand slide settings"
             title="Expand slide settings"
@@ -190,15 +199,20 @@
          </button>
       } @else {
          <div class="tabs" role="tablist">
-            <button class="tab" [class.on]="tab() === 'transition'" (click)="pick('transition')">Transition</button>
-            <button class="tab" [class.on]="tab() === 'size'" (click)="pick('size')">Size</button>
-            <button class="tab" [class.on]="tab() === 'design'" (click)="pick('design')">Design</button>
-            <button class="tab" [class.on]="tab() === 'notes'" (click)="pick('notes')">Notes</button>
+            <button class="tab" type="button" [class.on]="tab() === 'transition'" (click)="pick('transition')">
+               Transition
+            </button>
+            <button class="tab" type="button" [class.on]="tab() === 'size'" (click)="pick('size')">Size</button>
+            <button class="tab" type="button" [class.on]="tab() === 'design'" (click)="pick('design')">Design</button>
+            <button class="tab" type="button" [class.on]="tab() === 'notes'" (click)="pick('notes')">Notes</button>
             @if (active()) {
-               <button class="tab" [class.on]="tab() === 'animations'" (click)="pick('animations')">Animations</button>
+               <button class="tab" type="button" [class.on]="tab() === 'animations'" (click)="pick('animations')">
+                  Animations
+               </button>
             }
             <button
                class="icon fold"
+               type="button"
                (click)="command.emit({ kind: 'fold' })"
                aria-label="Collapse slide settings"
                title="Collapse to the side"
@@ -217,7 +231,7 @@
                               activeSlides().length > 1 ? activeSlides().length + ' slides' : 'Slide ' + activeNumber()
                            }}
                            @if (activeSlides().length <= 1) {
-                              <button class="link" (click)="command.emit({ kind: 'preview', id: a.id })">
+                              <button class="link" type="button" (click)="command.emit({ kind: 'preview', id: a.id })">
                                  <dd-icon name="play_arrow" />Preview
                               </button>
                            }
@@ -227,6 +241,7 @@
                            @if (morphRelevantNext()) {
                               <button
                                  class="btn wide map-pairs"
+                                 type="button"
                                  (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                                  title="See what morphs into what on the next slide, and change it"
                               >
@@ -297,11 +312,12 @@
                               </p>
                            }
                            @if (canEdit() && frames().length > 2) {
-                              <button class="link" (click)="applyToAll()">Apply to all slides</button>
+                              <button class="link" type="button" (click)="applyToAll()">Apply to all slides</button>
                            }
                            @if (activeSlides().length <= 1) {
                               <button
                                  class="btn wide map-pairs"
+                                 type="button"
                                  (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                                  title="See what morphs into what, and change it"
                               >
@@ -320,6 +336,7 @@
                                  @if (splitTarget(); as st) {
                                     <button
                                        class="link"
+                                       type="button"
                                        (click)="toggleSplit(st)"
                                        [title]="
                                           st.split
@@ -369,7 +386,7 @@
                            </p>
                         }
                         @if (pairable()) {
-                           <button class="btn wide" (click)="pairSelected()">
+                           <button class="btn wide" type="button" (click)="pairSelected()">
                               Treat the {{ pairable() }} selected items as the same object (morph)
                            </button>
                         }
@@ -397,6 +414,7 @@
                            <span class="sub-actions">
                               <button
                                  class="icon"
+                                 type="button"
                                  (click)="newDesign()"
                                  aria-label="New design"
                                  matTooltip="New design: a copy of this one (its layouts and theme) to change"
@@ -406,6 +424,7 @@
                               @if (designIsCustom()) {
                                  <button
                                     class="icon"
+                                    type="button"
                                     (click)="deleteDesign()"
                                     aria-label="Delete design"
                                     matTooltip="Delete this design; the deck goes back to the Default layouts"
@@ -415,6 +434,7 @@
                               }
                               <button
                                  class="icon"
+                                 type="button"
                                  (click)="exportDesign('design')"
                                  aria-label="Export design"
                                  matTooltip="Download this design (its layouts and theme) as one file"
@@ -423,6 +443,7 @@
                               </button>
                               <button
                                  class="icon"
+                                 type="button"
                                  (click)="importPart.set('design'); designFileInput.click()"
                                  aria-label="Import design"
                                  matTooltip="Add a design from a file and use it"
@@ -509,12 +530,13 @@
                               }
                            }
                            <div class="row">
-                              <button class="btn" (click)="backToSlide()">
+                              <button class="btn" type="button" (click)="backToSlide()">
                                  <dd-icon name="chevron_left" />Back to slides
                               </button>
                               @if (canEdit() && !shownLayout()?.slide?.master) {
                                  <button
                                     class="btn"
+                                    type="button"
                                     (click)="command.emit({ kind: 'add' })"
                                     title="Add a slide that uses this layout"
                                  >
@@ -540,6 +562,7 @@
                               @if (selectedDrifted().length) {
                                  <button
                                     class="btn wide"
+                                    type="button"
                                     (click)="resetSlide(true)"
                                     title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
                                  >
@@ -548,6 +571,7 @@
                               } @else {
                                  <button
                                     class="btn wide"
+                                    type="button"
                                     (click)="resetSlide(false)"
                                     title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
                                  >
@@ -565,6 +589,7 @@
                               @if (selectedStandIns().length) {
                                  <button
                                     class="btn wide"
+                                    type="button"
                                     (click)="resetMaster(true)"
                                     title="Show the master's version of the selected items again"
                                  >
@@ -573,6 +598,7 @@
                               } @else {
                                  <button
                                     class="btn wide"
+                                    type="button"
                                     (click)="resetMaster(false)"
                                     title="Show the master's version of every item changed here again"
                                  >
@@ -595,6 +621,7 @@
                               <span class="listbar-actions">
                                  <button
                                     class="icon"
+                                    type="button"
                                     (click)="exportDesign('layouts')"
                                     aria-label="Export layouts"
                                     matTooltip="Download this design's layouts and master as a file"
@@ -603,6 +630,7 @@
                                  </button>
                                  <button
                                     class="icon"
+                                    type="button"
                                     (click)="importPart.set('layouts'); designFileInput.click()"
                                     aria-label="Import layouts"
                                     matTooltip="Use layouts from a file in this design (its theme stays)"
@@ -611,6 +639,7 @@
                                  </button>
                                  <button
                                     class="link"
+                                    type="button"
                                     [ddPopoverTrigger]="standardMenu"
                                     placement="below-end"
                                     matTooltip="Add ready-made layouts that follow the theme"
@@ -619,6 +648,7 @@
                                  </button>
                                  <button
                                     class="link"
+                                    type="button"
                                     (click)="command.emit({ kind: 'add', layout: true })"
                                     matTooltip="Add an empty layout"
                                  >
@@ -629,6 +659,7 @@
                                  <div class="dd-menu">
                                     <button
                                        class="dd-menu-item"
+                                       type="button"
                                        [disabled]="!missingKinds().length"
                                        (click)="addStandard(missingKinds()); close()"
                                     >
@@ -640,7 +671,7 @@
                                     </button>
                                     <div class="dd-menu-sep"></div>
                                     @for (k of missingKinds(); track k) {
-                                       <button class="dd-menu-item" (click)="addStandard([k]); close()">
+                                       <button class="dd-menu-item" type="button" (click)="addStandard([k]); close()">
                                           {{ kindLabels[k] }}
                                        </button>
                                     }
@@ -650,18 +681,21 @@
                         </div>
                         <ol class="layout-list">
                            @if (master(); as m) {
-                              <li
-                                 class="lcard"
-                                 [class.current]="m.id === active_()"
-                                 (click)="command.emit({ kind: 'focus', id: m.id })"
-                                 title="Edit the master: logos, footers and fields (slide number, date) placed here show on every slide"
-                              >
-                                 <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
-                                    @if (thumbs().get(m.id); as src) {
-                                       <img [src]="src" alt="" draggable="false" />
-                                    }
-                                 </span>
-                                 <span class="lname">Master</span>
+                              <li class="lslot">
+                                 <button
+                                    class="lcard dd-button-reset"
+                                    type="button"
+                                    title="Edit the master: logos, footers and fields (slide number, date) placed here show on every slide"
+                                    [class.current]="m.id === active_()"
+                                    (click)="command.emit({ kind: 'focus', id: m.id })"
+                                 >
+                                    <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
+                                       @if (thumbs().get(m.id); as src) {
+                                          <img [src]="src" alt="" draggable="false" />
+                                       }
+                                    </span>
+                                    <span class="lname">Master</span>
+                                 </button>
                               </li>
                            }
                            @for (l of designLayouts(); track l.id) {
@@ -681,6 +715,7 @@
                                     <span class="licons">
                                        <button
                                           class="icon"
+                                          type="button"
                                           (click)="
                                              $event.stopPropagation(); command.emit({ kind: 'duplicate', id: l.id })
                                           "
@@ -692,6 +727,7 @@
                                        @if (!l.slide?.defaultLayout) {
                                           <button
                                              class="icon"
+                                             type="button"
                                              (click)="
                                                 $event.stopPropagation(); command.emit({ kind: 'delete', id: l.id })
                                              "
@@ -725,6 +761,7 @@
                                  @if (themeIsCustom()) {
                                     <button
                                        class="icon"
+                                       type="button"
                                        (click)="deleteTheme()"
                                        aria-label="Delete theme"
                                        matTooltip="Delete this theme; the deck takes the Default theme"
@@ -734,6 +771,7 @@
                                  }
                                  <button
                                     class="icon"
+                                    type="button"
                                     (click)="exportDesign('theme')"
                                     aria-label="Export theme"
                                     matTooltip="Download this theme's colors and fonts as a file"
@@ -742,6 +780,7 @@
                                  </button>
                                  <button
                                     class="icon"
+                                    type="button"
                                     (click)="importPart.set('theme'); designFileInput.click()"
                                     aria-label="Import theme"
                                     matTooltip="Add a theme from a file and use it in this design (its layouts stay)"
@@ -903,6 +942,7 @@
                <div class="rec-row" [class.on]="o.on">
                   <button
                      class="dd-menu-item rec-pick"
+                     type="button"
                      [disabled]="!canEdit()"
                      (click)="isTheme ? pickTheme(o.id) : pickDesign(o.id)"
                   >
@@ -918,6 +958,7 @@
                   @if (o.custom && canEdit()) {
                      <button
                         class="rec-edit"
+                        type="button"
                         (click)="renaming.set(o.id)"
                         [attr.aria-label]="'Rename ' + o.name"
                         title="Rename"
@@ -926,6 +967,7 @@
                      </button>
                      <button
                         class="rec-edit del"
+                        type="button"
                         (click)="isTheme ? deleteThemeById(o.id) : deleteDesignById(o.id)"
                         [attr.aria-label]="'Delete ' + o.name"
                         title="Delete"
@@ -945,6 +987,7 @@
       @for (o of sizeOptions(); track o.value) {
          <button
             class="dd-menu-item"
+            type="button"
             [class.on]="o.value === sizeValue()"
             [disabled]="!canEdit()"
             (click)="setSize(o.value); command.emit({ kind: 'close' })"
@@ -964,8 +1007,9 @@
       (keydown.arrowDown)="stepSlide(1, $event)"
    >
       @for (f of shown(); track f.id; let i = $index) {
-         <div
-            class="fs"
+         <button
+            class="fs dd-button-reset"
+            type="button"
             [class.on]="f.id === active_()"
             [class.skipped]="!!f.slide?.hidden"
             (click)="onRowClick(f, $event)"
@@ -985,14 +1029,15 @@
                   }
                </span>
             </span>
-         </div>
+         </button>
       }
    </div>
    @if (canEdit()) {
       <div class="f-foot">
-         <button class="f-go" (click)="command.emit({ kind: 'add' })"><span>+ Slide</span></button>
+         <button class="f-go" type="button" (click)="command.emit({ kind: 'add' })"><span>+ Slide</span></button>
          <button
             class="f-tb"
+            type="button"
             [ddPopoverTrigger]="focusLayoutMenu"
             placement="above-start"
             aria-label="New slide with a layout"
@@ -1002,7 +1047,7 @@
          <ng-template #focusLayoutMenu let-close>
             <div class="dd-menu">
                @for (l of menuLayouts(); track l.id) {
-                  <button class="dd-menu-item lay-item" (click)="addWithLayout(l.id); close()">
+                  <button class="dd-menu-item lay-item" type="button" (click)="addWithLayout(l.id); close()">
                      <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                         @if (layoutThumbs().get(l.id); as src) {
                            <img [src]="src" alt="" draggable="false" />
@@ -1021,18 +1066,20 @@
 
 @if (part() === 'focus-settings') {
    <div class="f-tabs" role="tablist">
-      <button class="f-tab" [class.on]="ftab() === 'slide'" (click)="ftab.set('slide')">Slide</button>
-      <button class="f-tab" [class.on]="ftab() === 'transition'" (click)="ftab.set('transition')">Transition</button>
-      <button class="f-tab" [class.on]="ftab() === 'animations'" (click)="ftab.set('animations')">
+      <button class="f-tab" type="button" [class.on]="ftab() === 'slide'" (click)="ftab.set('slide')">Slide</button>
+      <button class="f-tab" type="button" [class.on]="ftab() === 'transition'" (click)="ftab.set('transition')">
+         Transition
+      </button>
+      <button class="f-tab" type="button" [class.on]="ftab() === 'animations'" (click)="ftab.set('animations')">
          Animations <span class="cnt">{{ active() ? animCount(active()!) : 0 }}</span>
       </button>
-      <button class="f-tab" [class.on]="ftab() === 'notes'" (click)="ftab.set('notes')">Notes</button>
+      <button class="f-tab" type="button" [class.on]="ftab() === 'notes'" (click)="ftab.set('notes')">Notes</button>
    </div>
    <div class="f-body" [class.gap12]="ftab() === 'transition'">
       @if (ftab() === 'transition') {
          <ng-container [ngTemplateOutlet]="transitionBody" />
          @if (active() && hasTransitionTarget()) {
-            <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })">
+            <button class="f-tb outline" type="button" (click)="command.emit({ kind: 'screen', screen: 'morph' })">
                <dd-icon name="open_in_full" />Refine
             </button>
          }
@@ -1047,13 +1094,14 @@
             <div class="f-between">
                <span class="f-lab">Layout</span>
                @if (canEdit() && drift()) {
-                  <button class="f-link" (click)="resetSlide(false)">Reset slide to layout</button>
+                  <button class="f-link" type="button" (click)="resetSlide(false)">Reset slide to layout</button>
                }
             </div>
             <div class="f-lays">
                @for (l of designLayouts(); track l.id) {
                   <button
                      class="lay"
+                     type="button"
                      [class.on]="activeLayoutValue() === l.id"
                      [disabled]="!canEdit()"
                      (click)="setLayout(l.id)"
@@ -1068,6 +1116,7 @@
                }
                <button
                   class="lay"
+                  type="button"
                   [class.on]="activeLayoutValue() === ''"
                   [disabled]="!canEdit()"
                   (click)="setLayout('')"
@@ -1081,6 +1130,7 @@
                   @for (k of bgTokens; track k) {
                      <button
                         class="sw"
+                        type="button"
                         [class.on]="a.backgroundColor === token(k) && a.fillStyle !== 'none'"
                         [style.background]="css(deckTheme().colors[k])"
                         [disabled]="!canEdit()"
@@ -1094,6 +1144,7 @@
                <span>Skip in slideshow</span>
                <button
                   class="tg"
+                  type="button"
                   [class.on]="!!a.slide?.hidden"
                   [disabled]="!canEdit()"
                   (click)="toggleHidden(a)"
@@ -1103,7 +1154,7 @@
             <div class="f-row">
                <span>Edited master items</span>
                @if (standIns().length) {
-                  <button class="f-link" [disabled]="!canEdit()" (click)="resetMaster(false)">
+                  <button class="f-link" type="button" [disabled]="!canEdit()" (click)="resetMaster(false)">
                      {{ standIns().length }} · Revert
                   </button>
                } @else {
@@ -1112,7 +1163,9 @@
             </div>
             <div class="f-row">
                <span>Present from here</span>
-               <button class="f-k btnk" (click)="command.emit({ kind: 'present', from: 'current' })">Shift F5</button>
+               <button class="f-k btnk" type="button" (click)="command.emit({ kind: 'present', from: 'current' })">
+                  Shift F5
+               </button>
             </div>
          } @else if (ftab() === 'notes') {
             <textarea
@@ -1132,9 +1185,15 @@
 
 @if (part() === 'focus-transition') {
    <div class="f-tabs" role="tablist">
-      <button class="f-tab" (click)="ftab.set('slide'); command.emit({ kind: 'screen', screen: 'main' })">Slide</button>
-      <button class="f-tab on">Transition</button>
-      <button class="f-tab" (click)="ftab.set('animations'); command.emit({ kind: 'screen', screen: 'main' })">
+      <button class="f-tab" type="button" (click)="ftab.set('slide'); command.emit({ kind: 'screen', screen: 'main' })">
+         Slide
+      </button>
+      <button class="f-tab on" type="button">Transition</button>
+      <button
+         class="f-tab"
+         type="button"
+         (click)="ftab.set('animations'); command.emit({ kind: 'screen', screen: 'main' })"
+      >
          Animations
       </button>
    </div>
@@ -1149,6 +1208,7 @@
       <div class="f-seg">
          @for (t of focusTypes; track t.value) {
             <button
+               type="button"
                [class.on]="transition().type === t.value"
                [disabled]="!canEdit()"
                (click)="setTransition({ type: t.value })"
@@ -1163,6 +1223,7 @@
             <span class="f-seg">
                @for (d of [200, 300, 500]; track d) {
                   <button
+                     type="button"
                      [class.on]="transition().duration === d"
                      [disabled]="!canEdit()"
                      (click)="setTransition({ duration: d })"
@@ -1171,6 +1232,7 @@
                   </button>
                }
                <button
+                  type="button"
                   [class.on]="![200, 300, 500].includes(transition().duration)"
                   [disabled]="!canEdit()"
                   [ddPopoverTrigger]="durMenu"
@@ -1222,6 +1284,7 @@
             <span class="f-seg">
                @for (m of focusMorphBy; track m.value) {
                   <button
+                     type="button"
                      [class.on]="(transition().morphBy ?? 'character') === m.value"
                      [disabled]="!canEdit()"
                      (click)="setTransition({ morphBy: m.value })"
@@ -1233,12 +1296,12 @@
          </div>
       }
       @if (canEdit()) {
-         <button class="f-tb outline" (click)="applyToAll()">Apply to all slides</button>
+         <button class="f-tb outline" type="button" (click)="applyToAll()">Apply to all slides</button>
       }
    } @else {
       <p class="hint">The first slide has no transition into it.</p>
       @if (frames().length > 1) {
-         <button class="f-tb outline" (click)="command.emit({ kind: 'screen', screen: 'morph' })">
+         <button class="f-tb outline" type="button" (click)="command.emit({ kind: 'screen', screen: 'morph' })">
             <dd-icon name="open_in_full" />Refine
          </button>
       }
@@ -1251,6 +1314,7 @@
             @if (splitTarget(); as st) {
                <button
                   class="f-link"
+                  type="button"
                   (click)="toggleSplit(st)"
                   [title]="
                      st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'
@@ -1300,7 +1364,7 @@
       </div>
    }
    @if (canEdit() && pairable()) {
-      <button class="f-tb outline" (click)="pairSelected()">
+      <button class="f-tb outline" type="button" (click)="pairSelected()">
          Treat the {{ pairable() }} selected items as the same object
       </button>
    }
@@ -1320,7 +1384,12 @@
    </div>
    <div class="f-cards">
       @if (master(); as m) {
-         <button class="ly" [class.on]="m.id === active_()" (click)="command.emit({ kind: 'focus', id: m.id })">
+         <button
+            class="ly"
+            type="button"
+            [class.on]="m.id === active_()"
+            (click)="command.emit({ kind: 'focus', id: m.id })"
+         >
             <span class="lt" [style.aspect-ratio]="m.width + ' / ' + m.height">
                @if (thumbs().get(m.id); as src) {
                   <img [src]="src" alt="" draggable="false" />
@@ -1342,6 +1411,7 @@
             @if (canEdit() && !l.slide?.defaultLayout) {
                <button
                   class="rec-edit del ly-del"
+                  type="button"
                   (click)="command.emit({ kind: 'delete', id: l.id })"
                   title="Delete layout and its items"
                   aria-label="Delete layout"
@@ -1351,6 +1421,7 @@
             }
             <button
                class="ly"
+               type="button"
                [class.on]="l.id === active_()"
                (click)="!lySuppress && command.emit({ kind: 'focus', id: l.id })"
             >
@@ -1369,9 +1440,11 @@
    </div>
    @if (canEdit()) {
       <div class="f-foot col">
-         <button class="f-tb outline" (click)="command.emit({ kind: 'add', layout: true })">+ Empty layout</button>
+         <button class="f-tb outline" type="button" (click)="command.emit({ kind: 'add', layout: true })">
+            + Empty layout
+         </button>
          @if (missingKinds().length) {
-            <button class="f-tb outline" (click)="addStandard(missingKinds())">
+            <button class="f-tb outline" type="button" (click)="addStandard(missingKinds())">
                + Standard layouts{{
                   missingKinds().length < standardKinds.length ? ' (' + missingKinds().length + ' missing)' : ''
                }}
@@ -1406,8 +1479,8 @@
                (remove)="deleteDesignById($event)"
             />
             @if (canEdit()) {
-               <button class="f-tb sm" (click)="newDesign()">Save as new</button>
-               <button class="f-tb sm" (click)="exportDesign('design')">Export</button>
+               <button class="f-tb sm" type="button" (click)="newDesign()">Save as new</button>
+               <button class="f-tb sm" type="button" (click)="exportDesign('design')">Export</button>
             }
          </div>
       </div>
@@ -1423,8 +1496,10 @@
          </span>
          @if (canEdit()) {
             <span class="f-acts">
-               <button class="f-tb sm" (click)="importPart.set('theme'); themeFileInput.click()">Import</button>
-               <button class="f-tb sm" (click)="exportDesign('theme')">Export</button>
+               <button class="f-tb sm" type="button" (click)="importPart.set('theme'); themeFileInput.click()">
+                  Import
+               </button>
+               <button class="f-tb sm" type="button" (click)="exportDesign('theme')">Export</button>
             </span>
          }
       </div>
@@ -1435,6 +1510,7 @@
                <div class="th" [class.on]="t.on">
                   <button
                      class="pv"
+                     type="button"
                      [disabled]="!canEdit()"
                      (click)="pickTheme(t.id)"
                      [style.background]="css(t.theme!.colors.background)"
@@ -1466,6 +1542,7 @@
                            <span class="nm-acts">
                               <button
                                  class="rec-edit"
+                                 type="button"
                                  (click)="renaming.set(t.id)"
                                  [attr.aria-label]="'Rename ' + t.name"
                                  title="Rename"
@@ -1474,6 +1551,7 @@
                               </button>
                               <button
                                  class="rec-edit del"
+                                 type="button"
                                  (click)="deleteThemeById(t.id)"
                                  [attr.aria-label]="'Delete ' + t.name"
                                  title="Delete"
@@ -1491,7 +1569,13 @@
       <div class="f-lab">Colors</div>
       <div class="tok-grid">
          @for (k of colorTokens; track k) {
-            <button class="tok" [ddPopoverTrigger]="tokPick" placement="below-start" [disabled]="!canEdit()">
+            <button
+               class="tok"
+               type="button"
+               [ddPopoverTrigger]="tokPick"
+               placement="below-start"
+               [disabled]="!canEdit()"
+            >
                <span
                   class="sq"
                   [style.background]="

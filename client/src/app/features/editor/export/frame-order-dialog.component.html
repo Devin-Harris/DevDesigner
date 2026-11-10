@@ -17,10 +17,16 @@
             <span class="num">{{ i + 1 }}</span>
             <span class="name">{{ f.name }}</span>
             <span class="size">{{ f.width }} × {{ f.height }}</span>
-            <button class="mv" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up">
+            <button class="mv" type="button" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up">
                <dd-icon name="arrow_upward" />
             </button>
-            <button class="mv" [disabled]="i === items().length - 1" (click)="move(i, 1)" aria-label="Move down">
+            <button
+               class="mv"
+               type="button"
+               [disabled]="i === items().length - 1"
+               (click)="move(i, 1)"
+               aria-label="Move down"
+            >
                <dd-icon name="arrow_downward" />
             </button>
          </li>
@@ -28,6 +34,6 @@
    </ol>
 </mat-dialog-content>
 <mat-dialog-actions class="dlg-actions">
-   <button class="btn" mat-dialog-close>Cancel</button>
-   <button class="btn primary" (click)="confirm()"><dd-icon name="picture_as_pdf" />Export PDF</button>
+   <button class="btn" mat-dialog-close type="button">Cancel</button>
+   <button class="btn primary" type="button" (click)="confirm()"><dd-icon name="picture_as_pdf" />Export PDF</button>
 </mat-dialog-actions>

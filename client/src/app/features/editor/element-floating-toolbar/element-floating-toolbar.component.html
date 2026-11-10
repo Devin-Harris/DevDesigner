@@ -3,6 +3,7 @@
    @if (!isImage()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="strokeMenu"
          placement="below-start"
          matTooltip="Stroke color"
@@ -32,6 +33,7 @@
    @if (hasFill()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="fillMenu"
          placement="below-start"
          matTooltip="Fill color"
@@ -65,9 +67,11 @@
    @if (!isImage()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="widthMenu"
          placement="below-start"
          matTooltip="Stroke width"
+         aria-label="Stroke width"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="line_weight" />
@@ -77,6 +81,7 @@
             @for (w of strokeWidths; track w.value) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="w.value === element().strokeWidth"
                   (click)="setWidth(w.value); close()"
                >
@@ -91,9 +96,11 @@
    @if (!isText() && !isImage()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="styleMenu"
          placement="below-start"
          matTooltip="Stroke style"
+         aria-label="Stroke style"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="timeline" />
@@ -103,6 +110,7 @@
             @for (s of strokeStyleIcons; track s.value) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="s.value === element().strokeStyle"
                   (click)="setStyle(s.value); close()"
                >
@@ -118,6 +126,7 @@
    @if (isPlainFrame()) {
       <button
          class="tb wide"
+         type="button"
          [ddPopoverTrigger]="ratioMenu"
          placement="below-start"
          matTooltip="Frame size"
@@ -131,6 +140,7 @@
             @for (r of frameRatios; track r.id) {
                <button
                   class="ratio"
+                  type="button"
                   [class.on]="frameRatioLabel() === r.label"
                   (click)="setFrameRatio(r.ratio); close()"
                >
@@ -141,8 +151,12 @@
       </ng-template>
       <button
          class="tb"
+         type="button"
          [class.on]="!!element().clipContent"
          [matTooltip]="
+            element().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
+         "
+         [attr.aria-label]="
             element().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
          "
          [disabled]="!store.canEdit()"
@@ -150,18 +164,25 @@
       >
          <dd-icon name="crop" />
       </button>
-      <button class="tb wide" [ddPopoverTrigger]="frameExportMenu" placement="below-start" matTooltip="Export frame">
+      <button
+         class="tb wide"
+         type="button"
+         [ddPopoverTrigger]="frameExportMenu"
+         placement="below-start"
+         matTooltip="Export frame"
+         aria-label="Export frame"
+      >
          <dd-icon name="download" /><dd-icon name="expand_more" />
       </button>
       <ng-template #frameExportMenu let-close>
          <div class="dd-menu">
-            <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'png'); close()">
+            <button class="dd-menu-item" type="button" (click)="actions.exportFrame(element().id, 'png'); close()">
                <dd-icon name="photo" />PNG
             </button>
-            <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'svg'); close()">
+            <button class="dd-menu-item" type="button" (click)="actions.exportFrame(element().id, 'svg'); close()">
                <dd-icon name="image" />SVG
             </button>
-            <button class="dd-menu-item" (click)="actions.exportFrame(element().id, 'pdf'); close()">
+            <button class="dd-menu-item" type="button" (click)="actions.exportFrame(element().id, 'pdf'); close()">
                <dd-icon name="picture_as_pdf" />PDF
             </button>
          </div>
@@ -169,6 +190,7 @@
       @if (store.canEdit()) {
          <button
             class="tb wide add-deck"
+            type="button"
             [ddPopoverTrigger]="addDeckMenu"
             placement="below-start"
             matTooltip="Make this frame a slide"
@@ -179,11 +201,19 @@
             <div class="dd-menu">
                <div class="head-label menu-head">Add as a slide to</div>
                @for (d of actions.decks(); track d.name) {
-                  <button class="dd-menu-item" (click)="actions.addFrameToPresentation(element().id, d.name); close()">
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     (click)="actions.addFrameToPresentation(element().id, d.name); close()"
+                  >
                      <dd-icon name="slideshow" />{{ d.name }}<span class="menu-sub">{{ d.slides }} slides</span>
                   </button>
                }
-               <button class="dd-menu-item" (click)="actions.addFrameToPresentation(element().id, null); close()">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  (click)="actions.addFrameToPresentation(element().id, null); close()"
+               >
                   <dd-icon name="add" />New presentation from this frame
                </button>
             </div>
@@ -196,9 +226,11 @@
    @if (isRect()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="radiusMenu"
          placement="below-start"
          matTooltip="Corner radius"
+         aria-label="Corner radius"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="rounded_corner" />
@@ -220,6 +252,7 @@
             <div class="head-row">
                <button
                   class="tb"
+                  type="button"
                   [class.on]="!element().ellipticCorners"
                   matTooltip="Large radius rounds into a pill"
                   (click)="setEllipticCorners(false)"
@@ -228,6 +261,7 @@
                </button>
                <button
                   class="tb"
+                  type="button"
                   [class.on]="!!element().ellipticCorners"
                   matTooltip="Large radius stretches into an oval"
                   (click)="setEllipticCorners(true)"
@@ -243,6 +277,7 @@
    @if (isCode()) {
       <button
          class="tb wide"
+         type="button"
          [ddPopoverTrigger]="languageMenu"
          placement="below-start"
          matTooltip="Language"
@@ -256,6 +291,7 @@
             @for (l of languages; track l.id) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="l.id === (element().language ?? 'typescript')"
                   (click)="setLanguage(l.id); close()"
                >
@@ -268,23 +304,40 @@
       <button
          class="tb"
          matTooltip="Format code (Shift+Alt+F)"
+         aria-label="Format code (Shift+Alt+F)"
+         type="button"
          [disabled]="!store.canEdit() || !canFormat()"
          (click)="format()"
       >
          <dd-icon name="auto_fix" />
       </button>
 
-      <button class="tb" matTooltip="File name" [disabled]="!store.canEdit()" (click)="editFileName()">
+      <button
+         class="tb"
+         matTooltip="File name"
+         aria-label="File name"
+         type="button"
+         [disabled]="!store.canEdit()"
+         (click)="editFileName()"
+      >
          <dd-icon name="description" />
       </button>
 
-      <button class="tb" [matTooltip]="copied() ? 'Copied' : 'Copy code'" (click)="copyCode()">
+      <button
+         class="tb"
+         type="button"
+         [matTooltip]="copied() ? 'Copied' : 'Copy code'"
+         [attr.aria-label]="copied() ? 'Copied' : 'Copy code'"
+         (click)="copyCode()"
+      >
          <dd-icon [name]="copied() ? 'check' : 'content_copy'" />
       </button>
 
       <button
          class="tb"
          matTooltip="Fit to content (Shift+Alt+S)"
+         aria-label="Fit to content (Shift+Alt+S)"
+         type="button"
          [disabled]="!store.canEdit()"
          (click)="fitToContent()"
       >
@@ -293,10 +346,12 @@
 
       <button
          class="tb"
+         type="button"
          [class.on]="diffOn()"
          [ddPopoverTrigger]="diffMenu"
          placement="below-start"
          matTooltip="Diff"
+         aria-label="Diff"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="difference" />
@@ -307,6 +362,7 @@
             @for (v of diffViews; track v.id) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="(element().diffView ?? 'off') === v.id"
                   (click)="setDiffView(v.id); close()"
                >
@@ -314,21 +370,28 @@
                </button>
             }
             <div class="dd-menu-sep"></div>
-            <button class="dd-menu-item" [class.on]="!element().diffShowWhitespace" (click)="toggleWhitespace()">
+            <button
+               class="dd-menu-item"
+               type="button"
+               [class.on]="!element().diffShowWhitespace"
+               (click)="toggleWhitespace()"
+            >
                Ignore whitespace
             </button>
             @if (element().diffText != null) {
-               <button class="dd-menu-item" (click)="swapDiff(); close()">Swap sides</button>
-               <button class="dd-menu-item" (click)="clearDiff(); close()">Remove diff</button>
+               <button class="dd-menu-item" type="button" (click)="swapDiff(); close()">Swap sides</button>
+               <button class="dd-menu-item" type="button" (click)="clearDiff(); close()">Remove diff</button>
             }
          </div>
       </ng-template>
 
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="codeSizeMenu"
          placement="below-start"
          matTooltip="Text size"
+         aria-label="Text size"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_size" />
@@ -338,6 +401,7 @@
             @for (s of codeSizes; track s) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="s === (element().fontSize ?? 14)"
                   (click)="setCodeSize(s); close()"
                >
@@ -354,6 +418,8 @@
          <button
             class="tb"
             matTooltip="Merge cells (Ctrl+M)"
+            aria-label="Merge cells (Ctrl+M)"
+            type="button"
             [disabled]="!store.canEdit()"
             (click)="grids.mergeSelected()"
          >
@@ -361,14 +427,23 @@
          </button>
       }
       @if (grids.canUnmerge()) {
-         <button class="tb" matTooltip="Unmerge cells" [disabled]="!store.canEdit()" (click)="grids.unmergeSelected()">
+         <button
+            class="tb"
+            matTooltip="Unmerge cells"
+            aria-label="Unmerge cells"
+            type="button"
+            [disabled]="!store.canEdit()"
+            (click)="grids.unmergeSelected()"
+         >
             <dd-icon name="split_cells" />
          </button>
       }
       <button
          class="tb"
+         type="button"
          [class.on]="gridHeaderOn()"
          matTooltip="Header row"
+         aria-label="Header row"
          [disabled]="!store.canEdit()"
          (click)="toggleGridHeader()"
       >
@@ -376,9 +451,11 @@
       </button>
       <button
          class="tb wide"
+         type="button"
          [ddPopoverTrigger]="bordersMenu"
          placement="below-start"
          matTooltip="Borders"
+         aria-label="Borders"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="grid_4x4" /><dd-icon name="expand_more" />
@@ -386,7 +463,12 @@
       <ng-template #bordersMenu let-close>
          <div class="dd-menu">
             @for (b of borderModes; track b.id) {
-               <button class="dd-menu-item" [class.on]="gridBorders() === b.id" (click)="setGridBorders(b.id); close()">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  [class.on]="gridBorders() === b.id"
+                  (click)="setGridBorders(b.id); close()"
+               >
                   {{ b.label }}
                </button>
             }
@@ -399,21 +481,27 @@
       @if (onSlide()) {
          <button
             class="tb"
+            type="button"
             [ddPopoverTrigger]="fieldMenu"
             placement="below-start"
             [disabled]="!store.canEdit()"
             matTooltip="Insert field (slide number, date, ...)"
+            aria-label="Insert field (slide number, date, ...)"
          >
             <dd-icon name="data_object" />
          </button>
          <ng-template #fieldMenu let-close>
             <div class="dd-menu">
                <div class="dd-menu-label">Filled in on every slide</div>
-               <button class="dd-menu-item" (click)="insertField('Slide {{slide}} of {{total}}'); close()">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  (click)="insertField('Slide {{slide}} of {{total}}'); close()"
+               >
                   Slide n of N
                </button>
                @for (f of slideFields; track f) {
-                  <button class="dd-menu-item" (click)="insertField(fieldToken(f)); close()">
+                  <button class="dd-menu-item" type="button" (click)="insertField(fieldToken(f)); close()">
                      {{ fieldLabels[f] }}
                   </button>
                }
@@ -422,6 +510,7 @@
       }
       <button
          class="tb wide font-pick"
+         type="button"
          [ddPopoverTrigger]="fontMenu"
          placement="below-start"
          [matTooltip]="multiText() ? 'Font (all selected text)' : 'Font'"
@@ -437,6 +526,7 @@
                @for (f of themeFonts(); track f.value) {
                   <button
                      class="dd-menu-item"
+                     type="button"
                      [class.on]="f.value === sharedFont()"
                      [style.font-family]="f.stack"
                      (click)="setFont($any(f.value)); close()"
@@ -450,6 +540,7 @@
             @for (f of fonts; track f.value) {
                <button
                   class="dd-menu-item"
+                  type="button"
                   [class.on]="f.value === sharedFont()"
                   [style.font-family]="stackOf(f.value)"
                   (click)="setFont($any(f.value)); close()"
@@ -461,11 +552,19 @@
       </ng-template>
 
       <div class="size-group">
-         <button class="tb sm" matTooltip="Smaller text" [disabled]="!store.canEdit()" (click)="stepFontSize(-1)">
+         <button
+            class="tb sm"
+            matTooltip="Smaller text"
+            aria-label="Smaller text"
+            type="button"
+            [disabled]="!store.canEdit()"
+            (click)="stepFontSize(-1)"
+         >
             <dd-icon name="remove" />
          </button>
          <button
             class="tb wide size-pick"
+            type="button"
             [ddPopoverTrigger]="sizeMenu"
             placement="below-start"
             [matTooltip]="multiText() ? 'Font size (all selected text)' : 'Font size'"
@@ -473,7 +572,14 @@
          >
             {{ sharedSize() ?? 'Mixed' }}
          </button>
-         <button class="tb sm" matTooltip="Larger text" [disabled]="!store.canEdit()" (click)="stepFontSize(1)">
+         <button
+            class="tb sm"
+            matTooltip="Larger text"
+            aria-label="Larger text"
+            type="button"
+            [disabled]="!store.canEdit()"
+            (click)="stepFontSize(1)"
+         >
             <dd-icon name="add" />
          </button>
       </div>
@@ -490,7 +596,12 @@
                (keydown.enter)="setCustomFontSize($any($event.target).value); close()"
             />
             @for (s of fontSizes; track s) {
-               <button class="dd-menu-item" [class.on]="s === sharedSize()" (click)="setFontSize(s); close()">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  [class.on]="s === sharedSize()"
+                  (click)="setFontSize(s); close()"
+               >
                   {{ s }} px
                </button>
             }
@@ -499,9 +610,11 @@
 
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="lineHeightMenu"
          placement="below-start"
          matTooltip="Line height"
+         aria-label="Line height"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_line_spacing" />
@@ -509,7 +622,12 @@
       <ng-template #lineHeightMenu let-close>
          <div class="dd-menu">
             @for (h of lineHeights; track h) {
-               <button class="dd-menu-item" [class.on]="h === currentLineHeight()" (click)="setLineHeight(h); close()">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  [class.on]="h === currentLineHeight()"
+                  (click)="setLineHeight(h); close()"
+               >
                   {{ h }}
                </button>
             }
@@ -518,18 +636,22 @@
 
       <button
          class="tb"
+         type="button"
          [class.on]="boldOn()"
          (click)="toggleBold()"
          matTooltip="Bold (Ctrl+B)"
+         aria-label="Bold (Ctrl+B)"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_bold" />
       </button>
       <button
          class="tb"
+         type="button"
          [class.on]="italicOn()"
          (click)="toggleItalic()"
          matTooltip="Italic (Ctrl+I)"
+         aria-label="Italic (Ctrl+I)"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_italic" />
@@ -537,36 +659,44 @@
       @if (isText()) {
          <button
             class="tb"
+            type="button"
             [class.on]="element().wrap"
             (click)="toggleWrap()"
             matTooltip="Wrap text to a fixed width (drag a side handle)"
+            aria-label="Wrap text to a fixed width (drag a side handle)"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="wrap_text" />
          </button>
          <button
             class="tb"
+            type="button"
             [class.on]="underlineOn()"
             (click)="toggleUnderline()"
             matTooltip="Underline (Ctrl+U)"
+            aria-label="Underline (Ctrl+U)"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="format_underlined" />
          </button>
          <button
             class="tb"
+            type="button"
             [class.on]="listKind() === 'bullet'"
             (click)="toggleList('bullet')"
             matTooltip="Bulleted list (Ctrl+Shift+8)"
+            aria-label="Bulleted list (Ctrl+Shift+8)"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="format_list_bulleted" />
          </button>
          <button
             class="tb"
+            type="button"
             [class.on]="listKind() === 'number'"
             (click)="toggleList('number')"
             matTooltip="Numbered list (Ctrl+Shift+7)"
+            aria-label="Numbered list (Ctrl+Shift+7)"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="format_list_numbered" />
@@ -574,10 +704,12 @@
          @if (editingRich() && element().slideId) {
             <button
                class="tb"
+               type="button"
                [class.on]="!!runMorphTag()"
                [ddPopoverTrigger]="morphMenu"
                placement="below-start"
                matTooltip="Morph tag for the selected words"
+               aria-label="Morph tag for the selected words"
                [disabled]="!store.canEdit()"
             >
                <dd-icon name="link" />
@@ -603,9 +735,11 @@
 
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="alignMenu"
          placement="below-start"
          matTooltip="Text alignment"
+         aria-label="Text alignment"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_align_center" />
@@ -614,21 +748,32 @@
          <div class="picker col">
             <div class="head-row">
                <span class="head-label">Horiz.</span>
-               <button class="tb sm" [class.on]="alignOn() === 'left'" matTooltip="Left" (click)="setTextAlign('left')">
+               <button
+                  class="tb sm"
+                  type="button"
+                  [class.on]="alignOn() === 'left'"
+                  matTooltip="Left"
+                  aria-label="Left"
+                  (click)="setTextAlign('left')"
+               >
                   <dd-icon name="format_align_left" />
                </button>
                <button
                   class="tb sm"
+                  type="button"
                   [class.on]="alignOn() === 'center'"
                   matTooltip="Center"
+                  aria-label="Center"
                   (click)="setTextAlign('center')"
                >
                   <dd-icon name="format_align_center" />
                </button>
                <button
                   class="tb sm"
+                  type="button"
                   [class.on]="alignOn() === 'right'"
                   matTooltip="Right"
+                  aria-label="Right"
                   (click)="setTextAlign('right')"
                >
                   <dd-icon name="format_align_right" />
@@ -638,24 +783,30 @@
                <span class="head-label">Vert.</span>
                <button
                   class="tb sm"
+                  type="button"
                   [class.on]="vAlignOn() === 'top'"
                   matTooltip="Top"
+                  aria-label="Top"
                   (click)="setVerticalAlign('top')"
                >
                   <dd-icon name="vertical_align_top" />
                </button>
                <button
                   class="tb sm"
+                  type="button"
                   [class.on]="vAlignOn() === 'middle'"
                   matTooltip="Middle"
+                  aria-label="Middle"
                   (click)="setVerticalAlign('middle')"
                >
                   <dd-icon name="vertical_align_center" />
                </button>
                <button
                   class="tb sm"
+                  type="button"
                   [class.on]="vAlignOn() === 'bottom'"
                   matTooltip="Bottom"
+                  aria-label="Bottom"
                   (click)="setVerticalAlign('bottom')"
                >
                   <dd-icon name="vertical_align_bottom" />
@@ -670,8 +821,10 @@
       <span class="route-seg">
          <button
             class="tb sm"
+            type="button"
             [class.on]="route() === 'straight'"
             matTooltip="Straight"
+            aria-label="Straight"
             [disabled]="!store.canEdit()"
             (click)="setRoute('straight')"
          >
@@ -679,8 +832,10 @@
          </button>
          <button
             class="tb sm"
+            type="button"
             [class.on]="route() === 'curved'"
             matTooltip="Curved"
+            aria-label="Curved"
             [disabled]="!store.canEdit()"
             (click)="setRoute('curved')"
          >
@@ -688,8 +843,10 @@
          </button>
          <button
             class="tb sm"
+            type="button"
             [class.on]="route() === 'elbow'"
             matTooltip="Elbow"
+            aria-label="Elbow"
             [disabled]="!store.canEdit()"
             (click)="setRoute('elbow')"
          >
@@ -698,9 +855,11 @@
       </span>
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="headMenu"
          placement="below-start"
          matTooltip="Arrowheads"
+         aria-label="Arrowheads"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="swap_horiz" />
@@ -712,8 +871,10 @@
                @for (a of arrowheads; track a.value) {
                   <button
                      class="tb sm"
+                     type="button"
                      [class.on]="a.value === (element().startArrowhead ?? 'none')"
                      [matTooltip]="a.label"
+                     [attr.aria-label]="a.label"
                      (click)="setStartHead(a.value)"
                   >
                      <dd-icon [name]="a.icon" />
@@ -725,8 +886,10 @@
                @for (a of arrowheads; track a.value) {
                   <button
                      class="tb sm"
+                     type="button"
                      [class.on]="a.value === (element().endArrowhead ?? 'none')"
                      [matTooltip]="a.label"
+                     [attr.aria-label]="a.label"
                      (click)="setEndHead(a.value)"
                   >
                      <dd-icon [name]="a.icon" />
@@ -735,7 +898,13 @@
             </div>
             <div class="head-row">
                <span class="head-label">Swap</span>
-               <button class="tb sm" matTooltip="Reverse arrowheads" (click)="reverseArrowheads()">
+               <button
+                  class="tb sm"
+                  matTooltip="Reverse arrowheads"
+                  aria-label="Reverse arrowheads"
+                  type="button"
+                  (click)="reverseArrowheads()"
+               >
                   <dd-icon name="swap_horiz" />
                </button>
             </div>
@@ -745,16 +914,25 @@
 
    <!-- Pictures and videos: crop, clip to shape, playback -->
    @if (media.clipPair()) {
-      <button class="tb" matTooltip="Clip image to shape" [disabled]="!store.canEdit()" (click)="media.clipToShape()">
+      <button
+         class="tb"
+         matTooltip="Clip image to shape"
+         aria-label="Clip image to shape"
+         type="button"
+         [disabled]="!store.canEdit()"
+         (click)="media.clipToShape()"
+      >
          <dd-icon name="clip_shape" />
       </button>
    }
    @if (isImage()) {
       <button
          class="tb"
+         type="button"
          [ddPopoverTrigger]="altMenu"
          placement="below-start"
          matTooltip="Alt text"
+         aria-label="Alt text"
          [class.on]="!!element().media?.alt"
          [disabled]="!store.canEdit()"
       >
@@ -771,13 +949,15 @@
                (keydown.enter)="$event.preventDefault(); setAlt(altBox.value); close()"
             ></textarea>
             <div class="head-row">
-               <button class="tb" (click)="setAlt(altBox.value); close()">Save</button>
+               <button class="tb" type="button" (click)="setAlt(altBox.value); close()">Save</button>
             </div>
          </div>
       </ng-template>
       <button
          class="tb"
          matTooltip="Crop (double-click)"
+         aria-label="Crop (double-click)"
+         type="button"
          [disabled]="!store.canEdit()"
          (click)="media.startCrop(element().id)"
       >
@@ -787,6 +967,8 @@
          <button
             class="tb"
             matTooltip="Release clip"
+            aria-label="Release clip"
+            type="button"
             [disabled]="!store.canEdit()"
             (click)="media.releaseClip(element().id)"
          >
@@ -796,9 +978,11 @@
       @if (mediaKind(); as kind) {
          <button
             class="tb"
+            type="button"
             [ddPopoverTrigger]="playMenu"
             placement="below-start"
             matTooltip="Playback"
+            aria-label="Playback"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="play_circle" />
@@ -809,6 +993,7 @@
                @for (m of playbackModes; track m.value) {
                   <button
                      class="dd-menu-item"
+                     type="button"
                      [class.on]="playback() === m.value"
                      [attr.title]="m.hint"
                      (click)="setPlayback(m.value); close()"
@@ -819,6 +1004,7 @@
                @if (kind === 'video') {
                   <button
                      class="dd-menu-item"
+                     type="button"
                      [class.on]="element().media?.loop ?? false"
                      (click)="toggleMediaFlag('loop')"
                   >
@@ -826,6 +1012,7 @@
                   </button>
                   <button
                      class="dd-menu-item"
+                     type="button"
                      [class.on]="element().media?.muted ?? false"
                      (click)="toggleMediaFlag('muted')"
                   >
@@ -864,7 +1051,13 @@
    <span class="sep"></span>
 
    @if (store.canEdit() && revert().items.length) {
-      <button class="tb" [matTooltip]="'Revert to ' + revert().from" (click)="revertToLayout()">
+      <button
+         class="tb"
+         type="button"
+         [matTooltip]="'Revert to ' + revert().from"
+         [attr.aria-label]="'Revert to ' + revert().from"
+         (click)="revertToLayout()"
+      >
          <dd-icon name="undo" />
       </button>
    }
@@ -872,19 +1065,21 @@
    <!-- Layer + opacity + delete -->
    <button
       class="tb"
+      type="button"
       [ddPopoverTrigger]="moreMenu"
       placement="below-end"
       matTooltip="More"
+      aria-label="More"
       [disabled]="!store.canEdit()"
    >
       <dd-icon name="more_vert" />
    </button>
    <ng-template #moreMenu let-close>
       <div class="dd-menu">
-         <button class="dd-menu-item" (click)="bringToFront(); close()">
+         <button class="dd-menu-item" type="button" (click)="bringToFront(); close()">
             <dd-icon name="flip_to_front" />Bring to front
          </button>
-         <button class="dd-menu-item" (click)="sendToBack(); close()">
+         <button class="dd-menu-item" type="button" (click)="sendToBack(); close()">
             <dd-icon name="flip_to_back" />Send to back
          </button>
          <div class="opacity-row">
@@ -912,7 +1107,14 @@
    >
       <dd-icon name="tune" />
    </button>
-   <button class="tb del" matTooltip="Delete" (click)="remove()" [disabled]="!store.canEdit()">
+   <button
+      class="tb del"
+      matTooltip="Delete"
+      aria-label="Delete"
+      type="button"
+      (click)="remove()"
+      [disabled]="!store.canEdit()"
+   >
       <dd-icon name="delete" />
    </button>
 </div>

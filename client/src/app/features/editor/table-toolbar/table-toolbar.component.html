@@ -1,10 +1,13 @@
 <div class="bar">
-   <button class="add" (click)="addColumn()" [disabled]="!store.canEdit()"><dd-icon name="add" />Column</button>
+   <button class="add" type="button" (click)="addColumn()" [disabled]="!store.canEdit()">
+      <dd-icon name="add" />Column
+   </button>
 
    <span class="sep"></span>
 
    <button
       class="tb"
+      type="button"
       [ddPopoverTrigger]="colorMenu"
       placement="below-start"
       matTooltip="Header color"
@@ -20,9 +23,11 @@
 
    <button
       class="tb"
+      type="button"
       [ddPopoverTrigger]="noteMenu"
       placement="below-start"
       matTooltip="Note"
+      aria-label="Note"
       [disabled]="!store.canEdit()"
    >
       <dd-icon name="edit_note" />
@@ -39,12 +44,21 @@
       </div>
    </ng-template>
 
-   <button class="tb txt" (click)="inspector.toggle()" matTooltip="Indexes (in Details)">
+   <button class="tb txt" type="button" (click)="inspector.toggle()" matTooltip="Indexes (in Details)">
       Indexes · {{ table().indexes?.length ?? 0 }}
    </button>
-   <button class="tb txt" (click)="actions.exportSql()" matTooltip="SQL for the selected tables">SQL</button>
+   <button class="tb txt" type="button" (click)="actions.exportSql()" matTooltip="SQL for the selected tables">
+      SQL
+   </button>
 
-   <button class="tb" (click)="duplicate()" matTooltip="Duplicate table" [disabled]="!store.canEdit()">
+   <button
+      class="tb"
+      type="button"
+      (click)="duplicate()"
+      matTooltip="Duplicate table"
+      aria-label="Duplicate table"
+      [disabled]="!store.canEdit()"
+   >
       <dd-icon name="content_copy" />
    </button>
 
@@ -60,7 +74,14 @@
    >
       <dd-icon name="tune" />
    </button>
-   <button class="tb del" (click)="remove()" matTooltip="Delete table" [disabled]="!store.canEdit()">
+   <button
+      class="tb del"
+      type="button"
+      (click)="remove()"
+      matTooltip="Delete table"
+      aria-label="Delete table"
+      [disabled]="!store.canEdit()"
+   >
       <dd-icon name="delete" />
    </button>
 </div>

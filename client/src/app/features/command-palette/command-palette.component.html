@@ -19,6 +19,7 @@
          @for (x of g.items; track x.index) {
             <button
                class="row"
+               type="button"
                [class.on]="x.index === active()"
                (pointerenter)="active.set(x.index)"
                (click)="run(x.entry)"

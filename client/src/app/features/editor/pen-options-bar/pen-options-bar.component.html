@@ -1,6 +1,7 @@
 @for (c of colors; track c) {
    <button
       class="sw"
+      type="button"
       [class.on]="c === current()"
       [style.background]="css(c)"
       (click)="setColor(c); pen.eraser.set(false)"
@@ -12,6 +13,7 @@
    @for (w of erasers; track w.value) {
       <button
          class="ib"
+         type="button"
          [class.on]="w.value === pen.eraserSize()"
          (click)="pen.eraserSize.set(w.value)"
          [matTooltip]="w.label"
@@ -36,6 +38,7 @@
    @for (w of widths; track w.value) {
       <button
          class="ib"
+         type="button"
          [class.on]="w.value === width()"
          (click)="setWidth(w.value)"
          [matTooltip]="w.label"
@@ -60,6 +63,7 @@
 <span class="sep"></span>
 <button
    class="ib"
+   type="button"
    [class.on]="pen.highlighter()"
    (click)="pen.highlighter.set(!pen.highlighter())"
    matTooltip="Highlighter (wide, 50% opacity)"
@@ -69,6 +73,7 @@
 </button>
 <button
    class="ib"
+   type="button"
    [class.on]="pen.eraser()"
    (click)="pen.eraser.set(!pen.eraser())"
    matTooltip="Eraser (X): drag to rub out parts of strokes"

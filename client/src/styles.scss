@@ -4,6 +4,7 @@
 // styling lives in each component's .scss.
 
 @use '@angular/material' as mat;
+@use 'app/shared/ui/styles/button-reset';
 
 @include mat.core();
 

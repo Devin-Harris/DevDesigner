@@ -5,7 +5,14 @@
          <div class="eyebrow">Table</div>
          <div class="tname">{{ table().name }}</div>
       </div>
-      <button class="icon-btn del" (click)="deleteTable()" [disabled]="!store.canEdit()" title="Delete table">
+      <button
+         class="icon-btn del"
+         type="button"
+         (click)="deleteTable()"
+         [disabled]="!store.canEdit()"
+         title="Delete table"
+         aria-label="Delete table"
+      >
          <dd-icon name="delete" />
       </button>
    </div>
@@ -33,16 +40,20 @@
    ></textarea>
 
    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" [class.on]="tab() === 'columns'" (click)="tab.set('columns')">Columns</button>
-      <button class="tab" role="tab" [class.on]="tab() === 'indexes'" (click)="tab.set('indexes')">Indexes</button>
-      <button class="tab" role="tab" [class.on]="tab() === 'sql'" (click)="tab.set('sql')">SQL</button>
+      <button class="tab" role="tab" type="button" [class.on]="tab() === 'columns'" (click)="tab.set('columns')">
+         Columns
+      </button>
+      <button class="tab" role="tab" type="button" [class.on]="tab() === 'indexes'" (click)="tab.set('indexes')">
+         Indexes
+      </button>
+      <button class="tab" role="tab" type="button" [class.on]="tab() === 'sql'" (click)="tab.set('sql')">SQL</button>
    </div>
 
    @switch (tab()) {
       @case ('columns') {
          <div class="section-head">
             <span class="panel-title">Columns</span>
-            <button class="add-btn" (click)="addColumn()" [disabled]="!store.canEdit()">
+            <button class="add-btn" type="button" (click)="addColumn()" [disabled]="!store.canEdit()">
                <dd-icon name="add" />Add
             </button>
          </div>
@@ -61,9 +72,11 @@
                      />
                      <button
                         class="icon-btn del"
+                        type="button"
                         (click)="deleteColumn(column)"
                         [disabled]="!store.canEdit()"
                         title="Delete column"
+                        aria-label="Delete column"
                      >
                         <dd-icon name="close" />
                      </button>
@@ -92,6 +105,7 @@
                   <div class="flag-chips">
                      <button
                         class="flag pk"
+                        type="button"
                         [class.on]="column.isPrimaryKey"
                         [disabled]="!store.canEdit()"
                         (click)="setFlag(column, 'isPrimaryKey', !column.isPrimaryKey)"
@@ -101,6 +115,7 @@
                      </button>
                      <button
                         class="flag nn"
+                        type="button"
                         [class.on]="!column.isNullable"
                         [disabled]="!store.canEdit()"
                         (click)="setNotNull(column, column.isNullable)"
@@ -110,6 +125,7 @@
                      </button>
                      <button
                         class="flag uq"
+                        type="button"
                         [class.on]="column.isUnique"
                         [disabled]="!store.canEdit()"
                         (click)="setFlag(column, 'isUnique', !column.isUnique)"
@@ -119,6 +135,7 @@
                      </button>
                      <button
                         class="flag ai"
+                        type="button"
                         [class.on]="column.isAutoIncrement"
                         [disabled]="!store.canEdit()"
                         (click)="setFlag(column, 'isAutoIncrement', !column.isAutoIncrement)"
@@ -135,7 +152,12 @@
       @case ('indexes') {
          <div class="section-head">
             <span class="panel-title">Indexes</span>
-            <button class="add-btn" (click)="addIndex()" [disabled]="!store.canEdit() || table().columns.length === 0">
+            <button
+               class="add-btn"
+               type="button"
+               (click)="addIndex()"
+               [disabled]="!store.canEdit() || table().columns.length === 0"
+            >
                <dd-icon name="add" />Add
             </button>
          </div>
@@ -156,9 +178,11 @@
                         />
                         <button
                            class="icon-btn del"
+                           type="button"
                            (click)="deleteIndex(index)"
                            [disabled]="!store.canEdit()"
                            title="Delete index"
+                           aria-label="Delete index"
                         >
                            <dd-icon name="close" />
                         </button>

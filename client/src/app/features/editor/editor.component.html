@@ -304,7 +304,7 @@
          <div class="follow-ring" aria-hidden="true"></div>
          <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
             Following {{ who }}
-            <button (click)="followingId.set(null)">Stop · Esc</button>
+            <button type="button" (click)="followingId.set(null)">Stop · Esc</button>
          </div>
       }
 
@@ -360,12 +360,18 @@
                <span class="dh-sep"></span>
                <button
                   class="dh-btn"
+                  type="button"
                   (click)="enterDeckFocus(set.name)"
                   title="Focus: edit this presentation on its own (Shift+F)"
                >
                   <dd-icon name="open_in_full" class="dh-chev" />Focus
                </button>
-               <button class="dh-present" (click)="presentDeck(set.name)" title="Present from the first slide (F5)">
+               <button
+                  class="dh-present"
+                  type="button"
+                  (click)="presentDeck(set.name)"
+                  title="Present from the first slide (F5)"
+               >
                   <dd-icon name="play_arrow" />Present
                </button>
             </div>
@@ -448,13 +454,15 @@
          @switch (focusScreen()) {
             @case ('main') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" (click)="exitDeckFocus()">← Canvas <span class="fb-k">Esc</span></button>
+                  <button class="fb-btn" type="button" (click)="exitDeckFocus()">
+                     ← Canvas <span class="fb-k">Esc</span>
+                  </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">{{ fd }}</span>
                   <span class="fb-count">{{ deckSlideCount(fd) }} slides</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" [ddPopoverTrigger]="themeMenu" placement="below-start">
+                  <button class="fb-btn" type="button" [ddPopoverTrigger]="themeMenu" placement="below-start">
                      Theme: {{ deckThemeName(fframe) }} ▾
                   </button>
                   <ng-template #themeMenu>
@@ -466,7 +474,9 @@
                         (command)="onFocusCommand($event, fd)"
                      />
                   </ng-template>
-                  <button class="fb-btn" [ddPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
+                  <button class="fb-btn" type="button" [ddPopoverTrigger]="designMenu" placement="below-start">
+                     Design ▾
+                  </button>
                   <ng-template #designMenu>
                      <dd-slides-panel
                         class="menu-host"
@@ -476,9 +486,10 @@
                         (command)="onFocusCommand($event, fd)"
                      />
                   </ng-template>
-                  <button class="fb-btn" (click)="openFocusDesign()">Layouts &amp; master</button>
+                  <button class="fb-btn" type="button" (click)="openFocusDesign()">Layouts &amp; master</button>
                   <button
                      class="fb-btn"
+                     type="button"
                      [ddPopoverTrigger]="sizeMenu"
                      placement="below-start"
                      [disabled]="!store.canEdit()"
@@ -495,14 +506,14 @@
                      />
                   </ng-template>
                   <span class="fb-sep"></span>
-                  <button class="fb-btn" (click)="exportAllSlidesPdf()">Export PDF</button>
+                  <button class="fb-btn" type="button" (click)="exportAllSlidesPdf()">Export PDF</button>
                </div>
                <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn go" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">
+                  <button class="fb-btn go" type="button" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">
                      ▶ Present <span class="fb-f5">F5</span>
                   </button>
                   @if (store.accessMode() === 'OWNER') {
-                     <button class="fb-btn outline" (click)="openShare()">Share</button>
+                     <button class="fb-btn outline" type="button" (click)="openShare()">Share</button>
                   }
                </div>
                <dd-slides-panel
@@ -530,7 +541,7 @@
 
             @case ('design') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" (click)="closeFocusDesign(fd)">← Slides</button>
+                  <button class="fb-btn" type="button" (click)="closeFocusDesign(fd)">← Slides</button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">{{ fd }}</span>
                </div>
@@ -549,7 +560,7 @@
                   } @else {
                      <span class="fb-banner"><b>Design</b> · pick a layout on the left to edit it</span>
                   }
-                  <button class="fb-btn go" (click)="closeFocusDesign(fd)">Done</button>
+                  <button class="fb-btn go" type="button" (click)="closeFocusDesign(fd)">Done</button>
                </div>
                <dd-slides-panel
                   class="fdock left"
@@ -576,7 +587,7 @@
 
             @case ('morph') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+                  <button class="fb-btn" type="button" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
                </div>
@@ -585,6 +596,7 @@
                      <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
                         <button
                            class="fb-btn"
+                           type="button"
                            [disabled]="fslide.index <= 2"
                            (click)="stepTransition(-1)"
                            title="Previous transition"
@@ -592,7 +604,12 @@
                         >
                            ‹
                         </button>
-                        <button class="fb-btn on" [ddPopoverTrigger]="pickTransition" placement="below-start">
+                        <button
+                           class="fb-btn on"
+                           type="button"
+                           [ddPopoverTrigger]="pickTransition"
+                           placement="below-start"
+                        >
                            Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾
                         </button>
                         <ng-template #pickTransition let-close>
@@ -600,6 +617,7 @@
                               @for (n of transitionNumbers(fd); track n) {
                                  <button
                                     role="menuitem"
+                                    type="button"
                                     [class.on]="n === fslide.index"
                                     (click)="goToTransition(n); close()"
                                  >
@@ -610,6 +628,7 @@
                         </ng-template>
                         <button
                            class="fb-btn"
+                           type="button"
                            [disabled]="fslide.index >= deckSlideCount(fd)"
                            (click)="stepTransition(1)"
                            title="Next transition"
@@ -621,6 +640,7 @@
                      <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
                         <button
                            class="fb-btn"
+                           type="button"
                            [class.on]="compareUi.view() === 'map'"
                            (click)="compareUi.view.set('map')"
                         >
@@ -628,6 +648,7 @@
                         </button>
                         <button
                            class="fb-btn"
+                           type="button"
                            [class.on]="compareUi.view() === 'preview'"
                            (click)="compareUi.view.set('preview')"
                         >
@@ -669,12 +690,12 @@
 
             @case ('anim') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+                  <button class="fb-btn" type="button" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn go" (click)="presentFromCurrent(fd)">▶ Preview slide</button>
+                  <button class="fb-btn go" type="button" (click)="presentFromCurrent(fd)">▶ Preview slide</button>
                </div>
                <div
                   class="fdock right anim col"
@@ -682,9 +703,9 @@
                   (wheel)="$event.stopPropagation()"
                >
                   <div class="fd-tabs">
-                     <button class="fd-tab" (click)="stayInFocus()">Slide</button>
-                     <button class="fd-tab" (click)="focusScreen.set('morph')">Transition</button>
-                     <button class="fd-tab on">Animations</button>
+                     <button class="fd-tab" type="button" (click)="stayInFocus()">Slide</button>
+                     <button class="fd-tab" type="button" (click)="focusScreen.set('morph')">Transition</button>
+                     <button class="fd-tab on" type="button">Animations</button>
                   </div>
                   <div class="fd-body">
                      @if (fslide) {
@@ -700,7 +721,7 @@
          <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
             <span class="dot" [style.background]="who.color"></span>
             {{ who.name }} is presenting
-            <button (click)="followPresenter(who.id)">Follow</button>
+            <button type="button" (click)="followPresenter(who.id)">Follow</button>
          </div>
       }
 
@@ -1021,6 +1042,7 @@
             <div class="side-ctrls">
                <button
                   class="side-ctrl"
+                  type="button"
                   [class.on]="inspector.pinned()"
                   (click)="inspector.togglePin()"
                   [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
@@ -1030,7 +1052,13 @@
                >
                   <dd-icon name="push_pin" />
                </button>
-               <button class="side-ctrl" (click)="inspector.close()" aria-label="Close details" title="Close details">
+               <button
+                  class="side-ctrl"
+                  type="button"
+                  (click)="inspector.close()"
+                  aria-label="Close details"
+                  title="Close details"
+               >
                   <dd-icon name="close" />
                </button>
             </div>

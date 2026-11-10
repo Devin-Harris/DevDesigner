@@ -1,5 +1,5 @@
 @if (canEdit()) {
-   <button class="add" [disabled]="!selectedTargets().length" (click)="addSelected()">
+   <button class="add" type="button" [disabled]="!selectedTargets().length" (click)="addSelected()">
       <dd-icon name="add" />
       Add animation{{ selectedTargets().length > 1 ? ' to ' + selectedTargets().length + ' objects' : '' }}
    </button>
@@ -40,6 +40,7 @@
                   class="icon"
                   aria-label="Remove animation"
                   title="Remove"
+                  type="button"
                   (click)="remove(r.animation.id); $event.stopPropagation()"
                >
                   <dd-icon name="close" />
@@ -50,7 +51,7 @@
    </ol>
    <p class="sum">
       {{ summary() }}
-      <button class="link" (click)="play.emit()"><dd-icon name="play_arrow" />Preview</button>
+      <button class="link" type="button" (click)="play.emit()"><dd-icon name="play_arrow" />Preview</button>
    </p>
 }
 
@@ -139,10 +140,10 @@
       }
       @if (canEdit()) {
          <div class="order">
-            <button class="btn" [disabled]="!canMove(a.id, -1)" (click)="move(a.id, -1)">
+            <button class="btn" type="button" [disabled]="!canMove(a.id, -1)" (click)="move(a.id, -1)">
                <dd-icon name="arrow_upward" />Earlier
             </button>
-            <button class="btn" [disabled]="!canMove(a.id, 1)" (click)="move(a.id, 1)">
+            <button class="btn" type="button" [disabled]="!canMove(a.id, 1)" (click)="move(a.id, 1)">
                <dd-icon name="arrow_downward" />Later
             </button>
          </div>

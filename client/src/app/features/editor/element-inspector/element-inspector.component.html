@@ -4,7 +4,14 @@
          <div class="eyebrow">{{ isLine() ? 'Line' : 'Shape' }} & line styling</div>
          <div class="kname">{{ kindLabel() }}</div>
       </div>
-      <button class="icon-btn del" (click)="remove()" [disabled]="!store.canEdit()" title="Delete">
+      <button
+         class="icon-btn del"
+         type="button"
+         (click)="remove()"
+         [disabled]="!store.canEdit()"
+         title="Delete"
+         aria-label="Delete"
+      >
          <dd-icon name="delete" />
       </button>
    </div>
@@ -30,6 +37,7 @@
             @for (w of widths; track w) {
                <button
                   class="seg"
+                  type="button"
                   [class.on]="element().strokeWidth === w"
                   [disabled]="!store.canEdit()"
                   (click)="setWidth(w)"
@@ -46,6 +54,7 @@
                @for (s of styles; track s) {
                   <button
                      class="seg"
+                     type="button"
                      [class.on]="element().strokeStyle === s"
                      [disabled]="!store.canEdit()"
                      (click)="setStyle(s)"
@@ -75,6 +84,7 @@
          />
          <button
             class="hatch-btn"
+            type="button"
             [class.on]="element().fillStyle === 'hachure'"
             [disabled]="!store.canEdit() || element().fillStyle === 'none'"
             (click)="setFillStyle('hachure')"
@@ -104,6 +114,7 @@
       <div class="seg-row">
          <button
             class="seg text"
+            type="button"
             [class.on]="!element().ellipticCorners"
             [disabled]="!store.canEdit()"
             (click)="setEllipticCorners(false)"
@@ -112,6 +123,7 @@
          </button>
          <button
             class="seg text"
+            type="button"
             [class.on]="!!element().ellipticCorners"
             [disabled]="!store.canEdit()"
             (click)="setEllipticCorners(true)"
@@ -156,10 +168,24 @@
          </optgroup>
       </select>
       <div class="seg-row">
-         <button class="seg" [class.on]="element().bold" [disabled]="!store.canEdit()" (click)="toggleBold()">
+         <button
+            class="seg"
+            aria-label="Bold"
+            type="button"
+            [class.on]="element().bold"
+            [disabled]="!store.canEdit()"
+            (click)="toggleBold()"
+         >
             <dd-icon name="format_bold" />
          </button>
-         <button class="seg" [class.on]="element().italic" [disabled]="!store.canEdit()" (click)="toggleItalic()">
+         <button
+            class="seg"
+            aria-label="Italic"
+            type="button"
+            [class.on]="element().italic"
+            [disabled]="!store.canEdit()"
+            (click)="toggleItalic()"
+         >
             <dd-icon name="format_italic" />
          </button>
       </div>
@@ -172,6 +198,7 @@
          @for (l of languages; track l.id) {
             <button
                class="seg text"
+               type="button"
                [class.on]="(element().language ?? 'typescript') === l.id"
                [disabled]="!store.canEdit()"
                (click)="setLanguage(l.id)"
@@ -183,6 +210,7 @@
       <div class="seg-row wrap code-actions">
          <button
             class="seg text"
+            type="button"
             [disabled]="!store.canEdit() || !canFormat()"
             (click)="format()"
             title="Format with Prettier (Shift+Alt+F)"
@@ -191,6 +219,7 @@
          </button>
          <button
             class="seg text"
+            type="button"
             [disabled]="!store.canEdit()"
             (click)="fitToContent()"
             title="Resize the block to fit its code (Shift+Alt+S)"
@@ -203,6 +232,7 @@
          @for (v of diffViews; track v.id) {
             <button
                class="seg text"
+               type="button"
                [class.on]="(element().diffView ?? 'off') === v.id"
                [disabled]="!store.canEdit()"
                (click)="setDiffView(v.id)"
@@ -215,6 +245,7 @@
       <div class="seg-row">
          <button
             class="seg text"
+            type="button"
             [class.on]="!element().diffShowWhitespace"
             [disabled]="!store.canEdit()"
             (click)="toggleWhitespace()"
@@ -227,6 +258,7 @@
          <div class="seg-row wrap code-actions">
             <button
                class="seg text"
+               type="button"
                [disabled]="!store.canEdit()"
                (click)="editDiff('original')"
                title="Edit the original (left) side"
@@ -235,6 +267,7 @@
             </button>
             <button
                class="seg text"
+               type="button"
                [disabled]="!store.canEdit() || (element().diffView ?? 'off') === 'off'"
                (click)="editDiff('modified')"
                title="Edit the changed (right) side"
@@ -243,6 +276,7 @@
             </button>
             <button
                class="seg text"
+               type="button"
                [disabled]="!store.canEdit()"
                (click)="swapDiff()"
                title="Swap the original and changed sides"
@@ -251,6 +285,7 @@
             </button>
             <button
                class="seg text"
+               type="button"
                [disabled]="!store.canEdit()"
                (click)="clearDiff()"
                title="Delete the changed side and keep the original"
@@ -277,6 +312,7 @@
          @for (s of codeSizes; track s) {
             <button
                class="seg text"
+               type="button"
                [class.on]="(element().fontSize ?? 14) === s"
                [disabled]="!store.canEdit()"
                (click)="setCodeSize(s)"
@@ -306,10 +342,10 @@
    <!-- Arrange -->
    <div class="field-label">Arrange</div>
    <div class="arrange">
-      <button class="arr-btn" [disabled]="!store.canEdit()" (click)="bringToFront()">
+      <button class="arr-btn" type="button" [disabled]="!store.canEdit()" (click)="bringToFront()">
          <dd-icon name="flip_to_front" />Front
       </button>
-      <button class="arr-btn" [disabled]="!store.canEdit()" (click)="sendToBack()">
+      <button class="arr-btn" type="button" [disabled]="!store.canEdit()" (click)="sendToBack()">
          <dd-icon name="flip_to_back" />Back
       </button>
    </div>

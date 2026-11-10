@@ -3,6 +3,7 @@
 <div class="dock" [class]="dockClass()">
    <button
       class="dock-btn"
+      type="button"
       [class.on]="tool() === 'select'"
       [disabled]="disabled()"
       (click)="onChange('select')"
@@ -22,6 +23,7 @@
          @case ('hand') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'hand'"
                [disabled]="disabled()"
                (click)="onChange('hand')"
@@ -39,6 +41,7 @@
          @case ('table') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'table'"
                [disabled]="disabled()"
                (click)="onChange('table')"
@@ -55,6 +58,7 @@
          @case ('sequence') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'sequence'"
                [disabled]="disabled()"
                (click)="onChange('sequence')"
@@ -72,6 +76,7 @@
          @case ('grid') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'grid'"
                [disabled]="disabled()"
                (click)="onChange('grid')"
@@ -88,6 +93,7 @@
          @case ('shape') {
             <button
                class="dock-btn shape"
+               type="button"
                [class.on]="isShape()"
                [disabled]="disabled()"
                [ddPopoverTrigger]="shapeMenu"
@@ -121,9 +127,11 @@
                <div class="shape-flyout">
                   <button
                      class="flyout-btn"
+                     type="button"
                      [class.on]="tool() === 'rectangle'"
                      (click)="pickRectangle(0); close()"
                      matTooltip="Rectangle (R)"
+                     aria-label="Rectangle (R)"
                      matTooltipPosition="above"
                   >
                      <svg class="ico" viewBox="0 0 24 24">
@@ -132,18 +140,22 @@
                   </button>
                   <button
                      class="flyout-btn"
+                     type="button"
                      [class.on]="tool() === 'ellipse'"
                      (click)="onChange('ellipse'); close()"
                      matTooltip="Ellipse (O)"
+                     aria-label="Ellipse (O)"
                      matTooltipPosition="above"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
                   </button>
                   <button
                      class="flyout-btn"
+                     type="button"
                      [class.on]="tool() === 'diamond'"
                      (click)="onChange('diamond'); close()"
                      matTooltip="Diamond (D)"
+                     aria-label="Diamond (D)"
                      matTooltipPosition="above"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
@@ -154,6 +166,7 @@
          @case ('frame') {
             <button
                class="dock-btn shape"
+               type="button"
                [class.on]="tool() === 'frame'"
                [disabled]="disabled()"
                [ddPopoverTrigger]="frameMenu"
@@ -173,6 +186,7 @@
                   @for (p of framePresets; track p.id) {
                      <button
                         class="dd-menu-item"
+                        type="button"
                         [class.on]="framePreset() === p.id"
                         (click)="pickFrame(p.id); close()"
                      >
@@ -185,6 +199,7 @@
          @case ('slide') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'slide'"
                [disabled]="disabled()"
                (click)="onChange('slide')"
@@ -201,6 +216,7 @@
          @case ('connector') {
             <button
                class="dock-btn shape"
+               type="button"
                [class.on]="tool() === 'arrow' || tool() === 'line'"
                [disabled]="disabled()"
                [ddPopoverTrigger]="connectorMenu"
@@ -224,18 +240,22 @@
                <div class="shape-flyout">
                   <button
                      class="flyout-btn"
+                     type="button"
                      [class.on]="tool() === 'arrow'"
                      (click)="onChange('arrow'); close()"
                      matTooltip="Arrow (A)"
+                     aria-label="Arrow (A)"
                      matTooltipPosition="above"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5M11 5h8v8" /></svg>
                   </button>
                   <button
                      class="flyout-btn"
+                     type="button"
                      [class.on]="tool() === 'line'"
                      (click)="onChange('line'); close()"
                      matTooltip="Line (L)"
+                     aria-label="Line (L)"
                      matTooltipPosition="above"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5" /></svg>
@@ -246,6 +266,7 @@
          @case ('freedraw') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'freedraw'"
                [disabled]="disabled()"
                (click)="onChange('freedraw')"
@@ -261,6 +282,7 @@
          @case ('text') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'text'"
                [disabled]="disabled()"
                (click)="onChange('text')"
@@ -276,6 +298,7 @@
          @case ('code') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'code'"
                [disabled]="disabled()"
                (click)="onChange('code')"
@@ -291,6 +314,7 @@
          @case ('image') {
             <button
                class="dock-btn"
+               type="button"
                [disabled]="disabled()"
                (click)="addImage.emit()"
                matTooltip="Image — or drop / paste one onto the canvas"
@@ -307,6 +331,7 @@
          @case ('laser') {
             <button
                class="dock-btn"
+               type="button"
                [class.on]="tool() === 'laser'"
                (click)="onChange('laser')"
                matTooltip="Laser pointer (K)"
@@ -325,6 +350,7 @@
    <div class="dock-sep"></div>
    <button
       class="dock-btn customize"
+      type="button"
       [ddPopoverTrigger]="moreMenu"
       [placement]="morePlacement()"
       matTooltip="More tools and customize"
@@ -338,7 +364,7 @@
          @if (prefs.hiddenTools().length) {
             <div class="more-label">More tools</div>
             @for (t of prefs.hiddenTools(); track t.id) {
-               <button class="dd-menu-item" [disabled]="disabled()" (click)="useHidden(t.id); close()">
+               <button class="dd-menu-item" type="button" [disabled]="disabled()" (click)="useHidden(t.id); close()">
                   {{ t.label }}
                   @if (t.key) {
                      <span class="kbd">{{ t.key }}</span>
@@ -347,7 +373,7 @@
             }
             <div class="dd-menu-sep"></div>
          }
-         <button class="dd-menu-item" (click)="prefs.panelOpen.set(true); close()">
+         <button class="dd-menu-item" type="button" (click)="prefs.panelOpen.set(true); close()">
             <dd-icon name="tune" />Customize toolbar…
          </button>
       </div>
@@ -356,29 +382,42 @@
 
 <!-- Bottom-left status / zoom bar (undo/redo + export now live in the top nav) -->
 <div class="statusbar">
-   <button class="sbtn" (click)="zoomOut.emit()" matTooltip="Zoom out">
+   <button class="sbtn" type="button" (click)="zoomOut.emit()" matTooltip="Zoom out" aria-label="Zoom out">
       <dd-icon name="remove" />
    </button>
-   <button class="zoom-label" [ddPopoverTrigger]="zoomMenu" placement="above-start" matTooltip="Zoom options">
+   <button
+      class="zoom-label"
+      type="button"
+      [ddPopoverTrigger]="zoomMenu"
+      placement="above-start"
+      matTooltip="Zoom options"
+   >
       {{ zoomLabel() }}
    </button>
-   <button class="sbtn" (click)="zoomIn.emit()" matTooltip="Zoom in"><dd-icon name="add" /></button>
+   <button class="sbtn" type="button" (click)="zoomIn.emit()" matTooltip="Zoom in" aria-label="Zoom in">
+      <dd-icon name="add" />
+   </button>
    <ng-template #zoomMenu let-close>
       <div class="dd-menu">
-         <button class="dd-menu-item" (click)="zoomFit.emit(); close()">
+         <button class="dd-menu-item" type="button" (click)="zoomFit.emit(); close()">
             <dd-icon name="fit_screen" />Zoom to fit<span class="kbd">Shift 1</span>
          </button>
-         <button class="dd-menu-item" (click)="zoomSelection.emit(); close()">
+         <button class="dd-menu-item" type="button" (click)="zoomSelection.emit(); close()">
             <dd-icon name="center_focus_strong" />Zoom to selection<span class="kbd">Shift 2</span>
          </button>
-         <button class="dd-menu-item" (click)="resetView.emit(); close()">
+         <button class="dd-menu-item" type="button" (click)="resetView.emit(); close()">
             <dd-icon name="home" />Go to home view<span class="kbd">Home</span>
          </button>
          <div class="dd-menu-sep"></div>
-         <button class="dd-menu-item" [disabled]="!canSetHome()" (click)="setHome.emit(); close()">
+         <button class="dd-menu-item" type="button" [disabled]="!canSetHome()" (click)="setHome.emit(); close()">
             <dd-icon name="home" />Set home view to this
          </button>
-         <button class="dd-menu-item" [disabled]="!canSetHome() || !hasHome()" (click)="clearHome.emit(); close()">
+         <button
+            class="dd-menu-item"
+            type="button"
+            [disabled]="!canSetHome() || !hasHome()"
+            (click)="clearHome.emit(); close()"
+         >
             <dd-icon name="close" />Clear home view
          </button>
       </div>
@@ -386,23 +425,45 @@
 
    <span class="sep"></span>
 
-   <button class="tbtn" [class.on]="hasHome()" (click)="resetView.emit()" matTooltip="Go to home view (Home)">
+   <button
+      class="tbtn"
+      type="button"
+      [class.on]="hasHome()"
+      (click)="resetView.emit()"
+      matTooltip="Go to home view (Home)"
+   >
       Home view
    </button>
    <span class="sep"></span>
-   <button class="sbtn" [class.on]="gridSnap()" (click)="toggleGrid.emit()" matTooltip="Snap to grid">
+   <button
+      class="sbtn"
+      type="button"
+      [class.on]="gridSnap()"
+      (click)="toggleGrid.emit()"
+      matTooltip="Snap to grid"
+      aria-label="Snap to grid"
+   >
       <dd-icon name="grid_4x4" />
    </button>
    <button
       class="sbtn"
+      type="button"
       [class.on]="smartGuides()"
       (click)="toggleSmartGuides.emit()"
       matTooltip="Smart guides: snap to nearby items and spacing"
+      aria-label="Smart guides: snap to nearby items and spacing"
    >
       <dd-icon name="smart_guides" />
    </button>
 
-   <button class="sbtn" [class.on]="minimap()" (click)="toggleMinimap.emit()" matTooltip="Minimap">
+   <button
+      class="sbtn"
+      type="button"
+      [class.on]="minimap()"
+      (click)="toggleMinimap.emit()"
+      matTooltip="Minimap"
+      aria-label="Minimap"
+   >
       <dd-icon name="map" />
    </button>
 
@@ -418,39 +479,85 @@
       @if (alignToContainer()) {
          <span class="align-hint">In container</span>
       }
-      <button class="sbtn" (click)="align.emit('left')" matTooltip="Align left" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('left')"
+         matTooltip="Align left"
+         aria-label="Align left"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_horizontal_left" />
       </button>
-      <button class="sbtn" (click)="align.emit('hcenter')" matTooltip="Center horizontally" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('hcenter')"
+         matTooltip="Center horizontally"
+         aria-label="Center horizontally"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_horizontal_center" />
       </button>
-      <button class="sbtn" (click)="align.emit('right')" matTooltip="Align right" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('right')"
+         matTooltip="Align right"
+         aria-label="Align right"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_horizontal_right" />
       </button>
       <span class="sep"></span>
-      <button class="sbtn" (click)="align.emit('top')" matTooltip="Align top" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('top')"
+         matTooltip="Align top"
+         aria-label="Align top"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_vertical_top" />
       </button>
-      <button class="sbtn" (click)="align.emit('vcenter')" matTooltip="Center vertically" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('vcenter')"
+         matTooltip="Center vertically"
+         aria-label="Center vertically"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_vertical_center" />
       </button>
-      <button class="sbtn" (click)="align.emit('bottom')" matTooltip="Align bottom" matTooltipPosition="above">
+      <button
+         class="sbtn"
+         type="button"
+         (click)="align.emit('bottom')"
+         matTooltip="Align bottom"
+         aria-label="Align bottom"
+         matTooltipPosition="above"
+      >
          <dd-icon name="align_vertical_bottom" />
       </button>
       @if (canDistribute()) {
          <span class="sep"></span>
          <button
             class="sbtn"
+            type="button"
             (click)="align.emit('dist-h')"
             matTooltip="Distribute horizontally"
+            aria-label="Distribute horizontally"
             matTooltipPosition="above"
          >
             <dd-icon name="horizontal_distribute" />
          </button>
          <button
             class="sbtn"
+            type="button"
             (click)="align.emit('dist-v')"
             matTooltip="Distribute vertically"
+            aria-label="Distribute vertically"
             matTooltipPosition="above"
          >
             <dd-icon name="vertical_distribute" />

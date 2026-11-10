@@ -13,7 +13,7 @@
             }
          </select>
       </label>
-      <button class="x" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
+      <button class="x" type="button" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
    </div>
 
    <div class="body">
@@ -43,7 +43,12 @@
                      }
                   </span>
                   <span class="k">{{ t.key || '—' }}</span>
-                  <button class="hide" (click)="prefs.setVisible(t.id, false)" [attr.aria-label]="'Hide ' + t.label">
+                  <button
+                     class="hide"
+                     type="button"
+                     (click)="prefs.setVisible(t.id, false)"
+                     [attr.aria-label]="'Hide ' + t.label"
+                  >
                      <dd-icon name="visibility_off" />
                   </button>
                </div>
@@ -63,7 +68,7 @@
                   <span class="grip">⋮⋮</span>
                   <span class="name">{{ t.label }}</span>
                   <span class="k">{{ t.key || '—' }}</span>
-                  <button class="show" (click)="prefs.setVisible(t.id, true)">Show</button>
+                  <button class="show" type="button" (click)="prefs.setVisible(t.id, true)">Show</button>
                </div>
             } @empty {
                <div class="empty">Drag a tool here to hide it</div>
@@ -75,7 +80,7 @@
          <div class="lab">Toolbar position</div>
          <div class="seg">
             @for (p of positions; track p.id) {
-               <button [class.on]="prefs.position() === p.id" (click)="prefs.setPosition(p.id)">
+               <button type="button" [class.on]="prefs.position() === p.id" (click)="prefs.setPosition(p.id)">
                   {{ p.label }}
                </button>
             }
@@ -124,7 +129,7 @@
    </div>
 
    <div class="foot">
-      <button class="ghost" (click)="prefs.reset()">Reset to default</button>
-      <button class="primary" (click)="close()">Done</button>
+      <button class="ghost" type="button" (click)="prefs.reset()">Reset to default</button>
+      <button class="primary" type="button" (click)="close()">Done</button>
    </div>
 </div>

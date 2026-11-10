@@ -7,6 +7,7 @@
          </a>
          <button
             class="icon-btn collapse-btn"
+            type="button"
             (click)="toggleRail()"
             [attr.aria-label]="railCollapsed() ? 'Expand tool list' : 'Collapse tool list'"
             [attr.aria-expanded]="!railCollapsed()"
@@ -16,6 +17,7 @@
          </button>
          <button
             class="icon-btn theme-btn"
+            type="button"
             (click)="theme.toggle()"
             [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
          >
@@ -23,7 +25,7 @@
          </button>
       </div>
       <div class="rail-title">
-         <button class="rail-toggle" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()">
+         <button class="rail-toggle" type="button" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()">
             <dd-icon [name]="tool().icon" />{{ tool().name }}
             <dd-icon name="expand_more" />
          </button>
@@ -34,6 +36,7 @@
             @for (t of g.tools; track t.id) {
                <button
                   class="tab"
+                  type="button"
                   [class.on]="t.id === tool().id"
                   [attr.aria-current]="t.id === tool().id ? 'page' : null"
                   (click)="go(t)"
@@ -76,17 +79,22 @@
                <span class="sb-note">Your own scratch copy, kept for this browser session only. Reset any time.</span>
                @if (tool().sandboxActions === 'export') {
                   <span class="sb-group" role="group" aria-label="Export and import">
-                     <button class="btn sm" (click)="actions.exportImage('png')"><dd-icon name="photo" />PNG</button>
-                     <button class="btn sm" (click)="actions.exportImage('svg')">SVG</button>
-                     <button class="btn sm" (click)="actions.exportImage('pdf')">PDF</button>
+                     <button class="btn sm" type="button" (click)="actions.exportImage('png')">
+                        <dd-icon name="photo" />PNG
+                     </button>
+                     <button class="btn sm" type="button" (click)="actions.exportImage('svg')">SVG</button>
+                     <button class="btn sm" type="button" (click)="actions.exportImage('pdf')">PDF</button>
                      <button
                         class="btn sm"
+                        type="button"
                         (click)="actions.exportSelectionFile()"
                         [disabled]="!actions.hasSelection()"
                      >
                         <dd-icon name="download" />Selection
                      </button>
-                     <button class="btn sm" (click)="importInput.click()"><dd-icon name="upload" />Import</button>
+                     <button class="btn sm" type="button" (click)="importInput.click()">
+                        <dd-icon name="upload" />Import
+                     </button>
                      <input
                         #importInput
                         type="file"
@@ -96,9 +104,10 @@
                      />
                   </span>
                }
-               <button class="btn sm" (click)="reset()"><dd-icon name="undo" />Reset</button>
+               <button class="btn sm" type="button" (click)="reset()"><dd-icon name="undo" />Reset</button>
                <button
                   class="btn sm"
+                  type="button"
                   (click)="expanded.set(!expanded())"
                   [attr.aria-label]="expanded() ? 'Exit full screen' : 'Full screen'"
                >
@@ -118,7 +127,7 @@
                } @else if (sandboxError(); as err) {
                   <div class="sb-msg">
                      <dd-icon name="warning" />{{ err }}
-                     <button class="btn sm" (click)="reset()">Try again</button>
+                     <button class="btn sm" type="button" (click)="reset()">Try again</button>
                   </div>
                } @else {
                   <div class="sb-msg muted">Preparing sandbox…</div>
@@ -213,14 +222,14 @@
 
       <nav class="pager" aria-label="Next and previous tool">
          @if (prev(); as p) {
-            <button class="pg" (click)="go(p)">
+            <button class="pg" type="button" (click)="go(p)">
                <span class="muted">Previous</span><span><dd-icon name="chevron_left" />{{ p.name }}</span>
             </button>
          } @else {
             <span></span>
          }
          @if (next(); as n) {
-            <button class="pg right" (click)="go(n)">
+            <button class="pg right" type="button" (click)="go(n)">
                <span class="muted">Next</span><span>{{ n.name }}<dd-icon name="chevron_right" /></span>
             </button>
          }

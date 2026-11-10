@@ -33,8 +33,8 @@
 </mat-dialog-content>
 
 <mat-dialog-actions class="dlg-actions">
-   <button class="btn" mat-dialog-close>Cancel</button>
-   <button class="btn primary" [disabled]="!canSubmit()" (click)="submit()">
+   <button class="btn" mat-dialog-close type="button">Cancel</button>
+   <button class="btn primary" type="button" [disabled]="!canSubmit()" (click)="submit()">
       @if (busy()) {
          <mat-progress-spinner mode="indeterminate" diameter="18"></mat-progress-spinner>
       }

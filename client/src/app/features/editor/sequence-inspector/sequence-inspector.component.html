@@ -6,7 +6,14 @@
             <div class="eyebrow">Participant</div>
             <div class="tname">{{ l.label }}</div>
          </div>
-         <button class="icon-btn" (click)="deleteLifeline()" [disabled]="!store.canEdit()" title="Delete participant">
+         <button
+            class="icon-btn"
+            type="button"
+            (click)="deleteLifeline()"
+            [disabled]="!store.canEdit()"
+            title="Delete participant"
+            aria-label="Delete participant"
+         >
             <dd-icon name="delete" />
          </button>
       </div>
@@ -56,12 +63,16 @@
 
       <div class="field-label">Width</div>
       <div class="flag-chips">
-         <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">−</button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">
+            −
+         </button>
          <span class="width-val">{{ l.width }}px</span>
-         <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">+</button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">
+            +
+         </button>
       </div>
 
-      <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
+      <button class="add-btn full" type="button" (click)="addParticipant()" [disabled]="!store.canEdit()">
          <dd-icon name="add" />Add participant
       </button>
    } @else if (message(); as m) {
@@ -71,7 +82,14 @@
             <div class="eyebrow">Message</div>
             <div class="tname">{{ m.label || '(no label)' }}</div>
          </div>
-         <button class="icon-btn" (click)="deleteMessage()" [disabled]="!store.canEdit()" title="Delete message">
+         <button
+            class="icon-btn"
+            type="button"
+            (click)="deleteMessage()"
+            [disabled]="!store.canEdit()"
+            title="Delete message"
+            aria-label="Delete message"
+         >
             <dd-icon name="delete" />
          </button>
       </div>
@@ -103,6 +121,7 @@
       <div class="flag-chips">
          <button
             class="flag"
+            type="button"
             [class.on]="m.style === 'solid'"
             [disabled]="!store.canEdit()"
             (click)="setStyle('solid')"
@@ -111,6 +130,7 @@
          </button>
          <button
             class="flag"
+            type="button"
             [class.on]="m.style === 'dashed'"
             [disabled]="!store.canEdit()"
             (click)="setStyle('dashed')"
@@ -119,6 +139,7 @@
          </button>
          <button
             class="flag"
+            type="button"
             [class.on]="m.style === 'break'"
             [disabled]="!store.canEdit()"
             (click)="setStyle('break')"
@@ -139,13 +160,19 @@
 
       <div class="field-label">Label</div>
       <div class="flag-chips">
-         <button class="flag" [class.on]="m.wrap !== false" [disabled]="!store.canEdit()" (click)="toggleWrap()">
+         <button
+            class="flag"
+            type="button"
+            [class.on]="m.wrap !== false"
+            [disabled]="!store.canEdit()"
+            (click)="toggleWrap()"
+         >
             Auto wrap
          </button>
       </div>
 
       @if (m.style !== 'break') {
-         <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
+         <button class="add-btn full" type="button" (click)="flipDirection()" [disabled]="!store.canEdit()">
             <dd-icon name="swap_horiz" />Flip direction
          </button>
       }
@@ -182,14 +209,22 @@
 
       <div class="field-label">Arrange</div>
       <div class="flag-chips">
-         <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('back')">Send to back</button>
-         <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('front')">Bring to front</button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="arrange('back')">
+            Send to back
+         </button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="arrange('front')">
+            Bring to front
+         </button>
       </div>
 
       <div class="field-label">Add participant</div>
       <div class="flag-chips">
-         <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('left')">◂ Left</button>
-         <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('right')">Right ▸</button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="addParticipant('left')">
+            ◂ Left
+         </button>
+         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="addParticipant('right')">
+            Right ▸
+         </button>
       </div>
    }
 </div>

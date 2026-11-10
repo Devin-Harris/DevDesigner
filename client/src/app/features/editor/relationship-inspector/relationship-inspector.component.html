@@ -3,7 +3,14 @@
       <div class="head-text">
          <div class="eyebrow">Relationship</div>
       </div>
-      <button class="icon-btn del" (click)="remove()" [disabled]="!store.canEdit()" title="Delete relationship">
+      <button
+         class="icon-btn del"
+         type="button"
+         (click)="remove()"
+         [disabled]="!store.canEdit()"
+         title="Delete relationship"
+         aria-label="Delete relationship"
+      >
          <dd-icon name="delete" />
       </button>
    </div>

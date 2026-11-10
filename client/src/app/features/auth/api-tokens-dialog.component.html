@@ -21,15 +21,15 @@
          </div>
          <code class="secret-value">{{ c.token }}</code>
          <div class="row">
-            <button class="btn" (click)="copy('token')">
+            <button class="btn" type="button" (click)="copy('token')">
                <dd-icon [name]="copied() === 'token' ? 'check' : 'content_copy'" />
                {{ copied() === 'token' ? 'Copied' : 'Copy token' }}
             </button>
-            <button class="btn" (click)="copy('config')">
+            <button class="btn" type="button" (click)="copy('config')">
                <dd-icon [name]="copied() === 'config' ? 'check' : 'content_copy'" />
                {{ copied() === 'config' ? 'Copied' : 'Copy MCP config' }}
             </button>
-            <button class="btn ghost" (click)="dismissCreated()">Done</button>
+            <button class="btn ghost" type="button" (click)="dismissCreated()">Done</button>
          </div>
          <pre class="snippet">{{ configSnippet() }}</pre>
       </div>
@@ -47,7 +47,9 @@
             (keydown.enter)="create()"
          />
          <dd-segmented [options]="scopeOptions" [ngModel]="scope()" (ngModelChange)="setScope($event)" />
-         <button class="btn primary" [disabled]="!canCreate()" (click)="create()"><dd-icon name="add" />Create</button>
+         <button class="btn primary" type="button" [disabled]="!canCreate()" (click)="create()">
+            <dd-icon name="add" />Create
+         </button>
       </div>
    </div>
 
@@ -71,7 +73,7 @@
                      {{ t.lastUsedAt ? 'used ' + (t.lastUsedAt | date: 'mediumDate') : 'never used' }}
                   </span>
                </div>
-               <button class="icon-btn" (click)="revoke(t)" aria-label="Revoke token" title="Revoke">
+               <button class="icon-btn" type="button" (click)="revoke(t)" aria-label="Revoke token" title="Revoke">
                   <dd-icon name="delete" />
                </button>
             </div>
@@ -81,5 +83,5 @@
 </mat-dialog-content>
 
 <mat-dialog-actions class="dlg-actions">
-   <button class="btn" mat-dialog-close>Close</button>
+   <button class="btn" mat-dialog-close type="button">Close</button>
 </mat-dialog-actions>

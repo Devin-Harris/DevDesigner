@@ -8,7 +8,7 @@
 
    <div class="create-row">
       <dd-segmented [options]="levelOptions" [ngModel]="newLevel()" (ngModelChange)="setLevel($event)" />
-      <button class="btn primary" [disabled]="creating()" (click)="create()">
+      <button class="btn primary" type="button" [disabled]="creating()" (click)="create()">
          <dd-icon name="add_link" />
          Create link
       </button>
@@ -26,10 +26,22 @@
             <li class="link">
                <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
                <span class="url" [title]="link.url">{{ link.url }}</span>
-               <button class="icon-btn" matTooltip="Copy link" (click)="copy(link)" aria-label="Copy link">
+               <button
+                  class="icon-btn"
+                  matTooltip="Copy link"
+                  type="button"
+                  (click)="copy(link)"
+                  aria-label="Copy link"
+               >
                   <dd-icon name="content_copy" />
                </button>
-               <button class="icon-btn del" matTooltip="Revoke link" (click)="revoke(link)" aria-label="Revoke link">
+               <button
+                  class="icon-btn del"
+                  matTooltip="Revoke link"
+                  type="button"
+                  (click)="revoke(link)"
+                  aria-label="Revoke link"
+               >
                   <dd-icon name="link_off" />
                </button>
             </li>
@@ -39,5 +51,5 @@
 </mat-dialog-content>
 
 <mat-dialog-actions class="dlg-actions">
-   <button class="btn" mat-dialog-close>Done</button>
+   <button class="btn" mat-dialog-close type="button">Done</button>
 </mat-dialog-actions>

@@ -12,6 +12,7 @@
       <div class="top-actions">
          <button
             class="icon-btn"
+            type="button"
             (click)="theme.toggle()"
             [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
             [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
@@ -19,26 +20,28 @@
             <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
          </button>
          @if (auth.currentUser(); as user) {
-            <button class="link-btn" [ddPopoverTrigger]="accountMenu" placement="below-end">
+            <button class="link-btn" type="button" [ddPopoverTrigger]="accountMenu" placement="below-end">
                {{ user.email ?? 'Account' }}
             </button>
             <ng-template #accountMenu let-close>
                <div class="dd-menu">
                   @if (auth.isAdmin$()) {
-                     <button class="dd-menu-item" routerLink="/admin" (click)="close()">
+                     <button class="dd-menu-item" routerLink="/admin" type="button" (click)="close()">
                         <dd-icon name="lock"></dd-icon>Admin
                      </button>
                   }
-                  <button class="dd-menu-item" (click)="openApiTokens(); close()">
+                  <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
                      <dd-icon name="key" />API tokens
                   </button>
-                  <button class="dd-menu-item" (click)="signOut(); close()"><dd-icon name="logout" />Sign out</button>
+                  <button class="dd-menu-item" type="button" (click)="signOut(); close()">
+                     <dd-icon name="logout" />Sign out
+                  </button>
                </div>
             </ng-template>
          } @else {
-            <button class="link-btn" (click)="openAuth()">Sign in</button>
+            <button class="link-btn" type="button" (click)="openAuth()">Sign in</button>
          }
-         <button class="btn primary" (click)="openProjects()">Open my projects</button>
+         <button class="btn primary" type="button" (click)="openProjects()">Open my projects</button>
       </div>
    </header>
 
@@ -51,8 +54,10 @@
             then turn any part of the board into a slide deck and present it live with your team.
          </p>
          <div class="ctas">
-            <button class="btn primary lg" (click)="newCanvas()"><dd-icon name="add" />Start a blank canvas</button>
-            <button class="btn lg" (click)="openProjects()">
+            <button class="btn primary lg" type="button" (click)="newCanvas()">
+               <dd-icon name="add" />Start a blank canvas
+            </button>
+            <button class="btn lg" type="button" (click)="openProjects()">
                <dd-icon name="template" />Browse projects &amp; templates
             </button>
             <a class="btn lg" routerLink="/guide"><dd-icon name="play_circle" />Learn the tools</a>
@@ -126,6 +131,7 @@
             <button
                role="tab"
                class="sc-tab"
+               type="button"
                [class.on]="active() === i"
                [attr.aria-selected]="active() === i"
                (click)="pick(i)"
@@ -169,12 +175,7 @@
                      </span>
                   </div>
                   <div class="mo-body">
-                     <dd-deck-compare
-                        class="focus-compare mo-stage"
-                        [slide]="tr.to"
-                        [previous]="tr.from"
-                        [index]="1"
-                     />
+                     <dd-deck-compare class="focus-compare mo-stage" [slide]="tr.to" [previous]="tr.from" [index]="1" />
                      @if (moLine(); as l) {
                         <svg class="mo-drag">
                            <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
@@ -318,11 +319,11 @@
       <section class="wrap recent">
          <div class="sec-head">
             <h2 class="disp">Jump back in</h2>
-            <button class="link-btn" (click)="openProjects()">All projects →</button>
+            <button class="link-btn" type="button" (click)="openProjects()">All projects →</button>
          </div>
          <div class="recent-grid">
             @for (p of recent(); track p.id) {
-               <button class="recent-card" (click)="open(p.id)">
+               <button class="recent-card" type="button" (click)="open(p.id)">
                   <span class="rc-name">{{ p.name }}</span>
                   @if (p.description) {
                      <span class="rc-desc">{{ p.description }}</span>
@@ -375,7 +376,7 @@
          </p>
          <ol class="mcp-steps">
             <li>
-               <button class="link-btn accent" (click)="openApiTokens()">Create an API token</button>
+               <button class="link-btn accent" type="button" (click)="openApiTokens()">Create an API token</button>
                (Account → API tokens).
             </li>
             <li>Add the hosted server to <code>.mcp.json</code> at your project root, with your token:</li>
