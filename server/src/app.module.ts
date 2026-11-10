@@ -23,9 +23,9 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { BatchModule } from './batch/batch.module';
 import { UserThemesModule } from './user-themes/user-themes.module';
 import { AdminModule } from './admin/admin.module';
-import { validateEnv } from './config/env.validation';
-import { AllExceptionsFilter } from './common/all-exceptions.filter';
-import { RequestContextInterceptor, RequestContextMiddleware } from './common/request-context';
+import { validateEnv } from './platform/config/env.validation';
+import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
+import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
 import { loggerParams } from './common/logger.config';
 
 /**

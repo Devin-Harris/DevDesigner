@@ -13,7 +13,7 @@ import { RelationshipsService } from './relationships.service';
 import { CreateRelationshipDto } from './dto/create-relationship.dto';
 import { UpdateRelationshipDto } from './dto/update-relationship.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /** Granular relationship routes (BUILD_INSTRUCTIONS.md section 5). */
 @Controller()

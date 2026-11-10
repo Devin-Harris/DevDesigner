@@ -14,7 +14,7 @@ import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { ReorderColumnsDto } from './dto/reorder-columns.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Granular column routes (BUILD_INSTRUCTIONS.md section 5). Create and reorder

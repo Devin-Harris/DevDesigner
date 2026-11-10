@@ -15,7 +15,7 @@ import { UpdateElementDto } from './dto/update-element.dto';
 import { UpdateElementPositionDto } from './dto/update-element-position.dto';
 import { ReorderElementsDto } from './dto/reorder-elements.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Granular canvas-element routes (BUILD_INSTRUCTIONS.md section 5). Create and

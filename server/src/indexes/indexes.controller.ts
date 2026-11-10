@@ -14,7 +14,7 @@ import { CreateIndexDto } from './dto/create-index.dto';
 import { UpdateIndexDto } from './dto/update-index.dto';
 import { ReorderIndexesDto } from './dto/reorder-indexes.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Granular index routes. Create and reorder carry the parent tableId in the

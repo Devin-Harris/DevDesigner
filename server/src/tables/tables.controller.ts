@@ -1,7 +1,7 @@
 import type { TableModel } from '@devdesigner/shared';
 import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { UpdateTableDto } from './dto/update-table.dto';

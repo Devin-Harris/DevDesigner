@@ -23,7 +23,7 @@ import { CreateSequenceMessageDto } from './dto/create-sequence-message.dto';
 import { UpdateSequenceMessageDto } from './dto/update-sequence-message.dto';
 import { UpdateSequenceMessagePositionDto } from './dto/update-sequence-message-position.dto';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Sequence-diagram routes. Everything is nested under the projectId so a single

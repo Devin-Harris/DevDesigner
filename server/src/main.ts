@@ -8,7 +8,7 @@ import compression from 'compression';
 import { json, urlencoded } from 'body-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import { REQUEST_ID_HEADER } from './common/request-context';
+import { REQUEST_ID_HEADER } from './platform/http/request-context';
 
 /**
  * JSON body limits. Body parsing runs before guards, so the global cap stays small;

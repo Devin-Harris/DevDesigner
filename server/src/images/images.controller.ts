@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { UploadImageResponse } from '@devdesigner/shared';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ShareToken } from '../common/request.decorators';
+import { ShareToken } from '../platform/http/request.decorators';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { ImagesService } from './images.service';
 

@@ -1,7 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import { guestOwnerId } from '../auth/guest-id';
-import { realtimePrincipal, trustedClientId } from '../realtime/realtime-clients';
+import { guestOwnerId } from '../../auth/guest-id';
+import { realtimePrincipal, trustedClientId } from '../../realtime/realtime-clients';
 
 /**
  * Inject the anonymous share token from the X-Share-Token header, or null when

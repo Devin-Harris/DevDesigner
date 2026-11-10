@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 import type { ConfigService } from '@nestjs/config';
 import type { Params } from 'nestjs-pino';
-import { resolveRequestId } from './request-context';
+import { resolveRequestId } from '../platform/http/request-context';
 
 /** Share tokens also appear in the path of GET /api/shared/:token. */
 const scrubUrl = (url: string | undefined): string | undefined =>

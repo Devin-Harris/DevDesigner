@@ -15,7 +15,7 @@ import type { AddressInfo } from 'node:net';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { AccessService } from '../access/access.service';
 import { AuthService } from '../auth/auth.service';
-import { originClientIdOf } from '../common/request.decorators';
+import { originClientIdOf } from '../platform/http/request.decorators';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimePublisher } from './realtime.publisher';
 

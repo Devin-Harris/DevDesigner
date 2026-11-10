@@ -36,7 +36,7 @@ import { UpdateThemesDto } from './dto/update-themes.dto';
 import { CurrentUser, CurrentUserId } from '../auth/current-user.decorator';
 import { guestOwnerId } from '../auth/guest-id';
 import type { AuthUser } from '../auth/auth.types';
-import { ClientId, GuestId, ShareToken } from '../common/request.decorators';
+import { ClientId, GuestId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Granular project routes (BUILD_INSTRUCTIONS.md section 5). Controllers only

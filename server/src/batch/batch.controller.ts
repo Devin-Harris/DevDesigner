@@ -8,7 +8,7 @@ import { BatchService } from './batch.service';
 import { CloneService } from './clone.service';
 import { batchResult } from './batch-ack';
 import { CurrentUserId } from '../auth/current-user.decorator';
-import { ClientId, ShareToken } from '../common/request.decorators';
+import { ClientId, ShareToken } from '../platform/http/request.decorators';
 
 /**
  * Atomic multi-item edits. The body is checked section by section in the service
