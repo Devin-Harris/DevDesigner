@@ -13,12 +13,7 @@ import {
    viewChildren,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import {
-   generateSql,
-   type CanvasElementModel,
-   type SchemaMutation,
-   type SequenceMessageModel,
-} from '@devdesigner/shared';
+import { generateSql, type SequenceMessageModel } from '@devdesigner/shared';
 import { EditorComponent } from '../editor/editor.component';
 import { CompareUiState, DeckCompareComponent } from '../editor/slides/deck-compare.component';
 import { ColorSwatchesComponent } from '../../shared/ui/color-swatches/color-swatches.component';
@@ -851,7 +846,10 @@ export class HomeComponent {
             const l = parseFloat(btn.style.left) + parseFloat(btn.style.width) / 2;
             const t = parseFloat(btn.style.top) + parseFloat(btn.style.height) / 2;
             const d = (l - cx) ** 2 + (t - cy) ** 2;
-            if (d < bestD) ((bestD = d), (best = btn));
+            if (d < bestD) {
+               bestD = d;
+               best = btn;
+            }
          });
          return best;
       };

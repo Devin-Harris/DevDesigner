@@ -11,8 +11,6 @@ import type {
    CreateColumnDto,
    CreateElementDto,
    CreateIndexDto,
-   CreateLifelineDto,
-   CreateSequenceMessageDto,
    IndexModel,
    LifelineModel,
    PointModel,

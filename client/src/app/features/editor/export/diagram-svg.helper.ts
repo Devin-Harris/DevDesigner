@@ -40,7 +40,6 @@ const FONT = "'IBM Plex Mono', 'SFMono-Regular', ui-monospace, 'Cascadia Mono', 
 // Approximate monospace advance widths, used only for placing/truncating text.
 const CW_13 = 7.8;
 const CW_11 = 6.6;
-const CW_10 = 6.0;
 
 /** Resolved theme colors for one export pass. */
 interface Theme {

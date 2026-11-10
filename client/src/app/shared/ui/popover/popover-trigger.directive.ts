@@ -90,7 +90,11 @@ export class PopoverTriggerDirective implements OnDestroy {
    }
 
    toggle(): void {
-      this.ref ? this.close() : this.open();
+      if (this.ref) {
+         this.close();
+      } else {
+         this.open();
+      }
    }
 
    open(): void {

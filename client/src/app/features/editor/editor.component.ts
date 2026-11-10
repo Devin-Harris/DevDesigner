@@ -62,7 +62,6 @@ import {
    masterOf,
    resolveThemeColor,
    themeSwatchCss,
-   themeToken,
    DEFAULT_THEME,
    type SlideTheme,
    DEFAULT_SLIDE_TRANSITION,

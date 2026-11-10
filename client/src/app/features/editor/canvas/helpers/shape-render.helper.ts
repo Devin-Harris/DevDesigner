@@ -1159,8 +1159,6 @@ function gridTableView(
    const rowEdges = edges(rows).map((e) => element.y + e);
    const x0 = element.x;
    const y0 = element.y;
-   const x1 = colEdges[colEdges.length - 1];
-   const y1 = rowEdges[rowEdges.length - 1];
    // Inner borders, broken where a merged block spans across them.
    const lines: GridTableView['lines'] = [];
    const inMerge = (r: number, c: number): ReturnType<typeof mergeAt> => mergeAt(g, r, c);
