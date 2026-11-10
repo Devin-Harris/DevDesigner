@@ -63,3 +63,6 @@ export const CORNER_RADIUS = 10;
 // Routing search tunables.
 /** Extra A* cost per 90-degree turn, so clean elbows beat zig-zags of equal length. */
 export const BEND_PENALTY = 60;
+
+/** Default styling applied to a newly drawn element. */
+export const DEFAULT_ELEMENT_STROKE = '#2f3a45';

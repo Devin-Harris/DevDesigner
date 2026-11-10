@@ -255,7 +255,7 @@
          ></div>
       }
 
-      @if (showMinimap() && !focusedDeck()) {
+      @if (showMinimap() && !deckFocus.focusedDeck()) {
          <dd-minimap
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
@@ -302,11 +302,11 @@
          (exportImage)="exporter.onExportImage($event)"
       ></dd-shape-toolbar>
 
-      @if (followingName(); as who) {
+      @if (follow.followingName(); as who) {
          <div class="follow-ring" aria-hidden="true"></div>
          <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
             Following {{ who }}
-            <button type="button" (click)="followingId.set(null)">Stop · Esc</button>
+            <button type="button" (click)="follow.followingId.set(null)">Stop · Esc</button>
          </div>
       }
 
@@ -320,7 +320,7 @@
       @if (activeTool() === 'freedraw' && store.canEdit()) {
          <dd-pen-options-bar
             class="pen-bar"
-            [class.low]="!!focusedDeck() || toolbarPosTop()"
+            [class.low]="!!deckFocus.focusedDeck() || toolbarPosTop()"
             [strokeColor]="store.elementStyle().strokeColor"
             (colorChange)="store.setElementStyle({ strokeColor: $event })"
             (pointerdown)="$event.stopPropagation()"
@@ -336,7 +336,7 @@
                [style.width.px]="le.width"
                [style.height.px]="le.height"
             >
-               @if (focusedDeck() !== set.name) {
+               @if (deckFocus.focusedDeck() !== set.name) {
                   <span class="layout-edit-badge"
                      ><dd-icon name="template" />{{
                         le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name
@@ -345,7 +345,7 @@
                }
             </div>
          }
-         @if (focusedDeck() !== set.name) {
+         @if (deckFocus.focusedDeck() !== set.name) {
             <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
             <div
                class="deck-header"
@@ -359,13 +359,14 @@
                <dd-icon name="slideshow" class="dh-ico" />
                <span class="dh-name">{{ set.name }}</span>
                <span class="dh-count"
-                  >Slide {{ deckSlideIndex(set.name, set.frameId) }} of {{ deckSlideCount(set.name) }}</span
+                  >Slide {{ deckFocus.deckSlideIndex(set.name, set.frameId) }} of
+                  {{ deckFocus.deckSlideCount(set.name) }}</span
                >
                <span class="dh-sep"></span>
                <button
                   class="dh-btn"
                   type="button"
-                  (click)="enterDeckFocus(set.name)"
+                  (click)="deckFocus.enterDeckFocus(set.name)"
                   title="Focus: edit this presentation on its own (Shift+F)"
                >
                   <dd-icon name="open_in_full" class="dh-chev" />Focus
@@ -373,7 +374,7 @@
                <button
                   class="dh-present"
                   type="button"
-                  (click)="presentDeck(set.name)"
+                  (click)="deckFocus.presentDeck(set.name)"
                   title="Present from the first slide (F5)"
                >
                   <dd-icon name="play_arrow" />Present
@@ -404,7 +405,7 @@
                [style.transform]="'scale(' + set.list.scale + ')'"
                [presentation]="set.name"
                [active]="set.frameId"
-               [lastSlide]="lastSlideOf(set.name)"
+               [lastSlide]="slideshow.lastSlideOf(set.name)"
                part="list"
                (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
@@ -413,16 +414,16 @@
             <dd-slides-panel
                class="slide-settings"
                part="settings"
-               [requestTab]="deckTabRequest()?.name === set.name ? deckTabRequest() : null"
+               [requestTab]="deckFocus.deckTabRequest()?.name === set.name ? deckFocus.deckTabRequest() : null"
                [presentation]="set.name"
-               [folded]="settingsFolded()"
+               [folded]="deckFocus.settingsFolded()"
                [style.width.px]="set.settings.width"
                [style.left.px]="set.settings.left"
                [style.top.px]="set.settings.top"
                [style.height.px]="set.settings.height"
                [style.transform]="'scale(' + set.settings.scale + ')'"
                [active]="set.frameId"
-               [lastSlide]="lastSlideOf(set.name)"
+               [lastSlide]="slideshow.lastSlideOf(set.name)"
                (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
@@ -430,23 +431,23 @@
          }
       }
 
-      @if (focusedDeck(); as fd) {
+      @if (deckFocus.focusedDeck(); as fd) {
          @let fframe = store.shownByPresentation().get(fd) ?? '';
-         @let fslide = focusSlide();
+         @let fslide = deckFocus.focusSlide();
          <!-- Focus mode (DeckFocus / DeckDesign / DeckMorph / DeckAnim mocks). The canvas
            stays live under the dim, locked to the slide. -->
          <div
             class="focus-dim"
-            [class.solid]="focusScreen() === 'morph'"
-            [style.clip-path]="focusScreen() === 'morph' ? null : focusDimClip()"
+            [class.solid]="deckFocus.focusScreen() === 'morph'"
+            [style.clip-path]="deckFocus.focusScreen() === 'morph' ? null : deckFocus.focusDimClip()"
             (pointerdown)="$event.stopPropagation(); $event.preventDefault()"
             (wheel)="$event.preventDefault()"
          ></div>
-         @if (focusStage(); as st) {
-            @if (focusScreen() !== 'morph') {
+         @if (deckFocus.focusStage(); as st) {
+            @if (deckFocus.focusScreen() !== 'morph') {
                <div
                   class="focus-stage"
-                  [class.amber]="focusScreen() === 'design'"
+                  [class.amber]="deckFocus.focusScreen() === 'design'"
                   [style.left.px]="st.left"
                   [style.top.px]="st.top"
                   [style.width.px]="st.width"
@@ -455,19 +456,19 @@
             }
          }
 
-         @switch (focusScreen()) {
+         @switch (deckFocus.focusScreen()) {
             @case ('main') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" type="button" (click)="exitDeckFocus()">
+                  <button class="fb-btn" type="button" (click)="deckFocus.exitDeckFocus()">
                      ← Canvas <span class="fb-k">Esc</span>
                   </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">{{ fd }}</span>
-                  <span class="fb-count">{{ deckSlideCount(fd) }} slides</span>
+                  <span class="fb-count">{{ deckFocus.deckSlideCount(fd) }} slides</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn" type="button" [ddPopoverTrigger]="themeMenu" placement="below-start">
-                     Theme: {{ deckThemeName(fframe) }} ▾
+                     Theme: {{ deckFocus.deckThemeName(fframe) }} ▾
                   </button>
                   <ng-template #themeMenu>
                      <dd-slides-panel
@@ -475,7 +476,7 @@
                         part="theme-menu"
                         [presentation]="fd"
                         [active]="fframe"
-                        (command)="onFocusCommand($event, fd)"
+                        (command)="deckFocus.onFocusCommand($event, fd)"
                      />
                   </ng-template>
                   <button class="fb-btn" type="button" [ddPopoverTrigger]="designMenu" placement="below-start">
@@ -487,10 +488,12 @@
                         part="design-menu"
                         [presentation]="fd"
                         [active]="fframe"
-                        (command)="onFocusCommand($event, fd)"
+                        (command)="deckFocus.onFocusCommand($event, fd)"
                      />
                   </ng-template>
-                  <button class="fb-btn" type="button" (click)="openFocusDesign()">Layouts &amp; master</button>
+                  <button class="fb-btn" type="button" (click)="deckFocus.openFocusDesign()">
+                     Layouts &amp; master
+                  </button>
                   <button
                      class="fb-btn"
                      type="button"
@@ -498,7 +501,7 @@
                      placement="below-start"
                      [disabled]="!store.canEdit()"
                   >
-                     {{ deckRatioLabel(fframe) }} ▾
+                     {{ deckFocus.deckRatioLabel(fframe) }} ▾
                   </button>
                   <ng-template #sizeMenu let-close>
                      <dd-slides-panel
@@ -513,7 +516,12 @@
                   <button class="fb-btn" type="button" (click)="exporter.exportAllSlidesPdf()">Export PDF</button>
                </div>
                <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn go" type="button" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">
+                  <button
+                     class="fb-btn go"
+                     type="button"
+                     (click)="deckFocus.presentDeck(fd)"
+                     [disabled]="!deckFocus.deckSlideCount(fd)"
+                  >
                      ▶ Present <span class="fb-f5">F5</span>
                   </button>
                   @if (store.accessMode() === 'OWNER') {
@@ -526,31 +534,31 @@
                   part="focus-list"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="lastSlideOf(fd)"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
-                  (command)="onFocusCommand($event, fd)"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
                />
                <dd-slides-panel
                   class="fdock right"
                   part="focus-settings"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="lastSlideOf(fd)"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
-                  (command)="onFocusCommand($event, fd)"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
                />
             }
 
             @case ('design') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" type="button" (click)="closeFocusDesign(fd)">← Slides</button>
+                  <button class="fb-btn" type="button" (click)="deckFocus.closeFocusDesign(fd)">← Slides</button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">{{ fd }}</span>
                </div>
                <div class="focus-bar center amber" (pointerdown)="$event.stopPropagation()">
-                  @if (focusLayoutInfo(); as li) {
+                  @if (deckFocus.focusLayoutInfo(); as li) {
                      <span class="fb-banner">
                         @if (li.master) {
                            <b>Editing the master</b> · shown under every layout and slide
@@ -564,7 +572,7 @@
                   } @else {
                      <span class="fb-banner"><b>Design</b> · pick a layout on the left to edit it</span>
                   }
-                  <button class="fb-btn go" type="button" (click)="closeFocusDesign(fd)">Done</button>
+                  <button class="fb-btn go" type="button" (click)="deckFocus.closeFocusDesign(fd)">Done</button>
                </div>
                <dd-slides-panel
                   class="fdock left"
@@ -572,26 +580,28 @@
                   part="design-layouts"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="lastSlideOf(fd)"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
-                  (command)="onFocusCommand($event, fd)"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
                />
                <dd-slides-panel
                   class="fdock right design"
                   part="design-theme"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="lastSlideOf(fd)"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
-                  (command)="onFocusCommand($event, fd)"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
                />
             }
 
             @case ('morph') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" type="button" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+                  <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
+                     {{ deckFocus.focusBackLabel() }}
+                  </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
                </div>
@@ -602,7 +612,7 @@
                            class="fb-btn"
                            type="button"
                            [disabled]="fslide.index <= 2"
-                           (click)="stepTransition(-1)"
+                           (click)="deckFocus.stepTransition(-1)"
                            title="Previous transition"
                            aria-label="Previous transition"
                         >
@@ -618,12 +628,12 @@
                         </button>
                         <ng-template #pickTransition let-close>
                            <div class="tr-pick" role="menu">
-                              @for (n of transitionNumbers(fd); track n) {
+                              @for (n of deckFocus.transitionNumbers(fd); track n) {
                                  <button
                                     role="menuitem"
                                     type="button"
                                     [class.on]="n === fslide.index"
-                                    (click)="goToTransition(n); close()"
+                                    (click)="deckFocus.goToTransition(n); close()"
                                  >
                                     Slide {{ n - 1 }} → {{ n }}
                                  </button>
@@ -633,8 +643,8 @@
                         <button
                            class="fb-btn"
                            type="button"
-                           [disabled]="fslide.index >= deckSlideCount(fd)"
-                           (click)="stepTransition(1)"
+                           [disabled]="fslide.index >= deckFocus.deckSlideCount(fd)"
+                           (click)="deckFocus.stepTransition(1)"
                            title="Next transition"
                            aria-label="Next transition"
                         >
@@ -667,7 +677,7 @@
                      [before]="fslide.prev2"
                      [after]="fslide.next"
                      [index]="fslide.index - 1"
-                     (preview)="previewTransitionFor(fslide.frame.id)"
+                     (preview)="deckFocus.previewTransitionFor(fslide.frame.id)"
                      (pointerdown)="$event.stopPropagation()"
                   />
                } @else {
@@ -683,8 +693,8 @@
                      part="focus-transition"
                      [presentation]="fd"
                      [active]="fframe"
-                     [lastSlide]="lastSlideOf(fd)"
-                     (command)="onFocusCommand($event, fd)"
+                     [lastSlide]="slideshow.lastSlideOf(fd)"
+                     (command)="deckFocus.onFocusCommand($event, fd)"
                   />
                   @if (fslide && fslide.prev) {
                      <dd-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
@@ -694,12 +704,16 @@
 
             @case ('anim') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" type="button" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
+                  <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
+                     {{ deckFocus.focusBackLabel() }}
+                  </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn go" type="button" (click)="presentFromCurrent(fd)">▶ Preview slide</button>
+                  <button class="fb-btn go" type="button" (click)="deckFocus.presentFromCurrent(fd)">
+                     ▶ Preview slide
+                  </button>
                </div>
                <div
                   class="fdock right anim col"
@@ -707,13 +721,15 @@
                   (wheel)="$event.stopPropagation()"
                >
                   <div class="fd-tabs">
-                     <button class="fd-tab" type="button" (click)="stayInFocus()">Slide</button>
-                     <button class="fd-tab" type="button" (click)="focusScreen.set('morph')">Transition</button>
+                     <button class="fd-tab" type="button" (click)="deckFocus.stayInFocus()">Slide</button>
+                     <button class="fd-tab" type="button" (click)="deckFocus.focusScreen.set('morph')">
+                        Transition
+                     </button>
                      <button class="fd-tab on" type="button">Animations</button>
                   </div>
                   <div class="fd-body">
                      @if (fslide) {
-                        <dd-animation-pane [slide]="fslide.frame" (play)="presentFromCurrent(fd)" />
+                        <dd-animation-pane [slide]="fslide.frame" (play)="deckFocus.presentFromCurrent(fd)" />
                      }
                   </div>
                </div>
@@ -721,21 +737,21 @@
          }
       }
 
-      @if (!presentation() && presenters()[0]; as who) {
+      @if (!slideshow.presentation() && slideshow.presenters()[0]; as who) {
          <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
             <span class="dot" [style.background]="who.color"></span>
             {{ who.name }} is presenting
-            <button type="button" (click)="followPresenter(who.id)">Follow</button>
+            <button type="button" (click)="slideshow.followPresenter(who.id)">Follow</button>
          </div>
       }
 
-      @if (presentation(); as p) {
+      @if (slideshow.presentation(); as p) {
          <dd-present-mode
             [slides]="p.slides"
             [startIndex]="p.start"
             [autoplay]="p.preview"
             [follow]="p.follow"
-            (closed)="onPresentationClosed($event)"
+            (closed)="slideshow.onPresentationClosed($event)"
          ></dd-present-mode>
       }
 
