@@ -153,6 +153,11 @@ function esc(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
+/** Escape any interpolated attribute value (colors, ids, transforms, numbers...). */
+function attr(value: unknown): string {
+  return esc(String(value));
+}
+
 /** Truncate a label to a character budget, adding an ellipsis when cut. */
 function truncate(text: string, maxChars: number): string {
   if (maxChars <= 0) {
@@ -232,34 +237,34 @@ function renderTable(table: TableModel, theme: Theme): string {
   const headerFill = themed(table.color, theme) || theme.nodeHeader;
   const headerText = colored && !isSwatchColor(table.color) ? readableTextOn(table.color!) : theme.text;
 
-  const parts: string[] = [`<g transform="translate(${table.x}, ${table.y})${scale === 1 ? '' : ` scale(${scale})`}">`];
+  const parts: string[] = [`<g transform="translate(${attr(table.x)}, ${attr(table.y)})${scale === 1 ? '' : ` scale(${attr(scale)})`}">`];
 
   // Node body: rounded surface with a 1px border ring (matches the box-shadow ring).
   parts.push(
-    `<rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="${RADIUS}" ry="${RADIUS}" ` +
-      `fill="${theme.nodeSurface}" stroke="${theme.nodeBorder}" stroke-width="1" />`,
+    `<rect x="0.5" y="0.5" width="${attr(width - 1)}" height="${attr(height - 1)}" rx="${attr(RADIUS)}" ry="${attr(RADIUS)}" ` +
+      `fill="${attr(theme.nodeSurface)}" stroke="${attr(theme.nodeBorder)}" stroke-width="1" />`,
   );
 
   // Header band with only the top corners rounded.
   parts.push(
-    `<path d="M0 ${HEADER_H} L0 ${RADIUS} Q0 0 ${RADIUS} 0 L${width - RADIUS} 0 Q${width} 0 ${width} ${RADIUS} L${width} ${HEADER_H} Z" ` +
-      `fill="${headerFill}" />`,
+    `<path d="M0 ${attr(HEADER_H)} L0 ${attr(RADIUS)} Q0 0 ${attr(RADIUS)} 0 L${attr(width - RADIUS)} 0 Q${attr(width)} 0 ${attr(width)} ${attr(RADIUS)} L${attr(width)} ${attr(HEADER_H)} Z" ` +
+      `fill="${attr(headerFill)}" />`,
   );
   if (!colored) {
     parts.push(
-      `<line x1="0" y1="${HEADER_H}" x2="${width}" y2="${HEADER_H}" stroke="${theme.nodeBorder}" stroke-width="1" />`,
+      `<line x1="0" y1="${attr(HEADER_H)}" x2="${attr(width)}" y2="${attr(HEADER_H)}" stroke="${attr(theme.nodeBorder)}" stroke-width="1" />`,
     );
   }
   const titleMax = Math.floor((width - 24) / CW_13);
   parts.push(
-    `<text x="${width / 2}" y="${HEADER_H / 2 + 4.5}" text-anchor="middle" font-family="${FONT}" ` +
-      `font-size="13" font-weight="600" fill="${headerText}">${esc(truncate(table.name, titleMax))}</text>`,
+    `<text x="${attr(width / 2)}" y="${attr(HEADER_H / 2 + 4.5)}" text-anchor="middle" font-family="${attr(FONT)}" ` +
+      `font-size="13" font-weight="600" fill="${attr(headerText)}">${esc(truncate(table.name, titleMax))}</text>`,
   );
 
   if (table.columns.length === 0) {
     parts.push(
-      `<text x="14" y="${HEADER_H + ROW_H / 2 + 4}" font-family="${FONT}" font-size="12" ` +
-        `fill="${theme.textMuted}">No columns yet</text>`,
+      `<text x="14" y="${attr(HEADER_H + ROW_H / 2 + 4)}" font-family="${attr(FONT)}" font-size="12" ` +
+        `fill="${attr(theme.textMuted)}">No columns yet</text>`,
     );
     parts.push('</g>');
     return parts.join('\n');
@@ -270,7 +275,7 @@ function renderTable(table: TableModel, theme: Theme): string {
     const mid = top + ROW_H / 2;
     if (index > 0) {
       parts.push(
-        `<line x1="0" y1="${top}" x2="${width}" y2="${top}" stroke="${theme.rowBorder}" stroke-width="1" />`,
+        `<line x1="0" y1="${attr(top)}" x2="${attr(width)}" y2="${attr(top)}" stroke="${attr(theme.rowBorder)}" stroke-width="1" />`,
       );
     }
 
@@ -282,12 +287,12 @@ function renderTable(table: TableModel, theme: Theme): string {
     const pillRight = width - 8;
     const pillLeft = pillRight - pillW;
     parts.push(
-      `<rect x="${pillLeft}" y="${mid - 10}" width="${pillW}" height="20" rx="6" ry="6" ` +
-        `fill="${theme.nodeSurface}" stroke="${theme.border}" stroke-width="1" />`,
+      `<rect x="${attr(pillLeft)}" y="${attr(mid - 10)}" width="${attr(pillW)}" height="20" rx="6" ry="6" ` +
+        `fill="${attr(theme.nodeSurface)}" stroke="${attr(theme.border)}" stroke-width="1" />`,
     );
     parts.push(
-      `<text x="${pillLeft + 7}" y="${mid + 4}" font-family="${FONT}" font-size="11" ` +
-        `fill="${theme.text}">${esc(shownLabel)}</text>`,
+      `<text x="${attr(pillLeft + 7)}" y="${attr(mid + 4)}" font-family="${attr(FONT)}" font-size="11" ` +
+        `fill="${attr(theme.text)}">${esc(shownLabel)}</text>`,
     );
 
     const chipsRight = pillLeft - 6;
@@ -295,12 +300,12 @@ function renderTable(table: TableModel, theme: Theme): string {
     for (const chip of columnChips(column, theme)) {
       const opacity = chip.active ? 1 : 0.5;
       parts.push(
-        `<rect x="${chipX}" y="${mid - CHIP_H / 2}" width="${CHIP_W}" height="${CHIP_H}" rx="6" ry="6" ` +
-          `fill="${chip.bg}" opacity="${opacity}" />`,
+        `<rect x="${attr(chipX)}" y="${attr(mid - CHIP_H / 2)}" width="${attr(CHIP_W)}" height="${attr(CHIP_H)}" rx="6" ry="6" ` +
+          `fill="${attr(chip.bg)}" opacity="${attr(opacity)}" />`,
       );
       parts.push(
-        `<text x="${chipX + CHIP_W / 2}" y="${mid + 3.5}" text-anchor="middle" font-family="${FONT}" ` +
-          `font-size="10" font-weight="600" fill="${chip.text}" opacity="${opacity}">${chip.label}</text>`,
+        `<text x="${attr(chipX + CHIP_W / 2)}" y="${attr(mid + 3.5)}" text-anchor="middle" font-family="${attr(FONT)}" ` +
+          `font-size="10" font-weight="600" fill="${attr(chip.text)}" opacity="${attr(opacity)}">${chip.label}</text>`,
       );
       chipX += CHIP_W + CHIP_GAP;
     }
@@ -309,8 +314,8 @@ function renderTable(table: TableModel, theme: Theme): string {
     const nameMaxW = chipsRight - CHIPS_BLOCK_W - 6 - 12;
     const nameChars = Math.max(0, Math.floor(nameMaxW / CW_13));
     parts.push(
-      `<text x="12" y="${mid + 4}" font-family="${FONT}" font-size="13" ` +
-        `fill="${theme.text}">${esc(truncate(column.name, nameChars))}</text>`,
+      `<text x="12" y="${attr(mid + 4)}" font-family="${attr(FONT)}" font-size="13" ` +
+        `fill="${attr(theme.text)}">${esc(truncate(column.name, nameChars))}</text>`,
     );
   });
 
@@ -321,18 +326,18 @@ function renderTable(table: TableModel, theme: Theme): string {
 /** Crow's-foot marker defs, colored with the theme connector color. */
 function markerDefs(theme: Theme): string {
   return `<marker id="dd-one" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-    <path d="M11 3 L11 15" fill="none" stroke="${theme.connector}" stroke-width="1.5" />
+    <path d="M11 3 L11 15" fill="none" stroke="${attr(theme.connector)}" stroke-width="1.5" />
   </marker>
   <marker id="dd-many" markerWidth="20" markerHeight="18" refX="17" refY="9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-    <path d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" stroke="${theme.connector}" stroke-width="1.5" />
+    <path d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" stroke="${attr(theme.connector)}" stroke-width="1.5" />
   </marker>`;
 }
 
 /** Render one drawing element (shape/arrow/freehand/text) as SVG. */
 function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): string {
-  const dash = view.dash ? ` stroke-dasharray="${view.dash}"` : '';
-  const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${view.opacity}">`;
-  const stroke = `stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash}`;
+  const dash = view.dash ? ` stroke-dasharray="${attr(view.dash)}"` : '';
+  const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${attr(view.opacity)}">`;
+  const stroke = `stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${dash}`;
   const body: string[] = [];
   if (view.code) {
     body.push(renderCodeBlock(view.code, stroke));
@@ -347,39 +352,39 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
       if (img.clip) {
         const c = img.clip;
         const outline = c.rect
-          ? `<rect x="${c.rect.x}" y="${c.rect.y}" width="${c.rect.width}" height="${c.rect.height}" rx="${c.rect.rx}" />`
+          ? `<rect x="${attr(c.rect.x)}" y="${attr(c.rect.y)}" width="${attr(c.rect.width)}" height="${attr(c.rect.height)}" rx="${attr(c.rect.rx)}" />`
           : c.ellipse
-            ? `<ellipse cx="${c.ellipse.cx}" cy="${c.ellipse.cy}" rx="${c.ellipse.rx}" ry="${c.ellipse.ry}" />`
-            : `<polygon points="${c.polygon}" />`;
+            ? `<ellipse cx="${attr(c.ellipse.cx)}" cy="${attr(c.ellipse.cy)}" rx="${attr(c.ellipse.rx)}" ry="${attr(c.ellipse.ry)}" />`
+            : `<polygon points="${attr(c.polygon)}" />`;
         body.push(`<clipPath id="${esc(c.id)}">${outline}</clipPath>`);
         clip = ` clip-path="url(#${esc(c.id)})"`;
       }
       body.push(
-        `<image href="${esc(href)}" x="${img.src.x}" y="${img.src.y}" ` +
-          `width="${img.src.width}" height="${img.src.height}" preserveAspectRatio="none"${clip} />`,
+        `<image href="${esc(href)}" x="${attr(img.src.x)}" y="${attr(img.src.y)}" ` +
+          `width="${attr(img.src.width)}" height="${attr(img.src.height)}" preserveAspectRatio="none"${clip} />`,
       );
     }
   } else if (view.rect) {
     body.push(
-      `<rect x="${view.rect.x}" y="${view.rect.y}" width="${view.rect.width}" height="${view.rect.height}" ` +
-        `rx="${view.rect.rx}" fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} />`,
+      `<rect x="${attr(view.rect.x)}" y="${attr(view.rect.y)}" width="${attr(view.rect.width)}" height="${attr(view.rect.height)}" ` +
+        `rx="${attr(view.rect.rx)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} />`,
     );
   } else if (view.ellipse) {
     body.push(
-      `<ellipse cx="${view.ellipse.cx}" cy="${view.ellipse.cy}" rx="${view.ellipse.rx}" ry="${view.ellipse.ry}" ` +
-        `fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} />`,
+      `<ellipse cx="${attr(view.ellipse.cx)}" cy="${attr(view.ellipse.cy)}" rx="${attr(view.ellipse.rx)}" ry="${attr(view.ellipse.ry)}" ` +
+        `fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} />`,
     );
   } else if (view.polygon) {
     body.push(
-      `<polygon points="${view.polygon}" fill="${view.fill}" fill-opacity="${view.fillOpacity}" ${stroke} stroke-linejoin="round" />`,
+      `<polygon points="${attr(view.polygon)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} stroke-linejoin="round" />`,
     );
   } else if (view.freehand && view.path) {
-    body.push(`<path d="${view.path}" fill="${view.fill}" stroke="none" />`);
+    body.push(`<path d="${attr(view.path)}" fill="${attr(view.fill)}" stroke="none" />`);
   } else if (view.path) {
-    const ms = view.markerStart !== 'none' ? ` marker-start="url(#dd-ah-${view.markerStart})"` : '';
-    const me = view.markerEnd !== 'none' ? ` marker-end="url(#dd-ah-${view.markerEnd})"` : '';
+    const ms = view.markerStart !== 'none' ? ` marker-start="url(#dd-ah-${attr(view.markerStart)})"` : '';
+    const me = view.markerEnd !== 'none' ? ` marker-end="url(#dd-ah-${attr(view.markerEnd)})"` : '';
     body.push(
-      `<path d="${view.path}" fill="none" ${stroke} stroke-linecap="round" stroke-linejoin="round"${ms}${me} />`,
+      `<path d="${attr(view.path)}" fill="none" ${stroke} stroke-linecap="round" stroke-linejoin="round"${ms}${me} />`,
     );
   } else if (view.text) {
     body.push(renderTextBlock(view.text));
@@ -395,27 +400,27 @@ function renderGridTable(view: ShapeView, dash: string): string {
   const g = view.grid!;
   const { rect } = g;
   const out: string[] = [
-    `<clipPath id="${esc(g.clipId)}"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" ` +
-      `height="${rect.height}" rx="${rect.rx}" /></clipPath>`,
-    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
-      `fill="${esc(g.background)}" fill-opacity="${view.fillOpacity}" stroke="none" />`,
+    `<clipPath id="${esc(g.clipId)}"><rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" ` +
+      `height="${attr(rect.height)}" rx="${attr(rect.rx)}" /></clipPath>`,
+    `<rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" height="${attr(rect.height)}" rx="${attr(rect.rx)}" ` +
+      `fill="${esc(g.background)}" fill-opacity="${attr(view.fillOpacity)}" stroke="none" />`,
     `<g clip-path="url(#${esc(g.clipId)})">`,
   ];
   if (g.header) {
     const h = g.header;
     out.push(
-      `<rect x="${h.x}" y="${h.y}" width="${h.width}" height="${h.height}" fill="${esc(h.fill)}" fill-opacity="0.12" />`,
+      `<rect x="${attr(h.x)}" y="${attr(h.y)}" width="${attr(h.width)}" height="${attr(h.height)}" fill="${esc(h.fill)}" fill-opacity="0.12" />`,
     );
   }
   for (const f of g.fills) {
     out.push(
-      `<rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="${esc(f.fill)}" />`,
+      `<rect x="${attr(f.x)}" y="${attr(f.y)}" width="${attr(f.width)}" height="${attr(f.height)}" fill="${esc(f.fill)}" />`,
     );
   }
   for (const l of g.lines) {
     out.push(
-      `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${view.stroke}" ` +
-        `stroke-width="${view.strokeWidth * 0.75}" stroke-opacity="0.55"${dash} />`,
+      `<line x1="${attr(l.x1)}" y1="${attr(l.y1)}" x2="${attr(l.x2)}" y2="${attr(l.y2)}" stroke="${attr(view.stroke)}" ` +
+        `stroke-width="${attr(view.strokeWidth * 0.75)}" stroke-opacity="0.55"${dash} />`,
     );
   }
   for (const t of g.cells) {
@@ -424,8 +429,8 @@ function renderGridTable(view: ShapeView, dash: string): string {
   out.push('</g>');
   if (g.outline) {
     out.push(
-      `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.rx}" ` +
-        `fill="none" stroke="${view.stroke}" stroke-width="${view.strokeWidth}"${dash} />`,
+      `<rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" height="${attr(rect.height)}" rx="${attr(rect.rx)}" ` +
+        `fill="none" stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${dash} />`,
     );
   }
   return out.join('');
@@ -434,61 +439,61 @@ function renderGridTable(view: ShapeView, dash: string): string {
 /** Render a code card: surface, line-number gutter and colored tokens, clipped to the card. */
 function renderCodeBlock(c: CodeBlockView, stroke: string): string {
   const { rect } = c;
-  const font = `font-size="${c.fontSize}" font-family="${esc(c.fontFamily)}"`;
+  const font = `font-size="${attr(c.fontSize)}" font-family="${esc(c.fontFamily)}"`;
   const out: string[] = [
-    `<clipPath id="${esc(c.clipId)}"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" ` +
-      `height="${rect.height}" rx="${rect.rx}" /></clipPath>`,
-    `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" ` +
-      `rx="${rect.rx}" fill="${esc(c.background)}" ${stroke} />`,
+    `<clipPath id="${esc(c.clipId)}"><rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" ` +
+      `height="${attr(rect.height)}" rx="${attr(rect.rx)}" /></clipPath>`,
+    `<rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" height="${attr(rect.height)}" ` +
+      `rx="${attr(rect.rx)}" fill="${esc(c.background)}" ${stroke} />`,
     `<g clip-path="url(#${esc(c.clipId)})">`,
   ];
   {
     const h = c.header;
     out.push(
-      `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${h.height}" ` +
-        `fill="${h.tint}" fill-opacity="0.14" />`,
-      `<line x1="${rect.x}" y1="${rect.y + h.height}" x2="${rect.x + rect.width}" ` +
-        `y2="${rect.y + h.height}" stroke="${h.tint}" stroke-opacity="0.35" />`,
-      `<text x="${h.x}" y="${h.y}" text-anchor="middle" font-size="12" ` +
-        `font-family="${esc(c.fontFamily)}" fill="${h.color}">${esc(h.text)}</text>`,
+      `<rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" height="${attr(h.height)}" ` +
+        `fill="${attr(h.tint)}" fill-opacity="0.14" />`,
+      `<line x1="${attr(rect.x)}" y1="${attr(rect.y + h.height)}" x2="${attr(rect.x + rect.width)}" ` +
+        `y2="${attr(rect.y + h.height)}" stroke="${attr(h.tint)}" stroke-opacity="0.35" />`,
+      `<text x="${attr(h.x)}" y="${attr(h.y)}" text-anchor="middle" font-size="12" ` +
+        `font-family="${esc(c.fontFamily)}" fill="${attr(h.color)}">${esc(h.text)}</text>`,
     );
     for (const d of h.dots) {
-      out.push(`<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}" />`);
+      out.push(`<circle cx="${attr(d.x)}" cy="${attr(d.y)}" r="${attr(d.r)}" fill="${attr(d.color)}" />`);
     }
   }
   for (const b of c.bands ?? []) {
     out.push(
-      `<rect data-diff="1" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" fill="${b.fill}" />`,
+      `<rect data-diff="1" x="${attr(b.x)}" y="${attr(b.y)}" width="${attr(b.width)}" height="${attr(b.height)}" fill="${attr(b.fill)}" />`,
     );
   }
   if (c.divider) {
     const d = c.divider;
     out.push(
-      `<line data-diff="1" x1="${d.x}" y1="${d.y1}" x2="${d.x}" y2="${d.y2}" stroke="${d.color}" stroke-opacity="0.35" />`,
+      `<line data-diff="1" x1="${attr(d.x)}" y1="${attr(d.y1)}" x2="${attr(d.x)}" y2="${attr(d.y2)}" stroke="${attr(d.color)}" stroke-opacity="0.35" />`,
     );
   }
   for (const line of c.lines) {
     if (line.oldNumber) {
       out.push(
-        `<text x="${line.oldNumber.x}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.oldNumber.text}</text>`,
+        `<text x="${attr(line.oldNumber.x)}" y="${attr(line.y)}" text-anchor="end" ${font} fill="${attr(c.numberColor)}">${esc(line.oldNumber.text)}</text>`,
       );
     }
     if (line.sign) {
       out.push(
-        `<text data-diff="1" x="${line.sign.x}" y="${line.y}" ${font} fill="${line.sign.color}">${esc(line.sign.text)}</text>`,
+        `<text data-diff="1" x="${attr(line.sign.x)}" y="${attr(line.y)}" ${font} fill="${attr(line.sign.color)}">${esc(line.sign.text)}</text>`,
       );
     }
     out.push(
-      `<text x="${line.numberX ?? c.numberX}" y="${line.y}" text-anchor="end" ${font} fill="${c.numberColor}">${line.number}</text>`,
+      `<text x="${attr(line.numberX ?? c.numberX)}" y="${attr(line.y)}" text-anchor="end" ${font} fill="${attr(c.numberColor)}">${esc(line.number)}</text>`,
     );
     const runs = line.tokens
       .map(
         (t) =>
-          `<tspan fill="${t.color}"${t.italic ? ' font-style="italic"' : ''}>${esc(t.text)}</tspan>`,
+          `<tspan fill="${attr(t.color)}"${t.italic ? ' font-style="italic"' : ''}>${esc(t.text)}</tspan>`,
       )
       .join('');
     out.push(
-      `<text x="${line.textX ?? c.textX}" y="${line.y}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
+      `<text x="${attr(line.textX ?? c.textX)}" y="${attr(line.y)}" xml:space="preserve" style="white-space:pre" ${font}>${runs}</text>`,
     );
   }
   out.push('</g>');
@@ -503,18 +508,18 @@ function renderTextBlock(t: TextBlockView): string {
         ? l.spans
             .map(
               (sp) =>
-                `<tspan font-weight="${sp.fontWeight}" font-style="${sp.fontStyle}" fill="${sp.color}"` +
+                `<tspan font-weight="${attr(sp.fontWeight)}" font-style="${attr(sp.fontStyle)}" fill="${attr(sp.color)}"` +
                 `${sp.underline ? ' text-decoration="underline"' : ''}` +
                 `${sp.morph ? ` data-morph="${esc(sp.morph)}"` : ''}>${esc(sp.text)}</tspan>`,
             )
             .join('')
         : esc(l.text);
-      return `<tspan x="${l.x}" y="${l.y}" style="white-space:pre">${inner}</tspan>`;
+      return `<tspan x="${attr(l.x)}" y="${attr(l.y)}" style="white-space:pre">${inner}</tspan>`;
     })
     .join('');
   return (
-    `<text fill="${t.color}" font-size="${t.fontSize}" font-family="${esc(t.fontFamily)}" ` +
-    `font-weight="${t.fontWeight}" text-anchor="${t.anchor}">${tspans}</text>`
+    `<text fill="${attr(t.color)}" font-size="${attr(t.fontSize)}" font-family="${esc(t.fontFamily)}" ` +
+    `font-weight="${attr(t.fontWeight)}" text-anchor="${attr(t.anchor)}">${tspans}</text>`
   );
 }
 
@@ -522,16 +527,16 @@ function renderTextBlock(t: TextBlockView): string {
 function arrowheadDef(theme: Theme): string {
   const c = theme.text;
   return `<marker id="dd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-    <path d="M1 1 L9 5 L1 9" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M1 1 L9 5 L1 9" fill="none" stroke="${attr(c)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
   </marker>
   <marker id="dd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-    <path d="M1 1 L10 5 L1 9 Z" fill="${c}" stroke="${c}" stroke-linejoin="round" />
+    <path d="M1 1 L10 5 L1 9 Z" fill="${attr(c)}" stroke="${attr(c)}" stroke-linejoin="round" />
   </marker>
   <marker id="dd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-    <circle cx="5" cy="5" r="3.2" fill="${c}" />
+    <circle cx="5" cy="5" r="3.2" fill="${attr(c)}" />
   </marker>
   <marker id="dd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-    <path d="M4 1 L4 11" stroke="${c}" stroke-width="1.6" stroke-linecap="round" />
+    <path d="M4 1 L4 11" stroke="${attr(c)}" stroke-width="1.6" stroke-linecap="round" />
   </marker>`;
 }
 
@@ -621,9 +626,9 @@ const SEQ_LINE_H = 15;
 function seqText(cx: number, cy: number, lines: readonly string[], attrs: string): string {
   const first = cy - ((lines.length - 1) * SEQ_LINE_H) / 2 + 4;
   const spans = lines
-    .map((s, i) => `<tspan x="${cx}" y="${first + i * SEQ_LINE_H}">${esc(s)}</tspan>`)
+    .map((s, i) => `<tspan x="${attr(cx)}" y="${attr(first + i * SEQ_LINE_H)}">${esc(s)}</tspan>`)
     .join('');
-  return `<text text-anchor="middle" font-family="${FONT}" font-size="11" ${attrs}>${spans}</text>`;
+  return `<text text-anchor="middle" font-family="${attr(FONT)}" font-size="11" ${attrs}>${spans}</text>`;
 }
 const CW_12 = 7.2;
 
@@ -683,15 +688,15 @@ function renderSequence(
   const wrapFrom = (index: number, opacity: number | undefined): void => {
     if (opacity === undefined || opacity >= 1 || out.length <= index) return;
     const parts = out.splice(index);
-    out.push(`<g opacity="${Math.max(0, opacity)}">${parts.join('\n')}</g>`);
+    out.push(`<g opacity="${attr(Math.max(0, opacity))}">${parts.join('\n')}</g>`);
   };
   out.push(
-    `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="16" ry="16" ` +
-      `fill="${bg}" stroke="${themed(diagram.borderColor, theme) || theme.border}" stroke-width="1.5" />`,
+    `<rect x="${attr(x0)}" y="${attr(y0)}" width="${attr(x1 - x0)}" height="${attr(y1 - y0)}" rx="16" ry="16" ` +
+      `fill="${attr(bg)}" stroke="${attr(themed(diagram.borderColor, theme) || theme.border)}" stroke-width="1.5" />`,
   );
   if (diagram.title && !data.hideText?.titles?.has(diagram.id)) {
     out.push(
-      `<text data-seq-title="${esc(diagram.id)}" x="${x0 + 14}" y="${y0 + 19}" font-family="${FONT}" font-size="12" font-weight="700" fill="${labelText}">` +
+      `<text data-seq-title="${esc(diagram.id)}" x="${attr(x0 + 14)}" y="${attr(y0 + 19)}" font-family="${attr(FONT)}" font-size="12" font-weight="700" fill="${attr(labelText)}">` +
         `${esc(truncate(diagram.title, Math.floor((x1 - x0 - 28) / CW_12)))}</text>`,
     );
   }
@@ -699,13 +704,13 @@ function renderSequence(
   const faded = (opacity: number | undefined, ...parts: string[]): string =>
     opacity === undefined || opacity >= 1
       ? parts.join('\n')
-      : `<g opacity="${Math.max(0, opacity)}">${parts.join('\n')}</g>`;
+      : `<g opacity="${attr(Math.max(0, opacity))}">${parts.join('\n')}</g>`;
 
   for (const l of lls) {
     out.push(
       faded(
         fade?.lifelines?.get(l.id),
-        `<line x1="${l.x}" y1="${headerBottom}" x2="${l.x}" y2="${spineEnd}" stroke="${l.lineColor || fg?.muted || theme.border}"${l.lineColor || !fg ? '' : ' stroke-opacity="0.55"'} ` +
+        `<line x1="${attr(l.x)}" y1="${attr(headerBottom)}" x2="${attr(l.x)}" y2="${attr(spineEnd)}" stroke="${attr(l.lineColor || fg?.muted || theme.border)}"${l.lineColor || !fg ? '' : ' stroke-opacity="0.55"'} ` +
           `stroke-width="1.4" stroke-dasharray="4 4" />`,
       ),
     );
@@ -722,7 +727,7 @@ function renderSequence(
       m.color || (m.style === 'dashed' ? fg?.soft ?? theme.textMuted : fg?.text ?? theme.connector);
     if (isBreak) {
       out.push(
-        `<line x1="${minX}" y1="${y}" x2="${Math.max(maxX, minX + 1)}" y2="${y}" stroke="${m.color || fg?.soft || theme.textMuted}" ` +
+        `<line x1="${attr(minX)}" y1="${attr(y)}" x2="${attr(Math.max(maxX, minX + 1))}" y2="${attr(y)}" stroke="${attr(m.color || fg?.soft || theme.textMuted)}" ` +
           `stroke-width="1.4" stroke-dasharray="5 4" />`,
       );
       if (label) {
@@ -731,8 +736,8 @@ function renderSequence(
         const h = lines.length * SEQ_LINE_H + 14;
         const mid = (minX + maxX) / 2;
         out.push(
-          `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(11, h / 2)}" ry="${Math.min(11, h / 2)}" ` +
-            `fill="${bg}" stroke="${theme.border}" stroke-width="1" />`,
+          `<rect x="${attr(mid - w / 2)}" y="${attr(y - h / 2)}" width="${attr(w)}" height="${attr(h)}" rx="${attr(Math.min(11, h / 2))}" ry="${attr(Math.min(11, h / 2))}" ` +
+            `fill="${attr(bg)}" stroke="${attr(theme.border)}" stroke-width="1" />`,
           ...(data.hideText?.messages?.has(m.id)
             ? []
             : [
@@ -740,7 +745,7 @@ function renderSequence(
                   mid,
                   y,
                   lines,
-                  `data-mid="${esc(m.id)}" font-weight="600" letter-spacing="0.44" fill="${labelMuted}"`,
+                  `data-mid="${esc(m.id)}" font-weight="600" letter-spacing="0.44" fill="${attr(labelMuted)}"`,
                 ),
               ]),
         );
@@ -760,10 +765,10 @@ function renderSequence(
     const left = Math.min(fx, tx);
     const dash = m.style === 'dashed' ? ' stroke-dasharray="6 4"' : '';
     out.push(
-      `<line x1="${left}" y1="${y}" x2="${Math.max(fx, tx, left + 1)}" y2="${y}" ` +
-        `stroke="${stroke}" stroke-width="1.6"${dash} />`,
-      `<path d="M${headX + dir} ${y - 4} L${headX} ${y} L${headX + dir} ${y + 4}" fill="none" ` +
-        `stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
+      `<line x1="${attr(left)}" y1="${attr(y)}" x2="${attr(Math.max(fx, tx, left + 1))}" y2="${attr(y)}" ` +
+        `stroke="${attr(stroke)}" stroke-width="1.6"${dash} />`,
+      `<path d="M${attr(headX + dir)} ${attr(y - 4)} L${attr(headX)} ${attr(y)} L${attr(headX + dir)} ${attr(y + 4)}" fill="none" ` +
+        `stroke="${attr(stroke)}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`,
     );
     if (label) {
       const lines = messageLabelLines(label, Math.abs(tx - fx), false, m.wrap !== false);
@@ -771,10 +776,10 @@ function renderSequence(
       const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20;
       const h = lines.length * SEQ_LINE_H + 8;
       out.push(
-        `<rect x="${mid - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" ry="4" fill="${bg}" />`,
+        `<rect x="${attr(mid - w / 2)}" y="${attr(y - h / 2)}" width="${attr(w)}" height="${attr(h)}" rx="4" ry="4" fill="${attr(bg)}" />`,
         ...(data.hideText?.messages?.has(m.id)
           ? []
-          : [seqText(mid, y, lines, `data-mid="${esc(m.id)}" fill="${labelText}"`)]),
+          : [seqText(mid, y, lines, `data-mid="${esc(m.id)}" fill="${attr(labelText)}"`)]),
       );
     }
     wrapFrom(at, fade?.messages?.get(m.id));
@@ -786,12 +791,12 @@ function renderSequence(
     out.push(
       faded(
         fade?.lifelines?.get(l.id),
-        `<rect x="${l.x - l.width / 2 + 0.5}" y="${diagram.originY + 0.5}" width="${l.width - 1}" height="${diagram.headerHeight - 1}" ` +
-          `rx="9" ry="9" fill="${l.color || theme.nodeHeader}" stroke="${l.strokeColor || (colored ? 'none' : theme.nodeBorder)}" stroke-width="1" />`,
+        `<rect x="${attr(l.x - l.width / 2 + 0.5)}" y="${attr(diagram.originY + 0.5)}" width="${attr(l.width - 1)}" height="${attr(diagram.headerHeight - 1)}" ` +
+          `rx="9" ry="9" fill="${attr(l.color || theme.nodeHeader)}" stroke="${attr(l.strokeColor || (colored ? 'none' : theme.nodeBorder))}" stroke-width="1" />`,
         data.hideText?.lifelines?.has(l.id)
           ? ''
-          : `<text data-lid="${esc(l.id)}" x="${l.x}" y="${diagram.originY + diagram.headerHeight / 2 + 4}" text-anchor="middle" font-family="${FONT}" ` +
-            `font-size="12" font-weight="600" fill="${l.textColor ? l.textColor : colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text}">${esc(truncate(l.label, maxChars))}</text>`,
+          : `<text data-lid="${esc(l.id)}" x="${attr(l.x)}" y="${attr(diagram.originY + diagram.headerHeight / 2 + 4)}" text-anchor="middle" font-family="${attr(FONT)}" ` +
+            `font-size="12" font-weight="600" fill="${attr(l.textColor ? l.textColor : colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text)}">${esc(truncate(l.label, maxChars))}</text>`,
       ),
     );
   }
@@ -852,9 +857,9 @@ export function buildDiagramSvg(
       : undefined;
     const pageFill =
       pageView && pageView.rect && pageView.fill !== 'none'
-        ? `<rect x="${pageView.rect.x}" y="${pageView.rect.y}" width="${pageView.rect.width}" ` +
-          `height="${pageView.rect.height}" fill="${pageView.fill}" fill-opacity="${pageView.fillOpacity}" ` +
-          `opacity="${pageView.opacity}" />`
+        ? `<rect x="${attr(pageView.rect.x)}" y="${attr(pageView.rect.y)}" width="${attr(pageView.rect.width)}" ` +
+          `height="${attr(pageView.rect.height)}" fill="${attr(pageView.fill)}" fill-opacity="${attr(pageView.fillOpacity)}" ` +
+          `opacity="${attr(pageView.opacity)}" />`
         : '';
     // Frames are gone from `elements` by now, so tell the contrast guard what the items
     // sit on: the page's fill, not the app's canvas (dark text must not flip on a white
@@ -929,8 +934,8 @@ export function buildDiagramSvg(
     const edges = connectors
       .map(
         (c) =>
-          `<path data-rid="${esc(c.id)}" d="${c.d}" fill="none" stroke="${theme.connector}" stroke-width="1.75" ` +
-          `marker-start="${c.markerStart}" marker-end="${c.markerEnd}" />`,
+          `<path data-rid="${esc(c.id)}" d="${attr(c.d)}" fill="none" stroke="${attr(theme.connector)}" stroke-width="1.75" ` +
+          `marker-start="${attr(c.markerStart)}" marker-end="${attr(c.markerEnd)}" />`,
       )
       .join('\n');
 
@@ -949,7 +954,7 @@ export function buildDiagramSvg(
     );
     const shapeSvg = (v: (typeof shapeViews)[number]): string =>
       (v.frameClip
-        ? `<clipPath id="fclip-${esc(v.id)}"><rect x="${v.frameClip.x}" y="${v.frameClip.y}" width="${v.frameClip.width}" height="${v.frameClip.height}" /></clipPath>` +
+        ? `<clipPath id="fclip-${esc(v.id)}"><rect x="${attr(v.frameClip.x)}" y="${attr(v.frameClip.y)}" width="${attr(v.frameClip.width)}" height="${attr(v.frameClip.height)}" /></clipPath>` +
           `<g data-eid="${esc(v.id)}" clip-path="url(#fclip-${esc(v.id)})">${renderShape(v, imageData)}</g>`
         : `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`);
     const isLine = (v: (typeof shapeViews)[number]): boolean =>
@@ -980,23 +985,23 @@ export function buildDiagramSvg(
       .map(
         (v) =>
           `<pattern id="${esc(v.hatch!.id)}" width="7" height="7" patternUnits="userSpaceOnUse" ` +
-          `patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="${v.hatch!.color}" stroke-width="1.3" /></pattern>`,
+          `patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="${attr(v.hatch!.color)}" stroke-width="1.3" /></pattern>`,
       )
       .join('');
 
     const body = stack;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${attr(width)}" height="${attr(height)}" viewBox="0 0 ${attr(width)} ${attr(height)}">
 <defs>
-  <pattern id="dd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${shiftX % 24}, ${shiftY % 24})">
-    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="${theme.gridLine}" stroke-width="1" />
+  <pattern id="dd-export-grid" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="translate(${attr(shiftX % 24)}, ${attr(shiftY % 24)})">
+    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="${attr(theme.gridLine)}" stroke-width="1" />
   </pattern>
   ${markerDefs(theme)}
   ${arrowheadDef(theme)}
   ${hatchDefs}
 </defs>
-<rect x="0" y="0" width="${width}" height="${height}" fill="${theme.canvasBg}" />
-<rect x="0" y="0" width="${width}" height="${height}" fill="url(#dd-export-grid)" />
-<g transform="translate(${shiftX}, ${shiftY})">
+<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="${attr(theme.canvasBg)}" />
+<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="url(#dd-export-grid)" />
+<g transform="translate(${attr(shiftX)}, ${attr(shiftY)})">
 ${stack}
 </g>
 </svg>`;

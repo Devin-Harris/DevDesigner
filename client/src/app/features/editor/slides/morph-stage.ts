@@ -18,6 +18,7 @@ import {
   type TableModel,
 } from '@devdesigner/shared';
 import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../export/diagram-svg.helper';
+import { safeSvgFragment, sanitizeSvgDom } from '../export/svg-sanitize.helper';
 import { codeDiffActive } from '../canvas/helpers/shape-render.helper';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
@@ -40,6 +41,7 @@ interface Side {
 function parse(slide: RenderedSlide, gridId: string): Side {
   const text = gridId === GRID_ID ? slide.svg : slide.svg.split(GRID_ID).join(gridId);
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  sanitizeSvgDom(doc.documentElement);
   const root = doc.documentElement as unknown as SVGSVGElement;
   const main = root.querySelector(':scope > g') as SVGGElement | null;
   const items = new Map<string, SVGGElement>();
@@ -1667,7 +1669,7 @@ export class MorphStage {
       ? this.blendSequences(t)
       : { diagrams: [], lifelines: [], messages: [], smooth: false };
     if (elements.length || tables.length || seq.diagrams.length) {
-      this.live.innerHTML = buildDiagramSvg(
+      const body = buildDiagramSvg(
         tables,
         this.liveRels,
         elements,
@@ -1679,8 +1681,9 @@ export class MorphStage {
         // copies (and the editor canvas) hold the same ids, and url(#…) picks the first,
         // so the live card would be clipped by a stale rect (lines and fills vanish).
         .body.replace(/\b(grid|code)-clip-/g, 'dd-morph-live-$1-clip-');
+      this.live.replaceChildren(...safeSvgFragment(body));
     } else {
-      this.live.innerHTML = '';
+      this.live.replaceChildren();
     }
 
     for (const c of [...this.codes, ...this.grids]) {
@@ -1905,7 +1908,7 @@ export class MorphStage {
 
 /** What a code block shows: its code plus, when a diff is on, the diff view and other side. */
 function codeShown(el: CanvasElementModel): string {
-  return codeDiffActive(el) ? `${el.text} ${el.diffView} ${el.diffText}` : (el.text ?? '');
+  return codeDiffActive(el) ? `${el.text}\u0000${el.diffView}\u0000${el.diffText}` : (el.text ?? '');
 }
 
 /**

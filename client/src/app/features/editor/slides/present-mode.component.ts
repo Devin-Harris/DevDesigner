@@ -18,6 +18,7 @@ import { LOCAL_LASER, LaserService } from '../../../core/services/laser.service'
 import { RealtimeService } from '../../../core/services/realtime.service';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { MorphStage } from './morph-stage';
+import { parseSafeSvg } from '../export/svg-sanitize.helper';
 import { slideAtStep, type RenderedSlide } from './slide-render.service';
 import { SlideMediaLayerComponent } from '../media/slide-media-layer.component';
 import { playGroup, undoGroup } from './step-animator';
@@ -1275,7 +1276,10 @@ export class PresentModeComponent {
 
       if (live) {
         const host = framedLayer(live.width, live.height);
-        host.innerHTML = live.markup;
+        const parsed = parseSafeSvg(live.markup);
+        if (parsed) {
+          host.appendChild(document.importNode(parsed, true));
+        }
         overlay.appendChild(host);
         const svg = host.querySelector('svg');
         if (!svg) {
