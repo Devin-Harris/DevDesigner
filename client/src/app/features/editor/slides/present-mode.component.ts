@@ -1026,7 +1026,7 @@ export class PresentModeComponent {
          return;
       }
       this.lastLaserSent = now;
-      if (this.realtime.connected()) {
+      if (this.realtime.hasPeers()) {
          this.realtime.sendLaser(w.x, w.y);
       }
    }

@@ -141,6 +141,7 @@ import { DEFAULT_FRAME_PRESET, framePreset } from './canvas/constants/frame-pres
 import {
    absolutePoints,
    elementBox,
+   sameBoxes,
    elementIntersectsRect,
    FRAME_TITLE_H,
    FRAME_TITLE_W,
@@ -957,15 +958,23 @@ export class EditorComponent {
 
    private readonly columnLocations = computed(() => buildColumnLocations(this.store.tables()));
 
+   /** Frame boxes (connectors stay inside a shared frame); unchanged unless a frame moves or resizes. */
+   private readonly frameBoxes = computed(
+      () =>
+         this.store
+            .elements()
+            .filter((e) => e.type === 'frame')
+            .map(elementBox),
+      { equal: sameBoxes }
+   );
+
    protected readonly connectors = computed(() =>
       computeConnectors(
          this.visibleTables(),
          this.store.relationships(),
          new Set(this.store.selectedRelationshipIds()),
-         this.store
-            .elements()
-            .filter((e) => e.type === 'frame')
-            .map(elementBox)
+         this.frameBoxes(),
+         this.columnLocations()
       )
    );
 
@@ -1341,17 +1350,22 @@ export class EditorComponent {
    });
 
    /** Resolved canvas background + text color for the render-time contrast guard. */
-   private themeColors(): { canvasBg: string; text: string; surface: string } | undefined {
-      try {
-         const styles = getComputedStyle(this.canvasRef().nativeElement);
-         const canvasBg = styles.getPropertyValue('--dd-canvas-bg').trim();
-         const text = styles.getPropertyValue('--dd-text').trim();
-         const surface = styles.getPropertyValue('--dd-surface').trim();
-         return canvasBg && text ? { canvasBg, text, surface } : undefined;
-      } catch {
-         return undefined;
-      }
-   }
+   private readonly themeColors = computed(
+      (): { canvasBg: string; text: string; surface: string } | undefined => {
+         // Re-read the tokens only when the theme flips, not on every shape rebuild.
+         this.theme.themeChanged$();
+         try {
+            const styles = getComputedStyle(this.canvasRef().nativeElement);
+            const canvasBg = styles.getPropertyValue('--dd-canvas-bg').trim();
+            const text = styles.getPropertyValue('--dd-text').trim();
+            const surface = styles.getPropertyValue('--dd-surface').trim();
+            return canvasBg && text ? { canvasBg, text, surface } : undefined;
+         } catch {
+            return undefined;
+         }
+      },
+      { equal: (a, b) => a?.canvasBg === b?.canvasBg && a?.text === b?.text && a?.surface === b?.surface }
+   );
 
    /** The shapes layer is interactive only in select mode (drawing passes through it). */
    /** Two or more independently movable units (a whole group counts as one). */
@@ -2350,8 +2364,10 @@ export class EditorComponent {
          ro.observe(el);
          onCleanup(() => ro.disconnect());
       });
-      // Broadcast this participant's selection so others see what is being edited.
+      // Broadcast this participant's selection so others see what is being edited (only with
+      // someone in the room; it re-sends when a peer joins).
       effect(() => {
+         if (!this.realtime.hasPeers()) return;
          const tableIds = this.store.selectedTableIds();
          const relationshipIds = this.store.selectedRelationshipIds();
          this.realtime.sendSelection(tableIds, relationshipIds);
@@ -2485,7 +2501,7 @@ export class EditorComponent {
 
    /** Send our cursor position (world coords) to the room, throttled to ~25fps. */
    private broadcastCursor(event: PointerEvent): void {
-      if (!this.realtime.connected()) {
+      if (!this.realtime.hasPeers()) {
          return;
       }
       const now = Date.now();
@@ -2651,7 +2667,7 @@ export class EditorComponent {
          return;
       }
       this.lastLaserSent = now;
-      if (this.realtime.connected()) {
+      if (this.realtime.hasPeers()) {
          this.realtime.sendLaser(world.x, world.y);
       }
    }

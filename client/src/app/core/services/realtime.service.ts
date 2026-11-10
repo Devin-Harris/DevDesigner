@@ -48,6 +48,11 @@ export class RealtimeService {
    /** Other participants who are presenting right now. */
    readonly presenters = computed(() => this._participants().filter((p) => p.presenting && p.id !== this._selfId()));
    readonly connected = this._connected.asReadonly();
+   /**
+    * Someone else is in the room. Presence (cursor, laser, selection) is only sent then;
+    * readers in a reactive context re-run when a peer joins, so they can send a fresh state.
+    */
+   readonly hasPeers = computed(() => this._connected() && this._participants().length > 1);
    readonly selfId = this._selfId.asReadonly();
 
    private readonly byId = computed(() => {
@@ -152,11 +157,13 @@ export class RealtimeService {
    }
 
    sendCursor(x: number, y: number): void {
+      if (!this.hasPeers()) return;
       this.socket?.emit(RT_EVENTS.cursor, { x, y });
    }
 
    /** Broadcast a laser-pointer sample (world coords); `end` signals release. */
    sendLaser(x: number, y: number, end = false): void {
+      if (!this.hasPeers()) return;
       this.socket?.emit(RT_EVENTS.laser, { x, y, end });
    }
 
@@ -166,6 +173,7 @@ export class RealtimeService {
    }
 
    sendSelection(tableIds: string[], relationshipIds: string[], columnId?: string): void {
+      if (!this.hasPeers()) return;
       this.socket?.emit(RT_EVENTS.selection, { tableIds, relationshipIds, columnId });
    }
 

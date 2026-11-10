@@ -2,6 +2,7 @@ import {
    ChangeDetectionStrategy,
    Component,
    ElementRef,
+   computed,
    effect,
    inject,
    input,
@@ -150,6 +151,20 @@ export class MinimapComponent {
    private readonly cv = viewChild<ElementRef<HTMLCanvasElement>>('cv');
    private readonly theme = inject(ThemeService);
    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+   /** Theme colors for the canvas drawing, re-read only when the theme changes (not per redraw). */
+   private readonly colors$ = computed(() => {
+      this.theme.themeChanged$();
+      const style = getComputedStyle(this.host.nativeElement);
+      const css = (name: string, fallback: string): string => style.getPropertyValue(name).trim() || fallback;
+      return {
+         tableFill: css('--dd-node-header', '#f4f2ec'),
+         tableStroke: css('--dd-border-strong', '#d6d1c5'),
+         seq: css('--dd-teal', '#0f8f86'),
+         muted: css('--dd-text-muted', '#767b86'),
+         faint: css('--dd-faint', '#a6a9b0'),
+         primary: css('--dd-primary', '#3b5bdb'),
+      };
+   });
 
    /** World bounds currently mapped onto the canvas. Frozen while dragging. */
    private bounds: MinimapView = { x0: 0, y0: 0, x1: WIDTH, y1: HEIGHT };
@@ -167,7 +182,7 @@ export class MinimapComponent {
          // Track every input that affects the picture, then coalesce to one frame.
          this.items();
          this.view();
-         this.theme.dark();
+         this.colors$();
          this.collapsed();
          this.cv();
          cancelAnimationFrame(this.raf);
@@ -221,14 +236,7 @@ export class MinimapComponent {
       this.offsetX = (WIDTH - bw * this.scale) / 2;
       this.offsetY = (HEIGHT - bh * this.scale) / 2;
 
-      const style = getComputedStyle(this.host.nativeElement);
-      const css = (name: string, fallback: string): string => style.getPropertyValue(name).trim() || fallback;
-      const tableFill = css('--dd-node-header', '#f4f2ec');
-      const tableStroke = css('--dd-border-strong', '#d6d1c5');
-      const seq = css('--dd-teal', '#0f8f86');
-      const muted = css('--dd-text-muted', '#767b86');
-      const faint = css('--dd-faint', '#a6a9b0');
-      const primary = css('--dd-primary', '#3b5bdb');
+      const { tableFill, tableStroke, seq, muted, faint, primary } = this.colors$();
 
       const sx = (x: number): number => (x - b.x0) * this.scale + this.offsetX;
       const sy = (y: number): number => (y - b.y0) * this.scale + this.offsetY;

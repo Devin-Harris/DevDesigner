@@ -13,6 +13,13 @@ export function absolutePoints(element: CanvasElementModel): Point[] {
    return (element.points ?? []).map((p) => ({ x: element.x + p.x, y: element.y + p.y }));
 }
 
+/** Same boxes in the same order (an `equal` for computeds that derive box lists). */
+export function sameBoxes(a: readonly Box[], b: readonly Box[]): boolean {
+   if (a === b) return true;
+   if (a.length !== b.length) return false;
+   return a.every((p, i) => p.x0 === b[i].x0 && p.y0 === b[i].y0 && p.x1 === b[i].x1 && p.y1 === b[i].y1);
+}
+
 /** The element's axis-aligned bounding box in world coordinates (ignoring rotation). */
 export function elementBox(element: CanvasElementModel): Box {
    if (isPathElement(element.type)) {
