@@ -363,3 +363,43 @@ Each step is sized to be its own pass. The "Refactor" column says whether to do 
 - Home showcase (`showcase-player.ts` drives `store.applyRemoteBatch` and viewport; check it after 1.1 and 3.1).
 - Present-mode followers (`sendPresenting` keeps working regardless of 1.6, since it is not gated on peers; gating it is optional).
 - The guide sandbox (sandbox backend handles `viewport` PATCH; drop or keep it consistent with 1.2).
+
+---
+
+## 7. Baseline (P0)
+
+Measured 2026-11-09 at the start of Wave 3, before any Wave 3 client change. Dev build (`ng serve`, so Angular's dev-mode checks are included), Chromium browser pane emulating 1280×800, backend on a throwaway copy of the local DB, one participant in the room.
+
+**Projects** (each imported twice from an export file, one copy per run so both runs start from identical data, viewport and home):
+
+- **small**: "test 1": 238 elements (151 rectangles, 36 text, 8 code, 30 frames), 14 tables, 16 relationships, 27 slides, 1 deck.
+- **big**: "TV Dashboards — Knowledge Share": 1,314 elements (728 text, 53 code, 14 grids, 60 images, 203 frames), 39 tables, 38 relationships, 203 slides, 3 decks.
+
+**Method.** A page-side harness (no app code changed) dispatches synthetic pointer/wheel/input events, one per animation frame. For each event it measures *work* = the synchronous handler + Angular's change-detection tick (zoneless; it runs in the `setTimeout(0)` the scheduler queues) + a forced style/layout read. Paint is not included. Each gesture starts from the project's home view and runs 3 times; the table shows the median run's mean (and p95). `fetch`/XHR calls (minus socket.io polling) and socket.io emits (`WebSocket.send`) are counted from the gesture's start until 2.5 s after it ends.
+
+| Scenario | Baseline (P0) | After Wave 3 |
+|---|---|---|
+| (a) small: pan 2 s (120 frames), work per frame | 6.7 ms (p95 8.1) | _pending_ |
+| (a) small: pan, requests / socket emits | 1 `PATCH /viewport`; ~40 `presence:cursor` | _pending_ |
+| (b) small: zoom (24 wheel ticks), work per tick | 7.0 ms (p95 10.3) | _pending_ |
+| (b) small: zoom, requests | 1 `PATCH /viewport` | _pending_ |
+| (c) small: drag a table (60 frames), work per frame | 7.1 ms (p95 9.6) | _pending_ |
+| (c) small: drag a shape (60 frames), work per frame | 6.7 ms (p95 9.8) | _pending_ |
+| (c) drag, requests / socket emits | 1 `PATCH /batch`; 20 `presence:cursor` + 1 `presence:selection` | _pending_ |
+| (d) small: type 20 characters in a text element, work per character | 9.4 ms (p95 11.6) | _pending_ |
+| (d) typing, requests | none while typing; 1 `PATCH /batch` on commit | _pending_ |
+| (e) show a layout + move one of its items: theme saves | **2× `PUT /themes` + 4× `POST /me/themes`; one edit created two new "Default custom N" designs** | _pending_ |
+| Idle mouse move (no button), work per move / emits | 1.3 ms; ~20 `presence:cursor` per second | _pending_ |
+| big: pan, work per frame | **16.8 ms** (p95 18.6): over the 16.7 ms frame budget | _pending_ |
+| big: zoom, work per tick | 14.5 ms (p95 18.2) | _pending_ |
+| big: drag a table, work per frame | 14.6 ms (p95 16.3) | _pending_ |
+| big: type in a slide text element, work per character | 18.9 ms p50 (mean 21.9, p95 63) | _pending_ |
+| big: one committed text edit on a slide → images re-encoded for thumbnails | **120 `readAsDataURL` calls, 5.1 MB** (60 images × 2 panel instances) | _pending_ |
+
+**What P0 confirms:**
+
+- C1/C3: pan and zoom cost grows with the project size even though nothing but the viewport changes (6.7 → 16.8 ms per frame).
+- C2: every pan and every zoom gesture ends in a `PATCH /viewport`.
+- C10: cursors are streamed at ~20/s while alone in the room.
+- C11: the duplicate layout save is real. Both slides-panel instances (`list` and `settings`) save the same layout edit, and on built-in layouts each creates its own custom design set (the test DB already held six such pairs). So the one-line guard from P2.6 ships in Wave 3.
+- C12: thumbnails re-encode every image in the project, twice, after any slide edit.
