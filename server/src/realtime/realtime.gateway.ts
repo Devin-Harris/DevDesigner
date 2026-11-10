@@ -215,7 +215,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const color = this.nextColor(projectId);
     if (user) {
       const profile = await this.auth.me(user.id);
-      const name = profile?.displayName?.trim() || profile?.email || user.email || 'User';
+      // Never fall back to the email: the roster goes to every guest in the room.
+      const name = profile?.displayName?.trim() || (accessLevel === 'OWNER' ? 'Owner' : 'Collaborator');
       return { id: socketId, name, color, accessLevel, isOwner: accessLevel === 'OWNER' };
     }
     const guestNumber = this.nextGuestNumber(projectId);

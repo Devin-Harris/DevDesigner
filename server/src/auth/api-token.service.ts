@@ -9,6 +9,8 @@ import { CreateApiTokenDto } from './dto/create-api-token.dto';
 
 /** Every API token starts with this, so leaked ones are easy to spot and scan for. */
 export const API_TOKEN_PREFIX = 'dd_';
+/** Tokens issued before the rename; still accepted (the hash covers the whole token). */
+export const LEGACY_API_TOKEN_PREFIXES = ['dbd_'] as const;
 
 const RATE_WINDOW_MS = 60_000;
 const LAST_USED_WRITE_INTERVAL_MS = 60_000;
@@ -69,7 +71,7 @@ export class ApiTokenService {
 
   /** Resolve a raw token to its owner, or null when unknown/revoked. Enforces the rate limit. */
   async verify(raw: string): Promise<AuthUser | null> {
-    if (!raw.startsWith(API_TOKEN_PREFIX)) {
+    if (![API_TOKEN_PREFIX, ...LEGACY_API_TOKEN_PREFIXES].some((p) => raw.startsWith(p))) {
       return null;
     }
     const row = await this.tokens.findOne({ where: { tokenHash: hashToken(raw) } });
