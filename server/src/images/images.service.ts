@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
-import { MEDIA_MIME_TYPES, maxMediaBytes } from '@devdesigner/shared';
+import { MEDIA_MIME_TYPES, bytesMatchMediaType, maxMediaBytes } from '@devdesigner/shared';
 import type { ProjectExportImage, UploadImageResponse } from '@devdesigner/shared';
 import { AccessService } from '../access/access.service';
 import { ElementEntity } from '../elements/element.entity';
@@ -96,6 +96,9 @@ export class ImagesService {
       throw new BadRequestException(
         `${mimeType.startsWith('video/') ? 'Videos' : 'Images'} can be at most ${Math.round(max / (1024 * 1024))} MB.`,
       );
+    }
+    if (!bytesMatchMediaType(mimeType, data)) {
+      throw new BadRequestException(`The file's contents are not a valid ${mimeType} file.`);
     }
     if (mimeType === 'image/svg+xml') {
       const reason = svgRejectionReason(data.toString('utf8'));

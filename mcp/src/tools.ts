@@ -1002,7 +1002,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
       svg: z.string().optional().describe('Inline SVG markup, e.g. <svg viewBox="0 0 24 24"><path d="..."/></svg>.'),
       data: z.string().optional().describe('Base64 file contents (a data: URL also works).'),
       mimeType: z.string().optional().describe('image/png, image/jpeg, image/gif, image/webp or image/svg+xml (needed with plain base64 data).'),
-      filePath: z.string().optional().describe('Absolute path of an image file on the MCP server machine.'),
+      filePath: z.string().optional().describe('Absolute path of an image file (.png/.jpg/.jpeg/.gif/.webp/.svg) on the MCP server machine; reads a local file, and its bytes must be a real image.'),
       url: z.string().optional().describe('http(s) URL of an image to download.'),
       width: z.number().min(8).max(4000).optional().describe('Canvas width in px; height follows the aspect ratio unless given too. Default: natural size, at most 480x400.'),
       height: z.number().min(8).max(4000).optional(),
