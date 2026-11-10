@@ -31,11 +31,11 @@
             [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
-            (elementPointerDown)="onElementPointerDown($event)"
-            (resizeDown)="onElementResizeDown($event)"
-            (rotateDown)="onElementRotateDown($event)"
-            (endpointDown)="onElementEndpointDown($event)"
-            (bendDown)="onElementBendDown($event)"
+            (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+            (resizeDown)="elementGestures.onElementResizeDown($event)"
+            (rotateDown)="elementGestures.onElementRotateDown($event)"
+            (endpointDown)="elementGestures.onElementEndpointDown($event)"
+            (bendDown)="elementGestures.onElementBendDown($event)"
          ></dd-canvas-shapes>
 
          <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
@@ -58,11 +58,11 @@
                      [dragging]="relLink.dragging()"
                      [interactive]="shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
-                     (elementPointerDown)="onElementPointerDown($event)"
-                     (resizeDown)="onElementResizeDown($event)"
-                     (rotateDown)="onElementRotateDown($event)"
-                     (endpointDown)="onElementEndpointDown($event)"
-                     (bendDown)="onElementBendDown($event)"
+                     (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                     (resizeDown)="elementGestures.onElementResizeDown($event)"
+                     (rotateDown)="elementGestures.onElementRotateDown($event)"
+                     (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                     (bendDown)="elementGestures.onElementBendDown($event)"
                   ></dd-canvas-shapes>
                   <dd-canvas-connectors
                      [connectors]="z.connectors"
@@ -85,11 +85,11 @@
                         [dragging]="relLink.dragging()"
                         [interactive]="shapesInteractive()"
                         [editingId]="textEditing.editingTextId()"
-                        (elementPointerDown)="onElementPointerDown($event)"
-                        (resizeDown)="onElementResizeDown($event)"
-                        (rotateDown)="onElementRotateDown($event)"
-                        (endpointDown)="onElementEndpointDown($event)"
-                        (bendDown)="onElementBendDown($event)"
+                        (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                        (resizeDown)="elementGestures.onElementResizeDown($event)"
+                        (rotateDown)="elementGestures.onElementRotateDown($event)"
+                        (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                        (bendDown)="elementGestures.onElementBendDown($event)"
                      ></dd-canvas-shapes>
                   }
                   @for (table of z.tables; track table.id) {
@@ -110,7 +110,7 @@
                      [snap]="snap.snapWorld"
                      [smartDrag]="snap.smartDrag"
                      [smartDragEnd]="snap.smartDragEnd"
-                     [groupResize]="startGroupResize"
+                     [groupResize]="groupTransform.startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
                      [layerZ]="canvasView.diagramLayers().z"
                   ></dd-canvas-sequence>
@@ -121,12 +121,12 @@
                      [dragging]="relLink.dragging()"
                      [interactive]="shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
-                     [bindHighlight]="bindHighlight()"
-                     (elementPointerDown)="onElementPointerDown($event)"
-                     (resizeDown)="onElementResizeDown($event)"
-                     (rotateDown)="onElementRotateDown($event)"
-                     (endpointDown)="onElementEndpointDown($event)"
-                     (bendDown)="onElementBendDown($event)"
+                     [bindHighlight]="elementGestures.bindHighlight()"
+                     (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                     (resizeDown)="elementGestures.onElementResizeDown($event)"
+                     (rotateDown)="elementGestures.onElementRotateDown($event)"
+                     (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                     (bendDown)="elementGestures.onElementBendDown($event)"
                   ></dd-canvas-shapes>
                </div>
             </div>
@@ -158,11 +158,11 @@
                [dragging]="relLink.dragging()"
                [interactive]="shapesInteractive()"
                [editingId]="textEditing.editingTextId()"
-               (elementPointerDown)="onElementPointerDown($event)"
-               (resizeDown)="onElementResizeDown($event)"
-               (rotateDown)="onElementRotateDown($event)"
-               (endpointDown)="onElementEndpointDown($event)"
-               (bendDown)="onElementBendDown($event)"
+               (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+               (resizeDown)="elementGestures.onElementResizeDown($event)"
+               (rotateDown)="elementGestures.onElementRotateDown($event)"
+               (endpointDown)="elementGestures.onElementEndpointDown($event)"
+               (bendDown)="elementGestures.onElementBendDown($event)"
             ></dd-canvas-shapes>
          }
 
@@ -186,7 +186,7 @@
             [snap]="snap.snapWorld"
             [smartDrag]="snap.smartDrag"
             [smartDragEnd]="snap.smartDragEnd"
-            [groupResize]="startGroupResize"
+            [groupResize]="groupTransform.startGroupResize"
             [hiddenIds]="canvasView.outerHiddenDiagramIds()"
             [layerZ]="canvasView.diagramLayers().z"
          ></dd-canvas-sequence>
@@ -200,12 +200,12 @@
             [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
-            [bindHighlight]="bindHighlight()"
-            (elementPointerDown)="onElementPointerDown($event)"
-            (resizeDown)="onElementResizeDown($event)"
-            (rotateDown)="onElementRotateDown($event)"
-            (endpointDown)="onElementEndpointDown($event)"
-            (bendDown)="onElementBendDown($event)"
+            [bindHighlight]="elementGestures.bindHighlight()"
+            (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+            (resizeDown)="elementGestures.onElementResizeDown($event)"
+            (rotateDown)="elementGestures.onElementRotateDown($event)"
+            (endpointDown)="elementGestures.onElementEndpointDown($event)"
+            (bendDown)="elementGestures.onElementBendDown($event)"
          ></dd-canvas-shapes>
 
          @for (g of groupOutlines(); track g.id) {
@@ -248,10 +248,10 @@
       @if (tools.activeTool() === 'laser') {
          <div
             class="laser-capture"
-            (pointerdown)="onLaserPointerDown($event)"
-            (pointermove)="onLaserPointerMove($event)"
-            (pointerup)="onLaserPointerUp($event)"
-            (pointercancel)="onLaserPointerUp($event)"
+            (pointerdown)="laserInput.onLaserPointerDown($event)"
+            (pointermove)="laserInput.onLaserPointerMove($event)"
+            (pointerup)="laserInput.onLaserPointerUp($event)"
+            (pointercancel)="laserInput.onLaserPointerUp($event)"
          ></div>
       }
 
@@ -932,7 +932,7 @@
          </svg>
       }
 
-      @if (spacingHandles(); as sh) {
+      @if (groupTransform.spacingHandles(); as sh) {
          <svg class="smart-guides">
             @for (h of sh; track $index) {
                <line
@@ -956,7 +956,7 @@
                [style.top.px]="h.top"
                [style.--span.px]="h.span"
                title="Drag to change spacing"
-               (pointerdown)="startSpacingDrag($event)"
+               (pointerdown)="groupTransform.startSpacingDrag($event)"
             ></div>
          }
       }
