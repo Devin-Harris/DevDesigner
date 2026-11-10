@@ -14,8 +14,8 @@ import {
 } from '@angular/core';
 import { DEFAULT_FRAME_PRESET, FRAME_PRESETS } from '../canvas/constants/frame-presets';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
 import { ProjectStore } from '../../../stores/project.store';
 import { DockToolId, ToolbarPrefsService } from './toolbar-prefs.service';
 import type { AlignAction, ExportImageFormat } from '../canvas/models/toolbar-actions';

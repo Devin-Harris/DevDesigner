@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import type { AlignAction } from '../canvas/models/toolbar-actions';
 
 export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';

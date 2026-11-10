@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, HostListener, output } from '@angular/core';
-import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 
 interface ShortcutGroup {
    name: string;

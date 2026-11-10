@@ -25,11 +25,11 @@ import { AuthDialogComponent } from './features/auth/auth-dialog.component';
 import {
    ConfirmDialogComponent,
    type ConfirmDialogData,
-} from './features/workspace/confirm-dialog/confirm-dialog.component';
+} from './shared/ui/components/confirm-dialog/confirm-dialog.component';
 import { ApiTokensDialogComponent } from './features/auth/api-tokens-dialog.component';
 import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
-import { IconComponent } from './shared/ui/icon/icon.component';
-import { PopoverTriggerDirective } from './shared/ui/popover/popover-trigger.directive';
+import { IconComponent } from './shared/ui/components/icon/icon.component';
+import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
 import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-actions';
 
 /**

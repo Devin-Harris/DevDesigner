@@ -21,8 +21,8 @@ import { CodeActionsService } from '../../../core/services/code-actions.service'
 import { FONT_OPTIONS, fontStack } from '../canvas/helpers/shape-render.helper';
 import { withTextFit } from '../canvas/helpers/text-metrics';
 import { ProjectStore } from '../../../stores/project.store';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 
 /**
  * The "shape & line styling" side panel — the design's calm, full-width companion

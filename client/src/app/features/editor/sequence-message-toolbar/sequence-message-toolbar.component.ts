@@ -2,9 +2,9 @@ import { InspectorPanelService } from '../inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { themeColorCss, type SequenceMessageModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
 
 /**
  * On-canvas contextual bar that floats above the selected sequence message

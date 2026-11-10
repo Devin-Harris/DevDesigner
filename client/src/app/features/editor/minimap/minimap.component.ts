@@ -11,7 +11,7 @@ import {
    viewChild,
 } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../../core/services/theme.service';
 
 /** A simplified world-space footprint of one canvas element. */

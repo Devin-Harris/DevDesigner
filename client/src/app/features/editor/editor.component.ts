@@ -21,7 +21,7 @@ import type { CanvasItemRef } from '../../core/services/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type {
@@ -253,7 +253,7 @@ import { ensureDeckDefaults } from './slides/deck-defaults';
 import { SlidesPanelComponent } from './slides/slides-panel.component';
 import type { SlidesCommand } from './slides/models/slides-command.model';
 import { FocusUiState } from './slides/services/focus-ui-state.service';
-import { PopoverTriggerDirective } from '../../shared/ui/popover/popover-trigger.directive';
+import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
 import { DeckCompareComponent } from './slides/deck-compare.component';
 import { CompareUiState } from './slides/services/compare-ui-state.service';
 import { AnimationPaneComponent } from './slides/animation-pane.component';

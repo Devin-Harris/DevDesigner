@@ -9,7 +9,7 @@ import {
    signal,
    viewChild,
 } from '@angular/core';
-import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { EditorActionsService, type CanvasItemRef } from '../../core/services/editor-actions.service';
 import { ProjectsStore } from '../../stores/projects.store';

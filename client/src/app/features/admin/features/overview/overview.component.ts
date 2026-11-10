@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { AdminApiService } from '../../services/admin-api.service';
-import { IconComponent } from '../../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 
 /** Overview placeholder: proves the admin API is reachable until the Phase 2 KPIs land. */
 @Component({

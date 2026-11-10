@@ -7,8 +7,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import type { ShareAccessLevel, ShareLinkResponse } from '@devdesigner/shared';
 import { ShareLinksApiService } from '../../../core/services/share-links-api.service';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/segmented/segmented.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { SegmentedComponent, type SegmentedOption } from '../../../shared/ui/components/segmented/segmented.component';
 
 export interface ShareDialogData {
    projectId: string;

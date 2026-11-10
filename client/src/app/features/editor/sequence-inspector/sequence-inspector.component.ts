@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import { type SequenceMessageModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
-import { InputComponent } from '../../../shared/ui/input/input.component';
-import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
+import { InputComponent } from '../../../shared/ui/components/input/input.component';
+import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 
 /**
  * Side panel for the selected sequence lifeline or message. Lifeline: label,

@@ -13,7 +13,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { map } from 'rxjs';
-import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { EditorActionsService } from '../../core/services/editor-actions.service';

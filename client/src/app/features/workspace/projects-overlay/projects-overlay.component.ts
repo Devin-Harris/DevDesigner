@@ -6,12 +6,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@devdesigner/shared';
 import { ProjectFileService } from '../../../core/services/project-file.service';
 import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { InputComponent } from '../../../shared/ui/input/input.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
-import { ToggleComponent } from '../../../shared/ui/toggle/toggle.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { InputComponent } from '../../../shared/ui/components/input/input.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
+import { ToggleComponent } from '../../../shared/ui/components/toggle/toggle.component';
 import { ProjectsStore } from '../../../stores/projects.store';
-import { ConfirmDialogComponent, type ConfirmDialogData } from '../confirm-dialog/confirm-dialog.component';
+import {
+   ConfirmDialogComponent,
+   type ConfirmDialogData,
+} from '../../../shared/ui/components/confirm-dialog/confirm-dialog.component';
 import { ProjectThumbnailService } from './project-thumbnail.service';
 import { PROJECT_TEMPLATES, type ProjectTemplate } from '../templates/project-templates';
 import { TemplatesService } from '../templates/templates.service';

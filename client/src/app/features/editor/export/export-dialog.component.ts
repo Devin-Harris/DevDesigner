@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { downloadText } from './image-export.helper';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 
 export interface ExportDialogData {
    sql: string;

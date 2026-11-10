@@ -10,11 +10,11 @@ import {
    type UpdateColumnDto,
 } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
-import { InputComponent } from '../../../shared/ui/input/input.component';
-import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component';
-import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
+import { InputComponent } from '../../../shared/ui/components/input/input.component';
+import { CheckboxComponent } from '../../../shared/ui/components/checkbox/checkbox.component';
+import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 
 type InspectorTab = 'columns' | 'indexes' | 'sql';
 

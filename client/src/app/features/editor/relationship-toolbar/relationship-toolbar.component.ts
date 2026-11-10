@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { RelationshipType } from '@devdesigner/shared';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 
 /**
  * Small on-canvas control that floats at a selected connector's midpoint:

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 
 export interface FrameOrderItem {
    id: string;

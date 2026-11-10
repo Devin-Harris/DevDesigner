@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { FormsModule } from '@angular/forms';
 import { RELATIONSHIP_TYPES, type RelationshipModel, type RelationshipType } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 
 const REFERENTIAL_ACTIONS = ['', 'NO ACTION', 'CASCADE', 'RESTRICT', 'SET NULL', 'SET DEFAULT'];
 

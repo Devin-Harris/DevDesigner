@@ -6,9 +6,9 @@ import { ElementImagesService } from '../../../core/services/element-images.serv
 import { MediaActionsService } from '../../../core/services/media-actions.service';
 import { parseGrid } from '../canvas/helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
 import {
    CODE_LANGUAGES,
    type ArrowheadType,

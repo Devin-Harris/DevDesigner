@@ -6,9 +6,9 @@ import { firstValueFrom } from 'rxjs';
 import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
 import { ApiClientService } from '../../core/services/api-client.service';
 import { environment } from '../../../environments/environment';
-import { IconComponent } from '../../shared/ui/icon/icon.component';
-import { InputComponent } from '../../shared/ui/input/input.component';
-import { SegmentedComponent } from '../../shared/ui/segmented/segmented.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
+import { InputComponent } from '../../shared/ui/components/input/input.component';
+import { SegmentedComponent } from '../../shared/ui/components/segmented/segmented.component';
 
 /**
  * Account → API tokens. Tokens let the MCP server (and other scripts) act as the

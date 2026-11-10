@@ -4,9 +4,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
 import { EditorActionsService } from '../../../core/services/editor-actions.service';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { ColorSwatchesComponent } from '../../../shared/ui/color-swatches/color-swatches.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trigger.directive';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
+import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
 
 /**
  * Floating action bar shown above the selected table (mirrors the shape/connector

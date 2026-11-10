@@ -15,8 +15,8 @@ import {
    type SlideAnimationTrigger,
    type SlideDirection,
 } from '@devdesigner/shared';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
-import { SelectComponent, type SelectOption } from '../../../shared/ui/select/select.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
+import { SelectComponent, type SelectOption } from '../../../shared/ui/components/select/select.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { contentForFrame } from '../canvas/helpers/frame-contents.helper';
 

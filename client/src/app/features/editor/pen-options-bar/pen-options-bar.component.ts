@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PICKER_SWATCHES, themeSwatchCss } from '@devdesigner/shared';
-import { IconComponent } from '../../../shared/ui/icon/icon.component';
+import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ProjectStore } from '../../../stores/project.store';
 import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './models/pen-limits.constants';
 import { PenPrefsService } from './services/pen-prefs.service';

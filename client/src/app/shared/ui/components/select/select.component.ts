@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 import { IconComponent } from '../icon/icon.component';
-import { PopoverTriggerDirective } from '../popover/popover-trigger.directive';
+import { PopoverTriggerDirective } from '../../directives/popover-trigger.directive';
 
 export interface SelectOption<T = string> {
    value: T;
