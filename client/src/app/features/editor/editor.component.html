@@ -298,8 +298,8 @@
          (toggleGrid)="toggleGrid()"
          (toggleSmartGuides)="toggleSmartGuides()"
          (align)="onAlign($event)"
-         (exportSql)="openSqlExport()"
-         (exportImage)="onExportImage($event)"
+         (exportSql)="exporter.openSqlExport()"
+         (exportImage)="exporter.onExportImage($event)"
       ></dd-shape-toolbar>
 
       @if (followingName(); as who) {
@@ -510,7 +510,7 @@
                      />
                   </ng-template>
                   <span class="fb-sep"></span>
-                  <button class="fb-btn" type="button" (click)="exportAllSlidesPdf()">Export PDF</button>
+                  <button class="fb-btn" type="button" (click)="exporter.exportAllSlidesPdf()">Export PDF</button>
                </div>
                <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn go" type="button" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">
