@@ -3,7 +3,7 @@
       #canvas
       class="canvas"
       [class.tool-active]="tools.activeTool() !== 'select'"
-      [style.cursor]="canvasCursor()"
+      [style.cursor]="tools.canvasCursor()"
       (pointerdown)="onCanvasPointerDown($event)"
       (dblclick)="onCanvasDblClick($event)"
       (wheel)="viewport.onWheel($event)"
@@ -29,7 +29,7 @@
             [shapes]="canvasView.outerShapeViews()"
             [svgOffset]="svgOffset"
             [dragging]="relLink.dragging()"
-            [interactive]="shapesInteractive()"
+            [interactive]="tools.shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
             (elementPointerDown)="elementGestures.onElementPointerDown($event)"
             (resizeDown)="elementGestures.onElementResizeDown($event)"
@@ -56,7 +56,7 @@
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
                      [dragging]="relLink.dragging()"
-                     [interactive]="shapesInteractive()"
+                     [interactive]="tools.shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
                      (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                      (resizeDown)="elementGestures.onElementResizeDown($event)"
@@ -83,7 +83,7 @@
                         [shapes]="z.shapes"
                         [svgOffset]="svgOffset"
                         [dragging]="relLink.dragging()"
-                        [interactive]="shapesInteractive()"
+                        [interactive]="tools.shapesInteractive()"
                         [editingId]="textEditing.editingTextId()"
                         (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                         (resizeDown)="elementGestures.onElementResizeDown($event)"
@@ -119,7 +119,7 @@
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
                      [dragging]="relLink.dragging()"
-                     [interactive]="shapesInteractive()"
+                     [interactive]="tools.shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
                      [bindHighlight]="elementGestures.bindHighlight()"
                      (elementPointerDown)="elementGestures.onElementPointerDown($event)"
@@ -156,7 +156,7 @@
                [shapes]="canvasView.outerShapeViews()"
                [svgOffset]="svgOffset"
                [dragging]="relLink.dragging()"
-               [interactive]="shapesInteractive()"
+               [interactive]="tools.shapesInteractive()"
                [editingId]="textEditing.editingTextId()"
                (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                (resizeDown)="elementGestures.onElementResizeDown($event)"
@@ -198,7 +198,7 @@
             [shapes]="canvasView.outerShapeViews()"
             [svgOffset]="svgOffset"
             [dragging]="relLink.dragging()"
-            [interactive]="shapesInteractive()"
+            [interactive]="tools.shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
             [bindHighlight]="elementGestures.bindHighlight()"
             (elementPointerDown)="elementGestures.onElementPointerDown($event)"
@@ -327,7 +327,7 @@
          />
       }
 
-      @for (set of slideSets(); track set.name) {
+      @for (set of deckPanels.slideSets(); track set.name) {
          @if (set.layoutEdit; as le) {
             <div
                class="layout-edit-ring"
@@ -349,11 +349,11 @@
             <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
             <div
                class="deck-header"
-               [class.selected]="selectedSlideSets().includes(set.name)"
+               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
                [style.left.px]="set.outline.left"
                [style.top.px]="set.outline.top - 36 - 10 * set.list.scale"
                [style.transform]="'scale(' + set.list.scale + ')'"
-               (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
             >
                <dd-icon name="slideshow" class="dh-ico" />
@@ -387,14 +387,26 @@
                [style.width.px]="set.outline.width"
                [style.height.px]="set.outline.height"
                [style.border-radius.px]="set.outline.radius"
-               [class.grabbable]="shapesInteractive()"
-               [class.selected]="selectedSlideSets().includes(set.name)"
+               [class.grabbable]="tools.shapesInteractive()"
+               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
             >
                <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
-               <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-               <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-               <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-               <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
+               <span
+                  class="slide-edge top"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge bottom"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge left"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge right"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
             </div>
             <dd-slides-panel
                class="slides-panel"
@@ -407,7 +419,7 @@
                [active]="set.frameId"
                [lastSlide]="slideshow.lastSlideOf(set.name)"
                part="list"
-               (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
             ></dd-slides-panel>
@@ -424,7 +436,7 @@
                [style.transform]="'scale(' + set.settings.scale + ')'"
                [active]="set.frameId"
                [lastSlide]="slideshow.lastSlideOf(set.name)"
-               (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
             ></dd-slides-panel>

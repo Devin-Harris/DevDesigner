@@ -1,3 +1,4 @@
+import { DeckPanelsService } from './features/slides/services/deck-panels.service';
 import { DrawToolService } from './features/elements/services/draw-tool.service';
 import { ElementGestureService } from './features/elements/services/element-gesture.service';
 import { LaserInputService } from './features/collaboration/services/laser-input.service';
@@ -46,14 +47,7 @@ import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { CanvasElementModel, TableModel } from '@devdesigner/shared';
-import {
-   presentationOf,
-   presentationSlides,
-   layoutOf,
-   layoutNameOf,
-   sequenceDiagramRect,
-   masterOf,
-} from '@devdesigner/shared';
+import { presentationOf, presentationSlides, layoutOf, sequenceDiagramRect, masterOf } from '@devdesigner/shared';
 import { LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
@@ -110,14 +104,6 @@ import { AnimationPaneComponent } from './features/slides/features/slides-panel/
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
 import type { RelinkPreview } from './services/canvas-view.service';
-import { PANEL_FOLDED_W } from './shared/constants/slide-panels.constants';
-import { PANEL_GAP } from './shared/constants/slide-panels.constants';
-import { PANEL_LIST_W } from './shared/constants/slide-panels.constants';
-import { PANEL_MIN_H } from './shared/constants/slide-panels.constants';
-import { PANEL_MIN_PAD_PX } from './shared/constants/slide-panels.constants';
-import { PANEL_PAD } from './shared/constants/slide-panels.constants';
-import { PANEL_RADIUS } from './shared/constants/slide-panels.constants';
-import { PANEL_SETTINGS_W } from './shared/constants/slide-panels.constants';
 /** Element kinds that can contain other items (a lone selection aligns to these). */
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
 
@@ -195,13 +181,15 @@ function readFlag(key: string, fallback: boolean): boolean {
       GroupTransformService,
       ElementGestureService,
       DrawToolService,
+      DeckPanelsService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly deckPanels = inject(DeckPanelsService);
    protected readonly drawTool = inject(DrawToolService);
-   protected readonly elementGestures = inject(ElementGestureService);
+   readonly elementGestures = inject(ElementGestureService);
    protected readonly groupTransform = inject(GroupTransformService);
    protected readonly laserInput = inject(LaserInputService);
    protected readonly snap = inject(CanvasSnapService);
@@ -264,133 +252,6 @@ export class EditorComponent {
       ].join('|')
    );
 
-   /**
-    * The panels are part of the frame's world: laid out in world units (width fixed,
-    * height = the frame's) and scaled by the zoom with a CSS transform, so they keep
-    * the same proportion to the frame at every zoom. `width`/`height` are the
-    * unscaled world size the element is given; `scale` is applied around the top-left.
-    */
-   /**
-    * One block per presentation: its shown slide's frame with the slide list pinned
-    * to its left edge, the settings pinned to its right, and a border around all
-    * three. Each presentation is a self-contained set at its own spot.
-    */
-   /** World-space box of each presentation's dashed outline (list + frame + settings, as laid out in slideSets). */
-   presentationOutlineBoxes(): { frameId: string; box: Box }[] {
-      const gap = PANEL_GAP;
-      const zoom = this.store.viewport().zoom;
-      const pad = Math.max(PANEL_PAD, PANEL_MIN_PAD_PX / zoom);
-      const frames = this.store.slideFrames();
-      const shown = this.store.shownByPresentation();
-      const settingsW = this.deckFocus.settingsFolded() ? PANEL_FOLDED_W : PANEL_SETTINGS_W;
-      return this.store.presentations().flatMap((name) => {
-         const f = frames.find((fr) => fr.id === shown.get(name));
-         if (!f) return [];
-         const y0 = f.y;
-         const y1 = f.y + Math.max(f.height, PANEL_MIN_H);
-         return [
-            {
-               frameId: f.id,
-               box: {
-                  x0: f.x - gap - PANEL_LIST_W - pad,
-                  y0: y0 - pad,
-                  x1: f.x + f.width + gap + settingsW + pad,
-                  y1: y1 + pad,
-               },
-            },
-         ];
-      });
-   }
-
-   protected readonly slideSets = computed(() => {
-      const v = this.store.viewport();
-      const gap = PANEL_GAP;
-      const frames = this.store.slideFrames();
-      const shown = this.store.shownByPresentation();
-      const folded = this.deckFocus.settingsFolded();
-      return this.store.presentations().flatMap((name) => {
-         const frame = frames.find((f) => f.id === shown.get(name));
-         if (!frame) {
-            return [];
-         }
-         const top = frame.y * v.zoom + v.y;
-         const height = Math.max(frame.height, PANEL_MIN_H);
-         const list = {
-            left: (frame.x - PANEL_LIST_W - gap) * v.zoom + v.x,
-            top,
-            width: PANEL_LIST_W,
-            height,
-            scale: v.zoom,
-         };
-         const settings = {
-            left: (frame.x + frame.width + gap) * v.zoom + v.x,
-            top,
-            width: folded ? PANEL_FOLDED_W : PANEL_SETTINGS_W,
-            height,
-            scale: v.zoom,
-         };
-         // Padding and corner radius scale with the panels so the outline keeps the same
-         // shape at every zoom; only the hairline border stays in screen px, so keep just
-         // enough padding for it to clear the panels.
-         const pad = Math.max(PANEL_PAD * v.zoom, PANEL_MIN_PAD_PX);
-         const radius = PANEL_RADIUS * v.zoom + pad;
-         const bottom = top + height * v.zoom;
-         return [
-            {
-               name,
-               frameId: frame.id,
-               list,
-               settings,
-               // While a layout is shown, it is ringed and labelled so it is not mistaken for a slide.
-               layoutEdit: frame.slide?.layout
-                  ? {
-                       left: frame.x * v.zoom + v.x,
-                       top,
-                       width: frame.width * v.zoom,
-                       height: frame.height * v.zoom,
-                       name: frame.slide.master ? 'Master' : layoutNameOf(frame, frames),
-                       master: !!frame.slide.master,
-                    }
-                  : null,
-               outline: {
-                  left: list.left - pad,
-                  top: top - pad,
-                  width: settings.left + settings.width * v.zoom - list.left + pad * 2,
-                  height: bottom - top + pad * 2,
-                  radius,
-               },
-            },
-         ];
-      });
-   });
-
-   /**
-    * The presentations selected as a whole (outer border clicked, or enclosed by a
-    * marquee): drawn with a selected outline, and Delete removes every slide of them.
-    */
-   readonly selectedSlideSets = signal<string[]>([]);
-
-   /**
-    * Pointer down on a slide set's outer border: select the whole presentation and grab
-    * its shown slide frame (it carries its contents; the other slides follow it).
-    */
-   protected onSlideBorderDown(name: string, frameId: string, event: PointerEvent): void {
-      if (event.button !== 0 || !this.shapesInteractive()) {
-         return;
-      }
-      event.stopPropagation();
-      this.store.selectPresentation(name);
-      // Grabbing one of several selected presentations moves them all, still selected.
-      const sets = this.selectedSlideSets();
-      const keep = sets.includes(name) && !PointerGestureService.additive(event);
-      this.elementGestures.onElementPointerDown({ id: frameId, event });
-      this.selectedSlideSets.set(keep ? sets : [name]);
-   }
-
-   /** Touching a presentation's panels makes it the selected one (F5, export). */
-   selectSlideSet(name: string): void {
-      this.store.selectPresentation(name);
-   }
    private readonly destroyRef = inject(DestroyRef);
    private readonly editorActions = inject(EditorActionsService);
    private readonly fontMetrics = inject(FontMetricsService);
@@ -464,34 +325,6 @@ export class EditorComponent {
          default:
             return '';
       }
-   });
-
-   /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
-   protected readonly panning = signal(false);
-
-   /**
-    * Canvas cursor driven by the active tool and pan state: a crosshair for the
-    * drawing tools (Excalidraw-style), grab/grabbing for the hand/pan tool, and
-    * the default pointer for select.
-    */
-   protected readonly canvasCursor = computed(() => {
-      if (this.panning()) {
-         return 'grabbing';
-      }
-      const tool = this.tools.activeTool();
-      if (tool === 'hand') {
-         return 'grab';
-      }
-      if (tool === 'select') {
-         return 'default';
-      }
-      if (tool === 'freedraw' && this.penPrefs.eraser()) {
-         // A ring the size of the eraser's reach (browsers cap cursors at 128px).
-         const d = Math.min(126, Math.max(6, Math.round(this.penPrefs.eraserSize())));
-         const c = d / 2 + 1;
-         return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${d + 2}' height='${d + 2}'%3E%3Ccircle cx='${c}' cy='${c}' r='${d / 2}' fill='rgba(255,255,255,0.35)' stroke='black' stroke-width='1'/%3E%3C/svg%3E") ${c} ${c}, cell`;
-      }
-      return 'crosshair';
    });
 
    /** Placement + representative element for the floating context toolbar. */
@@ -816,8 +649,6 @@ export class EditorComponent {
       return out;
    });
 
-   protected readonly shapesInteractive = computed(() => this.tools.activeTool() === 'select' && this.store.canEdit());
-
    private readonly codeActions = inject(CodeActionsService);
    protected readonly grids = inject(GridTableService);
 
@@ -883,6 +714,7 @@ export class EditorComponent {
    private marqueeAdditive = false;
 
    constructor() {
+      this.deckPanels.connect(this);
       this.elementGestures.connect(this);
       this.snap.connect(this);
       this.canvasView.connect(this);
@@ -1004,11 +836,11 @@ export class EditorComponent {
          const ids = this.store.selectedElementIds();
          const shown = this.store.shownByPresentation();
          untracked(() => {
-            const sets = this.selectedSlideSets();
+            const sets = this.deckPanels.selectedSlideSets();
             // Still selected while its shown frame is (a marquee can take it with other items).
             const kept = sets.filter((set) => ids.includes(shown.get(set) ?? ''));
             if (kept.length !== sets.length) {
-               this.selectedSlideSets.set(kept);
+               this.deckPanels.selectedSlideSets.set(kept);
             }
          });
       });
@@ -1220,7 +1052,7 @@ export class EditorComponent {
       ) {
          event.preventDefault();
          this.gesture.mode = 'pan';
-         this.panning.set(true);
+         this.tools.panning.set(true);
          this.gesture.startClientX = event.clientX;
          this.gesture.startClientY = event.clientY;
          const v = this.store.viewport();
@@ -1460,7 +1292,7 @@ export class EditorComponent {
          this.elementGestures.commitElementGesture();
       }
       this.gesture.mode = 'idle';
-      this.panning.set(false);
+      this.tools.panning.set(false);
       this.gesture.dragTableId = null;
       this.gesture.nodeExtras = null;
       this.elementGestures.elementGesture = null;
@@ -1584,13 +1416,15 @@ export class EditorComponent {
       const sy0 = Math.min(s.y, c.y);
       const sx1 = Math.max(s.x, c.x);
       const sy1 = Math.max(s.y, c.y);
-      const enclosed = this.slideSets().filter(
-         (set) =>
-            set.outline.left >= sx0 &&
-            set.outline.top >= sy0 &&
-            set.outline.left + set.outline.width <= sx1 &&
-            set.outline.top + set.outline.height <= sy1
-      );
+      const enclosed = this.deckPanels
+         .slideSets()
+         .filter(
+            (set) =>
+               set.outline.left >= sx0 &&
+               set.outline.top >= sy0 &&
+               set.outline.left + set.outline.width <= sx1 &&
+               set.outline.top + set.outline.height <= sy1
+         );
       let tableSel = tableIds;
       let elementSel = elementIds;
       if (enclosed.length) {
@@ -1643,7 +1477,9 @@ export class EditorComponent {
          this.store.setSelection(tableSel, relIds, elementSel, looseMessages, looseLifelines, diagramIds);
       }
       const names = enclosed.map((set) => set.name);
-      this.selectedSlideSets.set(this.marqueeAdditive ? [...new Set([...this.selectedSlideSets(), ...names])] : names);
+      this.deckPanels.selectedSlideSets.set(
+         this.marqueeAdditive ? [...new Set([...this.deckPanels.selectedSlideSets(), ...names])] : names
+      );
    }
 
    /** Sequence messages whose snapped row line crosses the marquee rect. */
@@ -1889,6 +1725,10 @@ export class EditorComponent {
    readonly orderSlideCopies = (copies: readonly CanvasElementModel[], deck: string, afterId: string | null) =>
       this.placement.orderSlideCopies(copies, deck, afterId);
    readonly copySelection = (): void => this.clipboard.copySelection();
+   readonly selectedSlideSets = this.deckPanels.selectedSlideSets;
+   readonly selectSlideSet = (name: string): void => this.deckPanels.selectSlideSet(name);
+   readonly presentationOutlineBoxes = (): { frameId: string; box: Box }[] =>
+      this.deckPanels.presentationOutlineBoxes();
    readonly updateDraw = (clientX: number, clientY: number, shift: boolean, alt: boolean): void =>
       this.drawTool.updateDraw(clientX, clientY, shift, alt);
    readonly beginNodeDrag = (tableId: string): void => this.tableDrag.beginNodeDrag(tableId);
