@@ -7,7 +7,7 @@
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
-      "prefix": "app",
+      "prefix": "dd",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
@@ -62,6 +62,13 @@
             "development": { "buildTarget": "client:build:development" }
           },
           "defaultConfiguration": "development"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"],
+            "eslintConfig": "eslint.config.mjs"
+          }
         }
       }
     }

@@ -9,8 +9,11 @@
     "prebuild": "node scripts/set-env.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "lint": "ng lint"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:types": "tsc --noEmit -p tsconfig.spec.json",
+    "lint": "ng lint",
+    "lint:styles": "stylelint \"src/**/*.scss\""
   },
   "dependencies": {
     "@angular/animations": "^22.0.0",
@@ -24,6 +27,8 @@
     "@angular/router": "^22.0.0",
     "@devdesigner/shared": "*",
     "@ngrx/signals": "^21.1.1",
+    "@sentry/angular": "^11.11.0",
+    "ngx-form-signal": "^2.18.0",
     "perfect-freehand": "^1.2.3",
     "prettier": "^3.9.6",
     "rxjs": "^7.8.1",
@@ -35,7 +40,16 @@
     "@angular/build": "^22.0.0",
     "@angular/cli": "^22.0.0",
     "@angular/compiler-cli": "^22.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.2",
+    "angular-eslint": "^22.6.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.4.2",
+    "jest": "^30.5.2",
+    "jest-preset-angular": "^17.0.3",
+    "jsdom": "^26.1.0",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard-scss": "^17.0.0",
     "typescript": "~6.0.0"
   }
 }

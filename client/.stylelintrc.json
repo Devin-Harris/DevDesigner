@@ -1,0 +1,39 @@
+{
+   "extends": ["stylelint-config-standard-scss"],
+   "defaultSeverity": "warning",
+   "rules": {
+      "color-no-hex": true,
+      "color-named": "never",
+      "selector-pseudo-element-no-unknown": [true, { "ignorePseudoElements": ["ng-deep"] }],
+      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
+
+      "alpha-value-notation": null,
+      "at-rule-empty-line-before": null,
+      "color-function-alias-notation": null,
+      "color-function-notation": null,
+      "color-hex-length": null,
+      "comment-empty-line-before": null,
+      "custom-property-empty-line-before": null,
+      "declaration-block-no-redundant-longhand-properties": null,
+      "declaration-block-single-line-max-declarations": null,
+      "declaration-empty-line-before": null,
+      "media-feature-range-notation": null,
+      "property-no-vendor-prefix": null,
+      "rule-empty-line-before": null,
+      "scss/at-mixin-argumentless-call-parentheses": null,
+      "scss/double-slash-comment-empty-line-before": null,
+      "scss/dollar-variable-empty-line-before": null,
+      "selector-class-pattern": null,
+      "selector-not-notation": null,
+      "value-keyword-case": null
+   },
+   "overrides": [
+      {
+         "files": ["src/styles.scss"],
+         "rules": {
+            "color-no-hex": null,
+            "color-named": null
+         }
+      }
+   ]
+}
