@@ -189,11 +189,21 @@ export class ElementsService {
     clientId: string | null = null,
   ): Promise<void> {
     await this.access.assertCanWrite(projectId, userId, shareToken);
-    await Promise.all(
-      dto.orderedElementIds.map((id, index) =>
-        this.elements.update({ id, projectId }, { zIndex: index }),
-      ),
-    );
+    // Position in the list is the new zIndex (a repeated id keeps its last position).
+    const wanted = new Map(dto.orderedElementIds.map((id, index) => [id, index]));
+    // One transaction (one commit), touching only this project's rows whose index moved.
+    await this.elements.manager.transaction(async (m) => {
+      const rows = await m.find(ElementEntity, {
+        where: { projectId },
+        select: { id: true, zIndex: true },
+      });
+      for (const row of rows) {
+        const zIndex = wanted.get(row.id);
+        if (zIndex !== undefined && zIndex !== row.zIndex) {
+          await m.update(ElementEntity, { id: row.id, projectId }, { zIndex });
+        }
+      }
+    });
     this.realtime.emit(projectId, clientId, {
       kind: 'element.reordered',
       orderedElementIds: dto.orderedElementIds,

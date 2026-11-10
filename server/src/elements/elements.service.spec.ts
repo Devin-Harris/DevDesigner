@@ -22,7 +22,9 @@ describe('ElementsService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
+  let tx: { find: jest.Mock; update: jest.Mock };
   let projects: { findOne: jest.Mock };
   let access: {
     assertCanWrite: jest.Mock;
@@ -53,7 +55,9 @@ describe('ElementsService', () => {
       findOne: jest.fn(),
       update: jest.fn(async () => ({ affected: 1 })),
       delete: jest.fn(async () => ({ affected: 1 })),
+      manager: { transaction: jest.fn(async (work: (m: typeof tx) => unknown) => work(tx)) },
     };
+    tx = { find: jest.fn().mockResolvedValue([]), update: jest.fn(async () => ({ affected: 1 })) };
     projects = { findOne: jest.fn().mockResolvedValue({ id: 'p1' }) };
     access = {
       assertCanWrite: jest.fn().mockResolvedValue('OWNER'),
@@ -116,6 +120,37 @@ describe('ElementsService', () => {
       kind: 'element.deleted',
       elementId: 'el1',
     });
+  });
+
+  it('reorders in one transaction, updating only rows of this project whose index changed', async () => {
+    tx.find.mockResolvedValue([
+      { id: 'a', zIndex: 0 },
+      { id: 'b', zIndex: 1 },
+      { id: 'c', zIndex: 2 },
+      { id: 'untouched', zIndex: 7 },
+    ]);
+    await service.reorder('p1', { orderedElementIds: ['a', 'c', 'b', 'foreign'] }, 'u1', null, 'c1');
+    expect(access.assertCanWrite).toHaveBeenCalledWith('p1', 'u1', null);
+    expect(elements.manager.transaction).toHaveBeenCalledTimes(1);
+    expect(tx.find.mock.calls[0][1]).toMatchObject({ where: { projectId: 'p1' } });
+    // 'a' kept index 0 and 'untouched' is not in the list; 'foreign' is not in the project.
+    expect(tx.update).toHaveBeenCalledTimes(2);
+    expect(tx.update).toHaveBeenCalledWith(expect.anything(), { id: 'c', projectId: 'p1' }, { zIndex: 1 });
+    expect(tx.update).toHaveBeenCalledWith(expect.anything(), { id: 'b', projectId: 'p1' }, { zIndex: 2 });
+    expect(elements.update).not.toHaveBeenCalled();
+    expect(realtime.emit).toHaveBeenCalledWith('p1', 'c1', {
+      kind: 'element.reordered',
+      orderedElementIds: ['a', 'c', 'b', 'foreign'],
+    });
+  });
+
+  it('does not reorder or broadcast without write access', async () => {
+    access.assertCanWrite.mockRejectedValue(new ForbiddenException());
+    await expect(
+      service.reorder('p1', { orderedElementIds: ['a'] }, 'u1', null, 'c1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(elements.manager.transaction).not.toHaveBeenCalled();
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 
   it('does not persist or broadcast when authorization fails', async () => {

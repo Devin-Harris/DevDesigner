@@ -1,5 +1,14 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 import {
   CONNECTOR_SIDES,
   RELATIONSHIP_TYPES,
@@ -9,6 +18,7 @@ import {
   type UpdateRelationshipDto as IUpdateRelationshipDto,
 } from '@devdesigner/shared';
 import { PointDto } from './point.dto';
+import { MAX_ID_LENGTH, MAX_WAYPOINTS } from '../../common/limits';
 
 /** Body for PATCH /relationships/:relationshipId. */
 export class UpdateRelationshipDto implements IUpdateRelationshipDto {
@@ -18,10 +28,12 @@ export class UpdateRelationshipDto implements IUpdateRelationshipDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_ID_LENGTH)
   sourceColumnId?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_ID_LENGTH)
   targetColumnId?: string;
 
   @IsOptional()
@@ -36,6 +48,7 @@ export class UpdateRelationshipDto implements IUpdateRelationshipDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(MAX_WAYPOINTS)
   @ValidateNested({ each: true })
   @Type(() => PointDto)
   waypoints?: PointModel[];

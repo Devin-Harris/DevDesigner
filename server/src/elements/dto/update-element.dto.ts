@@ -13,6 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { MAX_ELEMENT_POINTS } from '../../common/limits';
 import {
   ARROWHEAD_TYPES,
   CODE_LANGUAGES,
@@ -111,6 +112,7 @@ export class UpdateElementDto implements IUpdateElementDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(MAX_ELEMENT_POINTS)
   @ValidateNested({ each: true })
   @Type(() => PointDto)
   points?: PointModel[];
