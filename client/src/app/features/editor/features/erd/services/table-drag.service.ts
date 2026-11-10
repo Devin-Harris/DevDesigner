@@ -1,14 +1,12 @@
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import type { SequenceStart } from '../../../models/sequence-start.model';
-import { inject, Injectable, type Signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import type { Point } from '../../../models/geometry.model';
-import type { ColumnLocation } from '../../../models/geometry.model';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What table drags read from the editor entry; the entry wires it with `connect`. */
 export interface TableDragHost {
-   readonly columnLocations: Signal<Map<string, ColumnLocation>>;
-   itemScale(id: string): number;
    sequenceStart(diagramId: string): SequenceStart | null;
    duplicateAndDrag(): Promise<void>;
 }
@@ -18,6 +16,7 @@ export interface TableDragHost {
 export class TableDragService {
    private readonly store = inject(ProjectStore);
    private readonly gesture = inject(PointerGestureService);
+   private readonly canvasView = inject(CanvasViewService);
    private host!: TableDragHost;
 
    connect(host: TableDragHost): void {
@@ -60,7 +59,7 @@ export class TableDragService {
       }
       this.gesture.startClientX = event.clientX;
       this.gesture.startClientY = event.clientY;
-      this.gesture.gestureScale = this.host.itemScale(table.id);
+      this.gesture.gestureScale = this.canvasView.itemScale(table.id);
       this.gesture.dragCopied = false;
       this.beginNodeDrag(table.id);
       if (event.altKey) {
@@ -99,7 +98,7 @@ export class TableDragService {
             : null;
 
       const moved = new Set(this.store.selectedTableIds());
-      const locs = this.host.columnLocations();
+      const locs = this.canvasView.columnLocations();
       this.waypointDragStart = new Map();
       for (const rel of this.store.relationships()) {
          const st = locs.get(rel.sourceColumnId)?.table.id;

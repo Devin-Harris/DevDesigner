@@ -1,5 +1,4 @@
 import { Injectable, inject, type Signal, type WritableSignal } from '@angular/core';
-import type { DragMode } from '../models/drag-mode.model';
 import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from '../models/pen-limits.constants';
 import { PenPrefsService } from './pen-prefs.service';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
@@ -12,7 +11,6 @@ import { PointerGestureService } from './pointer-gesture.service';
 import { EditorToolService } from './editor-tool.service';
 import { EditorViewportService } from './editor-viewport.service';
 import type { EditorTool } from '../models/editor-tool.model';
-
 /** What the shortcuts reach in the rest of the editor; the editor entry wires it with `connect`. */
 export interface ShortcutsHost {
    readonly presentation: Signal<unknown>;

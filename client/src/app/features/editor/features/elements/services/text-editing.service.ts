@@ -2,13 +2,7 @@ import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
 import { type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeLanguage, TextRun } from '@devdesigner/shared';
-import {
-   themeColorCss,
-   resolveThemeElement,
-   resolveThemeColor,
-   themeSwatchCss,
-   type SlideTheme,
-} from '@devdesigner/shared';
+import { themeColorCss, resolveThemeElement, resolveThemeColor, themeSwatchCss } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { elementBox, FRAME_TITLE_H, FRAME_TITLE_W } from '../../../helpers/element-geometry.helper';
@@ -57,12 +51,11 @@ import { formatCode } from '../../../helpers/code-format.helper';
 import type { Box } from '../../../models/geometry.model';
 import { LIST_LINE } from '../helpers/rich-list.helper';
 import { LIST_LINE_PREFIX } from '../helpers/rich-list.helper';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What inline text editing reads from the editor entry; the entry wires it with `connect`. */
 export interface TextEditingHost {
    /** The contenteditable of the rich text editor, while one is open. */
    readonly richEditorRef: Signal<ElementRef<HTMLDivElement> | undefined>;
-   viewportFor(id: string): { x: number; y: number; zoom: number };
-   deckThemeOf(el: Pick<CanvasElementModel, 'id' | 'type' | 'slideId'>): SlideTheme;
 }
 
 /**
@@ -74,6 +67,7 @@ export class TextEditingService {
    private readonly store = inject(ProjectStore);
    private readonly codeActions = inject(CodeActionsService);
    private readonly snackBar = inject(MatSnackBar);
+   private readonly canvasView = inject(CanvasViewService);
    private host!: TextEditingHost;
 
    connect(host: TextEditingHost): void {
@@ -90,7 +84,7 @@ export class TextEditingService {
       if (!id || el?.type !== 'code' || !codeDiffActive(el)) {
          return null;
       }
-      const v = this.host.viewportFor(id);
+      const v = this.canvasView.viewportFor(id);
       const z = v.zoom;
       const fontSize = el.fontSize ?? CODE_FONT_SIZE;
       const d = codeDiffEditLayout(el);
@@ -123,7 +117,7 @@ export class TextEditingService {
       }
       const raw = this.store.elements().find((e) => e.id === id);
       // The editor overlay draws in the element's concrete (theme-resolved) colors and font.
-      const el = raw && resolveThemeElement(raw, this.host.deckThemeOf(raw));
+      const el = raw && resolveThemeElement(raw, this.canvasView.deckThemeOf(raw));
       const editable =
          el &&
          (el.type === 'text' ||
@@ -137,7 +131,7 @@ export class TextEditingService {
       if (!el || !editable) {
          return null;
       }
-      const v = this.host.viewportFor(id);
+      const v = this.canvasView.viewportFor(id);
       const z = v.zoom;
       if (el.type === 'frame') {
          // The frame's name is edited in place on the strip above its top-left corner.
@@ -510,7 +504,9 @@ export class TextEditingService {
          if (run.color) {
             // Theme tokens paint as their color; the dataset keeps the token to save back.
             const el = this.store.elements().find((e) => e.id === this.editingTextId());
-            span.style.color = el ? themeSwatchCss(resolveThemeColor(run.color, this.host.deckThemeOf(el))) : run.color;
+            span.style.color = el
+               ? themeSwatchCss(resolveThemeColor(run.color, this.canvasView.deckThemeOf(el)))
+               : run.color;
             span.dataset['color'] = run.color;
          }
          if (run.morph) {

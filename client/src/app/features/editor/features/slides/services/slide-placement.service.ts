@@ -1,6 +1,6 @@
 import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { inject, Injectable, type Signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import {
    presentationOf,
@@ -12,30 +12,19 @@ import {
    presentationLayouts,
    DEFAULT_SLIDE_TRANSITION,
 } from '@devdesigner/shared';
-import {
-   boxToOuter,
-   MIN_SLIDE_ZOOM,
-   slideViewRegion,
-   type SlideView,
-   toInner,
-   toOuter,
-} from '../../../helpers/slide-zoom.helper';
+import { boxToOuter, MIN_SLIDE_ZOOM, slideViewRegion, toInner, toOuter } from '../../../helpers/slide-zoom.helper';
 import { ProjectStore } from '../../../state/project/project.store';
 import { fillFromLayout } from '../../../helpers/layout-placeholders';
 import { frameContents, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
 import { framePreset } from '../../../shared/constants/frame-presets';
 import { elementBox, tableBox } from '../../../helpers/element-geometry.helper';
-import type { Box, Rect } from '../../../models/geometry.model';
-import type { ColumnLocation } from '../../../models/geometry.model';
+import type { Box } from '../../../models/geometry.model';
 import { DEFAULT_ELEMENT_STROKE } from '../../../shared/constants/canvas.constants';
 import { SlideshowService } from './slideshow.service';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What slide placement reads from the editor entry; the entry wires it with `connect`. */
 export interface SlidePlacementHost {
-   readonly columnLocations: Signal<Map<string, ColumnLocation>>;
-   readonly slideViews: Signal<SlideView[]>;
-   diagramBox(d: SequenceDiagramModel): Rect | null;
    sequenceStart(diagramId: string): SequenceStart | null;
-   themeVar(name: string): string | null;
 }
 
 /**
@@ -47,6 +36,7 @@ export class SlidePlacementService {
    private readonly store = inject(ProjectStore);
    private readonly viewport = inject(EditorViewportService);
    private readonly slideshow = inject(SlideshowService);
+   private readonly canvasView = inject(CanvasViewService);
    private host!: SlidePlacementHost;
 
    connect(host: SlidePlacementHost): void {
@@ -157,7 +147,7 @@ export class SlidePlacementService {
       // The block is the frame's spot on the canvas. Free content dropped on it joins the
       // shown slide; while the slide is zoomed out, it is moved into the slide's own
       // coordinates so it stays where it was dropped (drawn at the slide's zoom).
-      const view = this.host.slideViews().find((v) => v.frameId === active.id);
+      const view = this.canvasView.slideViews().find((v) => v.frameId === active.id);
       const inside = (b: Box): boolean => {
          const cx = (b.x0 + b.x1) / 2;
          const cy = (b.y0 + b.y1) / 2;
@@ -237,7 +227,7 @@ export class SlidePlacementService {
       }
       const frames = new Map(this.store.slideFrames().map((f) => [f.id, f]));
       const shown = this.store.shownSlideIds();
-      const views = new Map(this.host.slideViews().map((v) => [v.frameId, v]));
+      const views = new Map(this.canvasView.slideViews().map((v) => [v.frameId, v]));
       const release = { elements: [] as string[], tables: [] as string[], diagrams: [] as string[] };
       const check = (id: string, slideId: string | undefined, box: Box, kind: 'elements' | 'tables'): void => {
          const f = slideId ? frames.get(slideId) : undefined;
@@ -313,7 +303,7 @@ export class SlidePlacementService {
          if (tableIds.has(t.id)) tables.set(t.id, { x: t.x + dx, y: t.y + dy });
       }
       const waypoints = new Map<string, { x: number; y: number }[]>();
-      const locs = this.host.columnLocations();
+      const locs = this.canvasView.columnLocations();
       for (const rel of this.store.relationships()) {
          if (!rel.waypoints?.length) {
             continue;
@@ -478,7 +468,7 @@ export class SlidePlacementService {
                if (moved) {
                   for (const rel of this.store.relationships()) {
                      if (rel.waypoints?.length) {
-                        const locs = this.host.columnLocations();
+                        const locs = this.canvasView.columnLocations();
                         const st = locs.get(rel.sourceColumnId)?.table.id;
                         const tt = locs.get(rel.targetColumnId)?.table.id;
                         if (st && tt && geo.tableIds.has(st) && geo.tableIds.has(tt)) {
@@ -607,7 +597,7 @@ export class SlidePlacementService {
          width: shown?.width ?? preset.width,
          height: shown?.height ?? preset.height,
          angle: 0,
-         strokeColor: this.host.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
+         strokeColor: this.canvasView.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE,
          // Slides and layouts show the master's background unless given their own.
          fillStyle: 'none' as const,
          strokeWidth: 1.5,
@@ -665,7 +655,7 @@ export class SlidePlacementService {
          diagrams: this.store
             .sequenceDiagrams()
             .filter((d) => {
-               const b = !d.slideId && this.host.diagramBox(d);
+               const b = !d.slideId && this.canvasView.diagramBox(d);
                return !!b && inside({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
             })
             .map((d) => d.id),

@@ -4,10 +4,10 @@ import { ElementImagesService } from '../../../services/element-images.service';
 import { ProjectStore } from '../../../state/project/project.store';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What media drops reach in the rest of the editor; the editor entry wires it with `connect`. */
 export interface MediaDropHost {
    readonly gridSnap: Signal<boolean>;
-   defaultStroke(): string;
    importProjectFile(file: unknown, at?: { x: number; y: number }): Promise<number>;
 }
 
@@ -17,6 +17,7 @@ export class MediaDropService {
    private readonly store = inject(ProjectStore);
    private readonly snackBar = inject(MatSnackBar);
    private readonly viewport = inject(EditorViewportService);
+   private readonly canvasView = inject(CanvasViewService);
    private host!: MediaDropHost;
 
    connect(host: MediaDropHost): void {
@@ -127,7 +128,7 @@ export class MediaDropService {
                width,
                height,
                angle: 0,
-               strokeColor: this.host.defaultStroke(),
+               strokeColor: this.canvasView.defaultStroke(),
                fillStyle: 'none',
                strokeWidth: 0,
                strokeStyle: 'solid',

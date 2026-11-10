@@ -1,3 +1,4 @@
+import type { MinimapItem } from '../../models/minimap-item.model';
 import {
    ChangeDetectionStrategy,
    Component,
@@ -13,17 +14,6 @@ import {
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../../../core/theme/theme.service';
-
-/** A simplified world-space footprint of one canvas element. */
-export interface MinimapItem {
-   kind: 'table' | 'sequence' | 'shape' | 'frame' | 'text' | 'line';
-   x0: number;
-   y0: number;
-   x1: number;
-   y1: number;
-   /** Absolute world points for line/arrow/freehand items. */
-   points?: { x: number; y: number }[];
-}
 
 export interface MinimapView {
    x0: number;

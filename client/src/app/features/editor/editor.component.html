@@ -26,7 +26,7 @@
          <!-- Frames sit at the very back so their fills never cover connectors. -->
          <dd-canvas-shapes
             layer="frames"
-            [shapes]="outerShapeViews()"
+            [shapes]="canvasView.outerShapeViews()"
             [svgOffset]="svgOffset"
             [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
@@ -41,7 +41,7 @@
          <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
            items, scaled about the frame's centre and clipped to the block (not while
            dragging, so an item can be carried out of it). -->
-         @for (z of slideViewLayers(); track z.view.frameId) {
+         @for (z of canvasView.slideViewLayers(); track z.view.frameId) {
             <div
                class="slide-zoom"
                [class.clipped]="!slideUnclipped()"
@@ -75,7 +75,7 @@
                      (segmentDown)="relLink.onSegmentDown($event)"
                      (resetRoute)="relLink.onAutoRoute($event)"
                   ></dd-canvas-connectors>
-                  @for (seg of contentSegments(); track seg.index) {
+                  @for (seg of canvasView.contentSegments(); track seg.index) {
                      <dd-canvas-shapes
                         layer="content"
                         [hostZ]="seg.z"
@@ -112,7 +112,7 @@
                      [smartDragEnd]="smartDragEnd"
                      [groupResize]="startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
-                     [layerZ]="diagramLayers().z"
+                     [layerZ]="canvasView.diagramLayers().z"
                   ></dd-canvas-sequence>
                   <dd-canvas-shapes
                      layer="lines"
@@ -135,7 +135,7 @@
          <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
          <dd-canvas-connectors
-            [connectors]="outerConnectors()"
+            [connectors]="canvasView.outerConnectors()"
             [tempLinkPath]="relLink.tempLink()"
             [snapAnchor]="relLink.linkSnap()?.anchor ?? null"
             [svgOffset]="svgOffset"
@@ -148,12 +148,12 @@
 
          <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
-         @for (seg of contentSegments(); track seg.index) {
+         @for (seg of canvasView.contentSegments(); track seg.index) {
             <dd-canvas-shapes
                layer="content"
                [hostZ]="seg.z"
                [accept]="seg.accept"
-               [shapes]="outerShapeViews()"
+               [shapes]="canvasView.outerShapeViews()"
                [svgOffset]="svgOffset"
                [dragging]="relLink.dragging()"
                [interactive]="shapesInteractive()"
@@ -166,7 +166,7 @@
             ></dd-canvas-shapes>
          }
 
-         @for (table of outerTables(); track table.id) {
+         @for (table of canvasView.outerTables(); track table.id) {
             <dd-table-node
                [table]="table"
                [selected]="store.selectedTableIds().includes(table.id)"
@@ -187,15 +187,15 @@
             [smartDrag]="smartDrag"
             [smartDragEnd]="smartDragEnd"
             [groupResize]="startGroupResize"
-            [hiddenIds]="outerHiddenDiagramIds()"
-            [layerZ]="diagramLayers().z"
+            [hiddenIds]="canvasView.outerHiddenDiagramIds()"
+            [layerZ]="canvasView.diagramLayers().z"
          ></dd-canvas-sequence>
 
          <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
            to message labels. -->
          <dd-canvas-shapes
             layer="lines"
-            [shapes]="outerShapeViews()"
+            [shapes]="canvasView.outerShapeViews()"
             [svgOffset]="svgOffset"
             [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
@@ -259,7 +259,7 @@
          <dd-minimap
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
-            [items]="minimapItems()"
+            [items]="canvasView.minimapItems()"
             [view]="minimapView()"
             (panTo)="viewport.panToWorld($event)"
          ></dd-minimap>

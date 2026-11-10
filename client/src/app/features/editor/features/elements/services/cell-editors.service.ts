@@ -1,17 +1,15 @@
 import { type ElementRef, computed, effect, inject, Injectable, type Signal } from '@angular/core';
 import { themeColorCss } from '@devdesigner/shared';
-import type { ShapeView } from '../../../models/shape-view.model';
 import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { GridTableService } from '../../../services/grid-table.service';
 import { GRID_CELL_PAD, edges as gridEdges, gridSizes, mergeAt, parseGrid } from '../../../helpers/grid-table.helper';
 import { CODE_FONT_SIZE, CODE_DOTS_WIDTH, codeHeaderHeight, gridFont, SURFACE_FILL } from '../../../helpers/render';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What the cell editors read from the editor entry; the entry wires it with `connect`. */
 export interface CellEditorsHost {
    /** The grid cell editor's textarea, while it is open. */
    readonly gridCellArea: Signal<ElementRef<HTMLTextAreaElement> | undefined>;
-   readonly shapeViews: Signal<ShapeView[]>;
-   viewportFor(id: string): { x: number; y: number; zoom: number };
 }
 
 /** The grid-table cell editor and the code block's file-name editor overlays. */
@@ -20,6 +18,7 @@ export class CellEditorsService {
    private readonly store = inject(ProjectStore);
    private readonly codeActions = inject(CodeActionsService);
    private readonly grids = inject(GridTableService);
+   private readonly canvasView = inject(CanvasViewService);
    private host!: CellEditorsHost;
 
    connect(host: CellEditorsHost): void {
@@ -40,7 +39,7 @@ export class CellEditorsService {
       const { cols, rows } = gridSizes(g, el.width, el.height);
       const ce = gridEdges(cols);
       const re = gridEdges(rows);
-      const v = this.host.viewportFor(el.id);
+      const v = this.canvasView.viewportFor(el.id);
       const z = v.zoom;
       const f = gridFont(el);
       const isHeader = g.header && cell.row === 0;
@@ -48,7 +47,7 @@ export class CellEditorsService {
       const st = g.styles?.[`${cell.row},${cell.col}`] ?? {};
       const bg =
          (st.fill === SURFACE_FILL ? undefined : st.fill) ??
-         this.host.shapeViews().find((s) => s.id === el.id)?.grid?.background;
+         this.canvasView.shapeViews().find((s) => s.id === el.id)?.grid?.background;
       return {
          key: `${cell.id}:${cell.row}:${cell.col}`,
          left: (el.x + ce[cell.col]) * z + v.x,
@@ -158,7 +157,7 @@ export class CellEditorsService {
       const fontSize = el.fontSize ?? CODE_FONT_SIZE;
       // With no name yet there is no bar; the input shows where it will appear.
       const height = codeHeaderHeight(fontSize);
-      const view = this.host.shapeViews().find((s) => s.id === el.id)?.code;
+      const view = this.canvasView.shapeViews().find((s) => s.id === el.id)?.code;
       return {
          id: el.id,
          value: el.fileName ?? '',

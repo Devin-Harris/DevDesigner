@@ -1,6 +1,6 @@
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { computed, inject, signal, Injectable, type Signal } from '@angular/core';
+import { computed, inject, signal, Injectable } from '@angular/core';
 import type { RelationshipModel, RelationshipType } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import {
@@ -13,18 +13,11 @@ import { elbowPath } from '../../../helpers/svg-path.helper';
 import { findLinkSnap, type LinkSnap } from '../helpers/link-snap.helper';
 import type { Point, Side } from '../../../models/geometry.model';
 import { type HandleEvent } from '../components/table-node/table-node.component';
-import type { ColumnLocation } from '../../../models/geometry.model';
-import type { Connector } from '../../../models/connector.model';
+import { CanvasViewService } from '../../../services/canvas-view.service';
 /** A relationship end being re-pointed. */
 interface RelinkState {
    relationshipId: string;
    which: 'source' | 'target';
-}
-
-/** What relationship editing reads from the editor entry; the entry wires it with `connect`. */
-export interface RelationshipLinkHost {
-   readonly columnLocations: Signal<Map<string, ColumnLocation>>;
-   readonly connectors: Signal<Connector[]>;
 }
 
 /**
@@ -35,12 +28,7 @@ export interface RelationshipLinkHost {
 export class RelationshipLinkService {
    private readonly store = inject(ProjectStore);
    private readonly viewport = inject(EditorViewportService);
-   private host!: RelationshipLinkHost;
-
-   connect(host: RelationshipLinkHost): void {
-      this.host = host;
-   }
-
+   private readonly canvasView = inject(CanvasViewService);
    readonly selectedRelInline = computed<{
       x: number;
       y: number;
@@ -50,7 +38,7 @@ export class RelationshipLinkService {
       if (!rel) {
          return null;
       }
-      const connector = this.host.connectors().find((c) => c.id === rel.id);
+      const connector = this.canvasView.connectors().find((c) => c.id === rel.id);
       if (!connector) {
          return null;
       }
@@ -110,7 +98,7 @@ export class RelationshipLinkService {
       if (!cursor || !sourceId || this.relinkState()) {
          return null;
       }
-      const loc = this.host.columnLocations().get(sourceId);
+      const loc = this.canvasView.columnLocations().get(sourceId);
       if (!loc) {
          return null;
       }
@@ -133,7 +121,7 @@ export class RelationshipLinkService {
       this.relinkState.set(null);
       this.linkSourceColumnId.set(payload.columnId);
       this.linkSourceSide.set(payload.side);
-      const loc = this.host.columnLocations().get(payload.columnId);
+      const loc = this.canvasView.columnLocations().get(payload.columnId);
       if (loc) {
          const a = columnAnchor(loc.table, loc.index, payload.side);
          this.linkCursor.set({ x: a.x, y: a.y });
@@ -206,7 +194,7 @@ export class RelationshipLinkService {
     */
    private repoint(relink: RelinkState, columnId: string, side: Side): void {
       const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
-      const connector = this.host.connectors().find((c) => c.id === relink.relationshipId);
+      const connector = this.canvasView.connectors().find((c) => c.id === relink.relationshipId);
       if (!rel) {
          return;
       }
@@ -227,7 +215,7 @@ export class RelationshipLinkService {
       if (!this.store.canEdit()) {
          return;
       }
-      const connector = this.host.connectors().find((c) => c.id === payload.relationshipId);
+      const connector = this.canvasView.connectors().find((c) => c.id === payload.relationshipId);
       if (!connector) {
          return;
       }
@@ -266,7 +254,7 @@ export class RelationshipLinkService {
          return;
       }
       const rel = this.store.relationships().find((r) => r.id === active.relationshipId);
-      const c = this.host.connectors().find((x) => x.id === active.relationshipId);
+      const c = this.canvasView.connectors().find((x) => x.id === active.relationshipId);
       if (rel && c && (c.sourceSide !== rel.sourceSide || c.targetSide !== rel.targetSide)) {
          void this.store.updateRelationship(rel.id, { sourceSide: c.sourceSide, targetSide: c.targetSide });
       }
@@ -313,7 +301,7 @@ export class RelationshipLinkService {
       }
       const enable = primary.autoRoute === false;
       const ids = new Set(this.store.selectedRelationshipIds());
-      for (const c of this.host.connectors()) {
+      for (const c of this.canvasView.connectors()) {
          if (!ids.has(c.id)) {
             continue;
          }
@@ -347,7 +335,7 @@ export class RelationshipLinkService {
          const b = id ? now.get(id) : undefined;
          return a && b ? { x: b.x - a.x, y: b.y - a.y } : { x: 0, y: 0 };
       };
-      const locs = this.host.columnLocations();
+      const locs = this.canvasView.columnLocations();
       for (const rel of this.store.relationships()) {
          const wp = rel.waypoints;
          if (!wp?.length) continue;

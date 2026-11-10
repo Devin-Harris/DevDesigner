@@ -33,6 +33,11 @@ export class EditorViewportService {
       this.host = host;
    }
 
+   /** The canvas element (the viewport's screen area). */
+   canvasRef(): ElementRef<HTMLElement> {
+      return this.host.canvasRef();
+   }
+
    readonly worldTransform = computed(() => {
       const v = this.store.viewport();
       return `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;

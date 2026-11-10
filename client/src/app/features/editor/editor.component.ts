@@ -1,3 +1,5 @@
+import type { SequenceDiagramModel } from '@devdesigner/shared';
+import { CanvasViewService } from './services/canvas-view.service';
 import { EditorToolService } from './services/editor-tool.service';
 import { TableDragService } from './features/erd/services/table-drag.service';
 import { RelationshipLinkService } from './features/erd/services/relationship-link.service';
@@ -49,31 +51,16 @@ import type {
 import {
    presentationOf,
    presentationSlides,
-   type SequenceDiagramModel,
    layoutOf,
    layoutNameOf,
-   isEmptyPlaceholder,
-   placeholderPrompt,
    sequenceDiagramRect,
-   resolveThemedElements,
    masterOf,
-   DEFAULT_THEME,
-   type SlideTheme,
 } from '@devdesigner/shared';
-import {
-   boxToOuter,
-   inBlock,
-   slideView,
-   slideViewTransform,
-   type SlideView,
-   toInner,
-   toOuter,
-} from './helpers/slide-zoom.helper';
+import { inBlock, type SlideView, toInner, toOuter } from './helpers/slide-zoom.helper';
 import { LOCAL_LASER, LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
-import type { ShapeView } from './models/shape-view.model';
 import { ProjectFileService } from '../../shared/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { MediaActionsService } from './services/media-actions.service';
@@ -108,16 +95,14 @@ import {
    type ShapePointerEvent,
 } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
 import { type AlignAction } from './models/toolbar-actions';
-import { slotFollower, slotStyle, standInFor } from './helpers/layout-placeholders';
-import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.component';
+import { standInFor } from './helpers/layout-placeholders';
+import { MinimapComponent } from './features/minimap/minimap.component';
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
-import { ConnectorRouteCache, computeConnectors } from './helpers/connectors.helper';
-import { LAYOUT_Z_OFFSET, frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
+import { frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
 import { framePreset } from './shared/constants/frame-presets';
 import {
    absolutePoints,
    elementBox,
-   sameBoxes,
    elementIntersectsRect,
    hitTestElement,
    isPathElement,
@@ -125,11 +110,8 @@ import {
    toRelative,
 } from './helpers/element-geometry.helper';
 import { chordNormal } from './helpers/freedraw-path.helper';
-import { buildColumnLocations, tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
-import { messageLabelBoxes } from './helpers/message-box.helper';
+import { tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
 import {
-   buildShapeViews,
-   ShapeViewCache,
    CODE_FONT_SIZE,
    codeDiffActive,
    codeDiffSplit,
@@ -139,7 +121,6 @@ import {
    SURFACE_FILL,
 } from './helpers/render';
 import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from './helpers/text-metrics';
-import { elbowPath } from './helpers/svg-path.helper';
 import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './features/canvas/helpers/smart-guides.helper';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
@@ -170,6 +151,7 @@ import { CompareUiState } from './features/slides/features/deck-compare/services
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
+import type { RelinkPreview } from './services/canvas-view.service';
 interface ElementGesture {
    id: string;
    /** Starting geometry of the element(s) at gesture start (for delta math). */
@@ -243,17 +225,6 @@ function readStoredGrid(): boolean {
  *
  * Pan with middle-mouse or Space+drag; left-drag on empty canvas is a marquee.
  */
-const dim = (v: ShapeView): ShapeView => ({ ...v, opacity: v.opacity * 0.5 });
-const lock = (v: ShapeView): ShapeView => ({ ...v, locked: true });
-/** `make(v)`, made once per view object. */
-function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: ShapeView) => ShapeView): ShapeView {
-   let out = cache.get(v);
-   if (!out) {
-      out = make(v);
-      cache.set(v, out);
-   }
-   return out;
-}
 
 @Component({
    selector: 'dd-editor',
@@ -305,11 +276,13 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       TableDragService,
       RelationshipLinkService,
       EditorToolService,
+      CanvasViewService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly canvasView = inject(CanvasViewService);
    protected readonly tools = inject(EditorToolService);
    protected readonly relLink = inject(RelationshipLinkService);
    protected readonly tableDrag = inject(TableDragService);
@@ -367,212 +340,6 @@ export class EditorComponent {
          this.store.selectedRelationship()?.id ?? '',
       ].join('|')
    );
-
-   /** The slide being shown/edited; it is the only slide on the canvas. */
-   protected readonly activeSlideId = this.store.activeSlideId;
-
-   /** What the canvas leaves out because it belongs to another (stacked) slide. */
-   protected readonly focusHidden = this.store.hiddenBySlides;
-
-   /** The elements on the canvas right now (not collapsed away with another slide). */
-   private shownElements(): CanvasElementModel[] {
-      const hide = this.focusHidden();
-      const locked = this.store.layoutItemIds();
-      return this.store.elements().filter((e) => !hide?.elementIds.has(e.id) && !locked.has(e.id));
-   }
-
-   /** Tables that are on the canvas right now (focus mode collapses other slides' tables). */
-   protected readonly visibleTables = computed(() => {
-      const hide = this.focusHidden();
-      const tables = this.store.tables();
-      return hide ? tables.filter((t) => !hide.tableIds.has(t.id)) : tables;
-   });
-
-   /** Sequence diagrams hidden by focus mode. */
-   protected readonly hiddenDiagramIds = computed<ReadonlySet<string> | null>(
-      () => this.focusHidden()?.diagramIds ?? null
-   );
-
-   /**
-    * Slides zoomed out inside their block (Ctrl + scroll over a shown slide). Their frame
-    * and items are drawn in a layer of their own, scaled about the frame's centre and
-    * clipped to the block, so the staging room around the frame shows.
-    */
-   readonly slideViews = computed<SlideView[]>(() => {
-      // Every shown slide is drawn through its block, also at scale 1: the block is a
-      // window onto the slide, so items staged outside the frame only show zoomed out.
-      const zoom = this.store.slideZoom();
-      const frames = this.store.slideFrames();
-      return [...this.store.shownByPresentation()].flatMap(([name, id]) => {
-         const frame = frames.find((f) => f.id === id);
-         return frame ? [slideView(frame, name, zoom[name] ?? 1)] : [];
-      });
-   });
-
-   /** Which zoomed slide view draws each item (frame + what the slide owns), by kind. */
-   private readonly zoomedItems = computed(() => {
-      const views = new Map(this.slideViews().map((v) => [v.frameId, v]));
-      const elements = new Map<string, SlideView>();
-      const tables = new Map<string, SlideView>();
-      const diagrams = new Map<string, SlideView>();
-      // A shape being drawn inside a zoomed slide is drawn there before it is saved.
-      const draft = this.tools.draft();
-      const draftView = draft ? views.get(this.tools.drawSlideId() ?? '') : undefined;
-      if (draft && draftView) elements.set(draft.id, draftView);
-      if (views.size) {
-         // A zoomed slide's layout and master items are drawn in its layer too, beneath its own.
-         const frames = this.store.slideFrames();
-         const layoutViews = new Map<string, SlideView>();
-         for (const f of frames) {
-            const v = views.get(f.id);
-            if (!v) continue;
-            for (const u of [layoutOf(f, frames), masterOf(f, frames)]) {
-               if (u && !views.has(u.id) && !layoutViews.has(u.id)) layoutViews.set(u.id, v);
-            }
-         }
-         const locked = this.store.layoutItemIds();
-         for (const e of this.store.elements()) {
-            // The frame joins its layer only zoomed out: at scale 1 its title strip and
-            // handles sit on or past the block's edge, where the layer clips.
-            const own = views.get(e.id);
-            const v =
-               own && own.scale < 1
-                  ? own
-                  : e.slideId
-                    ? (views.get(e.slideId) ?? (locked.has(e.id) ? layoutViews.get(e.slideId) : undefined))
-                    : undefined;
-            if (v) elements.set(e.id, v);
-         }
-         for (const t of this.store.tables()) {
-            const v = t.slideId ? views.get(t.slideId) : undefined;
-            if (v) tables.set(t.id, v);
-         }
-         for (const d of this.store.sequenceDiagrams()) {
-            const v = d.slideId ? views.get(d.slideId) : undefined;
-            if (v) diagrams.set(d.id, v);
-         }
-      }
-      return { elements, tables, diagrams };
-   });
-
-   /** The zoomed slide view an item is drawn in, if any. */
-   private viewOf(id: string): SlideView | undefined {
-      const z = this.zoomedItems();
-      return z.elements.get(id) ?? z.tables.get(id) ?? z.diagrams.get(id);
-   }
-
-   /**
-    * Slide zoom an item is drawn at (1 on the plain canvas). The slide frame itself is
-    * the block: moving it moves the whole presentation at canvas scale.
-    */
-   itemScale(id: string): number {
-      const v = this.viewOf(id);
-      return v && v.frameId !== id ? v.scale : 1;
-   }
-
-   /**
-    * The viewport an item is effectively drawn through: the canvas viewport, composed
-    * with its slide's zoom when it sits in a zoomed-out slide. For overlays placed in
-    * screen px over an item (inline text / cell editors).
-    */
-   viewportFor(id: string): { x: number; y: number; zoom: number } {
-      const v = this.store.viewport();
-      const view = this.viewOf(id);
-      if (!view) return v;
-      return {
-         x: v.x + view.cx * (1 - view.scale) * v.zoom,
-         y: v.y + view.cy * (1 - view.scale) * v.zoom,
-         zoom: v.zoom * view.scale,
-      };
-   }
-
-   /** An item's box as drawn on the canvas (through its slide's zoom, if any). */
-   drawnBox(id: string, box: Box): Box {
-      const view = this.viewOf(id);
-      return view ? boxToOuter(view, box) : box;
-   }
-
-   /**
-    * A canvas rect as seen through a slide's block: clipped to the block and mapped into
-    * the slide's coordinates; null when it misses the block (nothing there is visible).
-    */
-   private rectThrough(view: SlideView, rect: Rect): Rect | null {
-      const k = view.block;
-      const x0 = Math.max(rect.minX, k.x0);
-      const y0 = Math.max(rect.minY, k.y0);
-      const x1 = Math.min(rect.maxX, k.x1);
-      const y1 = Math.min(rect.maxY, k.y1);
-      if (x0 > x1 || y0 > y1) return null;
-      const p = toInner(view, { x: x0, y: y0 });
-      const q = toInner(view, { x: x1, y: y1 });
-      return { minX: p.x, minY: p.y, maxX: q.x, maxY: q.y };
-   }
-
-   /** Tables drawn on the canvas itself (not inside a zoomed slide). */
-   protected readonly outerTables = computed(() => {
-      const z = this.zoomedItems().tables;
-      const all = this.visibleTables();
-      return z.size ? all.filter((t) => !z.has(t.id)) : all;
-   });
-
-   protected readonly outerShapeViews = computed(() => {
-      const z = this.zoomedItems().elements;
-      const all = this.shapeViews();
-      return z.size ? all.filter((v) => !z.has(v.id)) : all;
-   });
-
-   /** Relationship lines between two tables of the same zoomed slide are drawn inside it. */
-   private readonly zoomedConnectorIds = computed(() => {
-      const out = new Map<string, SlideView>();
-      const z = this.zoomedItems().tables;
-      if (!z.size) return out;
-      const tableOf = new Map<string, string>();
-      for (const t of this.store.tables()) for (const c of t.columns) tableOf.set(c.id, t.id);
-      for (const r of this.store.relationships()) {
-         const a = z.get(tableOf.get(r.sourceColumnId) ?? '');
-         const b = z.get(tableOf.get(r.targetColumnId) ?? '');
-         if (a && a === b) out.set(r.id, a);
-      }
-      return out;
-   });
-
-   protected readonly outerConnectors = computed(() => {
-      const z = this.zoomedConnectorIds();
-      const all = this.displayConnectors();
-      return z.size ? all.filter((c) => !z.has(c.id)) : all;
-   });
-
-   protected readonly outerHiddenDiagramIds = computed<ReadonlySet<string> | null>(() => {
-      const z = this.zoomedItems().diagrams;
-      const hidden = this.hiddenDiagramIds();
-      return z.size ? new Set([...(hidden ?? []), ...z.keys()]) : hidden;
-   });
-
-   /** Everything each zoomed slide view draws, for its own set of layers. */
-   protected readonly slideViewLayers = computed(() => {
-      const z = this.zoomedItems();
-      const conn = this.zoomedConnectorIds();
-      const shapes = this.shapeViews();
-      const tables = this.visibleTables();
-      const connectors = this.displayConnectors();
-      const hidden = this.hiddenDiagramIds();
-      const diagrams = this.store.sequenceDiagrams();
-      return this.slideViews().map((v) => ({
-         view: v,
-         transform: slideViewTransform(v),
-         left: v.block.x0,
-         top: v.block.y0,
-         width: v.block.x1 - v.block.x0,
-         height: v.block.y1 - v.block.y0,
-         shapes: shapes.filter((s) => z.elements.get(s.id) === v),
-         tables: tables.filter((t) => z.tables.get(t.id) === v),
-         connectors: connectors.filter((c) => conn.get(c.id) === v),
-         hiddenDiagramIds: new Set(
-            diagrams.filter((d) => z.diagrams.get(d.id) !== v || hidden?.has(d.id)).map((d) => d.id)
-         ) as ReadonlySet<string>,
-         toWorld: (clientX: number, clientY: number) => toInner(v, this.viewport.toWorldRaw(clientX, clientY)),
-      }));
-   });
 
    /** Panels hug the frame: this is the gap to its edge, and the outline's padding. */
    private static readonly PANEL_GAP = 8;
@@ -851,30 +618,6 @@ export class EditorComponent {
       }
    });
 
-   readonly columnLocations = computed(() => buildColumnLocations(this.store.tables()));
-
-   /** Frame boxes (connectors stay inside a shared frame); unchanged unless a frame moves or resizes. */
-   private readonly frameBoxes = computed(
-      () =>
-         this.store
-            .elements()
-            .filter((e) => e.type === 'frame')
-            .map(elementBox),
-      { equal: sameBoxes }
-   );
-
-   readonly connectors = computed(() =>
-      computeConnectors(
-         this.visibleTables(),
-         this.store.relationships(),
-         new Set(this.store.selectedRelationshipIds()),
-         this.frameBoxes(),
-         this.connectorRoutes
-      )
-   );
-   /** Routes of relationships nothing moved around since the last pass (see computeConnectors). */
-   private readonly connectorRoutes = new ConnectorRouteCache();
-
    /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
    protected readonly panning = signal(false);
 
@@ -936,7 +679,7 @@ export class EditorComponent {
       let maxX = -Infinity;
       let maxY = -Infinity;
       for (const e of els) {
-         const b = this.drawnBox(e.id, elementBox(e));
+         const b = this.canvasView.drawnBox(e.id, elementBox(e));
          minX = Math.min(minX, b.x0);
          minY = Math.min(minY, b.y0);
          maxX = Math.max(maxX, b.x1);
@@ -993,9 +736,10 @@ export class EditorComponent {
          y1 = Math.max(y1, b.y1);
       };
       for (const t of this.store.tables()) if (selected.has(t.id)) grow(tableBox(t));
-      for (const e of this.store.elements()) if (selected.has(e.id)) grow(this.drawnBox(e.id, elementBox(e)));
+      for (const e of this.store.elements())
+         if (selected.has(e.id)) grow(this.canvasView.drawnBox(e.id, elementBox(e)));
       for (const d of this.store.sequenceDiagrams()) {
-         const b = selected.has(d.id) ? this.diagramBox(d) : null;
+         const b = selected.has(d.id) ? this.canvasView.diagramBox(d) : null;
          if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
       }
       if (!Number.isFinite(x0)) {
@@ -1104,174 +848,6 @@ export class EditorComponent {
       return { left: (r.x + r.w / 2) * v.zoom + v.x, top: r.y * v.zoom + v.y };
    });
 
-   /** World boxes of sequence message labels: anchor targets for lines/arrows. */
-   private readonly messageBoxes = computed(() =>
-      messageLabelBoxes(this.store.sequenceDiagrams(), this.store.lifelines(), this.store.sequenceMessages())
-   );
-
-   /**
-    * Stacking of sequence diagrams against drawing elements. A diagram with a
-    * zIndex at or below the topmost element sits among the content shapes (the
-    * content layer is split into slices around each such diagram); one above
-    * every element also clears the table nodes. Table nodes stay at z 400;
-    * elements flagged `aboveTables` draw in their own slice at z 401.
-    */
-   protected readonly diagramLayers = computed(() => {
-      const els = this.store.elements().filter((e) => e.type !== 'frame');
-      const maxZ = els.reduce((m, e) => Math.max(m, e.zIndex), -Infinity);
-      const sorted = [...this.store.sequenceDiagrams()].sort((a, b) => a.zIndex - b.zIndex);
-      const among = sorted.filter((d) => d.zIndex <= maxZ);
-      const z = new Map<string, number>();
-      among.forEach((d, i) => z.set(d.id, 11 + 2 * i));
-      // 401 is the above-tables content slice (elements brought in front of the ERD).
-      sorted.filter((d) => d.zIndex > maxZ).forEach((d, i) => z.set(d.id, 402 + i));
-      const segmentOf = new Map<string, number>();
-      // A shown slide's layout items sit beneath everything on it.
-      const locked = this.store.layoutItemIds();
-      for (const e of els) {
-         if (locked.has(e.id)) {
-            segmentOf.set(e.id, 0);
-            continue;
-         }
-         if (e.aboveTables) {
-            segmentOf.set(e.id, among.length + 1);
-            continue;
-         }
-         let s = 0;
-         while (s < among.length && among[s].zIndex < e.zIndex) s++;
-         segmentOf.set(e.id, s);
-      }
-      return { z, segmentOf, segments: among.length + 1 };
-   });
-
-   /** One content-layer slice per gap between diagrams (a single one without diagrams). */
-   protected readonly contentSegments = computed(() => {
-      const { segmentOf, segments } = this.diagramLayers();
-      // One extra slice above the table nodes for elements flagged `aboveTables`.
-      return Array.from({ length: segments + 1 }, (_, index) => ({
-         index,
-         z: index === segments ? 401 : 10 + 2 * index,
-         // Anything unknown (the in-progress draft) is newest, so it draws on top.
-         accept: (id: string): boolean => (segmentOf.get(id) ?? segments - 1) === index,
-      }));
-   });
-
-   /** Render views for all elements plus any in-progress draft, resolved for the SVG layer. */
-   readonly shapeViews = computed(() => {
-      const draft = this.tools.draft();
-      const hide = this.focusHidden();
-      const shown = hide ? this.store.elements().filter((e) => !hide.elementIds.has(e.id)) : this.store.elements();
-      // A shown slide's layout items draw beneath it, locked.
-      const locked = this.store.layoutItemIds();
-      const editing = this.textEditing.editingTextId();
-      const looks = this.emptyCopyLooks();
-      const fills = this.layoutFills();
-      // Elements draw in array order, so a shown slide's layout items go first (beneath it).
-      const ordered = locked.size
-         ? [...shown.filter((e) => locked.has(e.id)), ...shown.filter((e) => !locked.has(e.id))]
-         : shown;
-      const masters = this.store.masterItemIds();
-      const under = this.inheritedOffsets();
-      const all = ordered.map((e) => {
-         if (locked.has(e.id)) {
-            // The master's items sit below the layout's.
-            const depth = masters.has(e.id) ? 2 : 1;
-            // Drawn where the shown slide is (its layout catches up once a drag settles).
-            const d = e.slideId ? under.get(e.slideId) : undefined;
-            const at = d ? { x: e.x + d.dx, y: e.y + d.dy } : {};
-            return { ...e, ...at, zIndex: e.zIndex - LAYOUT_Z_OFFSET * depth, aboveTables: false };
-         }
-         const fill = fills.get(e.id);
-         if (fill) return { ...e, ...fill };
-         // An empty placeholder copy shows its layout slot's text, ghosted (not while typed into).
-         const look = looks.get(e.id);
-         if (look && e.id !== editing) return { ...look.el, opacity: look.el.opacity * 0.45 };
-         if (isEmptyPlaceholder(e) && e.id !== editing) {
-            return { ...e, text: placeholderPrompt(e.placeholder!), runs: undefined, opacity: e.opacity * 0.45 };
-         }
-         return e;
-      });
-      // Fields ({{slide}}, {{date}}, ...) stay as tokens on the canvas; they fill in when presenting/exporting.
-      const filled = all;
-      // A diff card being edited shows both sides plain, one under each of its two editors.
-      const editedDiff = editing ? filled.find((e) => e.id === editing) : undefined;
-      const diffEditingId = editedDiff?.type === 'code' && codeDiffActive(editedDiff) ? editing : null;
-      // Deck theme tokens ($accent1, $heading, ...) resolve against each item's presentation.
-      const elements = resolveThemedElements(draft ? [...filled, draft] : filled, this.store.slideFrames());
-      // Depend on the theme so colors re-resolve (and re-contrast) on toggle, and re-measure
-      // text once web fonts arrive.
-      this.theme.dark();
-      this.fontMetrics.fontsLoaded$();
-      const views = buildShapeViews(
-         elements,
-         this.visibleTables(),
-         new Set(this.store.selectedElementIds()),
-         this.themeColors(),
-         this.messageBoxes(),
-         diffEditingId,
-         { cache: this.shapeViewCache, generation: this.fontMetrics.generation }
-      );
-      // Slide items staged wholly outside their frame (morph entrances/exits) are dimmed:
-      // they are part of the slide but never shown when presenting.
-      const frames = new Map(this.store.slideFrames().map((f) => [f.id, f]));
-      const offSlide = new Set(
-         elements
-            .filter((e) => {
-               const f = e.slideId ? frames.get(e.slideId) : undefined;
-               if (!f || e.type === 'frame') return false;
-               const b = elementBox(e);
-               return b.x1 <= f.x || b.x0 >= f.x + f.width || b.y1 <= f.y || b.y0 >= f.y + f.height;
-            })
-            .map((e) => e.id)
-      );
-      // Derived copies are memoized per view, so unchanged items keep their object identity.
-      const out = offSlide.size
-         ? views.map((v) => (offSlide.has(v.id) ? variant(this.dimmedViews, v, dim) : v))
-         : views;
-      return locked.size ? out.map((v) => (locked.has(v.id) ? variant(this.lockedViews, v, lock) : v)) : out;
-   });
-   /** Unchanged elements keep their render view between rebuilds (see buildShapeViews). */
-   private readonly shapeViewCache = new ShapeViewCache();
-   private readonly dimmedViews = new WeakMap<ShapeView, ShapeView>();
-   private readonly lockedViews = new WeakMap<ShapeView, ShapeView>();
-
-   /** Resolved canvas background + text color for the render-time contrast guard. */
-   private readonly themeColors = computed(
-      (): { canvasBg: string; text: string; surface: string } | undefined => {
-         // Re-read the tokens only when the theme flips, not on every shape rebuild.
-         this.theme.themeChanged$();
-         try {
-            const styles = getComputedStyle(this.canvasRef().nativeElement);
-            const canvasBg = styles.getPropertyValue('--dd-canvas-bg').trim();
-            const text = styles.getPropertyValue('--dd-text').trim();
-            const surface = styles.getPropertyValue('--dd-surface').trim();
-            return canvasBg && text ? { canvasBg, text, surface } : undefined;
-         } catch {
-            return undefined;
-         }
-      },
-      { equal: (a, b) => a?.canvasBg === b?.canvasBg && a?.text === b?.text && a?.surface === b?.surface }
-   );
-
-   /** The shapes layer is interactive only in select mode (drawing passes through it). */
-   /** Two or more independently movable units (a whole group counts as one). */
-   private readonly alignUnitCount = computed(() => {
-      const byItem = this.store.groupByItem();
-      const entered = this.store.enteredGroupId();
-      const ids = [
-         ...this.store.selectedTableIds(),
-         ...this.store.selectedElementIds(),
-         ...this.store.selectedDiagramIds(),
-      ];
-      const units = new Set(
-         ids.map((id) => {
-            const g = byItem.get(id);
-            return g && g !== entered ? g : id;
-         })
-      );
-      return units.size;
-   });
-
    /**
     * The frame / shape a lone selected unit sits fully inside, if any. A single
     * selection aligns to this container, so no second selection is needed. Once
@@ -1279,7 +855,7 @@ export class EditorComponent {
     * covers the "item + its container" case).
     */
    private readonly alignContainer = computed<Box | null>(() => {
-      if (this.alignUnitCount() !== 1) {
+      if (this.canvasView.alignUnitCount() !== 1) {
          return null;
       }
       const selected = new Set([
@@ -1304,7 +880,7 @@ export class EditorComponent {
          if (selected.has(e.id)) grow(elementBox(e));
       }
       for (const d of this.store.sequenceDiagrams()) {
-         const b = selected.has(d.id) ? this.diagramBox(d) : null;
+         const b = selected.has(d.id) ? this.canvasView.diagramBox(d) : null;
          if (b) grow({ x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
       }
       if (!Number.isFinite(x0)) {
@@ -1328,11 +904,13 @@ export class EditorComponent {
 
    /** Align buttons are live for 2+ units, or for one unit inside a container. */
    protected readonly canAlign = computed(
-      () => this.store.canEdit() && (this.alignUnitCount() >= 2 || !!this.alignContainer())
+      () => this.store.canEdit() && (this.canvasView.alignUnitCount() >= 2 || !!this.alignContainer())
    );
-   protected readonly canDistribute = computed(() => this.store.canEdit() && this.alignUnitCount() >= 3);
+   protected readonly canDistribute = computed(() => this.store.canEdit() && this.canvasView.alignUnitCount() >= 3);
    /** True when an align action would target the surrounding container. */
-   protected readonly alignToContainer = computed(() => this.alignUnitCount() === 1 && !!this.alignContainer());
+   protected readonly alignToContainer = computed(
+      () => this.canvasView.alignUnitCount() === 1 && !!this.alignContainer()
+   );
 
    /** Dashed outlines around selected groups and the group currently entered. */
    protected readonly groupOutlines = computed(() => {
@@ -1405,127 +983,25 @@ export class EditorComponent {
    private readonly codeActions = inject(CodeActionsService);
    protected readonly grids = inject(GridTableService);
 
-   /** Screen-space placement + value for the inline text editor overlay. */
-   /**
-    * Empty placeholder copies, drawn as their layout slot: its size, style and text (the
-    * prompt), at the copy's own spot. `patch` is the slot look to store when typed into.
-    */
-   private readonly emptyCopyLooks = computed(() => {
-      const elements = this.store.elements();
-      const out = new Map<string, { el: CanvasElementModel; patch: UpdateElementDto }>();
-      if (!elements.some((e) => e.placeholder?.of)) return out;
-      const byId = new Map(elements.map((e) => [e.id, e] as const));
-      for (const e of elements) {
-         const slot = e.placeholder?.of ? byId.get(e.placeholder.of) : undefined;
-         if (!slot || !isEmptyPlaceholder(e)) continue;
-         const patch = slotStyle(slot);
-         out.set(e.id, {
-            el: { ...e, ...(patch as Partial<CanvasElementModel>), text: slot.text, runs: slot.runs },
-            patch,
-         });
-      }
-      return out;
-   });
-
-   /** Slide placeholders nobody changed follow their layout slot when it moves or restyles. */
-   private readonly followSlots = (() => {
-      const follow = slotFollower(this.store);
-      return effect(() => {
-         this.store.elements();
-         untracked(follow);
-      });
-   })();
-
-   /**
-    * Layout / master frames drawn under a shown frame -> how far that frame sits from
-    * them (non-zero only while a moved slide's stack has not caught up yet).
-    */
-   private readonly inheritedOffsets = computed(() => {
-      const frames = this.store.slideFrames();
-      const shown = this.store.shownSlideIds();
-      const out = new Map<string, { dx: number; dy: number }>();
-      for (const f of frames) {
-         if (!shown.has(f.id)) continue;
-         for (const u of [layoutOf(f, frames), masterOf(f, frames)]) {
-            if (u && !shown.has(u.id) && (u.x !== f.x || u.y !== f.y)) out.set(u.id, { dx: f.x - u.x, dy: f.y - u.y });
-         }
-      }
-      return out;
-   });
-
-   /** Shown slides/layouts without a background of their own take their layout's, else the master's. */
-   private readonly layoutFills = computed(() => {
-      const frames = this.store.slideFrames();
-      const shown = this.store.shownSlideIds();
-      const out = new Map<string, Pick<CanvasElementModel, 'fillStyle' | 'backgroundColor'>>();
-      const filled = (u: CanvasElementModel | undefined) => (u && u.fillStyle !== 'none' ? u : undefined);
-      for (const f of frames) {
-         const l =
-            shown.has(f.id) && f.fillStyle === 'none'
-               ? (filled(layoutOf(f, frames)) ?? filled(masterOf(f, frames)))
-               : undefined;
-         if (l) {
-            out.set(f.id, { fillStyle: l.fillStyle, backgroundColor: l.backgroundColor });
-         }
-      }
-      return out;
-   });
-
    /** Every presentation gets a theme and a default layout; every slide a layout. */
    private readonly deckDefaults = effect(() => {
       this.store.slideFrames();
       if (!this.store.canEdit()) return;
-      untracked(() => void ensureDeckDefaults(this.store, this.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE));
+      untracked(
+         () =>
+            void ensureDeckDefaults(this.store, this.canvasView.themeVar('--dd-text-muted') ?? DEFAULT_ELEMENT_STROKE)
+      );
    });
 
    /** Typing into an empty placeholder: it takes its slot's current size and style first. */
    private readonly adoptSlotLook = effect(() => {
       const id = this.textEditing.editingTextId();
-      const look = id ? untracked(() => this.emptyCopyLooks().get(id)) : undefined;
+      const look = id ? untracked(() => this.canvasView.emptyCopyLooks().get(id)) : undefined;
       if (!id || !look || !this.store.canEdit()) return;
       const el = untracked(() => this.store.elements().find((e) => e.id === id));
       const stale =
          el && Object.entries(look.patch).some(([k, v]) => (el as unknown as Record<string, unknown>)[k] !== v);
       if (stale) void this.store.patchElementSilently(id, look.patch);
-   });
-
-   /** The deck theme an element's tokens resolve against (its presentation's, else the default). */
-   deckThemeOf(el: Pick<CanvasElementModel, 'id' | 'type' | 'slideId'>): SlideTheme {
-      const f =
-         el.type === 'frame'
-            ? this.store.slideFrames().find((x) => x.id === el.id)
-            : this.store.slideFrames().find((x) => x.id === el.slideId);
-      return (f && this.store.presentationThemes().get(presentationOf(f))) || DEFAULT_THEME;
-   }
-
-   /**
-    * Connectors as rendered. While re-pointing an endpoint, the affected line's
-    * own end follows the cursor (so the line moves in place) instead of showing a
-    * separate temporary line.
-    */
-   protected readonly displayConnectors = computed(() => {
-      const base = this.connectors();
-      const relink = this.relLink.relinkState();
-      const cursor = this.relLink.linkSnap()?.anchor ?? this.relLink.linkCursor();
-      if (!relink || !cursor) {
-         return base;
-      }
-      return base.map((c) => {
-         if (c.id !== relink.relationshipId) {
-            return c;
-         }
-         const fixed = relink.which === 'source' ? { x: c.bx, y: c.by } : { x: c.ax, y: c.ay };
-         return {
-            ...c,
-            d: elbowPath(fixed, cursor),
-            ax: relink.which === 'source' ? cursor.x : c.ax,
-            ay: relink.which === 'source' ? cursor.y : c.ay,
-            bx: relink.which === 'target' ? cursor.x : c.bx,
-            by: relink.which === 'target' ? cursor.y : c.by,
-            routePoints: [fixed, cursor],
-            segments: [],
-         };
-      });
    });
 
    /** Slide blocks stop clipping while anything is carried, so it stays visible past the block. */
@@ -1571,7 +1047,7 @@ export class EditorComponent {
    private drawAnchor = { x: 0, y: 0 };
 
    constructor() {
-      this.relLink.connect(this);
+      this.canvasView.connect(this);
       this.tableDrag.connect(this);
       this.cellEditors.connect(this);
       this.textEditing.connect(this);
@@ -1707,7 +1183,7 @@ export class EditorComponent {
          this.store.lifelines();
          this.store.sequenceMessages();
          this.store.shownSlideIds();
-         this.slideViews();
+         this.canvasView.slideViews();
          // Never mid-drag: adopting re-maps items into a zoomed slide, which would jump them.
          if (this.gesture.gestureActive()) {
             return;
@@ -1752,7 +1228,7 @@ export class EditorComponent {
          if (!this.fitOnLoad() || !id || this.store.loading() || this.fittedProjectId === id) return;
          // The store is app-wide: only frame the project this editor was given.
          if (id !== (this.projectId() ?? id)) return;
-         if (!this.minimapItems().length) return;
+         if (!this.canvasView.minimapItems().length) return;
          this.fittedProjectId = id;
          setTimeout(() => {
             if (!this.destroyRef.destroyed && this.store.projectId() === id) this.viewport.fitContent();
@@ -2035,27 +1511,6 @@ export class EditorComponent {
       }
    }
 
-   // --- drawing new elements ---
-
-   /** Default stroke color for new elements: the theme's text color, so it reads on either theme. */
-   defaultStroke(): string {
-      try {
-         const c = getComputedStyle(this.canvasRef().nativeElement).getPropertyValue('--dd-text').trim();
-         return c || DEFAULT_ELEMENT_STROKE;
-      } catch {
-         return DEFAULT_ELEMENT_STROKE;
-      }
-   }
-
-   /** Read a theme CSS custom property from the canvas, or null if unavailable. */
-   themeVar(name: string): string | null {
-      try {
-         return getComputedStyle(this.canvasRef().nativeElement).getPropertyValue(name).trim() || null;
-      } catch {
-         return null;
-      }
-   }
-
    /** Add an ERD table centered near the given screen point. */
    private addTableAt(clientX: number, clientY: number): void {
       const world = this.viewport.toWorld(clientX, clientY);
@@ -2098,7 +1553,7 @@ export class EditorComponent {
     */
    private eraseAt(clientX: number, clientY: number): void {
       const raw = this.viewport.toWorldRaw(clientX, clientY);
-      const view = this.slideViews().find((v) => inBlock(v, raw));
+      const view = this.canvasView.slideViews().find((v) => inBlock(v, raw));
       const p = view ? toInner(view, raw) : raw;
       const from = this.lastErasePoint ?? p;
       this.lastErasePoint = p;
@@ -2203,7 +1658,9 @@ export class EditorComponent {
                  // A code card: a hairline border, no fill override (it picks a theme-matched surface).
                  ...sticky,
                  strokeColor:
-                    this.themeVar('--dd-border-strong') ?? this.themeVar('--dd-text-muted') ?? sticky.strokeColor,
+                    this.canvasView.themeVar('--dd-border-strong') ??
+                    this.canvasView.themeVar('--dd-text-muted') ??
+                    sticky.strokeColor,
                  backgroundColor: undefined,
                  fillStyle: 'none' as const,
                  strokeWidth: 1,
@@ -2217,7 +1674,7 @@ export class EditorComponent {
               ? {
                    // A table: opaque surface, hairline borders, readable body text.
                    ...sticky,
-                   strokeColor: this.defaultStroke(),
+                   strokeColor: this.canvasView.defaultStroke(),
                    backgroundColor: SURFACE_FILL,
                    fillStyle: 'solid' as const,
                    strokeWidth: 1,
@@ -2228,7 +1685,7 @@ export class EditorComponent {
               : type === 'frame'
                 ? {
                      ...sticky,
-                     strokeColor: this.themeVar('--dd-text-muted') ?? sticky.strokeColor,
+                     strokeColor: this.canvasView.themeVar('--dd-text-muted') ?? sticky.strokeColor,
                      backgroundColor: undefined,
                      fillStyle: 'none' as const,
                      strokeWidth: 1.5,
@@ -2245,7 +1702,7 @@ export class EditorComponent {
          width: 0,
          height: 0,
          angle: 0,
-         strokeColor: style.strokeColor ?? this.defaultStroke(),
+         strokeColor: style.strokeColor ?? this.canvasView.defaultStroke(),
          backgroundColor: style.backgroundColor,
          fillStyle: style.fillStyle,
          strokeWidth:
@@ -2292,7 +1749,7 @@ export class EditorComponent {
       this.tools.draft.set(draft);
       // Started inside a zoomed-out slide: the whole stroke is drawn in its coordinates.
       const raw = this.viewport.toWorldRaw(event.clientX, event.clientY);
-      this.tools.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
+      this.tools.drawSlideId.set(this.canvasView.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
       this.drawAnchor = { x, y };
       this.gesture.lastDrawPointer = { x: event.clientX, y: event.clientY };
       this.gesture.startClientX = event.clientX;
@@ -2314,7 +1771,7 @@ export class EditorComponent {
       }
       this.gesture.lastDrawPointer = { x: clientX, y: clientY };
       // Stay in the space the stroke started in, even when the pointer crosses a block edge.
-      const view = this.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
+      const view = this.canvasView.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
       const raw = this.viewport.toWorldRaw(clientX, clientY);
       const world = view ? toInner(view, raw) : raw;
       const snap = this.gridSnap();
@@ -2554,7 +2011,8 @@ export class EditorComponent {
          return clicked;
       }
       const world = this.viewport.toWorld(event.clientX, event.clientY);
-      const hits = this.shownElements()
+      const hits = this.canvasView
+         .shownElements()
          .filter((e) => e.type !== 'frame' && hitTestElement(e, world))
          .reverse();
       let best = clicked;
@@ -2622,7 +2080,7 @@ export class EditorComponent {
       }
       this.gesture.startClientX = payload.event.clientX;
       this.gesture.startClientY = payload.event.clientY;
-      this.gesture.gestureScale = this.itemScale(payload.id);
+      this.gesture.gestureScale = this.canvasView.itemScale(payload.id);
       this.gesture.gestureActive.set(true);
       this.gesture.dragCopied = false;
       this.beginElementDrag(el);
@@ -2733,7 +2191,7 @@ export class EditorComponent {
       }
       const waypoints = new Map<string, { x: number; y: number }[]>();
       if (tables.size) {
-         const locs = this.columnLocations();
+         const locs = this.canvasView.columnLocations();
          for (const rel of this.store.relationships()) {
             const st = locs.get(rel.sourceColumnId)?.table.id;
             const tt = locs.get(rel.targetColumnId)?.table.id;
@@ -2836,7 +2294,7 @@ export class EditorComponent {
       }
       const seqs: GroupResize['diagrams'] = [];
       for (const d of diagrams) {
-         const b = this.diagramBox(d);
+         const b = this.canvasView.diagramBox(d);
          const start = this.sequenceStart(d.id);
          if (!b || !start) continue;
          grow(b.minX, b.minY, b.maxX, b.maxY);
@@ -2849,7 +2307,7 @@ export class EditorComponent {
       this.gesture.gestureActive.set(true);
       this.gesture.startClientX = event.clientX;
       this.gesture.startClientY = event.clientY;
-      this.gesture.gestureScale = scaleId ? this.itemScale(scaleId) : 1;
+      this.gesture.gestureScale = scaleId ? this.canvasView.itemScale(scaleId) : 1;
       this.groupResize = { handle, box, elements, diagrams: seqs };
       return true;
    };
@@ -3185,7 +2643,7 @@ export class EditorComponent {
       this.gesture.gestureActive.set(true);
       this.gesture.startClientX = payload.event.clientX;
       this.gesture.startClientY = payload.event.clientY;
-      this.gesture.gestureScale = this.itemScale(el.id);
+      this.gesture.gestureScale = this.canvasView.itemScale(el.id);
       // A pen stroke's x/y is its first point, not its bounds: resize from the drawn box.
       const pb = el.type === 'freedraw' ? elementBox(el) : null;
       this.elementGesture = {
@@ -3251,7 +2709,7 @@ export class EditorComponent {
    /** Drag the bend handle: curvature is the pointer's signed distance from the chord. */
    private moveBend(clientX: number, clientY: number): void {
       const g = this.elementGesture;
-      const ends = g ? this.shapeViews().find((s) => s.id === g.id)?.ends : undefined;
+      const ends = g ? this.canvasView.shapeViews().find((s) => s.id === g.id)?.ends : undefined;
       if (!g || !ends) {
          return;
       }
@@ -3673,7 +3131,7 @@ export class EditorComponent {
    } | null {
       const toRect = (b: Box) => ({ x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 });
       // Sequence message labels are small and sit on top of everything: check first.
-      for (const [id, box] of this.messageBoxes()) {
+      for (const [id, box] of this.canvasView.messageBoxes()) {
          if (this.pointInBox(world, box)) {
             return { binding: { targetKind: 'message', targetId: id }, box: toRect(box) };
          }
@@ -3685,7 +3143,7 @@ export class EditorComponent {
          }
       }
       // Topmost element first (elements render in ascending zIndex order).
-      const elements = this.shownElements().reverse();
+      const elements = this.canvasView.shownElements().reverse();
       for (const el of elements) {
          if (el.id === excludeElementId || el.type === 'line' || el.type === 'arrow' || el.type === 'frame') {
             continue;
@@ -4211,24 +3669,27 @@ export class EditorComponent {
       // its edge): test them against the part of the marquee over the block, in the
       // slide's own coordinates. Items hidden past the edge cannot be picked.
       const rectIn = (id: string): Rect | null => {
-         const view = this.viewOf(id);
-         return view ? this.rectThrough(view, rect) : rect;
+         const view = this.canvasView.viewOf(id);
+         return view ? this.canvasView.rectThrough(view, rect) : rect;
       };
-      const tableIds = this.visibleTables()
+      const tableIds = this.canvasView
+         .visibleTables()
          .filter((t) => {
             const r = rectIn(t.id);
             return !!r && this.boxIntersects(t, r);
          })
          .map((t) => t.id);
-      const zoomedRels = this.zoomedConnectorIds();
-      const relIds = this.connectors()
+      const zoomedRels = this.canvasView.zoomedConnectorIds();
+      const relIds = this.canvasView
+         .connectors()
          .filter((con) => {
             const view = zoomedRels.get(con.id);
-            const r = view ? this.rectThrough(view, rect) : rect;
+            const r = view ? this.canvasView.rectThrough(view, rect) : rect;
             return !!r && con.mx >= r.minX && con.mx <= r.maxX && con.my >= r.minY && con.my <= r.maxY;
          })
          .map((con) => con.id);
-      const elementIds = this.shownElements()
+      const elementIds = this.canvasView
+         .shownElements()
          .filter((e) => {
             const r = rectIn(e.id);
             return !!r && elementIntersectsRect(e, r);
@@ -4236,15 +3697,15 @@ export class EditorComponent {
          .map((e) => e.id);
 
       // Sequence parts of a slide's diagrams are tested through that slide's block.
-      const viewedDiagrams = this.zoomedItems().diagrams;
+      const viewedDiagrams = this.canvasView.zoomedItems().diagrams;
       const diagramRect = (diagramId: string): Rect | null => {
          const view = viewedDiagrams.get(diagramId);
-         return view ? this.rectThrough(view, rect) : rect;
+         return view ? this.canvasView.rectThrough(view, rect) : rect;
       };
       const sequenceHits = (find: (r: Rect) => string[], diagramOf: (id: string) => string | undefined): string[] => {
          const out = find(rect).filter((id) => !viewedDiagrams.has(diagramOf(id) ?? ''));
          for (const view of new Set(viewedDiagrams.values())) {
-            const r = this.rectThrough(view, rect);
+            const r = this.canvasView.rectThrough(view, rect);
             if (r) out.push(...find(r).filter((id) => viewedDiagrams.get(diagramOf(id) ?? '') === view));
          }
          return out;
@@ -4308,7 +3769,8 @@ export class EditorComponent {
          const inside = (b: { x0: number; y0: number; x1: number; y1: number }) =>
             boxes.some((o) => b.x0 >= o.x0 && b.y0 >= o.y0 && b.x1 <= o.x1 && b.y1 <= o.y1);
          const frameIds = enclosed.map((set) => set.frameId);
-         tableSel = this.visibleTables()
+         tableSel = this.canvasView
+            .visibleTables()
             .filter(
                (t) =>
                   tableIds.includes(t.id) &&
@@ -4317,7 +3779,8 @@ export class EditorComponent {
             .map((t) => t.id);
          elementSel = [
             ...frameIds,
-            ...this.shownElements()
+            ...this.canvasView
+               .shownElements()
                .filter((e) => elementIds.includes(e.id) && !frameIds.includes(e.id) && !inside(elementBox(e)))
                .map((e) => e.id),
          ];
@@ -4374,29 +3837,11 @@ export class EditorComponent {
       return out;
    }
 
-   /** A sequence diagram's bounding box as drawn (header, spines and padding). */
-   diagramBox(d: SequenceDiagramModel): Rect | null {
-      const pad = 26;
-      const lls = this.store.lifelines().filter((l) => l.diagramId === d.id);
-      if (!lls.length) return null;
-      const hb = d.originY + d.headerHeight;
-      const maxRow = this.store
-         .sequenceMessages()
-         .filter((m) => m.diagramId === d.id)
-         .reduce((mx, m) => Math.max(mx, Math.round((m.y - hb) / d.rowSpacing)), 0);
-      return {
-         minX: Math.min(...lls.map((l) => l.x - l.width / 2)) - pad,
-         maxX: Math.max(...lls.map((l) => l.x + l.width / 2)) + pad,
-         minY: d.originY - pad,
-         maxY: hb + d.rowSpacing * (Math.max(1, maxRow) + 1) + pad,
-      };
-   }
-
    /** Sequence diagrams whose bounding box (as drawn) lies entirely inside the marquee rect. */
    private diagramsInRect(rect: Rect): string[] {
       const out: string[] = [];
       for (const d of this.store.sequenceDiagrams()) {
-         const b = this.diagramBox(d);
+         const b = this.canvasView.diagramBox(d);
          // Only a diagram the marquee fully encloses is picked as a unit; a partial sweep
          // selects just the messages/participants it touches.
          if (b && b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY) {
@@ -4575,6 +4020,17 @@ export class EditorComponent {
 
    // --- ports: calls the editor's services make into sibling sub-features ---
 
+   readonly editingTextId = this.textEditing.editingTextId;
+   readonly relinkPreview = computed<RelinkPreview | null>(() => {
+      const relink = this.relLink.relinkState();
+      const cursor = this.relLink.linkSnap()?.anchor ?? this.relLink.linkCursor();
+      return relink && cursor ? { ...relink, cursor } : null;
+   });
+   readonly slideViews = this.canvasView.slideViews;
+   readonly minimapItems = this.canvasView.minimapItems;
+   readonly drawnBox = (id: string, box: Box): Box => this.canvasView.drawnBox(id, box);
+   readonly diagramBox = (d: SequenceDiagramModel): Rect | null => this.canvasView.diagramBox(d);
+
    readonly presentation = this.slideshow.presentation;
    readonly focusedDeck = this.deckFocus.focusedDeck;
    readonly focusScreen = this.deckFocus.focusScreen;
@@ -4656,7 +4112,8 @@ export class EditorComponent {
          return;
       }
       const world = this.viewport.toWorld(clientX, clientY);
-      const hits = this.shownElements()
+      const hits = this.canvasView
+         .shownElements()
          .reverse()
          .filter((e) => hitTestElement(e, world));
       // What is under the pointer, in order of intent: the item just clicked (selected),
@@ -4671,7 +4128,7 @@ export class EditorComponent {
          return !!gid && gid !== this.store.enteredGroupId();
       };
       const diagram = this.store.sequenceDiagrams().find((d) => {
-         const b = this.diagramBox(d);
+         const b = this.canvasView.diagramBox(d);
          return !!b && world.x >= b.minX && world.x <= b.maxX && world.y >= b.minY && world.y <= b.maxY;
       });
       if (diagram && locked(diagram.id)) {
@@ -4774,7 +4231,7 @@ export class EditorComponent {
    }): { item: CanvasElementModel; frame: CanvasElementModel } | null {
       const locked = this.store.layoutItemIds();
       const masters = this.store.masterItemIds();
-      const hide = this.focusHidden();
+      const hide = this.canvasView.focusHidden();
       const frames = this.store.slideFrames();
       const shown = frames.filter((f) => this.store.shownSlideIds().has(f.id));
       const items = this.store
@@ -4815,7 +4272,7 @@ export class EditorComponent {
       window.removeEventListener('pointerup', up);
       this.gesture.startClientX = event.clientX;
       this.gesture.startClientY = event.clientY;
-      this.gesture.gestureScale = this.itemScale(copy.id);
+      this.gesture.gestureScale = this.canvasView.itemScale(copy.id);
       this.gesture.dragCopied = false;
       this.beginElementDrag(copy);
    }
@@ -4858,7 +4315,7 @@ export class EditorComponent {
          width: 4,
          height: style.fontSize,
          angle: 0,
-         strokeColor: style.strokeColor ?? this.defaultStroke(),
+         strokeColor: style.strokeColor ?? this.canvasView.defaultStroke(),
          fillStyle: style.fillStyle,
          strokeWidth: style.strokeWidth,
          strokeStyle: style.strokeStyle,
@@ -4884,58 +4341,6 @@ export class EditorComponent {
       }
       void this.store.addTable(x, y);
    }
-
-   /** Simplified world-space footprint of every element, for the minimap. */
-   readonly minimapItems = computed<MinimapItem[]>(() => {
-      const items: MinimapItem[] = [];
-      // Items of a shown slide are placed as drawn (through its zoom); the ones the block
-      // does not show (staged outside its view) are left out, as on the canvas.
-      const add = (id: string, item: MinimapItem): void => {
-         const view = this.viewOf(id);
-         if (!view) {
-            items.push(item);
-            return;
-         }
-         const b = boxToOuter(view, item);
-         const k = view.block;
-         if (b.x1 < k.x0 || b.x0 > k.x1 || b.y1 < k.y0 || b.y0 > k.y1) return;
-         items.push({ ...item, ...b, points: item.points?.map((p) => toOuter(view, p)) });
-      };
-      for (const t of this.store.tables()) {
-         add(t.id, {
-            kind: 'table',
-            x0: t.x,
-            y0: t.y,
-            x1: t.x + tableWidth(t),
-            y1: t.y + tableHeight(t),
-         });
-      }
-      for (const d of this.store.sequenceDiagrams()) {
-         const b = this.diagramBox(d);
-         if (b) {
-            add(d.id, { kind: 'sequence', x0: b.minX, y0: b.minY, x1: b.maxX, y1: b.maxY });
-         }
-      }
-      for (const el of this.store.elements()) {
-         const b = elementBox(el);
-         const kind: MinimapItem['kind'] =
-            el.type === 'text'
-               ? 'text'
-               : el.type === 'line' || el.type === 'arrow' || el.type === 'freedraw'
-                 ? 'line'
-                 : el.type === 'frame'
-                   ? 'frame'
-                   : el.type === 'code'
-                     ? 'text'
-                     : 'shape';
-         add(el.id, {
-            kind,
-            ...b,
-            points: kind === 'line' ? absolutePoints(el) : undefined,
-         });
-      }
-      return items;
-   });
 
    /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
    protected readonly minimapView = computed(() => {
@@ -5022,7 +4427,12 @@ export class EditorComponent {
       if (!base) return null;
       const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
       const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
-      const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId), parts);
+      const snap = smartSnap(
+         moved,
+         base.targets,
+         this.store.viewport().zoom * this.canvasView.itemScale(grabbedId),
+         parts
+      );
       // Shift constrains the drag to one axis; don't let a snap pull it off.
       if (this.gesture.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
       if (this.gesture.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
@@ -5047,7 +4457,7 @@ export class EditorComponent {
       }
       const base = this.ensureSmartBase(id, [id], [], [], draft ? { ...draft, box } : undefined);
       if (!base) return null;
-      const scale = draft ? (draft.view?.scale ?? 1) : this.itemScale(id);
+      const scale = draft ? (draft.view?.scale ?? 1) : this.canvasView.itemScale(id);
       const snap = smartSnapEdges(box, xs, ys, base.targets, this.store.viewport().zoom * scale);
       this.smartSnapState.set(snap.guides.length ? { snap, view: base.view } : null);
       return snap;
@@ -5111,8 +4521,8 @@ export class EditorComponent {
             ? draft.view && draft.view.scale !== 1
                ? draft.view
                : undefined
-            : this.itemScale(grabbedId) !== 1
-              ? this.viewOf(grabbedId)
+            : this.canvasView.itemScale(grabbedId) !== 1
+              ? this.canvasView.viewOf(grabbedId)
               : undefined;
          this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
       }
@@ -5196,7 +4606,7 @@ export class EditorComponent {
       const seqMoves: { id: string; before: SequenceLayoutSnapshot }[] = [];
       for (const d of this.store.sequenceDiagrams()) {
          if (!this.store.selectedDiagramIds().includes(d.id)) continue;
-         const b = this.diagramBox(d);
+         const b = this.canvasView.diagramBox(d);
          const snap = this.store.sequenceDiagramSnapshot(d.id);
          if (!b || !snap) continue;
          members.push({
