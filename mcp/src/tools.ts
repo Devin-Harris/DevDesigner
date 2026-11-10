@@ -37,7 +37,7 @@ import {
   type SequenceMessageModel,
   type TableModel,
 } from '@devdesigner/shared';
-import { ApiError, type DevDesignerApi } from './api';
+import { ApiError, runWithTool, type DevDesignerApi } from './api';
 import { applySpec } from './apply';
 import { colorArg, describePalette, tableColorArg } from './colors';
 import { loadImage } from './images';
@@ -204,7 +204,8 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
           openWorldHint: false,
         },
       },
-      (async (args: unknown) => {
+      // Every API request the tool makes (journal reads included) carries X-MCP-Tool.
+      ((args: unknown) => runWithTool(name, async () => {
         // Record before/after of every write for undo_last_change (per project).
         const pid = (args as { projectId?: unknown })?.projectId;
         const track = !hints.readOnly && typeof pid === 'string' && !UNJOURNALED.has(name);
@@ -232,7 +233,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
             }
           }
         }
-      }) as never,
+      })) as never,
     );
   }
 
