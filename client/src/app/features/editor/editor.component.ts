@@ -1,3 +1,6 @@
+import { TableDragService } from './features/erd/services/table-drag.service';
+import { RelationshipLinkService } from './features/erd/services/relationship-link.service';
+import { PointerGestureService } from './services/pointer-gesture.service';
 import { TextEditingService } from './features/elements/services/text-editing.service';
 import { CellEditorsService } from './features/elements/services/cell-editors.service';
 import { DEFAULT_FONT_SIZE } from './helpers/render/text-layout';
@@ -11,7 +14,6 @@ import { MediaDropService } from './features/elements/services/media-drop.servic
 import { ClipboardService } from './features/canvas/services/clipboard.service';
 import { EditorExportService } from './features/export/services/editor-export.service';
 import { EditorShortcutsService } from './services/editor-shortcuts.service';
-import type { DragMode } from './models/drag-mode.model';
 import {
    ChangeDetectionStrategy,
    Component,
@@ -41,8 +43,6 @@ import type {
    CreateElementDto,
    ElementType,
    UpdateElementDto,
-   RelationshipModel,
-   RelationshipType,
    TableModel,
 } from '@devdesigner/shared';
 import {
@@ -97,11 +97,7 @@ import {
    parseGrid,
    serializeGrid,
 } from './helpers/grid-table.helper';
-import {
-   CanvasConnectorsComponent,
-   type EndpointDownEvent,
-   type SegmentDownEvent,
-} from './features/canvas/components/canvas-connectors/canvas-connectors.component';
+import { CanvasConnectorsComponent } from './features/canvas/components/canvas-connectors/canvas-connectors.component';
 import {
    CanvasShapesComponent,
    type ResizeDownEvent,
@@ -114,7 +110,7 @@ import { type AlignAction } from './models/toolbar-actions';
 import { slotFollower, slotStyle, standInFor } from './helpers/layout-placeholders';
 import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.component';
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
-import { ConnectorRouteCache, computeConnectors, segmentDrag } from './helpers/connectors.helper';
+import { ConnectorRouteCache, computeConnectors } from './helpers/connectors.helper';
 import { LAYOUT_Z_OFFSET, frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
 import { DEFAULT_FRAME_PRESET, framePreset } from './shared/constants/frame-presets';
 import {
@@ -128,7 +124,7 @@ import {
    toRelative,
 } from './helpers/element-geometry.helper';
 import { chordNormal } from './helpers/freedraw-path.helper';
-import { buildColumnLocations, columnAnchor, tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
+import { buildColumnLocations, tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
 import { messageLabelBoxes } from './helpers/message-box.helper';
 import {
    buildShapeViews,
@@ -143,9 +139,8 @@ import {
 } from './helpers/render';
 import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from './helpers/text-metrics';
 import { elbowPath } from './helpers/svg-path.helper';
-import { findLinkSnap, type LinkSnap } from './features/canvas/helpers/link-snap.helper';
 import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './features/canvas/helpers/smart-guides.helper';
-import type { Box, Point, Rect, Side } from './models/geometry.model';
+import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
 import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
 import { RelationshipInspectorComponent } from './features/erd/components/relationship-inspector/relationship-inspector.component';
@@ -172,9 +167,8 @@ import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trig
 import { DeckCompareComponent } from './features/slides/features/deck-compare/deck-compare.component';
 import { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
-import { TableNodeComponent, type HandleEvent } from './features/erd/components/table-node/table-node.component';
+import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
-
 interface ElementGesture {
    id: string;
    /** Starting geometry of the element(s) at gesture start (for delta math). */
@@ -208,11 +202,6 @@ interface GroupResize {
       rowSpacing: number;
       before: SequenceLayoutSnapshot;
    }[];
-}
-
-interface RelinkState {
-   relationshipId: string;
-   which: 'source' | 'target';
 }
 
 /** Element kinds that can contain other items (a lone selection aligns to these). */
@@ -311,11 +300,17 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
       FollowService,
       TextEditingService,
       CellEditorsService,
+      PointerGestureService,
+      TableDragService,
+      RelationshipLinkService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly relLink = inject(RelationshipLinkService);
+   protected readonly tableDrag = inject(TableDragService);
+   protected readonly gesture = inject(PointerGestureService);
    protected readonly cellEditors = inject(CellEditorsService);
    protected readonly textEditing = inject(TextEditingService);
    protected readonly follow = inject(FollowService);
@@ -470,7 +465,7 @@ export class EditorComponent {
     * Slide zoom an item is drawn at (1 on the plain canvas). The slide frame itself is
     * the block: moving it moves the whole presentation at canvas scale.
     */
-   private itemScale(id: string): number {
+   itemScale(id: string): number {
       const v = this.viewOf(id);
       return v && v.frameId !== id ? v.scale : 1;
    }
@@ -710,7 +705,7 @@ export class EditorComponent {
       this.store.selectPresentation(name);
       // Grabbing one of several selected presentations moves them all, still selected.
       const sets = this.selectedSlideSets();
-      const keep = sets.includes(name) && !EditorComponent.additive(event);
+      const keep = sets.includes(name) && !PointerGestureService.additive(event);
       this.onElementPointerDown({ id: frameId, event });
       this.selectedSlideSets.set(keep ? sets : [name]);
    }
@@ -868,7 +863,7 @@ export class EditorComponent {
       { equal: sameBoxes }
    );
 
-   protected readonly connectors = computed(() =>
+   readonly connectors = computed(() =>
       computeConnectors(
          this.visibleTables(),
          this.store.relationships(),
@@ -918,11 +913,6 @@ export class EditorComponent {
    /** The element currently being drawn (local only until committed on pointer-up). */
    private readonly draft = signal<CanvasElementModel | null>(null);
    private elementGesture: ElementGesture | null = null;
-   /** Non-table selection members dragged along when a table is grabbed (groups, mixed selections). */
-   private nodeExtras: {
-      elements: Map<string, { x: number; y: number }>;
-      sequences: Map<string, SequenceStart>;
-   } | null = null;
 
    /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
    protected readonly bindHighlight = signal<{
@@ -932,16 +922,13 @@ export class EditorComponent {
       height: number;
    } | null>(null);
 
-   /** True while an element gesture is in progress, so the floating toolbar hides. */
-   private readonly gestureActive = signal(false);
-
    /** Placement + representative element for the floating context toolbar. */
    protected readonly elementToolbar = computed(() => {
       // Shown whenever element(s) are selected and no gesture/text-edit is active,
       // even while a draw tool stays active (drawing a shape selects it).
       const editingId = this.textEditing.editingTextId();
       const richEditing = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type === 'text';
-      if ((editingId && !richEditing) || this.gestureActive()) {
+      if ((editingId && !richEditing) || this.gesture.gestureActive()) {
          return null;
       }
       const ids = this.store.selectedElementIds();
@@ -983,7 +970,7 @@ export class EditorComponent {
     * (or a single selected group, so it can be ungrouped).
     */
    protected readonly multiSelectBar = computed(() => {
-      if (this.gestureActive() || !this.store.canEdit() || this.textEditing.editingTextId()) {
+      if (this.gesture.gestureActive() || !this.store.canEdit() || this.textEditing.editingTextId()) {
          return null;
       }
       const byItem = this.store.groupByItem();
@@ -1053,7 +1040,7 @@ export class EditorComponent {
 
    /** Placement + table for the floating table action bar (single table selected). */
    protected readonly tableToolbar = computed(() => {
-      if (this.gestureActive()) {
+      if (this.gesture.gestureActive()) {
          return null;
       }
       const table = this.store.selectedTable();
@@ -1527,8 +1514,8 @@ export class EditorComponent {
     */
    protected readonly displayConnectors = computed(() => {
       const base = this.connectors();
-      const relink = this.relinkState();
-      const cursor = this.linkSnap()?.anchor ?? this.linkCursor();
+      const relink = this.relLink.relinkState();
+      const cursor = this.relLink.linkSnap()?.anchor ?? this.relLink.linkCursor();
       if (!relink || !cursor) {
          return base;
       }
@@ -1550,51 +1537,10 @@ export class EditorComponent {
       });
    });
 
-   protected readonly selectedRelInline = computed<{
-      x: number;
-      y: number;
-      rel: RelationshipModel;
-   } | null>(() => {
-      const rel = this.store.selectedRelationship();
-      if (!rel) {
-         return null;
-      }
-      const connector = this.connectors().find((c) => c.id === rel.id);
-      if (!connector) {
-         return null;
-      }
-      const v = this.store.viewport();
-      return { x: connector.mx * v.zoom + v.x, y: connector.my * v.zoom + v.y, rel };
-   });
-
-   // Linking / re-pointing
-   private readonly linkSourceColumnId = signal<string | null>(null);
-   /** Edge handle the in-flight link started from; the new line is pinned there. */
-   private readonly linkSourceSide = signal<Side>('right');
-   private readonly relinkState = signal<RelinkState | null>(null);
-   private readonly linkCursor = signal<{ x: number; y: number } | null>(null);
-
-   // Relationship segment being dragged (Miro-style perpendicular slide)
-   private readonly activeSegment = signal<{
-      relationshipId: string;
-      segIndex: number;
-      a: Point;
-      b: Point;
-      route: Point[];
-   } | null>(null);
-
-   /** True while any connector drag (link / re-point / segment) is in progress. */
-   protected readonly dragging = computed(
-      () => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment())
-   );
-
-   /** True once a move of elements / tables has passed the click threshold. */
-   private readonly movingItems = signal(false);
-
    /** Slide blocks stop clipping while anything is carried, so it stays visible past the block. */
    protected readonly slideUnclipped = computed(() => {
-      if (this.dragging()) return true;
-      if (!this.movingItems()) return false;
+      if (this.relLink.dragging()) return true;
+      if (!this.gesture.movingItems()) return false;
       // Only a carried slide item needs the block unclipped; moving canvas items must not
       // reveal the staging content around every slide.
       const els = new Set(this.store.selectedElementIds());
@@ -1605,45 +1551,6 @@ export class EditorComponent {
          this.store.tables().some((t) => tbls.has(t.id) && !!t.slideId) ||
          this.store.sequenceDiagrams().some((d) => dgs.has(d.id) && !!d.slideId)
       );
-   });
-
-   /**
-    * Column row the in-flight link / re-point would attach to if released now.
-    * Magnetic: the cursor only has to be near a table, not on the tiny handle.
-    */
-   protected readonly linkSnap = computed<LinkSnap | null>(() => {
-      const cursor = this.linkCursor();
-      if (!cursor) {
-         return null;
-      }
-      const relink = this.relinkState();
-      let exclude: string | null = null;
-      if (relink) {
-         const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
-         exclude = (relink.which === 'source' ? rel?.targetColumnId : rel?.sourceColumnId) ?? null;
-      } else {
-         exclude = this.linkSourceColumnId();
-         if (!exclude) {
-            return null;
-         }
-      }
-      return findLinkSnap(this.store.tables(), cursor, exclude, this.store.viewport().zoom);
-   });
-
-   /** Dashed preview only for drawing a brand-new relationship (re-point moves the line itself). */
-   protected readonly tempLink = computed<string | null>(() => {
-      const cursor = this.linkSnap()?.anchor ?? this.linkCursor();
-      const sourceId = this.linkSourceColumnId();
-      if (!cursor || !sourceId || this.relinkState()) {
-         return null;
-      }
-      const loc = this.columnLocations().get(sourceId);
-      if (!loc) {
-         return null;
-      }
-      const a = columnAnchor(loc.table, loc.index, this.linkSourceSide());
-      // Orthogonal elbow, never a diagonal, to match the finished connectors.
-      return elbowPath(a, cursor);
    });
 
    // Marquee (screen coords relative to the canvas)
@@ -1668,35 +1575,13 @@ export class EditorComponent {
       };
    });
 
-   mode: DragMode = 'idle';
-   spaceDown = false;
    private marqueeAdditive = false;
-   private startClientX = 0;
-   private startClientY = 0;
-   private startViewportX = 0;
-   private startViewportY = 0;
-   private dragTableId: string | null = null;
    /** World-space point a shape draw started from (the corner, or the center with Alt). */
    private drawAnchor = { x: 0, y: 0 };
-   lastDrawPointer = { x: 0, y: 0 };
-   /** True once the current drag has switched to dragging Alt-made copies. */
-   private dragCopied = false;
-   /** Pointer was released while Alt-drag copies were still being created. */
-   private releasedWhileDuplicating = false;
-   lastPointer: PointerEvent | null = null;
-   /** Live Shift state, so a move drag can lock to an axis without a pointer move. */
-   shiftHeld = false;
-   private multiDragStart = new Map<string, { x: number; y: number }>();
-   // Manual routes touching the dragged tables. `both` true when both endpoints
-   // move together (rigid translate). Otherwise only one end moves: the waypoint
-   // nearest that anchor follows it vertically (so the closest vertical run
-   // shrinks) while its x is absorbed by the horizontal run. `sourceMoved` picks
-   // which end (first vs last waypoint) is the one being dragged.
-   private waypointDragStart = new Map<string, { wp: Point[]; both: boolean; sourceMoved: boolean }>();
-
-   private lastCursorSent = 0;
 
    constructor() {
+      this.relLink.connect(this);
+      this.tableDrag.connect(this);
       this.cellEditors.connect(this);
       this.textEditing.connect(this);
       this.placement.connect(this);
@@ -1806,7 +1691,7 @@ export class EditorComponent {
       effect((onCleanup) => {
          this.store.slideFrames();
          // Not mid-drag: a pause would shift the rest early; the whole move is caught up on release.
-         if (this.gestureActive()) return;
+         if (this.gesture.gestureActive()) return;
          const timer = setTimeout(() => this.placement.syncSlideMoves(), 160);
          onCleanup(() => clearTimeout(timer));
       });
@@ -1833,7 +1718,7 @@ export class EditorComponent {
          this.store.shownSlideIds();
          this.slideViews();
          // Never mid-drag: adopting re-maps items into a zoomed slide, which would jump them.
-         if (this.gestureActive()) {
+         if (this.gesture.gestureActive()) {
             return;
          }
          const timer = setTimeout(() => void this.placement.adoptIntoShownSlide(), 350);
@@ -1962,7 +1847,7 @@ export class EditorComponent {
       });
       // Floating islands fade while dragging or drawing (toolbar setting).
       effect(() => {
-         const on = this.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
+         const on = this.gesture.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
          document.body.classList.toggle('dd-gesture', on);
       });
       // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
@@ -2035,26 +1920,8 @@ export class EditorComponent {
       });
    }
 
-   /** Send our cursor position (world coords) to the room, throttled to ~25fps. */
-   private broadcastCursor(event: PointerEvent): void {
-      if (!this.realtime.hasPeers()) {
-         return;
-      }
-      const now = Date.now();
-      if (now - this.lastCursorSent < 40) {
-         return;
-      }
-      this.lastCursorSent = now;
-      const world = this.viewport.toWorld(event.clientX, event.clientY);
-      this.realtime.sendCursor(world.x, world.y);
-   }
-
    /** Snap a world coordinate to the grid when grid-snap is enabled, else pass through. */
    protected readonly snapWorld = (n: number): number => (this.gridSnap() ? snapToGrid(n) : n);
-
-   private static additive(event: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): boolean {
-      return event.ctrlKey || event.metaKey || event.shiftKey;
-   }
 
    // --- canvas pointer (pan / marquee) ---
 
@@ -2065,16 +1932,16 @@ export class EditorComponent {
       }
       if (
          !this.deckFocus.focusedDeck() &&
-         (event.button === 1 || (event.button === 0 && (this.spaceDown || this.activeTool() === 'hand')))
+         (event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.activeTool() === 'hand')))
       ) {
          event.preventDefault();
-         this.mode = 'pan';
+         this.gesture.mode = 'pan';
          this.panning.set(true);
-         this.startClientX = event.clientX;
-         this.startClientY = event.clientY;
+         this.gesture.startClientX = event.clientX;
+         this.gesture.startClientY = event.clientY;
          const v = this.store.viewport();
-         this.startViewportX = v.x;
-         this.startViewportY = v.y;
+         this.gesture.startViewportX = v.x;
+         this.gesture.startViewportY = v.y;
          return;
       }
       if (event.button !== 0) {
@@ -2108,7 +1975,7 @@ export class EditorComponent {
       }
       // Grabbing a master or layout item drawn under a shown slide or layout gives that frame its own
       // copy, selected and (while the button is held) dragged like any item.
-      if (tool === 'select' && this.store.canEdit() && !EditorComponent.additive(event)) {
+      if (tool === 'select' && this.store.canEdit() && !PointerGestureService.additive(event)) {
          const inherited = this.inheritedMasterItemAt(this.viewport.toWorld(event.clientX, event.clientY));
          if (inherited) {
             event.preventDefault();
@@ -2116,14 +1983,14 @@ export class EditorComponent {
             return;
          }
       }
-      this.marqueeAdditive = EditorComponent.additive(event);
+      this.marqueeAdditive = PointerGestureService.additive(event);
       if (!this.marqueeAdditive) {
          this.store.clearSelection();
       }
       const p = this.viewport.screenPoint(event.clientX, event.clientY);
       this.marqueeStart.set(p);
       this.marqueeCurrent.set(p);
-      this.mode = 'marquee';
+      this.gesture.mode = 'marquee';
    }
 
    // --- laser pointer (ephemeral: never persisted, undoable, or dirtying) ---
@@ -2134,7 +2001,7 @@ export class EditorComponent {
 
    protected onLaserPointerDown(event: PointerEvent): void {
       // Middle-button and space-drag fall through to the canvas so panning still works.
-      if (event.button !== 0 || this.spaceDown) {
+      if (event.button !== 0 || this.gesture.spaceDown) {
          return;
       }
       event.preventDefault();
@@ -2227,8 +2094,8 @@ export class EditorComponent {
    private lastErasePoint: { x: number; y: number } | null = null;
 
    private beginErase(event: PointerEvent): void {
-      this.mode = 'erase';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'erase';
+      this.gesture.gestureActive.set(true);
       this.erased.clear();
       this.lastErasePoint = null;
       this.eraseAt(event.clientX, event.clientY);
@@ -2436,17 +2303,17 @@ export class EditorComponent {
       const raw = this.viewport.toWorldRaw(event.clientX, event.clientY);
       this.drawSlideId.set(this.slideViews().find((v) => inBlock(v, raw))?.frameId ?? null);
       this.drawAnchor = { x, y };
-      this.lastDrawPointer = { x: event.clientX, y: event.clientY };
-      this.startClientX = event.clientX;
-      this.startClientY = event.clientY;
+      this.gesture.lastDrawPointer = { x: event.clientX, y: event.clientY };
+      this.gesture.startClientX = event.clientX;
+      this.gesture.startClientY = event.clientY;
       if (type === 'text') {
          // Text is placed on click; commit immediately and open the inline editor.
          void this.commitDraft(true);
-         this.mode = 'idle';
+         this.gesture.mode = 'idle';
          return;
       }
-      this.mode = 'draw';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'draw';
+      this.gesture.gestureActive.set(true);
    }
 
    updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
@@ -2454,7 +2321,7 @@ export class EditorComponent {
       if (!draft) {
          return;
       }
-      this.lastDrawPointer = { x: clientX, y: clientY };
+      this.gesture.lastDrawPointer = { x: clientX, y: clientY };
       // Stay in the space the stroke started in, even when the pointer crosses a block edge.
       const view = this.slideViews().find((v) => v.frameId === this.drawSlideId());
       const raw = this.viewport.toWorldRaw(clientX, clientY);
@@ -2745,10 +2612,10 @@ export class EditorComponent {
          }
       }
       // Dragging part of the selection keeps whole-selected presentations selected.
-      if (EditorComponent.additive(payload.event) || !this.store.selectedElementIds().includes(el.id)) {
+      if (PointerGestureService.additive(payload.event) || !this.store.selectedElementIds().includes(el.id)) {
          this.selectedSlideSets.set([]);
       }
-      if (EditorComponent.additive(payload.event)) {
+      if (PointerGestureService.additive(payload.event)) {
          this.store.selectElement(el.id, true);
          return;
       }
@@ -2762,11 +2629,11 @@ export class EditorComponent {
       if (!this.store.canEdit()) {
          return;
       }
-      this.startClientX = payload.event.clientX;
-      this.startClientY = payload.event.clientY;
-      this.gestureScale = this.itemScale(payload.id);
-      this.gestureActive.set(true);
-      this.dragCopied = false;
+      this.gesture.startClientX = payload.event.clientX;
+      this.gesture.startClientY = payload.event.clientY;
+      this.gesture.gestureScale = this.itemScale(payload.id);
+      this.gesture.gestureActive.set(true);
+      this.gesture.dragCopied = false;
       this.beginElementDrag(el);
       if (payload.event.altKey) {
          void this.duplicateAndDrag();
@@ -2792,8 +2659,8 @@ export class EditorComponent {
 
    /** Start moving the current element selection, grabbed by `el`. */
    private beginElementDrag(el: CanvasElementModel): void {
-      this.mode = 'element';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'element';
+      this.gesture.gestureActive.set(true);
       const others = new Map<string, { x: number; y: number }>();
       for (const id of this.store.selectedElementIds()) {
          const e = this.store.elements().find((x) => x.id === id);
@@ -2801,7 +2668,7 @@ export class EditorComponent {
             others.set(id, { x: e.x, y: e.y });
          }
       }
-      const carried = this.dragCopied
+      const carried = this.gesture.dragCopied
          ? null
          : this.carriedByFrames(others, {
               tableIds: new Set(this.store.selectedTableIds()),
@@ -2987,11 +2854,11 @@ export class EditorComponent {
       if (!Number.isFinite(box.x0)) {
          return false;
       }
-      this.mode = 'group-resize';
-      this.gestureActive.set(true);
-      this.startClientX = event.clientX;
-      this.startClientY = event.clientY;
-      this.gestureScale = scaleId ? this.itemScale(scaleId) : 1;
+      this.gesture.mode = 'group-resize';
+      this.gesture.gestureActive.set(true);
+      this.gesture.startClientX = event.clientX;
+      this.gesture.startClientY = event.clientY;
+      this.gesture.gestureScale = scaleId ? this.itemScale(scaleId) : 1;
       this.groupResize = { handle, box, elements, diagrams: seqs };
       return true;
    };
@@ -3008,9 +2875,9 @@ export class EditorComponent {
          return;
       }
       const b = g.box;
-      const zoom = this.store.viewport().zoom * this.gestureScale;
-      const dx = (ev.clientX - this.startClientX) / zoom;
-      const dy = (ev.clientY - this.startClientY) / zoom;
+      const zoom = this.store.viewport().zoom * this.gesture.gestureScale;
+      const dx = (ev.clientX - this.gesture.startClientX) / zoom;
+      const dy = (ev.clientY - this.gesture.startClientY) / zoom;
       const h = g.handle;
       const left = h.includes('w');
       const right = h.includes('e');
@@ -3142,7 +3009,7 @@ export class EditorComponent {
     */
    protected readonly spacingHandles = computed(() => {
       const s = this.evenSpacing();
-      if (!s || (this.gestureActive() && !this.spacingActive())) return null;
+      if (!s || (this.gesture.gestureActive() && !this.spacingActive())) return null;
       const v = this.store.viewport();
       const sx = (x: number): number => x * v.zoom + v.x;
       const sy = (y: number): number => y * v.zoom + v.y;
@@ -3202,11 +3069,11 @@ export class EditorComponent {
       event.stopPropagation();
       event.preventDefault();
       this.spacingDrag = s;
-      this.mode = 'spacing';
+      this.gesture.mode = 'spacing';
       this.spacingActive.set(true);
-      this.gestureActive.set(true);
-      this.startClientX = event.clientX;
-      this.startClientY = event.clientY;
+      this.gesture.gestureActive.set(true);
+      this.gesture.startClientX = event.clientX;
+      this.gesture.startClientY = event.clientY;
       (event.target as Element).setPointerCapture?.(event.pointerId);
    }
 
@@ -3214,7 +3081,8 @@ export class EditorComponent {
       const g = this.spacingDrag;
       if (!g) return;
       const zoom = this.store.viewport().zoom;
-      const delta = (g.axis === 'x' ? ev.clientX - this.startClientX : ev.clientY - this.startClientY) / zoom;
+      const delta =
+         (g.axis === 'x' ? ev.clientX - this.gesture.startClientX : ev.clientY - this.gesture.startClientY) / zoom;
       let gap = Math.max(0, g.gap + delta);
       if (!ev.altKey) gap = Math.round(gap);
       let cursor = g.items[0].box[g.axis === 'x' ? 'x1' : 'y1'];
@@ -3322,11 +3190,11 @@ export class EditorComponent {
       if (this.startGroupResize(payload.handle, payload.event, payload.id)) {
          return;
       }
-      this.mode = 'element-resize';
-      this.gestureActive.set(true);
-      this.startClientX = payload.event.clientX;
-      this.startClientY = payload.event.clientY;
-      this.gestureScale = this.itemScale(el.id);
+      this.gesture.mode = 'element-resize';
+      this.gesture.gestureActive.set(true);
+      this.gesture.startClientX = payload.event.clientX;
+      this.gesture.startClientY = payload.event.clientY;
+      this.gesture.gestureScale = this.itemScale(el.id);
       // A pen stroke's x/y is its first point, not its bounds: resize from the drawn box.
       const pb = el.type === 'freedraw' ? elementBox(el) : null;
       this.elementGesture = {
@@ -3350,8 +3218,8 @@ export class EditorComponent {
       if (!el || !this.store.canEdit()) {
          return;
       }
-      this.mode = 'element-rotate';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'element-rotate';
+      this.gesture.gestureActive.set(true);
       this.elementGesture = {
          id: el.id,
          start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
@@ -3364,8 +3232,8 @@ export class EditorComponent {
       if (!el || !this.store.canEdit()) {
          return;
       }
-      this.mode = 'arrow-endpoint';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'arrow-endpoint';
+      this.gesture.gestureActive.set(true);
       this.elementGesture = {
          id: el.id,
          which: payload.which,
@@ -3380,8 +3248,8 @@ export class EditorComponent {
       if (!el || !this.store.canEdit()) {
          return;
       }
-      this.mode = 'arrow-bend';
-      this.gestureActive.set(true);
+      this.gesture.mode = 'arrow-bend';
+      this.gesture.gestureActive.set(true);
       this.elementGesture = {
          id: el.id,
          start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
@@ -3448,7 +3316,7 @@ export class EditorComponent {
 
    /** After a table-grabbed drag, record/persist the elements and diagrams that rode along. */
    private settleNodeExtras(): void {
-      const ex = this.nodeExtras;
+      const ex = this.tableDrag.nodeExtras;
       if (!ex) {
          return;
       }
@@ -3465,7 +3333,7 @@ export class EditorComponent {
 
    /** Where the elements/diagrams riding with a grabbed table go when it has moved (mx, my). */
    private nodeExtrasMoves(mx: number, my: number): Pick<ItemMoves, 'elements' | 'sequences'> {
-      const ex = this.nodeExtras;
+      const ex = this.tableDrag.nodeExtras;
       if (!ex) {
          return {};
       }
@@ -3488,11 +3356,11 @@ export class EditorComponent {
          return;
       }
       // Don't snap an unaligned item to the grid on a plain click.
-      if (this.belowDragThreshold(clientX, clientY)) {
+      if (this.gesture.belowDragThreshold(clientX, clientY)) {
          return;
       }
-      this.movingItems.set(true);
-      let { dx, dy } = this.dragDelta(clientX, clientY);
+      this.gesture.movingItems.set(true);
+      let { dx, dy } = this.gesture.dragDelta(clientX, clientY);
       const smart = this.smartDelta(g.id, g.others.keys(), g.tables?.keys() ?? [], dx, dy, g.sequences?.keys() ?? []);
       dx += smart?.ox ?? 0;
       dy += smart?.oy ?? 0;
@@ -3540,9 +3408,9 @@ export class EditorComponent {
          return;
       }
       const s = g.start;
-      const zoom = this.store.viewport().zoom * this.gestureScale;
-      const dx = (ev.clientX - this.startClientX) / zoom;
-      const dy = (ev.clientY - this.startClientY) / zoom;
+      const zoom = this.store.viewport().zoom * this.gesture.gestureScale;
+      const dx = (ev.clientX - this.gesture.startClientX) / zoom;
+      const dy = (ev.clientY - this.gesture.startClientY) / zoom;
       const left = g.handle === 'nw' || g.handle === 'sw' || g.handle === 'w';
       const top = g.handle === 'nw' || g.handle === 'ne';
       const cx = s.x + s.width / 2;
@@ -3740,7 +3608,7 @@ export class EditorComponent {
       if (!binding) {
          // The neighbouring point anchors the Shift angle lock.
          const anchor = pts[g.which === 'start' ? 1 : pts.length - 2] ?? pts[idx];
-         if (this.shiftHeld) {
+         if (this.gesture.shiftHeld) {
             // Lock to 45° steps around the anchor, keeping the cursor's distance along it.
             const vx = world.x - anchor.x;
             const vy = world.y - anchor.y;
@@ -3854,7 +3722,7 @@ export class EditorComponent {
          return;
       }
       const snap = g.snapshot;
-      if (this.mode === 'element-resize') {
+      if (this.gesture.mode === 'element-resize') {
          const scaled = el.type === 'text';
          void this.store.commitElementGeometry(
             g.id,
@@ -3877,15 +3745,15 @@ export class EditorComponent {
                ...(el.type === 'freedraw' ? { points: el.points } : {}),
             }
          );
-      } else if (this.mode === 'element-rotate') {
+      } else if (this.gesture.mode === 'element-rotate') {
          void this.store.commitElementGeometry(g.id, { angle: snap.angle }, { angle: el.angle });
-      } else if (this.mode === 'arrow-bend') {
+      } else if (this.gesture.mode === 'arrow-bend') {
          void this.store.commitElementGeometry(
             g.id,
             { curvature: snap.curvature ?? 0 },
             { curvature: el.curvature ?? 0 }
          );
-      } else if (this.mode === 'arrow-endpoint') {
+      } else if (this.gesture.mode === 'arrow-endpoint') {
          void this.store.commitElementGeometry(
             g.id,
             {
@@ -3911,33 +3779,6 @@ export class EditorComponent {
    readonly gridCellArea = viewChild<ElementRef<HTMLTextAreaElement>>('gridCellArea');
    readonly richEditorRef = viewChild<ElementRef<HTMLDivElement>>('richEditor');
 
-   // --- node pointer (select / drag) ---
-
-   protected onNodePointerDown(event: PointerEvent, table: TableModel): void {
-      if (event.button !== 0) {
-         return;
-      }
-      event.stopPropagation();
-      if (EditorComponent.additive(event)) {
-         this.store.selectTable(table.id, true);
-         return;
-      }
-      if (!this.store.selectedTableIds().includes(table.id)) {
-         this.store.selectTable(table.id, false);
-      }
-      if (!this.store.canEdit()) {
-         return;
-      }
-      this.startClientX = event.clientX;
-      this.startClientY = event.clientY;
-      this.gestureScale = this.itemScale(table.id);
-      this.dragCopied = false;
-      this.beginNodeDrag(table.id);
-      if (event.altKey) {
-         void this.duplicateAndDrag();
-      }
-   }
-
    /**
     * Switch an in-progress move (element or table drag) into a duplicate-drag: put
     * the originals back where the drag began, clone the selection in place, and
@@ -3945,13 +3786,13 @@ export class EditorComponent {
     * held at pointer-down or pressed part-way through the drag.
     */
    async duplicateAndDrag(): Promise<void> {
-      const kind = this.mode;
-      if (this.dragCopied || (kind !== 'element' && kind !== 'node') || !this.store.canEdit()) {
+      const kind = this.gesture.mode;
+      if (this.gesture.dragCopied || (kind !== 'element' && kind !== 'node') || !this.store.canEdit()) {
          return;
       }
-      this.dragCopied = true;
+      this.gesture.dragCopied = true;
       const grabbedElement = this.elementGesture?.id ?? null;
-      const grabbedTable = this.dragTableId;
+      const grabbedTable = this.tableDrag.dragTableId;
       if (kind === 'element') {
          const g = this.elementGesture;
          this.store.moveItemsLocal({
@@ -3969,12 +3810,12 @@ export class EditorComponent {
          });
       } else {
          this.store.moveItemsLocal({
-            tables: this.multiDragStart,
-            waypoints: new Map([...this.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
+            tables: this.tableDrag.multiDragStart,
+            waypoints: new Map([...this.tableDrag.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
             ...this.nodeExtrasMoves(0, 0),
          });
       }
-      this.mode = 'duplicating';
+      this.gesture.mode = 'duplicating';
       let resume: (() => void) | null = null;
       let created: string[] = [];
       const selectedIds = this.store.selectedElementIds();
@@ -4132,277 +3973,27 @@ export class EditorComponent {
          this.store.setSelection(created, relCopies, []);
          const grabbed = (grabbedTable && ids.get(grabbedTable)) || created[0];
          if (grabbed) {
-            resume = () => this.beginNodeDrag(grabbed);
+            resume = () => this.tableDrag.beginNodeDrag(grabbed);
          }
       }
-      if (this.mode !== 'duplicating' || !resume) {
+      if (this.gesture.mode !== 'duplicating' || !resume) {
          // Nothing was copied (or the gesture was cancelled meanwhile).
-         this.releasedWhileDuplicating = false;
-         if (this.mode === 'duplicating') {
-            this.mode = 'idle';
-            this.gestureActive.set(false);
+         this.gesture.releasedWhileDuplicating = false;
+         if (this.gesture.mode === 'duplicating') {
+            this.gesture.mode = 'idle';
+            this.gesture.gestureActive.set(false);
          }
          return;
       }
       resume();
-      if (this.lastPointer) {
-         this.handlePointerMove(this.lastPointer);
+      if (this.gesture.lastPointer) {
+         this.handlePointerMove(this.gesture.lastPointer);
       }
-      if (this.releasedWhileDuplicating) {
+      if (this.gesture.releasedWhileDuplicating) {
          // The button was let go before the copies existed: land them where it was dropped.
-         this.releasedWhileDuplicating = false;
+         this.gesture.releasedWhileDuplicating = false;
          this.onPointerUp();
       }
-   }
-
-   /**
-    * Pointer displacement (world units) of a move drag. While Shift is held (moving
-    * or Alt-duplicating), movement locks to the dominant axis relative to the start.
-    */
-   /** True while the pointer is still within click-jitter range of where the drag began. */
-   private belowDragThreshold(clientX: number, clientY: number): boolean {
-      return Math.hypot(clientX - this.startClientX, clientY - this.startClientY) < 3;
-   }
-
-   /**
-    * Screen px -> world units factor of the current move/resize beyond the canvas zoom:
-    * the slide zoom of the slide the grabbed item is drawn in (1 on the plain canvas).
-    */
-   private gestureScale = 1;
-
-   private dragDelta(clientX: number, clientY: number): { dx: number; dy: number } {
-      const zoom = this.store.viewport().zoom * this.gestureScale;
-      let dx = (clientX - this.startClientX) / zoom;
-      let dy = (clientY - this.startClientY) / zoom;
-      if (this.shiftHeld) {
-         if (Math.abs(dx) > Math.abs(dy)) {
-            dy = 0;
-         } else {
-            dx = 0;
-         }
-      }
-      return { dx, dy };
-   }
-
-   /** Start moving the current table selection, grabbed by `tableId`. */
-   private beginNodeDrag(tableId: string): void {
-      this.mode = 'node';
-      this.dragTableId = tableId;
-      this.multiDragStart = new Map(
-         this.store
-            .tables()
-            .filter((t) => this.store.selectedTableIds().includes(t.id))
-            .map((t) => [t.id, { x: t.x, y: t.y }])
-      );
-
-      const elementIds = new Set(this.store.selectedElementIds());
-      const diagramIds = this.store.selectedDiagramIds();
-      this.nodeExtras =
-         elementIds.size || diagramIds.length
-            ? {
-                 elements: new Map(
-                    this.store
-                       .elements()
-                       .filter((e) => elementIds.has(e.id))
-                       .map((e) => [e.id, { x: e.x, y: e.y }] as const)
-                 ),
-                 sequences: new Map(
-                    diagramIds
-                       .map((id) => [id, this.sequenceStart(id)] as const)
-                       .filter((e): e is readonly [string, SequenceStart] => !!e[1])
-                 ),
-              }
-            : null;
-
-      const moved = new Set(this.store.selectedTableIds());
-      const locs = this.columnLocations();
-      this.waypointDragStart = new Map();
-      for (const rel of this.store.relationships()) {
-         const st = locs.get(rel.sourceColumnId)?.table.id;
-         const tt = locs.get(rel.targetColumnId)?.table.id;
-         const srcMoved = !!st && moved.has(st);
-         const tgtMoved = !!tt && moved.has(tt);
-         if (srcMoved || tgtMoved) {
-            this.waypointDragStart.set(rel.id, {
-               wp: (rel.waypoints ?? []).map((w) => ({ ...w })),
-               both: srcMoved && tgtMoved,
-               sourceMoved: srcMoved,
-            });
-         }
-      }
-   }
-
-   protected onConnectorSelect(payload: { id: string; event: PointerEvent }): void {
-      this.store.selectRelationship(payload.id, EditorComponent.additive(payload.event));
-   }
-
-   // --- relationship linking / re-pointing ---
-
-   protected onHandleDown(payload: HandleEvent): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      payload.event.preventDefault();
-      this.relinkState.set(null);
-      this.linkSourceColumnId.set(payload.columnId);
-      this.linkSourceSide.set(payload.side);
-      const loc = this.columnLocations().get(payload.columnId);
-      if (loc) {
-         const a = columnAnchor(loc.table, loc.index, payload.side);
-         this.linkCursor.set({ x: a.x, y: a.y });
-      }
-   }
-
-   protected onEndpointDown(payload: EndpointDownEvent): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      this.linkSourceColumnId.set(null);
-      this.relinkState.set({ relationshipId: payload.relationshipId, which: payload.which });
-      this.linkCursor.set(this.viewport.toWorld(payload.event.clientX, payload.event.clientY));
-   }
-
-   protected onHandleUp(payload: HandleEvent): void {
-      const relink = this.relinkState();
-      if (relink) {
-         payload.event.stopPropagation();
-         const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
-         const opposite = relink.which === 'source' ? rel?.targetColumnId : rel?.sourceColumnId;
-         if (payload.columnId !== opposite) {
-            this.repoint(relink, payload.columnId, payload.side);
-         }
-      } else {
-         const sourceId = this.linkSourceColumnId();
-         if (sourceId && sourceId !== payload.columnId) {
-            payload.event.stopPropagation();
-            void this.store.addRelationship(sourceId, payload.columnId, undefined, {
-               sourceSide: this.linkSourceSide(),
-               targetSide: payload.side,
-               autoRoute: false,
-            });
-         }
-      }
-      this.clearLinking();
-   }
-
-   private clearLinking(): void {
-      this.linkSourceColumnId.set(null);
-      this.relinkState.set(null);
-      this.linkCursor.set(null);
-   }
-
-   /** Released off a handle but near a table: attach to the snapped row. */
-   private commitLinkSnap(): void {
-      const snap = this.linkSnap();
-      if (!snap) {
-         return;
-      }
-      const relink = this.relinkState();
-      if (relink) {
-         this.repoint(relink, snap.columnId, snap.side);
-         return;
-      }
-      const sourceId = this.linkSourceColumnId();
-      if (sourceId && sourceId !== snap.columnId) {
-         void this.store.addRelationship(sourceId, snap.columnId, undefined, {
-            sourceSide: this.linkSourceSide(),
-            targetSide: snap.side,
-            autoRoute: false,
-         });
-      }
-   }
-
-   /**
-    * Re-point one end of a line to a column + side. Dropping an end is an explicit
-    * routing choice, so the line switches to manual with both sides pinned (the
-    * other end keeps the side it currently uses) and its old bends are dropped.
-    */
-   private repoint(relink: RelinkState, columnId: string, side: Side): void {
-      const rel = this.store.relationships().find((r) => r.id === relink.relationshipId);
-      const connector = this.connectors().find((c) => c.id === relink.relationshipId);
-      if (!rel) {
-         return;
-      }
-      const source = relink.which === 'source';
-      const sameColumn = (source ? rel.sourceColumnId : rel.targetColumnId) === columnId;
-      void this.store.updateRelationship(rel.id, {
-         ...(sameColumn ? {} : source ? { sourceColumnId: columnId } : { targetColumnId: columnId }),
-         sourceSide: source ? side : (connector?.sourceSide ?? rel.sourceSide),
-         targetSide: source ? (connector?.targetSide ?? rel.targetSide) : side,
-         autoRoute: false,
-         waypoints: [],
-      });
-   }
-
-   // --- relationship segment dragging (Miro-style manual routing) ---
-
-   protected onSegmentDown(payload: SegmentDownEvent): void {
-      if (!this.store.canEdit()) {
-         return;
-      }
-      const connector = this.connectors().find((c) => c.id === payload.relationshipId);
-      if (!connector) {
-         return;
-      }
-      // Hand-shaping a line takes it off auto: pin the sides it uses right now.
-      if (connector.autoRoute) {
-         void this.store.updateRelationship(connector.id, {
-            autoRoute: false,
-            sourceSide: connector.sourceSide,
-            targetSide: connector.targetSide,
-         });
-      }
-      this.activeSegment.set({
-         relationshipId: payload.relationshipId,
-         segIndex: payload.segmentIndex,
-         a: { x: connector.ax, y: connector.ay },
-         b: { x: connector.bx, y: connector.by },
-         route: connector.routePoints,
-      });
-   }
-
-   /** Reset route: drop every bend and hand the line back to best-path routing. */
-   protected onResetRoute(relationshipId: string): void {
-      if (this.store.canEdit()) {
-         void this.store.updateRelationship(relationshipId, { autoRoute: true, waypoints: [] });
-      }
-   }
-
-   /**
-    * After a segment drag, store any side the line flipped to (the renderer flips
-    * it live once a bend crosses past the far edge of its table), so the side
-    * sticks even if the bends are later cleared.
-    */
-   private persistFlippedSides(): void {
-      const active = this.activeSegment();
-      if (!active) {
-         return;
-      }
-      const rel = this.store.relationships().find((r) => r.id === active.relationshipId);
-      const c = this.connectors().find((x) => x.id === active.relationshipId);
-      if (rel && c && (c.sourceSide !== rel.sourceSide || c.targetSide !== rel.targetSide)) {
-         void this.store.updateRelationship(rel.id, { sourceSide: c.sourceSide, targetSide: c.targetSide });
-      }
-   }
-
-   /** Double-clicking a line hands it back to best-path routing. */
-   protected onAutoRoute(relationshipId: string): void {
-      if (this.store.canEdit()) {
-         void this.store.updateRelationship(relationshipId, { autoRoute: true, waypoints: [] });
-      }
-   }
-
-   private moveActiveSegment(clientX: number, clientY: number): void {
-      const active = this.activeSegment();
-      if (!active) {
-         return;
-      }
-      // Connector routing never snaps to the grid, even in snap mode: column
-      // anchors sit at row centers (off grid), so grid-snapped waypoints would not
-      // line up with them and the line would jump around as tables move.
-      const cursor = this.viewport.toWorld(clientX, clientY);
-      const waypoints = segmentDrag(active.a, active.b, active.route, active.segIndex, cursor);
-      this.store.setWaypoints(active.relationshipId, waypoints);
    }
 
    // --- global pointer + keyboard ---
@@ -4424,78 +4015,78 @@ export class EditorComponent {
 
    @HostListener('window:pointermove', ['$event'])
    protected onPointerMove(event: PointerEvent): void {
-      this.lastPointer = event;
-      this.shiftHeld = event.shiftKey;
+      this.gesture.lastPointer = event;
+      this.gesture.shiftHeld = event.shiftKey;
       this.handlePointerMove(event);
    }
 
    handlePointerMove(event: PointerEvent): void {
-      if (this.mode === 'duplicating') {
+      if (this.gesture.mode === 'duplicating') {
          return; // copies are still being created; the drag resumes from lastPointer
       }
-      this.broadcastCursor(event);
-      if (this.linkSourceColumnId() || this.relinkState()) {
-         this.linkCursor.set(this.viewport.toWorld(event.clientX, event.clientY));
+      this.gesture.broadcastCursor(event);
+      if (this.relLink.linkSourceColumnId() || this.relLink.relinkState()) {
+         this.relLink.linkCursor.set(this.viewport.toWorld(event.clientX, event.clientY));
          return;
       }
-      if (this.activeSegment()) {
-         this.moveActiveSegment(event.clientX, event.clientY);
+      if (this.relLink.activeSegment()) {
+         this.relLink.moveActiveSegment(event.clientX, event.clientY);
          return;
       }
-      if (this.mode === 'draw') {
+      if (this.gesture.mode === 'draw') {
          this.updateDraw(event.clientX, event.clientY, event.shiftKey, event.altKey);
          return;
       }
-      if (this.mode === 'erase') {
+      if (this.gesture.mode === 'erase') {
          this.eraseAt(event.clientX, event.clientY);
          return;
       }
-      if (this.mode === 'element') {
+      if (this.gesture.mode === 'element') {
          this.moveElements(event.clientX, event.clientY);
          return;
       }
-      if (this.mode === 'element-resize') {
+      if (this.gesture.mode === 'element-resize') {
          this.resizeElement(event);
          return;
       }
-      if (this.mode === 'group-resize') {
+      if (this.gesture.mode === 'group-resize') {
          this.groupResizeMove(event);
          return;
       }
-      if (this.mode === 'spacing') {
+      if (this.gesture.mode === 'spacing') {
          this.spacingMove(event);
          return;
       }
-      if (this.mode === 'element-rotate') {
+      if (this.gesture.mode === 'element-rotate') {
          this.rotateElement(event);
          return;
       }
-      if (this.mode === 'arrow-endpoint') {
+      if (this.gesture.mode === 'arrow-endpoint') {
          this.moveEndpoint(event.clientX, event.clientY);
          return;
       }
-      if (this.mode === 'arrow-bend') {
+      if (this.gesture.mode === 'arrow-bend') {
          this.moveBend(event.clientX, event.clientY);
          return;
       }
-      if (this.mode === 'pan') {
-         const dx = event.clientX - this.startClientX;
-         const dy = event.clientY - this.startClientY;
+      if (this.gesture.mode === 'pan') {
+         const dx = event.clientX - this.gesture.startClientX;
+         const dy = event.clientY - this.gesture.startClientY;
          const v = this.store.viewport();
-         this.store.setViewport(this.startViewportX + dx, this.startViewportY + dy, v.zoom);
-      } else if (this.mode === 'node' && this.dragTableId) {
-         if (this.belowDragThreshold(event.clientX, event.clientY)) {
+         this.store.setViewport(this.gesture.startViewportX + dx, this.gesture.startViewportY + dy, v.zoom);
+      } else if (this.gesture.mode === 'node' && this.tableDrag.dragTableId) {
+         if (this.gesture.belowDragThreshold(event.clientX, event.clientY)) {
             return;
          }
-         this.movingItems.set(true);
-         let { dx, dy } = this.dragDelta(event.clientX, event.clientY);
+         this.gesture.movingItems.set(true);
+         let { dx, dy } = this.gesture.dragDelta(event.clientX, event.clientY);
          const smart = this.smartDelta(
-            this.dragTableId,
-            this.nodeExtras?.elements.keys() ?? [],
-            this.multiDragStart.keys(),
+            this.tableDrag.dragTableId,
+            this.tableDrag.nodeExtras?.elements.keys() ?? [],
+            this.tableDrag.multiDragStart.keys(),
             dx,
             dy,
-            this.nodeExtras?.sequences.keys() ?? []
+            this.tableDrag.nodeExtras?.sequences.keys() ?? []
          );
          dx += smart?.ox ?? 0;
          dy += smart?.oy ?? 0;
@@ -4503,11 +4094,11 @@ export class EditorComponent {
          // The tables' actual (snapped) move, so routes carried with them stay attached.
          let moved: { x: number; y: number } | null = null;
          const tables = new Map<string, { x: number; y: number }>();
-         for (const [id, start] of this.multiDragStart) {
+         for (const [id, start] of this.tableDrag.multiDragStart) {
             const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
             const ny = grid && !smart?.snappedY ? snapToGrid(start.y + dy) : Math.round(start.y + dy);
             tables.set(id, { x: nx, y: ny });
-            if (id === this.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
+            if (id === this.tableDrag.dragTableId || !moved) moved = { x: nx - start.x, y: ny - start.y };
          }
          const mx = moved?.x ?? dx;
          const my = moved?.y ?? dy;
@@ -4517,7 +4108,7 @@ export class EditorComponent {
          // the waypoint nearest that anchor follows it in y (its horizontal run
          // stays parallel, the vertical run to it shrinks or grows); its x is
          // absorbed by the horizontal run, and every other waypoint stays put.
-         for (const [relId, start] of this.waypointDragStart) {
+         for (const [relId, start] of this.tableDrag.waypointDragStart) {
             if (!start.wp.length) {
                continue;
             }
@@ -4539,62 +4130,65 @@ export class EditorComponent {
          }
          // Tables, their routes and the items riding along: one state write per frame.
          this.store.moveItemsLocal({ tables, waypoints, ...this.nodeExtrasMoves(mx, my) });
-      } else if (this.mode === 'marquee') {
+      } else if (this.gesture.mode === 'marquee') {
          this.marqueeCurrent.set(this.viewport.screenPoint(event.clientX, event.clientY));
       }
    }
 
    @HostListener('window:pointerup')
    protected onPointerUp(): void {
-      if (this.mode === 'duplicating') {
+      if (this.gesture.mode === 'duplicating') {
          // The copies are still being created; finish the drop once they exist.
-         this.releasedWhileDuplicating = true;
+         this.gesture.releasedWhileDuplicating = true;
          return;
       }
-      this.commitLinkSnap();
-      const edgeGesture = this.mode === 'element-resize' || this.mode === 'arrow-endpoint' || this.mode === 'draw';
+      this.relLink.commitLinkSnap();
+      const edgeGesture =
+         this.gesture.mode === 'element-resize' ||
+         this.gesture.mode === 'arrow-endpoint' ||
+         this.gesture.mode === 'draw';
       const moved =
-         this.mode === 'element' || this.mode === 'node'
+         this.gesture.mode === 'element' || this.gesture.mode === 'node'
             ? { elements: [...this.store.selectedElementIds()], tables: [...this.store.selectedTableIds()] }
             : null;
-      if (this.mode === 'marquee') {
+      if (this.gesture.mode === 'marquee') {
          this.commitMarquee();
-      } else if (this.mode === 'draw') {
+      } else if (this.gesture.mode === 'draw') {
          void this.commitDraft(false);
-      } else if (this.mode === 'erase') {
+      } else if (this.gesture.mode === 'erase') {
          this.commitErase();
-      } else if (this.mode === 'element') {
+      } else if (this.gesture.mode === 'element') {
          this.recordMoveGesture();
-      } else if (this.mode === 'node') {
+      } else if (this.gesture.mode === 'node') {
          this.settleNodeExtras();
-      } else if (this.mode === 'group-resize') {
+      } else if (this.gesture.mode === 'group-resize') {
          this.commitGroupResize();
-      } else if (this.mode === 'spacing') {
+      } else if (this.gesture.mode === 'spacing') {
          this.commitSpacingDrag();
       } else if (
-         this.mode === 'element-resize' ||
-         this.mode === 'element-rotate' ||
-         this.mode === 'arrow-endpoint' ||
-         this.mode === 'arrow-bend'
+         this.gesture.mode === 'element-resize' ||
+         this.gesture.mode === 'element-rotate' ||
+         this.gesture.mode === 'arrow-endpoint' ||
+         this.gesture.mode === 'arrow-bend'
       ) {
          this.commitElementGesture();
       }
-      this.mode = 'idle';
+      this.gesture.mode = 'idle';
       this.panning.set(false);
-      this.dragTableId = null;
-      this.nodeExtras = null;
+      this.tableDrag.dragTableId = null;
+      this.tableDrag.nodeExtras = null;
       this.elementGesture = null;
-      this.gestureActive.set(false);
-      this.movingItems.set(false);
+      this.gesture.gestureActive.set(false);
+      this.gesture.movingItems.set(false);
       this.bindHighlight.set(null);
-      this.multiDragStart.clear();
-      this.waypointDragStart.clear();
+      this.tableDrag.multiDragStart.clear();
+      this.tableDrag.waypointDragStart.clear();
       this.marqueeStart.set(null);
       this.marqueeCurrent.set(null);
-      this.persistFlippedSides();
-      this.activeSegment.set(null);
-      this.clearLinking();
-      this.gestureScale = 1;
+      this.relLink.persistFlippedSides();
+      this.relLink.activeSegment.set(null);
+      this.relLink.clearLinking();
+      this.gesture.gestureScale = 1;
       // Sequence diagrams run their own drags and clear this after their final shift.
       if (moved || edgeGesture) this.smartDragEnd();
       if (moved) {
@@ -5238,10 +4832,10 @@ export class EditorComponent {
       this.store.selectElement(copy.id, false);
       if (!held) return;
       window.removeEventListener('pointerup', up);
-      this.startClientX = event.clientX;
-      this.startClientY = event.clientY;
-      this.gestureScale = this.itemScale(copy.id);
-      this.dragCopied = false;
+      this.gesture.startClientX = event.clientX;
+      this.gesture.startClientY = event.clientY;
+      this.gesture.gestureScale = this.itemScale(copy.id);
+      this.gesture.dragCopied = false;
       this.beginElementDrag(copy);
    }
 
@@ -5449,8 +5043,8 @@ export class EditorComponent {
       const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
       const snap = smartSnap(moved, base.targets, this.store.viewport().zoom * this.itemScale(grabbedId), parts);
       // Shift constrains the drag to one axis; don't let a snap pull it off.
-      if (this.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
-      if (this.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
+      if (this.gesture.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
+      if (this.gesture.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
       this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
       return snap;
    }
@@ -5542,47 +5136,6 @@ export class EditorComponent {
          this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
       }
       return this.smartBase;
-   }
-
-   // --- relationship inline toolbar ---
-
-   protected onSetRelType(type: RelationshipType): void {
-      const rel = this.store.selectedRelationship();
-      if (rel && this.store.canEdit()) {
-         void this.store.updateRelationship(rel.id, { type });
-      }
-   }
-
-   /**
-    * Toggle best-path routing for every selected line (the toolbar's state is the
-    * primary selection's). Turning it on drops manual bends; turning it off pins
-    * the sides each line uses now so nothing jumps.
-    */
-   protected onToggleAutoRoute(): void {
-      const primary = this.store.selectedRelationship();
-      if (!primary || !this.store.canEdit()) {
-         return;
-      }
-      const enable = primary.autoRoute === false;
-      const ids = new Set(this.store.selectedRelationshipIds());
-      for (const c of this.connectors()) {
-         if (!ids.has(c.id)) {
-            continue;
-         }
-         void this.store.updateRelationship(
-            c.id,
-            enable
-               ? { autoRoute: true, waypoints: [] }
-               : { autoRoute: false, sourceSide: c.sourceSide, targetSide: c.targetSide }
-         );
-      }
-   }
-
-   protected onDeleteRel(): void {
-      const rel = this.store.selectedRelationship();
-      if (rel && this.store.canEdit()) {
-         void this.store.deleteRelationship(rel.id);
-      }
    }
 
    // --- alignment ---
@@ -5773,7 +5326,7 @@ export class EditorComponent {
             break;
          }
       }
-      this.followRoutes(tableStart);
+      this.relLink.followRoutes(tableStart);
       this.store.recordElementMove(moves);
       for (const { id, before } of seqMoves) {
          const after = this.layoutSnapshot(id);
@@ -5784,47 +5337,6 @@ export class EditorComponent {
             originY: after.originY,
          });
          this.store.recordSequenceLayout(id, before, after);
-      }
-   }
-
-   /**
-    * Keep manual relationship routes in place relative to their tables after the
-    * tables moved from `start`. Both ends moved alike: the route translates rigidly.
-    * Otherwise each waypoint takes a blend of the two ends' moves (nearer end
-    * weighs more), and waypoint pairs that shared an x or y keep sharing it so the
-    * route stays orthogonal.
-    */
-   private followRoutes(start: Map<string, { x: number; y: number }>): void {
-      const now = new Map(this.store.tables().map((t) => [t.id, t] as const));
-      const delta = (id: string | undefined): { x: number; y: number } => {
-         const a = id ? start.get(id) : undefined;
-         const b = id ? now.get(id) : undefined;
-         return a && b ? { x: b.x - a.x, y: b.y - a.y } : { x: 0, y: 0 };
-      };
-      const locs = this.columnLocations();
-      for (const rel of this.store.relationships()) {
-         const wp = rel.waypoints;
-         if (!wp?.length) continue;
-         const ds = delta(locs.get(rel.sourceColumnId)?.table.id);
-         const dt = delta(locs.get(rel.targetColumnId)?.table.id);
-         if (!ds.x && !ds.y && !dt.x && !dt.y) continue;
-         const n = wp.length;
-         const next = wp.map((w, i) => {
-            const f = (i + 1) / (n + 1);
-            return { x: w.x + ds.x + (dt.x - ds.x) * f, y: w.y + ds.y + (dt.y - ds.y) * f };
-         });
-         for (let i = 0; i + 1 < n; i++) {
-            if (Math.abs(wp[i].x - wp[i + 1].x) < 0.5) {
-               next[i].x = next[i + 1].x = (next[i].x + next[i + 1].x) / 2;
-            }
-            if (Math.abs(wp[i].y - wp[i + 1].y) < 0.5) {
-               next[i].y = next[i + 1].y = (next[i].y + next[i + 1].y) / 2;
-            }
-         }
-         this.store.setWaypoints(
-            rel.id,
-            next.map((w) => ({ x: Math.round(w.x), y: Math.round(w.y) }))
-         );
       }
    }
 

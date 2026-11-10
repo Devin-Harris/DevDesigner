@@ -28,7 +28,7 @@
             layer="frames"
             [shapes]="outerShapeViews()"
             [svgOffset]="svgOffset"
-            [dragging]="dragging()"
+            [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
             (elementPointerDown)="onElementPointerDown($event)"
@@ -55,7 +55,7 @@
                      layer="frames"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
-                     [dragging]="dragging()"
+                     [dragging]="relLink.dragging()"
                      [interactive]="shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
                      (elementPointerDown)="onElementPointerDown($event)"
@@ -69,11 +69,11 @@
                      [tempLinkPath]="null"
                      [snapAnchor]="null"
                      [svgOffset]="svgOffset"
-                     [dragging]="dragging()"
-                     (selectConnector)="onConnectorSelect($event)"
-                     (endpointDown)="onEndpointDown($event)"
-                     (segmentDown)="onSegmentDown($event)"
-                     (resetRoute)="onAutoRoute($event)"
+                     [dragging]="relLink.dragging()"
+                     (selectConnector)="relLink.onConnectorSelect($event)"
+                     (endpointDown)="relLink.onEndpointDown($event)"
+                     (segmentDown)="relLink.onSegmentDown($event)"
+                     (resetRoute)="relLink.onAutoRoute($event)"
                   ></dd-canvas-connectors>
                   @for (seg of contentSegments(); track seg.index) {
                      <dd-canvas-shapes
@@ -82,7 +82,7 @@
                         [accept]="seg.accept"
                         [shapes]="z.shapes"
                         [svgOffset]="svgOffset"
-                        [dragging]="dragging()"
+                        [dragging]="relLink.dragging()"
                         [interactive]="shapesInteractive()"
                         [editingId]="textEditing.editingTextId()"
                         (elementPointerDown)="onElementPointerDown($event)"
@@ -99,9 +99,9 @@
                         [editable]="store.canEdit()"
                         [fkColumnIds]="store.foreignKeyColumnIds()"
                         [snap]="snapWorld"
-                        (nodePointerDown)="onNodePointerDown($event, table)"
-                        (handleDown)="onHandleDown($event)"
-                        (handleUp)="onHandleUp($event)"
+                        (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
+                        (handleDown)="relLink.onHandleDown($event)"
+                        (handleUp)="relLink.onHandleUp($event)"
                      ></dd-table-node>
                   }
                   <dd-canvas-sequence
@@ -118,7 +118,7 @@
                      layer="lines"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
-                     [dragging]="dragging()"
+                     [dragging]="relLink.dragging()"
                      [interactive]="shapesInteractive()"
                      [editingId]="textEditing.editingTextId()"
                      [bindHighlight]="bindHighlight()"
@@ -136,14 +136,14 @@
            table; anchors sit just outside nodes so markers/handles stay visible. -->
          <dd-canvas-connectors
             [connectors]="outerConnectors()"
-            [tempLinkPath]="tempLink()"
-            [snapAnchor]="linkSnap()?.anchor ?? null"
+            [tempLinkPath]="relLink.tempLink()"
+            [snapAnchor]="relLink.linkSnap()?.anchor ?? null"
             [svgOffset]="svgOffset"
-            [dragging]="dragging()"
-            (selectConnector)="onConnectorSelect($event)"
-            (endpointDown)="onEndpointDown($event)"
-            (segmentDown)="onSegmentDown($event)"
-            (resetRoute)="onAutoRoute($event)"
+            [dragging]="relLink.dragging()"
+            (selectConnector)="relLink.onConnectorSelect($event)"
+            (endpointDown)="relLink.onEndpointDown($event)"
+            (segmentDown)="relLink.onSegmentDown($event)"
+            (resetRoute)="relLink.onAutoRoute($event)"
          ></dd-canvas-connectors>
 
          <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
@@ -155,7 +155,7 @@
                [accept]="seg.accept"
                [shapes]="outerShapeViews()"
                [svgOffset]="svgOffset"
-               [dragging]="dragging()"
+               [dragging]="relLink.dragging()"
                [interactive]="shapesInteractive()"
                [editingId]="textEditing.editingTextId()"
                (elementPointerDown)="onElementPointerDown($event)"
@@ -173,9 +173,9 @@
                [editable]="store.canEdit()"
                [fkColumnIds]="store.foreignKeyColumnIds()"
                [snap]="snapWorld"
-               (nodePointerDown)="onNodePointerDown($event, table)"
-               (handleDown)="onHandleDown($event)"
-               (handleUp)="onHandleUp($event)"
+               (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
+               (handleDown)="relLink.onHandleDown($event)"
+               (handleUp)="relLink.onHandleUp($event)"
             ></dd-table-node>
          }
 
@@ -197,7 +197,7 @@
             layer="lines"
             [shapes]="outerShapeViews()"
             [svgOffset]="svgOffset"
-            [dragging]="dragging()"
+            [dragging]="relLink.dragging()"
             [interactive]="shapesInteractive()"
             [editingId]="textEditing.editingTextId()"
             [bindHighlight]="bindHighlight()"
@@ -1031,7 +1031,7 @@
          ></dd-sequence-participant-toolbar>
       }
 
-      @if (selectedRelInline(); as info) {
+      @if (relLink.selectedRelInline(); as info) {
          <dd-relationship-toolbar
             [style.left.px]="info.x"
             [style.top.px]="info.y"
@@ -1039,10 +1039,10 @@
             [autoRoute]="info.rel.autoRoute !== false"
             [canEdit]="store.canEdit()"
             (pointerdown)="$event.stopPropagation()"
-            (toggleAutoRoute)="onToggleAutoRoute()"
-            (setType)="onSetRelType($event)"
-            (resetRoute)="onResetRoute(info.rel.id)"
-            (deleteRelationship)="onDeleteRel()"
+            (toggleAutoRoute)="relLink.onToggleAutoRoute()"
+            (setType)="relLink.onSetRelType($event)"
+            (resetRoute)="relLink.onResetRoute(info.rel.id)"
+            (deleteRelationship)="relLink.onDeleteRel()"
          ></dd-relationship-toolbar>
       }
 

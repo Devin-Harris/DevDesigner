@@ -8,6 +8,7 @@ import { CodeActionsService } from './code-actions.service';
 import { GridTableService } from './grid-table.service';
 import { deleteStandIn, detachFromLayout } from '../helpers/layout-placeholders';
 import { frameContents } from '../helpers/frame-contents.helper';
+import { PointerGestureService } from './pointer-gesture.service';
 import { EditorViewportService } from './editor-viewport.service';
 import type { EditorTool } from '../models/editor-tool.model';
 
@@ -19,11 +20,6 @@ export interface ShortcutsHost {
    readonly focusScreen: Signal<'main' | 'design' | 'morph' | 'anim'>;
    readonly followingId: WritableSignal<string | null>;
    readonly selectedSlideSets: WritableSignal<string[]>;
-   mode: DragMode;
-   spaceDown: boolean;
-   shiftHeld: boolean;
-   lastPointer: PointerEvent | null;
-   lastDrawPointer: { x: number; y: number };
    stepTransition(delta: number): void;
    selectedPresentationName(): string | null;
    startPresentation(from: 'start' | 'current'): Promise<void>;
@@ -50,6 +46,7 @@ export class EditorShortcutsService {
    private readonly grids = inject(GridTableService);
    private readonly penPrefs = inject(PenPrefsService);
    private readonly viewport = inject(EditorViewportService);
+   private readonly gesture = inject(PointerGestureService);
    private host!: ShortcutsHost;
 
    connect(host: ShortcutsHost): void {
@@ -93,7 +90,7 @@ export class EditorShortcutsService {
          return;
       }
       if (event.key === ' ') {
-         this.host.spaceDown = true;
+         this.gesture.spaceDown = true;
          event.preventDefault();
          return;
       }
@@ -200,23 +197,23 @@ export class EditorShortcutsService {
          return;
       }
       // Shift/Alt pressed or released mid-draw re-applies the constraint immediately.
-      if (event.key === 'Alt' && (this.host.mode === 'element' || this.host.mode === 'node')) {
+      if (event.key === 'Alt' && (this.gesture.mode === 'element' || this.gesture.mode === 'node')) {
          event.preventDefault();
          void this.host.duplicateAndDrag();
          return;
       }
-      if (event.key === 'Shift' && (this.host.mode === 'element' || this.host.mode === 'node')) {
-         this.host.shiftHeld = true;
-         if (this.host.lastPointer) {
-            this.host.handlePointerMove(this.host.lastPointer);
+      if (event.key === 'Shift' && (this.gesture.mode === 'element' || this.gesture.mode === 'node')) {
+         this.gesture.shiftHeld = true;
+         if (this.gesture.lastPointer) {
+            this.host.handlePointerMove(this.gesture.lastPointer);
          }
          return;
       }
-      if (this.host.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
+      if (this.gesture.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
          event.preventDefault(); // keep Alt from focusing the browser menu
          this.host.updateDraw(
-            this.host.lastDrawPointer.x,
-            this.host.lastDrawPointer.y,
+            this.gesture.lastDrawPointer.x,
+            this.gesture.lastDrawPointer.y,
             event.key === 'Shift' ? true : event.shiftKey,
             event.key === 'Alt' ? true : event.altKey
          );
@@ -443,18 +440,18 @@ export class EditorShortcutsService {
 
    onKeyUp(event: KeyboardEvent): void {
       if (event.key === ' ') {
-         this.host.spaceDown = false;
+         this.gesture.spaceDown = false;
       }
       if (event.key === 'Shift') {
-         this.host.shiftHeld = false;
-         if ((this.host.mode === 'element' || this.host.mode === 'node') && this.host.lastPointer) {
-            this.host.handlePointerMove(this.host.lastPointer);
+         this.gesture.shiftHeld = false;
+         if ((this.gesture.mode === 'element' || this.gesture.mode === 'node') && this.gesture.lastPointer) {
+            this.host.handlePointerMove(this.gesture.lastPointer);
          }
       }
-      if (this.host.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
+      if (this.gesture.mode === 'draw' && (event.key === 'Shift' || event.key === 'Alt')) {
          this.host.updateDraw(
-            this.host.lastDrawPointer.x,
-            this.host.lastDrawPointer.y,
+            this.gesture.lastDrawPointer.x,
+            this.gesture.lastDrawPointer.y,
             event.key === 'Shift' ? false : event.shiftKey,
             event.key === 'Alt' ? false : event.altKey
          );
