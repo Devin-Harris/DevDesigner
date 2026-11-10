@@ -1,40 +1,45 @@
 <div class="scrim" (pointerdown)="closed.emit()"></div>
 <div class="palette" role="dialog" aria-label="Command palette">
-  <div class="search">
-    <dd-icon name="search" />
-    <input
-      #search
-      type="text"
-      placeholder="Search projects, presentations, canvas items and commands"
-      aria-label="Search"
-      [value]="query()"
-      (input)="onInput($any($event.target).value)"
-      (keydown)="onKey($event)"
-    />
-    <span class="k">Esc</span>
-  </div>
-  <div class="list" #list>
-    @for (g of results(); track g.name) {
-      <div class="lab">{{ g.name }}</div>
-      @for (x of g.items; track x.index) {
-        <button class="row" [class.on]="x.index === active()" (pointerenter)="active.set(x.index)" (click)="run(x.entry)">
-          <dd-icon [name]="x.entry.icon" class="ri" />
-          <span class="rl">{{ x.entry.label }}</span>
-          @if (x.entry.sub) {
-            <span class="rs">{{ x.entry.sub }}</span>
-          }
-          @if (x.entry.key) {
-            <span class="k">{{ x.entry.key }}</span>
-          }
-        </button>
+   <div class="search">
+      <dd-icon name="search" />
+      <input
+         #search
+         type="text"
+         placeholder="Search projects, presentations, canvas items and commands"
+         aria-label="Search"
+         [value]="query()"
+         (input)="onInput($any($event.target).value)"
+         (keydown)="onKey($event)"
+      />
+      <span class="k">Esc</span>
+   </div>
+   <div class="list" #list>
+      @for (g of results(); track g.name) {
+         <div class="lab">{{ g.name }}</div>
+         @for (x of g.items; track x.index) {
+            <button
+               class="row"
+               [class.on]="x.index === active()"
+               (pointerenter)="active.set(x.index)"
+               (click)="run(x.entry)"
+            >
+               <dd-icon [name]="x.entry.icon" class="ri" />
+               <span class="rl">{{ x.entry.label }}</span>
+               @if (x.entry.sub) {
+                  <span class="rs">{{ x.entry.sub }}</span>
+               }
+               @if (x.entry.key) {
+                  <span class="k">{{ x.entry.key }}</span>
+               }
+            </button>
+         }
+      } @empty {
+         <div class="empty">Nothing matches “{{ query() }}”.</div>
       }
-    } @empty {
-      <div class="empty">Nothing matches “{{ query() }}”.</div>
-    }
-  </div>
-  <div class="foot">
-    <span><span class="k">↑</span><span class="k">↓</span> move</span>
-    <span><span class="k">Enter</span> run</span>
-    <span><span class="k">Ctrl K</span> toggle</span>
-  </div>
+   </div>
+   <div class="foot">
+      <span><span class="k">↑</span><span class="k">↓</span> move</span>
+      <span><span class="k">Enter</span> run</span>
+      <span><span class="k">Ctrl K</span> toggle</span>
+   </div>
 </div>

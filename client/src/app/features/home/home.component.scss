@@ -1,1342 +1,2195 @@
 @use 'sass:math';
 
 :host {
-  display: block;
-  height: 100%;
-  overflow-y: auto;
-  background: var(--dd-canvas-bg);
-  color: var(--dd-text);
+   display: block;
+   height: 100%;
+   overflow-y: auto;
+   background: var(--dd-canvas-bg);
+   color: var(--dd-text);
 }
 
 .home {
-  position: relative;
-  overflow-x: hidden;
-  --home-amber: #bd7d1c;
-  --home-teal: #0f8f86;
-  --home-violet: #7048e8;
-  --home-red: #d64545;
-  min-height: 100%;
+   position: relative;
+   overflow-x: hidden;
+   --home-amber: #bd7d1c;
+   --home-teal: #0f8f86;
+   --home-violet: #7048e8;
+   --home-red: #d64545;
+   min-height: 100%;
 }
 
 :host-context(html.dark) .home {
-  --home-amber: #e0a84a;
-  --home-teal: #2bb3a8;
-  --home-violet: #9b7bff;
-  --home-red: #ef6b6b;
+   --home-amber: #e0a84a;
+   --home-teal: #2bb3a8;
+   --home-violet: #9b7bff;
+   --home-red: #ef6b6b;
 }
 
 .wrap {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: 0 24px;
-  box-sizing: border-box;
+   max-width: 1160px;
+   margin: 0 auto;
+   padding: 0 24px;
+   box-sizing: border-box;
 }
 
 .disp {
-  font-family: var(--dd-display);
-  letter-spacing: -0.02em;
+   font-family: var(--dd-display);
+   letter-spacing: -0.02em;
 }
 
 .mono {
-  font-family: var(--dd-mono, 'IBM Plex Mono', monospace);
+   font-family: var(--dd-mono, 'IBM Plex Mono', monospace);
 }
 
 .muted {
-  color: var(--dd-text-muted);
+   color: var(--dd-text-muted);
 }
 
 .lab {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--dd-primary);
+   font-size: 12px;
+   font-weight: 600;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   color: var(--dd-primary);
 }
 
 // ---- header ----
 .top {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  height: 72px;
+   display: flex;
+   align-items: center;
+   gap: 24px;
+   height: 72px;
 }
 
 .logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 18px;
+   display: inline-flex;
+   align-items: center;
+   gap: 10px;
+   font-weight: 700;
+   font-size: 18px;
 }
 
 .brand-tile {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--dd-primary);
-  color: #fff;
-  --dd-icon-size: 19px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 32px;
+   height: 32px;
+   border-radius: 9px;
+   background: var(--dd-primary);
+   color: #fff;
+   --dd-icon-size: 19px;
 }
 
 nav {
-  display: flex;
-  gap: 20px;
-  font-size: 14px;
+   display: flex;
+   gap: 20px;
+   font-size: 14px;
 
-  a {
-    color: var(--dd-text-muted);
-    text-decoration: none;
-    &:hover {
-      color: var(--dd-text);
-    }
-  }
+   a {
+      color: var(--dd-text-muted);
+      text-decoration: none;
+      &:hover {
+         color: var(--dd-text);
+      }
+   }
 }
 
 .top-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+   margin-left: auto;
+   display: flex;
+   align-items: center;
+   gap: 8px;
 }
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--dd-text-muted);
-  cursor: pointer;
-  &:hover {
-    background: var(--dd-surface-2);
-    color: var(--dd-text);
-  }
+   width: 36px;
+   height: 36px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   border-radius: 9px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   &:hover {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
 }
 
 .link-btn {
-  display: inline-block;
-  text-decoration: none;
-  border: none;
-  background: transparent;
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 6px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  &:hover {
-    background: var(--dd-surface-2);
-  }
-  &.accent {
-    color: var(--dd-primary);
-    padding-left: 0;
-    &:hover {
-      background: transparent;
-      text-decoration: underline;
-    }
-  }
+   display: inline-block;
+   text-decoration: none;
+   border: none;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 14px;
+   font-weight: 500;
+   padding: 6px 8px;
+   border-radius: 8px;
+   cursor: pointer;
+   &:hover {
+      background: var(--dd-surface-2);
+   }
+   &.accent {
+      color: var(--dd-primary);
+      padding-left: 0;
+      &:hover {
+         background: transparent;
+         text-decoration: underline;
+      }
+   }
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 1px solid var(--dd-border-strong);
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  --dd-icon-size: 18px;
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   height: 38px;
+   padding: 0 16px;
+   border-radius: 10px;
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 14px;
+   font-weight: 600;
+   text-decoration: none;
+   cursor: pointer;
+   --dd-icon-size: 18px;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
-  &.primary {
-    background: var(--dd-primary);
-    border-color: var(--dd-primary);
-    color: #fff;
-    &:hover {
-      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
-    }
-  }
-  &.lg {
-    height: 46px;
-    padding: 0 20px;
-    font-size: 15px;
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
+   &.primary {
+      background: var(--dd-primary);
+      border-color: var(--dd-primary);
+      color: #fff;
+      &:hover {
+         background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      }
+   }
+   &.lg {
+      height: 46px;
+      padding: 0 20px;
+      font-size: 15px;
+   }
 }
 
 // ---- hero ----
 .hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 48px;
-  align-items: center;
-  padding-top: 64px;
-  padding-bottom: 56px;
+   position: relative;
+   display: grid;
+   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+   gap: 48px;
+   align-items: center;
+   padding-top: 64px;
+   padding-bottom: 56px;
 
-  @media (max-width: 980px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
+   @media (max-width: 980px) {
+      grid-template-columns: minmax(0, 1fr);
+   }
 
-  h1 {
-    margin: 14px 0 0;
-    max-width: 900px;
-    font-size: clamp(38px, 5.2vw, 64px);
-    background: linear-gradient(100deg, var(--dd-text) 30%, var(--dd-primary) 60%, var(--home-violet) 80%, var(--dd-text));
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: sheen 9s ease-in-out infinite;
-    line-height: 1.03;
-    font-weight: 700;
-  }
+   h1 {
+      margin: 14px 0 0;
+      max-width: 900px;
+      font-size: clamp(38px, 5.2vw, 64px);
+      background: linear-gradient(
+         100deg,
+         var(--dd-text) 30%,
+         var(--dd-primary) 60%,
+         var(--home-violet) 80%,
+         var(--dd-text)
+      );
+      background-size: 220% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: sheen 9s ease-in-out infinite;
+      line-height: 1.03;
+      font-weight: 700;
+   }
 }
 
 .lede {
-  max-width: 680px;
-  margin: 22px 0 0;
-  font-size: 18px;
-  line-height: 1.6;
-  color: var(--dd-text-muted);
+   max-width: 680px;
+   margin: 22px 0 0;
+   font-size: 18px;
+   line-height: 1.6;
+   color: var(--dd-text-muted);
 }
 
 .ctas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 30px;
+   display: flex;
+   flex-wrap: wrap;
+   gap: 12px;
+   margin-top: 30px;
 }
 
 .fine {
-  margin: 16px 0 0;
-  font-size: 13px;
-  color: var(--dd-text-muted);
+   margin: 16px 0 0;
+   font-size: 13px;
+   color: var(--dd-text-muted);
 }
 
 // ---- recent projects ----
 .recent {
-  padding-bottom: 56px;
+   padding-bottom: 56px;
 }
 
 .sec-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 14px;
+   display: flex;
+   align-items: baseline;
+   justify-content: space-between;
+   margin-bottom: 14px;
 
-  h2 {
-    margin: 0;
-    font-size: 22px;
-  }
+   h2 {
+      margin: 0;
+      font-size: 22px;
+   }
 }
 
 .recent-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+   gap: 12px;
 }
 
 .recent-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  cursor: pointer;
-  box-shadow: var(--dd-shadow-1, none);
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   text-align: left;
+   padding: 16px;
+   border-radius: 12px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   cursor: pointer;
+   box-shadow: var(--dd-shadow-1, none);
 
-  &:hover {
-    border-color: var(--dd-primary);
-  }
+   &:hover {
+      border-color: var(--dd-primary);
+   }
 }
 
 .rc-name {
-  font-weight: 600;
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+   font-weight: 600;
+   font-size: 15px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
 }
 
 .rc-desc {
-  font-size: 13px;
-  color: var(--dd-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+   font-size: 13px;
+   color: var(--dd-text-muted);
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
 }
 
 .rc-date {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--dd-text-muted);
+   margin-top: 6px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
 }
 
 // ---- features ----
 .band {
-  padding: 64px 0;
-  background: var(--dd-surface);
-  border-top: 1px solid var(--dd-border);
-  border-bottom: 1px solid var(--dd-border);
+   padding: 64px 0;
+   background: var(--dd-surface);
+   border-top: 1px solid var(--dd-border);
+   border-bottom: 1px solid var(--dd-border);
 }
 
 .sec-intro {
-  max-width: 640px;
+   max-width: 640px;
 
-  h2 {
-    margin: 0;
-    font-size: clamp(26px, 3.4vw, 36px);
-    line-height: 1.15;
-  }
-  p {
-    margin: 12px 0 0;
-    font-size: 16px;
-    line-height: 1.6;
-    color: var(--dd-text-muted);
-  }
+   h2 {
+      margin: 0;
+      font-size: clamp(26px, 3.4vw, 36px);
+      line-height: 1.15;
+   }
+   p {
+      margin: 12px 0 0;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--dd-text-muted);
+   }
 }
 
 .feat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 28px 32px;
-  margin-top: 40px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+   gap: 28px 32px;
+   margin-top: 40px;
 }
 
 .feat {
-  h3 {
-    margin: 14px 0 6px;
-    font-size: 16px;
-  }
-  p {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--dd-text-muted);
-  }
+   h3 {
+      margin: 14px 0 6px;
+      font-size: 16px;
+   }
+   p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--dd-text-muted);
+   }
 }
 
 .feat-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--dd-surface-2);
-  --dd-icon-size: 22px;
-  color: var(--dd-primary);
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 40px;
+   height: 40px;
+   border-radius: 11px;
+   background: var(--dd-surface-2);
+   --dd-icon-size: 22px;
+   color: var(--dd-primary);
 
-  &[data-tone='amber'] { color: var(--home-amber); }
-  &[data-tone='teal'] { color: var(--home-teal); }
-  &[data-tone='violet'] { color: var(--home-violet); }
-  &[data-tone='red'] { color: var(--home-red); }
-  &[data-tone='slate'] { color: var(--dd-text-muted); }
+   &[data-tone='amber'] {
+      color: var(--home-amber);
+   }
+   &[data-tone='teal'] {
+      color: var(--home-teal);
+   }
+   &[data-tone='violet'] {
+      color: var(--home-violet);
+   }
+   &[data-tone='red'] {
+      color: var(--home-red);
+   }
+   &[data-tone='slate'] {
+      color: var(--dd-text-muted);
+   }
 }
 
 // ---- use cases ----
 .uses {
-  padding-top: 64px;
-  padding-bottom: 24px;
+   padding-top: 64px;
+   padding-bottom: 24px;
 
-  h2 {
-    margin: 0;
-    font-size: clamp(24px, 3vw, 32px);
-  }
+   h2 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 32px);
+   }
 }
 
 .use-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
-  margin-top: 24px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+   gap: 12px;
+   margin-top: 24px;
 }
 
 .use {
-  padding: 18px;
-  border-radius: 12px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
+   padding: 18px;
+   border-radius: 12px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
 
-  p {
-    margin: 6px 0 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--dd-text-muted);
-  }
+   p {
+      margin: 6px 0 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--dd-text-muted);
+   }
 }
 
 // ---- AI ----
 .ai {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 40px;
-  row-gap: 0;
-  align-items: stretch;
-  padding-top: 64px;
-  padding-bottom: 64px;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+   column-gap: 40px;
+   row-gap: 0;
+   align-items: stretch;
+   padding-top: 64px;
+   padding-bottom: 64px;
 
-  // Intro + note on the left; config block and chat card share row 2 so they line up.
-  .ai-intro { grid-column: 1; grid-row: 1; }
-  .mcp-config { grid-column: 1; grid-row: 2; }
-  .mcp-note { grid-column: 1; grid-row: 3; }
-  .ai-chat { grid-column: 2; grid-row: 2; }
+   // Intro + note on the left; config block and chat card share row 2 so they line up.
+   .ai-intro {
+      grid-column: 1;
+      grid-row: 1;
+   }
+   .mcp-config {
+      grid-column: 1;
+      grid-row: 2;
+   }
+   .mcp-note {
+      grid-column: 1;
+      grid-row: 3;
+   }
+   .ai-chat {
+      grid-column: 2;
+      grid-row: 2;
+   }
 
-  h2 {
-    margin: 10px 0 0;
-    font-size: clamp(24px, 3vw, 32px);
-  }
-  p {
-    font-size: 16px;
-    line-height: 1.6;
-    color: var(--dd-text-muted);
-  }
+   h2 {
+      margin: 10px 0 0;
+      font-size: clamp(24px, 3vw, 32px);
+   }
+   p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--dd-text-muted);
+   }
 
-  @media (max-width: 760px) {
-    grid-template-columns: minmax(0, 1fr);
+   @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
 
-    .ai-chat { grid-column: 1; grid-row: 4; margin-top: 16px; }
-  }
+      .ai-chat {
+         grid-column: 1;
+         grid-row: 4;
+         margin-top: 16px;
+      }
+   }
 }
 
 .mcp-steps {
-  margin: 16px 0 10px;
-  padding-left: 20px;
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--dd-text-muted);
+   margin: 16px 0 10px;
+   padding-left: 20px;
+   font-size: 15px;
+   line-height: 1.7;
+   color: var(--dd-text-muted);
 }
 
 .mcp-config {
-  position: relative;
+   position: relative;
 
-  pre {
-    margin: 0;
-    padding: 14px 16px;
-    border-radius: 10px;
-    background: #11151c;
-    color: #e7ecf3;
-    border: 1px solid #262e39;
-    font-size: 12px;
-    line-height: 1.6;
-    overflow-x: auto;
-  }
+   pre {
+      margin: 0;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #11151c;
+      color: #e7ecf3;
+      border: 1px solid #262e39;
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-x: auto;
+   }
 }
 
 .mcp-copy {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 3px 10px;
-  border-radius: 6px;
-  border: 1px solid #343d4a;
-  background: #1b222c;
-  color: #e7ecf3;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+   position: absolute;
+   top: 8px;
+   right: 8px;
+   padding: 3px 10px;
+   border-radius: 6px;
+   border: 1px solid #343d4a;
+   background: #1b222c;
+   color: #e7ecf3;
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
 
-  &:hover { background: #262e39; }
+   &:hover {
+      background: #262e39;
+   }
 }
 
 .ai .mcp-note {
-  p {
-    font-size: 13px;
-    margin: 12px 0 6px;
-  }
-  code { font-size: 12px; }
+   p {
+      font-size: 13px;
+      margin: 12px 0 6px;
+   }
+   code {
+      font-size: 12px;
+   }
 }
 
 .mcp-cmd pre {
-  padding-right: 72px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+   padding-right: 72px;
+   white-space: pre-wrap;
+   overflow-wrap: anywhere;
 }
 
 .ai-chat {
-  padding: 20px;
-  border-radius: 14px;
-  background: #11151c;
-  color: #e7ecf3;
-  border: 1px solid #262e39;
-  font-size: 13px;
-  line-height: 1.8;
-  overflow-x: auto;
+   padding: 20px;
+   border-radius: 14px;
+   background: #11151c;
+   color: #e7ecf3;
+   border: 1px solid #262e39;
+   font-size: 13px;
+   line-height: 1.8;
+   overflow-x: auto;
 
-  .muted {
-    color: #8b95a4;
-  }
-  .gap {
-    margin-top: 10px;
-  }
-  .ok {
-    color: #2bb3a8;
-  }
+   .muted {
+      color: #8b95a4;
+   }
+   .gap {
+      margin-top: 10px;
+   }
+   .ok {
+      color: #2bb3a8;
+   }
 }
 
 .foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding-top: 24px;
-  padding-bottom: 32px;
-  border-top: 1px solid var(--dd-border);
-  font-size: 13px;
+   display: flex;
+   justify-content: space-between;
+   gap: 16px;
+   padding-top: 24px;
+   padding-bottom: 32px;
+   border-top: 1px solid var(--dd-border);
+   font-size: 13px;
 }
 
 @media (max-width: 640px) {
-  nav {
-    display: none;
-  }
-  .hero {
-    padding-top: 40px;
-  }
+   nav {
+      display: none;
+   }
+   .hero {
+      padding-top: 40px;
+   }
 }
 
 // =====================================================================
 // Motion
 // =====================================================================
 @keyframes sheen {
-  0%, 100% { background-position: 100% 0; }
-  50% { background-position: 0% 0; }
+   0%,
+   100% {
+      background-position: 100% 0;
+   }
+   50% {
+      background-position: 0% 0;
+   }
 }
 @keyframes rise {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: none; }
+   from {
+      opacity: 0;
+      transform: translateY(18px);
+   }
+   to {
+      opacity: 1;
+      transform: none;
+   }
 }
 @keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, -30px) scale(1.08); }
+   0%,
+   100% {
+      transform: translate(0, 0) scale(1);
+   }
+   50% {
+      transform: translate(40px, -30px) scale(1.08);
+   }
 }
 
 .hero-copy > * {
-  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+   animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.hero-copy > :nth-child(2) { animation-delay: 0.08s; }
-.hero-copy > :nth-child(3) { animation-delay: 0.16s; }
-.hero-copy > :nth-child(4) { animation-delay: 0.24s; }
-.hero-copy > :nth-child(5) { animation-delay: 0.32s; }
+.hero-copy > :nth-child(2) {
+   animation-delay: 0.08s;
+}
+.hero-copy > :nth-child(3) {
+   animation-delay: 0.16s;
+}
+.hero-copy > :nth-child(4) {
+   animation-delay: 0.24s;
+}
+.hero-copy > :nth-child(5) {
+   animation-delay: 0.32s;
+}
 
 .btn {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  &:hover { transform: translateY(-1px); }
-  &.primary:hover { box-shadow: 0 8px 24px -8px var(--dd-primary); }
+   transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background 0.15s ease;
+   &:hover {
+      transform: translateY(-1px);
+   }
+   &.primary:hover {
+      box-shadow: 0 8px 24px -8px var(--dd-primary);
+   }
 }
 
-.top { position: relative; z-index: 2; }
+.top {
+   position: relative;
+   z-index: 2;
+}
 
 // ---- animated hero board: two people building one diagram live ----
 $loop: 16s;
 
-@function px($v) { @return math.div($v, 400) * 100%; }
-@function py($v) { @return math.div($v, 280) * 100%; }
+@function px($v) {
+   @return math.div($v, 400) * 100%;
+}
+@function py($v) {
+   @return math.div($v, 280) * 100%;
+}
 
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes pulse {
+   0%,
+   100% {
+      opacity: 1;
+   }
+   50% {
+      opacity: 0.3;
+   }
+}
 
 .board {
-  border-radius: 16px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  animation: rise 0.9s 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+   border-radius: 16px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   box-shadow:
+      0 30px 80px -30px rgba(0, 0, 0, 0.35),
+      0 2px 6px rgba(0, 0, 0, 0.06);
+   overflow: hidden;
+   animation: rise 0.9s 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .presence {
-  position: absolute;
-  z-index: 4;
-  top: 10px;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 9px 3px 4px;
-  border-radius: 999px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  font-size: 11px;
-  color: var(--dd-text-muted);
-  .av {
-    width: 20px; height: 20px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 700; color: #fff;
-    border: 2px solid var(--dd-surface);
-  }
-  .av-m { background: var(--home-red); }
-  .av-s { background: var(--home-violet); margin-left: -6px; }
-  .live { margin-left: 8px; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
-  .live em { width: 6px; height: 6px; border-radius: 50%; background: var(--home-teal); animation: pulse 1.6s ease-in-out infinite; }
+   position: absolute;
+   z-index: 4;
+   top: 10px;
+   right: 10px;
+   display: inline-flex;
+   align-items: center;
+   padding: 3px 9px 3px 4px;
+   border-radius: 999px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   font-size: 11px;
+   color: var(--dd-text-muted);
+   .av {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      border: 2px solid var(--dd-surface);
+   }
+   .av-m {
+      background: var(--home-red);
+   }
+   .av-s {
+      background: var(--home-violet);
+      margin-left: -6px;
+   }
+   .live {
+      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+   }
+   .live em {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--home-teal);
+      animation: pulse 1.6s ease-in-out infinite;
+   }
 }
 
 .board-body {
-  position: relative;
-  aspect-ratio: 400 / 280;
-  background: var(--dd-canvas-bg);
-  font-size: 12px;
-  overflow: hidden;
+   position: relative;
+   aspect-ratio: 400 / 280;
+   background: var(--dd-canvas-bg);
+   font-size: 12px;
+   overflow: hidden;
 }
 
 // Everything drawn fades out together, before any item's own end of loop.
 .b-scene {
-  position: absolute;
-  inset: 0;
-  animation: hb-scene $loop linear infinite;
+   position: absolute;
+   inset: 0;
+   animation: hb-scene $loop linear infinite;
 }
-@keyframes hb-scene { 0%, 86% { opacity: 1; } 90%, 99% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes hb-scene {
+   0%,
+   86% {
+      opacity: 1;
+   }
+   90%,
+   99% {
+      opacity: 0;
+   }
+   100% {
+      opacity: 1;
+   }
+}
 
 .b-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--dd-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--dd-border) 1px, transparent 1px);
-  background-size: 20px 20px;
-  opacity: 0.45;
+   position: absolute;
+   inset: 0;
+   background-image:
+      linear-gradient(var(--dd-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--dd-border) 1px, transparent 1px);
+   background-size: 20px 20px;
+   opacity: 0.45;
 }
 
 // Everything appears on one looping timeline and fades out together at the end.
 @mixin pop($name, $start) {
-  animation: $name $loop cubic-bezier(0.3, 1.3, 0.5, 1) infinite;
-  @at-root {
-    @keyframes #{$name} {
-      0%, #{$start} { opacity: 0; transform: scale(0.85); }
-      #{$start + 3%}, 90% { opacity: 1; transform: none; }
-      95%, 100% { opacity: 0; transform: none; }
-    }
-  }
+   animation: $name $loop cubic-bezier(0.3, 1.3, 0.5, 1) infinite;
+   @at-root {
+      @keyframes #{$name} {
+         0%,
+         #{$start} {
+            opacity: 0;
+            transform: scale(0.85);
+         }
+         #{$start + 3%},
+         90% {
+            opacity: 1;
+            transform: none;
+         }
+         95%,
+         100% {
+            opacity: 0;
+            transform: none;
+         }
+      }
+   }
 }
 
 .b-shape {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: px(88);
-  height: py(50);
-  border-radius: 8px;
-  border: 2px solid;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
+   position: absolute;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   box-sizing: border-box;
+   width: px(88);
+   height: py(50);
+   border-radius: 8px;
+   border: 2px solid;
+   font-size: 12px;
+   font-weight: 600;
+   white-space: nowrap;
+   overflow: hidden;
 }
 .b-web {
-  left: px(24); top: py(106);
-  color: #2f6bff; border-color: #2f6bff; background: color-mix(in srgb, #2f6bff 14%, var(--dd-surface));
-  // Devin opens the loop by dragging this box out and typing its label.
-  transform-origin: top left;
-  animation: hb-web $loop ease-out infinite;
-  .typed {
-    display: inline-block;
-    overflow: hidden;
-    vertical-align: bottom;
-    border-right: 1.5px solid transparent;
-    animation: hb-web-type $loop steps(7) infinite;
-  }
+   left: px(24);
+   top: py(106);
+   color: #2f6bff;
+   border-color: #2f6bff;
+   background: color-mix(in srgb, #2f6bff 14%, var(--dd-surface));
+   // Devin opens the loop by dragging this box out and typing its label.
+   transform-origin: top left;
+   animation: hb-web $loop ease-out infinite;
+   .typed {
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: bottom;
+      border-right: 1.5px solid transparent;
+      animation: hb-web-type $loop steps(7) infinite;
+   }
 }
 @keyframes hb-web {
-  0%, 2% { opacity: 0; transform: scale(0.05); }
-  2.5% { opacity: 1; transform: scale(0.05); }
-  6%, 90% { opacity: 1; transform: none; }
-  95%, 100% { opacity: 0; }
+   0%,
+   2% {
+      opacity: 0;
+      transform: scale(0.05);
+   }
+   2.5% {
+      opacity: 1;
+      transform: scale(0.05);
+   }
+   6%,
+   90% {
+      opacity: 1;
+      transform: none;
+   }
+   95%,
+   100% {
+      opacity: 0;
+   }
 }
 @keyframes hb-web-type {
-  0%, 6.5% { width: 0; border-color: currentColor; }
-  10% { width: 7ch; border-color: currentColor; }
-  11%, 100% { width: 7ch; border-color: transparent; }
+   0%,
+   6.5% {
+      width: 0;
+      border-color: currentColor;
+   }
+   10% {
+      width: 7ch;
+      border-color: currentColor;
+   }
+   11%,
+   100% {
+      width: 7ch;
+      border-color: transparent;
+   }
 }
 .b-api {
-  left: px(156); top: py(106);
-  border-radius: 50%;
-  color: var(--home-teal); border-color: var(--home-teal); background: color-mix(in srgb, var(--home-teal) 14%, var(--dd-surface));
-  @include pop(hb-api, 9%);
+   left: px(156);
+   top: py(106);
+   border-radius: 50%;
+   color: var(--home-teal);
+   border-color: var(--home-teal);
+   background: color-mix(in srgb, var(--home-teal) 14%, var(--dd-surface));
+   @include pop(hb-api, 9%);
 }
 .b-orders {
-  left: px(288); top: py(174);
-  color: var(--home-violet); border-color: var(--home-violet); background: color-mix(in srgb, var(--home-violet) 14%, var(--dd-surface));
-  @include pop(hb-orders, 40%);
+   left: px(288);
+   top: py(174);
+   color: var(--home-violet);
+   border-color: var(--home-violet);
+   background: color-mix(in srgb, var(--home-violet) 14%, var(--dd-surface));
+   @include pop(hb-orders, 40%);
 }
 // Devin drags the Queue box out from its corner, then types its label.
 .b-queue {
-  left: px(288); top: py(40);
-  color: #ec4899; border-color: #ec4899; background: color-mix(in srgb, #ec4899 14%, var(--dd-surface));
-  transform-origin: top left;
-  animation: hb-queue $loop ease-out infinite;
-  .typed {
-    display: inline-block;
-    overflow: hidden;
-    vertical-align: bottom;
-    border-right: 1.5px solid transparent;
-    animation: hb-type $loop steps(5) infinite;
-  }
+   left: px(288);
+   top: py(40);
+   color: #ec4899;
+   border-color: #ec4899;
+   background: color-mix(in srgb, #ec4899 14%, var(--dd-surface));
+   transform-origin: top left;
+   animation: hb-queue $loop ease-out infinite;
+   .typed {
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: bottom;
+      border-right: 1.5px solid transparent;
+      animation: hb-type $loop steps(5) infinite;
+   }
 }
 @keyframes hb-queue {
-  0%, 22% { opacity: 0; transform: scale(0.05); }
-  22.5% { opacity: 1; transform: scale(0.05); }
-  29%, 90% { opacity: 1; transform: none; }
-  95%, 100% { opacity: 0; }
+   0%,
+   22% {
+      opacity: 0;
+      transform: scale(0.05);
+   }
+   22.5% {
+      opacity: 1;
+      transform: scale(0.05);
+   }
+   29%,
+   90% {
+      opacity: 1;
+      transform: none;
+   }
+   95%,
+   100% {
+      opacity: 0;
+   }
 }
 @keyframes hb-type {
-  0%, 30% { width: 0; border-color: currentColor; }
-  36% { width: 5ch; border-color: currentColor; }
-  38%, 100% { width: 5ch; border-color: transparent; }
+   0%,
+   30% {
+      width: 0;
+      border-color: currentColor;
+   }
+   36% {
+      width: 5ch;
+      border-color: currentColor;
+   }
+   38%,
+   100% {
+      width: 5ch;
+      border-color: transparent;
+   }
 }
 
 .b-wires {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: var(--dd-text);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  marker path { fill: none; stroke: var(--dd-text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%;
+   fill: none;
+   stroke: var(--dd-text);
+   stroke-width: 2;
+   stroke-linecap: round;
+   stroke-linejoin: round;
+   marker path {
+      fill: none;
+      stroke: var(--dd-text);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+   }
 
-  > path { stroke-dasharray: 80; stroke-dashoffset: 80; }
-  // Devin circles Orders with the pen.
-  > path.pen {
-    stroke: var(--home-red);
-    stroke-width: 2.5;
-    stroke-dasharray: 307;
-    stroke-dashoffset: 307;
-    animation: hb-pen $loop ease-in-out infinite;
-  }
-  .w1 { animation: hb-w1 $loop ease-out infinite; }
-  .w2 { animation: hb-w2 $loop ease-out infinite; }
-  .w3 { animation: hb-w3 $loop ease-out infinite; }
+   > path {
+      stroke-dasharray: 80;
+      stroke-dashoffset: 80;
+   }
+   // Devin circles Orders with the pen.
+   > path.pen {
+      stroke: var(--home-red);
+      stroke-width: 2.5;
+      stroke-dasharray: 307;
+      stroke-dashoffset: 307;
+      animation: hb-pen $loop ease-in-out infinite;
+   }
+   .w1 {
+      animation: hb-w1 $loop ease-out infinite;
+   }
+   .w2 {
+      animation: hb-w2 $loop ease-out infinite;
+   }
+   .w3 {
+      animation: hb-w3 $loop ease-out infinite;
+   }
 }
-@keyframes hb-w1 { 0%, 14% { stroke-dashoffset: 80; opacity: 0; } 14.5% { opacity: 1; } 19%, 90% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
-@keyframes hb-w2 { 0%, 43% { stroke-dashoffset: 80; opacity: 0; } 43.5% { opacity: 1; } 47%, 90% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
-@keyframes hb-w3 { 0%, 58% { stroke-dashoffset: 80; opacity: 0; } 58.5% { opacity: 1; } 62%, 90% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes hb-w1 {
+   0%,
+   14% {
+      stroke-dashoffset: 80;
+      opacity: 0;
+   }
+   14.5% {
+      opacity: 1;
+   }
+   19%,
+   90% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+   }
+   95%,
+   100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+   }
+}
+@keyframes hb-w2 {
+   0%,
+   43% {
+      stroke-dashoffset: 80;
+      opacity: 0;
+   }
+   43.5% {
+      opacity: 1;
+   }
+   47%,
+   90% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+   }
+   95%,
+   100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+   }
+}
+@keyframes hb-w3 {
+   0%,
+   58% {
+      stroke-dashoffset: 80;
+      opacity: 0;
+   }
+   58.5% {
+      opacity: 1;
+   }
+   62%,
+   90% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+   }
+   95%,
+   100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+   }
+}
 
-@keyframes hb-pen { 0%, 58.5% { stroke-dashoffset: 307; opacity: 0; animation-timing-function: linear; } 58.6% { opacity: 1; animation-timing-function: linear; } 66%, 90% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes hb-pen {
+   0%,
+   58.5% {
+      stroke-dashoffset: 307;
+      opacity: 0;
+      animation-timing-function: linear;
+   }
+   58.6% {
+      opacity: 1;
+      animation-timing-function: linear;
+   }
+   66%,
+   90% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+   }
+   95%,
+   100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+   }
+}
 
 // Emily labels the arrow to Queue ("enqueue").
 .b-note {
-  position: absolute;
-  left: px(226);
-  top: py(76);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--home-teal);
-  white-space: nowrap;
-  overflow: hidden;
-  width: 0;
-  animation: hb-note $loop steps(7) infinite;
+   position: absolute;
+   left: px(226);
+   top: py(76);
+   font-size: 11px;
+   font-weight: 600;
+   color: var(--home-teal);
+   white-space: nowrap;
+   overflow: hidden;
+   width: 0;
+   animation: hb-note $loop steps(7) infinite;
 }
-@keyframes hb-note { 0%, 50% { width: 0; opacity: 1; } 56%, 90% { width: 7ch; opacity: 1; } 95%, 100% { width: 7ch; opacity: 0; } }
+@keyframes hb-note {
+   0%,
+   50% {
+      width: 0;
+      opacity: 1;
+   }
+   56%,
+   90% {
+      width: 7ch;
+      opacity: 1;
+   }
+   95%,
+   100% {
+      width: 7ch;
+      opacity: 0;
+   }
+}
 
 // Emily selects the API shape: their colour rings it, with their name.
 .b-select {
-  position: absolute;
-  left: calc(#{px(156)} - 5px);
-  top: calc(#{py(106)} - 5px);
-  width: calc(#{px(88)} + 10px);
-  height: calc(#{py(50)} + 10px);
-  box-sizing: border-box;
-  border: 1.5px solid var(--home-violet);
-  border-radius: 6px;
-  opacity: 0;
-  animation: hb-select $loop linear infinite;
-  span {
-    position: absolute;
-    left: -1px;
-    top: -16px;
-    padding: 0 5px;
-    border-radius: 4px 4px 4px 0;
-    background: var(--home-violet);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 15px;
-  }
+   position: absolute;
+   left: calc(#{px(156)} - 5px);
+   top: calc(#{py(106)} - 5px);
+   width: calc(#{px(88)} + 10px);
+   height: calc(#{py(50)} + 10px);
+   box-sizing: border-box;
+   border: 1.5px solid var(--home-violet);
+   border-radius: 6px;
+   opacity: 0;
+   animation: hb-select $loop linear infinite;
+   span {
+      position: absolute;
+      left: -1px;
+      top: -16px;
+      padding: 0 5px;
+      border-radius: 4px 4px 4px 0;
+      background: var(--home-violet);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 15px;
+   }
 }
-@keyframes hb-select { 0%, 64% { opacity: 0; } 65%, 69% { opacity: 1; } 70%, 100% { opacity: 0; } }
+@keyframes hb-select {
+   0%,
+   64% {
+      opacity: 0;
+   }
+   65%,
+   69% {
+      opacity: 1;
+   }
+   70%,
+   100% {
+      opacity: 0;
+   }
+}
 
 .b-sticky {
-  position: absolute;
-  left: px(196);
-  top: py(222);
-  @include pop(hb-sticky, 69%);
+   position: absolute;
+   left: px(196);
+   top: py(222);
+   @include pop(hb-sticky, 69%);
 
-  .st {
-    position: relative;
-    min-width: 70px;
-    padding: 6px 10px;
-    background: #fde68a;
-    color: #4a3b00;
-    font-size: 11px;
-    font-weight: 600;
-    border-radius: 3px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    animation: hb-rot $loop ease-in-out infinite;
-  }
-  .typed {
-    display: inline-block;
-    overflow: hidden;
-    white-space: nowrap;
-    vertical-align: bottom;
-    border-right: 1.5px solid transparent;
-    animation: hb-sticky-type $loop steps(9) infinite;
-  }
-  // Rotation handle above the note, shown while Sam turns it.
-  .handle {
-    position: absolute;
-    left: 50%;
-    top: -16px;
-    width: 9px;
-    height: 9px;
-    margin-left: -5px;
-    border-radius: 50%;
-    border: 1.5px solid var(--home-violet);
-    background: var(--dd-surface);
-    opacity: 0;
-    animation: hb-handle $loop linear infinite;
-    &::after { content: ''; position: absolute; left: 3px; top: 9px; width: 1.5px; height: 6px; background: var(--home-violet); }
-  }
+   .st {
+      position: relative;
+      min-width: 70px;
+      padding: 6px 10px;
+      background: #fde68a;
+      color: #4a3b00;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 3px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      animation: hb-rot $loop ease-in-out infinite;
+   }
+   .typed {
+      display: inline-block;
+      overflow: hidden;
+      white-space: nowrap;
+      vertical-align: bottom;
+      border-right: 1.5px solid transparent;
+      animation: hb-sticky-type $loop steps(9) infinite;
+   }
+   // Rotation handle above the note, shown while Sam turns it.
+   .handle {
+      position: absolute;
+      left: 50%;
+      top: -16px;
+      width: 9px;
+      height: 9px;
+      margin-left: -5px;
+      border-radius: 50%;
+      border: 1.5px solid var(--home-violet);
+      background: var(--dd-surface);
+      opacity: 0;
+      animation: hb-handle $loop linear infinite;
+      &::after {
+         content: '';
+         position: absolute;
+         left: 3px;
+         top: 9px;
+         width: 1.5px;
+         height: 6px;
+         background: var(--home-violet);
+      }
+   }
 }
 @keyframes hb-sticky-type {
-  0%, 72% { width: 0; border-color: currentColor; }
-  77% { width: 9ch; border-color: currentColor; }
-  78%, 100% { width: 9ch; border-color: transparent; }
+   0%,
+   72% {
+      width: 0;
+      border-color: currentColor;
+   }
+   77% {
+      width: 9ch;
+      border-color: currentColor;
+   }
+   78%,
+   100% {
+      width: 9ch;
+      border-color: transparent;
+   }
 }
-@keyframes hb-handle { 0%, 78% { opacity: 0; } 79%, 84% { opacity: 1; } 85%, 100% { opacity: 0; } }
-@keyframes hb-rot { 0%, 79% { rotate: 0deg; } 83%, 100% { rotate: -7deg; } }
+@keyframes hb-handle {
+   0%,
+   78% {
+      opacity: 0;
+   }
+   79%,
+   84% {
+      opacity: 1;
+   }
+   85%,
+   100% {
+      opacity: 0;
+   }
+}
+@keyframes hb-rot {
+   0%,
+   79% {
+      rotate: 0deg;
+   }
+   83%,
+   100% {
+      rotate: -7deg;
+   }
+}
 
 // Devin types a small code card, line by line.
 .b-code {
-  position: absolute;
-  left: px(18);
-  top: py(170);
-  width: px(158);
-  box-sizing: border-box;
-  border-radius: 8px;
-  background: #11151c;
-  border: 1px solid #262e39;
-  color: #e7ecf3;
-  overflow: hidden;
-  @include pop(hb-code, 67%);
+   position: absolute;
+   left: px(18);
+   top: py(170);
+   width: px(158);
+   box-sizing: border-box;
+   border-radius: 8px;
+   background: #11151c;
+   border: 1px solid #262e39;
+   color: #e7ecf3;
+   overflow: hidden;
+   @include pop(hb-code, 67%);
 
-  .cb-bar {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    padding: 4px 7px;
-    border-bottom: 1px solid #262e39;
-    font-size: 8.5px;
-    color: #8b95a4;
-    i { width: 5px; height: 5px; border-radius: 50%; background: #3a4350; }
-    span { margin: 0 auto; padding-right: 18px; }
-  }
-  .cb-body { padding: 5px 8px 6px; font-size: 9px; line-height: 1.6; }
-  .ln { display: block; overflow: hidden; white-space: pre; width: 0; }
-  .l1 { animation: hb-l1 $loop steps(25) infinite; }
-  .l2 { animation: hb-l2 $loop steps(22) infinite; }
-  .l3 { animation: hb-l3 $loop steps(25) infinite; }
-  .l4 { animation: hb-l4 $loop steps(1) infinite; }
-  b { color: #c792ea; font-weight: 400; }
-  i { color: #82aaff; font-style: normal; }
-  em { color: #f78c6c; font-style: normal; }
+   .cb-bar {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 7px;
+      border-bottom: 1px solid #262e39;
+      font-size: 8.5px;
+      color: #8b95a4;
+      i {
+         width: 5px;
+         height: 5px;
+         border-radius: 50%;
+         background: #3a4350;
+      }
+      span {
+         margin: 0 auto;
+         padding-right: 18px;
+      }
+   }
+   .cb-body {
+      padding: 5px 8px 6px;
+      font-size: 9px;
+      line-height: 1.6;
+   }
+   .ln {
+      display: block;
+      overflow: hidden;
+      white-space: pre;
+      width: 0;
+   }
+   .l1 {
+      animation: hb-l1 $loop steps(25) infinite;
+   }
+   .l2 {
+      animation: hb-l2 $loop steps(22) infinite;
+   }
+   .l3 {
+      animation: hb-l3 $loop steps(25) infinite;
+   }
+   .l4 {
+      animation: hb-l4 $loop steps(1) infinite;
+   }
+   b {
+      color: #c792ea;
+      font-weight: 400;
+   }
+   i {
+      color: #82aaff;
+      font-style: normal;
+   }
+   em {
+      color: #f78c6c;
+      font-style: normal;
+   }
 }
-@keyframes hb-l1 { 0%, 69% { width: 0; } 73.5%, 100% { width: 100%; } }
-@keyframes hb-l2 { 0%, 73.5% { width: 0; } 77.5%, 100% { width: 100%; } }
-@keyframes hb-l3 { 0%, 77.5% { width: 0; } 81.5%, 100% { width: 100%; } }
-@keyframes hb-l4 { 0%, 82% { width: 0; } 82.5%, 100% { width: 100%; } }
+@keyframes hb-l1 {
+   0%,
+   69% {
+      width: 0;
+   }
+   73.5%,
+   100% {
+      width: 100%;
+   }
+}
+@keyframes hb-l2 {
+   0%,
+   73.5% {
+      width: 0;
+   }
+   77.5%,
+   100% {
+      width: 100%;
+   }
+}
+@keyframes hb-l3 {
+   0%,
+   77.5% {
+      width: 0;
+   }
+   81.5%,
+   100% {
+      width: 100%;
+   }
+}
+@keyframes hb-l4 {
+   0%,
+   82% {
+      width: 0;
+   }
+   82.5%,
+   100% {
+      width: 100%;
+   }
+}
 
 .cursor {
-  position: absolute;
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
-  pointer-events: none;
-  z-index: 3;
+   position: absolute;
+   display: flex;
+   align-items: flex-start;
+   gap: 2px;
+   pointer-events: none;
+   z-index: 3;
 
-  svg { width: 14px; height: 14px; }
-  span {
-    margin-top: 10px;
-    padding: 1px 6px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 600;
-    color: #fff;
-  }
+   svg {
+      width: 14px;
+      height: 14px;
+   }
+   span {
+      margin-top: 10px;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+   }
 }
 .c1 {
-  svg path { fill: var(--home-red); }
-  span { background: var(--home-red); }
-  animation: hb-maya $loop ease-in-out infinite;
+   svg path {
+      fill: var(--home-red);
+   }
+   span {
+      background: var(--home-red);
+   }
+   animation: hb-maya $loop ease-in-out infinite;
 }
 .c2 {
-  svg path { fill: var(--home-violet); }
-  span { background: var(--home-violet); }
-  animation: hb-sam $loop ease-in-out infinite;
+   svg path {
+      fill: var(--home-violet);
+   }
+   span {
+      background: var(--home-violet);
+   }
+   animation: hb-sam $loop ease-in-out infinite;
 }
 // Devin: draws the first arrow, drags out Queue and types it, circles Orders, types code.
 @keyframes hb-maya {
-  0% { left: px(60); top: py(30); }
-  2.5% { left: px(24); top: py(106); }
-  6% { left: px(112); top: py(156); }
-  6.5% { left: px(48); top: py(131); }
-  10% { left: px(88); top: py(131); }
-  12% { left: px(112); top: py(131); }
-  19% { left: px(154); top: py(131); }
-  22% { left: px(288); top: py(40); }
-  29% { left: px(376); top: py(88); }
-  31%, 38% { left: px(345); top: py(64); }
-  48%, 57% { left: px(330); top: py(110); }
-  58.50% { left: px(282.0); top: py(168.0); animation-timing-function: linear; }
-  58.97% { left: px(302.4); top: py(161.3); animation-timing-function: linear; }
-  59.44% { left: px(319.1); top: py(159.6); animation-timing-function: linear; }
-  59.91% { left: px(340.0); top: py(160.0); animation-timing-function: linear; }
-  60.38% { left: px(359.6); top: py(162.9); animation-timing-function: linear; }
-  60.84% { left: px(375.2); top: py(168.7); animation-timing-function: linear; }
-  61.31% { left: px(385.8); top: py(184.0); animation-timing-function: linear; }
-  61.78% { left: px(383.0); top: py(202.2); animation-timing-function: linear; }
-  62.25% { left: px(371.0); top: py(217.8); animation-timing-function: linear; }
-  62.72% { left: px(354.9); top: py(226.6); animation-timing-function: linear; }
-  63.19% { left: px(334.8); top: py(229.8); animation-timing-function: linear; }
-  63.66% { left: px(315.6); top: py(229.2); animation-timing-function: linear; }
-  64.12% { left: px(297.1); top: py(224.8); animation-timing-function: linear; }
-  64.59% { left: px(281.7); top: py(214.2); animation-timing-function: linear; }
-  65.06% { left: px(277.7); top: py(196.4); animation-timing-function: linear; }
-  65.53% { left: px(285.2); top: py(179.8); animation-timing-function: linear; }
-  66.00% { left: px(300.0); top: py(168.0); animation-timing-function: linear; }
-  69% { left: px(26); top: py(194); }
-  73.5% { left: px(150); top: py(194); }
-  74% { left: px(30); top: py(208); }
-  77.5% { left: px(130); top: py(208); }
-  78% { left: px(30); top: py(222); }
-  81.5% { left: px(150); top: py(222); }
-  82.5% { left: px(30); top: py(236); }
-  90% { left: px(40); top: py(240); }
-  100% { left: px(60); top: py(30); }
+   0% {
+      left: px(60);
+      top: py(30);
+   }
+   2.5% {
+      left: px(24);
+      top: py(106);
+   }
+   6% {
+      left: px(112);
+      top: py(156);
+   }
+   6.5% {
+      left: px(48);
+      top: py(131);
+   }
+   10% {
+      left: px(88);
+      top: py(131);
+   }
+   12% {
+      left: px(112);
+      top: py(131);
+   }
+   19% {
+      left: px(154);
+      top: py(131);
+   }
+   22% {
+      left: px(288);
+      top: py(40);
+   }
+   29% {
+      left: px(376);
+      top: py(88);
+   }
+   31%,
+   38% {
+      left: px(345);
+      top: py(64);
+   }
+   48%,
+   57% {
+      left: px(330);
+      top: py(110);
+   }
+   58.50% {
+      left: px(282);
+      top: py(168);
+      animation-timing-function: linear;
+   }
+   58.97% {
+      left: px(302.4);
+      top: py(161.3);
+      animation-timing-function: linear;
+   }
+   59.44% {
+      left: px(319.1);
+      top: py(159.6);
+      animation-timing-function: linear;
+   }
+   59.91% {
+      left: px(340);
+      top: py(160);
+      animation-timing-function: linear;
+   }
+   60.38% {
+      left: px(359.6);
+      top: py(162.9);
+      animation-timing-function: linear;
+   }
+   60.84% {
+      left: px(375.2);
+      top: py(168.7);
+      animation-timing-function: linear;
+   }
+   61.31% {
+      left: px(385.8);
+      top: py(184);
+      animation-timing-function: linear;
+   }
+   61.78% {
+      left: px(383);
+      top: py(202.2);
+      animation-timing-function: linear;
+   }
+   62.25% {
+      left: px(371);
+      top: py(217.8);
+      animation-timing-function: linear;
+   }
+   62.72% {
+      left: px(354.9);
+      top: py(226.6);
+      animation-timing-function: linear;
+   }
+   63.19% {
+      left: px(334.8);
+      top: py(229.8);
+      animation-timing-function: linear;
+   }
+   63.66% {
+      left: px(315.6);
+      top: py(229.2);
+      animation-timing-function: linear;
+   }
+   64.12% {
+      left: px(297.1);
+      top: py(224.8);
+      animation-timing-function: linear;
+   }
+   64.59% {
+      left: px(281.7);
+      top: py(214.2);
+      animation-timing-function: linear;
+   }
+   65.06% {
+      left: px(277.7);
+      top: py(196.4);
+      animation-timing-function: linear;
+   }
+   65.53% {
+      left: px(285.2);
+      top: py(179.8);
+      animation-timing-function: linear;
+   }
+   66.00% {
+      left: px(300);
+      top: py(168);
+      animation-timing-function: linear;
+   }
+   69% {
+      left: px(26);
+      top: py(194);
+   }
+   73.5% {
+      left: px(150);
+      top: py(194);
+   }
+   74% {
+      left: px(30);
+      top: py(208);
+   }
+   77.5% {
+      left: px(130);
+      top: py(208);
+   }
+   78% {
+      left: px(30);
+      top: py(222);
+   }
+   81.5% {
+      left: px(150);
+      top: py(222);
+   }
+   82.5% {
+      left: px(30);
+      top: py(236);
+   }
+   90% {
+      left: px(40);
+      top: py(240);
+   }
+   100% {
+      left: px(60);
+      top: py(30);
+   }
 }
 // Emily: places API and Orders, wires them up, selects API, leaves a note.
 @keyframes hb-sam {
-  0% { left: px(200); top: py(250); }
-  8% { left: px(200); top: py(131); }
-  20% { left: px(210); top: py(240); }
-  36%, 40% { left: px(330); top: py(198); }
-  43% { left: px(244); top: py(120); }
-  47%, 49% { left: px(286); top: py(72); }
-  50% { left: px(226); top: py(78); }
-  56% { left: px(261); top: py(78); }
-  58% { left: px(244); top: py(142); }
-  62%, 63% { left: px(286); top: py(190); }
-  65%, 69% { left: px(215); top: py(150); }
-  72% { left: px(204); top: py(230); }
-  77% { left: px(242); top: py(230); }
-  79% { left: px(230); top: py(212); }
-  83% { left: px(218); top: py(214); }
-  88%, 100% { left: px(200); top: py(250); }
+   0% {
+      left: px(200);
+      top: py(250);
+   }
+   8% {
+      left: px(200);
+      top: py(131);
+   }
+   20% {
+      left: px(210);
+      top: py(240);
+   }
+   36%,
+   40% {
+      left: px(330);
+      top: py(198);
+   }
+   43% {
+      left: px(244);
+      top: py(120);
+   }
+   47%,
+   49% {
+      left: px(286);
+      top: py(72);
+   }
+   50% {
+      left: px(226);
+      top: py(78);
+   }
+   56% {
+      left: px(261);
+      top: py(78);
+   }
+   58% {
+      left: px(244);
+      top: py(142);
+   }
+   62%,
+   63% {
+      left: px(286);
+      top: py(190);
+   }
+   65%,
+   69% {
+      left: px(215);
+      top: py(150);
+   }
+   72% {
+      left: px(204);
+      top: py(230);
+   }
+   77% {
+      left: px(242);
+      top: py(230);
+   }
+   79% {
+      left: px(230);
+      top: py(212);
+   }
+   83% {
+      left: px(218);
+      top: py(214);
+   }
+   88%,
+   100% {
+      left: px(200);
+      top: py(250);
+   }
 }
 
 // ---- tool showcase ----
 .showcase {
-  position: relative;
-  z-index: 1;
-  padding-bottom: 64px;
+   position: relative;
+   z-index: 1;
+   padding-bottom: 64px;
 }
 
 .sc-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 5px;
-  border-radius: 12px;
-  background: var(--dd-surface-2);
-  width: fit-content;
-  max-width: 100%;
-  box-sizing: border-box;
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px;
+   padding: 5px;
+   border-radius: 12px;
+   background: var(--dd-surface-2);
+   width: fit-content;
+   max-width: 100%;
+   box-sizing: border-box;
 }
 
 .sc-tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--dd-text-muted);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  overflow: hidden;
-  --dd-icon-size: 17px;
-  transition: background 0.2s, color 0.2s;
+   position: relative;
+   display: inline-flex;
+   align-items: center;
+   gap: 7px;
+   padding: 8px 14px;
+   border: none;
+   border-radius: 9px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 14px;
+   font-weight: 600;
+   cursor: pointer;
+   overflow: hidden;
+   --dd-icon-size: 17px;
+   transition:
+      background 0.2s,
+      color 0.2s;
 
-  &:hover { color: var(--dd-text); }
-  &.on {
-    background: var(--dd-surface);
-    color: var(--dd-text);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
+   &:hover {
+      color: var(--dd-text);
+   }
+   &.on {
+      background: var(--dd-surface);
+      color: var(--dd-text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+   }
 }
 .sc-prog {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: var(--dd-primary);
-  transform-origin: left;
-  animation: prog 10s linear both;
+   position: absolute;
+   left: 0;
+   bottom: 0;
+   height: 2px;
+   width: 100%;
+   background: var(--dd-primary);
+   transform-origin: left;
+   animation: prog 10s linear both;
 }
-@keyframes prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes prog {
+   from {
+      transform: scaleX(0);
+   }
+   to {
+      transform: scaleX(1);
+   }
+}
 
 .sc-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: center;
-  margin-top: 20px;
-  padding: 32px;
-  min-height: 300px;
-  border-radius: 18px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
+   display: grid;
+   grid-template-columns: minmax(0, 1fr);
+   gap: 20px;
+   align-items: center;
+   margin-top: 20px;
+   padding: 32px;
+   min-height: 300px;
+   border-radius: 18px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
 
-  @media (max-width: 760px) {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 20px;
-    gap: 20px;
-  }
+   @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 20px;
+      gap: 20px;
+   }
 }
 
 .sc-text {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px;
-  animation: rise 0.45s ease both;
-  h3 { margin: 0; font-size: 28px; }
-  p { flex: 1; min-width: 240px; margin: 0; font-size: 16px; line-height: 1.6; color: var(--dd-text-muted); }
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   gap: 6px 20px;
+   animation: rise 0.45s ease both;
+   h3 {
+      margin: 0;
+      font-size: 28px;
+   }
+   p {
+      flex: 1;
+      min-width: 240px;
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--dd-text-muted);
+   }
 }
 
 .sc-demo {
-  position: relative;
-  height: 480px;
-  border: 1px solid var(--dd-border);
-  border-radius: 12px;
-  background: var(--dd-canvas-bg);
-  overflow: hidden;
-  animation: rise 0.45s 0.05s ease both;
+   position: relative;
+   height: 480px;
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   background: var(--dd-canvas-bg);
+   overflow: hidden;
+   animation: rise 0.45s 0.05s ease both;
 
-  app-editor { position: absolute; inset: 0; display: block; pointer-events: none; }
+   app-editor {
+      position: absolute;
+      inset: 0;
+      display: block;
+      pointer-events: none;
+   }
 
-  // A picture of the real editor: no tool dock, minimap, deck panels or selection chrome.
-  ::ng-deep {
-    app-shape-toolbar, app-minimap, app-laser-layer, app-slides-panel,
-    .deck-header, .slide-bounds, .chips, .icon-btn.tiny, .type .chev, .node-head .icon-btn, .overlay.hint {
-      display: none !important;
-    }
-
-  }
+   // A picture of the real editor: no tool dock, minimap, deck panels or selection chrome.
+   ::ng-deep {
+      app-shape-toolbar,
+      app-minimap,
+      app-laser-layer,
+      app-slides-panel,
+      .deck-header,
+      .slide-bounds,
+      .chips,
+      .icon-btn.tiny,
+      .type .chev,
+      .node-head .icon-btn,
+      .overlay.hint {
+         display: none !important;
+      }
+   }
 }
-.sc-demo.prepping app-editor { opacity: 0; }
+.sc-demo.prepping app-editor {
+   opacity: 0;
+}
 // The slides tab ends on the editor's transition screen: let its panels show.
-.sc-demo.morphing ::ng-deep app-slides-panel { display: revert !important; }
+.sc-demo.morphing ::ng-deep app-slides-panel {
+   display: revert !important;
+}
 .sc-typebox {
-  position: absolute;
-  z-index: 5;
-  border: 1.5px dashed var(--dd-primary);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
-  pointer-events: none;
+   position: absolute;
+   z-index: 5;
+   border: 1.5px dashed var(--dd-primary);
+   border-radius: 4px;
+   background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+   pointer-events: none;
 }
 .sc-caret {
-  position: absolute;
-  z-index: 6;
-  width: 2px;
-  background: var(--dd-primary);
-  pointer-events: none;
-  animation: caret-blink 1s steps(1) infinite;
+   position: absolute;
+   z-index: 6;
+   width: 2px;
+   background: var(--dd-primary);
+   pointer-events: none;
+   animation: caret-blink 1s steps(1) infinite;
 }
-@keyframes caret-blink { 50% { opacity: 0.25; } }
+@keyframes caret-blink {
+   50% {
+      opacity: 0.25;
+   }
+}
 .sc-cursor {
-  position: absolute;
-  z-index: 6;
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
-  pointer-events: none;
-  // Short, so the pointer stays on whatever it is dragging; the player's pauses do the pacing.
-  transition: left 0.2s ease-out, top 0.2s ease-out;
+   position: absolute;
+   z-index: 6;
+   display: flex;
+   align-items: flex-start;
+   gap: 2px;
+   pointer-events: none;
+   // Short, so the pointer stays on whatever it is dragging; the player's pauses do the pacing.
+   transition:
+      left 0.2s ease-out,
+      top 0.2s ease-out;
 
-  svg { width: 16px; height: 16px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); }
-  path { fill: var(--dd-primary); stroke: #fff; stroke-width: 1; }
-  span {
-    margin-top: 12px;
-    padding: 2px 7px;
-    border-radius: 6px;
-    background: var(--dd-primary);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
+   svg {
+      width: 16px;
+      height: 16px;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+   }
+   path {
+      fill: var(--dd-primary);
+      stroke: #fff;
+      stroke-width: 1;
+   }
+   span {
+      margin-top: 12px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: var(--dd-primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+   }
 }
 .sc-loading {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--dd-text-muted); font-size: 14px;
+   position: absolute;
+   inset: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   color: var(--dd-text-muted);
+   font-size: 14px;
 }
 
 // ---- scroll reveal ----
 .reveal {
-  .feat, .use, > .sc-tabs, > .sc-stage, > div, > h2, .sec-intro {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-    transition-delay: calc(var(--i, 0) * 70ms);
-  }
-  &.in {
-    .feat, .use, > .sc-tabs, > .sc-stage, > div, > h2, .sec-intro {
-      opacity: 1;
-      transform: none;
-    }
-  }
+   .feat,
+   .use,
+   > .sc-tabs,
+   > .sc-stage,
+   > div,
+   > h2,
+   .sec-intro {
+      opacity: 0;
+      transform: translateY(20px);
+      transition:
+         opacity 0.6s ease,
+         transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+      transition-delay: calc(var(--i, 0) * 70ms);
+   }
+   &.in {
+      .feat,
+      .use,
+      > .sc-tabs,
+      > .sc-stage,
+      > div,
+      > h2,
+      .sec-intro {
+         opacity: 1;
+         transform: none;
+      }
+   }
 }
-.band.reveal > .wrap { opacity: 1; transform: none; }
+.band.reveal > .wrap {
+   opacity: 1;
+   transform: none;
+}
 
-.feat .feat-icon { transition: transform 0.2s ease; }
-.feat:hover .feat-icon { transform: translateY(-3px) rotate(-6deg); }
-.use:hover { border-color: var(--dd-primary); }
+.feat .feat-icon {
+   transition: transform 0.2s ease;
+}
+.feat:hover .feat-icon {
+   transform: translateY(-3px) rotate(-6deg);
+}
+.use:hover {
+   border-color: var(--dd-primary);
+}
 
 // AI chat lines appear one by one once in view.
 .ai.in .ai-chat > div {
-  animation: rise 0.4s ease both;
-  @for $n from 1 through 6 {
-    &:nth-child(#{$n}) { animation-delay: #{0.3 + $n * 0.35}s; }
-  }
+   animation: rise 0.4s ease both;
+   @for $n from 1 through 6 {
+      &:nth-child(#{$n}) {
+         animation-delay: #{0.3 + $n * 0.35}s;
+      }
+   }
 }
-.ai:not(.in) .ai-chat > div { opacity: 0; }
+.ai:not(.in) .ai-chat > div {
+   opacity: 0;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    animation-delay: 0s !important;
-    transition-duration: 0.01ms !important;
-  }
-  // The board loop ends faded out; show it as a still frame instead.
-  .board-body * { animation: none !important; }
-  .b-wires path { stroke-dashoffset: 0; }
-  .b-queue .typed { width: 5ch; }
-  .b-web .typed { width: 7ch; }
-  .b-sticky .typed { width: 9ch; }
-  .b-code .ln { width: 100%; }
-  .cursor { display: none; }
+   *,
+   *::before,
+   *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0s !important;
+      transition-duration: 0.01ms !important;
+   }
+   // The board loop ends faded out; show it as a still frame instead.
+   .board-body * {
+      animation: none !important;
+   }
+   .b-wires path {
+      stroke-dashoffset: 0;
+   }
+   .b-queue .typed {
+      width: 5ch;
+   }
+   .b-web .typed {
+      width: 7ch;
+   }
+   .b-sticky .typed {
+      width: 9ch;
+   }
+   .b-code .ln {
+      width: 100%;
+   }
+   .cursor {
+      display: none;
+   }
 }
 
 // Slides tab: simplified slide panel over the left of the canvas.
 .sc-slides {
-  position: absolute;
-  z-index: 4;
-  left: 12px;
-  top: 12px;
-  bottom: 12px;
-  width: 124px;
-  padding: 10px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-radius: 12px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.4);
-  animation: rise 0.35s ease both;
+   position: absolute;
+   z-index: 4;
+   left: 12px;
+   top: 12px;
+   bottom: 12px;
+   width: 124px;
+   padding: 10px;
+   box-sizing: border-box;
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   border-radius: 12px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.4);
+   animation: rise 0.35s ease both;
 
-  .sp-head { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dd-text-muted); }
-  .sp-row { display: flex; gap: 6px; align-items: flex-start; animation: rise 0.35s ease both; }
-  .sp-num { width: 10px; font-size: 10px; color: var(--dd-text-muted); }
-  .sp-thumb {
-    position: relative;
-    flex: 1;
-    aspect-ratio: 16 / 9;
-    border-radius: 4px;
-    border: 2px solid transparent;
-    overflow: hidden;
-    i { position: absolute; display: block; border-radius: 1px; }
-    i.text { border-radius: 1px; transform: scaleY(0.6); transform-origin: top; }
-  }
-  .sp-row.on .sp-thumb { border-color: var(--dd-primary); }
-  .sp-row.on .sp-num { color: var(--dd-primary); font-weight: 700; }
-  .sp-morph {
-    margin-top: auto;
-    padding: 4px 6px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 600;
-    text-align: center;
-    color: var(--home-violet);
-    background: color-mix(in srgb, var(--home-violet) 14%, transparent);
-  }
+   .sp-head {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--dd-text-muted);
+   }
+   .sp-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      animation: rise 0.35s ease both;
+   }
+   .sp-num {
+      width: 10px;
+      font-size: 10px;
+      color: var(--dd-text-muted);
+   }
+   .sp-thumb {
+      position: relative;
+      flex: 1;
+      aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      overflow: hidden;
+      i {
+         position: absolute;
+         display: block;
+         border-radius: 1px;
+      }
+      i.text {
+         border-radius: 1px;
+         transform: scaleY(0.6);
+         transform-origin: top;
+      }
+   }
+   .sp-row.on .sp-thumb {
+      border-color: var(--dd-primary);
+   }
+   .sp-row.on .sp-num {
+      color: var(--dd-primary);
+      font-weight: 700;
+   }
+   .sp-morph {
+      margin-top: auto;
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-align: center;
+      color: var(--home-violet);
+      background: color-mix(in srgb, var(--home-violet) 14%, transparent);
+   }
 }
 
 // Sequence tab: a message stays hidden until the player has drawn it (it reveals each one).
 .sc-demo.seq-tab:not(.prepping) ::ng-deep app-sequence-diagram > :is(.msg-line, .msg-head, .msg-label-wrap) {
-  visibility: hidden;
+   visibility: hidden;
 }
 
 // Slides tab: the editor's real transition components in a trimmed-down frame.
 .sc-morph {
-  position: absolute;
-  z-index: 5;
-  left: 148px;
-  right: 12px;
-  top: 12px;
-  bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 12px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  animation: rise 0.35s ease both;
+   position: absolute;
+   z-index: 5;
+   left: 148px;
+   right: 12px;
+   top: 12px;
+   bottom: 12px;
+   display: flex;
+   flex-direction: column;
+   border-radius: 12px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.5);
+   overflow: hidden;
+   animation: rise 0.35s ease both;
 
-  .mo-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--dd-border);
-    font-size: 12px;
-  }
-  .mo-name { font-weight: 700; }
-  .mo-seg {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 8px;
-    background: var(--dd-surface-2);
-    span { padding: 3px 10px; border-radius: 6px; color: var(--dd-text-muted); font-weight: 600; transition: background 0.2s, color 0.2s; }
-    span.on { background: var(--dd-surface); color: var(--dd-text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
-  }
-  .mo-body { flex: 1; min-height: 0; display: flex; }
-  .mo-stage { flex: 1; min-width: 0; padding: 12px; overflow: hidden; }
-  .mo-side {
-    width: 270px;
-    flex: none;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid var(--dd-border);
-  }
-  .mo-head { padding: 10px 12px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dd-text-muted); }
-  .mo-pairs { flex: 1; min-height: 0; overflow: hidden; padding: 4px 12px 12px; }
+   .mo-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--dd-border);
+      font-size: 12px;
+   }
+   .mo-name {
+      font-weight: 700;
+   }
+   .mo-seg {
+      display: inline-flex;
+      padding: 2px;
+      border-radius: 8px;
+      background: var(--dd-surface-2);
+      span {
+         padding: 3px 10px;
+         border-radius: 6px;
+         color: var(--dd-text-muted);
+         font-weight: 600;
+         transition:
+            background 0.2s,
+            color 0.2s;
+      }
+      span.on {
+         background: var(--dd-surface);
+         color: var(--dd-text);
+         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+   }
+   .mo-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+   }
+   .mo-stage {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      overflow: hidden;
+   }
+   .mo-side {
+      width: 270px;
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--dd-border);
+   }
+   .mo-head {
+      padding: 10px 12px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--dd-text-muted);
+   }
+   .mo-pairs {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 4px 12px 12px;
+   }
 }
 
 .sc-morph {
-  .mo-drag { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; overflow: visible; }
-  .mo-drag line { stroke: var(--home-violet); stroke-width: 2.5; stroke-dasharray: 6 5; stroke-linecap: round; }
-  .mo-cursor { z-index: 7; }
+   .mo-drag {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 6;
+      pointer-events: none;
+      overflow: visible;
+   }
+   .mo-drag line {
+      stroke: var(--home-violet);
+      stroke-width: 2.5;
+      stroke-dasharray: 6 5;
+      stroke-linecap: round;
+   }
+   .mo-cursor {
+      z-index: 7;
+   }
 }
 
 // Data model: SQL export panel (text from the app's own generator).
 .sc-sql {
-  position: absolute;
-  z-index: 5;
-  top: 12px;
-  right: 12px;
-  bottom: 12px;
-  width: min(440px, 48%);
-  display: flex;
-  flex-direction: column;
-  border-radius: 12px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  animation: rise 0.3s ease both;
+   position: absolute;
+   z-index: 5;
+   top: 12px;
+   right: 12px;
+   bottom: 12px;
+   width: min(440px, 48%);
+   display: flex;
+   flex-direction: column;
+   border-radius: 12px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.5);
+   overflow: hidden;
+   animation: rise 0.3s ease both;
 
-  .sq-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--dd-border); font-size: 12px; }
-  .sq-title { font-weight: 700; margin-right: auto; }
-  .sq-chip { padding: 2px 8px; border-radius: 6px; background: var(--dd-surface-2); color: var(--dd-text-muted); font-weight: 600; }
-  .sq-act { padding: 3px 9px; border-radius: 6px; border: 1px solid var(--dd-border-strong); font-weight: 600; }
-  .sq-act.primary { background: var(--dd-primary); border-color: var(--dd-primary); color: #fff; }
-  .sq-body {
-    flex: 1;
-    margin: 0;
-    padding: 10px 12px;
-    overflow: hidden;
-    font-size: 10.5px;
-    line-height: 1.55;
-    color: var(--dd-text);
-    background: var(--dd-canvas-bg);
-    white-space: pre;
-  }
+   .sq-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--dd-border);
+      font-size: 12px;
+   }
+   .sq-title {
+      font-weight: 700;
+      margin-right: auto;
+   }
+   .sq-chip {
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--dd-surface-2);
+      color: var(--dd-text-muted);
+      font-weight: 600;
+   }
+   .sq-act {
+      padding: 3px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--dd-border-strong);
+      font-weight: 600;
+   }
+   .sq-act.primary {
+      background: var(--dd-primary);
+      border-color: var(--dd-primary);
+      color: #fff;
+   }
+   .sq-body {
+      flex: 1;
+      margin: 0;
+      padding: 10px 12px;
+      overflow: hidden;
+      font-size: 10.5px;
+      line-height: 1.55;
+      color: var(--dd-text);
+      background: var(--dd-canvas-bg);
+      white-space: pre;
+   }
 }
 
 // Right-click menu and the message colour swatches drawn over the example.
-.sc-ctx, .sc-swatches {
-  position: absolute;
-  z-index: 7;
-  animation: rise 0.18s ease both;
+.sc-ctx,
+.sc-swatches {
+   position: absolute;
+   z-index: 7;
+   animation: rise 0.18s ease both;
 }
 .sc-ctx {
-  min-width: 0;
-  width: 220px;
-  box-sizing: border-box;
-  max-height: none;
-  overflow: visible;
-  .dd-menu-item { cursor: default; }
-  .dd-menu-item.hot { background: var(--dd-surface-2); }
-  .dd-menu-item { box-sizing: border-box; white-space: nowrap; }
-  .kbd { margin-left: auto; padding-left: 16px; font-size: 11px; color: var(--dd-text-muted); }
+   min-width: 0;
+   width: 220px;
+   box-sizing: border-box;
+   max-height: none;
+   overflow: visible;
+   .dd-menu-item {
+      cursor: default;
+   }
+   .dd-menu-item.hot {
+      background: var(--dd-surface-2);
+   }
+   .dd-menu-item {
+      box-sizing: border-box;
+      white-space: nowrap;
+   }
+   .kbd {
+      margin-left: auto;
+      padding-left: 16px;
+      font-size: 11px;
+      color: var(--dd-text-muted);
+   }
 }
-.sc-swatches { min-width: 0; padding: 8px; }
+.sc-swatches {
+   min-width: 0;
+   padding: 8px;
+}
 // The message toolbar is the editor's own; in this read-only example its buttons are disabled but should look live.
-.sc-demo ::ng-deep app-sequence-message-toolbar button:disabled { opacity: 1 !important; cursor: default; }
+.sc-demo ::ng-deep app-sequence-message-toolbar button:disabled {
+   opacity: 1 !important;
+   cursor: default;
+}
 
 // Dragging: the pointer follows exactly, no easing behind the object.
-.sc-cursor.fast { transition: none; }
+.sc-cursor.fast {
+   transition: none;
+}
 
 // "Slide 2 · copy of slide 1" over the canvas after Duplicate slide.
 .sc-badge {
-  position: absolute;
-  z-index: 6;
-  top: 14px;
-  left: calc(50% + 70px);
-  transform: translateX(-50%);
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--dd-primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
-  animation: rise 0.3s ease both;
+   position: absolute;
+   z-index: 6;
+   top: 14px;
+   left: calc(50% + 70px);
+   transform: translateX(-50%);
+   padding: 5px 12px;
+   border-radius: 999px;
+   background: var(--dd-primary);
+   color: #fff;
+   font-size: 12px;
+   font-weight: 600;
+   box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
+   animation: rise 0.3s ease both;
 }
 // A newly added slide thumbnail pulses once.
-.sc-slides .sp-row + .sp-row .sp-thumb { animation: sp-new 1.4s ease-out; }
-@keyframes sp-new {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dd-primary) 70%, transparent); transform: scale(0.9); }
-  30% { transform: none; }
-  100% { box-shadow: 0 0 0 10px transparent; }
+.sc-slides .sp-row + .sp-row .sp-thumb {
+   animation: sp-new 1.4s ease-out;
 }
-
-
+@keyframes sp-new {
+   0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--dd-primary) 70%, transparent);
+      transform: scale(0.9);
+   }
+   30% {
+      transform: none;
+   }
+   100% {
+      box-shadow: 0 0 0 10px transparent;
+   }
+}

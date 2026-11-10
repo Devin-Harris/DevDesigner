@@ -9,14 +9,14 @@ import { ShareSessionService } from '../services/share-session.service';
  * own change (see BUILD_INSTRUCTIONS.md section 6 and the realtime plan).
  */
 export const shareTokenInterceptor: HttpInterceptorFn = (req, next) => {
-  const session = inject(ShareSessionService);
-  const headers: Record<string, string> = {
-    'X-Client-Id': session.clientId,
-    'X-Guest-Id': session.guestId,
-  };
-  const token = session.token();
-  if (token) {
-    headers['X-Share-Token'] = token;
-  }
-  return next(req.clone({ setHeaders: headers }));
+   const session = inject(ShareSessionService);
+   const headers: Record<string, string> = {
+      'X-Client-Id': session.clientId,
+      'X-Guest-Id': session.guestId,
+   };
+   const token = session.token();
+   if (token) {
+      headers['X-Share-Token'] = token;
+   }
+   return next(req.clone({ setHeaders: headers }));
 };

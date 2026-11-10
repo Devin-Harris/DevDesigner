@@ -4,15 +4,15 @@ import type { Connector } from '../canvas/models/connector.model';
 export type Endpoint = 'source' | 'target';
 
 export interface EndpointDownEvent {
-  relationshipId: string;
-  which: Endpoint;
-  event: PointerEvent;
+   relationshipId: string;
+   which: Endpoint;
+   event: PointerEvent;
 }
 
 export interface SegmentDownEvent {
-  relationshipId: string;
-  segmentIndex: number;
-  event: PointerEvent;
+   relationshipId: string;
+   segmentIndex: number;
+   event: PointerEvent;
 }
 
 /**
@@ -23,39 +23,39 @@ export interface SegmentDownEvent {
  * on the underlying table/column handles.
  */
 @Component({
-  selector: 'app-canvas-connectors',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './canvas-connectors.component.html',
-  styleUrl: './canvas-connectors.component.scss',
+   selector: 'app-canvas-connectors',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   templateUrl: './canvas-connectors.component.html',
+   styleUrl: './canvas-connectors.component.scss',
 })
 export class CanvasConnectorsComponent {
-  readonly connectors = input.required<Connector[]>();
-  readonly tempLinkPath = input<string | null>(null);
-  /** Anchor the in-flight link would snap to, drawn as a ring. */
-  readonly snapAnchor = input<{ x: number; y: number } | null>(null);
-  readonly svgOffset = input.required<number>();
-  readonly dragging = input<boolean>(false);
+   readonly connectors = input.required<Connector[]>();
+   readonly tempLinkPath = input<string | null>(null);
+   /** Anchor the in-flight link would snap to, drawn as a ring. */
+   readonly snapAnchor = input<{ x: number; y: number } | null>(null);
+   readonly svgOffset = input.required<number>();
+   readonly dragging = input<boolean>(false);
 
-  readonly selectConnector = output<{ id: string; event: PointerEvent }>();
-  readonly endpointDown = output<EndpointDownEvent>();
-  readonly segmentDown = output<SegmentDownEvent>();
-  readonly resetRoute = output<string>();
+   readonly selectConnector = output<{ id: string; event: PointerEvent }>();
+   readonly endpointDown = output<EndpointDownEvent>();
+   readonly segmentDown = output<SegmentDownEvent>();
+   readonly resetRoute = output<string>();
 
-  protected onHit(id: string, event: PointerEvent): void {
-    event.stopPropagation();
-    this.selectConnector.emit({ id, event });
-  }
+   protected onHit(id: string, event: PointerEvent): void {
+      event.stopPropagation();
+      this.selectConnector.emit({ id, event });
+   }
 
-  protected onEndpoint(relationshipId: string, which: Endpoint, event: PointerEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-    this.endpointDown.emit({ relationshipId, which, event });
-  }
+   protected onEndpoint(relationshipId: string, which: Endpoint, event: PointerEvent): void {
+      event.stopPropagation();
+      event.preventDefault();
+      this.endpointDown.emit({ relationshipId, which, event });
+   }
 
-  protected onSegment(relationshipId: string, segmentIndex: number, event: PointerEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-    this.segmentDown.emit({ relationshipId, segmentIndex, event });
-  }
+   protected onSegment(relationshipId: string, segmentIndex: number, event: PointerEvent): void {
+      event.stopPropagation();
+      event.preventDefault();
+      this.segmentDown.emit({ relationshipId, segmentIndex, event });
+   }
 }

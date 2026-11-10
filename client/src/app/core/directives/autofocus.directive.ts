@@ -5,17 +5,17 @@ import { AfterViewInit, Directive, ElementRef, inject } from '@angular/core';
  * canvas inline editors so a field is ready to type as soon as it appears.
  */
 @Directive({
-  selector: '[appAutofocus]',
-  standalone: true,
+   selector: '[appAutofocus]',
+   standalone: true,
 })
 export class AutofocusDirective implements AfterViewInit {
-  private readonly host = inject<ElementRef<HTMLInputElement>>(ElementRef);
+   private readonly host = inject<ElementRef<HTMLInputElement>>(ElementRef);
 
-  ngAfterViewInit(): void {
-    const el = this.host.nativeElement;
-    el.focus();
-    if (typeof el.select === 'function') {
-      el.select();
-    }
-  }
+   ngAfterViewInit(): void {
+      const el = this.host.nativeElement;
+      el.focus();
+      if (typeof el.select === 'function') {
+         el.select();
+      }
+   }
 }

@@ -14,37 +14,37 @@ import { ProjectsOverlayService } from './projects-overlay/projects-overlay.serv
  * the landing page (HomeComponent) shows instead.
  */
 @Component({
-  selector: 'app-workspace',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EditorComponent, HomeComponent],
-  templateUrl: './workspace.component.html',
-  styleUrl: './workspace.component.scss',
+   selector: 'app-workspace',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [EditorComponent, HomeComponent],
+   templateUrl: './workspace.component.html',
+   styleUrl: './workspace.component.scss',
 })
 export class WorkspaceComponent {
-  protected readonly store = inject(ProjectsStore);
-  private readonly route = inject(ActivatedRoute);
-  private readonly location = inject(Location);
-  protected readonly overlay = inject(ProjectsOverlayService);
+   protected readonly store = inject(ProjectsStore);
+   private readonly route = inject(ActivatedRoute);
+   private readonly location = inject(Location);
+   protected readonly overlay = inject(ProjectsOverlayService);
 
-  protected readonly selectedProject = computed(
-    () => this.store.projects().find((p) => p.id === this.store.selectedId()) ?? null,
-  );
+   protected readonly selectedProject = computed(
+      () => this.store.projects().find((p) => p.id === this.store.selectedId()) ?? null
+   );
 
-  constructor() {
-    const initial = this.route.snapshot.paramMap.get('projectId');
-    if (initial) {
-      this.store.select(initial);
-    }
-    void this.store.loadProjects();
+   constructor() {
+      const initial = this.route.snapshot.paramMap.get('projectId');
+      if (initial) {
+         this.store.select(initial);
+      }
+      void this.store.loadProjects();
 
-    effect(() => {
-      const id = this.store.selectedId();
-      this.location.replaceState(id ? `/projects/${id}` : '/');
-    });
-  }
+      effect(() => {
+         const id = this.store.selectedId();
+         this.location.replaceState(id ? `/projects/${id}` : '/');
+      });
+   }
 
-  protected openProjects(): void {
-    this.overlay.open();
-  }
+   protected openProjects(): void {
+      this.overlay.open();
+   }
 }

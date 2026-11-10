@@ -6,6 +6,6 @@ import { initSentry } from './app/core/sentry';
 initSentry();
 
 bootstrapApplication(AppComponent, appConfig).catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
+   // eslint-disable-next-line no-console
+   console.error(err);
 });

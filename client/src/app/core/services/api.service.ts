@@ -9,26 +9,26 @@ import { environment } from '../../../environments/environment';
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiBaseUrl;
+   private readonly http = inject(HttpClient);
+   private readonly baseUrl = environment.apiBaseUrl;
 
-  get<T>(path: string) {
-    return this.http.get<T>(`${this.baseUrl}${path}`);
-  }
+   get<T>(path: string) {
+      return this.http.get<T>(`${this.baseUrl}${path}`);
+   }
 
-  post<T>(path: string, body: unknown) {
-    return this.http.post<T>(`${this.baseUrl}${path}`, body);
-  }
+   post<T>(path: string, body: unknown) {
+      return this.http.post<T>(`${this.baseUrl}${path}`, body);
+   }
 
-  patch<T>(path: string, body: unknown) {
-    return this.http.patch<T>(`${this.baseUrl}${path}`, body);
-  }
+   patch<T>(path: string, body: unknown) {
+      return this.http.patch<T>(`${this.baseUrl}${path}`, body);
+   }
 
-  put<T>(path: string, body: unknown) {
-    return this.http.put<T>(`${this.baseUrl}${path}`, body);
-  }
+   put<T>(path: string, body: unknown) {
+      return this.http.put<T>(`${this.baseUrl}${path}`, body);
+   }
 
-  delete<T>(path: string) {
-    return this.http.delete<T>(`${this.baseUrl}${path}`);
-  }
+   delete<T>(path: string) {
+      return this.http.delete<T>(`${this.baseUrl}${path}`);
+   }
 }

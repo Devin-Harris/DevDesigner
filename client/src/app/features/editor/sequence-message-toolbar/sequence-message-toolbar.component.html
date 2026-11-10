@@ -1,99 +1,111 @@
 @if (message(); as m) {
-  <button
-    type="button"
-    class="seg"
-    [class.active]="m.style === 'solid'"
-    [disabled]="!canEdit()"
-    (click)="setStyle('solid')"
-  >
-    Sync
-  </button>
-  <button
-    type="button"
-    class="seg"
-    [class.active]="m.style === 'dashed'"
-    [disabled]="!canEdit()"
-    (click)="setStyle('dashed')"
-  >
-    Return
-  </button>
-  <button
-    type="button"
-    class="seg"
-    [class.active]="m.style === 'break'"
-    [disabled]="!canEdit()"
-    (click)="setStyle('break')"
-  >
-    Break
-  </button>
+   <button
+      type="button"
+      class="seg"
+      [class.active]="m.style === 'solid'"
+      [disabled]="!canEdit()"
+      (click)="setStyle('solid')"
+   >
+      Sync
+   </button>
+   <button
+      type="button"
+      class="seg"
+      [class.active]="m.style === 'dashed'"
+      [disabled]="!canEdit()"
+      (click)="setStyle('dashed')"
+   >
+      Return
+   </button>
+   <button
+      type="button"
+      class="seg"
+      [class.active]="m.style === 'break'"
+      [disabled]="!canEdit()"
+      (click)="setStyle('break')"
+   >
+      Break
+   </button>
 
-  <span class="divider"></span>
+   <span class="divider"></span>
 
-  @if (m.style !== 'break') {
-    <button
+   @if (m.style !== 'break') {
+      <button
+         type="button"
+         class="ico-act"
+         [disabled]="!canEdit()"
+         (click)="flip()"
+         title="Flip direction"
+         aria-label="Flip direction"
+      >
+         <dd-icon name="swap_horiz" />
+      </button>
+   }
+
+   <button
+      type="button"
+      class="ico-act"
+      [class.active]="m.wrap !== false"
+      [disabled]="!canEdit()"
+      (click)="toggleWrap()"
+      title="Auto-wrap label"
+      aria-label="Auto-wrap label"
+      [attr.aria-pressed]="m.wrap !== false"
+   >
+      <dd-icon name="wrap_text" />
+   </button>
+
+   <button
+      type="button"
+      class="ico-act"
+      [ddPopoverTrigger]="colorMenu"
+      placement="below-start"
+      [disabled]="!canEdit()"
+      title="Line color"
+      aria-label="Line color"
+   >
+      <span class="color-dot" [style.background]="css(m.color) || 'var(--dd-connector)'"></span>
+   </button>
+   <ng-template #colorMenu let-close>
+      <div class="color-grid">
+         <dd-color-swatches
+            [value]="m.color"
+            noneLabel="Default"
+            themeValue="theme"
+            (pick)="setColor($event); close()"
+         />
+      </div>
+   </ng-template>
+
+   <button
       type="button"
       class="ico-act"
       [disabled]="!canEdit()"
-      (click)="flip()"
-      title="Flip direction"
-      aria-label="Flip direction"
-    >
-      <dd-icon name="swap_horiz" />
-    </button>
-  }
+      (click)="edit()"
+      title="Edit label"
+      aria-label="Edit label"
+   >
+      <dd-icon name="edit" />
+   </button>
 
-  <button
-    type="button"
-    class="ico-act"
-    [class.active]="m.wrap !== false"
-    [disabled]="!canEdit()"
-    (click)="toggleWrap()"
-    title="Auto-wrap label"
-    aria-label="Auto-wrap label"
-    [attr.aria-pressed]="m.wrap !== false"
-  >
-    <dd-icon name="wrap_text" />
-  </button>
-
-  <button
-    type="button"
-    class="ico-act"
-    [ddPopoverTrigger]="colorMenu"
-    placement="below-start"
-    [disabled]="!canEdit()"
-    title="Line color"
-    aria-label="Line color"
-  >
-    <span class="color-dot" [style.background]="css(m.color) || 'var(--dd-connector)'"></span>
-  </button>
-  <ng-template #colorMenu let-close>
-    <div class="color-grid">
-      <dd-color-swatches [value]="m.color" noneLabel="Default" themeValue="theme" (pick)="setColor($event); close()" />
-    </div>
-  </ng-template>
-
-  <button
-    type="button"
-    class="ico-act"
-    [disabled]="!canEdit()"
-    (click)="edit()"
-    title="Edit label"
-    aria-label="Edit label"
-  >
-    <dd-icon name="edit" />
-  </button>
-
-  <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-    <dd-icon name="tune" />
-  </button>
-  <button
-    type="button"
-    class="ico-act del"
-    [disabled]="!canEdit()"
-    (click)="remove()"
-    title="Delete message"
-    aria-label="Delete message"
-  >
-    <dd-icon name="delete" />
-  </button>
+   <button
+      type="button"
+      class="ico-act details"
+      [class.on]="inspector.shown()"
+      (click)="inspector.toggle()"
+      title="Details"
+      aria-label="Details"
+   >
+      <dd-icon name="tune" />
+   </button>
+   <button
+      type="button"
+      class="ico-act del"
+      [disabled]="!canEdit()"
+      (click)="remove()"
+      title="Delete message"
+      aria-label="Delete message"
+   >
+      <dd-icon name="delete" />
+   </button>
 }

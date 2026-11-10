@@ -1,356 +1,356 @@
 :host {
-  position: absolute;
-  transform-origin: 0 0;
-  // Above the free-form shapes and sequence diagrams (10..299, see the editor's
-  // diagramLayers); only a diagram brought to the very front (401+) covers it.
-  z-index: 400;
-  box-sizing: border-box;
-  background: var(--dd-node-surface);
-  // Border rendered as a box-shadow ring so it does not offset inner layout
-  // (keeps connector anchors aligned with the row connect handles).
-  border-radius: var(--dd-radius-lg);
-  box-shadow:
-    0 0 0 1px var(--dd-node-border),
-    var(--dd-shadow-1);
-  cursor: move;
-  overflow: visible;
-  font-size: 13px;
-  color: var(--dd-text);
-  transition: box-shadow 0.12s ease;
+   position: absolute;
+   transform-origin: 0 0;
+   // Above the free-form shapes and sequence diagrams (10..299, see the editor's
+   // diagramLayers); only a diagram brought to the very front (401+) covers it.
+   z-index: 400;
+   box-sizing: border-box;
+   background: var(--dd-node-surface);
+   // Border rendered as a box-shadow ring so it does not offset inner layout
+   // (keeps connector anchors aligned with the row connect handles).
+   border-radius: var(--dd-radius-lg);
+   box-shadow:
+      0 0 0 1px var(--dd-node-border),
+      var(--dd-shadow-1);
+   cursor: move;
+   overflow: visible;
+   font-size: 13px;
+   color: var(--dd-text);
+   transition: box-shadow 0.12s ease;
 }
 
 :host(:hover) {
-  box-shadow:
-    0 0 0 1px var(--dd-node-border),
-    var(--dd-shadow-2);
+   box-shadow:
+      0 0 0 1px var(--dd-node-border),
+      var(--dd-shadow-2);
 }
 
 :host(.selected) {
-  box-shadow:
-    0 0 0 2px var(--dd-primary),
-    var(--dd-shadow-2);
+   box-shadow:
+      0 0 0 2px var(--dd-primary),
+      var(--dd-shadow-2);
 }
 
 // Corner handles of the selection box: drag to scale the whole table uniformly.
 .scale-handle {
-  position: absolute;
-  z-index: 3;
-  width: 10px;
-  height: 10px;
-  box-sizing: border-box;
-  background: var(--dd-surface);
-  border: 2px solid var(--dd-primary);
-  border-radius: 2px;
-  // Hold a constant on-screen size even though the node itself is scaled.
-  transform: translate(-50%, -50%) scale(var(--inv-scale, 1));
+   position: absolute;
+   z-index: 3;
+   width: 10px;
+   height: 10px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   border: 2px solid var(--dd-primary);
+   border-radius: 2px;
+   // Hold a constant on-screen size even though the node itself is scaled.
+   transform: translate(-50%, -50%) scale(var(--inv-scale, 1));
 
-  &.nw {
-    left: 0;
-    top: 0;
-    cursor: nwse-resize;
-  }
-  &.ne {
-    left: 100%;
-    top: 0;
-    cursor: nesw-resize;
-  }
-  &.sw {
-    left: 0;
-    top: 100%;
-    cursor: nesw-resize;
-  }
-  &.se {
-    left: 100%;
-    top: 100%;
-    cursor: nwse-resize;
-  }
+   &.nw {
+      left: 0;
+      top: 0;
+      cursor: nwse-resize;
+   }
+   &.ne {
+      left: 100%;
+      top: 0;
+      cursor: nesw-resize;
+   }
+   &.sw {
+      left: 0;
+      top: 100%;
+      cursor: nesw-resize;
+   }
+   &.se {
+      left: 100%;
+      top: 100%;
+      cursor: nwse-resize;
+   }
 }
 
 .node-head {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: var(--dd-space-1);
-  padding: 0 var(--dd-space-2);
-  font-weight: 600;
-  background: var(--dd-node-header);
-  border-bottom: 1px solid var(--dd-node-border);
-  border-top-left-radius: var(--dd-radius-lg);
-  border-top-right-radius: var(--dd-radius-lg);
+   box-sizing: border-box;
+   display: flex;
+   align-items: center;
+   gap: var(--dd-space-1);
+   padding: 0 var(--dd-space-2);
+   font-weight: 600;
+   background: var(--dd-node-header);
+   border-bottom: 1px solid var(--dd-node-border);
+   border-top-left-radius: var(--dd-radius-lg);
+   border-top-right-radius: var(--dd-radius-lg);
 
-  // The whole header bar takes the table's category color, with white text and
-  // tinted chips/handles so it stays legible on any of the saturated tints.
-  &.colored {
-    background: var(--tbl-color);
-    color: #fff;
-    border-bottom-color: color-mix(in srgb, var(--tbl-color) 55%, #000);
-
-    .title {
+   // The whole header bar takes the table's category color, with white text and
+   // tinted chips/handles so it stays legible on any of the saturated tints.
+   &.colored {
+      background: var(--tbl-color);
       color: #fff;
-    }
-    .count {
-      color: #fff;
-      background: color-mix(in srgb, #000 18%, transparent);
-      border-color: color-mix(in srgb, #fff 35%, transparent);
-    }
-    .color-dot {
-      border-color: color-mix(in srgb, #fff 70%, transparent);
-    }
-    .icon-btn {
-      color: #fff;
-    }
+      border-bottom-color: color-mix(in srgb, var(--tbl-color) 55%, #000);
 
-    // Stock swatches keep the theme's text color (white in dark, dark in light).
-    &.stock {
-      color: var(--dd-text);
-
-      .title,
-      .count,
-      .icon-btn {
-        color: var(--dd-text);
+      .title {
+         color: #fff;
       }
       .count {
-        background: color-mix(in srgb, var(--dd-text) 10%, transparent);
-        border-color: color-mix(in srgb, var(--dd-text) 30%, transparent);
+         color: #fff;
+         background: color-mix(in srgb, #000 18%, transparent);
+         border-color: color-mix(in srgb, #fff 35%, transparent);
       }
       .color-dot {
-        border-color: color-mix(in srgb, var(--dd-text) 50%, transparent);
+         border-color: color-mix(in srgb, #fff 70%, transparent);
       }
-    }
-
-    // A custom pale header color takes dark text instead of white.
-    &.light {
-      color: #0f172a;
-      border-bottom-color: color-mix(in srgb, var(--tbl-color) 70%, #000);
-
-      .title,
-      .count,
       .icon-btn {
-        color: #0f172a;
+         color: #fff;
       }
-      .count {
-        background: color-mix(in srgb, #fff 45%, transparent);
-        border-color: color-mix(in srgb, #000 20%, transparent);
+
+      // Stock swatches keep the theme's text color (white in dark, dark in light).
+      &.stock {
+         color: var(--dd-text);
+
+         .title,
+         .count,
+         .icon-btn {
+            color: var(--dd-text);
+         }
+         .count {
+            background: color-mix(in srgb, var(--dd-text) 10%, transparent);
+            border-color: color-mix(in srgb, var(--dd-text) 30%, transparent);
+         }
+         .color-dot {
+            border-color: color-mix(in srgb, var(--dd-text) 50%, transparent);
+         }
       }
-      .color-dot {
-        border-color: color-mix(in srgb, #000 35%, transparent);
+
+      // A custom pale header color takes dark text instead of white.
+      &.light {
+         color: #0f172a;
+         border-bottom-color: color-mix(in srgb, var(--tbl-color) 70%, #000);
+
+         .title,
+         .count,
+         .icon-btn {
+            color: #0f172a;
+         }
+         .count {
+            background: color-mix(in srgb, #fff 45%, transparent);
+            border-color: color-mix(in srgb, #000 20%, transparent);
+         }
+         .color-dot {
+            border-color: color-mix(in srgb, #000 35%, transparent);
+         }
       }
-    }
-  }
+   }
 }
 
 .title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  cursor: text;
-  font-family: var(--dd-mono);
-  font-size: 13px;
+   flex: 1;
+   min-width: 0;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   text-align: left;
+   cursor: text;
+   font-family: var(--dd-mono);
+   font-size: 13px;
 }
 
 // Column-count chip in the header (schema size at a glance).
 .count {
-  flex: 0 0 auto;
-  font-family: var(--dd-mono);
-  font-size: 10px;
-  color: var(--dd-text-muted);
-  background: var(--dd-surface-2);
-  border: 1px solid var(--dd-node-border);
-  border-radius: var(--dd-radius-sm);
-  padding: 1px 6px;
+   flex: 0 0 auto;
+   font-family: var(--dd-mono);
+   font-size: 10px;
+   color: var(--dd-text-muted);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-node-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 1px 6px;
 }
 
 .edit {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-family: var(--dd-mono);
-  color: var(--dd-text);
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-primary);
-  border-radius: var(--dd-radius-sm);
-  padding: 2px 6px;
-  outline: none;
+   flex: 1;
+   min-width: 0;
+   font: inherit;
+   font-family: var(--dd-mono);
+   color: var(--dd-text);
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-primary);
+   border-radius: var(--dd-radius-sm);
+   padding: 2px 6px;
+   outline: none;
 }
 
 .title-edit {
-  font-weight: 600;
-  text-align: left;
+   font-weight: 600;
+   text-align: left;
 }
 
 .color-dot {
-  display: block;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  border: 2px solid var(--dd-border-strong);
+   display: block;
+   width: 13px;
+   height: 13px;
+   border-radius: 50%;
+   border: 2px solid var(--dd-border-strong);
 }
 
 // Color picker popover surface (no longer inside a Material menu panel).
 .color-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dd-space-2);
-  padding: var(--dd-space-3);
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  border-radius: var(--dd-radius);
-  box-shadow: var(--dd-shadow-3);
+   display: flex;
+   flex-direction: column;
+   gap: var(--dd-space-2);
+   padding: var(--dd-space-3);
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   box-shadow: var(--dd-shadow-3);
 }
 
 .swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid var(--dd-border-strong);
-  cursor: pointer;
+   width: 22px;
+   height: 22px;
+   border-radius: 50%;
+   border: 1px solid var(--dd-border-strong);
+   cursor: pointer;
 
-  &.none {
-    background:
-      linear-gradient(
-        to bottom right,
-        transparent calc(50% - 1px),
-        var(--dd-danger) calc(50% - 1px),
-        var(--dd-danger) calc(50% + 1px),
-        transparent calc(50% + 1px)
-      ),
-      var(--dd-surface);
-  }
+   &.none {
+      background:
+         linear-gradient(
+            to bottom right,
+            transparent calc(50% - 1px),
+            var(--dd-danger) calc(50% - 1px),
+            var(--dd-danger) calc(50% + 1px),
+            transparent calc(50% + 1px)
+         ),
+         var(--dd-surface);
+   }
 }
 
 .icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--dd-text-muted);
-  cursor: pointer;
-  border-radius: var(--dd-radius-sm);
-  padding: 2px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   border-radius: var(--dd-radius-sm);
+   padding: 2px;
 
-  &:hover:not(:disabled) {
-    background: rgba(127, 127, 127, 0.16);
-    color: var(--dd-text);
-  }
+   &:hover:not(:disabled) {
+      background: rgba(127, 127, 127, 0.16);
+      color: var(--dd-text);
+   }
 
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
+   &:disabled {
+      opacity: 0.35;
+      cursor: default;
+   }
 
-  dd-icon {
-    --dd-icon-size: 18px;
-  }
+   dd-icon {
+      --dd-icon-size: 18px;
+   }
 
-  &.tiny dd-icon {
-    --dd-icon-size: 15px;
-  }
+   &.tiny dd-icon {
+      --dd-icon-size: 15px;
+   }
 }
 
 .empty {
-  padding: var(--dd-space-2) var(--dd-space-3);
-  color: var(--dd-text-muted);
-  font-size: 12px;
+   padding: var(--dd-space-2) var(--dd-space-3);
+   color: var(--dd-text-muted);
+   font-size: 12px;
 }
 
 .row {
-  box-sizing: border-box;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--dd-space-1);
-  padding: 0 var(--dd-space-2);
-  border-bottom: 1px solid var(--dd-node-row-border);
+   box-sizing: border-box;
+   position: relative;
+   display: flex;
+   align-items: center;
+   gap: var(--dd-space-1);
+   padding: 0 var(--dd-space-2);
+   border-bottom: 1px solid var(--dd-node-row-border);
 
-  &:last-child {
-    border-bottom: none;
-    border-bottom-left-radius: var(--dd-radius-lg);
-    border-bottom-right-radius: var(--dd-radius-lg);
-  }
+   &:last-child {
+      border-bottom: none;
+      border-bottom-left-radius: var(--dd-radius-lg);
+      border-bottom-right-radius: var(--dd-radius-lg);
+   }
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 }
 
 .col-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: text;
-  font-family: var(--dd-mono);
-  font-size: 12.5px;
+   flex: 1;
+   min-width: 0;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   cursor: text;
+   font-family: var(--dd-mono);
+   font-size: 12.5px;
 }
 
 // PK / FK glyphs shown at rest (progressive disclosure: the toggle chips only
 // appear on hover/select).
 .keyslot {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  min-width: 14px;
+   flex: 0 0 auto;
+   display: inline-flex;
+   align-items: center;
+   min-width: 14px;
 }
 
 .keyglyph {
-  flex: 0 0 auto;
-  --dd-icon-size: 14px;
+   flex: 0 0 auto;
+   --dd-icon-size: 14px;
 
-  &.pk {
-    color: var(--dd-amber);
-  }
+   &.pk {
+      color: var(--dd-amber);
+   }
 
-  &.fk {
-    color: var(--dd-teal);
-  }
+   &.fk {
+      color: var(--dd-teal);
+   }
 
-  // Unique: a red key; hovering it highlights the rest of its unique set(s).
-  &.uq {
-    color: var(--dd-danger);
-    cursor: help;
-  }
+   // Unique: a red key; hovering it highlights the rest of its unique set(s).
+   &.uq {
+      color: var(--dd-danger);
+      cursor: help;
+   }
 }
 
 .row.uq-peer {
-  background: color-mix(in srgb, var(--dd-danger) 10%, transparent);
+   background: color-mix(in srgb, var(--dd-danger) 10%, transparent);
 }
 
 // "[" bracket in the left gutter joining the rows of one multi-column unique set.
 .uq-bracket {
-  position: absolute;
-  z-index: 1;
-  width: 4px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--dd-danger);
-  border-right: none;
-  border-radius: 2px 0 0 2px;
-  pointer-events: none;
+   position: absolute;
+   z-index: 1;
+   width: 4px;
+   box-sizing: border-box;
+   border: 1.5px solid var(--dd-danger);
+   border-right: none;
+   border-radius: 2px 0 0 2px;
+   pointer-events: none;
 }
 
 .uq-dot {
-  position: absolute;
-  left: -3.5px;
-  width: 5px;
-  height: 5px;
-  margin-top: -2.5px;
-  border-radius: 50%;
-  background: var(--dd-danger);
+   position: absolute;
+   left: -3.5px;
+   width: 5px;
+   height: 5px;
+   margin-top: -2.5px;
+   border-radius: 50%;
+   background: var(--dd-danger);
 }
 
 .ix-cols {
-  color: var(--dd-text-muted);
-  font-size: 11.5px;
+   color: var(--dd-text-muted);
+   font-size: 11.5px;
 }
 
 .chips {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+   display: flex;
+   align-items: center;
+   gap: 3px;
 }
 
 // The flag chips are always shown. The per-row delete takes no space at rest
@@ -360,21 +360,21 @@
 // The per-row delete always keeps its space (so the row never reflows under the
 // pointer, e.g. when a type menu opens and hover ends); it is just dimmed at rest.
 .row .icon-btn.tiny {
-  flex: 0 0 auto;
-  box-sizing: content-box;
-  width: 15px;
-  padding: 2px;
-  opacity: 0.35;
-  transition: opacity 0.15s ease;
+   flex: 0 0 auto;
+   box-sizing: content-box;
+   width: 15px;
+   padding: 2px;
+   opacity: 0.35;
+   transition: opacity 0.15s ease;
 }
 
 .chips {
-  flex-shrink: 0;
+   flex-shrink: 0;
 }
 
 :host(:hover) .row .icon-btn.tiny,
 :host(.selected) .row .icon-btn.tiny {
-  opacity: 1;
+   opacity: 1;
 }
 
 // Key info (type) never gets squeezed out by the name.
@@ -382,172 +382,172 @@
 .len,
 .keyglyph,
 .keyslot {
-  flex-shrink: 0;
+   flex-shrink: 0;
 }
 
 // Header add/delete actions collapse entirely at rest (so the count sits at the
 // right edge and the header reads as just: color dot · name · count), then
 // expand on hover/select.
 .head-act {
-  opacity: 0;
-  max-width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  overflow: hidden;
-  transition:
-    opacity 0.12s ease,
-    max-width 0.12s ease;
+   opacity: 0;
+   max-width: 0;
+   padding-left: 0;
+   padding-right: 0;
+   overflow: hidden;
+   transition:
+      opacity 0.12s ease,
+      max-width 0.12s ease;
 }
 
 :host(:hover) .head-act,
 :host(.selected) .head-act {
-  opacity: 1;
-  max-width: 26px;
-  padding-left: 2px;
-  padding-right: 2px;
+   opacity: 1;
+   max-width: 26px;
+   padding-left: 2px;
+   padding-right: 2px;
 }
 
 .chip {
-  border: none;
-  cursor: pointer;
-  font-family: var(--dd-mono);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 3px 4px;
-  border-radius: var(--dd-radius-sm);
-  background: var(--dd-chip-bg);
-  color: var(--dd-text-muted);
-  opacity: 0.5;
-  transition:
-    opacity 0.1s ease,
-    background 0.1s ease;
+   border: none;
+   cursor: pointer;
+   font-family: var(--dd-mono);
+   font-size: 10px;
+   font-weight: 600;
+   line-height: 1;
+   padding: 3px 4px;
+   border-radius: var(--dd-radius-sm);
+   background: var(--dd-chip-bg);
+   color: var(--dd-text-muted);
+   opacity: 0.5;
+   transition:
+      opacity 0.1s ease,
+      background 0.1s ease;
 
-  &:hover {
-    opacity: 0.85;
-  }
+   &:hover {
+      opacity: 0.85;
+   }
 
-  &.on {
-    opacity: 1;
-    background: var(--dd-chip-active);
-    color: var(--dd-primary);
-  }
+   &.on {
+      opacity: 1;
+      background: var(--dd-chip-active);
+      color: var(--dd-primary);
+   }
 
-  &.pk.on {
-    background: color-mix(in srgb, var(--dd-amber) 22%, transparent);
-    color: var(--dd-amber);
-  }
+   &.pk.on {
+      background: color-mix(in srgb, var(--dd-amber) 22%, transparent);
+      color: var(--dd-amber);
+   }
 
-  &.uq.on {
-    background: color-mix(in srgb, var(--dd-danger) 18%, transparent);
-    color: var(--dd-danger);
-  }
+   &.uq.on {
+      background: color-mix(in srgb, var(--dd-danger) 18%, transparent);
+      color: var(--dd-danger);
+   }
 
-  &:disabled {
-    cursor: default;
-  }
+   &:disabled {
+      cursor: default;
+   }
 }
 
 // At rest the type reads as plain muted mono text, right-set (schema reads
 // clean). The dropdown affordance — border, surface fill and chevron — only
 // appears on hover/select, matching the design's "editable in place" model.
 .type {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  border: 1px solid transparent;
-  border-radius: var(--dd-radius-sm);
-  background: transparent;
-  color: var(--dd-text-muted);
-  font: inherit;
-  font-family: var(--dd-mono);
-  font-size: 11px;
-  cursor: pointer;
-  padding: 2px 2px 2px 7px;
-  white-space: nowrap;
-  max-width: 108px;
-  transition:
-    border-color 0.12s ease,
-    background 0.12s ease;
+   display: inline-flex;
+   align-items: center;
+   gap: 0;
+   border: 1px solid transparent;
+   border-radius: var(--dd-radius-sm);
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-family: var(--dd-mono);
+   font-size: 11px;
+   cursor: pointer;
+   padding: 2px 2px 2px 7px;
+   white-space: nowrap;
+   max-width: 108px;
+   transition:
+      border-color 0.12s ease,
+      background 0.12s ease;
 
-  .type-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+   .type-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+   }
 
-  .type-len {
-    color: var(--dd-text-muted);
-  }
+   .type-len {
+      color: var(--dd-text-muted);
+   }
 
-  // Always takes its width (no reflow when hover ends); only fades in on hover.
-  .chev {
-    --dd-icon-size: 16px;
-    display: inline-block;
-    width: 16px;
-    overflow: hidden;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
+   // Always takes its width (no reflow when hover ends); only fades in on hover.
+   .chev {
+      --dd-icon-size: 16px;
+      display: inline-block;
+      width: 16px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+   }
 }
 
 :host(:hover) .type,
 :host(.selected) .type {
-  border-color: var(--dd-border);
-  background: var(--dd-surface);
+   border-color: var(--dd-border);
+   background: var(--dd-surface);
 
-  &:hover {
-    border-color: var(--dd-border-strong);
-  }
+   &:hover {
+      border-color: var(--dd-border-strong);
+   }
 
-  .chev {
-    opacity: 0.6;
-  }
+   .chev {
+      opacity: 0.6;
+   }
 }
 
 .len {
-  width: 44px;
-  font-family: var(--dd-mono);
-  font-size: 11px;
-  color: var(--dd-text);
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  border-radius: var(--dd-radius-sm);
-  padding: 1px 3px;
-  outline: none;
+   width: 44px;
+   font-family: var(--dd-mono);
+   font-size: 11px;
+   color: var(--dd-text);
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 1px 3px;
+   outline: none;
 }
 
 .handle {
-  opacity: 0;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--dd-handle);
-  border: 2px solid var(--dd-node-surface);
-  cursor: crosshair;
-  transition:
-    background 0.1s ease,
-    opacity 0.12s ease;
+   opacity: 0;
+   position: absolute;
+   top: 50%;
+   transform: translateY(-50%);
+   width: 12px;
+   height: 12px;
+   border-radius: 50%;
+   background: var(--dd-handle);
+   border: 2px solid var(--dd-node-surface);
+   cursor: crosshair;
+   transition:
+      background 0.1s ease,
+      opacity 0.12s ease;
 
-  &.left {
-    left: -6px;
-  }
+   &.left {
+      left: -6px;
+   }
 
-  &.right {
-    right: -6px;
-  }
+   &.right {
+      right: -6px;
+   }
 
-  &:hover {
-    opacity: 1;
-    background: var(--dd-handle-hover);
-    transform: translateY(-50%) scale(1.25);
-  }
+   &:hover {
+      opacity: 1;
+      background: var(--dd-handle-hover);
+      transform: translateY(-50%) scale(1.25);
+   }
 }
 
 // Reveal all connection points when hovering or selecting the table (Miro-style).
 :host(:hover) .handle,
 :host(.selected) .handle {
-  opacity: 1;
+   opacity: 1;
 }

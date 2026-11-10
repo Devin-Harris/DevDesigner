@@ -10,14 +10,14 @@ import { EditorComponent } from '../editor/editor.component';
  * error overlay from the failed load.
  */
 @Component({
-  selector: 'app-share',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EditorComponent],
-  templateUrl: './share.component.html',
-  styleUrl: './share.component.scss',
+   selector: 'app-share',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [EditorComponent],
+   templateUrl: './share.component.html',
+   styleUrl: './share.component.scss',
 })
 export class ShareComponent {
-  private readonly route = inject(ActivatedRoute);
-  protected readonly token = this.route.snapshot.paramMap.get('token');
+   private readonly route = inject(ActivatedRoute);
+   protected readonly token = this.route.snapshot.paramMap.get('token');
 }

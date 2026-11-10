@@ -12,44 +12,44 @@ export type ThemeMode = 'light' | 'dark' | 'system';
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  private readonly doc = inject(DOCUMENT);
-  private readonly media = this.doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
-  private readonly systemDark = signal<boolean>(this.media?.matches ?? false);
+   private readonly doc = inject(DOCUMENT);
+   private readonly media = this.doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
+   private readonly systemDark = signal<boolean>(this.media?.matches ?? false);
 
-  readonly mode = signal<ThemeMode>(this.readInitial());
-  readonly dark = computed(() => (this.mode() === 'system' ? this.systemDark() : this.mode() === 'dark'));
+   readonly mode = signal<ThemeMode>(this.readInitial());
+   readonly dark = computed(() => (this.mode() === 'system' ? this.systemDark() : this.mode() === 'dark'));
 
-  constructor() {
-    this.media?.addEventListener?.('change', (e) => this.systemDark.set(e.matches));
-    effect(() => {
-      const mode = this.mode();
-      const isDark = this.dark();
-      this.doc.documentElement.classList.toggle('dark', isDark);
+   constructor() {
+      this.media?.addEventListener?.('change', (e) => this.systemDark.set(e.matches));
+      effect(() => {
+         const mode = this.mode();
+         const isDark = this.dark();
+         this.doc.documentElement.classList.toggle('dark', isDark);
+         try {
+            this.doc.defaultView?.localStorage.setItem(STORAGE_KEY, mode);
+         } catch {
+            // ignore storage errors (private mode, etc.)
+         }
+      });
+   }
+
+   setMode(mode: ThemeMode): void {
+      this.mode.set(mode);
+   }
+
+   toggle(): void {
+      this.mode.set(this.dark() ? 'light' : 'dark');
+   }
+
+   private readInitial(): ThemeMode {
       try {
-        this.doc.defaultView?.localStorage.setItem(STORAGE_KEY, mode);
+         const saved = this.doc.defaultView?.localStorage.getItem(STORAGE_KEY);
+         if (saved === 'light' || saved === 'dark' || saved === 'system') {
+            return saved;
+         }
       } catch {
-        // ignore storage errors (private mode, etc.)
+         // ignore
       }
-    });
-  }
-
-  setMode(mode: ThemeMode): void {
-    this.mode.set(mode);
-  }
-
-  toggle(): void {
-    this.mode.set(this.dark() ? 'light' : 'dark');
-  }
-
-  private readInitial(): ThemeMode {
-    try {
-      const saved = this.doc.defaultView?.localStorage.getItem(STORAGE_KEY);
-      if (saved === 'light' || saved === 'dark' || saved === 'system') {
-        return saved;
-      }
-    } catch {
-      // ignore
-    }
-    return 'system';
-  }
+      return 'system';
+   }
 }

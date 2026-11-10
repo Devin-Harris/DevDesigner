@@ -1,13 +1,13 @@
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  ElementRef,
-  untracked,
-  viewChild,
-  inject,
-  signal,
+   ChangeDetectionStrategy,
+   Component,
+   computed,
+   effect,
+   ElementRef,
+   untracked,
+   viewChild,
+   inject,
+   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -27,56 +27,56 @@ export const STORAGE_PREFIX = 'dd-guide-sandbox:v5:';
 
 /** Seed project files, bundled as lazy chunks (exported from real projects, see seeds/). */
 export const SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
-  select: () => import('./seeds/select.json'),
-  tables: () => import('./seeds/tables.json'),
-  sequence: () => import('./seeds/sequence.json'),
-  shapes: () => import('./seeds/shapes.json'),
-  text: () => import('./seeds/text.json'),
-  draw: () => import('./seeds/draw.json'),
-  code: () => import('./seeds/code.json'),
-  grid: () => import('./seeds/grid.json'),
-  media: () => import('./seeds/media.json'),
-  frame: () => import('./seeds/frame.json'),
-  laser: () => import('./seeds/laser.json'),
-  presentations: () => import('./seeds/presentations.json'),
-  export: () => import('./seeds/export.json'),
+   select: () => import('./seeds/select.json'),
+   tables: () => import('./seeds/tables.json'),
+   sequence: () => import('./seeds/sequence.json'),
+   shapes: () => import('./seeds/shapes.json'),
+   text: () => import('./seeds/text.json'),
+   draw: () => import('./seeds/draw.json'),
+   code: () => import('./seeds/code.json'),
+   grid: () => import('./seeds/grid.json'),
+   media: () => import('./seeds/media.json'),
+   frame: () => import('./seeds/frame.json'),
+   laser: () => import('./seeds/laser.json'),
+   presentations: () => import('./seeds/presentations.json'),
+   export: () => import('./seeds/export.json'),
 };
 
 export async function waitForCodeFont(): Promise<void> {
-  try {
-    const stack = fontStack('code');
-    await Promise.race([
-      Promise.all([document.fonts.load(`400 14px ${stack}`), document.fonts.ready]),
-      new Promise((r) => setTimeout(r, 1500)),
-    ]);
-  } catch {
-    /* measure with whatever is available */
-  }
+   try {
+      const stack = fontStack('code');
+      await Promise.race([
+         Promise.all([document.fonts.load(`400 14px ${stack}`), document.fonts.ready]),
+         new Promise((r) => setTimeout(r, 1500)),
+      ]);
+   } catch {
+      /* measure with whatever is available */
+   }
 }
 
 function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
+   try {
+      return localStorage.getItem(key) === '1';
+   } catch {
+      return false;
+   }
 }
 
 export function readStored(seed: string): string | null {
-  try {
-    return sessionStorage.getItem(STORAGE_PREFIX + seed);
-  } catch {
-    return null;
-  }
+   try {
+      return sessionStorage.getItem(STORAGE_PREFIX + seed);
+   } catch {
+      return null;
+   }
 }
 
 export function writeStored(seed: string, id: string | null): void {
-  try {
-    if (id) sessionStorage.setItem(STORAGE_PREFIX + seed, id);
-    else sessionStorage.removeItem(STORAGE_PREFIX + seed);
-  } catch {
-    /* storage blocked: the sandbox is just re-created next time */
-  }
+   try {
+      if (id) sessionStorage.setItem(STORAGE_PREFIX + seed, id);
+      else sessionStorage.removeItem(STORAGE_PREFIX + seed);
+   } catch {
+      /* storage blocked: the sandbox is just re-created next time */
+   }
 }
 
 /**
@@ -87,117 +87,116 @@ export function writeStored(seed: string, id: string | null): void {
  * session (sessionStorage). Reset rebuilds one from its seed.
  */
 @Component({
-  selector: 'app-guide',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, EditorComponent],
-  templateUrl: './guide.component.html',
-  styleUrl: './guide.component.scss',
+   selector: 'app-guide',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [IconComponent, RouterLink, EditorComponent],
+   templateUrl: './guide.component.html',
+   styleUrl: './guide.component.scss',
 })
 export class GuideComponent {
-  protected readonly theme = inject(ThemeService);
-  private readonly sandboxes = inject(SandboxBackendService);
-  private readonly router = inject(Router);
-  private readonly snackBar = inject(MatSnackBar);
-  protected readonly actions = inject(EditorActionsService);
+   protected readonly theme = inject(ThemeService);
+   private readonly sandboxes = inject(SandboxBackendService);
+   private readonly router = inject(Router);
+   private readonly snackBar = inject(MatSnackBar);
+   protected readonly actions = inject(EditorActionsService);
 
-  protected readonly tools = GUIDE_TOOLS;
-  protected readonly groups = GUIDE_GROUPS.map((g) => ({
-    name: g,
-    tools: GUIDE_TOOLS.filter((t) => t.group === g),
-  }));
+   protected readonly tools = GUIDE_TOOLS;
+   protected readonly groups = GUIDE_GROUPS.map((g) => ({
+      name: g,
+      tools: GUIDE_TOOLS.filter((t) => t.group === g),
+   }));
 
-  private readonly toolParam = toSignal(
-    inject(ActivatedRoute).paramMap.pipe(map((p) => p.get('tool'))),
-    { initialValue: null },
-  );
+   private readonly toolParam = toSignal(inject(ActivatedRoute).paramMap.pipe(map((p) => p.get('tool'))), {
+      initialValue: null,
+   });
 
-  protected readonly tool = computed<GuideTool>(
-    () => this.tools.find((t) => t.id === this.toolParam()) ?? this.tools[0],
-  );
-  private readonly seed = computed(() => this.tool().seed ?? this.tool().id);
+   protected readonly tool = computed<GuideTool>(
+      () => this.tools.find((t) => t.id === this.toolParam()) ?? this.tools[0]
+   );
+   private readonly seed = computed(() => this.tool().seed ?? this.tool().id);
 
-  protected readonly index = computed(() => this.tools.indexOf(this.tool()));
-  protected readonly prev = computed(() => this.tools[this.index() - 1] ?? null);
-  protected readonly next = computed(() => this.tools[this.index() + 1] ?? null);
+   protected readonly index = computed(() => this.tools.indexOf(this.tool()));
+   protected readonly prev = computed(() => this.tools[this.index() - 1] ?? null);
+   protected readonly next = computed(() => this.tools[this.index() + 1] ?? null);
 
-  /** Sandbox project for the current tool; null while it is being prepared. */
-  protected readonly sandboxId = signal<string | null>(null);
-  /** Remounts the editor per tab (tabs sharing a seed still get their own tool + fit). */
-  protected readonly mountKey = computed(() => `${this.tool().id}:${this.sandboxId()}`);
-  protected readonly sandboxError = signal<string | null>(null);
-  protected readonly expanded = signal(false);
-  /** Desktop: tool rail collapsed to icons (remembered per browser). */
-  protected readonly railCollapsed = signal(readFlag('dd-guide-rail-collapsed'));
-  /** Mobile: tool rail collapsed into a dropdown. */
-  protected readonly navOpen = signal(false);
+   /** Sandbox project for the current tool; null while it is being prepared. */
+   protected readonly sandboxId = signal<string | null>(null);
+   /** Remounts the editor per tab (tabs sharing a seed still get their own tool + fit). */
+   protected readonly mountKey = computed(() => `${this.tool().id}:${this.sandboxId()}`);
+   protected readonly sandboxError = signal<string | null>(null);
+   protected readonly expanded = signal(false);
+   /** Desktop: tool rail collapsed to icons (remembered per browser). */
+   protected readonly railCollapsed = signal(readFlag('dd-guide-rail-collapsed'));
+   /** Mobile: tool rail collapsed into a dropdown. */
+   protected readonly navOpen = signal(false);
 
-  private readonly page = viewChild<ElementRef<HTMLElement>>('page');
+   private readonly page = viewChild<ElementRef<HTMLElement>>('page');
 
-  constructor() {
-    // New tool → start at the top (the page scrolls; on narrow screens the window does).
-    effect(() => {
-      this.tool();
-      untracked(() => {
-        this.page()?.nativeElement.scrollTo({ top: 0 });
-        window.scrollTo({ top: 0 });
+   constructor() {
+      // New tool → start at the top (the page scrolls; on narrow screens the window does).
+      effect(() => {
+         this.tool();
+         untracked(() => {
+            this.page()?.nativeElement.scrollTo({ top: 0 });
+            window.scrollTo({ top: 0 });
+         });
       });
-    });
-    effect(() => {
-      void this.loadSandbox(this.seed());
-    });
-  }
+      effect(() => {
+         void this.loadSandbox(this.seed());
+      });
+   }
 
-  protected toggleRail(): void {
-    this.railCollapsed.update((v) => !v);
-    try {
-      localStorage.setItem('dd-guide-rail-collapsed', this.railCollapsed() ? '1' : '0');
-    } catch {
-      /* not remembered */
-    }
-  }
+   protected toggleRail(): void {
+      this.railCollapsed.update((v) => !v);
+      try {
+         localStorage.setItem('dd-guide-rail-collapsed', this.railCollapsed() ? '1' : '0');
+      } catch {
+         /* not remembered */
+      }
+   }
 
-  protected go(tool: GuideTool): void {
-    this.navOpen.set(false);
-    void this.router.navigate(['/guide', tool.id]);
-  }
+   protected go(tool: GuideTool): void {
+      this.navOpen.set(false);
+      void this.router.navigate(['/guide', tool.id]);
+   }
 
-  protected async reset(): Promise<void> {
-    const seed = this.seed();
-    const old = this.sandboxId();
-    this.sandboxId.set(null);
-    writeStored(seed, null);
-    if (old) this.sandboxes.delete(old);
-    await this.loadSandbox(seed);
-  }
+   protected async reset(): Promise<void> {
+      const seed = this.seed();
+      const old = this.sandboxId();
+      this.sandboxId.set(null);
+      writeStored(seed, null);
+      if (old) this.sandboxes.delete(old);
+      await this.loadSandbox(seed);
+   }
 
-  /** Merge a chosen project / selection file into the sandbox (same as the main menu's Import). */
-  protected async importFile(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    try {
-      const added = await this.actions.importFile(JSON.parse(await file.text()));
-      this.snackBar.open(`Imported ${added} item${added === 1 ? '' : 's'}`, undefined, { duration: 2500 });
-    } catch (err) {
-      console.error('Import failed', err);
-      this.snackBar.open('That file could not be imported', 'Dismiss', { duration: 4000 });
-    }
-  }
+   /** Merge a chosen project / selection file into the sandbox (same as the main menu's Import). */
+   protected async importFile(event: Event): Promise<void> {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      try {
+         const added = await this.actions.importFile(JSON.parse(await file.text()));
+         this.snackBar.open(`Imported ${added} item${added === 1 ? '' : 's'}`, undefined, { duration: 2500 });
+      } catch (err) {
+         console.error('Import failed', err);
+         this.snackBar.open('That file could not be imported', 'Dismiss', { duration: 4000 });
+      }
+   }
 
-  private async loadSandbox(seed: string): Promise<void> {
-    this.sandboxId.set(null);
-    this.sandboxError.set(null);
-    const current = (): boolean => this.seed() === seed;
-    try {
-      const id = await prepareSandbox(this.sandboxes, seed, SEEDS[seed]);
-      if (current()) this.sandboxId.set(id);
-    } catch (err) {
-      console.error('Could not prepare guide sandbox', err);
-      if (current()) this.sandboxError.set('Could not load the sandbox examples.');
-    }
-  }
+   private async loadSandbox(seed: string): Promise<void> {
+      this.sandboxId.set(null);
+      this.sandboxError.set(null);
+      const current = (): boolean => this.seed() === seed;
+      try {
+         const id = await prepareSandbox(this.sandboxes, seed, SEEDS[seed]);
+         if (current()) this.sandboxId.set(id);
+      } catch (err) {
+         console.error('Could not prepare guide sandbox', err);
+         if (current()) this.sandboxError.set('Could not load the sandbox examples.');
+      }
+   }
 }
 
 /**
@@ -205,17 +204,17 @@ export class GuideComponent {
  * else builds one from `load()`. View-only sandboxes render read-only.
  */
 export async function prepareSandbox(
-  sandboxes: SandboxBackendService,
-  key: string,
-  load: () => Promise<{ default: unknown }>,
-  viewOnly = false,
+   sandboxes: SandboxBackendService,
+   key: string,
+   load: () => Promise<{ default: unknown }>,
+   viewOnly = false
 ): Promise<string> {
-  const stored = readStored(key);
-  if (stored && sandboxes.exists(stored)) return stored;
-  const file = (await load()).default as ProjectExportFile;
-  // Code blocks are sized from the measured code font: make sure it has loaded.
-  await waitForCodeFont();
-  const id = sandboxes.create(structuredClone(file), key, { viewOnly });
-  writeStored(key, id);
-  return id;
+   const stored = readStored(key);
+   if (stored && sandboxes.exists(stored)) return stored;
+   const file = (await load()).default as ProjectExportFile;
+   // Code blocks are sized from the measured code font: make sure it has loaded.
+   await waitForCodeFont();
+   const id = sandboxes.create(structuredClone(file), key, { viewOnly });
+   writeStored(key, id);
+   return id;
 }

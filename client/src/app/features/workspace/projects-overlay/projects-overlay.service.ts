@@ -6,22 +6,22 @@ import { ProjectsOverlayComponent } from './projects-overlay.component';
  *  de-duplicating so only one instance is ever open. */
 @Injectable({ providedIn: 'root' })
 export class ProjectsOverlayService {
-  private readonly dialog = inject(MatDialog);
-  private ref: MatDialogRef<ProjectsOverlayComponent> | null = null;
+   private readonly dialog = inject(MatDialog);
+   private ref: MatDialogRef<ProjectsOverlayComponent> | null = null;
 
-  open(): void {
-    if (this.ref) return;
-    this.ref = this.dialog.open(ProjectsOverlayComponent, {
-      panelClass: 'dd-projects-dialog',
-      width: '640px',
-      maxWidth: '94vw',
-      autoFocus: false,
-      restoreFocus: false,
-    });
-    this.ref.afterClosed().subscribe(() => (this.ref = null));
-  }
+   open(): void {
+      if (this.ref) return;
+      this.ref = this.dialog.open(ProjectsOverlayComponent, {
+         panelClass: 'dd-projects-dialog',
+         width: '640px',
+         maxWidth: '94vw',
+         autoFocus: false,
+         restoreFocus: false,
+      });
+      this.ref.afterClosed().subscribe(() => (this.ref = null));
+   }
 
-  get isOpen(): boolean {
-    return !!this.ref;
-  }
+   get isOpen(): boolean {
+      return !!this.ref;
+   }
 }

@@ -10,82 +10,93 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * background and border color. The parent positions the host via left/top bindings.
  */
 @Component({
-  selector: 'app-sequence-diagram-toolbar',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
-  template: `
-    @if (diagram(); as d) {
-      <button
-        type="button"
-        class="ico-act"
-        [ddPopoverTrigger]="bgMenu"
-        placement="below-start"
-        [disabled]="!canEdit()"
-        title="Background"
-        aria-label="Background"
-      >
-        <span
-          class="color-dot"
-          [class.none]="d.backgroundColor === 'transparent'"
-          [style.background]="d.backgroundColor && d.backgroundColor !== 'transparent' ? d.backgroundColor : 'var(--dd-surface)'"
-        ></span>
-      </button>
-      <ng-template #bgMenu let-close>
-        <div class="color-grid">
-          <div class="grid-label">Background</div>
-          <dd-color-swatches
-            [value]="d.backgroundColor"
-            noneValue="transparent"
-            noneLabel="No background"
-            themeValue=""
-            (pick)="patch({ backgroundColor: $event }); close()"
-          />
-        </div>
-      </ng-template>
+   selector: 'app-sequence-diagram-toolbar',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
+   template: `
+      @if (diagram(); as d) {
+         <button
+            type="button"
+            class="ico-act"
+            [ddPopoverTrigger]="bgMenu"
+            placement="below-start"
+            [disabled]="!canEdit()"
+            title="Background"
+            aria-label="Background"
+         >
+            <span
+               class="color-dot"
+               [class.none]="d.backgroundColor === 'transparent'"
+               [style.background]="
+                  d.backgroundColor && d.backgroundColor !== 'transparent' ? d.backgroundColor : 'var(--dd-surface)'
+               "
+            ></span>
+         </button>
+         <ng-template #bgMenu let-close>
+            <div class="color-grid">
+               <div class="grid-label">Background</div>
+               <dd-color-swatches
+                  [value]="d.backgroundColor"
+                  noneValue="transparent"
+                  noneLabel="No background"
+                  themeValue=""
+                  (pick)="patch({ backgroundColor: $event }); close()"
+               />
+            </div>
+         </ng-template>
 
-      <button
-        type="button"
-        class="ico-act"
-        [ddPopoverTrigger]="borderMenu"
-        placement="below-start"
-        [disabled]="!canEdit()"
-        title="Border"
-        aria-label="Border"
-      >
-        <span
-          class="color-dot ring"
-          [class.none]="d.borderColor === 'transparent'"
-          [style.border-color]="d.borderColor && d.borderColor !== 'transparent' ? d.borderColor : 'var(--dd-border-strong)'"
-        ></span>
-      </button>
-      <ng-template #borderMenu let-close>
-        <div class="color-grid">
-          <div class="grid-label">Border</div>
-          <dd-color-swatches
-            [value]="d.borderColor"
-            noneValue="transparent"
-            noneLabel="No border"
-            themeValue=""
-            (pick)="patch({ borderColor: $event }); close()"
-          />
-        </div>
-      </ng-template>
-      <button type="button" class="ico-act details" [class.on]="inspector.shown()" (click)="inspector.toggle()" title="Details" aria-label="Details">
-        <dd-icon name="tune" />
-      </button>
-    }
-  `,
-  styleUrl: './sequence-diagram-toolbar.component.scss',
+         <button
+            type="button"
+            class="ico-act"
+            [ddPopoverTrigger]="borderMenu"
+            placement="below-start"
+            [disabled]="!canEdit()"
+            title="Border"
+            aria-label="Border"
+         >
+            <span
+               class="color-dot ring"
+               [class.none]="d.borderColor === 'transparent'"
+               [style.border-color]="
+                  d.borderColor && d.borderColor !== 'transparent' ? d.borderColor : 'var(--dd-border-strong)'
+               "
+            ></span>
+         </button>
+         <ng-template #borderMenu let-close>
+            <div class="color-grid">
+               <div class="grid-label">Border</div>
+               <dd-color-swatches
+                  [value]="d.borderColor"
+                  noneValue="transparent"
+                  noneLabel="No border"
+                  themeValue=""
+                  (pick)="patch({ borderColor: $event }); close()"
+               />
+            </div>
+         </ng-template>
+         <button
+            type="button"
+            class="ico-act details"
+            [class.on]="inspector.shown()"
+            (click)="inspector.toggle()"
+            title="Details"
+            aria-label="Details"
+         >
+            <dd-icon name="tune" />
+         </button>
+      }
+   `,
+   styleUrl: './sequence-diagram-toolbar.component.scss',
 })
 export class SequenceDiagramToolbarComponent {
-  protected readonly inspector = inject(InspectorPanelService);
-  protected readonly store = inject(ProjectStore);
-  protected readonly diagram = computed(() => this.store.selectedDiagram());
-  protected readonly canEdit = computed(() => this.store.canEdit());
+   protected readonly inspector = inject(InspectorPanelService);
+   protected readonly store = inject(ProjectStore);
+   protected readonly diagram = computed(() => this.store.selectedDiagram());
+   protected readonly canEdit = computed(() => this.store.canEdit());
 
-  protected patch(patch: { backgroundColor?: string; borderColor?: string }): void {
-    const d = this.diagram();
-    if (d) void this.store.updateSequenceConfig(d.id, patch);
-  }
+   protected patch(patch: { backgroundColor?: string; borderColor?: string }): void {
+      const d = this.diagram();
+      if (d) void this.store.updateSequenceConfig(d.id, patch);
+   }
 }

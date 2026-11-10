@@ -6,20 +6,20 @@ import { AfterViewInit, Directive, ElementRef, inject } from '@angular/core';
  * by a control-flow block (e.g. the inline text editor).
  */
 @Directive({
-  selector: '[appAutofocus]',
-  standalone: true,
+   selector: '[appAutofocus]',
+   standalone: true,
 })
 export class AutofocusDirective implements AfterViewInit {
-  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  ngAfterViewInit(): void {
-    // Defer one tick so layout is settled before focusing.
-    setTimeout(() => {
-      const node = this.el.nativeElement;
-      node.focus();
-      if (node instanceof HTMLTextAreaElement) {
-        node.select();
-      }
-    });
-  }
+   ngAfterViewInit(): void {
+      // Defer one tick so layout is settled before focusing.
+      setTimeout(() => {
+         const node = this.el.nativeElement;
+         node.focus();
+         if (node instanceof HTMLTextAreaElement) {
+            node.select();
+         }
+      });
+   }
 }

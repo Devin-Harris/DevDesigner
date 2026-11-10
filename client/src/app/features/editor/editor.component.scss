@@ -1,99 +1,99 @@
 :host {
-  display: block;
-  height: 100%;
+   display: block;
+   height: 100%;
 }
 
 .editor {
-  display: flex;
-  height: 100%;
+   display: flex;
+   height: 100%;
 }
 
 .canvas {
-  position: relative;
-  flex: 1;
-  // clip, not hidden: a hidden box can still be scrolled (focus / scrollIntoView on a
-  // panel panned off screen), which drags the toolbars and minimap off screen.
-  overflow: clip;
-  background: var(--dd-canvas-bg);
-  touch-action: none;
-  user-select: none;
+   position: relative;
+   flex: 1;
+   // clip, not hidden: a hidden box can still be scrolled (focus / scrollIntoView on a
+   // panel panned off screen), which drags the toolbars and minimap off screen.
+   overflow: clip;
+   background: var(--dd-canvas-bg);
+   touch-action: none;
+   user-select: none;
 }
 
 // While a drawing / pan tool is active, tables and sequence diagrams are
 // click-through so a gesture can start (and shapes can be drawn) on top of them.
 .canvas.tool-active {
-  app-table-node,
-  app-table-node ::ng-deep *,
-  app-canvas-sequence ::ng-deep * {
-    pointer-events: none !important;
-  }
+   app-table-node,
+   app-table-node ::ng-deep *,
+   app-canvas-sequence ::ng-deep * {
+      pointer-events: none !important;
+   }
 }
 
 .world {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
+   position: absolute;
+   left: 0;
+   top: 0;
+   transform-origin: 0 0;
 }
 
 // A slide zoomed out inside its block: sized to the block (the frame's spot), above the
 // grid and frames, below free content. Its layers are drawn in the slide's coordinates.
 .slide-zoom {
-  position: absolute;
-  z-index: 1;
+   position: absolute;
+   z-index: 1;
 }
 
 .slide-zoom.clipped {
-  overflow: clip;
+   overflow: clip;
 }
 
 .slide-zoom-inner {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
+   position: absolute;
+   left: 0;
+   top: 0;
+   transform-origin: 0 0;
 }
 
 .grid {
-  position: absolute;
-  overflow: visible;
-  pointer-events: none;
+   position: absolute;
+   overflow: visible;
+   pointer-events: none;
 }
 
 .grid-line {
-  stroke: var(--dd-grid-line);
+   stroke: var(--dd-grid-line);
 }
 
 .marquee {
-  position: absolute;
-  border: 1px solid var(--dd-primary);
-  background: color-mix(in srgb, var(--dd-primary) 12%, transparent);
-  pointer-events: none;
-  z-index: 4;
+   position: absolute;
+   border: 1px solid var(--dd-primary);
+   background: color-mix(in srgb, var(--dd-primary) 12%, transparent);
+   pointer-events: none;
+   z-index: 4;
 }
 
 // Smart-guide alignment lines and equal-spacing markers while dragging.
 .smart-guides {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 4;
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%;
+   overflow: visible;
+   pointer-events: none;
+   z-index: 4;
 
-  line {
-    stroke: #f43f5e;
-    stroke-width: 1;
-  }
+   line {
+      stroke: #f43f5e;
+      stroke-width: 1;
+   }
 
-  text {
-    fill: #f43f5e;
-    font-size: 9.5px;
-    font-weight: 500;
-    text-anchor: middle;
-    dominant-baseline: central;
-  }
+   text {
+      fill: #f43f5e;
+      font-size: 9.5px;
+      font-weight: 500;
+      text-anchor: middle;
+      dominant-baseline: central;
+   }
 }
 
 // Inline editor for a text element / shape label, overlaying the element exactly.
@@ -101,884 +101,950 @@
 // inline), so the editor IS the visible text — no overlay surface, no second copy
 // behind it. The underlying SVG text/label is hidden while editing.
 .text-editor {
-  position: absolute;
-  z-index: 7;
-  box-sizing: border-box;
-  min-width: 8px;
-  min-height: 1em;
-  margin: 0;
-  // No border: it would nudge the glyphs off the rendered text. The edit state is
-  // a soft, layout-free halo so the text looks the same as when it is not editing.
-  border: 0;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
-  outline: none;
-  resize: none;
-  overflow: hidden;
-  line-height: 1.25;
-  caret-color: currentColor;
+   position: absolute;
+   z-index: 7;
+   box-sizing: border-box;
+   min-width: 8px;
+   min-height: 1em;
+   margin: 0;
+   // No border: it would nudge the glyphs off the rendered text. The edit state is
+   // a soft, layout-free halo so the text looks the same as when it is not editing.
+   border: 0;
+   border-radius: 4px;
+   background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
+   outline: none;
+   resize: none;
+   overflow: hidden;
+   line-height: 1.25;
+   caret-color: currentColor;
 
-  &::selection {
-    background: color-mix(in srgb, var(--dd-primary) 30%, transparent);
-  }
-  // Text elements never wrap (auto-sized to content); `.wrap` (shape labels)
-  // wraps to the box width like the rendered label.
-  white-space: pre;
-  transform-origin: center center;
+   &::selection {
+      background: color-mix(in srgb, var(--dd-primary) 30%, transparent);
+   }
+   // Text elements never wrap (auto-sized to content); `.wrap` (shape labels)
+   // wraps to the box width like the rendered label.
+   white-space: pre;
+   transform-origin: center center;
 
-  &.wrap {
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
+   &.wrap {
+      white-space: pre-wrap;
+      word-break: break-word;
+   }
 
-  &.centered {
-    transform: translate(-50%, -50%);
-  }
+   &.centered {
+      transform: translate(-50%, -50%);
+   }
 
-  // Rich text: a contenteditable host that grows with its content (the store keeps
-  // the element's box in step), so nothing is clipped or wrapped while typing.
-  &.rich {
-    width: max-content;
-    // With text, the outline is drawn at the glyph box by .text-edit-frame.
-    &.bare {
+   // Rich text: a contenteditable host that grows with its content (the store keeps
+   // the element's box in step), so nothing is clipped or wrapped while typing.
+   &.rich {
+      width: max-content;
+      // With text, the outline is drawn at the glyph box by .text-edit-frame.
+      &.bare {
+         background: transparent;
+         box-shadow: none;
+      }
+      overflow: visible;
+      cursor: text;
+      user-select: text;
+      -webkit-user-modify: read-write;
+      // The transform on .centered is not used for text elements.
+   }
+
+   // Code cards: glyphs are transparent so the highlighted SVG shows through; the
+   // padding/line-height/font are set inline to match the rendered lines exactly.
+   &.code {
+      tab-size: 2;
+      // An inset ring marks edit mode (no border: it would offset the glyphs).
       background: transparent;
-      box-shadow: none;
-    }
-    overflow: visible;
-    cursor: text;
-    user-select: text;
-    -webkit-user-modify: read-write;
-    // The transform on .centered is not used for text elements.
-  }
-
-  // Code cards: glyphs are transparent so the highlighted SVG shows through; the
-  // padding/line-height/font are set inline to match the rendered lines exactly.
-  &.code {
-    tab-size: 2;
-    // An inset ring marks edit mode (no border: it would offset the glyphs).
-    background: transparent;
-    box-shadow: inset 0 0 0 1px var(--dd-primary);
-    border-radius: 8px;
-    overflow: hidden;
-    &::selection {
-      background: color-mix(in srgb, var(--dd-primary) 35%, transparent);
-    }
-  }
+      box-shadow: inset 0 0 0 1px var(--dd-primary);
+      border-radius: 8px;
+      overflow: hidden;
+      &::selection {
+         background: color-mix(in srgb, var(--dd-primary) 35%, transparent);
+      }
+   }
 }
 
 // Edit-mode outline of a text element, at its glyph box (matches the selection box).
 .text-edit-frame {
-  position: absolute;
-  z-index: 6;
-  pointer-events: none;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
+   position: absolute;
+   z-index: 6;
+   pointer-events: none;
+   border-radius: 2px;
+   background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
 }
 
 // In-canvas file-name input over a code block's title bar.
 .file-name-editor {
-  position: absolute;
-  z-index: 8;
-  box-sizing: border-box;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 8px;
-  text-align: center;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
-  box-shadow: inset 0 0 0 1px var(--dd-primary);
-  outline: none;
+   position: absolute;
+   z-index: 8;
+   box-sizing: border-box;
+   border: 0;
+   border-radius: 6px;
+   padding: 0 8px;
+   text-align: center;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
+   box-shadow: inset 0 0 0 1px var(--dd-primary);
+   outline: none;
 }
 
 // Floating inspector: sits over the canvas, clears the top bar/share button and
 // bottom toolbar, and never pushes the canvas.
 .side-panel {
-  position: absolute;
-  top: 72px; // clears the floating top islands
-  right: 16px;
-  bottom: 16px;
-  width: 300px;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
-  overflow: hidden;
-  z-index: 5;
+   position: absolute;
+   top: 72px; // clears the floating top islands
+   right: 16px;
+   bottom: 16px;
+   width: 300px;
+   border-radius: 10px;
+   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+   overflow: hidden;
+   z-index: 5;
 }
 
 .side-panel app-inspector,
 .side-panel app-relationship-inspector,
 .side-panel app-element-inspector {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-left: none;
-  border-radius: 10px;
+   display: block;
+   width: 100%;
+   height: 100%;
+   border-left: none;
+   border-radius: 10px;
 }
 
 .presenter-banner {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 7;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px 6px 14px;
-  border-radius: 999px;
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  box-shadow: var(--dd-shadow-2);
-  font-size: 13px;
+   position: absolute;
+   top: 16px;
+   left: 50%;
+   transform: translateX(-50%);
+   z-index: 7;
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 6px 8px 6px 14px;
+   border-radius: 999px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   box-shadow: var(--dd-shadow-2);
+   font-size: 13px;
 
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
+   .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+   }
 
-  button {
-    border: none;
-    border-radius: 999px;
-    padding: 5px 12px;
-    background: var(--dd-primary);
-    color: #fff;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
+   button {
+      border: none;
+      border-radius: 999px;
+      padding: 5px 12px;
+      background: var(--dd-primary);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+   }
 }
 
 .slide-settings {
-  position: absolute;
-  transform-origin: 0 0; // scaled with the canvas zoom, anchored to the frame's side
-  z-index: 3; // below the toolbars and the canvas side panels (5)
+   position: absolute;
+   transform-origin: 0 0; // scaled with the canvas zoom, anchored to the frame's side
+   z-index: 3; // below the toolbars and the canvas side panels (5)
 }
 
 .slides-panel {
-  position: absolute;
-  transform-origin: 0 0;
-  z-index: 3; // below the toolbars and the canvas side panels (5)
+   position: absolute;
+   transform-origin: 0 0;
+   z-index: 3; // below the toolbars and the canvas side panels (5)
 }
 
 .overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+   position: absolute;
+   inset: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   pointer-events: none;
 
-  &.muted {
-    color: var(--dd-text-muted);
-  }
+   &.muted {
+      color: var(--dd-text-muted);
+   }
 
-  &.hint {
-    color: var(--dd-text-muted);
-    font-size: 14px;
-  }
+   &.hint {
+      color: var(--dd-text-muted);
+      font-size: 14px;
+   }
 }
 
 // Dashed frame around a selected group (dotted and fainter while its members are edited).
 .group-outline {
-  position: absolute;
-  border: 1.5px dashed var(--dd-primary);
-  border-radius: 6px;
-  pointer-events: none;
-  box-sizing: border-box;
-  z-index: 300;
-  opacity: 0.8;
+   position: absolute;
+   border: 1.5px dashed var(--dd-primary);
+   border-radius: 6px;
+   pointer-events: none;
+   box-sizing: border-box;
+   z-index: 300;
+   opacity: 0.8;
 
-  &.entered {
-    border-style: dotted;
-    opacity: 0.55;
-  }
+   &.entered {
+      border-style: dotted;
+      opacity: 0.55;
+   }
 }
 
 // A ring around a table another participant currently has selected.
 .remote-ring {
-  position: absolute;
-  border: 2px solid;
-  border-radius: 8px;
-  pointer-events: none;
-  box-sizing: border-box;
-  z-index: 300;
-  opacity: 0.85;
+   position: absolute;
+   border: 2px solid;
+   border-radius: 8px;
+   pointer-events: none;
+   box-sizing: border-box;
+   z-index: 300;
+   opacity: 0.85;
 }
 
 // Full-canvas pointer surface used while the laser tool is active.
 .laser-capture {
-  position: absolute;
-  inset: 0;
-  z-index: 4; // over the slide panels (3) so drawing works across them; under toolbars (5)
-  cursor: crosshair;
-  touch-action: none;
+   position: absolute;
+   inset: 0;
+   z-index: 4; // over the slide panels (3) so drawing works across them; under toolbars (5)
+   cursor: crosshair;
+   touch-action: none;
 }
 
 // Another participant's live cursor.
 .remote-cursor {
-  position: absolute;
-  pointer-events: none;
-  z-index: 6;
-  transform: translate(-2px, -2px);
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
+   position: absolute;
+   pointer-events: none;
+   z-index: 6;
+   transform: translate(-2px, -2px);
+   display: flex;
+   align-items: flex-start;
+   gap: 2px;
 }
 
 .remote-cursor-icon {
-  --dd-icon-size: 18px;
-  transform: rotate(-90deg);
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+   --dd-icon-size: 18px;
+   transform: rotate(-90deg);
+   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 .remote-cursor-label {
-  margin-top: 6px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 11px;
-  line-height: 16px;
-  color: #fff;
-  white-space: nowrap;
+   margin-top: 6px;
+   padding: 1px 6px;
+   border-radius: 8px;
+   font-size: 11px;
+   line-height: 16px;
+   color: #fff;
+   white-space: nowrap;
 }
 
 // Presence avatars + Share button, pinned top right of the canvas.
 .presence-bar {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 5;
+   position: absolute;
+   top: 12px;
+   right: 12px;
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   z-index: 5;
 }
 
 .avatars {
-  display: flex;
+   display: flex;
 }
 
 .avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  border: 2px solid var(--dd-canvas-bg);
-  margin-left: -8px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 28px;
+   height: 28px;
+   border-radius: 50%;
+   color: #fff;
+   font-size: 13px;
+   font-weight: 600;
+   border: 2px solid var(--dd-canvas-bg);
+   margin-left: -8px;
 
-  &:first-child {
-    margin-left: 0;
-  }
+   &:first-child {
+      margin-left: 0;
+   }
 }
 
 // Pin / close rail hanging off the details panel's left edge (clear of each
 // inspector's own header actions).
 .side-ctrls {
-  position: absolute;
-  top: 8px;
-  left: -36px;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
-  border: 1px solid var(--dd-border);
-  background: var(--dd-surface);
-  box-shadow: var(--dd-shadow-2);
+   position: absolute;
+   top: 8px;
+   left: -36px;
+   z-index: 2;
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   padding: 3px;
+   border-radius: 9px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   box-shadow: var(--dd-shadow-2);
 }
 
 .side-ctrl {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 7px;
-  background: var(--dd-surface);
-  color: var(--dd-text-muted);
-  cursor: pointer;
-  --dd-icon-size: 15px;
+   width: 26px;
+   height: 26px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   border: none;
+   border-radius: 7px;
+   background: var(--dd-surface);
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 15px;
 
-  &:hover {
-    background: var(--dd-surface-2);
-    color: var(--dd-text);
-  }
-  &.on {
-    color: var(--dd-primary);
-    background: var(--dd-primary-weak);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
+   &.on {
+      color: var(--dd-primary);
+      background: var(--dd-primary-weak);
+   }
 }
 
 // The outline that ties the slide frame and its two panels together.
 .layout-edit-ring {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-  box-sizing: border-box;
-  outline: 2px dashed var(--dd-primary);
-  outline-offset: 3px;
+   position: absolute;
+   z-index: 2;
+   pointer-events: none;
+   box-sizing: border-box;
+   outline: 2px dashed var(--dd-primary);
+   outline-offset: 3px;
 }
 
 .layout-edit-badge {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--dd-primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: var(--dd-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.25));
-  --dd-icon-size: 14px;
+   position: absolute;
+   top: calc(100% + 10px);
+   left: 50%;
+   transform: translateX(-50%);
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   padding: 4px 10px;
+   border-radius: 999px;
+   background: var(--dd-primary);
+   color: #fff;
+   font-size: 12px;
+   font-weight: 600;
+   white-space: nowrap;
+   box-shadow: var(--dd-shadow-2, 0 2px 6px rgba(0, 0, 0, 0.25));
+   --dd-icon-size: 14px;
 }
 
 .slide-bounds {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-  border: 1px dashed var(--dd-border-strong);
-  border-radius: 16px;
-  // No fill: this outline stacks above the canvas world, so any tint would wash over the slides.
+   position: absolute;
+   z-index: 2;
+   pointer-events: none;
+   border: 1px dashed var(--dd-border-strong);
+   border-radius: 16px;
+   // No fill: this outline stacks above the canvas world, so any tint would wash over the slides.
 }
 
 .slide-bounds.selected {
-  border: 2px solid var(--dd-primary);
+   border: 2px solid var(--dd-primary);
 }
 
 // The border strips are the slide's grab handles (the rest stays click-through).
 .slide-edge {
-  position: absolute;
-  pointer-events: none;
+   position: absolute;
+   pointer-events: none;
 }
 
 .slide-bounds.grabbable .slide-edge {
-  pointer-events: auto;
-  cursor: move;
+   pointer-events: auto;
+   cursor: move;
 }
 
 .slide-edge {
-  &.top,
-  &.bottom {
-    left: -5px;
-    right: -5px;
-    height: 10px;
-  }
-  &.top {
-    top: -5px;
-  }
-  &.bottom {
-    bottom: -5px;
-  }
-  &.left,
-  &.right {
-    top: -5px;
-    bottom: -5px;
-    width: 10px;
-  }
-  &.left {
-    left: -5px;
-  }
-  &.right {
-    right: -5px;
-  }
+   &.top,
+   &.bottom {
+      left: -5px;
+      right: -5px;
+      height: 10px;
+   }
+   &.top {
+      top: -5px;
+   }
+   &.bottom {
+      bottom: -5px;
+   }
+   &.left,
+   &.right {
+      top: -5px;
+      bottom: -5px;
+      width: 10px;
+   }
+   &.left {
+      left: -5px;
+   }
+   &.right {
+      right: -5px;
+   }
 }
 
 // A grid cell's editor covers the cell exactly (opaque, so the rendered text
 // beneath does not double up) and wraps like the rendered cell.
 .grid-cell-editor {
-  border-radius: 0;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
+   border-radius: 0;
+   white-space: pre-wrap;
+   overflow-wrap: break-word;
 }
 
 // A diff code block's two editor panes: one shared highlight around the whole card.
 .text-editor.split-pane {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
+   background: transparent;
+   box-shadow: none;
+   border-radius: 0;
 }
 
 .diff-edit-frame {
-  position: absolute;
-  z-index: 6;
-  box-sizing: border-box;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
-  pointer-events: none;
+   position: absolute;
+   z-index: 6;
+   box-sizing: border-box;
+   border-radius: 4px;
+   background: color-mix(in srgb, var(--dd-primary) 6%, transparent);
+   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--dd-primary) 55%, transparent);
+   pointer-events: none;
 }
 
 // Grab area over a gap mark of an evenly spaced selection (the mark itself is
 // drawn in .smart-guides); hovering thickens the guide line under it.
 .spacing-handle {
-  position: absolute;
-  z-index: 5;
-  width: 12px;
-  height: var(--span, 12px);
-  transform: translate(-50%, -50%);
-  cursor: ns-resize;
-  touch-action: none;
+   position: absolute;
+   z-index: 5;
+   width: 12px;
+   height: var(--span, 12px);
+   transform: translate(-50%, -50%);
+   cursor: ns-resize;
+   touch-action: none;
 
-  &.vertical {
-    width: var(--span, 12px);
-    height: 12px;
-    cursor: ew-resize;
-  }
+   &.vertical {
+      width: var(--span, 12px);
+      height: 12px;
+      cursor: ew-resize;
+   }
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 2px;
-    height: 100%;
-    background: #f43f5e;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: opacity 100ms ease;
-  }
+   &::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 2px;
+      height: 100%;
+      background: #f43f5e;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 100ms ease;
+   }
 
-  &.vertical::before {
-    width: 100%;
-    height: 2px;
-  }
+   &.vertical::before {
+      width: 100%;
+      height: 2px;
+   }
 
-  &:hover::before,
-  &:active::before {
-    opacity: 1;
-  }
+   &:hover::before,
+   &:active::before {
+      opacity: 1;
+   }
 }
 
 // ---- Deck header above each presentation on the canvas ----
 .deck-header {
-  position: absolute;
-  /* Scales with the canvas zoom, like the presentation block below it. */
-  transform-origin: left bottom;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 4px 0 10px;
-  box-sizing: border-box;
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  border-radius: 10px;
-  box-shadow: var(--dd-shadow-2);
-  color: var(--dd-text);
-  font-size: 13px;
-  white-space: nowrap;
+   position: absolute;
+   /* Scales with the canvas zoom, like the presentation block below it. */
+   transform-origin: left bottom;
+   z-index: 3;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   height: 36px;
+   padding: 0 4px 0 10px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
+   box-shadow: var(--dd-shadow-2);
+   color: var(--dd-text);
+   font-size: 13px;
+   white-space: nowrap;
 
-  &.selected {
-    border-color: var(--dd-primary);
-  }
+   &.selected {
+      border-color: var(--dd-primary);
+   }
 }
 
 .dh-ico {
-  --dd-icon-size: 16px;
-  color: var(--dd-text-muted);
+   --dd-icon-size: 16px;
+   color: var(--dd-text-muted);
 }
 
 .dh-name {
-  font-weight: 600;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+   font-weight: 600;
+   max-width: 240px;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
 .dh-count {
-  font-size: 12px;
-  color: var(--dd-text-muted);
+   font-size: 12px;
+   color: var(--dd-text-muted);
 }
 
 .dh-present {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  margin-left: 4px;
-  padding: 0 10px 0 7px;
-  border: none;
-  border-radius: 7px;
-  background: var(--dd-primary);
-  color: #fff;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  --dd-icon-size: 15px;
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   height: 28px;
+   margin-left: 4px;
+   padding: 0 10px 0 7px;
+   border: none;
+   border-radius: 7px;
+   background: var(--dd-primary);
+   color: #fff;
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+   --dd-icon-size: 15px;
 
-  &:hover {
-    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
-  }
+   &:hover {
+      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+   }
 }
 
 .dh-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--dd-border);
+   width: 1px;
+   height: 18px;
+   background: var(--dd-border);
 }
 
 .dh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 28px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   gap: 2px;
+   height: 28px;
+   padding: 0 8px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 }
 
 .dh-chev {
-  --dd-icon-size: 14px;
-  color: var(--dd-text-muted);
-  margin-right: 2px;
+   --dd-icon-size: 14px;
+   color: var(--dd-text-muted);
+   margin-right: 2px;
 }
 
 /* ---- Deck focus mode ---- */
 .focus-dim {
-  position: absolute;
-  inset: 0;
-  /* Under the tool dock and floating toolbars (z 5), over the canvas. */
-  z-index: 4;
-  /* Opaque: in focus mode only the presentation shows. */
-  background: var(--dd-canvas-bg, var(--dd-bg));
+   position: absolute;
+   inset: 0;
+   /* Under the tool dock and floating toolbars (z 5), over the canvas. */
+   z-index: 4;
+   /* Opaque: in focus mode only the presentation shows. */
+   background: var(--dd-canvas-bg, var(--dd-bg));
 
-  &.solid {
-    background: var(--dd-canvas-bg, var(--dd-bg));
-  }
+   &.solid {
+      background: var(--dd-canvas-bg, var(--dd-bg));
+   }
 }
 
 .focus-stage {
-  position: absolute;
-  z-index: 4;
-  border: 1.5px dashed var(--dd-border-strong, var(--dd-border));
-  border-radius: 12px;
-  pointer-events: none;
-  box-sizing: border-box;
+   position: absolute;
+   z-index: 4;
+   border: 1.5px dashed var(--dd-border-strong, var(--dd-border));
+   border-radius: 12px;
+   pointer-events: none;
+   box-sizing: border-box;
 
-  &.amber {
-    border: 2px solid #bd7d1c;
-  }
+   &.amber {
+      border: 2px solid #bd7d1c;
+   }
 }
 
 .focus-bar {
-  position: absolute;
-  top: 14px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  box-sizing: border-box;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  border: 1px solid var(--dd-border);
-  border-radius: 12px;
-  box-shadow: var(--dd-shadow-2);
-  font-size: 13px;
-  white-space: nowrap;
+   position: absolute;
+   top: 14px;
+   z-index: 20;
+   display: flex;
+   align-items: center;
+   gap: 2px;
+   padding: 4px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   box-shadow: var(--dd-shadow-2);
+   font-size: 13px;
+   white-space: nowrap;
 
-  &.left { left: 16px; }
-  &.center { left: 50%; transform: translateX(-50%); }
-  &.right { right: 16px; }
-  &.amber {
-    gap: 10px;
-    padding-left: 14px;
-    background: color-mix(in srgb, #bd7d1c 14%, var(--dd-surface));
-    border-color: #bd7d1c;
-  }
+   &.left {
+      left: 16px;
+   }
+   &.center {
+      left: 50%;
+      transform: translateX(-50%);
+   }
+   &.right {
+      right: 16px;
+   }
+   &.amber {
+      gap: 10px;
+      padding-left: 14px;
+      background: color-mix(in srgb, #bd7d1c 14%, var(--dd-surface));
+      border-color: #bd7d1c;
+   }
 }
 
-.fb-banner b { font-weight: 600; }
+.fb-banner b {
+   font-weight: 600;
+}
 
 .fdock {
-  position: absolute;
-  z-index: 15;
-  top: 72px;
-  bottom: 16px;
-  box-sizing: border-box;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  border: 1px solid var(--dd-border);
-  border-radius: 14px;
-  box-shadow: var(--dd-shadow-2);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+   position: absolute;
+   z-index: 15;
+   top: 72px;
+   bottom: 16px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: 14px;
+   box-shadow: var(--dd-shadow-2);
+   overflow: hidden;
+   display: flex;
+   flex-direction: column;
 
-  /* Clear of the tool dock (left), the zoom bar (bottom left) and the minimap. */
-  &.left { left: 76px; width: 196px; bottom: 76px; }
-  /* The "In container" align strip sits on top of the zoom bar. */
-  &.left.above-align { bottom: 124px; }
-  &.right { right: 16px; width: 344px; }
-  &.right.design { width: 344px; }
-  &.right.anim { width: 360px; }
-  /* Controls stay put; only the pairs list (or the animations list) scrolls. */
-  &.col { overflow: hidden; }
+   /* Clear of the tool dock (left), the zoom bar (bottom left) and the minimap. */
+   &.left {
+      left: 76px;
+      width: 196px;
+      bottom: 76px;
+   }
+   /* The "In container" align strip sits on top of the zoom bar. */
+   &.left.above-align {
+      bottom: 124px;
+   }
+   &.right {
+      right: 16px;
+      width: 344px;
+   }
+   &.right.design {
+      width: 344px;
+   }
+   &.right.anim {
+      width: 360px;
+   }
+   /* Controls stay put; only the pairs list (or the animations list) scrolls. */
+   &.col {
+      overflow: hidden;
+   }
 
-  .inner {
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    flex: none;
-  }
-  .pairs {
-    flex: 1 1 0;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 12px 16px 16px;
-    border-top: 1px solid var(--dd-border);
-  }
+   .inner {
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      flex: none;
+   }
+   .pairs {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px 16px 16px;
+      border-top: 1px solid var(--dd-border);
+   }
 }
 
 .menu-host {
-  border: none;
-  box-shadow: none;
-  background: transparent;
+   border: none;
+   box-shadow: none;
+   background: transparent;
 }
 
 .focus-compare {
-  position: absolute;
-  z-index: 12;
-  /* Between the tool dock, the top bars, the right dock and the zoom bar. */
-  /* Past the left tool dock, whatever its width (one/two columns, labels). */
-  left: calc(16px + var(--dock-w, 56px) + 24px);
-  right: calc(16px + 344px + 24px);
-  top: 112px;
-  bottom: 76px;
-  /* Zoomed / panned slides stay inside their box, never over the dock. */
-  overflow: hidden;
+   position: absolute;
+   z-index: 12;
+   /* Between the tool dock, the top bars, the right dock and the zoom bar. */
+   /* Past the left tool dock, whatever its width (one/two columns, labels). */
+   left: calc(16px + var(--dock-w, 56px) + 24px);
+   right: calc(16px + 344px + 24px);
+   top: 112px;
+   bottom: 76px;
+   /* Zoomed / panned slides stay inside their box, never over the dock. */
+   overflow: hidden;
 }
 
-
 .focus-empty {
-  position: absolute;
-  z-index: 12;
-  left: 96px;
-  top: 120px;
-  color: var(--dd-text-muted);
+   position: absolute;
+   z-index: 12;
+   left: 96px;
+   top: 120px;
+   color: var(--dd-text-muted);
 }
 
 .fd-tabs {
-  display: flex;
-  gap: 2px;
-  padding: 4px 12px 0;
-  border-bottom: 1px solid var(--dd-border);
+   display: flex;
+   gap: 2px;
+   padding: 4px 12px 0;
+   border-bottom: 1px solid var(--dd-border);
 }
 
 .fd-tab {
-  height: 36px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  padding: 0 8px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dd-text-muted);
-  cursor: pointer;
+   height: 36px;
+   border: none;
+   border-bottom: 2px solid transparent;
+   background: transparent;
+   padding: 0 8px;
+   font: inherit;
+   font-size: 13px;
+   font-weight: 500;
+   color: var(--dd-text-muted);
+   cursor: pointer;
 
-  &.on {
-    border-bottom-color: var(--dd-primary);
-    color: var(--dd-text);
-    font-weight: 600;
-  }
+   &.on {
+      border-bottom-color: var(--dd-primary);
+      color: var(--dd-text);
+      font-weight: 600;
+   }
 }
 
 .fd-body {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px 14px 14px;
+   flex: 1 1 0;
+   min-height: 0;
+   overflow-y: auto;
+   padding: 8px 14px 14px;
 }
 
 .fb-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 9px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  --dd-icon-size: 16px;
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 32px;
+   padding: 0 9px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: inherit;
+   font: inherit;
+   font-weight: 500;
+   cursor: pointer;
+   --dd-icon-size: 16px;
 
-  &:hover:not(:disabled) { background: var(--dd-surface-2); }
-  &:disabled { opacity: 0.5; cursor: default; }
-  &.go {
-    background: var(--dd-primary);
-    color: #fff;
-    font-weight: 600;
-    &:hover:not(:disabled) { background: color-mix(in srgb, var(--dd-primary) 88%, #000); }
-  }
-  &.outline { border: 1px solid var(--dd-border); }
-  &.on { background: var(--dd-primary-weak); color: var(--dd-primary); }
+   &:hover:not(:disabled) {
+      background: var(--dd-surface-2);
+   }
+   &:disabled {
+      opacity: 0.5;
+      cursor: default;
+   }
+   &.go {
+      background: var(--dd-primary);
+      color: #fff;
+      font-weight: 600;
+      &:hover:not(:disabled) {
+         background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      }
+   }
+   &.outline {
+      border: 1px solid var(--dd-border);
+   }
+   &.on {
+      background: var(--dd-primary-weak);
+      color: var(--dd-primary);
+   }
 }
 
 .fb-k {
-  font-family: var(--dd-mono, monospace);
-  font-size: 11px;
-  color: var(--dd-text-muted);
-  background: var(--dd-surface-2);
-  border: 1px solid var(--dd-border);
-  padding: 1px 5px;
-  border-radius: 4px;
+   font-family: var(--dd-mono, monospace);
+   font-size: 11px;
+   color: var(--dd-text-muted);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   padding: 1px 5px;
+   border-radius: 4px;
 }
 
-.fb-f5 { opacity: 0.75; font-weight: 400; }
-.fb-chev { --dd-icon-size: 14px; color: var(--dd-text-muted); }
-.fb-sep { width: 1px; height: 20px; background: var(--dd-border); margin: 0 3px; }
-.fb-name { font-weight: 600; font-size: 14px; padding: 0 8px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-.fb-count { font-size: 12px; color: var(--dd-text-muted); padding-right: 6px; }
+.fb-f5 {
+   opacity: 0.75;
+   font-weight: 400;
+}
+.fb-chev {
+   --dd-icon-size: 14px;
+   color: var(--dd-text-muted);
+}
+.fb-sep {
+   width: 1px;
+   height: 20px;
+   background: var(--dd-border);
+   margin: 0 3px;
+}
+.fb-name {
+   font-weight: 600;
+   font-size: 14px;
+   padding: 0 8px;
+   max-width: 280px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+.fb-count {
+   font-size: 12px;
+   color: var(--dd-text-muted);
+   padding-right: 6px;
+}
 
 .pen-bar {
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+   top: 14px;
+   left: 50%;
+   transform: translateX(-50%);
 }
 .pen-bar.low {
-  top: 72px;
+   top: 72px;
 }
 
 /* ---- Following a collaborator ---- */
 .follow-ring {
-  position: absolute;
-  inset: 0;
-  z-index: 19;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 3px #0f8f86;
+   position: absolute;
+   inset: 0;
+   z-index: 19;
+   pointer-events: none;
+   box-shadow: inset 0 0 0 3px #0f8f86;
 }
 
 .follow-banner {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 21;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 14px;
-  border-radius: 0 0 10px 10px;
-  background: #0f8f86;
-  color: #fff;
-  font-size: 13px;
+   position: absolute;
+   top: 0;
+   left: 50%;
+   transform: translateX(-50%);
+   z-index: 21;
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: 7px 14px;
+   border-radius: 0 0 10px 10px;
+   background: #0f8f86;
+   color: #fff;
+   font-size: 13px;
 
-  button {
-    height: 24px;
-    padding: 0 9px;
-    border: none;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
-  }
+   button {
+      height: 24px;
+      padding: 0 9px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+   }
 }
 
 /* ---- Laser hint ---- */
 .laser-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  border: 1px solid var(--dd-border);
-  border-radius: 12px;
-  box-shadow: var(--dd-shadow-2);
-  font-size: 13px;
-  pointer-events: none;
+   position: absolute;
+   left: 50%;
+   bottom: 20px;
+   transform: translateX(-50%);
+   z-index: 6;
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 7px 12px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   box-shadow: var(--dd-shadow-2);
+   font-size: 13px;
+   pointer-events: none;
 }
 
 .ldot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #ff5c5c;
+   width: 10px;
+   height: 10px;
+   border-radius: 50%;
+   background: #ff5c5c;
 }
 
 .lk {
-  font-family: var(--dd-mono, monospace);
-  font-size: 11px;
-  color: var(--dd-text-muted);
-  background: var(--dd-surface-2);
-  border: 1px solid var(--dd-border);
-  padding: 1px 5px;
-  border-radius: 4px;
+   font-family: var(--dd-mono, monospace);
+   font-size: 11px;
+   color: var(--dd-text-muted);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   padding: 1px 5px;
+   border-radius: 4px;
 }
 
 .tr-pick {
-  display: flex;
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
-  flex-direction: column;
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 4px;
-  min-width: 150px;
-  button {
-    text-align: left;
-    padding: 6px 10px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--dd-text);
-    font: 500 12px system-ui, sans-serif;
-    cursor: pointer;
-    &:hover { background: var(--dd-surface-2); }
-    &.on { background: color-mix(in srgb, var(--dd-primary) 18%, transparent); font-weight: 700; }
-  }
+   display: flex;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
+   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+   flex-direction: column;
+   max-height: 320px;
+   overflow-y: auto;
+   padding: 4px;
+   min-width: 150px;
+   button {
+      text-align: left;
+      padding: 6px 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--dd-text);
+      font:
+         500 12px system-ui,
+         sans-serif;
+      cursor: pointer;
+      &:hover {
+         background: var(--dd-surface-2);
+      }
+      &.on {
+         background: color-mix(in srgb, var(--dd-primary) 18%, transparent);
+         font-weight: 700;
+      }
+   }
 }
 
 /* Slide control, with Map pairs / Preview as its own pill centred below it. */
 .focus-row {
-  position: absolute;
-  top: 14px;
-  /* Centred over .focus-compare (left 96px, right 384px) so it lines up with the stage tip. */
-  left: calc(50% - 144px);
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  .focus-bar { position: static; }
+   position: absolute;
+   top: 14px;
+   /* Centred over .focus-compare (left 96px, right 384px) so it lines up with the stage tip. */
+   left: calc(50% - 144px);
+   transform: translateX(-50%);
+   z-index: 20;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 8px;
+   .focus-bar {
+      position: static;
+   }
 }

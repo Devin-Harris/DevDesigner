@@ -5,10 +5,10 @@ import { downloadText } from './image-export.helper';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 
 export interface ExportDialogData {
-  sql: string;
-  baseName: string;
-  /** True when the SQL covers only the current marquee selection. */
-  selectionOnly: boolean;
+   sql: string;
+   baseName: string;
+   /** True when the SQL covers only the current marquee selection. */
+   selectionOnly: boolean;
 }
 
 /**
@@ -18,29 +18,29 @@ export interface ExportDialogData {
  * it already reflects any marquee selection.
  */
 @Component({
-  selector: 'app-export-dialog',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatDialogModule, IconComponent],
-  templateUrl: './export-dialog.component.html',
-  styleUrl: './export-dialog.component.scss',
+   selector: 'app-export-dialog',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [MatDialogModule, IconComponent],
+   templateUrl: './export-dialog.component.html',
+   styleUrl: './export-dialog.component.scss',
 })
 export class ExportDialogComponent {
-  private readonly snackBar = inject(MatSnackBar);
-  protected readonly data = inject<ExportDialogData>(MAT_DIALOG_DATA);
+   private readonly snackBar = inject(MatSnackBar);
+   protected readonly data = inject<ExportDialogData>(MAT_DIALOG_DATA);
 
-  protected async copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.data.sql);
-      this.snackBar.open('SQL copied to clipboard', undefined, { duration: 2000 });
-    } catch {
-      this.snackBar.open('Copy failed. Select the text and copy manually.', undefined, {
-        duration: 3000,
-      });
-    }
-  }
+   protected async copy(): Promise<void> {
+      try {
+         await navigator.clipboard.writeText(this.data.sql);
+         this.snackBar.open('SQL copied to clipboard', undefined, { duration: 2000 });
+      } catch {
+         this.snackBar.open('Copy failed. Select the text and copy manually.', undefined, {
+            duration: 3000,
+         });
+      }
+   }
 
-  protected download(): void {
-    downloadText(this.data.sql, `${this.data.baseName}.sql`, 'text/plain');
-  }
+   protected download(): void {
+      downloadText(this.data.sql, `${this.data.baseName}.sql`, 'text/plain');
+   }
 }

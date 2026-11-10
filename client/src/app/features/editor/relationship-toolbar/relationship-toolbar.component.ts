@@ -9,21 +9,21 @@ import { IconComponent } from '../../../shared/ui/icon/icon.component';
  * The parent positions the host via left/top style bindings.
  */
 @Component({
-  selector: 'app-relationship-toolbar',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatTooltipModule, IconComponent],
-  templateUrl: './relationship-toolbar.component.html',
-  styleUrl: './relationship-toolbar.component.scss',
+   selector: 'app-relationship-toolbar',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [MatTooltipModule, IconComponent],
+   templateUrl: './relationship-toolbar.component.html',
+   styleUrl: './relationship-toolbar.component.scss',
 })
 export class RelationshipToolbarComponent {
-  readonly type = input.required<RelationshipType>();
-  readonly canEdit = input<boolean>(true);
-  /** Best-path routing on; off = manual line with pinned sides. */
-  readonly autoRoute = input<boolean>(false);
+   readonly type = input.required<RelationshipType>();
+   readonly canEdit = input<boolean>(true);
+   /** Best-path routing on; off = manual line with pinned sides. */
+   readonly autoRoute = input<boolean>(false);
 
-  readonly setType = output<RelationshipType>();
-  readonly resetRoute = output<void>();
-  readonly toggleAutoRoute = output<void>();
-  readonly deleteRelationship = output<void>();
+   readonly setType = output<RelationshipType>();
+   readonly resetRoute = output<void>();
+   readonly toggleAutoRoute = output<void>();
+   readonly deleteRelationship = output<void>();
 }

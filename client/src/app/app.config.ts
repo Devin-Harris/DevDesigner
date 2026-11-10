@@ -15,11 +15,11 @@ import { provideSentry } from './core/sentry';
  * registered here as they land.
  */
 export const appConfig: ApplicationConfig = {
-  providers: [
-    provideZonelessChangeDetection(),
-    provideRouter(routes),
-    provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([sandboxInterceptor, withCredentialsInterceptor, shareTokenInterceptor])),
-    ...provideSentry(),
-  ],
+   providers: [
+      provideZonelessChangeDetection(),
+      provideRouter(routes),
+      provideAnimationsAsync(),
+      provideHttpClient(withInterceptors([sandboxInterceptor, withCredentialsInterceptor, shareTokenInterceptor])),
+      ...provideSentry(),
+   ],
 };

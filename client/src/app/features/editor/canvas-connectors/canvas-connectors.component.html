@@ -1,87 +1,82 @@
 <svg
-  class="layer"
-  [class.dragging]="dragging()"
-  [style.left.px]="-svgOffset()"
-  [style.top.px]="-svgOffset()"
-  width="10000"
-  height="10000"
+   class="layer"
+   [class.dragging]="dragging()"
+   [style.left.px]="-svgOffset()"
+   [style.top.px]="-svgOffset()"
+   width="10000"
+   height="10000"
 >
-  <defs>
-    <!-- "one": a single perpendicular bar just before the entity. -->
-    <marker
-      id="dd-one"
-      markerWidth="20"
-      markerHeight="18"
-      refX="17"
-      refY="9"
-      orient="auto-start-reverse"
-      markerUnits="userSpaceOnUse"
-    >
-      <path class="marker-line" d="M11 3 L11 15" fill="none" />
-    </marker>
-    <!-- "many": crow's foot that fans out at the entity and converges toward the line. -->
-    <marker
-      id="dd-many"
-      markerWidth="20"
-      markerHeight="18"
-      refX="17"
-      refY="9"
-      orient="auto-start-reverse"
-      markerUnits="userSpaceOnUse"
-    >
-      <path class="marker-line" d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" />
-    </marker>
-  </defs>
+   <defs>
+      <!-- "one": a single perpendicular bar just before the entity. -->
+      <marker
+         id="dd-one"
+         markerWidth="20"
+         markerHeight="18"
+         refX="17"
+         refY="9"
+         orient="auto-start-reverse"
+         markerUnits="userSpaceOnUse"
+      >
+         <path class="marker-line" d="M11 3 L11 15" fill="none" />
+      </marker>
+      <!-- "many": crow's foot that fans out at the entity and converges toward the line. -->
+      <marker
+         id="dd-many"
+         markerWidth="20"
+         markerHeight="18"
+         refX="17"
+         refY="9"
+         orient="auto-start-reverse"
+         markerUnits="userSpaceOnUse"
+      >
+         <path class="marker-line" d="M3 9 L17 3 M3 9 L17 9 M3 9 L17 15" fill="none" />
+      </marker>
+   </defs>
 
-  <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
-    @for (c of connectors(); track c.id) {
-      <path
-        class="hit"
-        [attr.d]="c.d"
-        (pointerdown)="onHit(c.id, $event)"
-        (dblclick)="resetRoute.emit(c.id)"
-      ></path>
-      <path
-        class="edge"
-        [class.selected]="c.selected"
-        [attr.d]="c.d"
-        [attr.marker-start]="c.markerStart"
-        [attr.marker-end]="c.markerEnd"
-      ></path>
-      @if (c.selected) {
-        @for (seg of c.segments; track seg.index) {
-          <circle
-            class="seg"
-            [class.h]="seg.orient === 'h'"
-            [class.v]="seg.orient === 'v'"
-            [attr.cx]="seg.mid.x"
-            [attr.cy]="seg.mid.y"
-            r="5"
-            (pointerdown)="onSegment(c.id, seg.index, $event)"
-          ></circle>
-        }
-        <circle
-          class="endpoint"
-          [attr.cx]="c.ax"
-          [attr.cy]="c.ay"
-          r="6"
-          (pointerdown)="onEndpoint(c.id, 'source', $event)"
-        ></circle>
-        <circle
-          class="endpoint"
-          [attr.cx]="c.bx"
-          [attr.cy]="c.by"
-          r="6"
-          (pointerdown)="onEndpoint(c.id, 'target', $event)"
-        ></circle>
+   <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
+      @for (c of connectors(); track c.id) {
+         <path class="hit" [attr.d]="c.d" (pointerdown)="onHit(c.id, $event)" (dblclick)="resetRoute.emit(c.id)"></path>
+         <path
+            class="edge"
+            [class.selected]="c.selected"
+            [attr.d]="c.d"
+            [attr.marker-start]="c.markerStart"
+            [attr.marker-end]="c.markerEnd"
+         ></path>
+         @if (c.selected) {
+            @for (seg of c.segments; track seg.index) {
+               <circle
+                  class="seg"
+                  [class.h]="seg.orient === 'h'"
+                  [class.v]="seg.orient === 'v'"
+                  [attr.cx]="seg.mid.x"
+                  [attr.cy]="seg.mid.y"
+                  r="5"
+                  (pointerdown)="onSegment(c.id, seg.index, $event)"
+               ></circle>
+            }
+            <circle
+               class="endpoint"
+               [attr.cx]="c.ax"
+               [attr.cy]="c.ay"
+               r="6"
+               (pointerdown)="onEndpoint(c.id, 'source', $event)"
+            ></circle>
+            <circle
+               class="endpoint"
+               [attr.cx]="c.bx"
+               [attr.cy]="c.by"
+               r="6"
+               (pointerdown)="onEndpoint(c.id, 'target', $event)"
+            ></circle>
+         }
       }
-    }
 
-    @if (tempLinkPath(); as path) {
-      <path class="temp" [attr.d]="path"></path>
-    }
-    @if (snapAnchor(); as p) {
-      <circle class="snap" [attr.cx]="p.x" [attr.cy]="p.y" r="8"></circle>
-    }
-  </g>
+      @if (tempLinkPath(); as path) {
+         <path class="temp" [attr.d]="path"></path>
+      }
+      @if (snapAnchor(); as p) {
+         <circle class="snap" [attr.cx]="p.x" [attr.cy]="p.y" r="8"></circle>
+      }
+   </g>
 </svg>

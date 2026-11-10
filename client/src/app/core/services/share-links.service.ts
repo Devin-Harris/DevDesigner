@@ -1,10 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import type {
-  CreateShareLinkDto,
-  ProjectGraphResponse,
-  ShareLinkResponse,
-} from '@devdesigner/shared';
+import type { CreateShareLinkDto, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
 /**
@@ -14,25 +10,25 @@ import { ApiService } from './api.service';
  */
 @Injectable({ providedIn: 'root' })
 export class ShareLinksService {
-  private readonly api = inject(ApiService);
+   private readonly api = inject(ApiService);
 
-  /** POST /projects/:id/share : owner creates a VIEW/EDIT link. */
-  create(projectId: string, dto: CreateShareLinkDto): Observable<ShareLinkResponse> {
-    return this.api.post<ShareLinkResponse>(`/projects/${projectId}/share`, dto);
-  }
+   /** POST /projects/:id/share : owner creates a VIEW/EDIT link. */
+   create(projectId: string, dto: CreateShareLinkDto): Observable<ShareLinkResponse> {
+      return this.api.post<ShareLinkResponse>(`/projects/${projectId}/share`, dto);
+   }
 
-  /** GET /projects/:id/share : owner lists active links. */
-  list(projectId: string): Observable<ShareLinkResponse[]> {
-    return this.api.get<ShareLinkResponse[]>(`/projects/${projectId}/share`);
-  }
+   /** GET /projects/:id/share : owner lists active links. */
+   list(projectId: string): Observable<ShareLinkResponse[]> {
+      return this.api.get<ShareLinkResponse[]>(`/projects/${projectId}/share`);
+   }
 
-  /** DELETE /projects/:id/share/:linkId : owner revokes a link. */
-  revoke(projectId: string, linkId: string): Observable<void> {
-    return this.api.delete<void>(`/projects/${projectId}/share/${linkId}`);
-  }
+   /** DELETE /projects/:id/share/:linkId : owner revokes a link. */
+   revoke(projectId: string, linkId: string): Observable<void> {
+      return this.api.delete<void>(`/projects/${projectId}/share/${linkId}`);
+   }
 
-  /** GET /shared/:token : resolve a link into the project graph (no account). */
-  getShared(token: string): Observable<ProjectGraphResponse> {
-    return this.api.get<ProjectGraphResponse>(`/shared/${token}`);
-  }
+   /** GET /shared/:token : resolve a link into the project graph (no account). */
+   getShared(token: string): Observable<ProjectGraphResponse> {
+      return this.api.get<ProjectGraphResponse>(`/shared/${token}`);
+   }
 }

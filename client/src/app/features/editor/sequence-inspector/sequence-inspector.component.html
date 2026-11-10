@@ -1,108 +1,195 @@
 <div class="panel">
-  @if (lifeline(); as l) {
-    <div class="panel-head">
-      <span class="dot" [style.background]="l.color || 'var(--dd-connector)'"></span>
-      <div class="head-text">
-        <div class="eyebrow">Participant</div>
-        <div class="tname">{{ l.label }}</div>
+   @if (lifeline(); as l) {
+      <div class="panel-head">
+         <span class="dot" [style.background]="l.color || 'var(--dd-connector)'"></span>
+         <div class="head-text">
+            <div class="eyebrow">Participant</div>
+            <div class="tname">{{ l.label }}</div>
+         </div>
+         <button class="icon-btn" (click)="deleteLifeline()" [disabled]="!store.canEdit()" title="Delete participant">
+            <dd-icon name="delete" />
+         </button>
       </div>
-      <button class="icon-btn" (click)="deleteLifeline()" [disabled]="!store.canEdit()" title="Delete participant">
-        <dd-icon name="delete" />
-      </button>
-    </div>
 
-    <div class="field-label">Label</div>
-    <dd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
+      <div class="field-label">Label</div>
+      <dd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
 
-    <div class="field-label">Header color</div>
-    <dd-color-swatches class="swatches" [value]="l.color" noneLabel="Default" themeValue="surface" [disabled]="!store.canEdit()" (pick)="setColor($event)" />
+      <div class="field-label">Header color</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="l.color"
+         noneLabel="Default"
+         themeValue="surface"
+         [disabled]="!store.canEdit()"
+         (pick)="setColor($event)"
+      />
 
-    <div class="field-label">Header stroke</div>
-    <dd-color-swatches class="swatches" [value]="l.strokeColor" noneLabel="No stroke" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setStrokeColor($event)" />
+      <div class="field-label">Header stroke</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="l.strokeColor"
+         noneLabel="No stroke"
+         themeValue="theme"
+         [disabled]="!store.canEdit()"
+         (pick)="setStrokeColor($event)"
+      />
 
-    <div class="field-label">Header text</div>
-    <dd-color-swatches class="swatches" [value]="l.textColor" noneLabel="Automatic" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setTextColor($event)" />
+      <div class="field-label">Header text</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="l.textColor"
+         noneLabel="Automatic"
+         themeValue="theme"
+         [disabled]="!store.canEdit()"
+         (pick)="setTextColor($event)"
+      />
 
-    <div class="field-label">Line color</div>
-    <dd-color-swatches class="swatches" [value]="l.lineColor" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setLineColor($event)" />
+      <div class="field-label">Line color</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="l.lineColor"
+         noneLabel="Default"
+         themeValue="theme"
+         [disabled]="!store.canEdit()"
+         (pick)="setLineColor($event)"
+      />
 
-
-    <div class="field-label">Width</div>
-    <div class="flag-chips">
-      <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">−</button>
-      <span class="width-val">{{ l.width }}px</span>
-      <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">+</button>
-    </div>
-
-    <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
-      <dd-icon name="add" />Add participant
-    </button>
-  } @else if (message(); as m) {
-    <div class="panel-head">
-      <span class="dot" style="background: var(--dd-primary)"></span>
-      <div class="head-text">
-        <div class="eyebrow">Message</div>
-        <div class="tname">{{ m.label || '(no label)' }}</div>
+      <div class="field-label">Width</div>
+      <div class="flag-chips">
+         <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">−</button>
+         <span class="width-val">{{ l.width }}px</span>
+         <button class="flag" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">+</button>
       </div>
-      <button class="icon-btn" (click)="deleteMessage()" [disabled]="!store.canEdit()" title="Delete message">
-        <dd-icon name="delete" />
+
+      <button class="add-btn full" (click)="addParticipant()" [disabled]="!store.canEdit()">
+         <dd-icon name="add" />Add participant
       </button>
-    </div>
-
-    <div class="field-label">Label</div>
-    <dd-input [ngModel]="m.label ?? ''" (commit)="setMsgLabel($event)" [maxlength]="200" [disabled]="!store.canEdit()" />
-
-    <div class="field-label">From</div>
-    <dd-select [options]="lifelineOptions()" [ngModel]="m.fromLifelineId" (ngModelChange)="setFrom($event)" [disabled]="!store.canEdit()" />
-    <div class="field-label">To</div>
-    <dd-select [options]="lifelineOptions()" [ngModel]="m.toLifelineId" (ngModelChange)="setTo($event)" [disabled]="!store.canEdit()" />
-
-    <div class="field-label">Style</div>
-    <div class="flag-chips">
-      <button class="flag" [class.on]="m.style === 'solid'" [disabled]="!store.canEdit()" (click)="setStyle('solid')">Sync</button>
-      <button class="flag" [class.on]="m.style === 'dashed'" [disabled]="!store.canEdit()" (click)="setStyle('dashed')">Return</button>
-      <button class="flag" [class.on]="m.style === 'break'" [disabled]="!store.canEdit()" (click)="setStyle('break')">Break</button>
-    </div>
-
-    <div class="field-label">Line color</div>
-    <dd-color-swatches class="swatches" [value]="m.color" noneLabel="Default" themeValue="theme" [disabled]="!store.canEdit()" (pick)="setMsgColor($event)" />
-
-    <div class="field-label">Label</div>
-    <div class="flag-chips">
-      <button class="flag" [class.on]="m.wrap !== false" [disabled]="!store.canEdit()" (click)="toggleWrap()">Auto wrap</button>
-    </div>
-
-
-    @if (m.style !== 'break') {
-      <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
-        <dd-icon name="swap_horiz" />Flip direction
-      </button>
-    }
-  } @else if (diagram()) {
-    <div class="panel-head">
-      <span class="dot" style="background: var(--dd-primary)"></span>
-      <div class="head-text">
-        <div class="eyebrow">Sequence diagram</div>
-        <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
+   } @else if (message(); as m) {
+      <div class="panel-head">
+         <span class="dot" style="background: var(--dd-primary)"></span>
+         <div class="head-text">
+            <div class="eyebrow">Message</div>
+            <div class="tname">{{ m.label || '(no label)' }}</div>
+         </div>
+         <button class="icon-btn" (click)="deleteMessage()" [disabled]="!store.canEdit()" title="Delete message">
+            <dd-icon name="delete" />
+         </button>
       </div>
-    </div>
 
-    <div class="field-label">Background</div>
-    <dd-color-swatches class="swatches" [value]="diagram()!.backgroundColor" noneValue="transparent" noneLabel="No background" themeValue="" [disabled]="!store.canEdit()" (pick)="setBackground($event)" />
+      <div class="field-label">Label</div>
+      <dd-input
+         [ngModel]="m.label ?? ''"
+         (commit)="setMsgLabel($event)"
+         [maxlength]="200"
+         [disabled]="!store.canEdit()"
+      />
 
-    <div class="field-label">Border</div>
-    <dd-color-swatches class="swatches" [value]="diagram()!.borderColor" noneValue="transparent" noneLabel="No border" themeValue="" [disabled]="!store.canEdit()" (pick)="setBorder($event)" />
+      <div class="field-label">From</div>
+      <dd-select
+         [options]="lifelineOptions()"
+         [ngModel]="m.fromLifelineId"
+         (ngModelChange)="setFrom($event)"
+         [disabled]="!store.canEdit()"
+      />
+      <div class="field-label">To</div>
+      <dd-select
+         [options]="lifelineOptions()"
+         [ngModel]="m.toLifelineId"
+         (ngModelChange)="setTo($event)"
+         [disabled]="!store.canEdit()"
+      />
 
-    <div class="field-label">Arrange</div>
-    <div class="flag-chips">
-      <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('back')">Send to back</button>
-      <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('front')">Bring to front</button>
-    </div>
+      <div class="field-label">Style</div>
+      <div class="flag-chips">
+         <button
+            class="flag"
+            [class.on]="m.style === 'solid'"
+            [disabled]="!store.canEdit()"
+            (click)="setStyle('solid')"
+         >
+            Sync
+         </button>
+         <button
+            class="flag"
+            [class.on]="m.style === 'dashed'"
+            [disabled]="!store.canEdit()"
+            (click)="setStyle('dashed')"
+         >
+            Return
+         </button>
+         <button
+            class="flag"
+            [class.on]="m.style === 'break'"
+            [disabled]="!store.canEdit()"
+            (click)="setStyle('break')"
+         >
+            Break
+         </button>
+      </div>
 
-    <div class="field-label">Add participant</div>
-    <div class="flag-chips">
-      <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('left')">◂ Left</button>
-      <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('right')">Right ▸</button>
-    </div>
-  }
+      <div class="field-label">Line color</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="m.color"
+         noneLabel="Default"
+         themeValue="theme"
+         [disabled]="!store.canEdit()"
+         (pick)="setMsgColor($event)"
+      />
+
+      <div class="field-label">Label</div>
+      <div class="flag-chips">
+         <button class="flag" [class.on]="m.wrap !== false" [disabled]="!store.canEdit()" (click)="toggleWrap()">
+            Auto wrap
+         </button>
+      </div>
+
+      @if (m.style !== 'break') {
+         <button class="add-btn full" (click)="flipDirection()" [disabled]="!store.canEdit()">
+            <dd-icon name="swap_horiz" />Flip direction
+         </button>
+      }
+   } @else if (diagram()) {
+      <div class="panel-head">
+         <span class="dot" style="background: var(--dd-primary)"></span>
+         <div class="head-text">
+            <div class="eyebrow">Sequence diagram</div>
+            <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
+         </div>
+      </div>
+
+      <div class="field-label">Background</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="diagram()!.backgroundColor"
+         noneValue="transparent"
+         noneLabel="No background"
+         themeValue=""
+         [disabled]="!store.canEdit()"
+         (pick)="setBackground($event)"
+      />
+
+      <div class="field-label">Border</div>
+      <dd-color-swatches
+         class="swatches"
+         [value]="diagram()!.borderColor"
+         noneValue="transparent"
+         noneLabel="No border"
+         themeValue=""
+         [disabled]="!store.canEdit()"
+         (pick)="setBorder($event)"
+      />
+
+      <div class="field-label">Arrange</div>
+      <div class="flag-chips">
+         <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('back')">Send to back</button>
+         <button class="flag" [disabled]="!store.canEdit()" (click)="arrange('front')">Bring to front</button>
+      </div>
+
+      <div class="field-label">Add participant</div>
+      <div class="flag-chips">
+         <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('left')">◂ Left</button>
+         <button class="flag" [disabled]="!store.canEdit()" (click)="addParticipant('right')">Right ▸</button>
+      </div>
+   }
 </div>

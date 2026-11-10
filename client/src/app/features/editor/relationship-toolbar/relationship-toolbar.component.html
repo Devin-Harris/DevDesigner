@@ -1,25 +1,62 @@
 <span class="segs">
-  <button type="button" class="seg" [class.on]="type() === 'ONE_TO_ONE'" [disabled]="!canEdit()" (click)="setType.emit('ONE_TO_ONE')">1 : 1</button>
-  <button type="button" class="seg" [class.on]="type() === 'ONE_TO_MANY'" [disabled]="!canEdit()" (click)="setType.emit('ONE_TO_MANY')">1 : N</button>
-  <button type="button" class="seg" [class.on]="type() === 'MANY_TO_MANY'" [disabled]="!canEdit()" (click)="setType.emit('MANY_TO_MANY')">N : M</button>
+   <button
+      type="button"
+      class="seg"
+      [class.on]="type() === 'ONE_TO_ONE'"
+      [disabled]="!canEdit()"
+      (click)="setType.emit('ONE_TO_ONE')"
+   >
+      1 : 1
+   </button>
+   <button
+      type="button"
+      class="seg"
+      [class.on]="type() === 'ONE_TO_MANY'"
+      [disabled]="!canEdit()"
+      (click)="setType.emit('ONE_TO_MANY')"
+   >
+      1 : N
+   </button>
+   <button
+      type="button"
+      class="seg"
+      [class.on]="type() === 'MANY_TO_MANY'"
+      [disabled]="!canEdit()"
+      (click)="setType.emit('MANY_TO_MANY')"
+   >
+      N : M
+   </button>
 </span>
 
 <span class="sep"></span>
 
 <button
-  type="button"
-  class="tb"
-  [class.on]="autoRoute()"
-  [disabled]="!canEdit()"
-  (click)="toggleAutoRoute.emit()"
-  [attr.aria-pressed]="autoRoute()"
-  [matTooltip]="autoRoute() ? 'Best path, avoids tables' : 'Line stays where you put it'"
+   type="button"
+   class="tb"
+   [class.on]="autoRoute()"
+   [disabled]="!canEdit()"
+   (click)="toggleAutoRoute.emit()"
+   [attr.aria-pressed]="autoRoute()"
+   [matTooltip]="autoRoute() ? 'Best path, avoids tables' : 'Line stays where you put it'"
 >
-  Auto-route
+   Auto-route
 </button>
-<button type="button" class="tb" [disabled]="!canEdit()" (click)="resetRoute.emit()" matTooltip="Clear bends and go back to the best path">
-  Reset route
+<button
+   type="button"
+   class="tb"
+   [disabled]="!canEdit()"
+   (click)="resetRoute.emit()"
+   matTooltip="Clear bends and go back to the best path"
+>
+   Reset route
 </button>
-<button type="button" class="ib del" [disabled]="!canEdit()" (click)="deleteRelationship.emit()" matTooltip="Delete relationship" aria-label="Delete relationship">
-  <dd-icon name="delete" />
+<button
+   type="button"
+   class="ib del"
+   [disabled]="!canEdit()"
+   (click)="deleteRelationship.emit()"
+   matTooltip="Delete relationship"
+   aria-label="Delete relationship"
+>
+   <dd-icon name="delete" />
 </button>

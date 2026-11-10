@@ -1,43 +1,43 @@
 <h2 mat-dialog-title class="dlg-title">{{ title() }}</h2>
 
 <mat-dialog-content class="dlg-body">
-  <div class="form" (keydown.enter)="submit()">
-    @if (isRegister()) {
-      <div class="field">
-        <label class="field-label">Display name (optional)</label>
-        <dd-input type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
-      </div>
-    }
-
-    <div class="field">
-      <label class="field-label">Email</label>
-      <dd-input type="email" [ngModel]="email()" (ngModelChange)="set(email, $event)" />
-    </div>
-
-    <div class="field">
-      <label class="field-label">Password</label>
-      <dd-input type="password" [ngModel]="password()" (ngModelChange)="set(password, $event)" />
+   <div class="form" (keydown.enter)="submit()">
       @if (isRegister()) {
-        <span class="hint">At least 8 characters.</span>
+         <div class="field">
+            <label class="field-label">Display name (optional)</label>
+            <dd-input type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
+         </div>
       }
-    </div>
 
-    @if (error()) {
-      <p class="err">{{ error() }}</p>
-    }
+      <div class="field">
+         <label class="field-label">Email</label>
+         <dd-input type="email" [ngModel]="email()" (ngModelChange)="set(email, $event)" />
+      </div>
 
-    <button class="link-btn" type="button" (click)="toggleMode()">
-      {{ isRegister() ? 'Have an account? Sign in' : 'Need an account? Create one' }}
-    </button>
-  </div>
+      <div class="field">
+         <label class="field-label">Password</label>
+         <dd-input type="password" [ngModel]="password()" (ngModelChange)="set(password, $event)" />
+         @if (isRegister()) {
+            <span class="hint">At least 8 characters.</span>
+         }
+      </div>
+
+      @if (error()) {
+         <p class="err">{{ error() }}</p>
+      }
+
+      <button class="link-btn" type="button" (click)="toggleMode()">
+         {{ isRegister() ? 'Have an account? Sign in' : 'Need an account? Create one' }}
+      </button>
+   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions class="dlg-actions">
-  <button class="btn" mat-dialog-close>Cancel</button>
-  <button class="btn primary" [disabled]="!canSubmit()" (click)="submit()">
-    @if (busy()) {
-      <mat-progress-spinner mode="indeterminate" diameter="18"></mat-progress-spinner>
-    }
-    {{ submitLabel() }}
-  </button>
+   <button class="btn" mat-dialog-close>Cancel</button>
+   <button class="btn primary" [disabled]="!canSubmit()" (click)="submit()">
+      @if (busy()) {
+         <mat-progress-spinner mode="indeterminate" diameter="18"></mat-progress-spinner>
+      }
+      {{ submitLabel() }}
+   </button>
 </mat-dialog-actions>

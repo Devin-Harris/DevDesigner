@@ -11,23 +11,23 @@ import { ProjectsStore } from '../../stores/projects.store';
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectFileService {
-  private readonly store = inject(ProjectsStore);
-  private readonly snackBar = inject(MatSnackBar);
+   private readonly store = inject(ProjectsStore);
+   private readonly snackBar = inject(MatSnackBar);
 
-  /** Save an already-built export file (e.g. a selection) under `<name>.devdesigner.json`. */
-  save(file: ProjectExportFile, name: string): void {
-    const safe = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'project';
-    downloadText(JSON.stringify(file, null, 2), `${safe}.devdesigner.json`, 'application/json');
-  }
+   /** Save an already-built export file (e.g. a selection) under `<name>.devdesigner.json`. */
+   save(file: ProjectExportFile, name: string): void {
+      const safe = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'project';
+      downloadText(JSON.stringify(file, null, 2), `${safe}.devdesigner.json`, 'application/json');
+   }
 
-  async download(projectId: string, projectName: string): Promise<void> {
-    try {
-      const file = await this.store.exportProject(projectId);
-      this.save(file, projectName);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Could not export project', err);
-      this.snackBar.open('Could not export project', 'Dismiss', { duration: 5000 });
-    }
-  }
+   async download(projectId: string, projectName: string): Promise<void> {
+      try {
+         const file = await this.store.exportProject(projectId);
+         this.save(file, projectName);
+      } catch (err) {
+         // eslint-disable-next-line no-console
+         console.error('Could not export project', err);
+         this.snackBar.open('Could not export project', 'Dismiss', { duration: 5000 });
+      }
+   }
 }

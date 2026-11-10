@@ -1,7 +1,7 @@
 <div class="ws">
-  @if (selectedProject(); as project) {
-    <app-editor [projectId]="project.id"></app-editor>
-  } @else {
-    <app-home></app-home>
-  }
+   @if (selectedProject(); as project) {
+      <app-editor [projectId]="project.id"></app-editor>
+   } @else {
+      <app-home></app-home>
+   }
 </div>

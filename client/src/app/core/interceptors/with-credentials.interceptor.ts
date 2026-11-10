@@ -5,5 +5,4 @@ import { HttpInterceptorFn } from '@angular/common/http';
  * cross-origin (client on :4242, API on :3000), so requests must opt in to
  * credentials; the server's CORS config allows this specific origin.
  */
-export const withCredentialsInterceptor: HttpInterceptorFn = (req, next) =>
-  next(req.clone({ withCredentials: true }));
+export const withCredentialsInterceptor: HttpInterceptorFn = (req, next) => next(req.clone({ withCredentials: true }));

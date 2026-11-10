@@ -8,155 +8,155 @@
 @include mat.core();
 
 $dd-light: mat.define-theme(
-  (
-    color: (
-      theme-type: light,
-      primary: mat.$blue-palette,
-      tertiary: mat.$cyan-palette,
-    ),
-    typography: (
-      brand-family: '"IBM Plex Sans", Roboto, system-ui, sans-serif',
-      plain-family: '"IBM Plex Sans", Roboto, system-ui, sans-serif',
-    ),
-    density: (
-      scale: -1,
-    ),
-  )
+   (
+      color: (
+         theme-type: light,
+         primary: mat.$blue-palette,
+         tertiary: mat.$cyan-palette,
+      ),
+      typography: (
+         brand-family: '"IBM Plex Sans", Roboto, system-ui, sans-serif',
+         plain-family: '"IBM Plex Sans", Roboto, system-ui, sans-serif',
+      ),
+      density: (
+         scale: -1,
+      ),
+   )
 );
 
 $dd-dark: mat.define-theme(
-  (
-    color: (
-      theme-type: dark,
-      primary: mat.$blue-palette,
-      tertiary: mat.$cyan-palette,
-    ),
-  )
+   (
+      color: (
+         theme-type: dark,
+         primary: mat.$blue-palette,
+         tertiary: mat.$cyan-palette,
+      ),
+   )
 );
 
 html {
-  @include mat.all-component-themes($dd-light);
-  color-scheme: light;
+   @include mat.all-component-themes($dd-light);
+   color-scheme: light;
 
-  // spacing
-  --dd-space-1: 4px;
-  --dd-space-2: 8px;
-  --dd-space-3: 12px;
-  --dd-space-4: 16px;
-  --dd-space-6: 24px;
+   // spacing
+   --dd-space-1: 4px;
+   --dd-space-2: 8px;
+   --dd-space-3: 12px;
+   --dd-space-4: 16px;
+   --dd-space-6: 24px;
 
-  // radius (design scale: 6 · 10 · 14 · 20)
-  --dd-radius-sm: 6px;
-  --dd-radius: 10px;
-  --dd-radius-lg: 14px;
-  --dd-radius-xl: 20px;
+   // radius (design scale: 6 · 10 · 14 · 20)
+   --dd-radius-sm: 6px;
+   --dd-radius: 10px;
+   --dd-radius-lg: 14px;
+   --dd-radius-xl: 20px;
 
-  // elevation
-  --dd-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
-  --dd-shadow-2: 0 4px 14px rgba(16, 24, 40, 0.12);
-  --dd-shadow-3: 0 12px 28px rgba(16, 24, 40, 0.18);
+   // elevation
+   --dd-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+   --dd-shadow-2: 0 4px 14px rgba(16, 24, 40, 0.12);
+   --dd-shadow-3: 0 12px 28px rgba(16, 24, 40, 0.18);
 
-  // fonts — IBM Plex Sans (UI), IBM Plex Mono (schema data), Space Grotesk (display)
-  --dd-font: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --dd-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace;
-  --dd-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
+   // fonts — IBM Plex Sans (UI), IBM Plex Mono (schema data), Space Grotesk (display)
+   --dd-font: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+   --dd-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace;
+   --dd-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
 
-  // ---- Paper theme (light mode) ----
-  // surfaces & lines
-  --dd-surface: #ffffff;
-  --dd-surface-2: #f4f2ec;
-  --dd-border: #e6e2d9;
-  --dd-border-strong: #d6d1c5;
+   // ---- Paper theme (light mode) ----
+   // surfaces & lines
+   --dd-surface: #ffffff;
+   --dd-surface-2: #f4f2ec;
+   --dd-border: #e6e2d9;
+   --dd-border-strong: #d6d1c5;
 
-  // text
-  --dd-text: #23262c;
-  --dd-text-muted: #767b86;
-  --dd-faint: #a6a9b0;
+   // text
+   --dd-text: #23262c;
+   --dd-text-muted: #767b86;
+   --dd-faint: #a6a9b0;
 
-  // brand / status
-  --dd-primary: #3b5bdb;
-  --dd-primary-weak: #e8edfb;
-  --dd-danger: #d64545;
-  --dd-success: #0f8f86;
-  --dd-teal: #0f8f86;
-  --dd-amber: #bd7d1c;
+   // brand / status
+   --dd-primary: #3b5bdb;
+   --dd-primary-weak: #e8edfb;
+   --dd-danger: #d64545;
+   --dd-success: #0f8f86;
+   --dd-teal: #0f8f86;
+   --dd-amber: #bd7d1c;
 
-  // canvas & diagram
-  --dd-canvas-bg: #eceae4;
-  --dd-grid-line: rgba(30, 34, 42, 0.06);
-  --dd-node-surface: #ffffff;
-  --dd-node-header: #f4f2ec;
-  --dd-node-border: #e6e2d9;
-  --dd-node-row-border: #f0ede6;
-  // Relationship lines read as teal in the design system (a calm secondary
-  // accent that stays distinct from the primary selection color).
-  --dd-connector: #0f8f86;
-  --dd-connector-selected: var(--dd-primary);
-  --dd-handle: var(--dd-connector);
-  --dd-handle-hover: var(--dd-primary);
-  --dd-chip-bg: #efece5;
-  --dd-chip-active: #e8edfb;
+   // canvas & diagram
+   --dd-canvas-bg: #eceae4;
+   --dd-grid-line: rgba(30, 34, 42, 0.06);
+   --dd-node-surface: #ffffff;
+   --dd-node-header: #f4f2ec;
+   --dd-node-border: #e6e2d9;
+   --dd-node-row-border: #f0ede6;
+   // Relationship lines read as teal in the design system (a calm secondary
+   // accent that stays distinct from the primary selection color).
+   --dd-connector: #0f8f86;
+   --dd-connector-selected: var(--dd-primary);
+   --dd-handle: var(--dd-connector);
+   --dd-handle-hover: var(--dd-primary);
+   --dd-chip-bg: #efece5;
+   --dd-chip-active: #e8edfb;
 }
 
 html.dark {
-  @include mat.all-component-colors($dd-dark);
-  color-scheme: dark;
+   @include mat.all-component-colors($dd-dark);
+   color-scheme: dark;
 
-  --dd-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --dd-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
-  --dd-shadow-3: 0 14px 34px rgba(0, 0, 0, 0.55);
+   --dd-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+   --dd-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+   --dd-shadow-3: 0 14px 34px rgba(0, 0, 0, 0.55);
 
-  // ---- Graphite theme (dark mode) ----
-  --dd-surface: #161b23;
-  --dd-surface-2: #1d232d;
-  --dd-border: #262e39;
-  --dd-border-strong: #39434f;
+   // ---- Graphite theme (dark mode) ----
+   --dd-surface: #161b23;
+   --dd-surface-2: #1d232d;
+   --dd-border: #262e39;
+   --dd-border-strong: #39434f;
 
-  --dd-text: #e7ecf3;
-  --dd-text-muted: #8b95a4;
-  --dd-faint: #5a6472;
+   --dd-text: #e7ecf3;
+   --dd-text-muted: #8b95a4;
+   --dd-faint: #5a6472;
 
-  --dd-primary: #6f8bff;
-  --dd-primary-weak: #1b2540;
-  --dd-danger: #ff6b6b;
-  --dd-success: #34d0c0;
-  --dd-teal: #34d0c0;
-  --dd-amber: #f0b45e;
+   --dd-primary: #6f8bff;
+   --dd-primary-weak: #1b2540;
+   --dd-danger: #ff6b6b;
+   --dd-success: #34d0c0;
+   --dd-teal: #34d0c0;
+   --dd-amber: #f0b45e;
 
-  --dd-canvas-bg: #0d1017;
-  --dd-grid-line: rgba(255, 255, 255, 0.05);
-  --dd-node-surface: #161b23;
-  --dd-node-header: #1d232d;
-  --dd-node-border: #262e39;
-  --dd-node-row-border: #1f2731;
-  --dd-connector: #34d0c0;
-  --dd-connector-selected: var(--dd-primary);
-  --dd-handle: var(--dd-connector);
-  --dd-handle-hover: var(--dd-primary);
-  --dd-chip-bg: #1e2733;
-  --dd-chip-active: #1b2b46;
+   --dd-canvas-bg: #0d1017;
+   --dd-grid-line: rgba(255, 255, 255, 0.05);
+   --dd-node-surface: #161b23;
+   --dd-node-header: #1d232d;
+   --dd-node-border: #262e39;
+   --dd-node-row-border: #1f2731;
+   --dd-connector: #34d0c0;
+   --dd-connector-selected: var(--dd-primary);
+   --dd-handle: var(--dd-connector);
+   --dd-handle-hover: var(--dd-primary);
+   --dd-chip-bg: #1e2733;
+   --dd-chip-active: #1b2b46;
 }
 
 html,
 body {
-  height: 100%;
+   height: 100%;
 }
 
 body {
-  margin: 0;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font-family: var(--dd-font);
-  font-size: 13px;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+   margin: 0;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-family: var(--dd-font);
+   font-size: 13px;
+   -webkit-font-smoothing: antialiased;
+   text-rendering: optimizeLegibility;
 }
 
 // Canvas / slide text renders unhinted, so still slides match the morph's moving and
 // scaling glyphs exactly (hinted text snaps differently and visibly shifts mid-morph).
 svg text {
-  text-rendering: geometricPrecision;
-  font-kerning: normal;
+   text-rendering: geometricPrecision;
+   font-kerning: normal;
 }
 
 // Enforce the design type system over Material's Roboto scale. Headings and the
@@ -165,215 +165,211 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--dd-display);
-  font-weight: 600;
+   font-family: var(--dd-display);
+   font-weight: 600;
 }
 button,
 input,
 select,
 textarea {
-  font-family: var(--dd-font);
+   font-family: var(--dd-font);
 }
 
 // ---- Bespoke popover / menu (CDK Overlay) ----
 // Rendered in the overlay container, so these are global (not component-scoped).
 .dd-overlay-backdrop {
-  background: transparent;
+   background: transparent;
 }
 .dd-menu {
-  min-width: 168px;
-  padding: 5px;
-  background: var(--dd-surface);
-  border: 1px solid var(--dd-border);
-  border-radius: var(--dd-radius);
-  box-shadow: var(--dd-shadow-3);
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  max-height: min(60vh, 420px);
-  overflow: auto;
+   min-width: 168px;
+   padding: 5px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   box-shadow: var(--dd-shadow-3);
+   display: flex;
+   flex-direction: column;
+   gap: 1px;
+   max-height: min(60vh, 420px);
+   overflow: auto;
 }
 .dd-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--dd-text);
-  font: inherit;
-  font-family: var(--dd-font);
-  font-size: 13px;
-  text-align: left;
-  padding: 7px 10px;
-  border-radius: var(--dd-radius-sm);
-  cursor: pointer;
+   display: flex;
+   align-items: center;
+   gap: 9px;
+   width: 100%;
+   border: none;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-family: var(--dd-font);
+   font-size: 13px;
+   text-align: left;
+   padding: 7px 10px;
+   border-radius: var(--dd-radius-sm);
+   cursor: pointer;
 
-  dd-icon {
-    --dd-icon-size: 17px;
-    color: var(--dd-text-muted);
-  }
+   dd-icon {
+      --dd-icon-size: 17px;
+      color: var(--dd-text-muted);
+   }
 
-  &:hover:not(:disabled) {
-    background: var(--dd-surface-2);
-  }
-  &.on {
-    color: var(--dd-primary);
-    background: var(--dd-primary-weak);
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  &.danger {
-    color: var(--dd-danger);
-    dd-icon {
+   &:hover:not(:disabled) {
+      background: var(--dd-surface-2);
+   }
+   &.on {
+      color: var(--dd-primary);
+      background: var(--dd-primary-weak);
+   }
+   &:disabled {
+      opacity: 0.5;
+      cursor: default;
+   }
+   &.danger {
       color: var(--dd-danger);
-    }
-  }
+      dd-icon {
+         color: var(--dd-danger);
+      }
+   }
 }
 .dd-menu-label {
-  padding: 6px 10px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--dd-text-muted);
+   padding: 6px 10px 2px;
+   font-size: 11px;
+   font-weight: 600;
+   color: var(--dd-text-muted);
 }
 .dd-menu-sep {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--dd-border);
+   height: 1px;
+   margin: 4px 6px;
+   background: var(--dd-border);
 }
 
 // ---- A few simplifying Material tweaks (expressed via variables) ----
 
 // Flatter menu / dialog surfaces with our radius.
 .mat-mdc-menu-panel {
-  border-radius: var(--dd-radius) !important;
-  border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius) !important;
+   border: 1px solid var(--dd-border);
 }
 .mat-mdc-dialog-container {
-  --mat-dialog-container-color: var(--dd-surface);
-  --mdc-dialog-container-color: var(--dd-surface);
-  --mat-dialog-subhead-color: var(--dd-text);
-  --mat-dialog-supporting-text-color: var(--dd-text);
+   --mat-dialog-container-color: var(--dd-surface);
+   --mdc-dialog-container-color: var(--dd-surface);
+   --mat-dialog-subhead-color: var(--dd-text);
+   --mat-dialog-supporting-text-color: var(--dd-text);
 }
 .mat-mdc-dialog-surface {
-  border-radius: var(--dd-radius-lg) !important;
-  color: var(--dd-text) !important;
-  border: 1px solid var(--dd-border-strong);
-  padding: var(--dd-space-4) !important;
-  box-shadow: var(--dd-shadow-3);
+   border-radius: var(--dd-radius-lg) !important;
+   color: var(--dd-text) !important;
+   border: 1px solid var(--dd-border-strong);
+   padding: var(--dd-space-4) !important;
+   box-shadow: var(--dd-shadow-3);
 }
 
 // The projects browser overlay owns its own padding/scroll and rounds to xl.
 .dd-projects-dialog .mat-mdc-dialog-surface {
-  padding: 0 !important;
-  overflow: hidden;
-  border-radius: var(--dd-radius-xl) !important;
+   padding: 0 !important;
+   overflow: hidden;
+   border-radius: var(--dd-radius-xl) !important;
 }
 .dd-projects-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
-  padding: 0 !important;
+   padding: 0 !important;
 }
 
 // Minimal, tasteful scrollbars.
 * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--dd-border-strong) transparent;
+   scrollbar-width: thin;
+   scrollbar-color: var(--dd-border-strong) transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+   width: 10px;
+   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--dd-border-strong);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+   background: var(--dd-border-strong);
+   border-radius: 8px;
+   border: 2px solid transparent;
+   background-clip: content-box;
 }
 // Monospace is reserved for schema data (column names, types, SQL) — applied per
 // element, not globally, so UI chrome uses the sans UI face.
 .dd-mono {
-  font-family: var(--dd-mono);
+   font-family: var(--dd-mono);
 }
 
 // Small project-type indicator dot. Global (not component-scoped) so it also
 // paints inside the breadcrumb's type menu, which renders in an overlay.
 .type-dot {
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
+   display: inline-block;
+   flex: 0 0 auto;
+   width: 7px;
+   height: 7px;
+   border-radius: 2px;
 }
 
 // Range sliders: thin neutral track, primary fill up to the thumb (set `--fill`
 // to the filled percentage from the template), and a white-ringed primary thumb.
 input[type='range'] {
-  --fill: 0%;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 16px;
-  margin: 0;
-  background: transparent;
-  cursor: pointer;
-  outline: none;
+   --fill: 0%;
+   -webkit-appearance: none;
+   appearance: none;
+   height: 16px;
+   margin: 0;
+   background: transparent;
+   cursor: pointer;
+   outline: none;
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
+   &:disabled {
+      opacity: 0.5;
+      cursor: default;
+   }
 
-  &::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 999px;
-    background: linear-gradient(
-      to right,
-      var(--dd-primary) 0 var(--fill),
-      var(--dd-border-strong) var(--fill) 100%
-    );
-  }
-  &::-moz-range-track {
-    height: 4px;
-    border-radius: 999px;
-    background: var(--dd-border-strong);
-  }
-  &::-moz-range-progress {
-    height: 4px;
-    border-radius: 999px;
-    background: var(--dd-primary);
-  }
+   &::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(to right, var(--dd-primary) 0 var(--fill), var(--dd-border-strong) var(--fill) 100%);
+   }
+   &::-moz-range-track {
+      height: 4px;
+      border-radius: 999px;
+      background: var(--dd-border-strong);
+   }
+   &::-moz-range-progress {
+      height: 4px;
+      border-radius: 999px;
+      background: var(--dd-primary);
+   }
 
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    margin-top: -5px;
-    border-radius: 50%;
-    background: var(--dd-primary);
-    border: 2px solid var(--dd-surface);
-    box-shadow: var(--dd-shadow-1);
-    transition: transform 0.12s ease;
-  }
-  &::-moz-range-thumb {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--dd-primary);
-    border: 2px solid var(--dd-surface);
-    box-shadow: var(--dd-shadow-1);
-  }
+   &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      margin-top: -5px;
+      border-radius: 50%;
+      background: var(--dd-primary);
+      border: 2px solid var(--dd-surface);
+      box-shadow: var(--dd-shadow-1);
+      transition: transform 0.12s ease;
+   }
+   &::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--dd-primary);
+      border: 2px solid var(--dd-surface);
+      box-shadow: var(--dd-shadow-1);
+   }
 
-  &:not(:disabled):hover::-webkit-slider-thumb,
-  &:focus-visible::-webkit-slider-thumb {
-    transform: scale(1.15);
-  }
-  &:focus-visible::-webkit-slider-thumb {
-    box-shadow: 0 0 0 3px var(--dd-primary-weak);
-  }
-  &:focus-visible::-moz-range-thumb {
-    box-shadow: 0 0 0 3px var(--dd-primary-weak);
-  }
+   &:not(:disabled):hover::-webkit-slider-thumb,
+   &:focus-visible::-webkit-slider-thumb {
+      transform: scale(1.15);
+   }
+   &:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px var(--dd-primary-weak);
+   }
+   &:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--dd-primary-weak);
+   }
 }
 
 /* Floating islands fade while dragging or drawing (Customize toolbar setting). */
@@ -381,13 +377,13 @@ app-root .island,
 app-shape-toolbar .dock,
 app-shape-toolbar .statusbar,
 app-minimap {
-  transition: opacity 0.15s ease;
+   transition: opacity 0.15s ease;
 }
 body.dd-gesture app-root .island,
 body.dd-gesture app-shape-toolbar .dock,
 body.dd-gesture app-shape-toolbar .statusbar,
 body.dd-gesture app-minimap {
-  opacity: 0.25;
+   opacity: 0.25;
 }
 
 /* Focus mode transition screen: the canvas's floating toolbars stay out of the way. */
@@ -396,5 +392,5 @@ body.dd-focus-morph app-table-toolbar,
 body.dd-focus-morph app-relationship-toolbar,
 body.dd-focus-morph app-multi-select-bar,
 body.dd-focus-morph app-shape-toolbar .alignbar {
-  display: none !important;
+   display: none !important;
 }

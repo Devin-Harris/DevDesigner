@@ -1,23 +1,23 @@
 @if (lasers().length) {
-  <svg class="laser-svg" aria-hidden="true">
-    @for (l of lasers(); track l.id) {
-      <g [style.color]="l.color">
-        @for (s of l.segments; track $index) {
-          <line
-            class="trail"
-            [attr.x1]="s.x1"
-            [attr.y1]="s.y1"
-            [attr.x2]="s.x2"
-            [attr.y2]="s.y2"
-            [attr.stroke-width]="s.width"
-            [attr.opacity]="s.opacity"
-          />
-        }
-        @if (l.head; as h) {
-          <circle class="glow" [attr.cx]="h.x" [attr.cy]="h.y" r="12" />
-          <circle class="dot" [attr.cx]="h.x" [attr.cy]="h.y" r="5" />
-        }
-      </g>
-    }
-  </svg>
+   <svg class="laser-svg" aria-hidden="true">
+      @for (l of lasers(); track l.id) {
+         <g [style.color]="l.color">
+            @for (s of l.segments; track $index) {
+               <line
+                  class="trail"
+                  [attr.x1]="s.x1"
+                  [attr.y1]="s.y1"
+                  [attr.x2]="s.x2"
+                  [attr.y2]="s.y2"
+                  [attr.stroke-width]="s.width"
+                  [attr.opacity]="s.opacity"
+               />
+            }
+            @if (l.head; as h) {
+               <circle class="glow" [attr.cx]="h.x" [attr.cy]="h.y" r="12" />
+               <circle class="dot" [attr.cx]="h.x" [attr.cy]="h.y" r="5" />
+            }
+         </g>
+      }
+   </svg>
 }

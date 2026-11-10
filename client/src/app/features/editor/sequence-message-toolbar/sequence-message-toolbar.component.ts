@@ -12,47 +12,47 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
  * edit label, and delete. The parent positions the host via left/top bindings.
  */
 @Component({
-  selector: 'app-sequence-message-toolbar',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
-  templateUrl: './sequence-message-toolbar.component.html',
-  styleUrl: './sequence-message-toolbar.component.scss',
+   selector: 'app-sequence-message-toolbar',
+   standalone: true,
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [IconComponent, ColorSwatchesComponent, PopoverTriggerDirective],
+   templateUrl: './sequence-message-toolbar.component.html',
+   styleUrl: './sequence-message-toolbar.component.scss',
 })
 export class SequenceMessageToolbarComponent {
-  protected readonly inspector = inject(InspectorPanelService);
-  protected readonly store = inject(ProjectStore);
-  protected readonly message = computed(() => this.store.selectedMessage());
-  protected readonly canEdit = computed(() => this.store.canEdit());
-  protected readonly css = themeColorCss;
+   protected readonly inspector = inject(InspectorPanelService);
+   protected readonly store = inject(ProjectStore);
+   protected readonly message = computed(() => this.store.selectedMessage());
+   protected readonly canEdit = computed(() => this.store.canEdit());
+   protected readonly css = themeColorCss;
 
-  protected setColor(color: string): void {
-    const m = this.message();
-    if (m) void this.store.updateMessage(m.id, { color });
-  }
+   protected setColor(color: string): void {
+      const m = this.message();
+      if (m) void this.store.updateMessage(m.id, { color });
+   }
 
-  protected setStyle(style: SequenceMessageModel['style']): void {
-    const m = this.message();
-    if (m) void this.store.updateMessage(m.id, { style });
-  }
-  protected flip(): void {
-    const m = this.message();
-    if (m) {
-      void this.store.updateMessage(m.id, {
-        direction: m.direction === 'forward' ? 'reverse' : 'forward',
-      });
-    }
-  }
-  protected toggleWrap(): void {
-    const m = this.message();
-    if (m) void this.store.updateMessage(m.id, { wrap: m.wrap === false });
-  }
-  protected edit(): void {
-    const m = this.message();
-    if (m) this.store.requestMessageEdit(m.id);
-  }
-  protected remove(): void {
-    const m = this.message();
-    if (m) void this.store.deleteMessage(m.id);
-  }
+   protected setStyle(style: SequenceMessageModel['style']): void {
+      const m = this.message();
+      if (m) void this.store.updateMessage(m.id, { style });
+   }
+   protected flip(): void {
+      const m = this.message();
+      if (m) {
+         void this.store.updateMessage(m.id, {
+            direction: m.direction === 'forward' ? 'reverse' : 'forward',
+         });
+      }
+   }
+   protected toggleWrap(): void {
+      const m = this.message();
+      if (m) void this.store.updateMessage(m.id, { wrap: m.wrap === false });
+   }
+   protected edit(): void {
+      const m = this.message();
+      if (m) this.store.requestMessageEdit(m.id);
+   }
+   protected remove(): void {
+      const m = this.message();
+      if (m) void this.store.deleteMessage(m.id);
+   }
 }

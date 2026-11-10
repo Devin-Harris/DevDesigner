@@ -1,13 +1,13 @@
 @for (d of store.sequenceDiagrams(); track d.id) {
-  @if (!hiddenIds()?.has(d.id)) {
-    <app-sequence-diagram
-      [diagramId]="d.id"
-      [toWorld]="toWorld()"
-      [snap]="snap()"
-      [smartDrag]="smartDrag()"
-      [smartDragEnd]="smartDragEnd()"
-      [groupResize]="groupResize()"
-      [style.z-index]="layerZ()?.get(d.id) ?? null"
-    />
-  }
+   @if (!hiddenIds()?.has(d.id)) {
+      <app-sequence-diagram
+         [diagramId]="d.id"
+         [toWorld]="toWorld()"
+         [snap]="snap()"
+         [smartDrag]="smartDrag()"
+         [smartDragEnd]="smartDragEnd()"
+         [groupResize]="groupResize()"
+         [style.z-index]="layerZ()?.get(d.id) ?? null"
+      />
+   }
 }

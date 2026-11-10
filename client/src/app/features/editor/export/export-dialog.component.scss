@@ -1,75 +1,75 @@
 .dlg-title {
-  margin: 0 0 var(--dd-space-3);
-  font-family: var(--dd-display);
-  font-size: 18px;
-  font-weight: 700;
+   margin: 0 0 var(--dd-space-3);
+   font-family: var(--dd-display);
+   font-size: 18px;
+   font-weight: 700;
 }
 
 .dlg-body {
-  padding: 0 !important;
+   padding: 0 !important;
 }
 
 .hint {
-  margin: 0 0 var(--dd-space-2);
-  color: var(--dd-text-muted);
-  font-size: 13px;
+   margin: 0 0 var(--dd-space-2);
+   color: var(--dd-text-muted);
+   font-size: 13px;
 }
 
 .sql {
-  width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  font-family: var(--dd-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--dd-text);
-  background: var(--dd-surface-2);
-  border: 1px solid var(--dd-border);
-  border-radius: var(--dd-radius-sm);
-  padding: 10px 12px;
-  white-space: pre;
-  overflow: auto;
-  outline: none;
+   width: 100%;
+   box-sizing: border-box;
+   resize: vertical;
+   font-family: var(--dd-mono);
+   font-size: 12px;
+   line-height: 1.5;
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 10px 12px;
+   white-space: pre;
+   overflow: auto;
+   outline: none;
 
-  &:focus {
-    border-color: var(--dd-primary);
-  }
+   &:focus {
+      border-color: var(--dd-primary);
+   }
 }
 
 .dlg-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--dd-space-2);
-  padding: var(--dd-space-3) 0 0 !important;
-  margin: 0;
+   display: flex;
+   justify-content: flex-end;
+   gap: var(--dd-space-2);
+   padding: var(--dd-space-3) 0 0 !important;
+   margin: 0;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--dd-radius);
-  border: 1px solid var(--dd-border-strong);
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  --dd-icon-size: 17px;
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 36px;
+   padding: 0 14px;
+   border-radius: var(--dd-radius);
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 13px;
+   font-weight: 600;
+   cursor: pointer;
+   --dd-icon-size: 17px;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 
-  &.primary {
-    background: var(--dd-primary);
-    border-color: var(--dd-primary);
-    color: #fff;
-  }
-  &.primary:hover {
-    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
-  }
+   &.primary {
+      background: var(--dd-primary);
+      border-color: var(--dd-primary);
+      color: #fff;
+   }
+   &.primary:hover {
+      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+   }
 }
