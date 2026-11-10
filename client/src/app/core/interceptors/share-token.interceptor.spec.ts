@@ -20,7 +20,7 @@ describe('shareTokenInterceptor', () => {
 
    afterEach(() => backend.verify());
 
-   function headersOf(): Record<string, string | null> {
+   function headersOf(): { clientId: string | null; guestId: string | null; token: string | null } {
       http.post('/api/x', {}).subscribe();
       const req = backend.expectOne('/api/x');
       req.flush({});
