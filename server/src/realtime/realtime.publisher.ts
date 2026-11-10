@@ -8,6 +8,7 @@ import {
   type SchemaMutation,
 } from '@devdesigner/shared';
 import { bumpProjectRevision } from '../common/project-revision';
+import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
 
 /**
  * Thin façade feature services use to broadcast a persisted schema change to a
@@ -43,5 +44,15 @@ export class RealtimePublisher {
     bumpProjectRevision(projectId);
     const event: MutationBatchEvent = { projectId, originClientId, mutations };
     this.emitter.emit(PROJECT_MUTATIONS_EVENT, event);
+  }
+
+  /**
+   * Access to a project may have been taken away (link revoked, project deleted,
+   * ownership moved): the gateway re-checks the open sockets and drops the ones
+   * that lost it. With a token, only sockets that joined with that link are checked.
+   */
+  accessRevoked(projectId: string, token?: string): void {
+    const event: AccessRevokedEvent = token ? { projectId, token } : { projectId };
+    this.emitter.emit(ACCESS_REVOKED_EVENT, event);
   }
 }

@@ -25,7 +25,9 @@ describe('request array caps', () => {
   const points = (n: number) => Array.from({ length: n }, (_, i) => ({ x: i, y: i }));
 
   it('caps reorder ids and their length', async () => {
-    expect(await errors(ReorderElementsDto, { orderedElementIds: ids(MAX_REORDER_ELEMENTS) })).toEqual([]);
+    expect(
+      await errors(ReorderElementsDto, { orderedElementIds: ids(MAX_REORDER_ELEMENTS) }),
+    ).toEqual([]);
     expect(
       await errors(ReorderElementsDto, { orderedElementIds: ids(MAX_REORDER_ELEMENTS + 1) }),
     ).toEqual(['orderedElementIds']);
@@ -35,7 +37,9 @@ describe('request array caps', () => {
   });
 
   it('caps element points and relationship waypoints', async () => {
-    expect(await errors(UpdateElementPositionDto, { points: points(MAX_ELEMENT_POINTS) })).toEqual([]);
+    expect(await errors(UpdateElementPositionDto, { points: points(MAX_ELEMENT_POINTS) })).toEqual(
+      [],
+    );
     expect(
       await errors(UpdateElementPositionDto, { points: points(MAX_ELEMENT_POINTS + 1) }),
     ).toEqual(['points']);

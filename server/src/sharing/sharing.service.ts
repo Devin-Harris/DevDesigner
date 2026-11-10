@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { IsNull, Repository } from 'typeorm';
 import { AccessService } from '../access/access.service';
 import { ProjectsService } from '../projects/projects.service';
+import { RealtimePublisher } from '../realtime/realtime.publisher';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ShareLink } from './share-link.entity';
 
@@ -26,6 +27,7 @@ export class SharingService {
     private readonly access: AccessService,
     private readonly projects: ProjectsService,
     private readonly config: ConfigService,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   /** Owner creates a link. Returns the token and the full shareable URL. */
@@ -56,16 +58,21 @@ export class SharingService {
     return links.map((link) => this.toResponse(link));
   }
 
-  /** Owner revokes a link, invalidating it immediately. */
+  /**
+   * Owner revokes a link, invalidating it immediately: REST calls with the token fail
+   * from now on, and open sockets that joined with it are dropped.
+   */
   async revoke(projectId: string, linkId: string, userId: string | null): Promise<void> {
     await this.access.assertOwner(projectId, userId);
-    const result = await this.shareLinks.update(
-      { id: linkId, projectId },
-      { revokedAt: new Date() },
-    );
-    if (!result.affected) {
+    const link = await this.shareLinks.findOne({
+      where: { id: linkId, projectId },
+      select: { id: true, token: true },
+    });
+    if (!link) {
       throw new NotFoundException(`Share link ${linkId} not found.`);
     }
+    await this.shareLinks.update({ id: linkId, projectId }, { revokedAt: new Date() });
+    this.realtime.accessRevoked(projectId, link.token);
   }
 
   /** Resolve a token to the shared project graph for the account-free entry route. */

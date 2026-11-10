@@ -57,7 +57,11 @@ describe('project revisions', () => {
 });
 
 describe('ProjectsController graph ETag', () => {
-  const graph = { project: {}, schema: {}, accessLevel: 'OWNER' } as unknown as ProjectGraphResponse;
+  const graph = {
+    project: {},
+    schema: {},
+    accessLevel: 'OWNER',
+  } as unknown as ProjectGraphResponse;
   let service: { getGraph: jest.Mock; assertCanRead: jest.Mock };
   let controller: ProjectsController;
 

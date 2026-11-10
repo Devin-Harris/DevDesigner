@@ -83,9 +83,16 @@ export class ProjectsService {
     return this.projects.count({ where: { ownerId } });
   }
 
-  /** Reassign every project of `fromOwner` to `toOwner`; returns how many moved. */
+  /**
+   * Reassign every project of `fromOwner` to `toOwner`; returns how many moved.
+   * Sockets that were in those projects as `fromOwner` are re-checked (and dropped).
+   */
   async transferOwnership(fromOwner: string, toOwner: string): Promise<number> {
+    const moved = await this.projects.find({ where: { ownerId: fromOwner }, select: { id: true } });
     const result = await this.projects.update({ ownerId: fromOwner }, { ownerId: toOwner });
+    for (const { id } of moved) {
+      this.realtime.accessRevoked(id);
+    }
     return result.affected ?? 0;
   }
 
@@ -380,6 +387,8 @@ export class ProjectsService {
     }
     // Any tag issued before the delete must never match again.
     bumpProjectRevision(id);
+    // Collaborators still in the room lose access with the project.
+    this.realtime.accessRevoked(id);
   }
 
   /** Validate (type, size, SVG safety) and decode the images embedded in an import file. */

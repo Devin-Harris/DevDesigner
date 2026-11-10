@@ -12,7 +12,13 @@ import {
   type PresenceSelection,
   type RealtimeHandshakeAuth,
 } from '@devdesigner/shared';
-import { Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Logger,
+  NotFoundException,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
@@ -27,6 +33,22 @@ import type { Namespace, Socket } from 'socket.io';
 import { AccessService } from '../access/access.service';
 import { guestOwnerId } from '../auth/guest-id';
 import { AuthService } from '../auth/auth.service';
+import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
+import {
+  DEFLATE_THRESHOLD_BYTES,
+  MAX_SOCKETS_PER_IP,
+  MAX_SOCKETS_PER_PROJECT,
+  MAX_SOCKET_MESSAGE_BYTES,
+  REAUTHORIZE_INTERVAL_MS,
+  RelayLimiter,
+  allowRealtimeRequest,
+  allowedOrigins,
+  clientIp,
+  parseCursor,
+  parseLaser,
+  parsePresent,
+  parseSelection,
+} from './realtime-limits';
 
 /** Colors assigned round-robin to participants so cursors read distinctly. */
 const PRESENCE_PALETTE = [
@@ -41,9 +63,15 @@ const PRESENCE_PALETTE = [
 ];
 
 interface SocketData {
+  /** Set first, so a socket refused mid-handshake still releases its IP slot. */
+  ip: string;
   projectId: string;
   participant: Participant;
   clientId: string | null;
+  /** What the socket authenticated with, kept to re-check access later (M-2). */
+  token: string | null;
+  guestId: string | null;
+  limiter: RelayLimiter;
 }
 
 function roomOf(projectId: string): string {
@@ -61,25 +89,36 @@ function clientRoomOf(clientId: string): string {
 /** Client ids are random UUIDs (or short fallbacks); anything else is ignored. */
 const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
-function corsOrigins(): string[] {
-  const raw = process.env.CORS_ORIGIN ?? 'http://localhost:4242';
-  return raw.split(',').map((o) => o.trim());
-}
-
 /**
  * Realtime collaboration gateway (see the plan Part 2). Authorizes every socket
  * with the SAME AccessService the REST layer uses (owner via session cookie,
  * guest via share token), tracks per-project presence, relays cursors and
  * selections, and fans out server-authoritative schema mutations to the room.
  *
+ * Hardening (security M-2, M-3, L-1, L-6): handshakes from foreign origins are
+ * refused, sockets per IP and per project are capped, relay payloads are checked
+ * and rate limited per socket, and access is re-checked when a link is revoked,
+ * a project is deleted or changes owner, and every few minutes.
+ *
  * The gateway never persists or mutates schema data: writes go through REST and
  * are broadcast here after they succeed.
  */
 @WebSocketGateway({
   namespace: REALTIME_NAMESPACE,
-  cors: { origin: corsOrigins(), credentials: true },
+  // Evaluated per request, so a CORS_ORIGIN from .env applies too.
+  cors: {
+    origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) =>
+      cb(null, !origin || allowedOrigins().includes(origin)),
+    credentials: true,
+  },
+  // CORS headers do not apply to websocket upgrades: check Origin on the handshake.
+  allowRequest: allowRealtimeRequest,
+  maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
+  perMessageDeflate: { threshold: DEFLATE_THRESHOLD_BYTES },
 })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(RealtimeGateway.name);
 
   @WebSocketServer()
@@ -90,13 +129,35 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   /** Monotonic per-project counters for stable guest names and color rotation. */
   private readonly guestCounters = new Map<string, number>();
   private readonly colorCounters = new Map<string, number>();
+  /** Open sockets per client IP. */
+  private readonly perIp = new Map<string, number>();
+  private reauthorizeTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly access: AccessService,
     private readonly auth: AuthService,
   ) {}
 
+  onModuleInit(): void {
+    this.reauthorizeTimer = setInterval(() => void this.reauthorizeAll(), REAUTHORIZE_INTERVAL_MS);
+    this.reauthorizeTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.reauthorizeTimer) clearInterval(this.reauthorizeTimer);
+  }
+
   async handleConnection(client: Socket): Promise<void> {
+    const ip = clientIp(client.handshake.headers, client.handshake.address);
+    client.data = { ip } satisfies Partial<SocketData>;
+    const fromIp = (this.perIp.get(ip) ?? 0) + 1;
+    this.perIp.set(ip, fromIp);
+    if (fromIp > MAX_SOCKETS_PER_IP) {
+      this.logger.warn(`Refusing socket: ${fromIp} open from one address`);
+      client.disconnect(true);
+      return;
+    }
+
     const auth = (client.handshake.auth ?? {}) as Partial<RealtimeHandshakeAuth>;
     const projectId = typeof auth.projectId === 'string' ? auth.projectId : null;
     const token = typeof auth.token === 'string' ? auth.token : null;
@@ -106,6 +167,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         : null;
     const guestId = guestOwnerId(auth.guestId);
     if (!projectId) {
+      client.disconnect(true);
+      return;
+    }
+    if ((this.rooms.get(projectId)?.size ?? 0) >= MAX_SOCKETS_PER_PROJECT) {
+      this.logger.warn('Refusing socket: project room is full');
       client.disconnect(true);
       return;
     }
@@ -121,14 +187,32 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
 
     const participant = await this.buildParticipant(client.id, projectId, user, accessLevel);
-    client.data = { projectId, participant, clientId } satisfies SocketData;
+    if (!client.connected) {
+      return; // left while we were checking; handleDisconnect already ran
+    }
+    const data: SocketData = {
+      ip,
+      projectId,
+      participant,
+      clientId,
+      token,
+      guestId,
+      limiter: new RelayLimiter(),
+    };
+    client.data = data;
     await client.join(clientId ? [roomOf(projectId), clientRoomOf(clientId)] : roomOf(projectId));
     this.getRoom(projectId).set(client.id, participant);
     this.broadcastRoster(projectId);
   }
 
   handleDisconnect(client: Socket): void {
-    const data = client.data as SocketData | undefined;
+    const data = client.data as Partial<SocketData> | undefined;
+    if (data?.ip) {
+      const left = (this.perIp.get(data.ip) ?? 1) - 1;
+      if (left > 0) this.perIp.set(data.ip, left);
+      else this.perIp.delete(data.ip);
+    }
+    data?.limiter?.dispose();
     if (!data?.projectId) {
       return;
     }
@@ -143,32 +227,40 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(RT_EVENTS.cursor)
-  onCursor(@ConnectedSocket() client: Socket, @MessageBody() body: { x: number; y: number }): void {
-    const data = client.data as SocketData | undefined;
-    if (!data?.participant || typeof body?.x !== 'number' || typeof body?.y !== 'number') {
+  onCursor(@ConnectedSocket() client: Socket, @MessageBody() body: unknown): void {
+    const data = this.joined(client);
+    const cursor = parseCursor(body);
+    if (!data || !cursor) {
       return;
     }
-    const payload: PresenceCursor = { participantId: data.participant.id, x: body.x, y: body.y };
-    client.to(roomOf(data.projectId)).emit(RT_EVENTS.cursor, payload);
+    const payload: PresenceCursor = { participantId: data.participant.id, ...cursor };
+    data.limiter.relay(
+      'cursor',
+      () => client.to(roomOf(data.projectId)).emit(RT_EVENTS.cursor, payload),
+      false,
+    );
   }
 
   /** Relay a laser-pointer sample to the room. Ephemeral: never stored or persisted. */
   @SubscribeMessage(RT_EVENTS.laser)
-  onLaser(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: { x: number; y: number; end?: boolean },
-  ): void {
-    const data = client.data as SocketData | undefined;
-    if (!data?.participant || !Number.isFinite(body?.x) || !Number.isFinite(body?.y)) {
+  onLaser(@ConnectedSocket() client: Socket, @MessageBody() body: unknown): void {
+    const data = this.joined(client);
+    const sample = parseLaser(body);
+    if (!data || !sample) {
       return;
     }
     const payload: PresenceLaser = {
       participantId: data.participant.id,
-      x: body.x,
-      y: body.y,
-      end: body.end === true ? true : undefined,
+      x: sample.x,
+      y: sample.y,
+      end: sample.end ? true : undefined,
     };
-    client.to(roomOf(data.projectId)).emit(RT_EVENTS.laser, payload);
+    // A release must arrive (it ends the trail); plain samples may be dropped.
+    data.limiter.relay(
+      'laser',
+      () => client.to(roomOf(data.projectId)).emit(RT_EVENTS.laser, payload),
+      sample.end,
+    );
   }
 
   /**
@@ -176,59 +268,125 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
    * their roster entry so late joiners see it too; ephemeral, never persisted.
    */
   @SubscribeMessage(RT_EVENTS.present)
-  onPresent(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: { frameId: string | null; step?: number },
-  ): void {
-    const data = client.data as SocketData | undefined;
-    if (!data?.participant) {
+  onPresent(@ConnectedSocket() client: Socket, @MessageBody() body: unknown): void {
+    const data = this.joined(client);
+    const present = parsePresent(body);
+    if (!data || !present) {
       return;
     }
-    const frameId = typeof body?.frameId === 'string' ? body.frameId.slice(0, 100) : null;
-    const step = Number.isInteger(body?.step) ? Math.max(0, Math.min(50, body.step as number)) : 0;
-    data.participant.presenting = frameId ? { frameId, step } : null;
-    this.broadcastRoster(data.projectId);
+    // The roster carries the latest state, so an over-budget update is coalesced.
+    data.limiter.relay(
+      'present',
+      () => {
+        data.participant.presenting = present.frameId
+          ? { frameId: present.frameId, step: present.step }
+          : null;
+        this.broadcastRoster(data.projectId);
+      },
+      true,
+    );
   }
 
   @SubscribeMessage(RT_EVENTS.selection)
-  onSelection(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: { tableIds: string[]; relationshipIds: string[]; columnId?: string },
-  ): void {
-    const data = client.data as SocketData | undefined;
-    if (!data?.participant) {
+  onSelection(@ConnectedSocket() client: Socket, @MessageBody() body: unknown): void {
+    const data = this.joined(client);
+    const selection = parseSelection(body);
+    if (!data || !selection) {
       return;
     }
-    const payload: PresenceSelection = {
-      participantId: data.participant.id,
-      tableIds: Array.isArray(body?.tableIds) ? body.tableIds : [],
-      relationshipIds: Array.isArray(body?.relationshipIds) ? body.relationshipIds : [],
-      columnId: body?.columnId,
-    };
-    client.to(roomOf(data.projectId)).emit(RT_EVENTS.selection, payload);
+    const payload: PresenceSelection = { participantId: data.participant.id, ...selection };
+    // Peers must end on the latest selection, so an over-budget update is coalesced.
+    data.limiter.relay(
+      'selection',
+      () => client.to(roomOf(data.projectId)).emit(RT_EVENTS.selection, payload),
+      true,
+    );
   }
 
   /** Fan a persisted schema change out to the project room, minus the tab that made it. */
   @OnEvent(PROJECT_MUTATION_EVENT)
   handleMutation(event: MutationEvent): void {
-    this.toPeersOf(event.projectId, event.originClientId).emit(RT_EVENTS.mutation, event);
+    const { to, event: out } = this.peersOf(event);
+    to.emit(RT_EVENTS.mutation, out);
   }
 
   /** Fan many changes from one request out as one message. */
   @OnEvent(PROJECT_MUTATIONS_EVENT)
   handleMutations(event: MutationBatchEvent): void {
-    this.toPeersOf(event.projectId, event.originClientId).emit(RT_EVENTS.mutations, event);
+    const { to, event: out } = this.peersOf(event);
+    to.emit(RT_EVENTS.mutations, out);
+  }
+
+  /** Re-check the sockets a revocation may affect and drop the ones that lost access. */
+  @OnEvent(ACCESS_REVOKED_EVENT)
+  async handleAccessRevoked(event: AccessRevokedEvent): Promise<void> {
+    const sockets = this.socketsIn(event.projectId).filter(
+      (s) => !event.token || (s.data as SocketData).token === event.token,
+    );
+    await Promise.all(sockets.map((s) => this.reauthorize(s)));
+  }
+
+  /** Periodic re-check of every open socket (expired links and sessions, M-2). */
+  async reauthorizeAll(): Promise<void> {
+    for (const projectId of [...this.rooms.keys()]) {
+      for (const socket of this.socketsIn(projectId)) {
+        await this.reauthorize(socket);
+      }
+    }
   }
 
   /**
-   * The project room without the origin tab's sockets. The client still self-filters
-   * by originClientId as a safety net; this just saves sending it the echo.
+   * The project room without the origin tab's sockets. The origin id is then
+   * blanked so peers never learn each other's client ids (L-1); when it is not a
+   * valid id (no client room to exclude) it is kept so the client self-filter works.
    */
-  private toPeersOf(projectId: string, originClientId: string | null) {
-    const room = this.server.to(roomOf(projectId));
-    return originClientId && CLIENT_ID_PATTERN.test(originClientId)
-      ? room.except(clientRoomOf(originClientId))
-      : room;
+  private peersOf<E extends MutationEvent | MutationBatchEvent>(event: E) {
+    const room = this.server.to(roomOf(event.projectId));
+    const origin = event.originClientId;
+    if (origin && CLIENT_ID_PATTERN.test(origin)) {
+      return { to: room.except(clientRoomOf(origin)), event: { ...event, originClientId: null } };
+    }
+    return { to: room, event };
+  }
+
+  /** Re-resolve one socket's access: drop it if gone, update its roster level if changed. */
+  private async reauthorize(socket: Socket): Promise<void> {
+    const data = socket.data as SocketData | undefined;
+    if (!data?.participant) return;
+    // The handshake cookie is verified again, so an expired session no longer counts.
+    const user = this.auth.verifySession(socket.handshake.headers.cookie);
+    let level: AccessLevel;
+    try {
+      level = await this.access.resolveProjectAccess(
+        data.projectId,
+        user?.id ?? data.guestId,
+        data.token,
+      );
+    } catch (err) {
+      if (err instanceof ForbiddenException || err instanceof NotFoundException) {
+        socket.disconnect(true);
+      } else {
+        this.logger.warn(`Access re-check failed: ${(err as Error).message}`);
+      }
+      return;
+    }
+    if (level !== data.participant.accessLevel) {
+      data.participant.accessLevel = level;
+      data.participant.isOwner = level === 'OWNER';
+      this.broadcastRoster(data.projectId);
+    }
+  }
+
+  /** The socket's data once it has fully joined a project, else null. */
+  private joined(client: Socket): SocketData | null {
+    const data = client.data as SocketData | undefined;
+    return data?.participant ? data : null;
+  }
+
+  private socketsIn(projectId: string): Socket[] {
+    const ids = this.rooms.get(projectId);
+    if (!ids) return [];
+    return [...ids.keys()].map((id) => this.server.sockets.get(id)).filter((s): s is Socket => !!s);
   }
 
   private async buildParticipant(
@@ -241,7 +399,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     if (user) {
       const profile = await this.auth.me(user.id);
       // Never fall back to the email: the roster goes to every guest in the room.
-      const name = profile?.displayName?.trim() || (accessLevel === 'OWNER' ? 'Owner' : 'Collaborator');
+      const name =
+        profile?.displayName?.trim() || (accessLevel === 'OWNER' ? 'Owner' : 'Collaborator');
       return { id: socketId, name, color, accessLevel, isOwner: accessLevel === 'OWNER' };
     }
     const guestNumber = this.nextGuestNumber(projectId);
@@ -264,7 +423,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   private broadcastRoster(projectId: string): void {
-    const participants = [...this.getRoom(projectId).values()];
+    // Read without creating: the last socket leaving must not leave an empty room behind.
+    const participants = [...(this.rooms.get(projectId)?.values() ?? [])];
     this.server.to(roomOf(projectId)).emit(RT_EVENTS.roster, participants);
   }
 
