@@ -375,11 +375,10 @@ export class RealtimeGateway
     const user = this.auth.verifySession(socket.handshake.headers.cookie);
     let level: AccessLevel;
     try {
-      level = await this.access.resolveProjectAccess(
-        data.projectId,
-        user?.id ?? data.guestId,
-        data.token,
-      );
+      // Fresh: a re-check after a revocation must never see a cached grant.
+      level = await this.access.resolveProjectAccess(data.projectId, user?.id ?? data.guestId, data.token, {
+        fresh: true,
+      });
     } catch (err) {
       if (err instanceof ForbiddenException || err instanceof NotFoundException) {
         socket.disconnect(true);

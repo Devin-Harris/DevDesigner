@@ -152,6 +152,7 @@ export class ProjectsService {
     const saved = await this.projects.save(project);
     // Name/description/type/archived ride in the graph's project summary.
     bumpProjectRevision(id);
+    this.realtime.accessChanged(id);
     return toProjectSummary(saved);
   }
 

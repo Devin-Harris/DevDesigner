@@ -4,6 +4,7 @@ import { Project } from '../../projects/projects/project.entity';
 import { ShareLink } from '../sharing/share-link.entity';
 import { AccessService } from './access.service';
 import { EntityProjectResolver } from './entity-project-resolver';
+import { AccessCache } from './access-cache';
 import { ProjectAccessGuard } from './project-access.guard';
 
 /**
@@ -18,7 +19,7 @@ import { ProjectAccessGuard } from './project-access.guard';
   imports: [
     TypeOrmModule.forFeature([Project, ShareLink]),
   ],
-  providers: [AccessService, EntityProjectResolver, ProjectAccessGuard],
-  exports: [AccessService, EntityProjectResolver, ProjectAccessGuard],
+  providers: [AccessCache, AccessService, EntityProjectResolver, ProjectAccessGuard],
+  exports: [AccessCache, AccessService, EntityProjectResolver, ProjectAccessGuard],
 })
 export class AccessModule {}

@@ -20,10 +20,10 @@ describe('SharingService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
-  let access: { assertCanRead: jest.Mock };
+  let access: { assertCanRead: jest.Mock; shareLink: jest.Mock };
   let projects: { graph: jest.Mock };
   let config: { get: jest.Mock };
-  let realtime: { accessRevoked: jest.Mock };
+  let realtime: { accessRevoked: jest.Mock; accessChanged: jest.Mock };
   let service: SharingService;
 
   beforeEach(() => {
@@ -34,10 +34,24 @@ describe('SharingService', () => {
       findOne: jest.fn(),
       update: jest.fn(async () => ({ affected: 1 })),
     };
-    access = { assertCanRead: jest.fn().mockResolvedValue('EDIT') };
+    access = {
+      assertCanRead: jest.fn().mockResolvedValue('EDIT'),
+      // The real AccessService reads the link through its cache; here straight from the repo mock.
+      shareLink: jest.fn(async (token: string) => {
+        const row = (await shareLinks.findOne({ where: { token } })) as Partial<ShareLink> | null;
+        return row
+          ? {
+              projectId: row.projectId,
+              accessLevel: row.accessLevel,
+              expiresAt: row.expiresAt ? row.expiresAt.getTime() : null,
+              revoked: row.revokedAt != null,
+            }
+          : null;
+      }),
+    };
     projects = { graph: jest.fn() };
     config = { get: jest.fn().mockReturnValue('https://app.example.com') };
-    realtime = { accessRevoked: jest.fn() };
+    realtime = { accessRevoked: jest.fn(), accessChanged: jest.fn() };
     service = new SharingService(
       shareLinks as unknown as Repository<ShareLink>,
       access as unknown as AccessService,
@@ -53,6 +67,8 @@ describe('SharingService', () => {
     expect(response.accessLevel).toBe('EDIT');
     expect(response.url).toBe(`https://app.example.com/shared/${response.token}`);
     expect(response.revokedAt).toBeNull();
+    // The access cache forgets anything it knew about that token.
+    expect(realtime.accessChanged).toHaveBeenCalledWith('p1', response.token);
   });
 
   it('generates unique tokens across calls', async () => {

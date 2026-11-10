@@ -11,6 +11,7 @@ import { ProjectImageEntity } from '../../projects/canvas/images/project-image.e
 import { SequenceDiagramEntity } from '../../projects/canvas/sequence/sequence-diagram.entity';
 import { LifelineEntity } from '../../projects/canvas/sequence/lifeline.entity';
 import { SequenceMessageEntity } from '../../projects/canvas/sequence/sequence-message.entity';
+import { AccessCache } from './access-cache';
 
 /**
  * Entity -> project registry. Each kind says how to find the project a row
@@ -50,11 +51,17 @@ const isViaTable = (entry: Direct | ViaTable): entry is ViaTable => 'viaTable' i
 
 @Injectable()
 export class EntityProjectResolver {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly cache: AccessCache,
+  ) {}
 
   /** The project `id` (of `kind`) belongs to; 404 when there is no such row. */
   async projectIdOf(kind: ProjectEntityKind, id: string): Promise<string> {
     const entry: Direct | ViaTable = REGISTRY[kind];
+    const key = this.cache.childKey(kind, id);
+    const cached = kind === 'project' ? undefined : this.cache.children.get(key);
+    if (cached !== undefined) return cached;
     if (kind === 'project') {
       const found = await this.dataSource.getRepository(Project).exists({ where: { id } });
       if (!found) throw new NotFoundException(`Project ${id} not found.`);
@@ -69,6 +76,8 @@ export class EntityProjectResolver {
     if (!projectId) {
       throw new NotFoundException(`${entry.label} ${id} not found.`);
     }
+    // Rows never move to another project; deletes evict (AccessCache).
+    this.cache.children.set(key, projectId);
     return projectId;
   }
 

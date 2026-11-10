@@ -41,6 +41,8 @@ export interface EnvConfig {
   QUOTA_IMAGE_BYTES_PER_OWNER: number;
   QUOTA_IMAGE_BYTES_PER_PROJECT: number;
   QUOTA_IMPORT_MAX_IMAGES: number;
+  /** Lifetime of access-cache entries (project owner, share link); 0 = no cache. */
+  ACCESS_CACHE_TTL_MS: number;
   [key: string]: unknown;
 }
 
@@ -139,6 +141,7 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     QUOTA_IMAGE_BYTES_PER_OWNER: int('QUOTA_IMAGE_BYTES_PER_OWNER', 1024 ** 3, 0, 2 ** 50),
     QUOTA_IMAGE_BYTES_PER_PROJECT: int('QUOTA_IMAGE_BYTES_PER_PROJECT', 512 * 1024 ** 2, 0, 2 ** 50),
     QUOTA_IMPORT_MAX_IMAGES: int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
+    ACCESS_CACHE_TTL_MS: int('ACCESS_CACHE_TTL_MS', 30_000, 0, 600_000),
   };
 
   if (errors.length > 0) {

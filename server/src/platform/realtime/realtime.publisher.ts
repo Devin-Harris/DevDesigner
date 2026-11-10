@@ -9,7 +9,12 @@ import {
 } from '@devdesigner/shared';
 import { bumpProjectRevision } from '../http/project-revision';
 import { originClientId as originClientId_ } from '../http/request-context';
-import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
+import {
+  ACCESS_CHANGED_EVENT,
+  ACCESS_REVOKED_EVENT,
+  type AccessChangedEvent,
+  type AccessRevokedEvent,
+} from './access-events';
 
 /**
  * Thin façade feature services use to broadcast a persisted schema change to a
@@ -63,5 +68,11 @@ export class RealtimePublisher {
   accessRevoked(projectId: string, token?: string): void {
     const event: AccessRevokedEvent = token ? { projectId, token } : { projectId };
     this.emitter.emit(ACCESS_REVOKED_EVENT, event);
+  }
+
+  /** Access data changed but nobody lost access (link created, project updated): caches drop it. */
+  accessChanged(projectId: string, token?: string): void {
+    const event: AccessChangedEvent = token ? { projectId, token } : { projectId };
+    this.emitter.emit(ACCESS_CHANGED_EVENT, event);
   }
 }

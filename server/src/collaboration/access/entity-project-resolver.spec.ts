@@ -7,6 +7,8 @@ import { ColumnEntity } from '../../projects/schema/columns/column.entity';
 import { IndexEntity } from '../../projects/schema/indexes/index.entity';
 import { SequenceDiagramEntity } from '../../projects/canvas/sequence/sequence-diagram.entity';
 import { LifelineEntity } from '../../projects/canvas/sequence/lifeline.entity';
+import type { ConfigService } from '@nestjs/config';
+import { AccessCache } from './access-cache';
 
 /** The entity -> project registry against a real (in-memory) SQLite schema. */
 describe('EntityProjectResolver', () => {
@@ -22,7 +24,7 @@ describe('EntityProjectResolver', () => {
       synchronize: true,
     });
     await ds.initialize();
-    resolver = new EntityProjectResolver(ds);
+    resolver = new EntityProjectResolver(ds, new AccessCache({ get: () => 0 } as unknown as ConfigService));
     for (const name of ['A', 'B']) {
       const p = await ds.getRepository(Project).save({ name, ownerId: `owner-${name}` });
       const t = await ds.getRepository(TableEntity).save({ projectId: p.id, name: 't', x: 0, y: 0 });

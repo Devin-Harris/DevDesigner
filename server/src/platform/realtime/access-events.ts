@@ -11,3 +11,14 @@ export interface AccessRevokedEvent {
   /** Only sockets that joined with this share token are affected; absent = everyone. */
   token?: string;
 }
+
+/**
+ * In-process event: who may access a project changed without anyone losing access
+ * (a share link was created, the project row was updated). Only caches listen.
+ */
+export const ACCESS_CHANGED_EVENT = 'access.changed';
+
+export interface AccessChangedEvent {
+  projectId: string;
+  token?: string;
+}

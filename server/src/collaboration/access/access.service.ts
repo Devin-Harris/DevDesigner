@@ -6,6 +6,12 @@ import { Project } from '../../projects/projects/project.entity';
 import { ShareLink } from '../sharing/share-link.entity';
 import type { RequiredAccess } from './access-policy.types';
 import { EntityProjectResolver, type ProjectEntityKind } from './entity-project-resolver';
+import { AccessCache, type CachedShareLink } from './access-cache';
+
+/** `fresh: true` skips the access cache (realtime re-checks after a revocation). */
+export interface ResolveOptions {
+  fresh?: boolean;
+}
 
 /** Ids a write refers to, by kind (null/undefined/'' entries are ignored). */
 export type ProjectRefs = Partial<Record<ProjectEntityKind, ReadonlyArray<string | null | undefined>>>;
@@ -53,6 +59,7 @@ export class AccessService {
     @InjectRepository(ShareLink)
     private readonly shareLinks: Repository<ShareLink>,
     private readonly resolver: EntityProjectResolver,
+    private readonly cache: AccessCache,
   ) {}
 
   /**
@@ -86,15 +93,21 @@ export class AccessService {
     projectId: string,
     userId: string | null,
     shareToken: string | null = null,
+    options: ResolveOptions = {},
   ): Promise<AccessLevel> {
-    const project = await this.projects.findOne({
-      where: { id: projectId },
-      select: { id: true, ownerId: true },
-    });
-    if (!project) {
-      throw new NotFoundException(`Project ${projectId} not found.`);
+    let ownerId = options.fresh ? undefined : this.cache.owners.get(projectId);
+    if (ownerId === undefined) {
+      const project = await this.projects.findOne({
+        where: { id: projectId },
+        select: { id: true, ownerId: true },
+      });
+      if (!project) {
+        throw new NotFoundException(`Project ${projectId} not found.`);
+      }
+      ownerId = project.ownerId;
+      this.cache.owners.set(projectId, ownerId);
     }
-    return this.levelFor(project, userId, shareToken);
+    return this.levelFor({ id: projectId, ownerId }, userId, shareToken, options);
   }
 
   /**
@@ -110,6 +123,7 @@ export class AccessService {
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
+    this.cache.owners.set(projectId, project.ownerId);
     return { project, accessLevel: await this.levelFor(project, userId, shareToken) };
   }
 
@@ -117,6 +131,7 @@ export class AccessService {
     project: Pick<Project, 'id' | 'ownerId'>,
     userId: string | null,
     shareToken: string | null,
+    options: ResolveOptions = {},
   ): Promise<AccessLevel> {
     if (project.ownerId === null) {
       // Ownerless (legacy) projects are quarantined: nobody, not even a link, gets in.
@@ -126,7 +141,7 @@ export class AccessService {
       return 'OWNER';
     }
     if (shareToken) {
-      const level = await this.resolveShareToken(project.id, shareToken);
+      const level = await this.resolveShareToken(project.id, shareToken, options);
       if (level) {
         return level;
       }
@@ -141,15 +156,38 @@ export class AccessService {
   async resolveShareToken(
     projectId: string,
     token: string,
+    options: ResolveOptions = {},
   ): Promise<'EDIT' | 'VIEW' | null> {
-    const link = await this.shareLinks.findOne({ where: { token } });
-    if (!link || link.projectId !== projectId || link.revokedAt !== null) {
+    const link = await this.shareLink(token, options);
+    if (!link || link.projectId !== projectId || link.revoked) {
       return null;
     }
-    if (link.expiresAt !== null && link.expiresAt.getTime() <= Date.now()) {
+    if (link.expiresAt !== null && link.expiresAt <= Date.now()) {
       return null;
     }
     return link.accessLevel;
+  }
+
+  /**
+   * A share token's link (null when unknown), through the cache. Expiry is left to
+   * the caller so it is always judged against the current time.
+   */
+  async shareLink(token: string, options: ResolveOptions = {}): Promise<CachedShareLink | null> {
+    if (!options.fresh) {
+      const hit = this.cache.links.get(token);
+      if (hit !== undefined) return hit;
+    }
+    const row = await this.shareLinks.findOne({ where: { token } });
+    const link: CachedShareLink | null = row
+      ? {
+          projectId: row.projectId,
+          accessLevel: row.accessLevel as 'EDIT' | 'VIEW',
+          expiresAt: row.expiresAt ? row.expiresAt.getTime() : null,
+          revoked: row.revokedAt !== null,
+        }
+      : null;
+    this.cache.links.set(token, link);
+    return link;
   }
 
   /** Assert the caller may read the project (any resolvable level). */

@@ -4,6 +4,8 @@ import { AccessService, bindingRefs } from './access.service';
 import type { EntityProjectResolver } from './entity-project-resolver';
 import type { Project } from '../../projects/projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
+import type { ConfigService } from '@nestjs/config';
+import { AccessCache } from './access-cache';
 
 /**
  * Unit tests for the access-resolution layer (BUILD_INSTRUCTIONS.md sections 6/7).
@@ -25,6 +27,7 @@ describe('AccessService', () => {
       projects as unknown as Repository<Project>,
       shareLinks as unknown as Repository<ShareLink>,
       resolver as unknown as EntityProjectResolver,
+      new AccessCache({ get: () => 0 } as unknown as ConfigService),
     );
   });
 

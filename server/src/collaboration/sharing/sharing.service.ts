@@ -40,6 +40,7 @@ export class SharingService {
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
     });
     const saved = await this.shareLinks.save(link);
+    this.realtime.accessChanged(projectId, saved.token);
     return this.toResponse(saved);
   }
 
@@ -79,20 +80,15 @@ export class SharingService {
    * the graph (conditional GET /shared/:token). Throws like getSharedGraph.
    */
   async sharedAccess(token: string): Promise<{ projectId: string; accessLevel: AccessLevel }> {
-    const link = await this.resolveValidLink(token);
-    const accessLevel = await this.access.assertCanRead(link.projectId, null, token);
-    return { projectId: link.projectId, accessLevel };
-  }
-
-  private async resolveValidLink(token: string): Promise<ShareLink> {
-    const link = await this.shareLinks.findOne({ where: { token } });
-    if (!link || link.revokedAt !== null) {
+    const link = await this.access.shareLink(token);
+    if (!link || link.revoked) {
       throw new NotFoundException('This share link is no longer valid.');
     }
-    if (link.expiresAt !== null && link.expiresAt.getTime() <= Date.now()) {
+    if (link.expiresAt !== null && link.expiresAt <= Date.now()) {
       throw new NotFoundException('This share link has expired.');
     }
-    return link;
+    const accessLevel = await this.access.assertCanRead(link.projectId, null, token);
+    return { projectId: link.projectId, accessLevel };
   }
 
   private toResponse(link: ShareLink): ShareLinkResponse {
