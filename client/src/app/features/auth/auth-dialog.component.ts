@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal, type Writ
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { InputComponent } from '../../shared/ui/components/input/input.component';
 
 type Mode = 'login' | 'register';

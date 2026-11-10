@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { CreateShareLinkDto, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /**
  * Data service for the Sharing REST surface (BUILD_INSTRUCTIONS.md section 5).

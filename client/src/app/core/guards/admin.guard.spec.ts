@@ -9,7 +9,7 @@ import type {
    UrlSegment,
 } from '@angular/router';
 import type { CurrentUserResponse } from '@devdesigner/shared';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '../auth/auth.service';
 import { adminGuard } from './admin.guard';
 
 function setup(user: CurrentUserResponse | null, ready = true) {

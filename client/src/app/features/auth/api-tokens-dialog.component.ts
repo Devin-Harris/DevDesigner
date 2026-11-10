@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
-import { ApiClientService } from '../../core/services/api-client.service';
+import { ApiClientService } from '../../core/http/api-client.service';
 import { environment } from '../../../environments/environment';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { InputComponent } from '../../shared/ui/components/input/input.component';

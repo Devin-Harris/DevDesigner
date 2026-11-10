@@ -10,8 +10,8 @@ import {
    viewChild,
 } from '@angular/core';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
-import { ThemeService } from '../../core/services/theme.service';
-import { EditorActionsService, type CanvasItemRef } from '../../core/services/editor-actions.service';
+import { ThemeService } from '../../core/theme/theme.service';
+import { EditorActionsService, type CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
 import { ProjectsStore } from '../../stores/projects.store';
 import { ProjectStore } from '../../stores/project.store';
 import { ProjectsOverlayService } from '../workspace/projects-overlay/projects-overlay.service';

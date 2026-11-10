@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type { ColumnModel, CreateColumnDto, ReorderColumnsDto, UpdateColumnDto } from '@devdesigner/shared';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /** Granular column endpoints (BUILD_INSTRUCTIONS.md section 5). */
 @Injectable({ providedIn: 'root' })

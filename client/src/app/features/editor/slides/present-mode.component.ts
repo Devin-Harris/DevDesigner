@@ -14,8 +14,8 @@ import {
    viewChild,
 } from '@angular/core';
 import type { SlideEasing } from '@devdesigner/shared';
-import { LOCAL_LASER, LaserService } from '../../../core/services/laser.service';
-import { RealtimeService } from '../../../core/services/realtime.service';
+import { LOCAL_LASER, LaserService } from '../../../core/realtime/laser.service';
+import { RealtimeService } from '../../../core/realtime/realtime.service';
 import { notifySignal } from '../../../shared/helpers/signals';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { MorphStage } from './morph-stage';

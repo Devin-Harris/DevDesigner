@@ -34,7 +34,7 @@ import {
    themeToken,
    type SlideTheme,
 } from '@devdesigner/shared';
-import { EditorActionsService } from '../../../core/services/editor-actions.service';
+import { EditorActionsService } from '../../../core/editor-bridge/editor-actions.service';
 import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../canvas/helpers/shape-render.helper';
 import { RichTextSessionService } from '../../../core/services/rich-text-session.service';
 import { clearRunKeys, isPlainRuns, patchRuns, plainOf, runsOrPlain } from '../canvas/helpers/rich-text.helper';

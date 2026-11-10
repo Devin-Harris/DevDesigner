@@ -1,7 +1,7 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { ShareSessionService } from '../services/share-session.service';
+import { ShareSessionService } from '../../auth/share-session.service';
 import { shareTokenInterceptor } from './share-token.interceptor';
 
 describe('shareTokenInterceptor', () => {

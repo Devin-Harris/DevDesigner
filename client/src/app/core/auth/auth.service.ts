@@ -1,7 +1,7 @@
 import { computed, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { CurrentUserResponse, LoginDto, RegisterDto } from '@devdesigner/shared';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /**
  * Client-side auth state and actions. The session lives in an httpOnly cookie the

@@ -27,7 +27,7 @@ import { ProjectsApiService } from '../core/services/projects-api.service';
 import { RelationshipsApiService } from '../core/services/relationships-api.service';
 import { SequenceApiService } from '../core/services/sequence-api.service';
 import { ShareLinksApiService } from '../core/services/share-links-api.service';
-import { ShareSessionService } from '../core/services/share-session.service';
+import { ShareSessionService } from '../core/auth/share-session.service';
 import { TablesApiService } from '../core/services/tables-api.service';
 import { ProjectStore } from './project.store';
 

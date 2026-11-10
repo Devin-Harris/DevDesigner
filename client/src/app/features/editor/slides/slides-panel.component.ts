@@ -65,8 +65,8 @@ import {
    type ThemeFilePart,
    type ThemeFontToken,
 } from '@devdesigner/shared';
-import { ThemeService } from '../../../core/services/theme.service';
-import { UserThemesService } from '../../../core/services/user-themes.service';
+import { ThemeService } from '../../../core/theme/theme.service';
+import { UserThemesService } from '../../../core/theme/user-themes.service';
 import { CheckboxComponent } from '../../../shared/ui/components/checkbox/checkbox.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';

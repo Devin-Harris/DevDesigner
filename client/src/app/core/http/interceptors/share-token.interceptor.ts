@@ -1,6 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { ShareSessionService } from '../services/share-session.service';
+import { ShareSessionService } from '../../auth/share-session.service';
 
 /**
  * Attach the anonymous share token (when in shared mode), the guest id and this

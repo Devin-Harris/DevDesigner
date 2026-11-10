@@ -16,7 +16,7 @@ import {
    type UpdateProjectDto,
    type UpdateViewportDto,
 } from '@devdesigner/shared';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /**
  * Data service for the Projects REST surface (BUILD_INSTRUCTIONS.md section 5).

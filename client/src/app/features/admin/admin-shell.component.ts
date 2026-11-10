@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 
 /** Entry of the admin feature: left rail plus the active admin page. */

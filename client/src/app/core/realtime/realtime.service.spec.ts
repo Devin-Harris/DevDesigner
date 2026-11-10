@@ -4,7 +4,7 @@ import { RT_EVENTS, type Participant } from '@devdesigner/shared';
 import { ProjectStore } from '../../stores/project.store';
 import { LaserService } from './laser.service';
 import { RealtimeService } from './realtime.service';
-import { ShareSessionService } from './share-session.service';
+import { ShareSessionService } from '../auth/share-session.service';
 
 const handlers = new Map<string, (arg?: unknown) => void>();
 const fakeSocket = {

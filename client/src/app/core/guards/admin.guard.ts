@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import type { CanActivateFn, CanMatchFn } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Admin-only routes (`canMatch` and `canActivate`). Waits for the session hydration so a

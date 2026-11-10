@@ -1,6 +1,6 @@
 import { ErrorHandler, Provider } from '@angular/core';
 import * as Sentry from '@sentry/angular';
-import { environment } from '../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 const SCRUBBED_HEADERS = ['authorization', 'cookie', 'x-share-token', 'x-guest-id'];
 

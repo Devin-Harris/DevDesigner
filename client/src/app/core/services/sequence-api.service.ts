@@ -13,7 +13,7 @@ import type {
    UpdateSequenceMessageDto,
    UpdateSequenceMessagePositionDto,
 } from '@devdesigner/shared';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /** Granular sequence-diagram endpoints (diagrams, lifelines, messages). */
 @Injectable({ providedIn: 'root' })

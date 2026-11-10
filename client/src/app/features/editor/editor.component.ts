@@ -17,7 +17,7 @@ import { PenOptionsBarComponent } from './pen-options-bar/pen-options-bar.compon
 import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './pen-options-bar/models/pen-limits.constants';
 import { PenPrefsService } from './pen-options-bar/services/pen-prefs.service';
 import { InspectorPanelService } from './inspector-panel.service';
-import type { CanvasItemRef } from '../../core/services/editor-actions.service';
+import type { CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -72,9 +72,9 @@ import {
    toInner,
    toOuter,
 } from './canvas/helpers/slide-zoom.helper';
-import { LOCAL_LASER, LaserService } from '../../core/services/laser.service';
-import { RealtimeService } from '../../core/services/realtime.service';
-import { type DeckSummary, EditorActionsService } from '../../core/services/editor-actions.service';
+import { LOCAL_LASER, LaserService } from '../../core/realtime/laser.service';
+import { RealtimeService } from '../../core/realtime/realtime.service';
+import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
 import type { ShapeView } from './canvas/models/shape-view.model';
 import { ProjectFileService } from '../../core/services/project-file.service';
@@ -83,7 +83,7 @@ import { ElementImagesService } from '../../core/services/element-images.service
 import { MediaActionsService } from '../../core/services/media-actions.service';
 import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
 import { ProjectsStore } from '../../stores/projects.store';
-import { ThemeService } from '../../core/services/theme.service';
+import { ThemeService } from '../../core/theme/theme.service';
 import {
    ProjectStore,
    elementToCreateDto,

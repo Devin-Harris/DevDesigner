@@ -9,7 +9,7 @@ import {
    type UploadImageResponse,
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
-import { ApiClientService } from './api-client.service';
+import { ApiClientService } from '../http/api-client.service';
 
 /** What a file is: a still picture, an animated GIF, or a video. */
 export type MediaKind = 'image' | 'gif' | 'video';

@@ -3,10 +3,10 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { withCredentialsInterceptor } from './core/interceptors/with-credentials.interceptor';
-import { shareTokenInterceptor } from './core/interceptors/share-token.interceptor';
+import { withCredentialsInterceptor } from './core/http/interceptors/with-credentials.interceptor';
+import { shareTokenInterceptor } from './core/http/interceptors/share-token.interceptor';
 import { sandboxInterceptor } from './core/sandbox/sandbox.interceptor';
-import { provideSentry } from './core/sentry';
+import { provideSentry } from './core/telemetry/sentry';
 import { FontMetricsService } from './features/editor/services/font-metrics.service';
 
 /**

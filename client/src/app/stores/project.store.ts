@@ -60,7 +60,7 @@ import { RelationshipsApiService } from '../core/services/relationships-api.serv
 import { TablesApiService } from '../core/services/tables-api.service';
 import { SequenceApiService } from '../core/services/sequence-api.service';
 import { ShareLinksApiService } from '../core/services/share-links-api.service';
-import { ShareSessionService } from '../core/services/share-session.service';
+import { ShareSessionService } from '../core/auth/share-session.service';
 import { isSandboxId } from '../core/sandbox/sandbox-backend.service';
 import { sameItems, sameMap, sameSet } from '../shared/helpers/equality';
 import { readSavedViewport, saveViewport } from './viewport-storage';

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { LaserService } from '../../../core/services/laser.service';
+import { LaserService } from '../../../core/realtime/laser.service';
 import { ProjectStore } from '../../../stores/project.store';
 
 /** Every laser is red, regardless of whose it is. */

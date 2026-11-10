@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../stores/project.store';
-import { EditorActionsService } from '../../../core/services/editor-actions.service';
+import { EditorActionsService } from '../../../core/editor-bridge/editor-actions.service';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';

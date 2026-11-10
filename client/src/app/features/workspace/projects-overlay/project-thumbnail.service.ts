@@ -13,7 +13,7 @@ import {
 import { contentForFrame } from '../../editor/canvas/helpers/frame-contents.helper';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectsApiService } from '../../../core/services/projects-api.service';
-import { ThemeService } from '../../../core/services/theme.service';
+import { ThemeService } from '../../../core/theme/theme.service';
 import { buildDiagramSvg } from '../../editor/export/diagram-svg.helper';
 
 /** What a Projects dialog card should show for one project. */

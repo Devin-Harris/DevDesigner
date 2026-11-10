@@ -15,7 +15,7 @@ import {
 import { environment } from '../../../environments/environment';
 import { ProjectStore } from '../../stores/project.store';
 import { LaserService } from './laser.service';
-import { ShareSessionService } from './share-session.service';
+import { ShareSessionService } from '../auth/share-session.service';
 
 /** A remote participant's cursor tagged with their roster color and name. */
 export interface RemoteCursor extends PresenceCursor {
