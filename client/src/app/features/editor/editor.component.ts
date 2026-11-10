@@ -1,3 +1,4 @@
+import { CanvasSnapService } from './services/canvas-snap.service';
 import type { SequenceDiagramModel } from '@devdesigner/shared';
 import { CanvasViewService } from './services/canvas-view.service';
 import { EditorToolService } from './services/editor-tool.service';
@@ -56,7 +57,7 @@ import {
    sequenceDiagramRect,
    masterOf,
 } from '@devdesigner/shared';
-import { inBlock, type SlideView, toInner, toOuter } from './helpers/slide-zoom.helper';
+import { inBlock, toInner } from './helpers/slide-zoom.helper';
 import { LOCAL_LASER, LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
@@ -105,7 +106,6 @@ import {
    elementBox,
    elementIntersectsRect,
    hitTestElement,
-   isPathElement,
    tableBox,
    toRelative,
 } from './helpers/element-geometry.helper';
@@ -121,7 +121,7 @@ import {
    SURFACE_FILL,
 } from './helpers/render';
 import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from './helpers/text-metrics';
-import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './features/canvas/helpers/smart-guides.helper';
+import { type SmartSnap } from './helpers/smart-guides.helper';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
 import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
@@ -189,8 +189,6 @@ interface GroupResize {
 
 /** Element kinds that can contain other items (a lone selection aligns to these). */
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
-const GRID_SNAP_KEY = 'dd-grid-snap';
-const SMART_GUIDES_KEY = 'dd-smart-guides';
 
 function readFlag(key: string, fallback: boolean): boolean {
    try {
@@ -198,22 +196,6 @@ function readFlag(key: string, fallback: boolean): boolean {
       return v == null ? fallback : v === '1';
    } catch {
       return fallback;
-   }
-}
-
-function readStoredSmartGuides(): boolean {
-   try {
-      return globalThis.localStorage?.getItem(SMART_GUIDES_KEY) === '1';
-   } catch {
-      return false;
-   }
-}
-
-function readStoredGrid(): boolean {
-   try {
-      return globalThis.localStorage?.getItem(GRID_SNAP_KEY) === '1';
-   } catch {
-      return false;
    }
 }
 
@@ -277,11 +259,13 @@ function readStoredGrid(): boolean {
       RelationshipLinkService,
       EditorToolService,
       CanvasViewService,
+      CanvasSnapService,
    ],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly snap = inject(CanvasSnapService);
    protected readonly canvasView = inject(CanvasViewService);
    protected readonly tools = inject(EditorToolService);
    protected readonly relLink = inject(RelationshipLinkService);
@@ -366,7 +350,7 @@ export class EditorComponent {
     * three. Each presentation is a self-contained set at its own spot.
     */
    /** World-space box of each presentation's dashed outline (list + frame + settings, as laid out in slideSets). */
-   private presentationOutlineBoxes(): { frameId: string; box: Box }[] {
+   presentationOutlineBoxes(): { frameId: string; box: Box }[] {
       const gap = EditorComponent.PANEL_GAP;
       const zoom = this.store.viewport().zoom;
       const pad = Math.max(EditorComponent.PANEL_PAD, EditorComponent.PANEL_MIN_PAD_PX / zoom);
@@ -536,68 +520,6 @@ export class EditorComponent {
          }
       }
       return rings;
-   });
-
-   readonly gridSnap = signal(readStoredGrid());
-   /** Snap drags to nearby items' edges, centers and spacing (Figma-style guides). */
-   protected readonly smartGuides = signal(readStoredSmartGuides());
-   /** What the moving selection snaps against, captured when a drag starts. */
-   private smartBase: { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null = null;
-   /** Guides for the current drag, in world (or slide-inner) coordinates. */
-   private readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView } | null>(null);
-   /** The current drag's guides in canvas-screen px, for the overlay. */
-   protected readonly smartGuideMarks = computed(() => {
-      const st = this.smartSnapState();
-      if (!st) return null;
-      const v = this.store.viewport();
-      const sp = (x: number, y: number) => {
-         const p = st.view ? toOuter(st.view, { x, y }) : { x, y };
-         return { x: p.x * v.zoom + v.x, y: p.y * v.zoom + v.y };
-      };
-      const seg = (axis: 'x' | 'y', pos: number, a: number, b: number) => {
-         const p = axis === 'x' ? sp(pos, a) : sp(a, pos);
-         const q = axis === 'x' ? sp(pos, b) : sp(b, pos);
-         return { x1: p.x, y1: p.y, x2: q.x, y2: q.y };
-      };
-      return {
-         lines: st.snap.guides.map((g) => seg(g.axis, g.pos, g.from, g.to)),
-         gaps: st.snap.gaps.map((g) => {
-            // A gap along x is a horizontal segment at y = cross.
-            const s = seg(g.axis === 'x' ? 'y' : 'x', g.cross, g.a, g.b);
-            const label = String(Math.round(g.b - g.a));
-            const horiz = g.axis === 'x';
-            const lx = (s.x1 + s.x2) / 2;
-            const ly = (s.y1 + s.y2) / 2;
-            const len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
-            // Room the label needs along the line (text width, or its height when vertical).
-            const half = horiz ? label.length * 3.2 + 4 : 9;
-            const T = 3; // end-tick half length
-            const ticks = horiz
-               ? [
-                    { x1: s.x1, y1: s.y1 - T, x2: s.x1, y2: s.y1 + T },
-                    { x1: s.x2, y1: s.y2 - T, x2: s.x2, y2: s.y2 + T },
-                 ]
-               : [
-                    { x1: s.x1 - T, y1: s.y1, x2: s.x1 + T, y2: s.y1 },
-                    { x1: s.x2 - T, y1: s.y2, x2: s.x2 + T, y2: s.y2 },
-                 ];
-            if (len > 2 * half + 6) {
-               // Two lines: element -> label, label -> next element.
-               const segs = horiz
-                  ? [
-                       { x1: s.x1, y1: ly, x2: lx - half, y2: ly },
-                       { x1: lx + half, y1: ly, x2: s.x2, y2: ly },
-                    ]
-                  : [
-                       { x1: lx, y1: s.y1, x2: lx, y2: ly - half },
-                       { x1: lx, y1: ly + half, x2: lx, y2: s.y2 },
-                    ];
-               return { segs: [...segs, ...ticks], label, lx, ly };
-            }
-            // Too tight for the label inline: keep the line whole and set the label beside it.
-            return { segs: [s, ...ticks], label, lx: horiz ? lx : lx + half + 4, ly: horiz ? ly - 9 : ly };
-         }),
-      };
    });
 
    /** The image element being cropped inline (crop overlay), while it still exists. */
@@ -1047,6 +969,7 @@ export class EditorComponent {
    private drawAnchor = { x: 0, y: 0 };
 
    constructor() {
+      this.snap.connect(this);
       this.canvasView.connect(this);
       this.tableDrag.connect(this);
       this.cellEditors.connect(this);
@@ -1355,23 +1278,6 @@ export class EditorComponent {
          }
          lastSelection = key;
       });
-      effect(() => {
-         const on = this.smartGuides();
-         try {
-            globalThis.localStorage?.setItem(SMART_GUIDES_KEY, on ? '1' : '0');
-         } catch {
-            // ignore storage errors
-         }
-      });
-      // Persist the grid-snap toggle across refreshes.
-      effect(() => {
-         const on = this.gridSnap();
-         try {
-            globalThis.localStorage?.setItem(GRID_SNAP_KEY, on ? '1' : '0');
-         } catch {
-            // ignore storage errors
-         }
-      });
    }
 
    /** Open the owner share dialog (create/list/revoke VIEW/EDIT links). */
@@ -1386,9 +1292,6 @@ export class EditorComponent {
          data: { projectId },
       });
    }
-
-   /** Snap a world coordinate to the grid when grid-snap is enabled, else pass through. */
-   protected readonly snapWorld = (n: number): number => (this.gridSnap() ? snapToGrid(n) : n);
 
    // --- canvas pointer (pan / marquee) ---
 
@@ -1516,7 +1419,7 @@ export class EditorComponent {
       const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x - NODE_WIDTH / 2);
       let y = Math.round(world.y - 12);
-      if (this.gridSnap()) {
+      if (this.snap.gridSnap()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }
@@ -1528,7 +1431,7 @@ export class EditorComponent {
       const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x);
       let y = Math.round(world.y);
-      if (this.gridSnap()) {
+      if (this.snap.gridSnap()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }
@@ -1647,8 +1550,8 @@ export class EditorComponent {
       event: PointerEvent
    ): void {
       const world = this.viewport.toWorld(event.clientX, event.clientY);
-      const x = this.gridSnap() ? snapToGrid(world.x) : world.x;
-      const y = this.gridSnap() ? snapToGrid(world.y) : world.y;
+      const x = this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
+      const y = this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
       const type = tool as ElementType;
       const sticky = this.store.elementStyle();
       // Frames keep their own quiet look; they don't inherit the last-used shape style.
@@ -1774,7 +1677,7 @@ export class EditorComponent {
       const view = this.canvasView.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
       const raw = this.viewport.toWorldRaw(clientX, clientY);
       const world = view ? toInner(view, raw) : raw;
-      const snap = this.gridSnap();
+      const snap = this.snap.gridSnap();
       if (draft.type === 'freedraw') {
          const pt = toRelative(draft, world);
          this.tools.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
@@ -1806,7 +1709,7 @@ export class EditorComponent {
             const py = draft.y + uy * len;
             const smart = bindBox
                ? null
-               : this.smartEdges(
+               : this.snap.smartEdges(
                     draft.id,
                     spanOf(px, py),
                     Math.abs(ux) > 1e-6 ? [px] : [],
@@ -1824,17 +1727,19 @@ export class EditorComponent {
                   Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
                if (pick !== ly)
                   Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
-               this.smartSnapState.set(smart.guides.length ? { snap: smart, view: this.smartBase?.view } : null);
+               this.snap.smartSnapState.set(
+                  smart.guides.length ? { snap: smart, view: this.snap.smartBase?.view } : null
+               );
             } else {
-               if (bindBox) this.smartSnapState.set(null);
+               if (bindBox) this.snap.smartSnapState.set(null);
                if (snap) len = snapToGrid(len);
             }
             end = { x: Math.round(ux * len), y: Math.round(uy * len) };
          } else {
             const smart = bindBox
                ? null
-               : this.smartEdges(draft.id, spanOf(world.x, world.y), [world.x], [world.y], space);
-            if (bindBox) this.smartSnapState.set(null);
+               : this.snap.smartEdges(draft.id, spanOf(world.x, world.y), [world.x], [world.y], space);
+            if (bindBox) this.snap.smartSnapState.set(null);
             const ex = smart?.snappedX ? world.x + smart.ox : snap ? snapToGrid(world.x) : world.x;
             const ey = smart?.snappedY ? world.y + smart.oy : snap ? snapToGrid(world.y) : world.y;
             end = { x: ex - draft.x, y: ey - draft.y };
@@ -2350,7 +2255,7 @@ export class EditorComponent {
          } else {
             sx = sy;
          }
-      } else if (this.gridSnap() && !ev.altKey) {
+      } else if (this.snap.gridSnap() && !ev.altKey) {
          // Land the dragged edge(s) on the grid.
          if (horiz) {
             sx = right ? (snapToGrid(b.x0 + W * sx) - b.x0) / W : (b.x1 - snapToGrid(b.x1 - W * sx)) / W;
@@ -2810,10 +2715,17 @@ export class EditorComponent {
       }
       this.gesture.movingItems.set(true);
       let { dx, dy } = this.gesture.dragDelta(clientX, clientY);
-      const smart = this.smartDelta(g.id, g.others.keys(), g.tables?.keys() ?? [], dx, dy, g.sequences?.keys() ?? []);
+      const smart = this.snap.smartDelta(
+         g.id,
+         g.others.keys(),
+         g.tables?.keys() ?? [],
+         dx,
+         dy,
+         g.sequences?.keys() ?? []
+      );
       dx += smart?.ox ?? 0;
       dy += smart?.oy ?? 0;
-      const grid = this.gridSnap();
+      const grid = this.snap.gridSnap();
       const elements = new Map<string, { x: number; y: number }>();
       for (const [id, start] of g.others) {
          const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
@@ -2873,7 +2785,7 @@ export class EditorComponent {
             return;
          }
          let width = Math.max(24, s.width + (left ? -dx : dx) * factor);
-         if (this.gridSnap()) {
+         if (this.snap.gridSnap()) {
             width = Math.max(24, snapToGrid(width));
          }
          const wrapped: CanvasElementModel = { ...resized, wrap: true };
@@ -2912,7 +2824,7 @@ export class EditorComponent {
             const h = s.height * scale + (smart.snappedY ? (top ? -smart.oy : smart.oy) : 0);
             // Follow whichever edge snapped (X wins when both did).
             scale = Math.max(minScale, smart.snappedX ? w / s.width : h / s.height);
-         } else if (this.gridSnap()) {
+         } else if (this.snap.gridSnap()) {
             // Snap one dimension and derive the other so the ratio survives snapping.
             scale = Math.max(minScale, snapToGrid(s.width * scale) / s.width);
          }
@@ -2926,9 +2838,9 @@ export class EditorComponent {
          const smart =
             ev.altKey || resized?.type === 'text' ? null : this.resizeSnap(g.id, s, left, top, width, height);
          if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox));
-         else if (this.gridSnap()) width = Math.max(8, snapToGrid(width));
+         else if (this.snap.gridSnap()) width = Math.max(8, snapToGrid(width));
          if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy));
-         else if (this.gridSnap()) height = Math.max(minH, snapToGrid(height));
+         else if (this.snap.gridSnap()) height = Math.max(minH, snapToGrid(height));
       }
 
       let x: number;
@@ -3018,7 +2930,7 @@ export class EditorComponent {
       const x0 = left ? s.x + s.width - width : s.x;
       const y0 = top ? s.y + s.height - height : s.y;
       const box = { x0, y0, x1: x0 + width, y1: y0 + height };
-      return this.smartEdges(id, box, [left ? box.x0 : box.x1], [top ? box.y0 : box.y1]);
+      return this.snap.smartEdges(id, box, [left ? box.x0 : box.x1], [top ? box.y0 : box.y1]);
    }
 
    private rotateElement(ev: PointerEvent): void {
@@ -3075,7 +2987,12 @@ export class EditorComponent {
                y1: Math.max(py, anchor.y),
             };
             // Snap along the locked direction: slide the point until its x or y hits a guide.
-            const smart = this.smartEdges(g.id, box, Math.abs(ux) > 1e-6 ? [px] : [], Math.abs(uy) > 1e-6 ? [py] : []);
+            const smart = this.snap.smartEdges(
+               g.id,
+               box,
+               Math.abs(ux) > 1e-6 ? [px] : [],
+               Math.abs(uy) > 1e-6 ? [py] : []
+            );
             const lx = smart?.snappedX ? (px + smart.ox - anchor.x) / ux : null;
             const ly = smart?.snappedY ? (py + smart.oy - anchor.y) / uy : null;
             const pick = [lx, ly]
@@ -3087,8 +3004,10 @@ export class EditorComponent {
                   Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
                if (smart && pick !== ly)
                   Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
-               this.smartSnapState.set(smart?.guides.length ? { snap: smart, view: this.smartBase?.view } : null);
-            } else if (this.gridSnap()) {
+               this.snap.smartSnapState.set(
+                  smart?.guides.length ? { snap: smart, view: this.snap.smartBase?.view } : null
+               );
+            } else if (this.snap.gridSnap()) {
                len = snapToGrid(len);
             }
             world = { x: Math.round(anchor.x + ux * len), y: Math.round(anchor.y + uy * len) };
@@ -3099,15 +3018,15 @@ export class EditorComponent {
                x1: Math.max(world.x, anchor.x),
                y1: Math.max(world.y, anchor.y),
             };
-            const smart = this.smartEdges(g.id, box, [world.x], [world.y]);
-            const grid = this.gridSnap();
+            const smart = this.snap.smartEdges(g.id, box, [world.x], [world.y]);
+            const grid = this.snap.gridSnap();
             world = {
                x: smart?.snappedX ? world.x + smart.ox : grid ? snapToGrid(world.x) : Math.round(world.x),
                y: smart?.snappedY ? world.y + smart.oy : grid ? snapToGrid(world.y) : Math.round(world.y),
             };
          }
       } else {
-         this.smartSnapState.set(null);
+         this.snap.smartSnapState.set(null);
       }
       pts[idx] = world;
       // Points are stored relative to the element origin (its first point).
@@ -3529,7 +3448,7 @@ export class EditorComponent {
          }
          this.gesture.movingItems.set(true);
          let { dx, dy } = this.gesture.dragDelta(event.clientX, event.clientY);
-         const smart = this.smartDelta(
+         const smart = this.snap.smartDelta(
             this.tableDrag.dragTableId,
             this.tableDrag.nodeExtras?.elements.keys() ?? [],
             this.tableDrag.multiDragStart.keys(),
@@ -3539,7 +3458,7 @@ export class EditorComponent {
          );
          dx += smart?.ox ?? 0;
          dy += smart?.oy ?? 0;
-         const grid = this.gridSnap();
+         const grid = this.snap.gridSnap();
          // The tables' actual (snapped) move, so routes carried with them stay attached.
          let moved: { x: number; y: number } | null = null;
          const tables = new Map<string, { x: number; y: number }>();
@@ -3639,7 +3558,7 @@ export class EditorComponent {
       this.relLink.clearLinking();
       this.gesture.gestureScale = 1;
       // Sequence diagrams run their own drags and clear this after their final shift.
-      if (moved || edgeGesture) this.smartDragEnd();
+      if (moved || edgeGesture) this.snap.smartDragEnd();
       if (moved) {
          this.placement.releaseDroppedOutOfSlides(moved);
       }
@@ -4335,27 +4254,11 @@ export class EditorComponent {
       const v = this.store.viewport();
       let x = Math.round((rect.width / 2 - v.x) / v.zoom - NODE_WIDTH / 2);
       let y = Math.round((rect.height / 2 - v.y) / v.zoom - 40);
-      if (this.gridSnap()) {
+      if (this.snap.gridSnap()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }
       void this.store.addTable(x, y);
-   }
-
-   /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
-   protected readonly minimapView = computed(() => {
-      const v = this.store.viewport();
-      const rect = this.viewport.canvasSize();
-      return {
-         x0: -v.x / v.zoom,
-         y0: -v.y / v.zoom,
-         x1: (rect.width - v.x) / v.zoom,
-         y1: (rect.height - v.y) / v.zoom,
-      };
-   });
-
-   protected toggleGrid(): void {
-      this.gridSnap.update((v) => !v);
    }
 
    /** Element types a "fill / stroke for all" applies to. */
@@ -4387,146 +4290,6 @@ export class EditorComponent {
             }
          }
       });
-   }
-
-   /** Smart-guide hooks handed to sequence diagrams, which run their own drags. */
-   protected readonly smartDrag = (
-      diagramId: string,
-      items: { diagrams: Iterable<string>; elements: Iterable<string>; tables: Iterable<string> },
-      dx: number,
-      dy: number
-   ): SmartSnap | null => this.smartDelta(diagramId, items.elements, items.tables, dx, dy, items.diagrams);
-
-   protected readonly smartDragEnd = (): void => {
-      this.smartBase = null;
-      this.smartSnapState.set(null);
-   };
-
-   protected toggleSmartGuides(): void {
-      this.smartGuides.update((v) => !v);
-   }
-
-   /**
-    * Smart-guide correction for a drag by (dx, dy) of the given items, grabbed by
-    * `grabbedId`. Targets are the visible items nearest the selection in the same
-    * space (the canvas, or the grabbed item's slide, whose frame counts too).
-    */
-   private smartDelta(
-      grabbedId: string,
-      elementIds: Iterable<string>,
-      tableIds: Iterable<string>,
-      dx: number,
-      dy: number,
-      diagramIds: Iterable<string> = []
-   ): SmartSnap | null {
-      if (!this.smartGuides()) {
-         this.smartSnapState.set(null);
-         return null;
-      }
-      const base = this.ensureSmartBase(grabbedId, elementIds, tableIds, diagramIds);
-      if (!base) return null;
-      const moved = { x0: base.box.x0 + dx, y0: base.box.y0 + dy, x1: base.box.x1 + dx, y1: base.box.y1 + dy };
-      const parts = base.parts.map((b) => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }));
-      const snap = smartSnap(
-         moved,
-         base.targets,
-         this.store.viewport().zoom * this.canvasView.itemScale(grabbedId),
-         parts
-      );
-      // Shift constrains the drag to one axis; don't let a snap pull it off.
-      if (this.gesture.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
-      if (this.gesture.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
-      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
-      return snap;
-   }
-
-   /**
-    * Smart-guide correction for a resize / endpoint drag of one element: only the
-    * moving edge positions `xs` / `ys` (world coords) snap. `box` spans the guides.
-    */
-   private smartEdges(
-      id: string,
-      box: Box,
-      xs: number[],
-      ys: number[],
-      draft?: { ctx: string | null; view?: SlideView }
-   ): SmartSnap | null {
-      if (!this.smartGuides()) {
-         this.smartSnapState.set(null);
-         return null;
-      }
-      const base = this.ensureSmartBase(id, [id], [], [], draft ? { ...draft, box } : undefined);
-      if (!base) return null;
-      const scale = draft ? (draft.view?.scale ?? 1) : this.canvasView.itemScale(id);
-      const snap = smartSnapEdges(box, xs, ys, base.targets, this.store.viewport().zoom * scale);
-      this.smartSnapState.set(snap.guides.length ? { snap, view: base.view } : null);
-      return snap;
-   }
-
-   /** Snap targets for a gesture on the given items, built once per gesture. */
-   private ensureSmartBase(
-      grabbedId: string,
-      elementIds: Iterable<string>,
-      tableIds: Iterable<string>,
-      diagramIds: Iterable<string> = [],
-      draft?: { box: Box; ctx: string | null; view?: SlideView }
-   ): { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null {
-      if (!this.smartBase) {
-         const moving = new Set([...elementIds, ...tableIds, ...diagramIds]);
-         const els = this.store.elements();
-         const tables = this.store.tables();
-         const diagrams = this.store.sequenceDiagrams();
-         const lifelines = this.store.lifelines();
-         const messages = this.store.sequenceMessages();
-         const grabbed =
-            els.find((e) => e.id === grabbedId) ??
-            tables.find((t) => t.id === grabbedId) ??
-            diagrams.find((d) => d.id === grabbedId);
-         // A shape being drawn isn't in the store yet: it brings its own box and space.
-         const ctx = draft ? draft.ctx : (grabbed?.slideId ?? null);
-         const boxes: Box[] = draft ? [draft.box] : [];
-         for (const e of els) if (moving.has(e.id)) boxes.push(elementBox(e));
-         for (const t of tables) if (moving.has(t.id)) boxes.push(tableBox(t));
-         const diagramBoxes = new Map<string, Box>();
-         for (const d of diagrams) {
-            const b = sequenceDiagramBox(d, lifelines, messages);
-            if (b) diagramBoxes.set(d.id, b);
-            if (b && moving.has(d.id)) boxes.push(b);
-         }
-         if (!boxes.length) return null;
-         const box = {
-            x0: Math.min(...boxes.map((b) => b.x0)),
-            y0: Math.min(...boxes.map((b) => b.y0)),
-            x1: Math.max(...boxes.map((b) => b.x1)),
-            y1: Math.max(...boxes.map((b) => b.y1)),
-         };
-         const all: Box[] = [];
-         for (const e of els) {
-            // Lines/arrows count (their box edges are their ends); freehand strokes don't.
-            if (moving.has(e.id) || (isPathElement(e.type) && e.type !== 'line' && e.type !== 'arrow')) continue;
-            if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(elementBox(e));
-         }
-         for (const t of tables) {
-            if (!moving.has(t.id) && (t.slideId ?? null) === ctx) all.push(tableBox(t));
-         }
-         for (const d of diagrams) {
-            const b = diagramBoxes.get(d.id);
-            if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
-         }
-         // A presentation's dashed outline (around its panels and frame) is a snap target too.
-         for (const p of this.presentationOutlineBoxes()) {
-            if (ctx === null || p.frameId === ctx) all.push(p.box);
-         }
-         const view = draft
-            ? draft.view && draft.view.scale !== 1
-               ? draft.view
-               : undefined
-            : this.canvasView.itemScale(grabbedId) !== 1
-              ? this.canvasView.viewOf(grabbedId)
-              : undefined;
-         this.smartBase = { box, parts: boxes, targets: snapTargets(box, all, ctx ? null : this.minimapView()), view };
-      }
-      return this.smartBase;
    }
 
    // --- alignment ---

@@ -1,4 +1,4 @@
-import type { Box } from '../../../models/geometry.model';
+import type { Box } from '../models/geometry.model';
 import { smartSnap, smartSnapEdges, snapTargets } from './smart-guides.helper';
 
 const box = (x0: number, y0: number, w = 100, h = 50): Box => ({ x0, y0, x1: x0 + w, y1: y0 + h });

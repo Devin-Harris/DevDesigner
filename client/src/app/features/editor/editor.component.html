@@ -98,7 +98,7 @@
                         [selected]="store.selectedTableIds().includes(table.id)"
                         [editable]="store.canEdit()"
                         [fkColumnIds]="store.foreignKeyColumnIds()"
-                        [snap]="snapWorld"
+                        [snap]="snap.snapWorld"
                         (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
                         (handleDown)="relLink.onHandleDown($event)"
                         (handleUp)="relLink.onHandleUp($event)"
@@ -107,9 +107,9 @@
                   <dd-canvas-sequence
                      [diagrams]="store.sequenceDiagrams()"
                      [toWorld]="z.toWorld"
-                     [snap]="snapWorld"
-                     [smartDrag]="smartDrag"
-                     [smartDragEnd]="smartDragEnd"
+                     [snap]="snap.snapWorld"
+                     [smartDrag]="snap.smartDrag"
+                     [smartDragEnd]="snap.smartDragEnd"
                      [groupResize]="startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
                      [layerZ]="canvasView.diagramLayers().z"
@@ -172,7 +172,7 @@
                [selected]="store.selectedTableIds().includes(table.id)"
                [editable]="store.canEdit()"
                [fkColumnIds]="store.foreignKeyColumnIds()"
-               [snap]="snapWorld"
+               [snap]="snap.snapWorld"
                (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
                (handleDown)="relLink.onHandleDown($event)"
                (handleUp)="relLink.onHandleUp($event)"
@@ -183,9 +183,9 @@
          <dd-canvas-sequence
             [diagrams]="store.sequenceDiagrams()"
             [toWorld]="viewport.toWorldPoint"
-            [snap]="snapWorld"
-            [smartDrag]="smartDrag"
-            [smartDragEnd]="smartDragEnd"
+            [snap]="snap.snapWorld"
+            [smartDrag]="snap.smartDrag"
+            [smartDragEnd]="snap.smartDragEnd"
             [groupResize]="startGroupResize"
             [hiddenIds]="canvasView.outerHiddenDiagramIds()"
             [layerZ]="canvasView.diagramLayers().z"
@@ -260,7 +260,7 @@
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
             [items]="canvasView.minimapItems()"
-            [view]="minimapView()"
+            [view]="viewport.minimapView()"
             (panTo)="viewport.panToWorld($event)"
          ></dd-minimap>
       }
@@ -271,8 +271,8 @@
          [disabled]="!store.canEdit() || !store.projectId()"
          [zoomLabel]="viewport.zoomLabel()"
          [saveLabel]="saveLabel()"
-         [gridSnap]="gridSnap()"
-         [smartGuides]="smartGuides()"
+         [gridSnap]="snap.gridSnap()"
+         [smartGuides]="snap.smartGuides()"
          [minimap]="showMinimap()"
          (toggleMinimap)="toggleMinimap()"
          [canAlign]="alignToContainer() || !!croppingElement()"
@@ -295,8 +295,8 @@
          (zoomSelection)="viewport.zoomToSelection()"
          (setHome)="viewport.setHome()"
          (clearHome)="viewport.clearHome()"
-         (toggleGrid)="toggleGrid()"
-         (toggleSmartGuides)="toggleSmartGuides()"
+         (toggleGrid)="snap.toggleGrid()"
+         (toggleSmartGuides)="snap.toggleSmartGuides()"
          (align)="onAlign($event)"
          (exportSql)="exporter.openSqlExport()"
          (exportImage)="exporter.onExportImage($event)"
@@ -918,7 +918,7 @@
          ></dd-element-floating-toolbar>
       }
 
-      @if (smartGuideMarks(); as sg) {
+      @if (snap.smartGuideMarks(); as sg) {
          <svg class="smart-guides">
             @for (l of sg.lines; track $index) {
                <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />

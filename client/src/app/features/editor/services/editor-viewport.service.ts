@@ -1,4 +1,4 @@
-import { DestroyRef, ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
+import { DestroyRef, type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
 import { presentationOf, type SequenceDiagramModel } from '@devdesigner/shared';
 import { inBlock, type SlideView, toInner } from '../helpers/slide-zoom.helper';
 import { ProjectStore } from '../state/project/project.store';
@@ -272,4 +272,16 @@ export class EditorViewportService {
       const worldY = (centerY - v.y) / v.zoom;
       this.store.setViewport(centerX - worldX * newZoom, centerY - worldY * newZoom, newZoom);
    }
+
+   /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
+   readonly minimapView = computed(() => {
+      const v = this.store.viewport();
+      const rect = this.canvasSize();
+      return {
+         x0: -v.x / v.zoom,
+         y0: -v.y / v.zoom,
+         x1: (rect.width - v.x) / v.zoom,
+         y1: (rect.height - v.y) / v.zoom,
+      };
+   });
 }

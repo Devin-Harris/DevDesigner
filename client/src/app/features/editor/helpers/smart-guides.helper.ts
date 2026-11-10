@@ -1,4 +1,4 @@
-import type { Box } from '../../../models/geometry.model';
+import type { Box } from '../models/geometry.model';
 
 /** An alignment line: at `x = pos` (axis 'x') or `y = pos` (axis 'y'), spanning `from..to`. */
 export interface AlignGuide {
