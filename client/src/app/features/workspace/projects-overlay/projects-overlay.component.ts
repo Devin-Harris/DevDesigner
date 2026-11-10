@@ -117,15 +117,16 @@ export class ProjectsOverlayComponent {
       this.toggleCheck(project, event);
       return;
     }
-    // Only the thumbnail opens the project; the rest of the card just
-    // moves the keyboard highlight (the name double-clicks to rename).
-    if ((event.target as HTMLElement).closest('.project-thumb')) {
+    // Plain click opens. On the name, wait briefly so a double-click can
+    // rename instead (startRename cancels the pending open).
+    if (!(event.target as HTMLElement).closest('.name-row')) {
       this.select(project);
-    } else {
-      this.checked.set(new Set());
-      this.cursorId.set(project.id);
-      this.resetAnchor(project.id);
+      return;
     }
+    this.openTimer = setTimeout(() => {
+      this.openTimer = null;
+      this.select(project);
+    }, 250);
   }
 
   private cancelPendingOpen(): void {
@@ -278,7 +279,9 @@ export class ProjectsOverlayComponent {
   /** Click on empty space in the list (not on a card) drops the selection. */
   protected onListClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('.card')) return;
-    if (this.checked().size > 0) this.clearChecked();
+    // Drop the highlight too, so no card keeps a ring after deselecting.
+    this.cursorId.set(null);
+    this.clearChecked();
   }
 
   protected selectAll(): void {

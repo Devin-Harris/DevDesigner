@@ -395,8 +395,6 @@
 }
 
 .card {
-  cursor: default;
-}
-.project-thumb {
   cursor: pointer;
+  user-select: none;
 }

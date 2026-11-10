@@ -1,6 +1,16 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { resolveThemedElements, resolveThemedSequences, type CanvasElementModel, type ProjectSummary } from '@devdesigner/shared';
+import {
+  layoutOf,
+  masterOf,
+  resolveThemedElements,
+  resolveThemedSequences,
+  slideSequence,
+  type CanvasElementModel,
+  type ProjectSummary,
+  type SchemaModel,
+} from '@devdesigner/shared';
+import { contentForFrame } from '../../editor/canvas/helpers/frame-contents.helper';
 import { ElementImagesService } from '../../../core/services/element-images.service';
 import { ProjectsService } from '../../../core/services/projects.service';
 import { ThemeService } from '../../../core/services/theme.service';
@@ -112,14 +122,16 @@ export class ProjectThumbnailService {
         state = { status: 'empty' };
       } else {
         const imageData = await this.imageData(schema.elements);
-        const built = buildDiagramSvg(
-          schema.tables,
-          schema.relationships,
-          resolveThemedElements(schema.elements),
-          sequences,
-          undefined,
-          imageData,
-        );
+        const built =
+          this.firstSlideSvg(schema, imageData) ??
+          buildDiagramSvg(
+            schema.tables,
+            schema.relationships,
+            resolveThemedElements(schema.elements),
+            sequences,
+            undefined,
+            imageData,
+          );
         const blob = new Blob([built.svg], { type: 'image/svg+xml' });
         state = { status: 'ready', url: URL.createObjectURL(blob) };
       }
@@ -128,6 +140,40 @@ export class ProjectThumbnailService {
       state = entry.state.status === 'ready' ? entry.state : { status: 'error' };
     }
     this.publish(id, state);
+  }
+
+  /**
+   * A project with a presentation previews as its first slide, rendered the
+   * way the slide player draws it (cropped to the frame, with its layout and
+   * master underneath). Drawing the whole canvas instead shrinks the slides to
+   * specks among layouts and off-slide scratch content.
+   */
+  private firstSlideSvg(schema: SchemaModel, imageData: ReadonlyMap<string, string>) {
+    const frames = slideSequence(schema.elements.filter((e) => e.type === 'frame'));
+    const frame = frames.find((f) => !f.slide?.layout && !f.slide?.master && !f.slide?.hidden);
+    if (!frame) return null;
+    const mine = contentForFrame(
+      frame.id,
+      true,
+      schema.elements,
+      schema.tables,
+      schema.sequenceDiagrams,
+      schema.lifelines,
+      schema.sequenceMessages,
+      layoutOf(frame, frames)?.id,
+      masterOf(frame, frames)?.id,
+    );
+    return buildDiagramSvg(
+      mine.tables,
+      schema.relationships,
+      resolveThemedElements(mine.elements, schema.elements),
+      resolveThemedSequences(
+        { diagrams: mine.diagrams, lifelines: mine.lifelines, messages: mine.messages },
+        schema.elements,
+      ),
+      { x: frame.x, y: frame.y, width: frame.width, height: frame.height, frameId: frame.id },
+      imageData,
+    );
   }
 
   private publish(id: string, state: ThumbState): void {
