@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -17,6 +18,8 @@ import type { ProjectType } from '@devdesigner/shared';
  * has full access.
  */
 @Entity('projects')
+// The Projects list: WHERE ownerId = ? AND archived = ? ORDER BY updatedAt DESC.
+@Index('idx_projects_owner_archived_updated', ['ownerId', 'archived', 'updatedAt'])
 export class Project {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
