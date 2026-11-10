@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import type { ViewportModel } from '@devdesigner/shared';
 import { LaserService } from '../../../../../../core/realtime/laser.service';
-import { ProjectStore } from '../../../../state/project/project.store';
 
 /** Every laser is red, regardless of whose it is. */
 const LASER_COLOR = '#ff2d2d';
@@ -33,11 +33,13 @@ interface LaserDraw {
    styleUrl: './laser-layer.component.scss',
 })
 export class LaserLayerComponent {
-   private readonly store = inject(ProjectStore);
    private readonly laser = inject(LaserService);
 
+   /** The project viewport the world-space trails are projected through. */
+   readonly viewport = input.required<ViewportModel>();
+
    protected readonly lasers = computed<LaserDraw[]>(() => {
-      const v = this.store.viewport();
+      const v = this.viewport();
       const project = (p: { x: number; y: number }) => ({
          x: p.x * v.zoom + v.x,
          y: p.y * v.zoom + v.y,

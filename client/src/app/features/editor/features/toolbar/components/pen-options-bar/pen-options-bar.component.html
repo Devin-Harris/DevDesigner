@@ -2,7 +2,7 @@
    <button
       class="sw"
       type="button"
-      [class.on]="c === current()"
+      [class.on]="c === strokeColor()"
       [style.background]="css(c)"
       (click)="setColor(c); pen.eraser.set(false)"
       [attr.aria-label]="'Pen color ' + c"

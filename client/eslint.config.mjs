@@ -134,9 +134,7 @@ const boundaryPolicies = [
 const boundaryExceptions = [
    // Pass 3 (C3.x): presentational editor components that still inject ProjectStore. Each gets
    // inputs/outputs when its sub-feature is decomposed.
-   'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
    'src/app/features/editor/features/canvas/components/canvas-shapes/canvas-shapes.component.ts',
-   'src/app/features/editor/features/collaboration/components/laser-layer/laser-layer.component.ts',
    'src/app/features/editor/features/elements/components/element-floating-toolbar/element-floating-toolbar.component.ts',
    'src/app/features/editor/features/elements/components/element-inspector/element-inspector.component.ts',
    'src/app/features/editor/features/elements/components/image-crop-overlay/image-crop-overlay.component.ts',
@@ -144,13 +142,12 @@ const boundaryExceptions = [
    'src/app/features/editor/features/erd/components/relationship-inspector/relationship-inspector.component.ts',
    'src/app/features/editor/features/erd/components/table-node/table-node.component.ts',
    'src/app/features/editor/features/erd/components/table-toolbar/table-toolbar.component.ts',
-   'src/app/features/editor/features/sequence-diagram/components/sequence-diagram-toolbar/sequence-diagram-toolbar.component.ts',
    'src/app/features/editor/features/sequence-diagram/components/sequence-inspector/sequence-inspector.component.ts',
    'src/app/features/editor/features/sequence-diagram/components/sequence-message-toolbar/sequence-message-toolbar.component.ts',
    'src/app/features/editor/features/sequence-diagram/components/sequence-participant-toolbar/sequence-participant-toolbar.component.ts',
-   'src/app/features/editor/features/toolbar/components/pen-options-bar/pen-options-bar.component.ts',
-   // (canvas-sequence above also composes the sequence-diagram entry: Pass 3 adds canvas.component, which
-   // composes sub-feature entries instead.)
+   // canvas-sequence no longer reads the store (C3.7) but composes the sequence-diagram entry, a sibling
+   // sub-feature: Pass 3 adds canvas.component, which composes sub-feature entries instead.
+   'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
 
    // Pass 3 (§4.1 #1, C3.3): core services that still know the editor. realtime splits into a socket
    // transport + an editor-side sync service; editor-actions takes its ExportImageFormat type from models.

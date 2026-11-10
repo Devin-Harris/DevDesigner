@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import type { SequenceDiagramModel } from '@devdesigner/shared';
 import {
    SequenceDiagramComponent,
    type SmartDragEndFn,
@@ -23,7 +23,8 @@ type SnapFn = (n: number) => number;
    styleUrl: './canvas-sequence.component.scss',
 })
 export class CanvasSequenceComponent {
-   protected readonly store = inject(ProjectStore);
+   /** The project's sequence diagrams. */
+   readonly diagrams = input.required<readonly SequenceDiagramModel[]>();
 
    /** Screen→world mapping supplied by the editor (for drag-connect drop targets). */
    readonly toWorld = input<WorldFn | null>(null);

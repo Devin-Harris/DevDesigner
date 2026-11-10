@@ -1,4 +1,4 @@
-@for (d of store.sequenceDiagrams(); track d.id) {
+@for (d of diagrams(); track d.id) {
    @if (!hiddenIds()?.has(d.id)) {
       <dd-sequence-diagram
          [diagramId]="d.id"

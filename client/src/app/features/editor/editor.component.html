@@ -105,6 +105,7 @@
                      ></dd-table-node>
                   }
                   <dd-canvas-sequence
+                     [diagrams]="store.sequenceDiagrams()"
                      [toWorld]="z.toWorld"
                      [snap]="snapWorld"
                      [smartDrag]="smartDrag"
@@ -180,6 +181,7 @@
 
          <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
          <dd-canvas-sequence
+            [diagrams]="store.sequenceDiagrams()"
             [toWorld]="toWorldPoint"
             [snap]="snapWorld"
             [smartDrag]="smartDrag"
@@ -242,7 +244,7 @@
       <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
-      <dd-laser-layer></dd-laser-layer>
+      <dd-laser-layer [viewport]="store.viewport()"></dd-laser-layer>
       @if (activeTool() === 'laser') {
          <div
             class="laser-capture"
@@ -319,6 +321,8 @@
          <dd-pen-options-bar
             class="pen-bar"
             [class.low]="!!focusedDeck() || toolbarPosTop()"
+            [strokeColor]="store.elementStyle().strokeColor"
+            (colorChange)="store.setElementStyle({ strokeColor: $event })"
             (pointerdown)="$event.stopPropagation()"
          />
       }
@@ -992,10 +996,13 @@
 
       @if (sequenceDiagramToolbar(); as dt) {
          <dd-sequence-diagram-toolbar
+            [diagram]="store.selectedDiagram()"
+            [canEdit]="store.canEdit()"
             [style.left.px]="dt.left"
             [style.top.px]="dt.top"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
+            (diagramPatch)="store.updateSequenceConfig($event.id, $event.patch)"
          ></dd-sequence-diagram-toolbar>
       }
 
