@@ -1,6 +1,7 @@
 // Client ESLint flat config (Angular). Run with `npm run lint -w client` (ng lint).
 // Pass 0 guardrails (docs/audits/03-code-cleanliness.md §7): every rule is a WARNING except
-// `@typescript-eslint/no-explicit-any`. Rules are flipped to error as each later pass clears them.
+// `@typescript-eslint/no-explicit-any` and (since pass 2.7) `boundaries/dependencies`. Rules are flipped
+// to error as each later pass clears them.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
@@ -27,44 +28,70 @@ function warnOnly(configs) {
 }
 
 // ---------------------------------------------------------------------------
-// Boundaries (§2 A5/A17 + folder-structure import rules, as far as the current folders allow).
+// Boundaries (§2 A5/A17 + folder-structure import rules) over the pass-2 tree (§4.3).
 // Element types are matched against paths relative to client/ (first match wins, so the most
-// specific descriptors come first).
+// specific descriptors come first). The rule is an ERROR since pass 2.7; the files that still break
+// it on purpose are listed in `boundaryExceptions` below, each with the pass that removes it.
 // ---------------------------------------------------------------------------
 const boundaryElements = [
    { type: 'shared-ui', pattern: 'src/app/shared/ui', partialMatch: false },
+   { type: 'shared-feature', pattern: 'src/app/shared/features/*', capture: ['feature'], partialMatch: false },
    { type: 'shared', pattern: 'src/app/shared', partialMatch: false },
    { type: 'core', pattern: 'src/app/core', partialMatch: false },
-   { type: 'stores', pattern: 'src/app/stores', partialMatch: false },
+   // Presentational components anywhere in the editor (sub-feature `components/` and editor/shared/components).
+   {
+      type: 'editor-component',
+      pattern: 'src/app/features/editor/features/*/**/components/*',
+      capture: ['sub'],
+      partialMatch: false,
+   },
+   { type: 'editor-component', pattern: 'src/app/features/editor/shared/components/*', partialMatch: false },
+   { type: 'editor-sub', pattern: 'src/app/features/editor/features/*', capture: ['sub'], partialMatch: false },
+   { type: 'editor-state', pattern: 'src/app/features/editor/state', partialMatch: false },
+   // Editor-level parts shared by the entry and every sub-feature (§4.3).
+   { type: 'editor-base', pattern: 'src/app/features/editor/helpers', partialMatch: false },
+   { type: 'editor-base', pattern: 'src/app/features/editor/models', partialMatch: false },
+   { type: 'editor-base', pattern: 'src/app/features/editor/services', partialMatch: false },
+   { type: 'editor-base', pattern: 'src/app/features/editor/shared', partialMatch: false },
+   // The editor entry (editor.component.*) and its public barrel (index.ts).
    { type: 'editor', pattern: 'src/app/features/editor', partialMatch: false },
    { type: 'feature', pattern: 'src/app/features/*', capture: ['feature'], partialMatch: false },
    { type: 'environments', pattern: 'src/environments', partialMatch: false },
 ];
 
+const EDITOR_INTERNALS = ['editor-component', 'editor-sub', 'editor-state', 'editor-base'];
+const EDITOR_ALL = ['editor', ...EDITOR_INTERNALS];
+
 const boundaryPolicies = [
    {
       from: { element: { type: 'core' } },
-      disallow: { to: { element: { types: ['feature', 'editor', 'stores'] } } },
-      message: 'core/ is app-wide infrastructure: it must not import features or stores (A17).',
+      disallow: { to: { element: { types: ['feature', 'shared-feature', ...EDITOR_ALL] } } },
+      message: 'core/ is app-wide infrastructure: it must not import features (A17).',
    },
    {
       from: { element: { type: 'shared-ui' } },
-      disallow: { to: { element: { types: ['core', 'shared', 'feature', 'editor', 'stores'] } } },
+      disallow: { to: { element: { types: ['core', 'shared', 'shared-feature', 'feature', ...EDITOR_ALL] } } },
       message: 'shared/ui is the domain-agnostic design system: it imports nothing app-specific (A4/A17).',
    },
    {
-      from: { element: { type: 'shared' } },
-      disallow: { to: { element: { types: ['feature', 'editor', 'stores'] } } },
-      message: 'shared/ must not import features or stores (A17).',
+      from: { element: { types: ['shared', 'shared-feature'] } },
+      disallow: { to: { element: { types: ['feature', ...EDITOR_ALL] } } },
+      message: 'shared/ must not import features (A17).',
    },
    {
-      from: { element: { type: 'stores' } },
-      disallow: { to: { element: { types: ['feature', 'editor'] } } },
-      message: 'Stores must not import feature internals; move the helper into the store or shared/ (A17).',
+      from: { element: { type: 'shared-feature' } },
+      disallow: {
+         to: { element: { type: 'shared-feature', captured: { feature: '!{{ from.element.captured.feature }}' } } },
+      },
+      message: 'Shared features never import each other; move the common code down to shared/ (folder-structure.md).',
    },
    {
       from: { element: { type: 'feature' } },
-      // features/editor/index.ts is the editor's public surface (A5). It does not exist yet (pass 2.6).
+      disallow: { to: { element: { types: EDITOR_INTERNALS } } },
+      message: 'Hosts may import the editor only through features/editor/index.ts (A5).',
+   },
+   {
+      from: { element: { type: 'feature' } },
       disallow: { to: { element: { type: 'editor', fileInternalPath: '!index.ts' } } },
       message: 'Hosts may import the editor only through features/editor/index.ts (A5).',
    },
@@ -74,10 +101,75 @@ const boundaryPolicies = [
       message: 'Sibling features never import each other; move the shared code to shared/ (folder-structure.md).',
    },
    {
-      from: { element: { type: 'editor' } },
+      from: { element: { types: EDITOR_ALL } },
       disallow: { to: { element: { type: 'feature' } } },
       message: 'The editor must not import sibling features (folder-structure.md).',
    },
+   {
+      from: { element: { types: ['editor-base', 'editor-state'] } },
+      disallow: { to: { element: { types: ['editor', 'editor-sub', 'editor-component'] } } },
+      message:
+         'Editor-level helpers/models/services/state must not reach into sub-features or the entry (folder-structure.md).',
+   },
+   {
+      from: { element: { types: ['editor-sub', 'editor-component'] } },
+      disallow: { to: { element: { type: 'editor' } } },
+      message: 'Editor sub-features must not import the editor entry or its barrel (folder-structure.md).',
+   },
+   {
+      from: { element: { types: ['editor-sub', 'editor-component'] } },
+      disallow: { to: { element: { type: 'editor-sub', captured: { sub: '!{{ from.element.captured.sub }}' } } } },
+      message:
+         'Sibling editor sub-features never import each other; move the code to editor/{helpers,models,services,shared} (folder-structure.md).',
+   },
+   {
+      from: { element: { type: 'editor-component' } },
+      disallow: { to: { element: { type: 'editor-state' } } },
+      message: 'components/ are presentational: inputs in, outputs out, no store access (folder-structure.md).',
+   },
+];
+
+// Known violations, kept visible as WARNINGS until the listed pass removes them. Do not add to this
+// list without a pass/step reference; shrink it as the work lands.
+const boundaryExceptions = [
+   // Pass 3 (C3.x): presentational editor components that still inject ProjectStore. Each gets
+   // inputs/outputs when its sub-feature is decomposed.
+   'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
+   'src/app/features/editor/features/canvas/components/canvas-shapes/canvas-shapes.component.ts',
+   'src/app/features/editor/features/collaboration/components/laser-layer/laser-layer.component.ts',
+   'src/app/features/editor/features/elements/components/element-floating-toolbar/element-floating-toolbar.component.ts',
+   'src/app/features/editor/features/elements/components/element-inspector/element-inspector.component.ts',
+   'src/app/features/editor/features/elements/components/image-crop-overlay/image-crop-overlay.component.ts',
+   'src/app/features/editor/features/erd/components/inspector/inspector.component.ts',
+   'src/app/features/editor/features/erd/components/relationship-inspector/relationship-inspector.component.ts',
+   'src/app/features/editor/features/erd/components/table-node/table-node.component.ts',
+   'src/app/features/editor/features/erd/components/table-toolbar/table-toolbar.component.ts',
+   'src/app/features/editor/features/sequence-diagram/components/sequence-diagram-toolbar/sequence-diagram-toolbar.component.ts',
+   'src/app/features/editor/features/sequence-diagram/components/sequence-inspector/sequence-inspector.component.ts',
+   'src/app/features/editor/features/sequence-diagram/components/sequence-message-toolbar/sequence-message-toolbar.component.ts',
+   'src/app/features/editor/features/sequence-diagram/components/sequence-participant-toolbar/sequence-participant-toolbar.component.ts',
+   'src/app/features/editor/features/toolbar/components/pen-options-bar/pen-options-bar.component.ts',
+   // (canvas-sequence above also composes the sequence-diagram entry: Pass 3 adds canvas.component, which
+   // composes sub-feature entries instead.)
+
+   // Pass 3 (§4.1 #1, C3.3): core services that still know the editor. realtime splits into a socket
+   // transport + an editor-side sync service; editor-actions takes its ExportImageFormat type from models.
+   'src/app/core/realtime/realtime.service.ts',
+   'src/app/core/editor-bridge/editor-actions.service.ts',
+   // C3.1: the sandbox measures code blocks/fonts with editor helpers until they move to @devdesigner/shared.
+   'src/app/core/sandbox/sandbox-backend.service.ts',
+   'src/app/core/sandbox/sandbox-seeds.helper.ts',
+
+   // Pass 3 (§4.1 #1): ProjectsStore lives in workspace/state/projects but the shell-level palette, the
+   // editor's export, project-file and the projects overlay read it too. Either it moves to
+   // shared/state/projects or those consumers go through a shared projects service.
+   'src/app/features/command-palette/command-palette.component.ts', // + eager deep ProjectStore import
+   'src/app/features/editor/editor.component.ts',
+   'src/app/shared/services/project-file.service.ts', // + downloadText from the editor's export helpers
+   'src/app/shared/features/projects-overlay/projects-overlay.component.ts',
+   'src/app/shared/features/projects-overlay/services/templates.service.ts',
+   // Pass 3: thumbnails render with the editor's diagram SVG/frame helpers (move them to a shared renderer).
+   'src/app/shared/features/projects-overlay/services/project-thumbnail.service.ts',
 ];
 
 export default tseslint.config(
@@ -131,6 +223,13 @@ export default tseslint.config(
             { assertionStyle: 'as', objectLiteralTypeAssertions: 'allow-as-parameter' },
          ],
          'max-lines': ['warn', { max: 600, skipBlankLines: true, skipComments: true }],
+         'boundaries/dependencies': ['error', { default: 'allow', policies: boundaryPolicies }],
+      },
+   },
+   {
+      // Known pass-3 / C3.1 violations stay visible as warnings (see `boundaryExceptions`).
+      files: boundaryExceptions,
+      rules: {
          'boundaries/dependencies': ['warn', { default: 'allow', policies: boundaryPolicies }],
       },
    },
