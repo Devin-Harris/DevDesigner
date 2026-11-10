@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
-import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -7,6 +8,8 @@ import type { ApiTokenResponse, CreatedApiTokenResponse } from '@devdesigner/sha
 import { ApiToken } from './api-token.entity';
 import type { AuthUser } from './auth.types';
 import { CreateApiTokenDto } from './dto/create-api-token.dto';
+import { track } from '../../platform/analytics/track';
+import { TouchThrottle } from '../../platform/analytics/touch-throttle';
 
 /** Every API token starts with this, so leaked ones are easy to spot and scan for. */
 export const API_TOKEN_PREFIX = 'dd_';
@@ -30,13 +33,14 @@ function hashToken(token: string): string {
 @Injectable()
 export class ApiTokenService {
   private readonly hits = new Map<string, number[]>();
-  private readonly lastTouched = new Map<string, number>();
+  private readonly lastTouched = new TouchThrottle(LAST_USED_WRITE_INTERVAL_MS);
   private readonly limit: number;
 
   constructor(
     @InjectRepository(ApiToken)
     private readonly tokens: Repository<ApiToken>,
     config: ConfigService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {
     // Validated and defaulted by platform/config (600 when unset).
     this.limit = config.get<number>('API_TOKEN_RATE_LIMIT', 600);
@@ -55,6 +59,7 @@ export class ApiTokenService {
         revokedAt: null,
       }),
     );
+    track(this.events, 'token.created', { scope: saved.scope });
     return { ...toResponse(saved), token: secret };
   }
 
@@ -71,6 +76,7 @@ export class ApiTokenService {
     if (!row.revokedAt) {
       row.revokedAt = new Date();
       await this.tokens.save(row);
+      track(this.events, 'token.revoked');
     }
   }
 
@@ -105,11 +111,11 @@ export class ApiTokenService {
   /** Record last use at most once a minute per token (best effort, never blocks a request). */
   private touch(row: ApiToken): void {
     const now = Date.now();
-    if (now - (this.lastTouched.get(row.id) ?? 0) < LAST_USED_WRITE_INTERVAL_MS) {
+    if (!this.lastTouched.take(row.id, now)) {
       return;
     }
-    this.lastTouched.set(row.id, now);
     void this.tokens.update({ id: row.id }, { lastUsedAt: new Date(now) }).catch(() => undefined);
+    track(this.events, 'token.used', { scope: row.scope }, { principal: { userId: row.userId, tokenId: row.id } });
   }
 }
 

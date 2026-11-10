@@ -51,6 +51,18 @@ export interface EnvConfig {
   MEDIA_DRIVER: 'fs';
   /** Media folder; empty = a `media` folder next to DATABASE_PATH. */
   MEDIA_DIR: string;
+  /** First-party analytics capture (audit 04 Phase 1); also gates the activity touches. */
+  ANALYTICS_ENABLED: 'true' | 'false';
+  /** analytics.sqlite location; empty = next to DATABASE_PATH. */
+  ANALYTICS_DATABASE_PATH: string;
+  /** Keys the IP / guest / share hashes; empty = random per process. */
+  ANALYTICS_SALT_SECRET: string;
+  /** Fraction (0-1) of fast, successful web GETs recorded as api.request. */
+  ANALYTICS_GET_SAMPLE: number;
+  /** Requests at least this slow (ms) are always recorded. */
+  SLOW_REQUEST_MS: number;
+  /** Raw analytics events older than this are purged daily (0 = keep). */
+  ANALYTICS_RAW_RETENTION_DAYS: number;
   [key: string]: unknown;
 }
 
@@ -103,16 +115,17 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     }
   }
 
-  const sampleRaw = str('SENTRY_TRACES_SAMPLE_RATE', '');
-  let sampleRate = 0;
-  if (sampleRaw !== '') {
-    const n = Number(sampleRaw);
+  const fraction = (key: string, fallback: number): number => {
+    const value = str(key, '');
+    if (value === '') return fallback;
+    const n = Number(value);
     if (!Number.isFinite(n) || n < 0 || n > 1) {
-      errors.push(`SENTRY_TRACES_SAMPLE_RATE must be a number between 0 and 1 (got "${sampleRaw}")`);
-    } else {
-      sampleRate = n;
+      errors.push(`${key} must be a number between 0 and 1 (got "${value}")`);
+      return fallback;
     }
-  }
+    return n;
+  };
+  const sampleRate = fraction('SENTRY_TRACES_SAMPLE_RATE', 0);
 
   const adminEmails = parseAdminEmails(str('ADMIN_EMAILS', ''));
   const badAdmin = adminEmails.filter((email) => !/^[^@\s]+@[^@\s]+$/.test(email));
@@ -154,6 +167,12 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     REALTIME_PATCH_MUTATIONS: bool('REALTIME_PATCH_MUTATIONS', false),
     MEDIA_DRIVER: oneOf('MEDIA_DRIVER', ['fs'] as const, 'fs'),
     MEDIA_DIR: str('MEDIA_DIR', ''),
+    ANALYTICS_ENABLED: bool('ANALYTICS_ENABLED', true),
+    ANALYTICS_DATABASE_PATH: str('ANALYTICS_DATABASE_PATH', ''),
+    ANALYTICS_SALT_SECRET: str('ANALYTICS_SALT_SECRET', ''),
+    ANALYTICS_GET_SAMPLE: fraction('ANALYTICS_GET_SAMPLE', 0.05),
+    SLOW_REQUEST_MS: int('SLOW_REQUEST_MS', 1000, 0, 600_000),
+    ANALYTICS_RAW_RETENTION_DAYS: int('ANALYTICS_RAW_RETENTION_DAYS', 90, 0, 36_500),
   };
 
   if (errors.length > 0) {

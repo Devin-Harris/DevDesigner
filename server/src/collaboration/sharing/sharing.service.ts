@@ -1,5 +1,6 @@
 import type { AccessLevel, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { nanoid } from 'nanoid';
@@ -9,6 +10,7 @@ import { GraphLoaderService } from '../../projects/common/graph-loader.service';
 import { RealtimePublisher } from '../../platform/realtime/realtime.publisher';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ShareLink } from './share-link.entity';
+import { track } from '../../platform/analytics/track';
 
 /** Length of the unguessable share token (BUILD_INSTRUCTIONS.md section 4.1). */
 const TOKEN_LENGTH = 32;
@@ -28,6 +30,7 @@ export class SharingService {
     private readonly graphs: GraphLoaderService,
     private readonly config: ConfigService,
     private readonly realtime: RealtimePublisher,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /** Owner creates a link. Returns the token and the full shareable URL. */
@@ -41,6 +44,7 @@ export class SharingService {
     });
     const saved = await this.shareLinks.save(link);
     this.realtime.accessChanged(projectId, saved.token);
+    track(this.events, 'share.created', { access: saved.accessLevel, hasExpiry: saved.expiresAt !== null }, { projectId });
     return this.toResponse(saved);
   }
 
@@ -67,6 +71,7 @@ export class SharingService {
     }
     await this.shareLinks.update({ id: linkId, projectId }, { revokedAt: new Date() });
     this.realtime.accessRevoked(projectId, link.token);
+    track(this.events, 'share.revoked', {}, { projectId });
   }
 
   /** Resolve a token to the shared project graph for the account-free entry route. */
@@ -93,6 +98,8 @@ export class SharingService {
       throw new NotFoundException('This share link has expired.');
     }
     const accessLevel = await this.access.assertCanRead(link.projectId, null, token);
+    // Counted once per link and client per hour by the analytics listener (also share_links.useCount).
+    track(this.events, 'share.opened', { access: accessLevel }, { projectId: link.projectId, principal: { shareToken: token } });
     return { projectId: link.projectId, accessLevel };
   }
 

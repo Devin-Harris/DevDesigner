@@ -1,7 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { generateSql } from '@devdesigner/shared';
 import type { SchemaModel, SqlDialect } from '@devdesigner/shared';
 import { GraphLoaderService } from '../common/graph-loader.service';
+import { track } from '../../platform/analytics/track';
 
 /** Dialects the generator currently supports. Grows as generators are added. */
 const SUPPORTED_DIALECTS: readonly SqlDialect[] = ['mysql'];
@@ -14,7 +16,10 @@ const SUPPORTED_DIALECTS: readonly SqlDialect[] = ['mysql'];
  */
 @Injectable()
 export class ExportService {
-  constructor(private readonly graphs: GraphLoaderService) {}
+  constructor(
+    private readonly graphs: GraphLoaderService,
+    @Optional() private readonly events?: EventEmitter2,
+  ) {}
 
   async exportSql(projectId: string, dialectInput?: string): Promise<string> {
     const dialect = (dialectInput ?? 'mysql').toLowerCase() as SqlDialect;
@@ -23,6 +28,7 @@ export class ExportService {
         `Unsupported SQL dialect "${dialectInput}". Supported: ${SUPPORTED_DIALECTS.join(', ')}.`,
       );
     }
+    track(this.events, 'export.sql', { dialect }, { projectId });
     // The route guard authorized the read; load only what DDL needs (tables + relationships).
     const { tables, relationships } = await this.graphs.databaseSchema(projectId);
     const schema: SchemaModel = {

@@ -10,9 +10,10 @@ import {
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import type { Observable } from 'rxjs';
+import type { RequestAnalytics } from '../analytics/analytics.types';
 import { originClientIdOf, type CallerRequest } from './caller';
 
-/** Per-request facts shared by logging, error reporting and (later) analytics. */
+/** Per-request facts shared by logging, error reporting and analytics. */
 export interface RequestContext {
   requestId: string;
   /** Account id once the auth guard has run (null for anonymous callers). */
@@ -26,6 +27,8 @@ export interface RequestContext {
    * run; null when absent or not trusted. Realtime broadcasts skip this tab.
    */
   clientId: string | null;
+  /** Analytics facts (actor, source, IP hash), set by the analytics middleware and interceptor. */
+  analytics?: RequestAnalytics;
 }
 
 const storage = new AsyncLocalStorage<RequestContext>();

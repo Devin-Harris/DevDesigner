@@ -48,6 +48,8 @@ export const RATE_POLICIES = {
   imageUpload: { limit: 120, ipLimit: 240, ttl: MINUTE },
   shareCreate: { limit: 30, ipLimit: 60, ttl: MINUTE },
   admin: { limit: 120, ipLimit: 240, ttl: MINUTE },
+  /** Client analytics beacon: one batch (<= 20 events) every ~15 s per tab. */
+  telemetry: { limit: 30, ipLimit: 120, ttl: MINUTE },
 } satisfies Record<string, RatePolicy>;
 
 export type RatePolicyName = keyof typeof RATE_POLICIES;

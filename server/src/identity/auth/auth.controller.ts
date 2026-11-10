@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { CookieOptions, Response } from 'express';
 import type {
   ApiTokenResponse,
@@ -26,6 +27,7 @@ import { CurrentUser } from './current-user.decorator';
 import { ApiTokenService } from './api-token.service';
 import { CreateApiTokenDto } from './dto/create-api-token.dto';
 import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
+import { track } from '../../platform/analytics/track';
 
 /**
  * Auth routes (BUILD_INSTRUCTIONS.md section 5). Register and login issue a JWT
@@ -39,6 +41,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly apiTokens: ApiTokenService,
     private readonly config: ConfigService,
+    private readonly events: EventEmitter2,
   ) {}
 
   @Post('register')
@@ -77,6 +80,7 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
+    track(this.events, 'auth.logout');
     res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
   }
 

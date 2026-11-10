@@ -1,4 +1,5 @@
-import { ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AdminBootstrapService } from '../../admin/admin-bootstrap.service';
 import { LoginBackoff } from './login-backoff';
+import { track } from '../../platform/analytics/track';
 
 const BCRYPT_ROUNDS = 12;
 /**
@@ -34,6 +36,7 @@ export class AuthService {
     private readonly users: Repository<User>,
     private readonly jwt: JwtService,
     private readonly adminBootstrap: AdminBootstrapService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /** Register a new account and return the user plus a signed session token. */
@@ -54,6 +57,7 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
     const saved = await this.users.save(user);
+    track(this.events, 'auth.signup', { method: 'password' }, { principal: { userId: saved.id } });
     return { user: toResponse(saved), token: this.sign(saved) };
   }
 
@@ -66,6 +70,7 @@ export class AuthService {
     const waitMs = this.backoff.retryAfterMs(email);
     if (waitMs > 0) {
       const seconds = Math.ceil(waitMs / 1000);
+      track(this.events, 'auth.login_failed', { reason: 'locked' });
       throw new HttpException(
         { statusCode: 429, message: `Too many failed sign-in attempts. Try again in ${seconds} seconds.`, retryAfter: seconds },
         HttpStatus.TOO_MANY_REQUESTS,
@@ -78,12 +83,14 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !user.passwordHash || !ok) {
       this.backoff.recordFailure(email);
+      track(this.events, 'auth.login_failed', { reason: 'credentials' });
       throw new UnauthorizedException('Invalid email or password.');
     }
     this.backoff.recordSuccess(email);
     await this.adminBootstrap.promoteIfAllowlisted(user);
     user.lastLoginAt = new Date();
     await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });
+    track(this.events, 'auth.login', { method: 'password' }, { principal: { userId: user.id } });
     return { user: toResponse(user), token: this.sign(user) };
   }
 

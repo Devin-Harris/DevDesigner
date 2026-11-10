@@ -17,11 +17,12 @@ import {
   ForbiddenException,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
   MessageBody,
@@ -36,6 +37,7 @@ import { AccessService } from '../../collaboration/access/access.service';
 import { guestOwnerId } from '../../identity/auth/guest-id';
 import { AuthService } from '../../identity/auth/auth.service';
 import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
+import { track } from '../analytics/track';
 import {
   DEFLATE_THRESHOLD_BYTES,
   MAX_SOCKETS_PER_IP,
@@ -83,6 +85,11 @@ interface SocketData {
   token: string | null;
   guestId: string | null;
   limiter: RelayLimiter;
+  /** Analytics only: the signed-in account (null for share-link / guest sockets). */
+  userId: string | null;
+  /** Analytics only: when the socket joined and when it started presenting (epoch ms). */
+  joinedAt: number;
+  presentingSince: number | null;
 }
 
 function roomOf(projectId: string): string {
@@ -146,6 +153,7 @@ export class RealtimeGateway
     private readonly access: AccessService,
     private readonly auth: AuthService,
     config: ConfigService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {
     configureAllowedOrigins(config.get<string>('CORS_ORIGIN'));
   }
@@ -208,6 +216,9 @@ export class RealtimeGateway
       token,
       guestId,
       limiter: new RelayLimiter(),
+      userId: user?.id ?? null,
+      joinedAt: Date.now(),
+      presentingSince: null,
     };
     client.data = data;
     registerRealtimeClient(clientId, {
@@ -217,8 +228,15 @@ export class RealtimeGateway
     await client.join([roomOf(projectId), clientRoomOf(clientId)]);
     const session: RealtimeSession = { clientId };
     client.emit(RT_EVENTS.session, session);
-    this.getRoom(projectId).set(client.id, participant);
+    const room = this.getRoom(projectId);
+    room.set(client.id, participant);
     this.broadcastRoster(projectId);
+    // Internal bus only: no DB work and nothing sent to peers.
+    track(this.events, 'realtime.joined', { access: accessLevel, roomSize: room.size }, {
+      projectId,
+      principal: principalOf(user?.id, guestId, token),
+      source: 'web',
+    });
   }
 
   handleDisconnect(client: Socket): void {
@@ -241,6 +259,16 @@ export class RealtimeGateway
       }
     }
     this.broadcastRoster(data.projectId);
+    if (data.joinedAt !== undefined) {
+      const now = Date.now();
+      const extra = {
+        projectId: data.projectId,
+        principal: principalOf(data.userId, data.guestId ?? null, data.token ?? null),
+        source: 'web' as const,
+      };
+      if (data.presentingSince) track(this.events, 'present.ended', { durationMs: now - data.presentingSince }, extra);
+      track(this.events, 'realtime.left', { sessionMs: now - data.joinedAt, roomSize: room?.size ?? 0 }, extra);
+    }
   }
 
   @SubscribeMessage(RT_EVENTS.cursor)
@@ -291,6 +319,7 @@ export class RealtimeGateway
     if (!data || !present) {
       return;
     }
+    this.trackPresent(data, !!present.frameId);
     // The roster carries the latest state, so an over-budget update is coalesced.
     data.limiter.relay(
       'present',
@@ -394,6 +423,22 @@ export class RealtimeGateway
     }
   }
 
+  /** present.started / present.ended on state changes (not per slide step). */
+  private trackPresent(data: SocketData, presenting: boolean): void {
+    const extra = {
+      projectId: data.projectId,
+      principal: principalOf(data.userId, data.guestId, data.token),
+      source: 'web' as const,
+    };
+    if (presenting && data.presentingSince === null) {
+      data.presentingSince = Date.now();
+      track(this.events, 'present.started', {}, extra);
+    } else if (!presenting && data.presentingSince !== null) {
+      track(this.events, 'present.ended', { durationMs: Date.now() - data.presentingSince }, extra);
+      data.presentingSince = null;
+    }
+  }
+
   /** The socket's data once it has fully joined a project, else null. */
   private joined(client: Socket): SocketData | null {
     const data = client.data as SocketData | undefined;
@@ -456,4 +501,17 @@ export class RealtimeGateway
     this.colorCounters.set(projectId, index + 1);
     return PRESENCE_PALETTE[index % PRESENCE_PALETTE.length];
   }
+}
+
+/** Raw socket identity for analytics (hashed by the AnalyticsService, never stored as-is). */
+function principalOf(
+  userId: string | null | undefined,
+  guestOwner: string | null,
+  token: string | null,
+): { userId: string | null; guestId: string | null; shareToken: string | null } {
+  return {
+    userId: userId ?? null,
+    guestId: guestOwner ? guestOwner.slice('guest:'.length) : null,
+    shareToken: token,
+  };
 }

@@ -29,6 +29,8 @@ import { validateEnv } from './platform/config/env.validation';
 import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
 import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
 import { loggerParams } from './platform/http/logger.config';
+import { AnalyticsModule } from './platform/analytics/analytics.module';
+import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -45,6 +47,7 @@ import { loggerParams } from './platform/http/logger.config';
     }),
     EventEmitterModule.forRoot(),
     DatabaseModule,
+    AnalyticsModule.forRoot(),
     AccessModule,
     HealthModule,
     AuthModule,
@@ -73,6 +76,7 @@ import { loggerParams } from './platform/http/logger.config';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
+    // In this order: the analytics facts live on the request context.
+    consumer.apply(RequestContextMiddleware, AnalyticsMiddleware).forRoutes('*');
   }
 }

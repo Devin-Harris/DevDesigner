@@ -4,8 +4,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleInit,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Not, Repository } from 'typeorm';
 import { MEDIA_MIME_TYPES, bytesMatchMediaType, maxMediaBytes } from '@devdesigner/shared';
@@ -18,6 +20,12 @@ import { QuotaService } from '../../../platform/quotas/quota.service';
 import { MEDIA_STORE, type ByteRange, type MediaStore } from './storage/media-store';
 import { sanitizeSvg, SvgRejectedError } from './storage/svg-sanitizer';
 import type { ImportedImage } from '../../project-file/writers/write-context';
+import { track } from '../../../platform/analytics/track';
+
+const TRACKED_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'video/mp4', 'video/webm'] as const;
+type TrackedMediaType = (typeof TRACKED_MEDIA_TYPES)[number] | 'other';
+const mediaTypeOf = (mimeType: string): TrackedMediaType =>
+  (TRACKED_MEDIA_TYPES as readonly string[]).includes(mimeType) ? (mimeType as TrackedMediaType) : 'other';
 
 /** Orphaned uploads younger than this survive, so undo/redo can still bring them back. */
 const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
@@ -48,6 +56,7 @@ export class ImagesService implements OnModuleInit {
     private readonly elements: Repository<ElementEntity>,
     private readonly quota: QuotaService,
     @Inject(MEDIA_STORE) private readonly store: MediaStore,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /** Rows stored before `byteSize` existed get it from their blob (once; quotas sum it). */
@@ -67,6 +76,7 @@ export class ImagesService implements OnModuleInit {
     // Same bytes already stored for this project: reuse that file (and the client's cached copy).
     const existing = await this.images.findOne({ where: { projectId, sha256, mimeType }, select: { id: true } });
     if (existing) {
+      track(this.events, 'image.uploaded', { mimeType: mediaTypeOf(mimeType), bytes: data.length, deduped: true }, { projectId });
       return { id: existing.id };
     }
     await this.quota.assertImageRoom(projectId, data.length);
@@ -77,6 +87,7 @@ export class ImagesService implements OnModuleInit {
     // A concurrent orphan prune elsewhere may have removed a shared file in between.
     if ((await this.store.size(sha256)) === null) await this.store.put(sha256, data);
     void this.pruneOrphans(projectId);
+    track(this.events, 'image.uploaded', { mimeType: mediaTypeOf(mimeType), bytes: data.length, deduped: false }, { projectId });
     return { id: saved.id };
   }
 

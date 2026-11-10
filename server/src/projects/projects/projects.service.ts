@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -35,6 +36,7 @@ import { bumpProjectRevision } from '../../platform/http/project-revision';
 import { applyDefined } from '../common/apply-patch';
 import { QuotaService, type ImportFootprint } from '../../platform/quotas/quota.service';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
+import { track } from '../../platform/analytics/track';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -57,6 +59,7 @@ export class ProjectsService {
     private readonly images: ImagesService,
     private readonly quota: QuotaService,
     private readonly graphCache: GraphCache,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /**
@@ -90,6 +93,7 @@ export class ProjectsService {
     for (const { id } of moved) {
       this.realtime.accessRevoked(id);
     }
+    track(this.events, 'guest.claimed', { count: result.affected ?? 0 });
     return result.affected ?? 0;
   }
 
@@ -104,6 +108,7 @@ export class ProjectsService {
       ownerId,
     });
     const saved = await this.projects.save(project);
+    track(this.events, 'project.created', { type: saved.type }, { projectId: saved.id });
     return toProjectSummary(saved);
   }
 
@@ -152,11 +157,13 @@ export class ProjectsService {
 
   async update(id: string, dto: UpdateProjectDto): Promise<ProjectSummary> {
     const project = await this.findOrThrow(id);
+    const wasArchived = project.archived;
     applyDefined(project, dto, ['name', 'description', 'archived', 'type']);
     const saved = await this.projects.save(project);
     // Name/description/type/archived ride in the graph's project summary.
     bumpProjectRevision(id);
     this.realtime.accessChanged(id);
+    if (saved.archived !== wasArchived) track(this.events, 'project.archived', { archived: saved.archived }, { projectId: id });
     return toProjectSummary(saved);
   }
 
@@ -178,6 +185,7 @@ export class ProjectsService {
       themesJson: source.themesJson,
     });
     const saved = await this.projects.save(copy);
+    track(this.events, 'project.duplicated', { type: saved.type }, { projectId: saved.id });
     // NOTE: deep-copies only the project row for now. Tables, columns,
     // relationships, and notes are copied once those modules exist (Phase 2+).
     return toProjectSummary(saved);
@@ -189,13 +197,15 @@ export class ProjectsService {
    */
   async exportProject(id: string, accessLevel: AccessLevel): Promise<ProjectExportFile> {
     const { project, schema } = await this.graphs.graph(id, accessLevel);
+    const images = await this.images.exportForProject(id);
+    track(this.events, 'project.exported', { images: images.length }, { projectId: id });
     return {
       format: PROJECT_EXPORT_FORMAT,
       version: PROJECT_EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
       project: { name: project.name, description: project.description, type: project.type },
       schema,
-      images: await this.images.exportForProject(id),
+      images,
     };
   }
 
@@ -216,6 +226,7 @@ export class ProjectsService {
     const saved = await this.dataSource.transaction((manager) =>
       writeImportedProject(manager, parsed, ownerId, images),
     );
+    track(this.events, 'project.imported', { ...importCounts(parsed.schema, images.length), into: false }, { projectId: saved.id });
     return toProjectSummary(saved);
   }
 
@@ -281,6 +292,7 @@ export class ProjectsService {
       ),
     ];
     this.realtime.emitMany(projectId, mutations);
+    track(this.events, 'project.imported', { ...importCounts(parsed.schema, images.length), into: true }, { projectId });
     return { mutations };
   }
 
@@ -294,6 +306,7 @@ export class ProjectsService {
     this.graphCache.invalidateProject(id);
     // Collaborators still in the room lose access with the project.
     this.realtime.accessRevoked(id);
+    track(this.events, 'project.deleted', {}, { projectId: id });
   }
 
   /** Validate (type, size, magic bytes; SVG sanitized) and decode the images embedded in an import file. */
@@ -332,4 +345,17 @@ function requireOwner(ownerId: string | null): asserts ownerId is string {
   if (!ownerId) {
     throw new UnauthorizedException('Sign in (or send an X-Guest-Id) to create a project.');
   }
+}
+
+/** Sizes of an imported file for analytics (counts only, never content). */
+function importCounts(
+  schema: { tables: unknown[]; elements: unknown[]; sequenceDiagrams?: unknown[] },
+  images: number,
+): { tables: number; elements: number; sequenceDiagrams: number; images: number } {
+  return {
+    tables: schema.tables.length,
+    elements: schema.elements.length,
+    sequenceDiagrams: schema.sequenceDiagrams?.length ?? 0,
+    images,
+  };
 }

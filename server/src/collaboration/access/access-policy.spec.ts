@@ -53,6 +53,7 @@ const EXPECTED: Record<string, string> = {
   'PATCH /columns/:columnId': 'write:column(columnId)',
   'DELETE /columns/:columnId': 'write:column(columnId)',
   'POST /tables/:tableId/indexes': 'write:table(tableId)',
+  'POST /telemetry': 'public',
   'PATCH /tables/:tableId/indexes/reorder': 'write:table(tableId)',
   'PATCH /indexes/:indexId': 'write:index(indexId)',
   'DELETE /indexes/:indexId': 'write:index(indexId)',

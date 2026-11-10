@@ -9,6 +9,7 @@ import { json, raw, urlencoded } from 'body-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { REQUEST_ID_HEADER } from './platform/http/request-context';
+import { TELEMETRY_MAX_BODY_BYTES } from '@devdesigner/shared';
 
 /**
  * JSON body limits. Body parsing runs before guards, so the global cap stays small;
@@ -42,6 +43,8 @@ async function bootstrap(): Promise<void> {
   // Route-scoped parsers first: once one has parsed a body, the global one skips it.
   // Raw media upload: the body is the file itself (40 MB video max, checked again in the service).
   app.use('/api/projects/:projectId/images/raw', raw({ type: () => true, limit: '41mb', inflate: false }));
+  // Analytics beacon: tiny bodies only. sendBeacon posts text/plain to avoid a CORS preflight.
+  app.use('/api/telemetry', json({ limit: TELEMETRY_MAX_BODY_BYTES, type: ['application/json', 'text/plain'], inflate: false }));
   for (const { path, limit } of LARGE_BODY_ROUTES) {
     app.use(path, json({ limit, inflate: false }));
   }
@@ -73,8 +76,17 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: corsOrigin.split(',').map((o) => o.trim()),
     // Share tokens travel in X-Share-Token for anonymous link-based access;
-    // X-Client-Id tags each write so its realtime broadcast can skip the origin tab.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Share-Token', 'X-Client-Id', 'X-Guest-Id', REQUEST_ID_HEADER],
+    // X-Client-Id tags each write so its realtime broadcast can skip the origin tab;
+    // X-MCP-Tool names the MCP tool behind a request (analytics only).
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Share-Token',
+      'X-Client-Id',
+      'X-Guest-Id',
+      'X-MCP-Tool',
+      REQUEST_ID_HEADER,
+    ],
     exposedHeaders: [REQUEST_ID_HEADER],
     credentials: true,
   });

@@ -61,6 +61,21 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ RATE_LIMIT_PER_MIN: '0' })).toThrow(/RATE_LIMIT_PER_MIN/);
   });
 
+  it('defaults analytics on and validates its knobs', () => {
+    const env = validateEnv({});
+    expect(env.ANALYTICS_ENABLED).toBe('true');
+    expect(env.ANALYTICS_DATABASE_PATH).toBe('');
+    expect(env.ANALYTICS_GET_SAMPLE).toBe(0.05);
+    expect(env.SLOW_REQUEST_MS).toBe(1000);
+    expect(env.ANALYTICS_RAW_RETENTION_DAYS).toBe(90);
+    expect(validateEnv({ ANALYTICS_ENABLED: 'false', ANALYTICS_GET_SAMPLE: '1' })).toMatchObject({
+      ANALYTICS_ENABLED: 'false',
+      ANALYTICS_GET_SAMPLE: 1,
+    });
+    expect(() => validateEnv({ ANALYTICS_GET_SAMPLE: '1.5' })).toThrow(/ANALYTICS_GET_SAMPLE/);
+    expect(() => validateEnv({ SLOW_REQUEST_MS: 'slow' })).toThrow(/SLOW_REQUEST_MS/);
+  });
+
   describe('production', () => {
     it('requires JWT_SECRET', () => {
       expect(() => validateEnv({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET is required/);
