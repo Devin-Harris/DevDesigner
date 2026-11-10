@@ -17,74 +17,7 @@ import { PopoverTriggerDirective } from '../../../shared/ui/popover/popover-trig
    selector: 'dd-table-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [ColorSwatchesComponent, MatTooltipModule, IconComponent, PopoverTriggerDirective],
-   template: `
-      <div class="bar">
-         <button class="add" (click)="addColumn()" [disabled]="!store.canEdit()"><dd-icon name="add" />Column</button>
-
-         <span class="sep"></span>
-
-         <button
-            class="tb"
-            [ddPopoverTrigger]="colorMenu"
-            placement="below-start"
-            matTooltip="Header color"
-            [disabled]="!store.canEdit()"
-         >
-            <span class="dot" [style.background]="table().color || 'var(--dd-handle)'"></span>
-         </button>
-         <ng-template #colorMenu let-close>
-            <div class="color-grid">
-               <dd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
-            </div>
-         </ng-template>
-
-         <button
-            class="tb"
-            [ddPopoverTrigger]="noteMenu"
-            placement="below-start"
-            matTooltip="Note"
-            [disabled]="!store.canEdit()"
-         >
-            <dd-icon name="edit_note" />
-         </button>
-         <ng-template #noteMenu>
-            <div class="note-pop">
-               <textarea
-                  class="note"
-                  rows="3"
-                  placeholder="Add a note…"
-                  [value]="table().note ?? ''"
-                  (change)="setNote($any($event.target).value)"
-               ></textarea>
-            </div>
-         </ng-template>
-
-         <button class="tb txt" (click)="inspector.toggle()" matTooltip="Indexes (in Details)">
-            Indexes · {{ table().indexes?.length ?? 0 }}
-         </button>
-         <button class="tb txt" (click)="actions.exportSql()" matTooltip="SQL for the selected tables">SQL</button>
-
-         <button class="tb" (click)="duplicate()" matTooltip="Duplicate table" [disabled]="!store.canEdit()">
-            <dd-icon name="content_copy" />
-         </button>
-
-         <span class="sep"></span>
-
-         <button
-            type="button"
-            class="tb details"
-            [class.on]="inspector.shown()"
-            (click)="inspector.toggle()"
-            title="Details"
-            aria-label="Details"
-         >
-            <dd-icon name="tune" />
-         </button>
-         <button class="tb del" (click)="remove()" matTooltip="Delete table" [disabled]="!store.canEdit()">
-            <dd-icon name="delete" />
-         </button>
-      </div>
-   `,
+   templateUrl: './table-toolbar.component.html',
    styleUrl: './table-toolbar.component.scss',
 })
 export class TableToolbarComponent {

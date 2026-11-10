@@ -1,0 +1,43 @@
+<div class="frame" [style.--slide-ar]="aspect()">
+   @for (m of items(); track m.id) {
+      <div
+         class="item"
+         [class.gif-click]="m.kind === 'gif' && playbackOf(m) === 'click'"
+         [style.left.%]="m.left"
+         [style.top.%]="m.top"
+         [style.width.%]="m.width"
+         [style.height.%]="m.height"
+         [style.opacity]="m.opacity"
+         [style.transform]="m.angle ? 'rotate(' + m.angle + 'deg)' : null"
+         (pointerenter)="hovered.set(m.id)"
+         (pointerleave)="hovered.set(null)"
+         (click)="onClick(m, $event)"
+      >
+         @if (m.kind === 'video') {
+            @if (images.url(m.fileId); as src) {
+               <dd-media-video
+                  [view]="m.view"
+                  [src]="src"
+                  [poster]="images.posterUrl(m.fileId)"
+                  [clickToPlay]="true"
+                  [autoplay]="m.view.playback === 'auto'"
+               ></dd-media-video>
+            }
+         } @else {
+            <div class="clip" [style.clip-path]="m.view.clip?.css ?? null">
+               @if (gifSrc(m); as src) {
+                  <img
+                     alt=""
+                     draggable="false"
+                     [src]="src"
+                     [style.left.%]="frame(m).left"
+                     [style.top.%]="frame(m).top"
+                     [style.width.%]="frame(m).width"
+                     [style.height.%]="frame(m).height"
+                  />
+               }
+            </div>
+         }
+      </div>
+   }
+</div>

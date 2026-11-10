@@ -1,0 +1,20 @@
+@if (collapsed()) {
+   <button class="mm-toggle" (click)="toggle()" matTooltip="Show minimap" aria-label="Show minimap">
+      <dd-icon name="map" />
+   </button>
+} @else {
+   <div class="mm" [style.width.px]="width" [style.height.px]="height">
+      <canvas
+         #cv
+         [style.width.px]="width"
+         [style.height.px]="height"
+         (pointerdown)="onDown($event)"
+         (pointermove)="onMove($event)"
+         (pointerup)="onUp($event)"
+         (pointercancel)="onUp($event)"
+      ></canvas>
+      <button class="mm-hide" (click)="toggle()" matTooltip="Hide minimap" aria-label="Hide minimap">
+         <dd-icon name="close" />
+      </button>
+   </div>
+}

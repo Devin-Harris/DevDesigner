@@ -14,84 +14,8 @@ import { MediaVideoComponent } from './media-video.component';
    selector: 'dd-slide-media-layer',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MediaVideoComponent],
-   template: `
-      <div class="frame" [style.--slide-ar]="aspect()">
-         @for (m of items(); track m.id) {
-            <div
-               class="item"
-               [class.gif-click]="m.kind === 'gif' && playbackOf(m) === 'click'"
-               [style.left.%]="m.left"
-               [style.top.%]="m.top"
-               [style.width.%]="m.width"
-               [style.height.%]="m.height"
-               [style.opacity]="m.opacity"
-               [style.transform]="m.angle ? 'rotate(' + m.angle + 'deg)' : null"
-               (pointerenter)="hovered.set(m.id)"
-               (pointerleave)="hovered.set(null)"
-               (click)="onClick(m, $event)"
-            >
-               @if (m.kind === 'video') {
-                  @if (images.url(m.fileId); as src) {
-                     <dd-media-video
-                        [view]="m.view"
-                        [src]="src"
-                        [poster]="images.posterUrl(m.fileId)"
-                        [clickToPlay]="true"
-                        [autoplay]="m.view.playback === 'auto'"
-                     ></dd-media-video>
-                  }
-               } @else {
-                  <div class="clip" [style.clip-path]="m.view.clip?.css ?? null">
-                     @if (gifSrc(m); as src) {
-                        <img
-                           alt=""
-                           draggable="false"
-                           [src]="src"
-                           [style.left.%]="frame(m).left"
-                           [style.top.%]="frame(m).top"
-                           [style.width.%]="frame(m).width"
-                           [style.height.%]="frame(m).height"
-                        />
-                     }
-                  </div>
-               }
-            </div>
-         }
-      </div>
-   `,
-   styles: `
-      :host {
-         position: absolute;
-         inset: 0;
-         pointer-events: none;
-         container-type: size;
-      }
-      .frame {
-         position: absolute;
-         inset: 0;
-         margin: auto;
-         width: min(100cqw, calc(100cqh * var(--slide-ar)));
-         height: min(100cqh, calc(100cqw / var(--slide-ar)));
-         overflow: hidden;
-      }
-      .item {
-         position: absolute;
-         pointer-events: auto;
-      }
-      .item.gif-click {
-         cursor: pointer;
-      }
-      .clip {
-         position: absolute;
-         inset: 0;
-         overflow: hidden;
-      }
-      img {
-         position: absolute;
-         display: block;
-         user-select: none;
-      }
-   `,
+   templateUrl: './slide-media-layer.component.html',
+   styleUrl: './slide-media-layer.component.scss',
 })
 export class SlideMediaLayerComponent {
    readonly media = input.required<readonly SlideMedia[]>();

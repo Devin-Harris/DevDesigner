@@ -14,26 +14,8 @@ import { ICON_PATHS } from './icon-registry';
 @Component({
    selector: 'dd-icon',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   template: `<span class="dd-icon-host" [innerHTML]="svg()"></span>`,
-   styles: [
-      `
-         :host {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: var(--dd-icon-size, 1.25em);
-            height: var(--dd-icon-size, 1.25em);
-            flex: 0 0 auto;
-            line-height: 0;
-         }
-         .dd-icon-host,
-         :host ::ng-deep svg {
-            width: 100%;
-            height: 100%;
-            display: block;
-         }
-      `,
-   ],
+   templateUrl: './icon.component.html',
+   styleUrl: './icon.component.scss',
 })
 export class IconComponent {
    private readonly sanitizer = inject(DomSanitizer);

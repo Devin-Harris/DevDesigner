@@ -1,0 +1,15 @@
+<button
+   type="button"
+   class="dd-checkbox"
+   role="checkbox"
+   [attr.aria-checked]="checked()"
+   [disabled]="disabled()"
+   (click)="toggle()"
+>
+   <span class="box" [class.on]="checked()">
+      @if (checked()) {
+         <dd-icon name="check" />
+      }
+   </span>
+   <span class="label"><ng-content /></span>
+</button>

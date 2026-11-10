@@ -55,87 +55,8 @@ function readCollapsed(): boolean {
    selector: 'dd-minimap',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatTooltipModule, IconComponent],
-   template: `
-      @if (collapsed()) {
-         <button class="mm-toggle" (click)="toggle()" matTooltip="Show minimap" aria-label="Show minimap">
-            <dd-icon name="map" />
-         </button>
-      } @else {
-         <div class="mm" [style.width.px]="width" [style.height.px]="height">
-            <canvas
-               #cv
-               [style.width.px]="width"
-               [style.height.px]="height"
-               (pointerdown)="onDown($event)"
-               (pointermove)="onMove($event)"
-               (pointerup)="onUp($event)"
-               (pointercancel)="onUp($event)"
-            ></canvas>
-            <button class="mm-hide" (click)="toggle()" matTooltip="Hide minimap" aria-label="Hide minimap">
-               <dd-icon name="close" />
-            </button>
-         </div>
-      }
-   `,
-   styles: `
-      :host {
-         position: absolute;
-         right: 16px;
-         bottom: 16px;
-         z-index: 5;
-      }
-      .mm,
-      .mm-toggle {
-         background: var(--dd-surface);
-         border: 1px solid var(--dd-border);
-         box-shadow: var(--dd-shadow-2);
-         border-radius: 13px;
-      }
-      .mm {
-         position: relative;
-         overflow: hidden;
-      }
-      canvas {
-         display: block;
-         cursor: pointer;
-         touch-action: none;
-      }
-      .mm-hide {
-         position: absolute;
-         top: 4px;
-         right: 4px;
-         width: 22px;
-         height: 22px;
-         display: inline-flex;
-         align-items: center;
-         justify-content: center;
-         border: none;
-         border-radius: 6px;
-         background: color-mix(in srgb, var(--dd-surface) 80%, transparent);
-         color: var(--dd-text-muted);
-         cursor: pointer;
-         opacity: 0;
-         transition: opacity 0.1s ease;
-         --dd-icon-size: 14px;
-      }
-      .mm:hover .mm-hide {
-         opacity: 1;
-      }
-      .mm-toggle {
-         width: 44px;
-         height: 44px;
-         display: inline-flex;
-         align-items: center;
-         justify-content: center;
-         color: var(--dd-text-muted);
-         cursor: pointer;
-         --dd-icon-size: 19px;
-      }
-      .mm-toggle:hover {
-         color: var(--dd-text);
-         background: var(--dd-surface-2);
-      }
-   `,
+   templateUrl: './minimap.component.html',
+   styleUrl: './minimap.component.scss',
 })
 export class MinimapComponent {
    readonly items = input.required<MinimapItem[]>();

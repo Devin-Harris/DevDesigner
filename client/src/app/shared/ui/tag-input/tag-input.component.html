@@ -1,0 +1,49 @@
+<div class="box" [class.disabled]="disabled()" [class.focus]="focused()" [class.bad]="conflict()">
+   <dd-icon name="link" class="lead" />
+   <input
+      #field
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      [attr.maxlength]="maxlength()"
+      [attr.placeholder]="placeholder()"
+      [disabled]="disabled()"
+      [value]="text()"
+      (focus)="onFocus()"
+      (input)="onInput($event)"
+      (keydown)="onKey($event)"
+      (blur)="onBlur()"
+   />
+   @if (text() && !disabled()) {
+      <button
+         type="button"
+         class="clear"
+         tabindex="-1"
+         title="Clear tag"
+         (mousedown)="$event.preventDefault()"
+         (click)="clear()"
+      >
+         <dd-icon name="close" />
+      </button>
+   }
+</div>
+@if (conflict()) {
+   <p class="warn">{{ takenLabel() }}</p>
+}
+<ng-template #list>
+   <div class="dd-menu tag-menu" [style.width.px]="menuWidth()">
+      <div class="tag-menu-head">{{ headLabel() }}</div>
+      @for (s of visible(); track s; let i = $index) {
+         <button
+            type="button"
+            class="dd-menu-item"
+            [class.on]="i === active()"
+            (mousedown)="$event.preventDefault()"
+            (mouseenter)="active.set(i)"
+            (click)="pick(s)"
+         >
+            <span class="tag-name">{{ s }}</span>
+         </button>
+      }
+   </div>
+</ng-template>

@@ -1,0 +1,11 @@
+<button
+   type="button"
+   class="dd-toggle"
+   role="switch"
+   [attr.aria-checked]="on()"
+   [disabled]="disabled()"
+   (click)="toggle()"
+>
+   <span class="track" [class.on]="on()"><span class="thumb"></span></span>
+   <span class="label"><ng-content /></span>
+</button>

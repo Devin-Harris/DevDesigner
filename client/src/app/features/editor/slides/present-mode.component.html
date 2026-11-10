@@ -1,0 +1,164 @@
+<div
+   #root
+   class="present"
+   tabindex="-1"
+   [class.idle]="!cursorVisible()"
+   [class.bar-hidden]="!barVisible()"
+   (click)="next()"
+   (pointermove)="onPresentMove($event)"
+>
+   <div #stage class="stage">
+      <!-- Every slide image stays in the DOM (decoded), so switching is a visibility
+       flip with no load or decode gap. -->
+      @for (per of urlList(); track $index; let si = $index) {
+         @for (u of per; track $index; let k = $index) {
+            <img class="slide" [class.hidden]="busy() || !isShown(si, k)" [src]="u" alt="" draggable="false" />
+         }
+      }
+      <div #overlay class="overlay"></div>
+      <!-- GIFs and videos play live over the settled slide (not during transitions). -->
+      @if (liveMedia(); as lm) {
+         <dd-slide-media-layer
+            [media]="lm.slide.media"
+            [hidden]="lm.hidden"
+            [slideWidth]="lm.slide.width"
+            [slideHeight]="lm.slide.height"
+         ></dd-slide-media-layer>
+      }
+   </div>
+
+   @if (lasers().length) {
+      <svg class="laser-svg" aria-hidden="true">
+         @for (l of lasers(); track l.id) {
+            @for (s of l.segments; track $index) {
+               <line
+                  class="trail"
+                  [attr.x1]="s.x1"
+                  [attr.y1]="s.y1"
+                  [attr.x2]="s.x2"
+                  [attr.y2]="s.y2"
+                  [attr.stroke-width]="s.width"
+                  [attr.opacity]="s.opacity"
+               />
+            }
+            @if (l.head; as h) {
+               <circle class="glow" [attr.cx]="h.x" [attr.cy]="h.y" r="12" />
+               <circle class="dot" [attr.cx]="h.x" [attr.cy]="h.y" r="5" />
+            }
+         }
+      </svg>
+   }
+
+   @if (laserOn()) {
+      <div
+         class="laser-capture"
+         (click)="$event.stopPropagation()"
+         (pointerdown)="onLaserDown($event)"
+         (pointermove)="onLaserMove($event)"
+         (pointerup)="onLaserUp($event)"
+         (pointercancel)="onLaserUp($event)"
+      ></div>
+   }
+
+   @if (following(); as who) {
+      <div class="follow" (click)="$event.stopPropagation()">Following {{ who }} · Esc to leave</div>
+   }
+
+   @if (showGrid()) {
+      <div class="slide-grid" (click)="$event.stopPropagation(); showGrid.set(false)">
+         <div class="sg-list" (click)="$event.stopPropagation()">
+            @for (u of gridThumbs(); track $index) {
+               <button class="sg-item" [class.on]="$index === index()" (click)="jumpTo($index)">
+                  <img [src]="u" alt="" draggable="false" />
+                  <span class="sg-n">{{ $index + 1 }}</span>
+               </button>
+            }
+         </div>
+      </div>
+   }
+
+   @if (showNotes()) {
+      <aside class="notes" (click)="$event.stopPropagation()">
+         <h3>Speaker notes</h3>
+         @if (current().notes) {
+            <p>{{ current().notes }}</p>
+         } @else {
+            <p class="none">No notes for this slide.</p>
+         }
+      </aside>
+   }
+
+   <div
+      class="bar"
+      [class.dragging]="barDrag !== null"
+      [style.transform]="barTransform()"
+      (click)="$event.stopPropagation()"
+   >
+      <span
+         class="grip"
+         title="Drag to move · double-click to reset"
+         (pointerdown)="onBarDown($event)"
+         (pointermove)="onBarMove($event)"
+         (pointerup)="onBarUp($event)"
+         (pointercancel)="onBarUp($event)"
+         (dblclick)="barOffset.set({ x: 0, y: 0 })"
+      ></span>
+      <button
+         class="btn"
+         (click)="prev()"
+         [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
+         aria-label="Previous"
+      >
+         <dd-icon name="chevron_left" />
+      </button>
+      <span class="count">
+         {{ index() + 1 }} / {{ slides().length }}
+         @if (clicks() > 0) {
+            <small>· {{ clickStep() }}/{{ clicks() }}</small>
+         }
+      </span>
+      <button
+         class="btn"
+         (click)="next()"
+         [disabled]="!!following() || (index() === slides().length - 1 && step() >= current().maxStep)"
+         aria-label="Next"
+      >
+         <dd-icon name="chevron_right" />
+      </button>
+      <span class="sep"></span>
+      <span class="name">{{ current().name }}</span>
+      <span class="sep"></span>
+      <span class="timer">{{ clock() }}</span>
+      <button
+         class="btn"
+         [class.on]="laserOn()"
+         (click)="toggleLaser()"
+         aria-label="Laser pointer (K)"
+         title="Laser pointer (K): drag on the slide"
+      >
+         <dd-icon name="near_me" />
+      </button>
+      <button
+         class="btn"
+         [class.on]="showNotes()"
+         (click)="toggleNotes()"
+         aria-label="Speaker notes (N)"
+         title="Speaker notes (N)"
+      >
+         <dd-icon name="notes" />
+      </button>
+      <button
+         class="btn"
+         [class.on]="showGrid()"
+         (click)="toggleGrid()"
+         [disabled]="!!following()"
+         aria-label="All slides (G)"
+         title="All slides (G)"
+      >
+         <dd-icon name="grid_view" />
+      </button>
+      <button class="btn" (click)="exit()" aria-label="Exit (Esc)" title="Exit (Esc)">
+         <dd-icon name="close" />
+      </button>
+   </div>
+</div>

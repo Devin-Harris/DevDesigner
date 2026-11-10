@@ -1,0 +1,88 @@
+@if (selectedOption(); as sel) {
+   @if (editing() === sel.value && inline()) {
+      <input
+         #inl
+         class="rename inline"
+         [value]="sel.label"
+         aria-label="Name"
+         (keydown.enter)="finishRename(sel, inl.value)"
+         (keydown.escape)="editing.set(null)"
+         (blur)="finishRename(sel, inl.value)"
+      />
+   }
+}
+@if (!(inline() && editing() !== null)) {
+   <div class="wrap">
+      <button
+         type="button"
+         class="dd-select-trigger"
+         [class.compact]="compact()"
+         [ddPopoverTrigger]="menu"
+         placement="below-start"
+         [disabled]="disabled()"
+      >
+         <span class="val" [style.font-family]="selectedFont()">{{ selectedLabel() }}</span>
+         <dd-icon name="arrow_drop_down" class="chev" />
+      </button>
+      @if (selectedOption()?.renamable && !disabled()) {
+         <button type="button" class="pen outer" aria-label="Rename" title="Rename" (click)="startInlineRename()">
+            <dd-icon name="edit" />
+         </button>
+      }
+   </div>
+}
+<ng-template #menu let-close>
+   <div class="dd-menu dd-select-menu">
+      @for (opt of options(); track opt.value; let i = $index) {
+         @if (opt.group && opt.group !== options()[i - 1]?.group) {
+            <div class="group">{{ opt.group }}</div>
+         }
+         @if (editing() === opt.value) {
+            <input
+               #name
+               class="rename"
+               [value]="opt.label"
+               aria-label="Name"
+               (keydown.enter)="finishRename(opt, name.value)"
+               (keydown.escape)="editing.set(null); $event.stopPropagation()"
+               (blur)="finishRename(opt, name.value)"
+               (click)="$event.stopPropagation()"
+            />
+         } @else {
+            <div class="row">
+               <button
+                  type="button"
+                  class="dd-menu-item"
+                  [class.on]="opt.value === value()"
+                  [style.font-family]="opt.font"
+                  (click)="pick(opt.value); close()"
+               >
+                  {{ opt.label }}
+               </button>
+               @if (opt.renamable) {
+                  <button
+                     type="button"
+                     class="pen"
+                     aria-label="Rename"
+                     title="Rename"
+                     (click)="startRename(opt.value, $event)"
+                  >
+                     <dd-icon name="edit" />
+                  </button>
+                  @if (removable()) {
+                     <button
+                        type="button"
+                        class="pen del"
+                        aria-label="Delete"
+                        title="Delete"
+                        (click)="$event.stopPropagation(); remove.emit(opt.value)"
+                     >
+                        <dd-icon name="delete" />
+                     </button>
+                  }
+               }
+            </div>
+         }
+      }
+   </div>
+</ng-template>

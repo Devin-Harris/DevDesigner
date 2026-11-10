@@ -1,0 +1,64 @@
+:host {
+   display: block;
+}
+.grid {
+   display: grid;
+   gap: 6px;
+}
+.deck-label {
+   font-size: 11px;
+   color: var(--dd-text-muted);
+   margin-bottom: 4px;
+}
+.grid.deck {
+   padding-bottom: 8px;
+   margin-bottom: 8px;
+   border-bottom: 1px solid var(--dd-border);
+}
+.sw {
+   width: 26px;
+   height: 26px;
+   border-radius: 6px;
+   border: 1px solid var(--dd-border);
+   cursor: pointer;
+   padding: 0;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   color: var(--dd-text-muted);
+   background: transparent;
+   --dd-icon-size: 16px;
+}
+.sw:disabled {
+   cursor: default;
+   opacity: 0.5;
+}
+.sw.none {
+   background-image: linear-gradient(
+      45deg,
+      transparent 45%,
+      var(--dd-danger) 45%,
+      var(--dd-danger) 55%,
+      transparent 55%
+   );
+}
+.sw.theme {
+   background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
+   color: #64748b;
+   --dd-icon-size: 14px;
+}
+.sw.custom {
+   position: relative;
+   overflow: hidden;
+}
+.sw.custom input {
+   position: absolute;
+   inset: 0;
+   opacity: 0;
+   cursor: pointer;
+}
+.sw.active {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+   border-color: var(--dd-primary);
+}

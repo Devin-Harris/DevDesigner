@@ -1,0 +1,37 @@
+:host {
+   display: inline-flex;
+}
+.dd-checkbox {
+   display: inline-flex;
+   align-items: center;
+   gap: 7px;
+   border: none;
+   background: transparent;
+   padding: 2px 0;
+   cursor: pointer;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12.5px;
+}
+.dd-checkbox:disabled {
+   opacity: 0.5;
+   cursor: default;
+}
+.box {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 16px;
+   height: 16px;
+   border: 1.5px solid var(--dd-border-strong);
+   border-radius: 5px;
+   color: #fff;
+   --dd-icon-size: 12px;
+   transition:
+      background 0.12s ease,
+      border-color 0.12s ease;
+}
+.box.on {
+   background: var(--dd-primary);
+   border-color: var(--dd-primary);
+}

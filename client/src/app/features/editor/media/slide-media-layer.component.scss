@@ -1,0 +1,31 @@
+:host {
+   position: absolute;
+   inset: 0;
+   pointer-events: none;
+   container-type: size;
+}
+.frame {
+   position: absolute;
+   inset: 0;
+   margin: auto;
+   width: min(100cqw, calc(100cqh * var(--slide-ar)));
+   height: min(100cqh, calc(100cqw / var(--slide-ar)));
+   overflow: hidden;
+}
+.item {
+   position: absolute;
+   pointer-events: auto;
+}
+.item.gif-click {
+   cursor: pointer;
+}
+.clip {
+   position: absolute;
+   inset: 0;
+   overflow: hidden;
+}
+img {
+   position: absolute;
+   display: block;
+   user-select: none;
+}

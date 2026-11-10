@@ -22,41 +22,7 @@ export interface FrameOrderDialogData {
    selector: 'dd-frame-order-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [MatDialogModule, IconComponent],
-   template: `
-      <h2 mat-dialog-title class="dlg-title">Arrange PDF pages</h2>
-      <mat-dialog-content class="dlg-body">
-         <p class="hint">Page 1 is at the top. Drag a row or use the arrows.</p>
-         <ol class="pages">
-            @for (f of items(); track f.id; let i = $index) {
-               <li
-                  class="page"
-                  [class.over]="overIndex() === i"
-                  draggable="true"
-                  (dragstart)="dragFrom = i"
-                  (dragover)="$event.preventDefault(); overIndex.set(i)"
-                  (dragleave)="overIndex.set(null)"
-                  (drop)="drop(i)"
-                  (dragend)="overIndex.set(null)"
-               >
-                  <dd-icon name="drag_indicator" class="grip" />
-                  <span class="num">{{ i + 1 }}</span>
-                  <span class="name">{{ f.name }}</span>
-                  <span class="size">{{ f.width }} × {{ f.height }}</span>
-                  <button class="mv" [disabled]="i === 0" (click)="move(i, -1)" aria-label="Move up">
-                     <dd-icon name="arrow_upward" />
-                  </button>
-                  <button class="mv" [disabled]="i === items().length - 1" (click)="move(i, 1)" aria-label="Move down">
-                     <dd-icon name="arrow_downward" />
-                  </button>
-               </li>
-            }
-         </ol>
-      </mat-dialog-content>
-      <mat-dialog-actions class="dlg-actions">
-         <button class="btn" mat-dialog-close>Cancel</button>
-         <button class="btn primary" (click)="confirm()"><dd-icon name="picture_as_pdf" />Export PDF</button>
-      </mat-dialog-actions>
-   `,
+   templateUrl: './frame-order-dialog.component.html',
    styleUrl: './frame-order-dialog.component.scss',
 })
 export class FrameOrderDialogComponent {

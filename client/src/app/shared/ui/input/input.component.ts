@@ -11,58 +11,8 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [],
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => InputComponent), multi: true }],
-   template: `
-      <input
-         class="dd-input"
-         [type]="type()"
-         [attr.placeholder]="placeholder()"
-         [attr.min]="min()"
-         [attr.maxlength]="maxlength()"
-         [disabled]="disabled()"
-         [value]="value()"
-         (input)="onInput($event)"
-         (change)="onCommit($event)"
-         (blur)="onTouched()"
-      />
-   `,
-   styles: [
-      `
-         :host {
-            display: block;
-         }
-         .dd-input {
-            width: 100%;
-            box-sizing: border-box;
-            height: 34px;
-            padding: 0 10px;
-            font: inherit;
-            font-family: var(--dd-font);
-            font-size: 13px;
-            color: var(--dd-text);
-            background: var(--dd-surface-2);
-            border: 1px solid var(--dd-border);
-            border-radius: var(--dd-radius-sm);
-            outline: none;
-            transition:
-               border-color 0.12s ease,
-               box-shadow 0.12s ease;
-         }
-         .dd-input::placeholder {
-            color: var(--dd-faint, var(--dd-text-muted));
-         }
-         .dd-input:hover:not(:disabled) {
-            border-color: var(--dd-border-strong);
-         }
-         .dd-input:focus {
-            border-color: var(--dd-primary);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-primary) 22%, transparent);
-         }
-         .dd-input:disabled {
-            opacity: 0.55;
-            cursor: default;
-         }
-      `,
-   ],
+   templateUrl: './input.component.html',
+   styleUrl: './input.component.scss',
 })
 export class InputComponent implements ControlValueAccessor {
    readonly type = input<'text' | 'number' | 'email' | 'password'>('text');

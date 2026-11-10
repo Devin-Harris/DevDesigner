@@ -8,64 +8,8 @@ import { IconComponent } from '../icon/icon.component';
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [IconComponent],
    providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => CheckboxComponent), multi: true }],
-   template: `
-      <button
-         type="button"
-         class="dd-checkbox"
-         role="checkbox"
-         [attr.aria-checked]="checked()"
-         [disabled]="disabled()"
-         (click)="toggle()"
-      >
-         <span class="box" [class.on]="checked()">
-            @if (checked()) {
-               <dd-icon name="check" />
-            }
-         </span>
-         <span class="label"><ng-content /></span>
-      </button>
-   `,
-   styles: [
-      `
-         :host {
-            display: inline-flex;
-         }
-         .dd-checkbox {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            border: none;
-            background: transparent;
-            padding: 2px 0;
-            cursor: pointer;
-            color: var(--dd-text);
-            font: inherit;
-            font-size: 12.5px;
-         }
-         .dd-checkbox:disabled {
-            opacity: 0.5;
-            cursor: default;
-         }
-         .box {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            border: 1.5px solid var(--dd-border-strong);
-            border-radius: 5px;
-            color: #fff;
-            --dd-icon-size: 12px;
-            transition:
-               background 0.12s ease,
-               border-color 0.12s ease;
-         }
-         .box.on {
-            background: var(--dd-primary);
-            border-color: var(--dd-primary);
-         }
-      `,
-   ],
+   templateUrl: './checkbox.component.html',
+   styleUrl: './checkbox.component.scss',
 })
 export class CheckboxComponent implements ControlValueAccessor {
    readonly disabled = signal(false);

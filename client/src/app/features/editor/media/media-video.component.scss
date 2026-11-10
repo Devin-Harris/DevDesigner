@@ -1,0 +1,71 @@
+:host {
+   position: absolute;
+   inset: 0;
+   display: block;
+   overflow: hidden;
+   pointer-events: none;
+   background: #000;
+}
+:host.clickable {
+   pointer-events: auto;
+   cursor: pointer;
+}
+video {
+   position: absolute;
+   object-fit: fill;
+   pointer-events: none;
+}
+.bar {
+   position: absolute;
+   left: 0;
+   right: 0;
+   bottom: 0;
+   height: 34px;
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   padding: 0 8px;
+   background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+   color: #fff;
+   font:
+      500 11px/1 system-ui,
+      sans-serif;
+   opacity: 0;
+   pointer-events: none;
+   transition: opacity 120ms ease;
+}
+:host.show-bar .bar,
+:host.clickable:hover .bar {
+   opacity: 1;
+   pointer-events: auto;
+}
+.btn {
+   flex: none;
+   width: 24px;
+   height: 24px;
+   padding: 4px;
+   border: 0;
+   border-radius: 4px;
+   background: transparent;
+   color: inherit;
+   cursor: pointer;
+}
+.btn:hover {
+   background: rgba(255, 255, 255, 0.18);
+}
+.btn svg {
+   width: 100%;
+   height: 100%;
+   fill: currentColor;
+}
+.scrub {
+   flex: 1;
+   min-width: 0;
+   accent-color: #fff;
+   cursor: pointer;
+}
+.time {
+   flex: none;
+   font-variant-numeric: tabular-nums;
+   white-space: nowrap;
+}
