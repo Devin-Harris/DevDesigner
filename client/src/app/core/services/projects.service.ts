@@ -1,19 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import type {
-   BatchUpdateDto,
-   BatchUpdateResponse,
-   CloneItemsDto,
-   CreateProjectDto,
-   ImportIntoProjectDto,
-   ImportIntoProjectResponse,
-   ProjectExportFile,
-   ProjectGraphResponse,
-   ProjectSummary,
-   UpdateHomeDto,
-   UpdateThemesDto,
-   UpdateProjectDto,
-   UpdateViewportDto,
+import {
+   BATCH_RETURN_NONE,
+   type BatchUpdateAck,
+   type BatchUpdateDto,
+   type CloneItemsDto,
+   type CreateProjectDto,
+   type ImportIntoProjectDto,
+   type ImportIntoProjectResponse,
+   type ProjectExportFile,
+   type ProjectGraphResponse,
+   type ProjectSummary,
+   type UpdateHomeDto,
+   type UpdateThemesDto,
+   type UpdateProjectDto,
+   type UpdateViewportDto,
 } from '@devdesigner/shared';
 import { ApiService } from './api.service';
 
@@ -97,13 +98,16 @@ export class ProjectsService {
       return this.api.patch<void>(`/projects/${id}/viewport`, dto);
    }
 
-   /** Apply many row patches atomically (PATCH /projects/:id/batch). */
-   batch(id: string, dto: BatchUpdateDto): Observable<BatchUpdateResponse> {
-      return this.api.patch<BatchUpdateResponse>(`/projects/${id}/batch`, dto);
+   /**
+    * Apply many row patches atomically (PATCH /projects/:id/batch). The store has already
+    * applied them locally, so it asks for a small ack instead of every changed row.
+    */
+   batch(id: string, dto: BatchUpdateDto): Observable<BatchUpdateAck> {
+      return this.api.patch<BatchUpdateAck>(`/projects/${id}/batch?return=${BATCH_RETURN_NONE}`, dto);
    }
 
    /** Copy rows under client-chosen ids in one transaction (POST /projects/:id/clone). */
-   clone(id: string, dto: CloneItemsDto): Observable<BatchUpdateResponse> {
-      return this.api.post<BatchUpdateResponse>(`/projects/${id}/clone`, dto);
+   clone(id: string, dto: CloneItemsDto): Observable<BatchUpdateAck> {
+      return this.api.post<BatchUpdateAck>(`/projects/${id}/clone?return=${BATCH_RETURN_NONE}`, dto);
    }
 }

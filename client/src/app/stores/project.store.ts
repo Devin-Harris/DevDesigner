@@ -1904,7 +1904,13 @@ export const ProjectStore = signalStore(
                      );
                      break;
                   case 'element.updated':
-                     mapElement(mutation.element.id, () => mutation.element);
+                     setSchema((s) => {
+                        const prev = s.elements.find((e) => e.id === mutation.element.id);
+                        const elements = s.elements.map((e) => (e.id === mutation.element.id ? mutation.element : e));
+                        // Elements draw in array order: a restack (new zIndex) re-sorts them.
+                        const restacked = !!prev && prev.zIndex !== mutation.element.zIndex;
+                        return { ...s, elements: restacked ? elements.sort((a, b) => a.zIndex - b.zIndex) : elements };
+                     });
                      break;
                   case 'element.moved':
                      mapElement(mutation.elementId, (e) => ({
@@ -3835,6 +3841,7 @@ export const ProjectStore = signalStore(
 
             /** Reorder element stacking optimistically; persist the new order (debounced). */
             reorderElements(orderedElementIds: string[]): void {
+               const before = new Map(store.elements().map((e) => [e.id, e.zIndex]));
                setSchema((s) => {
                   const byId = new Map(s.elements.map((e) => [e.id, e]));
                   const ordered = orderedElementIds
@@ -3851,8 +3858,10 @@ export const ProjectStore = signalStore(
                if (!projectId) {
                   return;
                }
-               debounce('elements:reorder', () => {
-                  void runSave(() => firstValueFrom(elementsApi.reorder(projectId, { orderedElementIds })));
+               // Only the rows whose index changed go out, in the staged batch with other edits.
+               orderedElementIds.forEach((id, zIndex) => {
+                  const was = before.get(id);
+                  if (was !== undefined && was !== zIndex) stage('elements', id, { zIndex });
                });
             },
 

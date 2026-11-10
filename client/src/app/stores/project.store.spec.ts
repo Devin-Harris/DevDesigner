@@ -518,6 +518,27 @@ describe('ProjectStore optimistic saves', () => {
       beforeEach(() => jest.useFakeTimers());
       afterEach(() => jest.useRealTimers());
 
+      it('restacks locally and sends only the rows whose zIndex changed (P1.9)', async () => {
+         const { store, api } = createStore({
+            elements: [element('a', { zIndex: 0 }), element('b', { zIndex: 1 }), element('c', { zIndex: 2 })],
+         });
+         store.reorderElements(['a', 'c', 'b']);
+         expect(store.schema()!.elements.map((e) => [e.id, e.zIndex])).toEqual([
+            ['a', 0],
+            ['c', 1],
+            ['b', 2],
+         ]);
+
+         await jest.advanceTimersByTimeAsync(400);
+
+         expect(api.projects.batch).toHaveBeenCalledWith('p1', {
+            elements: [
+               { id: 'c', zIndex: 1 },
+               { id: 'b', zIndex: 2 },
+            ],
+         });
+      });
+
       it('merges rapid moves of a row into one PATCH /batch after 400ms idle', async () => {
          const { store, api } = createStore({ elements: [element('e1')] });
          store.moveElement('e1', 10, 10);
@@ -737,6 +758,19 @@ describe('ProjectStore.importFile', () => {
 });
 
 // ---- view state (perf P1.1-P1.3) --------------------------------------------------------------
+
+describe('ProjectStore remote restack', () => {
+   it('re-sorts elements when a remote update changes a zIndex (they draw in array order)', () => {
+      const { store } = createStore({
+         elements: [element('a', { zIndex: 0 }), element('b', { zIndex: 1 }), element('c', { zIndex: 2 })],
+      });
+      store.applyRemoteBatch([
+         { kind: 'element.updated', element: element('c', { zIndex: 1 }) },
+         { kind: 'element.updated', element: element('b', { zIndex: 2 }) },
+      ]);
+      expect(store.schema()!.elements.map((e) => e.id)).toEqual(['a', 'c', 'b']);
+   });
+});
 
 describe('ProjectStore view state', () => {
    afterEach(() => {
