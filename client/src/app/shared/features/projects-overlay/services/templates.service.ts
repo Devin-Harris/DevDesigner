@@ -1,10 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ColumnsApiService } from '../../../shared/services/columns-api.service';
-import { RelationshipsApiService } from '../../../shared/services/relationships-api.service';
-import { TablesApiService } from '../../../shared/services/tables-api.service';
-import { ProjectsStore } from '../state/projects/projects.store';
-import type { ProjectTemplate } from './project-templates';
+import { ColumnsApiService } from '../../../services/columns-api.service';
+import { RelationshipsApiService } from '../../../services/relationships-api.service';
+import { TablesApiService } from '../../../services/tables-api.service';
+import { ProjectsStore } from '../../../../features/workspace/state/projects/projects.store';
+import type { ProjectTemplate } from '../models/project-templates';
 
 /**
  * Instantiates a client-side starter template into a real project using the

@@ -17,9 +17,10 @@ import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/theme/theme.service';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
-import { EditorComponent } from '../editor/editor.component';
-import { GUIDE_GROUPS, GUIDE_TOOLS, type GuideTool } from './guide-tools';
-import { prepareSandbox, SEEDS, writeStored } from './helpers/guide-sandbox.helper';
+import { EditorComponent } from '../editor';
+import { GUIDE_GROUPS, GUIDE_TOOLS, type GuideTool } from './models/guide-tools';
+import { prepareSandbox, writeStored } from '../../core/sandbox/sandbox-seeds.helper';
+import { SEEDS } from './helpers/guide-sandbox.helper';
 
 function readFlag(key: string): boolean {
    try {

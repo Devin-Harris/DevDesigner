@@ -14,27 +14,31 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { generateSql, type SequenceMessageModel } from '@devdesigner/shared';
-import { EditorComponent } from '../editor/editor.component';
-import { DeckCompareComponent } from '../editor/features/slides/features/deck-compare/deck-compare.component';
-import { CompareUiState } from '../editor/features/slides/features/deck-compare/services/compare-ui-state.service';
-import { ColorSwatchesComponent } from '../../shared/ui/components/color-swatches/color-swatches.component';
-import { codePalette, tokenColor, tokenizeCode } from '../editor/helpers/code-highlight.helper';
-import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
-import { prepareSandbox } from '../guide/helpers/guide-sandbox.helper';
-import { ProjectStore } from '../editor/state/project/project.store';
-import { playBuild, type Box, type CursorFn } from './showcase-player';
+import {
+   CompareUiState,
+   codePalette,
+   DeckCompareComponent,
+   EditorComponent,
+   ProjectStore,
+   tokenColor,
+   tokenizeCode,
+} from '../../../editor';
+import { ColorSwatchesComponent } from '../../../../shared/ui/components/color-swatches/color-swatches.component';
+import { SandboxBackendService } from '../../../../core/sandbox/sandbox-backend.service';
+import { prepareSandbox } from '../../../../core/sandbox/sandbox-seeds.helper';
+import { playBuild, type Box, type CursorFn } from './helpers/showcase-player';
 import { RouterLink } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { IconComponent } from '../../shared/ui/components/icon/icon.component';
-import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
-import { ThemeService } from '../../core/theme/theme.service';
-import { AuthService } from '../../core/auth/auth.service';
-import { ProjectsStore } from '../workspace/state/projects/projects.store';
-import { ProjectsOverlayService } from '../workspace/projects-overlay/projects-overlay.service';
-import { AuthDialogComponent } from '../auth/auth-dialog.component';
-import { ApiTokensDialogComponent } from '../auth/api-tokens-dialog.component';
-import { environment } from '../../../environments/environment';
+import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
+import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
+import { ThemeService } from '../../../../core/theme/theme.service';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { ProjectsStore } from '../../state/projects/projects.store';
+import { ProjectsOverlayService } from '../../../../shared/features/projects-overlay/projects-overlay.service';
+import { AuthDialogComponent } from '../../../../shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
+import { ApiTokensDialogComponent } from '../../../../shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';
+import { environment } from '../../../../../environments/environment';
 
 /** Bump when the showcase seeds change, so a browser session drops its old copies. */
 const SHOWCASE_VERSION = 25;

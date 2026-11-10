@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { EditorComponent } from '../editor/editor.component';
+import { EditorComponent } from '../editor';
 
 /**
  * Shared-link entry (route: /shared/:token). Renders the same editor in shared

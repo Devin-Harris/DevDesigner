@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@a
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ProjectsStore } from './state/projects/projects.store';
-import { EditorComponent } from '../editor/editor.component';
-import { HomeComponent } from '../home/home.component';
-import { ProjectsOverlayService } from './projects-overlay/projects-overlay.service';
+import { EditorComponent } from '../editor';
+import { HomeComponent } from './features/home/home.component';
+import { ProjectsOverlayService } from '../../shared/features/projects-overlay/projects-overlay.service';
 
 /**
  * Workspace shell (routes: / and /projects/:projectId). Full-width canvas of the

@@ -21,13 +21,13 @@ import { ProjectFileService } from './shared/services/project-file.service';
 import { RealtimeService } from './core/realtime/realtime.service';
 import { ProjectsStore } from './features/workspace/state/projects/projects.store';
 import { ProjectStore } from './features/editor/state/project/project.store';
-import { AuthDialogComponent } from './features/auth/auth-dialog.component';
+import { AuthDialogComponent } from './shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
 import {
    ConfirmDialogComponent,
    type ConfirmDialogData,
 } from './shared/ui/components/confirm-dialog/confirm-dialog.component';
-import { ApiTokensDialogComponent } from './features/auth/api-tokens-dialog.component';
-import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
+import { ApiTokensDialogComponent } from './shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';
+import { ProjectsOverlayService } from './shared/features/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
 import type { ExportImageFormat } from './features/editor/models/toolbar-actions';

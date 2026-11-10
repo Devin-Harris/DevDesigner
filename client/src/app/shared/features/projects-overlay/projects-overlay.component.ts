@@ -4,20 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@devdesigner/shared';
-import { ProjectFileService } from '../../../shared/services/project-file.service';
-import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
-import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
-import { InputComponent } from '../../../shared/ui/components/input/input.component';
-import { PopoverTriggerDirective } from '../../../shared/ui/directives/popover-trigger.directive';
-import { ToggleComponent } from '../../../shared/ui/components/toggle/toggle.component';
-import { ProjectsStore } from '../state/projects/projects.store';
+import { ProjectFileService } from '../../services/project-file.service';
+import { AutofocusDirective } from '../../ui/directives/autofocus.directive';
+import { IconComponent } from '../../ui/components/icon/icon.component';
+import { InputComponent } from '../../ui/components/input/input.component';
+import { PopoverTriggerDirective } from '../../ui/directives/popover-trigger.directive';
+import { ToggleComponent } from '../../ui/components/toggle/toggle.component';
+import { ProjectsStore } from '../../../features/workspace/state/projects/projects.store';
 import {
    ConfirmDialogComponent,
    type ConfirmDialogData,
-} from '../../../shared/ui/components/confirm-dialog/confirm-dialog.component';
-import { ProjectThumbnailService } from './project-thumbnail.service';
-import { PROJECT_TEMPLATES, type ProjectTemplate } from '../templates/project-templates';
-import { TemplatesService } from '../templates/templates.service';
+} from '../../ui/components/confirm-dialog/confirm-dialog.component';
+import { ProjectThumbnailService } from './services/project-thumbnail.service';
+import { PROJECT_TEMPLATES, type ProjectTemplate } from './models/project-templates';
+import { TemplatesService } from './services/templates.service';
 
 type OverlayView = 'projects' | 'templates';
 
