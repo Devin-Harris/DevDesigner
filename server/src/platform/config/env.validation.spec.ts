@@ -50,6 +50,17 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ DATABASE_SYNCHRONIZE: 'maybe' })).toThrow(/DATABASE_SYNCHRONIZE/);
   });
 
+  it('defaults proxy trust and rate limits, and validates them', () => {
+    const env = validateEnv({});
+    expect(env.TRUST_PROXY_HOPS).toBe(1);
+    expect(env.RATE_LIMIT_ENABLED).toBe('true');
+    expect(env.RATE_LIMIT_PER_MIN).toBe(1200);
+    expect(env.RATE_LIMIT_IP_PER_MIN).toBe(3000);
+    expect(validateEnv({ TRUST_PROXY_HOPS: '0' }).TRUST_PROXY_HOPS).toBe(0);
+    expect(() => validateEnv({ TRUST_PROXY_HOPS: '-1' })).toThrow(/TRUST_PROXY_HOPS/);
+    expect(() => validateEnv({ RATE_LIMIT_PER_MIN: '0' })).toThrow(/RATE_LIMIT_PER_MIN/);
+  });
+
   describe('production', () => {
     it('requires JWT_SECRET', () => {
       expect(() => validateEnv({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET is required/);

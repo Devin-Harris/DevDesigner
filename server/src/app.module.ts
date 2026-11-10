@@ -22,6 +22,7 @@ import { RealtimeModule } from './platform/realtime/realtime.module';
 import { BatchModule } from './projects/batch/batch.module';
 import { UserThemesModule } from './identity/user-themes/user-themes.module';
 import { AdminModule } from './admin/admin.module';
+import { ThrottleModule } from './platform/throttle/throttle.module';
 import { validateEnv } from './platform/config/env.validation';
 import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
 import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
@@ -45,6 +46,7 @@ import { loggerParams } from './platform/http/logger.config';
     AccessModule,
     HealthModule,
     AuthModule,
+    ThrottleModule,
     ProjectsModule,
     BatchModule,
     TablesModule,

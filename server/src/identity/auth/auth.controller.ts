@@ -18,6 +18,7 @@ import type {
   CurrentUserResponse,
 } from '@devdesigner/shared';
 import { CallerScoped, Public } from '../../collaboration/access/access-policy';
+import { RateLimit } from '../../platform/throttle/rate-limit';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -42,6 +43,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
+  @RateLimit('register')
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -53,11 +55,20 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @RateLimit('login')
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<CurrentUserResponse> {
-    const { user, token } = await this.auth.login(dto);
+    let session: Awaited<ReturnType<AuthService['login']>>;
+    try {
+      session = await this.auth.login(dto);
+    } catch (err) {
+      const retryAfter = (err as { getResponse?: () => unknown }).getResponse?.() as { retryAfter?: number } | undefined;
+      if (typeof retryAfter?.retryAfter === 'number') res.setHeader('Retry-After', String(retryAfter.retryAfter));
+      throw err;
+    }
+    const { user, token } = session;
     res.cookie(AUTH_COOKIE, token, this.cookieOptions());
     return user;
   }

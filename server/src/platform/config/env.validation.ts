@@ -27,6 +27,13 @@ export interface EnvConfig {
   SENTRY_TRACES_SAMPLE_RATE: number;
   /** Normalized (trimmed, lower-cased, de-duplicated) comma-separated admin allowlist. */
   ADMIN_EMAILS: string;
+  /** Reverse-proxy hops in front of the server (Railway: 1); 0 = trust none. */
+  TRUST_PROXY_HOPS: number;
+  RATE_LIMIT_ENABLED: 'true' | 'false';
+  /** Requests per minute per caller (account, guest id or IP) across all routes. */
+  RATE_LIMIT_PER_MIN: number;
+  /** Requests per minute per client IP across all routes. */
+  RATE_LIMIT_IP_PER_MIN: number;
   [key: string]: unknown;
 }
 
@@ -115,6 +122,10 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     SENTRY_DSN: str('SENTRY_DSN', ''),
     SENTRY_TRACES_SAMPLE_RATE: sampleRate,
     ADMIN_EMAILS: adminEmails.join(','),
+    TRUST_PROXY_HOPS: int('TRUST_PROXY_HOPS', 1, 0, 10),
+    RATE_LIMIT_ENABLED: bool('RATE_LIMIT_ENABLED', true),
+    RATE_LIMIT_PER_MIN: int('RATE_LIMIT_PER_MIN', 1200, 1, 1_000_000),
+    RATE_LIMIT_IP_PER_MIN: int('RATE_LIMIT_IP_PER_MIN', 3000, 1, 1_000_000),
   };
 
   if (errors.length > 0) {

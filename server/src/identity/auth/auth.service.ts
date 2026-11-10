@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,8 +9,15 @@ import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AdminBootstrapService } from '../../admin/admin-bootstrap.service';
+import { LoginBackoff } from './login-backoff';
 
 const BCRYPT_ROUNDS = 12;
+/**
+ * A bcrypt hash (12 rounds) of a throwaway string. Unknown emails are compared
+ * against it so a login for a missing account costs the same as a wrong password
+ * (no timing oracle for which emails exist, security L-4).
+ */
+const DUMMY_HASH = '$2a$12$sMFOXe51rAMEJpImE.uN9uW6gZ1ta1/vzwEDEXKhzmJVdYXOvPOba';
 
 /**
  * Owner authentication: email/password registration and login, JWT issuance, and
@@ -20,6 +27,8 @@ const BCRYPT_ROUNDS = 12;
  */
 @Injectable()
 export class AuthService {
+  private readonly backoff = new LoginBackoff();
+
   constructor(
     @InjectRepository(User)
     private readonly users: Repository<User>,
@@ -48,19 +57,30 @@ export class AuthService {
     return { user: toResponse(saved), token: this.sign(saved) };
   }
 
-  /** Validate credentials and return the user plus a signed session token. */
+  /**
+   * Validate credentials and return the user plus a signed session token. Repeated
+   * failures for one email lock it with a growing delay (429 + Retry-After).
+   */
   async login(dto: LoginDto): Promise<{ user: CurrentUserResponse; token: string }> {
     const email = normalizeEmail(dto.email);
+    const waitMs = this.backoff.retryAfterMs(email);
+    if (waitMs > 0) {
+      const seconds = Math.ceil(waitMs / 1000);
+      throw new HttpException(
+        { statusCode: 429, message: `Too many failed sign-in attempts. Try again in ${seconds} seconds.`, retryAfter: seconds },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     const user = await this.users.findOne({ where: { email } });
-    // Uniform error whether the email is unknown or the password is wrong, so the
-    // endpoint does not reveal which accounts exist.
-    if (!user || !user.passwordHash) {
+    // Always run one bcrypt compare, against a dummy hash for unknown emails, and
+    // answer with one uniform error, so neither timing nor wording reveals which
+    // accounts exist.
+    const ok = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_HASH);
+    if (!user || !user.passwordHash || !ok) {
+      this.backoff.recordFailure(email);
       throw new UnauthorizedException('Invalid email or password.');
     }
-    const ok = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!ok) {
-      throw new UnauthorizedException('Invalid email or password.');
-    }
+    this.backoff.recordSuccess(email);
     await this.adminBootstrap.promoteIfAllowlisted(user);
     user.lastLoginAt = new Date();
     await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });

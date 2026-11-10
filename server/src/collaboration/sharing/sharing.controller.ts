@@ -15,6 +15,7 @@ import type { ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/share
 import { SharingService } from './sharing.service';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ProjectAccess, Public, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
+import { RateLimit } from '../../platform/throttle/rate-limit';
 import {
   etagMatches,
   projectGraphTag,
@@ -34,6 +35,7 @@ export class SharingController {
 
   @Post('projects/:projectId/share')
   @RequiresAccess('owner')
+  @RateLimit('shareCreate')
   create(
     @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: CreateShareLinkDto,

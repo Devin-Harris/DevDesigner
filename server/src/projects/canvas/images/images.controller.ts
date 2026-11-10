@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { UploadImageResponse } from '@devdesigner/shared';
 import { ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../../../collaboration/access/access-policy';
+import { RateLimit } from '../../../platform/throttle/rate-limit';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { ImagesService } from './images.service';
 
@@ -12,6 +13,7 @@ export class ImagesController {
 
   @Post('projects/:projectId/images')
   @RequiresAccess('write')
+  @RateLimit('imageUpload')
   upload(
     @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() dto: UploadImageDto,

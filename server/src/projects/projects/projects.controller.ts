@@ -28,6 +28,7 @@ import {
 } from '../../platform/http/project-revision';
 import { CallerScoped, ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../../collaboration/access/access-policy';
 import { Caller } from '../../platform/http/caller';
+import { RateLimit } from '../../platform/throttle/rate-limit';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -52,6 +53,7 @@ export class ProjectsController {
 
   @Post()
   @CallerScoped()
+  @RateLimit('projectCreate')
   create(@Body() dto: CreateProjectDto, @Caller() caller: Caller): Promise<ProjectSummary> {
     return this.projects.create(dto, caller.ownerId);
   }
@@ -84,6 +86,7 @@ export class ProjectsController {
   /** Create a project from an exported file. Declared before ':projectId' routes. */
   @Post('import')
   @CallerScoped()
+  @RateLimit('projectImport')
   import(@Body() body: unknown, @Caller() caller: Caller): Promise<ProjectSummary> {
     return this.projects.importProject(body, caller.ownerId);
   }
@@ -91,6 +94,7 @@ export class ProjectsController {
   /** Merge an exported file into this existing project. */
   @Post(':projectId/import-content')
   @RequiresAccess('write')
+  @RateLimit('projectImport')
   importContent(
     @ProjectAccess() { projectId }: ResolvedProjectAccess,
     @Body() body: unknown,
@@ -100,6 +104,7 @@ export class ProjectsController {
 
   @Get(':projectId/export-file')
   @RequiresAccess('read')
+  @RateLimit('exportFile')
   export(@ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess): Promise<ProjectExportFile> {
     return this.projects.exportProject(projectId, accessLevel);
   }
@@ -163,6 +168,7 @@ export class ProjectsController {
 
   @Post(':projectId/duplicate')
   @RequiresAccess('owner')
+  @RateLimit('projectCreate')
   duplicate(@ProjectAccess() { projectId }: ResolvedProjectAccess): Promise<ProjectSummary> {
     return this.projects.duplicate(projectId);
   }

@@ -35,6 +35,9 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
   const config = app.get(ConfigService);
+  // Railway terminates TLS one proxy hop in front of us: trust exactly that many
+  // X-Forwarded-For entries so req.ip (the rate-limit key) is the real client.
+  app.set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 1));
 
   // Route-scoped parsers first: once one has parsed a body, the global one skips it.
   for (const { path, limit } of LARGE_BODY_ROUTES) {
