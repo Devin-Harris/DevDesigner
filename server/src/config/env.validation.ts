@@ -25,6 +25,8 @@ export interface EnvConfig {
   SLOW_QUERY_MS: number;
   SENTRY_DSN: string;
   SENTRY_TRACES_SAMPLE_RATE: number;
+  /** Normalized (trimmed, lower-cased, de-duplicated) comma-separated admin allowlist. */
+  ADMIN_EMAILS: string;
   [key: string]: unknown;
 }
 
@@ -88,6 +90,12 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     }
   }
 
+  const adminEmails = parseAdminEmails(str('ADMIN_EMAILS', ''));
+  const badAdmin = adminEmails.filter((email) => !/^[^@\s]+@[^@\s]+$/.test(email));
+  if (badAdmin.length > 0) {
+    errors.push(`ADMIN_EMAILS must be comma-separated email addresses (got "${badAdmin.join('", "')}")`);
+  }
+
   const config: EnvConfig = {
     ...raw,
     PORT: int('PORT', 3000, 1, 65535),
@@ -106,10 +114,21 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     SLOW_QUERY_MS: int('SLOW_QUERY_MS', 200, 0, 600_000),
     SENTRY_DSN: str('SENTRY_DSN', ''),
     SENTRY_TRACES_SAMPLE_RATE: sampleRate,
+    ADMIN_EMAILS: adminEmails.join(','),
   };
 
   if (errors.length > 0) {
     throw new Error(`Invalid environment configuration:\n  - ${errors.join('\n  - ')}`);
   }
   return config;
+}
+
+/** Split a comma-separated email list into trimmed, lower-cased, unique entries. */
+export function parseAdminEmails(value: string | undefined): string[] {
+  if (!value) return [];
+  const emails = value
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => email !== '');
+  return [...new Set(emails)];
 }

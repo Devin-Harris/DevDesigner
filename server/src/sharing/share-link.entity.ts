@@ -40,4 +40,11 @@ export class ShareLink {
 
   @Column({ type: 'datetime', nullable: true })
   expiresAt!: Date | null;
+
+  // Activity counters (analytics Phase 1, buffered); not written yet.
+  @Column({ type: 'datetime', nullable: true })
+  lastUsedAt!: Date | null;
+
+  @Column({ type: 'integer', default: 0 })
+  useCount!: number;
 }

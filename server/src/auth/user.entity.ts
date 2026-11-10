@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import type { UserRole } from './auth.types';
 
 /**
  * An account owner (BUILD_INSTRUCTIONS.md section 4.1). Email and passwordHash
@@ -30,6 +31,17 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true })
   displayName!: string | null;
+
+  // Authoritative role; ADMIN_EMAILS only promotes (see AdminBootstrapService).
+  @Column({ type: 'varchar', length: 16, default: 'user' })
+  role!: UserRole;
+
+  @Column({ type: 'datetime', nullable: true })
+  lastLoginAt!: Date | null;
+
+  // Throttled activity touch (analytics Phase 1); not written yet.
+  @Column({ type: 'datetime', nullable: true })
+  lastSeenAt!: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

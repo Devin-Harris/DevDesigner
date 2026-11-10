@@ -79,6 +79,10 @@ export class Project {
   @Column({ type: 'float', nullable: true })
   seqOriginY!: number | null;
 
+  // Throttled activity touch (analytics Phase 1); not written yet.
+  @Column({ type: 'datetime', nullable: true })
+  lastOpenedAt!: Date | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

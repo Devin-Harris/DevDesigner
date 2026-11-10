@@ -5,6 +5,7 @@ export * from './dto';
 export * from './sql';
 export * from './validation';
 export * from './realtime';
+export * from './admin';
 export * from './slides';
 export * from './diagram-spec';
 export * from './diagram-spec/presentation';

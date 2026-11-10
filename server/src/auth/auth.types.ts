@@ -23,3 +23,6 @@ export interface AuthUser {
   /** Set when the caller authenticated with an API token instead of a session cookie. */
   viaToken?: { id: string; scope: 'read' | 'write' };
 }
+
+/** Account role. Stored on users.role; never carried in the JWT. */
+export type UserRole = 'user' | 'admin';

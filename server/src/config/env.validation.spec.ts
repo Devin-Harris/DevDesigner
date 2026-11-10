@@ -1,4 +1,4 @@
-import { DEFAULT_JWT_SECRET, validateEnv } from './env.validation';
+import { DEFAULT_JWT_SECRET, parseAdminEmails, validateEnv } from './env.validation';
 
 const STRONG_SECRET = 'x'.repeat(48);
 
@@ -17,6 +17,15 @@ describe('validateEnv', () => {
     expect(env.SLOW_QUERY_MS).toBe(200);
     expect(env.SENTRY_DSN).toBe('');
     expect(env.SENTRY_TRACES_SAMPLE_RATE).toBe(0);
+    expect(env.ADMIN_EMAILS).toBe('');
+  });
+
+  it('normalizes ADMIN_EMAILS and rejects non-emails', () => {
+    expect(validateEnv({ ADMIN_EMAILS: ' Ada@Example.com, ,bob@x.io,ada@example.com ' }).ADMIN_EMAILS).toBe(
+      'ada@example.com,bob@x.io',
+    );
+    expect(() => validateEnv({ ADMIN_EMAILS: 'ada@example.com,not-an-email' })).toThrow(/ADMIN_EMAILS/);
+    expect(parseAdminEmails(undefined)).toEqual([]);
   });
 
   it('normalizes typed values', () => {

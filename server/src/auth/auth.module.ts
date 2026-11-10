@@ -9,6 +9,7 @@ import { AuthController } from './auth.controller';
 import { OptionalAuthGuard } from './optional-auth.guard';
 import { ApiToken } from './api-token.entity';
 import { ApiTokenService } from './api-token.service';
+import { AdminModule } from '../admin/admin.module';
 
 /**
  * Owner authentication (BUILD_INSTRUCTIONS.md sections 5 and 6).
@@ -21,6 +22,7 @@ import { ApiTokenService } from './api-token.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, ApiToken]),
+    AdminModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

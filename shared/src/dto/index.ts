@@ -50,6 +50,8 @@ export interface CurrentUserResponse {
   id: string;
   email: string | null;
   displayName: string | null;
+  /** Present (true) only for admins; the role itself is never in the session token. */
+  isAdmin?: boolean;
 }
 
 // --- API tokens (MCP / automation) ---

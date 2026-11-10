@@ -8,6 +8,7 @@ import { User } from './user.entity';
 import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { AdminBootstrapService } from '../admin/admin-bootstrap.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -23,6 +24,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly users: Repository<User>,
     private readonly jwt: JwtService,
+    private readonly adminBootstrap: AdminBootstrapService,
   ) {}
 
   /** Register a new account and return the user plus a signed session token. */
@@ -39,6 +41,8 @@ export class AuthService {
       displayName: dto.displayName?.trim() || null,
       provider: null,
       providerId: null,
+      role: this.adminBootstrap.isAllowlisted(email) ? 'admin' : 'user',
+      lastLoginAt: new Date(),
     });
     const saved = await this.users.save(user);
     return { user: toResponse(saved), token: this.sign(saved) };
@@ -57,6 +61,9 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('Invalid email or password.');
     }
+    await this.adminBootstrap.promoteIfAllowlisted(user);
+    user.lastLoginAt = new Date();
+    await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });
     return { user: toResponse(user), token: this.sign(user) };
   }
 
@@ -115,5 +122,9 @@ function readCookie(header: string | undefined, name: string): string | null {
 }
 
 function toResponse(user: User): CurrentUserResponse {
-  return { id: user.id, email: user.email, displayName: user.displayName };
+  const response: CurrentUserResponse = { id: user.id, email: user.email, displayName: user.displayName };
+  if (user.role === 'admin') {
+    response.isAdmin = true;
+  }
+  return response;
 }
