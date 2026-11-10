@@ -1,7 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { AutofocusDirective } from '../../../shared/ui/directives/autofocus.directive';
 import {
-   Injectable,
    ChangeDetectionStrategy,
    Component,
    DestroyRef,
@@ -96,42 +95,9 @@ import {
 } from './layout-placeholders';
 import { MorphTagSuggestions } from './morph-tag-suggestions.service';
 import { SlideRenderService } from './slide-render.service';
+import { type SlidesCommand } from './models/slides-command.model';
+import { FocusUiState } from './services/focus-ui-state.service';
 import { addStandardLayouts, applyLayoutSet, captureLayoutSet, deckLayouts, isForeignLayout } from './standard-layouts';
-
-/** What the panel asks the editor to do (things that need canvas knowledge). */
-/** Focus-mode view state that outlives the docks (they are rebuilt per screen). */
-@Injectable({ providedIn: 'root' })
-export class FocusUiState {
-   readonly tab = signal<'slide' | 'transition' | 'animations' | 'notes'>('slide');
-   /** The canvas settings panel's tab. */
-   readonly canvasTab = signal<'transition' | 'design' | 'size' | 'notes' | 'animations'>('transition');
-
-   /** Entering focus: open the same tab there (Design / Size live in the top bar, so Slide). */
-   toFocus(): void {
-      const t = this.canvasTab();
-      this.tab.set(t === 'transition' || t === 'animations' || t === 'notes' ? t : 'slide');
-   }
-
-   /** Leaving focus: the canvas panel shows the tab that was open in focus mode. */
-   fromFocus(): void {
-      const t = this.tab();
-      if (t !== 'slide') this.canvasTab.set(t);
-   }
-}
-
-export type SlidesCommand =
-   | { kind: 'present'; from: 'start' | 'current' }
-   | { kind: 'preview'; id: string }
-   | { kind: 'focus'; id: string }
-   | { kind: 'duplicate'; id: string; ids?: string[]; toIndex?: number }
-   | { kind: 'delete'; id: string }
-   /** `layout`: add a layout; `layoutId`: the new slide's layout (null = blank, absent = as shown). */
-   | { kind: 'add'; layout?: boolean; layoutId?: string | null }
-   | { kind: 'deletePresentation' }
-   | { kind: 'close' }
-   | { kind: 'fold' }
-   /** Focus mode: open one of its screens (DeckMorph / DeckAnim / DeckDesign mocks). */
-   | { kind: 'screen'; screen: 'main' | 'morph' | 'anim' | 'design' };
 
 const TYPE_OPTIONS: SelectOption<SlideTransitionType>[] = [
    { value: 'none', label: 'None' },

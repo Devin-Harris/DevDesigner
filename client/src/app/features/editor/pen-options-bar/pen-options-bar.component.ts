@@ -1,26 +1,10 @@
-import { ChangeDetectionStrategy, Component, Injectable, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PICKER_SWATCHES, themeSwatchCss } from '@devdesigner/shared';
 import { IconComponent } from '../../../shared/ui/icon/icon.component';
 import { ProjectStore } from '../../../stores/project.store';
-
-/** Pen settings that apply only to the Draw tool. */
-@Injectable({ providedIn: 'root' })
-export class PenPrefsService {
-   /** Strokes are drawn wide and half see-through, like a marker. */
-   readonly highlighter = signal(false);
-   /** Dragging erases the pen strokes it touches instead of drawing. */
-   readonly eraser = signal(false);
-   /** Eraser diameter in screen pixels. */
-   readonly eraserSize = signal(24);
-   /** Pen thickness, kept apart from the shapes' stroke width. */
-   readonly width = signal(2);
-}
-
-export const PEN_MIN = 0.5;
-export const PEN_MAX = 24;
-export const ERASER_MIN = 4;
-export const ERASER_MAX = 120;
+import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './models/pen-limits.constants';
+import { PenPrefsService } from './services/pen-prefs.service';
 
 const WIDTHS = [
    { value: 1, label: 'Thin', dot: 4 },

@@ -1,7 +1,6 @@
 import {
    ChangeDetectionStrategy,
    Component,
-   Injectable,
    DestroyRef,
    ElementRef,
    HostListener,
@@ -19,7 +18,8 @@ import { ProjectStore } from '../../../stores/project.store';
 import { tableBox } from '../canvas/helpers/node-metrics.helper';
 import { SlideRenderService, type RenderedSlide } from './slide-render.service';
 import { MorphStage } from './morph-stage';
-import { ease } from './present-mode.component';
+import { ease } from './helpers/ease.helper';
+import { CompareUiState } from './services/compare-ui-state.service';
 
 interface Side {
    item: MorphItem;
@@ -69,17 +69,6 @@ interface Hit {
    solo: boolean;
    /** Also morphs from the slide before the before-slide (a side) / into the slide after (b side). */
    chain: string | null;
-}
-
-/** Mapping state shared by the stage and the dock's pairs list (so the list highlights what you edit). */
-@Injectable({ providedIn: 'root' })
-export class CompareUiState {
-   /** The object picked first (waiting for its partner on the other slide). */
-   readonly armed = signal<{ side: 'a' | 'b'; key: string } | null>(null);
-   /** The object under the pointer. */
-   readonly lit = signal<string | null>(null);
-   /** Stage view: map pairs on both slides, or a full-size preview. */
-   readonly view = signal<'map' | 'preview'>('map');
 }
 
 const PAIR_COLORS = ['#2bb3a8', '#6f8bff', '#e0a84a', '#ef6b6b', '#9b7bff', '#3fb950', '#e879c6', '#5ac8fa'];

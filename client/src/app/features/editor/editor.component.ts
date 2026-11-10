@@ -13,14 +13,9 @@ import {
    viewChild,
 } from '@angular/core';
 import { ToolbarPrefsService } from './shape-toolbar/toolbar-prefs.service';
-import {
-   ERASER_MAX,
-   ERASER_MIN,
-   PEN_MAX,
-   PEN_MIN,
-   PenOptionsBarComponent,
-   PenPrefsService,
-} from './pen-options-bar/pen-options-bar.component';
+import { PenOptionsBarComponent } from './pen-options-bar/pen-options-bar.component';
+import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './pen-options-bar/models/pen-limits.constants';
+import { PenPrefsService } from './pen-options-bar/services/pen-prefs.service';
 import { InspectorPanelService } from './inspector-panel.service';
 import type { CanvasItemRef } from '../../core/services/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -255,9 +250,12 @@ import { ShareDialogComponent } from './share-dialog/share-dialog.component';
 import { PresentModeComponent } from './slides/present-mode.component';
 import { SlideRenderService, type RenderedSlide } from './slides/slide-render.service';
 import { ensureDeckDefaults } from './slides/deck-defaults';
-import { FocusUiState, SlidesPanelComponent, type SlidesCommand } from './slides/slides-panel.component';
+import { SlidesPanelComponent } from './slides/slides-panel.component';
+import type { SlidesCommand } from './slides/models/slides-command.model';
+import { FocusUiState } from './slides/services/focus-ui-state.service';
 import { PopoverTriggerDirective } from '../../shared/ui/popover/popover-trigger.directive';
-import { CompareUiState, DeckCompareComponent } from './slides/deck-compare.component';
+import { DeckCompareComponent } from './slides/deck-compare.component';
+import { CompareUiState } from './slides/services/compare-ui-state.service';
 import { AnimationPaneComponent } from './slides/animation-pane.component';
 import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
 

@@ -15,11 +15,12 @@ import {
 import { DatePipe } from '@angular/common';
 import { generateSql, type SequenceMessageModel } from '@devdesigner/shared';
 import { EditorComponent } from '../editor/editor.component';
-import { CompareUiState, DeckCompareComponent } from '../editor/slides/deck-compare.component';
+import { DeckCompareComponent } from '../editor/slides/deck-compare.component';
+import { CompareUiState } from '../editor/slides/services/compare-ui-state.service';
 import { ColorSwatchesComponent } from '../../shared/ui/color-swatches/color-swatches.component';
 import { codePalette, tokenColor, tokenizeCode } from '../editor/canvas/helpers/code-highlight.helper';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
-import { prepareSandbox } from '../guide/guide.component';
+import { prepareSandbox } from '../guide/helpers/guide-sandbox.helper';
 import { ProjectStore } from '../../stores/project.store';
 import { playBuild, type Box, type CursorFn } from './showcase-player';
 import { RouterLink } from '@angular/router';
