@@ -5,7 +5,7 @@ import type {
    SequenceMessageModel,
    TableModel,
 } from '@devdesigner/shared';
-import { columnAnchor } from '../editor/canvas/helpers/node-metrics.helper';
+import { columnAnchor } from '../editor/helpers/node-metrics.helper';
 
 /** The slice of ProjectStore the player drives (local only: nothing is saved). */
 export interface PlayerStore {

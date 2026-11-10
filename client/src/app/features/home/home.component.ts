@@ -15,10 +15,10 @@ import {
 import { DatePipe } from '@angular/common';
 import { generateSql, type SequenceMessageModel } from '@devdesigner/shared';
 import { EditorComponent } from '../editor/editor.component';
-import { DeckCompareComponent } from '../editor/slides/deck-compare.component';
-import { CompareUiState } from '../editor/slides/services/compare-ui-state.service';
+import { DeckCompareComponent } from '../editor/features/slides/features/deck-compare/deck-compare.component';
+import { CompareUiState } from '../editor/features/slides/features/deck-compare/services/compare-ui-state.service';
 import { ColorSwatchesComponent } from '../../shared/ui/components/color-swatches/color-swatches.component';
-import { codePalette, tokenColor, tokenizeCode } from '../editor/canvas/helpers/code-highlight.helper';
+import { codePalette, tokenColor, tokenizeCode } from '../editor/helpers/code-highlight.helper';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { prepareSandbox } from '../guide/helpers/guide-sandbox.helper';
 import { ProjectStore } from '../editor/state/project/project.store';

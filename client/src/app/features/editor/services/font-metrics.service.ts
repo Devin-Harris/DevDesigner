@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { notifySignal } from '../../../shared/helpers/signals';
-import { clearTextMetricsCaches } from '../canvas/helpers/text-metrics';
+import { clearTextMetricsCaches } from '../helpers/text-metrics';
 
 /**
  * Owns the `document.fonts` listener for the canvas text measurers. Text measured before a

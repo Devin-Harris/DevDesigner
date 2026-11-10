@@ -14,7 +14,7 @@ import type {
    SequenceMessageModel,
    TableModel,
 } from '@devdesigner/shared';
-import { codeElementContentSize } from '../../features/editor/canvas/helpers/shape-render.helper';
+import { codeElementContentSize } from '../../features/editor/helpers/shape-render.helper';
 
 /** Project ids served by the sandbox backend instead of the API. */
 export const SANDBOX_PREFIX = 'sandbox-';

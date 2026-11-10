@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, HostListener, computed, inject, sig
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
 import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
-import { ToolbarPrefsService } from './features/editor/shape-toolbar/toolbar-prefs.service';
-import { ToolbarCustomizePanelComponent } from './features/editor/shape-toolbar/toolbar-customize-panel.component';
+import { ToolbarPrefsService } from './features/editor/features/toolbar/services/toolbar-prefs.service';
+import { ToolbarCustomizePanelComponent } from './features/editor/features/toolbar/components/toolbar-customize-panel/toolbar-customize-panel.component';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
@@ -30,7 +30,7 @@ import { ApiTokensDialogComponent } from './features/auth/api-tokens-dialog.comp
 import { ProjectsOverlayService } from './features/workspace/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
-import type { ExportImageFormat } from './features/editor/canvas/models/toolbar-actions';
+import type { ExportImageFormat } from './features/editor/models/toolbar-actions';
 
 /**
  * Application shell: a single unified top bar (brand, breadcrumb → projects

@@ -12,11 +12,11 @@ import {
    untracked,
    viewChild,
 } from '@angular/core';
-import { ToolbarPrefsService } from './shape-toolbar/toolbar-prefs.service';
-import { PenOptionsBarComponent } from './pen-options-bar/pen-options-bar.component';
-import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './pen-options-bar/models/pen-limits.constants';
-import { PenPrefsService } from './pen-options-bar/services/pen-prefs.service';
-import { InspectorPanelService } from './inspector-panel.service';
+import { ToolbarPrefsService } from './features/toolbar/services/toolbar-prefs.service';
+import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
+import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from './features/toolbar/models/pen-limits.constants';
+import { PenPrefsService } from './features/toolbar/services/pen-prefs.service';
+import { InspectorPanelService } from './services/inspector-panel.service';
 import type { CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
@@ -71,17 +71,17 @@ import {
    type SlideView,
    toInner,
    toOuter,
-} from './canvas/helpers/slide-zoom.helper';
+} from './helpers/slide-zoom.helper';
 import { LOCAL_LASER, LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
-import type { ShapeView } from './canvas/models/shape-view.model';
+import type { ShapeView } from './models/shape-view.model';
 import { ProjectFileService } from '../../shared/services/project-file.service';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { ElementImagesService } from './services/element-images.service';
 import { MediaActionsService } from './services/media-actions.service';
-import { ImageCropOverlayComponent } from './media/image-crop-overlay.component';
+import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
 import { ProjectsStore } from '../workspace/state/projects/projects.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import {
@@ -90,7 +90,7 @@ import {
    type ItemMoves,
    type SequenceLayoutSnapshot,
 } from './state/project/project.store';
-import { splitAtGaps } from './canvas/helpers/shape-render.helper';
+import { splitAtGaps } from './helpers/shape-render.helper';
 import { AutofocusDirective } from '../../shared/ui/directives/autofocus.directive';
 import { CodeActionsService } from './services/code-actions.service';
 import { GridTableService } from './services/grid-table.service';
@@ -105,12 +105,12 @@ import {
    mergeAt,
    parseGrid,
    serializeGrid,
-} from './canvas/helpers/grid-table.helper';
+} from './helpers/grid-table.helper';
 import {
    CanvasConnectorsComponent,
    type EndpointDownEvent,
    type SegmentDownEvent,
-} from './canvas-connectors/canvas-connectors.component';
+} from './features/canvas/components/canvas-connectors/canvas-connectors.component';
 import {
    CanvasShapesComponent,
    type ResizeDownEvent,
@@ -118,8 +118,8 @@ import {
    type ShapeBendEvent,
    type ShapeEndpointEvent,
    type ShapePointerEvent,
-} from './canvas-shapes/canvas-shapes.component';
-import { type AlignAction } from './canvas/models/toolbar-actions';
+} from './features/canvas/components/canvas-shapes/canvas-shapes.component';
+import { type AlignAction } from './models/toolbar-actions';
 import {
    deleteStandIn,
    detachFromLayout,
@@ -127,17 +127,12 @@ import {
    slotFollower,
    slotStyle,
    standInFor,
-} from './slides/layout-placeholders';
-import { MinimapComponent, type MinimapItem } from './minimap/minimap.component';
-import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './canvas/constants/canvas.constants';
-import { ConnectorRouteCache, computeConnectors, segmentDrag } from './canvas/helpers/connectors.helper';
-import {
-   contentForFrame,
-   LAYOUT_Z_OFFSET,
-   frameContents,
-   sequenceDiagramBox,
-} from './canvas/helpers/frame-contents.helper';
-import { DEFAULT_FRAME_PRESET, framePreset } from './canvas/constants/frame-presets';
+} from './helpers/layout-placeholders';
+import { MinimapComponent, type MinimapItem } from './features/minimap/minimap.component';
+import { MAX_ZOOM, MIN_ZOOM, NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
+import { ConnectorRouteCache, computeConnectors, segmentDrag } from './helpers/connectors.helper';
+import { contentForFrame, LAYOUT_Z_OFFSET, frameContents, sequenceDiagramBox } from './helpers/frame-contents.helper';
+import { DEFAULT_FRAME_PRESET, framePreset } from './shared/constants/frame-presets';
 import {
    absolutePoints,
    elementBox,
@@ -149,16 +144,10 @@ import {
    isPathElement,
    tableBox,
    toRelative,
-} from './canvas/helpers/element-geometry.helper';
-import { chordNormal } from './canvas/helpers/freedraw-path.helper';
-import {
-   buildColumnLocations,
-   columnAnchor,
-   tableHeight,
-   snapToGrid,
-   tableWidth,
-} from './canvas/helpers/node-metrics.helper';
-import { messageLabelBoxes } from './canvas/helpers/message-box.helper';
+} from './helpers/element-geometry.helper';
+import { chordNormal } from './helpers/freedraw-path.helper';
+import { buildColumnLocations, columnAnchor, tableHeight, snapToGrid, tableWidth } from './helpers/node-metrics.helper';
+import { messageLabelBoxes } from './helpers/message-box.helper';
 import {
    buildShapeViews,
    ShapeViewCache,
@@ -180,13 +169,8 @@ import {
    gridFont,
    gridRowNeeds,
    SURFACE_FILL,
-} from './canvas/helpers/shape-render.helper';
-import {
-   DEFAULT_LINE_HEIGHT,
-   fitTextElement,
-   TEXT_MAX_FONT_SIZE,
-   TEXT_MIN_FONT_SIZE,
-} from './canvas/helpers/text-metrics';
+} from './helpers/shape-render.helper';
+import { DEFAULT_LINE_HEIGHT, fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from './helpers/text-metrics';
 import {
    isPlainRuns,
    normalizeRuns,
@@ -198,7 +182,7 @@ import {
    usableRuns,
    type RunBase,
    type RunPatch,
-} from './canvas/helpers/rich-text.helper';
+} from './helpers/rich-text.helper';
 
 /** A list item's leading indent + marker, and a test for any list line. */
 const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
@@ -213,51 +197,54 @@ import {
    toggleList,
    type ListKind,
    type ListResult,
-} from './canvas/helpers/rich-list.helper';
-import { RichTextSessionService } from './services/rich-text-session.service';
-import { TAB_SIZE } from './canvas/helpers/code-highlight.helper';
-import { formatCode } from './canvas/helpers/code-format.helper';
-import { elbowPath } from './canvas/helpers/svg-path.helper';
-import { findLinkSnap, type LinkSnap } from './canvas/helpers/link-snap.helper';
-import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './canvas/helpers/smart-guides.helper';
-import type { Box, Point, Side } from './canvas/models/geometry.model';
-import { ElementFloatingToolbarComponent } from './element-floating-toolbar/element-floating-toolbar.component';
-import { buildDiagramSvg, type SequenceExportData } from './export/diagram-svg.helper';
-import { embedFonts } from './export/font-embed.helper';
-import { ExportDialogComponent } from './export/export-dialog.component';
-import { FrameOrderDialogComponent, type FrameOrderDialogData } from './export/frame-order-dialog.component';
+} from './features/elements/helpers/rich-list.helper';
+import { RichTextSessionService } from './features/elements/services/rich-text-session.service';
+import { TAB_SIZE } from './helpers/code-highlight.helper';
+import { formatCode } from './helpers/code-format.helper';
+import { elbowPath } from './helpers/svg-path.helper';
+import { findLinkSnap, type LinkSnap } from './features/canvas/helpers/link-snap.helper';
+import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from './features/canvas/helpers/smart-guides.helper';
+import type { Box, Point, Side } from './models/geometry.model';
+import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
+import { buildDiagramSvg, type SequenceExportData } from './helpers/diagram-svg.helper';
+import { embedFonts } from './helpers/font-embed.helper';
+import { ExportDialogComponent } from './features/export/components/export-dialog/export-dialog.component';
+import {
+   FrameOrderDialogComponent,
+   type FrameOrderDialogData,
+} from './features/export/components/frame-order-dialog/frame-order-dialog.component';
 import {
    downloadBlob,
    exportDiagramImage,
    pagesToPdfBlob,
    type DiagramImage,
    type ImageFormat,
-} from './export/image-export.helper';
-import { InspectorComponent } from './inspector/inspector.component';
-import { RelationshipInspectorComponent } from './relationship-inspector/relationship-inspector.component';
-import { ElementInspectorComponent } from './element-inspector/element-inspector.component';
-import { SequenceInspectorComponent } from './sequence-inspector/sequence-inspector.component';
-import { SequenceMessageToolbarComponent } from './sequence-message-toolbar/sequence-message-toolbar.component';
-import { SequenceParticipantToolbarComponent } from './sequence-participant-toolbar/sequence-participant-toolbar.component';
-import { SequenceDiagramToolbarComponent } from './sequence-diagram-toolbar/sequence-diagram-toolbar.component';
-import { CanvasSequenceComponent } from './canvas-sequence/canvas-sequence.component';
-import { TableToolbarComponent } from './table-toolbar/table-toolbar.component';
-import { RelationshipToolbarComponent } from './relationship-toolbar/relationship-toolbar.component';
-import { MultiSelectBarComponent } from './multi-select-bar/multi-select-bar.component';
-import { LaserLayerComponent } from './laser-layer/laser-layer.component';
-import { ShapeToolbarComponent, type EditorTool } from './shape-toolbar/shape-toolbar.component';
-import { ShareDialogComponent } from './share-dialog/share-dialog.component';
-import { PresentModeComponent } from './slides/present-mode.component';
-import { SlideRenderService, type RenderedSlide } from './slides/slide-render.service';
-import { ensureDeckDefaults } from './slides/deck-defaults';
-import { SlidesPanelComponent } from './slides/slides-panel.component';
-import type { SlidesCommand } from './slides/models/slides-command.model';
-import { FocusUiState } from './slides/services/focus-ui-state.service';
+} from './features/export/helpers/image-export.helper';
+import { InspectorComponent } from './features/erd/components/inspector/inspector.component';
+import { RelationshipInspectorComponent } from './features/erd/components/relationship-inspector/relationship-inspector.component';
+import { ElementInspectorComponent } from './features/elements/components/element-inspector/element-inspector.component';
+import { SequenceInspectorComponent } from './features/sequence-diagram/components/sequence-inspector/sequence-inspector.component';
+import { SequenceMessageToolbarComponent } from './features/sequence-diagram/components/sequence-message-toolbar/sequence-message-toolbar.component';
+import { SequenceParticipantToolbarComponent } from './features/sequence-diagram/components/sequence-participant-toolbar/sequence-participant-toolbar.component';
+import { SequenceDiagramToolbarComponent } from './features/sequence-diagram/components/sequence-diagram-toolbar/sequence-diagram-toolbar.component';
+import { CanvasSequenceComponent } from './features/canvas/components/canvas-sequence/canvas-sequence.component';
+import { TableToolbarComponent } from './features/erd/components/table-toolbar/table-toolbar.component';
+import { RelationshipToolbarComponent } from './features/erd/components/relationship-toolbar/relationship-toolbar.component';
+import { MultiSelectBarComponent } from './features/elements/components/multi-select-bar/multi-select-bar.component';
+import { LaserLayerComponent } from './features/collaboration/components/laser-layer/laser-layer.component';
+import { ShapeToolbarComponent, type EditorTool } from './features/toolbar/shape-toolbar.component';
+import { ShareDialogComponent } from './features/share-dialog/share-dialog.component';
+import { PresentModeComponent } from './features/slides/features/present/present-mode.component';
+import { SlideRenderService, type RenderedSlide } from './features/slides/services/slide-render.service';
+import { ensureDeckDefaults } from './features/slides/helpers/deck-defaults';
+import { SlidesPanelComponent } from './features/slides/features/slides-panel/slides-panel.component';
+import type { SlidesCommand } from './features/slides/features/slides-panel/models/slides-command.model';
+import { FocusUiState } from './features/slides/features/slides-panel/services/focus-ui-state.service';
 import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
-import { DeckCompareComponent } from './slides/deck-compare.component';
-import { CompareUiState } from './slides/services/compare-ui-state.service';
-import { AnimationPaneComponent } from './slides/animation-pane.component';
-import { TableNodeComponent, type HandleEvent } from './table-node/table-node.component';
+import { DeckCompareComponent } from './features/slides/features/deck-compare/deck-compare.component';
+import { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
+import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
+import { TableNodeComponent, type HandleEvent } from './features/erd/components/table-node/table-node.component';
 
 type DragMode =
    | 'idle'

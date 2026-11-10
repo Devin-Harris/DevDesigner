@@ -1,5 +1,5 @@
 import { Injectable, type Signal, signal } from '@angular/core';
-import type { ExportImageFormat } from '../../features/editor/canvas/models/toolbar-actions';
+import type { ExportImageFormat } from '../../features/editor/models/toolbar-actions';
 import { proxySignal } from '../../shared/helpers/signals';
 
 /** Callbacks the editor registers so app-level chrome (the top bar) can invoke

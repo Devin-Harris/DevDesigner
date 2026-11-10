@@ -1,4 +1,4 @@
-import { isMasterDeletion, overriddenId } from '../../canvas/helpers/frame-contents.helper';
+import { isMasterDeletion, overriddenId } from '../../helpers/frame-contents.helper';
 import { computed, inject, untracked } from '@angular/core';
 import type {
    CreateRelationshipDto,
@@ -47,8 +47,8 @@ import {
    DEFAULT_THEME,
    type SlideTheme,
 } from '@devdesigner/shared';
-import { MIN_SLIDE_ZOOM, slideViewRegion } from '../../canvas/helpers/slide-zoom.helper';
-import { setThemeFontResolver } from '../../canvas/helpers/text-metrics';
+import { MIN_SLIDE_ZOOM, slideViewRegion } from '../../helpers/slide-zoom.helper';
+import { setThemeFontResolver } from '../../helpers/text-metrics';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';

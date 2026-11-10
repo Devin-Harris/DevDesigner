@@ -19,9 +19,9 @@ import {
    insertRow,
    parseGrid,
    serializeGrid,
-} from '../canvas/helpers/grid-table.helper';
+} from '../helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
-import { gridRowNeeds } from '../canvas/helpers/shape-render.helper';
+import { gridRowNeeds } from '../helpers/shape-render.helper';
 
 export interface GridCellRef {
    id: string;

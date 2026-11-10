@@ -1,4 +1,4 @@
-import type { EditorTool } from '../editor/shape-toolbar/shape-toolbar.component';
+import type { EditorTool } from '../editor/features/toolbar/shape-toolbar.component';
 
 /** Content for the canvas guide: one entry per tool, each with its own sandbox seed. */
 

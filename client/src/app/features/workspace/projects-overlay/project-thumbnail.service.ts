@@ -10,11 +10,11 @@ import {
    type ProjectSummary,
    type SchemaModel,
 } from '@devdesigner/shared';
-import { contentForFrame } from '../../editor/canvas/helpers/frame-contents.helper';
+import { contentForFrame } from '../../editor/helpers/frame-contents.helper';
 import { ElementImagesService } from '../../editor/services/element-images.service';
 import { ProjectsApiService } from '../../../shared/services/projects-api.service';
 import { ThemeService } from '../../../core/theme/theme.service';
-import { buildDiagramSvg } from '../../editor/export/diagram-svg.helper';
+import { buildDiagramSvg } from '../../editor/helpers/diagram-svg.helper';
 
 /** What a Projects dialog card should show for one project. */
 export type ThumbState =
