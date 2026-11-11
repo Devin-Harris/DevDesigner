@@ -5,16 +5,19 @@
   "description": "Environment-agnostic schema models, DTO interfaces, enums, SQL generator, and validation shared by client and server.",
   "type": "commonjs",
   "main": "dist/index.js",
+  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "module": "./dist/esm/index.js",
       "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "watch": "tsc -p tsconfig.json --watch",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.esm.json && node scripts/write-esm-package.mjs",
+    "watch": "node scripts/write-esm-package.mjs && concurrently -r \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"tsc -p tsconfig.esm.json --watch --preserveWatchOutput\"",
     "test": "jest",
     "clean": "rimraf dist"
   },
