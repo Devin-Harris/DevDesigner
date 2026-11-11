@@ -19,3 +19,4 @@ export * from './slides/fields';
 export * from './palette';
 export * from './images';
 export * from './grid';
+export * from './project-file';

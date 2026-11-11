@@ -3,6 +3,7 @@ import {
    isSwatchColor,
    messageLabelLines,
    readableTextOn,
+   readableTextSet,
    THEME_FILL,
    THEME_STROKE,
 } from '@devdesigner/shared';
@@ -15,7 +16,6 @@ import type {
    SequenceMessageModel,
    TableModel,
 } from '@devdesigner/shared';
-import { contrastText } from './contrast';
 import { HEADER_H, ROW_H } from '../shared/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableBox, tableScale } from './node-metrics.helper';
 import { computeConnectors } from './connectors.helper';
@@ -683,7 +683,7 @@ function renderSequence(
    const byId = new Map(lls.map((l) => [l.id, l] as const));
 
    const bg = diagram.backgroundColor || theme.surface;
-   const fg = contrastText(diagram.backgroundColor);
+   const fg = readableTextSet(diagram.backgroundColor);
    const labelText = fg?.text ?? theme.text;
    const labelMuted = fg?.muted ?? theme.textMuted;
    const out: string[] = [];

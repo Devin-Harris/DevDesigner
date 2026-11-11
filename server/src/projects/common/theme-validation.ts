@@ -1,5 +1,6 @@
 import {
   LAYOUT_KINDS,
+  MAX_THEME_DESIGN_BYTES,
   PLACEHOLDER_ROLES,
   TEXT_ALIGNS,
   isColorValue,
@@ -20,8 +21,8 @@ import { validateSync } from 'class-validator';
 export const MAX_LAYOUT_ITEMS = 500;
 /** Most extra layouts per theme. */
 export const MAX_EXTRA_LAYOUTS = 100;
-/** Serialized size cap for each of layouts / master / extraLayouts. */
-export const MAX_THEME_DESIGN_BYTES = 256 * 1024;
+/** Serialized size cap for each of layouts / master / extraLayouts (shared with the import parser). */
+export { MAX_THEME_DESIGN_BYTES };
 
 /** Element fields a layout item's `el` must not carry (geometry and identity live outside). */
 const OMITTED_EL_KEYS = ['id', 'x', 'y', 'width', 'height', 'slideId', 'slide', 'zIndex', 'fileId', 'startBinding', 'endBinding'];

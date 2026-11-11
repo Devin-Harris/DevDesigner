@@ -1,64 +1,33 @@
 import type { EntityManager } from 'typeorm';
-import type { SchemaModel } from '@devdesigner/shared';
+import {
+  importsElement,
+  planImportStacking,
+  remapProjectIds,
+  type CanvasElementModel,
+  type ProjectContent,
+  type SchemaModel,
+} from '@devdesigner/shared';
 import { Project } from '../projects/project.entity';
 import type { ParsedProjectImport } from './project-import.parser';
-import { createWriteContext, type ImportedImage, type WriteOptions } from './writers/write-context';
+import type { ImportedImage, WriteContext, WriteOptions } from './writers/write-context';
 import { writeTables } from './writers/tables.writer';
 import { writeRelationships } from './writers/relationships.writer';
 import { writeImages } from './writers/images.writer';
-import { writeElements } from './writers/elements.writer';
+import { existingContent, writeElements } from './writers/elements.writer';
 import { writeSequence } from './writers/sequence.writer';
 
 export type { ImportedImage, WriteOptions } from './writers/write-context';
-
-/** A world-space point the imported content's top-left corner is moved to. */
-export interface ImportAnchor {
-  x: number;
-  y: number;
-}
-
-/**
- * Translation that moves the content's top-left corner (smallest x / y across
- * every positioned item) onto `anchor`, preserving the content's own layout.
- * Zero when there is nothing to position.
- */
-export function offsetToAnchor(
-  schema: SchemaModel,
-  anchor: ImportAnchor,
-): { dx: number; dy: number } {
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (const t of schema.tables) {
-    xs.push(t.x);
-    ys.push(t.y);
-  }
-  for (const e of schema.elements) {
-    xs.push(e.x);
-    ys.push(e.y);
-  }
-  for (const l of schema.lifelines) xs.push(l.x);
-  for (const m of schema.sequenceMessages) ys.push(m.y);
-  for (const d of schema.sequenceDiagrams) ys.push(d.originY);
-  for (const r of schema.relationships) {
-    for (const p of r.waypoints ?? []) {
-      xs.push(p.x);
-      ys.push(p.y);
-    }
-  }
-  if (xs.length === 0 || ys.length === 0) return { dx: 0, dy: 0 };
-  return { dx: anchor.x - Math.min(...xs), dy: anchor.y - Math.min(...ys) };
-}
+export { offsetToAnchor, type ImportAnchor } from '@devdesigner/shared';
 
 /** The content written by `writeSchemaInto`, as models carrying the NEW ids. */
-export type WrittenSchema = Omit<SchemaModel, 'viewport' | 'home' | 'notes'>;
+export type WrittenSchema = ProjectContent;
 
 /**
  * Insert a validated schema into `projectId` (a brand-new project or an existing
- * one). EVERY id is regenerated (so a file can be imported repeatedly, or onto the
- * server it came from, with no collisions) and every cross-reference is rewritten
- * through the id maps. References that no longer resolve (a relationship to a
- * missing column, a binding to a missing shape) are dropped rather than failing
- * the whole import.
+ * one). The shared planner (`remapProjectIds`) regenerates EVERY id (so a file can
+ * be imported repeatedly, or onto the server it came from, with no collisions),
+ * rewrites every cross-reference and drops references that no longer resolve;
+ * the writers here only persist its result.
  *
  * Must be called inside a transaction so a failure leaves nothing half-written.
  */
@@ -68,15 +37,35 @@ export async function writeSchemaInto(
   schema: SchemaModel,
   options: WriteOptions = {},
 ): Promise<WrittenSchema> {
-  const ctx = createWriteContext(manager, projectId, schema, options);
-  // Parents before children: elements and arrows may point at tables and messages,
-  // whose ids are already minted in the context.
-  const tables = await writeTables(ctx, schema);
-  const relationships = await writeRelationships(ctx, schema);
+  const ctx: WriteContext = { manager, projectId, options };
+  // Image files first: an image element whose file is missing is dropped by the plan.
   const fileOf = await writeImages(ctx, schema);
-  const elements = await writeElements(ctx, schema, fileOf);
-  const sequence = await writeSequence(ctx, schema);
-  return { tables, relationships, elements, ...sequence };
+  const stacking = options.stackAboveExisting
+    ? await stackingFor(ctx, schema.elements.filter((e) => importsElement(e, fileOf)))
+    : undefined;
+  const plan = remapProjectIds(schema, {
+    dx: options.dx,
+    dy: options.dy,
+    ...stacking,
+    fileOf,
+    linkExisting: options.linkExisting,
+  });
+  // Parents before children: elements and arrows may point at tables and messages.
+  await writeTables(ctx, plan.tables);
+  await writeRelationships(ctx, plan.relationships);
+  await writeElements(ctx, plan.elements);
+  await writeSequence(ctx, plan);
+  return plan;
+}
+
+/** Stack merged elements above the project's and put its slides after the existing ones. */
+async function stackingFor(
+  ctx: WriteContext,
+  elements: CanvasElementModel[],
+): Promise<ReturnType<typeof planImportStacking> | undefined> {
+  if (!elements.length) return undefined;
+  const existing = await existingContent(ctx, elements.some((e) => e.slide));
+  return planImportStacking(elements, existing, ctx.options.joinPresentations);
 }
 
 /** Insert a validated project file as a brand-new project. */

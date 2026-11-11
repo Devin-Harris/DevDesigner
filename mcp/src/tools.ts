@@ -20,6 +20,8 @@ import {
   estimateTableWidth,
   isUnsignedType,
   parseDataType,
+  parseProjectExport,
+  ProjectFileError,
   presentationOf,
   schemaRects,
   shiftPresentation,
@@ -299,15 +301,25 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
     },
     {},
     async ({ file: rawFile, projectId: id }) => {
+      // Validate with the app's own parser first (same rules and messages as the
+      // server), so a bad file fails here with the offending field named.
+      let parsed: ReturnType<typeof parseProjectExport>;
+      try {
+        parsed = parseProjectExport(rawFile);
+      } catch (err) {
+        if (err instanceof ProjectFileError) throw new UserError(err.message);
+        throw err;
+      }
       // Slides of a presentation must share one spot; a hand-made file often lays them
       // out side by side, which makes the slide panels jump. Stack them before import.
-      const file = rawFile as unknown as ProjectExportFile;
-      let restackedSlides = 0;
-      if (file && typeof file === 'object' && file.schema && Array.isArray(file.schema.elements)) {
-        const stacked = stackSlideFrames(file.schema);
-        file.schema = stacked.schema;
-        restackedSlides = stacked.moved;
-      }
+      const stacked = stackSlideFrames(parsed.schema);
+      const restackedSlides = stacked.moved;
+      const file: ProjectExportFile = {
+        ...(rawFile as unknown as ProjectExportFile),
+        project: { name: parsed.name, description: parsed.description, type: parsed.type },
+        schema: stacked.schema,
+        images: parsed.images,
+      };
       if (id) {
         const current = await graph(id);
         const rects = schemaRects(current.schema);
@@ -1082,7 +1094,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
       const pos = layoutGraph(
         schema.tables.map((t) => ({
           key: t.id,
-          w: estimateTableWidth(t.name, t.columns, t.width),
+          w: estimateTableWidth(t.name, t.columns),
           h: estimateTableHeight(t.columns.length),
         })),
         edges,

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { EntityManager, EntityTarget, ObjectLiteral } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import type { SchemaModel } from '@devdesigner/shared';
 
 // Keeps each multi-row INSERT under SQLite's bound-variable limit even for wide rows.
 const CHUNK = 25;
@@ -61,61 +60,9 @@ export interface WriteOptions {
   joinPresentations?: boolean;
 }
 
-/**
- * State shared by the per-entity writers of one import: the target, the translation
- * and the old -> new id maps every cross-reference is rewritten through.
- */
+/** What the per-entity writers of one import share: the target and the options. */
 export interface WriteContext {
   manager: EntityManager;
   projectId: string;
   options: WriteOptions;
-  dx: number;
-  dy: number;
-  tableIds: IdMap;
-  columnIds: IdMap;
-  elementIds: IdMap;
-  diagramIds: IdMap;
-  lifelineIds: IdMap;
-  messageIds: IdMap;
-  morphIds: IdMap;
-  /** New group id for an old one (groups are re-minted together), or null. */
-  group(old: string | undefined): string | null;
-  /** New slide-frame id for an old one, an existing frame (linkExisting), or null. */
-  slideOf(old: string | undefined): string | null;
-}
-
-export function createWriteContext(
-  manager: EntityManager,
-  projectId: string,
-  schema: SchemaModel,
-  options: WriteOptions,
-): WriteContext {
-  const groupIds = new IdMap();
-  const ctx: WriteContext = {
-    manager,
-    projectId,
-    options,
-    dx: options.dx ?? 0,
-    dy: options.dy ?? 0,
-    tableIds: new IdMap(),
-    columnIds: new IdMap(),
-    elementIds: new IdMap(),
-    diagramIds: new IdMap(),
-    lifelineIds: new IdMap(),
-    messageIds: new IdMap(),
-    morphIds: new IdMap(),
-    group: (old) => (old === undefined ? null : (groupIds.get(old) ?? groupIds.mint(old))),
-    slideOf: (old) =>
-      old === undefined
-        ? null
-        : (ctx.elementIds.get(old) ?? (options.linkExisting?.elementIds.has(old) ? old : null)),
-  };
-  // Minted up front, because other rows point at them before they are written:
-  // tables, diagrams and elements at their slide frame; a slide's animations at its
-  // tables, diagrams and elements; an arrow at a table or a message label.
-  for (const e of schema.elements) ctx.elementIds.mint(e.id);
-  for (const d of schema.sequenceDiagrams) ctx.diagramIds.mint(d.id);
-  for (const t of schema.tables) ctx.tableIds.mint(t.id);
-  for (const m of schema.sequenceMessages) ctx.messageIds.mint(m.id);
-  return ctx;
 }

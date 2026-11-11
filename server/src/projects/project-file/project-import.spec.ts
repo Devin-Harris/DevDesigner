@@ -142,52 +142,6 @@ function sampleFile(): ProjectExportFile {
   };
 }
 
-describe('parseProjectExport', () => {
-  it('accepts a valid file', () => {
-    const parsed = parseProjectExport(sampleFile());
-    expect(parsed.name).toBe('Shop');
-    expect(parsed.schema.tables).toHaveLength(2);
-    expect(parsed.schema.home).toBeNull();
-  });
-
-  it('keeps a saved home view', () => {
-    const file = sampleFile();
-    file.schema.home = { x: 10, y: -20, zoom: 0.5 };
-    expect(parseProjectExport(file).schema.home).toEqual({ x: 10, y: -20, zoom: 0.5 });
-  });
-
-  it.each([
-    ['not an object', 'nope'],
-    ['wrong format marker', { ...sampleFile(), format: 'something-else' }],
-    ['no marker and no project/schema', { foo: 1 }],
-    ['newer version', { ...sampleFile(), version: 99 }],
-    ['missing project', { ...sampleFile(), project: undefined }],
-    ['blank name', { ...sampleFile(), project: { name: '  ', type: 'ERD' } }],
-  ])('rejects %s', (_label, input) => {
-    expect(() => parseProjectExport(input)).toThrow(/Invalid project file/);
-  });
-
-  it('names the offending field for a bad enum', () => {
-    const file = sampleFile();
-    (file.schema.elements[0] as unknown as { type: string }).type = 'hexagon';
-    expect(() => parseProjectExport(file)).toThrow(/schema\.elements\[0\]\.type/);
-  });
-
-  it('accepts a file with no format marker or version', () => {
-    const file = sampleFile() as unknown as Record<string, unknown>;
-    delete file['format'];
-    delete file['version'];
-    expect(parseProjectExport(file).schema.tables).toHaveLength(2);
-  });
-
-  it('tolerates missing optional arrays', () => {
-    const file = sampleFile() as unknown as { schema: Record<string, unknown> };
-    delete file.schema['elements'];
-    delete file.schema['sequenceDiagrams'];
-    expect(parseProjectExport(file).schema.elements).toEqual([]);
-  });
-});
-
 describe('writeImportedProject', () => {
   let ds: DataSource;
 
@@ -331,10 +285,5 @@ describe('writeImportedProject', () => {
     const newOnes = after.filter((e) => !before.some((b) => b.id === e.id));
     expect(newOnes).toHaveLength(2);
     expect(Math.min(...newOnes.map((e) => e.zIndex))).toBe(maxZ + 1);
-  });
-
-  it('offsetToAnchor is zero for empty content', () => {
-    const empty = parseProjectExport({ ...sampleFile(), schema: { tables: [] } });
-    expect(offsetToAnchor(empty.schema, { x: 9, y: 9 })).toEqual({ dx: 0, dy: 0 });
   });
 });

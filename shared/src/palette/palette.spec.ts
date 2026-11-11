@@ -3,6 +3,7 @@ import {
   HEADER_COLOR_CYCLE,
   PALETTE,
   isLightFill,
+  readableTextSet,
   paletteNames,
   readableTextOn,
   resolveColor,
@@ -64,5 +65,19 @@ describe('isColorValue', () => {
       'expression(alert(1))', '$a b', 'x'.repeat(65), 'rgb(1,2,3);x:y', 42, null, undefined]) {
       expect([v, isColorValue(v)]).toEqual([v, false]);
     }
+  });
+});
+
+describe('readableTextSet', () => {
+  it('picks dark text on light fills and light text on dark fills', () => {
+    expect(readableTextSet('#ffffff')?.text).toBe('#0f172a');
+    expect(readableTextSet('#0f172a')?.text).toBe('#f8fafc');
+    expect(readableTextSet('#fff')?.muted).toBe('#475569');
+  });
+
+  it('is null for unset or non-hex fills', () => {
+    expect(readableTextSet(undefined)).toBeNull();
+    expect(readableTextSet('')).toBeNull();
+    expect(readableTextSet('blue')).toBeNull();
   });
 });

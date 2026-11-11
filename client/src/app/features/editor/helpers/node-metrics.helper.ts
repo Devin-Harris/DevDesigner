@@ -1,21 +1,6 @@
 import type { TableModel } from '@devdesigner/shared';
-import {
-   ANCHOR_GAP,
-   GRID_SIZE,
-   HEADER_CHAR_W,
-   HEADER_FIXED_W,
-   HEADER_H,
-   MAX_NAME_CHARS,
-   MAX_TABLE_SCALE,
-   MIN_TABLE_SCALE,
-   NAME_CHAR_W,
-   NODE_WIDTH,
-   ROW_FIXED_W,
-   ROW_H,
-   UNSIGNED_CHIP_W,
-   VARCHAR_FIXED_W,
-} from '../shared/constants/canvas.constants';
-import { isNumericType } from '@devdesigner/shared';
+import { estimateTableWidth, tableDisplayScale } from '@devdesigner/shared';
+import { ANCHOR_GAP, GRID_SIZE, HEADER_H, ROW_H } from '../shared/constants/canvas.constants';
 import type { Box, ColumnLocation, Point, Side } from '../models/geometry.model';
 
 // Memoize by table reference: the store hands the same object to the renderer
@@ -35,8 +20,7 @@ export function tableWidth(table: TableModel): number {
 
 /** Display scale of a table (1 = natural size), clamped to the supported range. */
 export function tableScale(table: TableModel): number {
-   const s = table.scale;
-   return s && s > 0 ? Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, s)) : 1;
+   return tableDisplayScale(table);
 }
 
 /**
@@ -48,16 +32,8 @@ export function tableBaseWidth(table: TableModel): number {
    if (cached !== undefined) {
       return cached;
    }
-   const chars = (name: string): number => Math.min(name.length, MAX_NAME_CHARS);
-   let need = HEADER_FIXED_W + chars(table.name) * HEADER_CHAR_W;
-   for (const column of table.columns) {
-      const fixed =
-         ROW_FIXED_W +
-         (column.dataType.name === 'VARCHAR' ? VARCHAR_FIXED_W : 0) +
-         (isNumericType(column.dataType.name) ? UNSIGNED_CHIP_W : 0);
-      need = Math.max(need, fixed + chars(column.name) * NAME_CHAR_W);
-   }
-   const width = Math.max(NODE_WIDTH, Math.ceil(need));
+   // The sizing rule itself is shared with the MCP's layout estimates.
+   const width = estimateTableWidth(table.name, table.columns);
    widthCache.set(table, width);
    return width;
 }

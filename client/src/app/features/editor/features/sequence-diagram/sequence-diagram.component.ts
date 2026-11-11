@@ -6,6 +6,7 @@ import {
    themeColorCss,
    messageLabelLines,
    messageLabelMaxChars,
+   readableTextSet,
    SEQ_LABEL_CHAR_W,
 } from '@devdesigner/shared';
 import {
@@ -15,7 +16,6 @@ import {
    type LifelineModel,
    type SequenceDiagramModel,
 } from '@devdesigner/shared';
-import { contrastText } from '../../helpers/contrast';
 import { AutofocusDirective } from '../../../../shared/ui/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../state/project/project.store';
 
@@ -214,7 +214,7 @@ export class SequenceDiagramComponent {
    }
 
    /** Text colors that stay readable on a custom background; null = theme defaults. */
-   protected readonly fg = computed(() => contrastText(this.themed(this.diagram().backgroundColor) ?? undefined));
+   protected readonly fg = computed(() => readableTextSet(this.themed(this.diagram().backgroundColor) ?? undefined));
 
    protected readonly originY = computed(() => this.diagram().originY);
    protected readonly headerH = computed(() => this.diagram().headerHeight);

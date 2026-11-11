@@ -205,6 +205,24 @@ export function isLightFill(fill: string | undefined | null): boolean {
   return !!fill && !!normalizeHex(fill) && readableTextOn(fill) === DARK_TEXT;
 }
 
+/** Text colors for content drawn on a custom fill: body text plus a muted and a soft variant. */
+export interface ReadableTextSet {
+  text: string;
+  muted: string;
+  soft: string;
+}
+
+/**
+ * The text set that reads best on `fill` (same rule as readableTextOn), or null
+ * when `fill` is unset or not a hex color, so callers fall back to theme colors.
+ */
+export function readableTextSet(fill: string | undefined | null): ReadableTextSet | null {
+  if (!fill || !normalizeHex(fill)) return null;
+  return readableTextOn(fill) === DARK_TEXT
+    ? { text: DARK_TEXT, muted: '#475569', soft: '#334155' }
+    : { text: '#f8fafc', muted: '#cbd5e1', soft: '#e2e8f0' };
+}
+
 /**
  * True for the stock strong/soft swatches the pickers offer. These keep the
  * theme's own text color (white in dark mode, dark in light mode); only custom

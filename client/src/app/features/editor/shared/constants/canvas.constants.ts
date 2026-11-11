@@ -3,30 +3,24 @@
  * the render layer and the routing helpers share one source of truth.
  */
 
-// Table node metrics. Connector anchors are derived from these, so the numbers
-// must match the rendered header/row heights exactly.
-// NODE_WIDTH is the default and minimum width; a node grows past it to fit long
-// column/table names (see tableWidth), up to the MAX_NAME_CHARS cap.
-export const NODE_WIDTH = 280;
-/** Smallest / largest uniform scale a table can be resized to. */
-export const MIN_TABLE_SCALE = 0.4;
-export const MAX_TABLE_SCALE = 3;
-export const HEADER_H = 40;
-export const ROW_H = 34;
-
-// Dynamic-width estimation. A node widens so its longest name shows in full, up
-// to a name of MAX_NAME_CHARS; longer names ellipsize. The reserved widths below
-// approximate the non-name controls in a row / header, kept a touch generous so
-// names are never clipped early. The renderer and the geometry share tableWidth,
-// so connector anchors always line up with the rendered edge regardless.
-export const MAX_NAME_CHARS = 50;
-export const NAME_CHAR_W = 8;
-export const HEADER_CHAR_W = 8.5;
-export const ROW_FIXED_W = 220;
-export const VARCHAR_FIXED_W = 50;
-/** The UN (unsigned) chip, shown only on numeric columns. */
-export const UNSIGNED_CHIP_W = 24;
-export const HEADER_FIXED_W = 92;
+// Table node metrics live in @devdesigner/shared (diagram-spec/table-metrics) so
+// the MCP's estimates and auto-layout match the canvas exactly. Connector anchors
+// are derived from them. NODE_WIDTH is the default and minimum width; a node grows
+// past it to fit long column/table names (see tableWidth), up to MAX_NAME_CHARS.
+export {
+   TABLE_NODE_WIDTH as NODE_WIDTH,
+   TABLE_HEADER_H as HEADER_H,
+   TABLE_ROW_H as ROW_H,
+   MIN_TABLE_SCALE,
+   MAX_TABLE_SCALE,
+   MAX_NAME_CHARS,
+   NAME_CHAR_W,
+   HEADER_CHAR_W,
+   ROW_FIXED_W,
+   VARCHAR_FIXED_W,
+   UNSIGNED_CHIP_W,
+   HEADER_FIXED_W,
+} from '@devdesigner/shared';
 
 // Viewport / world.
 export const SVG_OFFSET = 5000;

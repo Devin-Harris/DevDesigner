@@ -14,7 +14,16 @@ import type {
    SequenceMessageModel,
    TableModel,
 } from '@devdesigner/shared';
-import { isColorValue } from '@devdesigner/shared';
+import type { CloneItemsDto, ParsedProjectImport, ProjectContent, RemapOptions } from '@devdesigner/shared';
+import {
+   isColorValue,
+   offsetToAnchor,
+   parseProjectExport,
+   planClone,
+   planImportStacking,
+   ProjectFileError,
+   remapProjectIds,
+} from '@devdesigner/shared';
 import { codeElementContentSize } from '../../features/editor/helpers/shape-render.helper';
 
 /** Project ids served by the sandbox backend instead of the API. */
@@ -102,15 +111,24 @@ export class SandboxBackendService {
    /** Create a sandbox project from a project export file (fresh ids, like a server import). */
    create(file: ProjectExportFile, key: string, opts: { viewOnly?: boolean } = {}): string {
       const id = SANDBOX_PREFIX + key + '-' + uuid().slice(0, 8);
-      const { schema, images } = remapIds(file.schema, file.images ?? []);
+      // Same parser and id planner as a server import (shared project-file).
+      const parsed = parseProjectExport(file);
+      const { content, images } = remapFile(parsed);
+      const schema: SchemaModel = {
+         ...content,
+         notes: [],
+         viewport: parsed.schema.viewport,
+         home: parsed.schema.home,
+         themes: parsed.schema.themes,
+      };
       const now = new Date().toISOString();
       this.projects.set(id, {
          project: {
             id,
-            name: file.project.name,
-            description: file.project.description,
+            name: parsed.name,
+            description: parsed.description,
             archived: false,
-            type: file.project.type,
+            type: parsed.type,
             createdAt: now,
             updatedAt: now,
          },
@@ -553,138 +571,63 @@ export class SandboxBackendService {
       s.sequenceMessages = drop(s.sequenceMessages, del['messages']);
    }
 
-   /** POST /clone: copies under client-chosen ids, offset by (dx, dy) (mirrors the server). */
+   /** POST /clone: copies under client-chosen ids, offset by (dx, dy) (the shared clone planner). */
    private clone(s: SchemaModel, b: Dict): void {
-      const dx = Number(b['dx']) || 0;
-      const dy = Number(b['dy']) || 0;
-      const colMap = new Map<string, string>();
-      for (const t of (b['tables'] as Dict[]) ?? []) {
-         const src = s.tables.find((x) => x.id === t['sourceId']);
-         if (!src) continue;
-         const cols = (t['columns'] ?? {}) as Record<string, string>;
-         const idxs = (t['indexes'] ?? {}) as Record<string, string>;
-         Object.entries(cols).forEach(([a, c]) => colMap.set(a, c));
-         const copy: TableModel = structuredClone(src);
-         copy.id = String(t['id']);
-         copy.x += dx;
-         copy.y += dy;
-         delete copy.groupId;
-         if (t['slideId']) copy.slideId = String(t['slideId']);
-         else delete copy.slideId;
-         copy.columns = copy.columns.map((c) => ({ ...c, id: cols[c.id] ?? uuid() }));
-         copy.indexes = (copy.indexes ?? []).map((ix) => ({
-            ...ix,
-            id: idxs[ix.id] ?? uuid(),
-            columnIds: ix.columnIds.map((c) => cols[c] ?? c),
-         }));
-         s.tables.push(copy);
-      }
-      for (const r of (b['relationships'] as Dict[]) ?? []) {
-         const src = s.relationships.find((x) => x.id === r['sourceId']);
-         if (!src) continue;
-         const copy: RelationshipModel = structuredClone(src);
-         copy.id = String(r['id']);
-         copy.sourceColumnId = colMap.get(src.sourceColumnId) ?? src.sourceColumnId;
-         copy.targetColumnId = colMap.get(src.targetColumnId) ?? src.targetColumnId;
-         copy.waypoints = copy.waypoints?.map((p) => ({ x: p.x + dx, y: p.y + dy }));
-         s.relationships.push(copy);
-      }
-      for (const d of (b['diagrams'] as Dict[]) ?? []) {
-         const src = s.sequenceDiagrams.find((x) => x.id === d['sourceId']);
-         if (!src) continue;
-         const lls = (d['lifelines'] ?? {}) as Record<string, string>;
-         const msgs = (d['messages'] ?? {}) as Record<string, string>;
-         const copy: SequenceDiagramModel = { ...structuredClone(src), id: String(d['id']), originY: src.originY + dy };
-         delete copy.groupId;
-         if (d['slideId']) copy.slideId = String(d['slideId']);
-         else delete copy.slideId;
-         s.sequenceDiagrams.push(copy);
-         for (const l of s.lifelines.filter((x) => x.diagramId === src.id)) {
-            s.lifelines.push({ ...structuredClone(l), id: lls[l.id] ?? uuid(), diagramId: copy.id, x: l.x + dx });
-         }
-         for (const m of s.sequenceMessages.filter((x) => x.diagramId === src.id)) {
-            s.sequenceMessages.push({
-               ...structuredClone(m),
-               id: msgs[m.id] ?? uuid(),
-               diagramId: copy.id,
-               fromLifelineId: lls[m.fromLifelineId] ?? m.fromLifelineId,
-               toLifelineId: lls[m.toLifelineId] ?? m.toLifelineId,
-               y: m.y + dy,
-            });
-         }
-      }
-      for (const e of (b['elements'] as Dict[]) ?? []) {
-         const src = s.elements.find((x) => x.id === e['sourceId']);
-         if (!src) continue;
-         const copy = patch(
-            { ...structuredClone(src), x: src.x + dx, y: src.y + dy } as CanvasElementModel,
-            {
-               slideId: e['slideId'],
-               slide: e['slide'],
-               morphId: e['morphId'],
-               zIndex: e['zIndex'],
-               text: e['text'],
-               startBinding: e['startBinding'],
-               endBinding: e['endBinding'],
-               groupId: null,
-            },
-            []
-         );
-         copy.id = String(e['id']);
-         s.elements.push(copy);
-      }
+      const added = planClone(s, b as unknown as CloneItemsDto);
+      s.tables.push(...added.tables);
+      s.relationships.push(...added.relationships);
+      s.sequenceDiagrams.push(...added.sequenceDiagrams);
+      s.lifelines.push(...added.lifelines);
+      s.sequenceMessages.push(...added.sequenceMessages);
+      s.elements.push(...added.elements);
    }
 
-   /** POST /import-content: merge a file at `anchor`, returning the created items as mutations. */
+   /** POST /import-content: merge a file at `anchor`, returning the created items as mutations (like the server). */
    private importContent(p: SandboxProject, b: Dict): SchemaMutation[] {
-      const file = b['file'] as ProjectExportFile | undefined;
-      if (!file?.schema) throw new SandboxError(400, 'Not a project file.');
-      const { schema, images } = remapIds(file.schema, file.images ?? []);
-      Object.assign(p.images, images);
-      const anchor = b['anchor'] as { x: number; y: number } | undefined;
-      let dx = 0;
-      let dy = 0;
-      if (anchor) {
-         const xs = [...schema.tables.map((t) => t.x), ...schema.elements.map((e) => e.x)];
-         const ys = [...schema.tables.map((t) => t.y), ...schema.elements.map((e) => e.y)];
-         if (xs.length) {
-            dx = anchor.x - Math.min(...xs);
-            dy = anchor.y - Math.min(...ys);
-         }
+      let parsed: ParsedProjectImport;
+      try {
+         parsed = parseProjectExport(b['file']);
+      } catch (e) {
+         if (e instanceof ProjectFileError) throw new SandboxError(400, e.message);
+         throw e;
       }
       const s = p.schema;
-      const top = s.elements.reduce((m, e) => Math.max(m, e.zIndex), -1) + 1;
-      const out: SchemaMutation[] = [];
-      for (const t of schema.tables) {
-         const table = { ...t, x: t.x + dx, y: t.y + dy };
-         s.tables.push(table);
-         out.push({ kind: 'table.created', table });
-      }
-      for (const r of schema.relationships) {
-         s.relationships.push(r);
-         out.push({ kind: 'relationship.created', relationship: r });
-      }
-      for (const d of schema.sequenceDiagrams ?? []) {
-         const diagram = { ...d, originY: d.originY + dy };
-         s.sequenceDiagrams.push(diagram);
-         out.push({ kind: 'sequenceDiagram.created', diagram });
-      }
-      for (const l of schema.lifelines ?? []) {
-         const lifeline = { ...l, x: l.x + dx };
-         s.lifelines.push(lifeline);
-         out.push({ kind: 'lifeline.created', lifeline });
-      }
-      for (const m of schema.sequenceMessages ?? []) {
-         const message = { ...m, y: m.y + dy };
-         s.sequenceMessages.push(message);
-         out.push({ kind: 'message.created', message });
-      }
-      for (const e of schema.elements) {
-         const element = { ...e, x: e.x + dx, y: e.y + dy, zIndex: top + e.zIndex };
-         s.elements.push(element);
-         out.push({ kind: 'element.created', element });
-      }
-      return out;
+      const anchor = b['anchor'] as { x?: unknown; y?: unknown } | undefined;
+      const { dx, dy } =
+         anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)
+            ? offsetToAnchor(parsed.schema, { x: anchor.x as number, y: anchor.y as number })
+            : { dx: 0, dy: 0 };
+      const stacking = parsed.schema.elements.length
+         ? planImportStacking(
+              parsed.schema.elements,
+              {
+                 maxZIndex: s.elements.length ? Math.max(...s.elements.map((e) => e.zIndex)) : null,
+                 slides: s.elements.filter((e) => e.type === 'frame').map((e) => e.slide ?? null),
+              },
+              b['joinPresentations'] === true
+           )
+         : undefined;
+      const linkExisting =
+         b['linkExisting'] === true
+            ? { elementIds: new Set(s.elements.map((e) => e.id)), tableIds: new Set(s.tables.map((t) => t.id)) }
+            : undefined;
+      const { content, images } = remapFile(parsed, { dx, dy, ...stacking, linkExisting });
+      Object.assign(p.images, images);
+      s.tables.push(...content.tables);
+      s.relationships.push(...content.relationships);
+      s.elements.push(...content.elements);
+      s.sequenceDiagrams.push(...content.sequenceDiagrams);
+      s.lifelines.push(...content.lifelines);
+      s.sequenceMessages.push(...content.sequenceMessages);
+      // Parents before children, in the server's order.
+      return [
+         ...content.tables.map((table): SchemaMutation => ({ kind: 'table.created', table })),
+         ...content.relationships.map((relationship): SchemaMutation => ({ kind: 'relationship.created', relationship })),
+         ...content.elements.map((element): SchemaMutation => ({ kind: 'element.created', element })),
+         ...content.sequenceDiagrams.map((diagram): SchemaMutation => ({ kind: 'sequenceDiagram.created', diagram })),
+         ...content.lifelines.map((lifeline): SchemaMutation => ({ kind: 'lifeline.created', lifeline })),
+         ...content.sequenceMessages.map((message): SchemaMutation => ({ kind: 'message.created', message })),
+      ];
    }
 
    private deleteTable(s: SchemaModel, id: string): void {
@@ -760,45 +703,20 @@ function normalizeSchema(s: SchemaModel): SchemaModel {
 }
 
 /**
- * Give every id in a schema (and its embedded images) a fresh UUID, rewriting every
- * reference to it, so several copies of one file never share ids.
+ * Plan an imported file with the shared id planner: embedded images get fresh ids,
+ * image elements are re-pointed at them (dropped when their file is missing), and
+ * every other id and reference is remapped exactly like a server import.
  */
-function remapIds(
-   schema: SchemaModel,
-   images: { id: string; mimeType: string; data: string }[]
-): { schema: SchemaModel; images: SandboxProject['images'] } {
-   const ids = new Set<string>();
-   const add = (x: { id?: string } | undefined): void => {
-      if (x?.id) ids.add(x.id);
-   };
-   for (const t of schema.tables ?? []) {
-      add(t);
-      t.columns?.forEach(add);
-      t.indexes?.forEach(add);
-   }
-   [
-      schema.relationships,
-      schema.notes,
-      schema.elements,
-      schema.sequenceDiagrams,
-      schema.lifelines,
-      schema.sequenceMessages,
-   ]
-      .flat()
-      .forEach((x) => add(x as { id?: string }));
-   images.forEach(add);
-   // Group ids are shared values, not entities: remap them too.
-   for (const x of [...(schema.elements ?? []), ...(schema.tables ?? []), ...(schema.sequenceDiagrams ?? [])]) {
-      if (x.groupId) ids.add(x.groupId);
-   }
-   const map = new Map([...ids].map((id) => [id, uuid()]));
-   const json = JSON.stringify({ schema, images }).replace(
-      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-      (m) => map.get(m) ?? m
-   );
-   const parsed = JSON.parse(json) as { schema: SchemaModel; images: typeof images };
-   return {
-      schema: parsed.schema,
-      images: Object.fromEntries(parsed.images.map((i) => [i.id, { mimeType: i.mimeType, data: i.data }])),
-   };
+function remapFile(
+   parsed: ParsedProjectImport,
+   opts: Omit<RemapOptions, 'fileOf'> = {}
+): { content: ProjectContent; images: SandboxProject['images'] } {
+   const fileIds = new Map(parsed.images.map((img) => [img.id, uuid()]));
+   const images: SandboxProject['images'] = {};
+   for (const img of parsed.images) images[fileIds.get(img.id)!] = { mimeType: img.mimeType, data: img.data };
+   const content = remapProjectIds(parsed.schema, {
+      ...opts,
+      fileOf: (old) => (old === undefined ? undefined : fileIds.get(old)),
+   });
+   return { content, images };
 }
