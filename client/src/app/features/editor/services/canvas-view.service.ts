@@ -1,6 +1,6 @@
 import { EditorToolService } from './editor-tool.service';
 import { EditorViewportService } from './editor-viewport.service';
-import { computed, effect, inject, untracked, Injectable, type Signal } from '@angular/core';
+import { computed, effect, inject, linkedSignal, untracked, Injectable, type Signal } from '@angular/core';
 import type { CanvasElementModel, UpdateElementDto } from '@devdesigner/shared';
 import {
    presentationOf,
@@ -48,6 +48,13 @@ function variant(cache: WeakMap<ShapeView, ShapeView>, v: ShapeView, make: (v: S
    }
    return out;
 }
+
+/** Above this many elements + tables the canvas draws only what is near the view (perf P2.5). */
+export const CULL_THRESHOLD = 300;
+/** Extra drawn area around the view, as a share of its size, so a pan rarely changes the DOM. */
+const CULL_MARGIN = 0.75;
+
+const boxesOverlap = (a: Box, b: Box): boolean => a.x0 <= b.x1 && a.x1 >= b.x0 && a.y0 <= b.y1 && a.y1 >= b.y0;
 
 /** A relationship end being re-pointed, drawn to the cursor before it is released. */
 export interface RelinkPreview {
@@ -220,16 +227,73 @@ export class CanvasViewService {
    }
 
    /** Tables drawn on the canvas itself (not inside a zoomed slide). */
+   /** Whether the canvas is big enough to draw only what is near the view. */
+   private readonly culling = computed(
+      () => this.store.elements().length + this.store.tables().length > CULL_THRESHOLD
+   );
+
+   /**
+    * World area the canvas draws when culling: the view plus a margin. It only moves when
+    * the view leaves it (or shrinks well inside it), so most pan frames keep the same lists.
+    */
+   private readonly cullRect = linkedSignal<Box | null, Box | null>({
+      source: () => (this.culling() ? this.viewport.minimapView() : null),
+      computation: (view, previous) => {
+         if (!view) return null;
+         const prev = previous?.value;
+         const w = view.x1 - view.x0;
+         const h = view.y1 - view.y0;
+         if (prev) {
+            const inside = view.x0 >= prev.x0 && view.y0 >= prev.y0 && view.x1 <= prev.x1 && view.y1 <= prev.y1;
+            const prevArea = (prev.x1 - prev.x0) * (prev.y1 - prev.y0);
+            if (inside && w * h * 16 > prevArea) return prev;
+         }
+         return {
+            x0: view.x0 - w * CULL_MARGIN,
+            y0: view.y0 - h * CULL_MARGIN,
+            x1: view.x1 + w * CULL_MARGIN,
+            y1: view.y1 + h * CULL_MARGIN,
+         };
+      },
+   });
+
+   /** Items always drawn, wherever they are: the selection, the inline edit and the draft. */
+   private readonly neverCulled = computed(
+      () =>
+         new Set<string>([
+            ...this.store.selectedElementIds(),
+            ...this.store.selectedTableIds(),
+            ...this.store.selectedRelationshipIds(),
+            this.host.editingTextId() ?? '',
+            this.tools.draft()?.id ?? '',
+         ])
+   );
+
+   private readonly elementById = computed(() => new Map(this.store.elements().map((e) => [e.id, e])));
+
+   /** Tables drawn on the canvas itself (not inside a zoomed slide), near the view when culling. */
    readonly outerTables = computed(() => {
       const z = this.zoomedItems().tables;
       const all = this.visibleTables();
-      return z.size ? all.filter((t) => !z.has(t.id)) : all;
+      const outer = z.size ? all.filter((t) => !z.has(t.id)) : all;
+      const rect = this.cullRect();
+      if (!rect) return outer;
+      const keep = this.neverCulled();
+      return outer.filter((t) => keep.has(t.id) || boxesOverlap(tableBox(t), rect));
    });
 
    readonly outerShapeViews = computed(() => {
       const z = this.zoomedItems().elements;
       const all = this.shapeViews();
-      return z.size ? all.filter((v) => !z.has(v.id)) : all;
+      const outer = z.size ? all.filter((v) => !z.has(v.id)) : all;
+      const rect = this.cullRect();
+      if (!rect) return outer;
+      const keep = this.neverCulled();
+      const byId = this.elementById();
+      return outer.filter((v) => {
+         const e = byId.get(v.id);
+         return !e || keep.has(v.id) || boxesOverlap(elementBox(e), rect);
+      });
    });
 
    /** Relationship lines between two tables of the same zoomed slide are drawn inside it. */
@@ -250,7 +314,25 @@ export class CanvasViewService {
    readonly outerConnectors = computed(() => {
       const z = this.zoomedConnectorIds();
       const all = this.displayConnectors();
-      return z.size ? all.filter((c) => !z.has(c.id)) : all;
+      const outer = z.size ? all.filter((c) => !z.has(c.id)) : all;
+      const rect = this.cullRect();
+      if (!rect) return outer;
+      const keep = this.neverCulled();
+      return outer.filter((c) => {
+         if (keep.has(c.id)) return true;
+         const pts = c.routePoints.length
+            ? c.routePoints
+            : [
+                 { x: c.ax, y: c.ay },
+                 { x: c.bx, y: c.by },
+              ];
+         const xs = pts.map((p) => p.x);
+         const ys = pts.map((p) => p.y);
+         return boxesOverlap(
+            { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) },
+            rect
+         );
+      });
    });
 
    readonly outerHiddenDiagramIds = computed<ReadonlySet<string> | null>(() => {
