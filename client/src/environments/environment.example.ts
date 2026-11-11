@@ -9,4 +9,7 @@ export const environment = {
    mcpUrl: '',
    // Sentry browser DSN (public). Empty = error reporting off.
    sentryDsn: '',
+   // First-party usage beacon (POST /api/telemetry: route templates and allow-listed client.* events,
+   // no cookies or storage). Off by default; set true (or TELEMETRY=true at build time) to send it.
+   telemetry: false,
 };
