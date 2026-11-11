@@ -9,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { OptionalAuthGuard } from './optional-auth.guard';
 import { ApiToken } from './api-token.entity';
 import { ApiTokenService } from './api-token.service';
-import { AdminModule } from '../../admin/admin.module';
+import { AdminModule } from '../admin/admin.module';
 
 /**
  * Owner authentication (BUILD_INSTRUCTIONS.md sections 5 and 6).

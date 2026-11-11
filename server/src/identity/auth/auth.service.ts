@@ -9,7 +9,7 @@ import { User } from './user.entity';
 import { AUTH_COOKIE, type AuthUser, type JwtPayload } from './auth.types';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { AdminBootstrapService } from '../../admin/admin-bootstrap.service';
+import { AdminBootstrapService } from '../admin/admin-bootstrap.service';
 import { LoginBackoff } from './login-backoff';
 import { track } from '../../platform/analytics/track';
 

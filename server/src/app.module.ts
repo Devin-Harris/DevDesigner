@@ -21,7 +21,7 @@ import { ExportModule } from './projects/export/export.module';
 import { RealtimeModule } from './platform/realtime/realtime.module';
 import { BatchModule } from './projects/batch/batch.module';
 import { UserThemesModule } from './identity/user-themes/user-themes.module';
-import { AdminModule } from './admin/admin.module';
+import { AdminModule } from './identity/admin/admin.module';
 import { ThrottleModule } from './platform/throttle/throttle.module';
 import { QuotasModule } from './platform/quotas/quotas.module';
 import { GraphCacheModule } from './platform/graph-cache/graph-cache.module';

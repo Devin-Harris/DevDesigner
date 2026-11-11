@@ -2,8 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
-import { User } from '../identity/auth/user.entity';
-import { parseAdminEmails } from '../platform/config/env.validation';
+import { User } from '../auth/user.entity';
+import { parseAdminEmails } from '../../platform/config/env.validation';
 
 /**
  * Promotes users whose email is in ADMIN_EMAILS: every existing match on boot, and a
