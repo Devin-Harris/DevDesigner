@@ -14,5 +14,5 @@ export type AlignAction =
    | 'gaps-h'
    | 'gaps-v';
 
-/** Image export formats offered in the export menu. */
-export type ExportImageFormat = 'svg' | 'png' | 'pdf';
+/** Image export formats offered in the export menu (the app bar's bridge owns the type). */
+export type { ExportImageFormat } from '../../../core/editor-bridge/editor-actions.service';

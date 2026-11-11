@@ -1,3 +1,5 @@
+import { provideEditor } from './editor.providers';
+import { EditorBridgeService } from './editor-bridge.service';
 import { FloatingToolbarsService } from './features/elements/services/floating-toolbars.service';
 import { AlignService } from './services/align.service';
 import { RemotePresenceService } from './features/collaboration/services/remote-presence.service';
@@ -44,20 +46,18 @@ import { ToolbarPrefsService } from './services/toolbar-prefs.service';
 import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
 import { PenPrefsService } from './services/pen-prefs.service';
 import { InspectorPanelService } from './services/inspector-panel.service';
-import type { CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { CanvasElementModel } from '@devdesigner/shared';
-import { presentationOf, presentationSlides } from '@devdesigner/shared';
+import { presentationOf } from '@devdesigner/shared';
 import { LaserService } from '../../core/realtime/laser.service';
 import { RealtimeService } from '../../core/realtime/realtime.service';
-import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
+import { EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { FontMetricsService } from './services/font-metrics.service';
 import { ProjectFileService } from '../../shared/services/project-file.service';
-import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { MediaActionsService } from './services/media-actions.service';
 import { ImageCropOverlayComponent } from './features/elements/components/image-crop-overlay/image-crop-overlay.component';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
@@ -88,7 +88,6 @@ import { MultiSelectBarComponent } from './features/elements/components/multi-se
 import { LaserLayerComponent } from './features/collaboration/components/laser-layer/laser-layer.component';
 import { ShapeToolbarComponent } from './features/toolbar/shape-toolbar.component';
 import type { EditorTool } from './models/editor-tool.model';
-import { ShareDialogComponent } from './features/share-dialog/share-dialog.component';
 import { PresentModeComponent } from './features/slides/features/present/present-mode.component';
 import { SlideRenderService } from './features/slides/services/slide-render.service';
 import { ensureDeckDefaults } from './features/slides/helpers/deck-defaults';
@@ -154,39 +153,12 @@ function readFlag(key: string, fallback: boolean): boolean {
       SlidesPanelComponent,
       PresentModeComponent,
    ],
-   providers: [
-      EditorShortcutsService,
-      EditorExportService,
-      MediaDropService,
-      ClipboardService,
-      EditorViewportService,
-      SlideshowService,
-      DeckFocusService,
-      SlidePlacementService,
-      FollowService,
-      TextEditingService,
-      CellEditorsService,
-      PointerGestureService,
-      TableDragService,
-      RelationshipLinkService,
-      EditorToolService,
-      CanvasViewService,
-      CanvasSnapService,
-      LaserInputService,
-      GroupTransformService,
-      ElementGestureService,
-      DrawToolService,
-      DeckPanelsService,
-      CanvasDblClickService,
-      EditorPointerService,
-      AlignService,
-      FloatingToolbarsService,
-      RemotePresenceService,
-   ],
+   providers: [provideEditor()],
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   protected readonly bridge = inject(EditorBridgeService);
    protected readonly presence = inject(RemotePresenceService);
    protected readonly bars = inject(FloatingToolbarsService);
    protected readonly align = inject(AlignService);
@@ -413,69 +385,14 @@ export class EditorComponent {
          this.toolAppliedFor = id;
          setTimeout(() => this.tools.onToolChange(tool));
       });
-      // Join / re-join the realtime room whenever the loaded project changes.
-      effect(() => {
-         const id = this.store.projectId();
-         // Guide sandboxes live only in this browser: no realtime room.
-         if (id && !isSandboxId(id)) {
-            this.realtime.connect(id);
-         }
-      });
       // Track the canvas size and position (minimap rectangle, cached screen/world mapping).
       effect((onCleanup) => onCleanup(this.viewport.observeCanvas(this.canvasRef().nativeElement)));
-      // Broadcast this participant's selection so others see what is being edited (only with
-      // someone in the room; it re-sends when a peer joins).
-      effect(() => {
-         if (!this.realtime.hasPeers()) return;
-         const tableIds = this.store.selectedTableIds();
-         const relationshipIds = this.store.selectedRelationshipIds();
-         this.realtime.sendSelection(tableIds, relationshipIds);
-      });
-      this.destroyRef.onDestroy(() => this.realtime.disconnect());
-      // Expose Export/Share to the global top bar while this editor is mounted.
-      this.editorActions.register({
-         share: () => this.openShare(),
-         exportSql: () => this.exporter.openSqlExport(),
-         exportImage: (format) => void this.exporter.onExportImage(format),
-         exportFramesPdf: () => void this.exporter.exportAllFramesPdf(),
-         exportSlidesPdf: () => void this.exporter.exportAllSlidesPdf(),
-         exportSelectionFile: () => void this.exporter.exportSelectionFile(),
-         importFile: (file) => this.placement.importProjectFile(file),
-         deleteSelection: () => this.shortcuts.deleteSelection(),
-         focusDeck: (name) => this.deckFocus.focusDeck(name),
-         enterDeckFocus: (name) => this.deckFocus.enterDeckFocus(name),
-         exitDeckFocus: () => this.deckFocus.exitDeckFocus(),
-         jumpToParticipant: (id) => this.follow.jumpToParticipant(id),
-         followParticipant: (id) => this.follow.followingId.set(id),
-         addFrameToPresentation: (id, deck) => void this.placement.addFrameToPresentation(id, deck),
-         exportFrame: (id, format) => this.exporter.exportOneFrame(id, format),
-         presentDeck: (name) => this.deckFocus.presentDeck(name),
-         followPresenter: (id) => void this.slideshow.followPresenter(id),
-         newDeck: () => this.tools.onToolChange('slide'),
-         setTool: (tool) => this.tools.onToolChange(tool as EditorTool),
-         resetView: () => this.viewport.resetView(),
-         setHome: () => this.viewport.setHome(),
-         canvasItems: () => this.paletteItems(),
-         jumpTo: (item) => this.jumpToItem(item),
-      });
-      // Feed the top-right Presentations menu.
+
       // Floating islands fade while dragging or drawing (toolbar setting).
       effect(() => {
          const on = this.gesture.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
          document.body.classList.toggle('dd-gesture', on);
       });
-      // The app chrome (top bar, Presentations menu, palette) reads this editor's state.
-      this.editorActions.registerState({
-         canExportSql: this.canExportSql$,
-         hasTableSelection: this.hasTableSelection$,
-         hasSelection: this.hasSelection$,
-         presentationName: this.store.presentation,
-         hasPlainFrames: this.hasPlainFrames$,
-         decks: this.deckSummaries$,
-         focusedDeck: this.deckFocus.focusedDeck,
-         following: this.follow.followingId,
-      });
-      this.destroyRef.onDestroy(() => this.editorActions.clear());
       // An unpinned details panel belongs to one selection: fold it when that changes.
       let lastSelection: string | null = null;
       effect(() => {
@@ -484,19 +401,6 @@ export class EditorComponent {
             untracked(() => this.inspector.selectionChanged());
          }
          lastSelection = key;
-      });
-   }
-
-   /** Open the owner share dialog (create/list/revoke VIEW/EDIT links). */
-   protected openShare(): void {
-      const projectId = this.store.projectId();
-      if (!projectId || this.store.accessMode() !== 'OWNER') {
-         return;
-      }
-      this.dialog.open(ShareDialogComponent, {
-         width: '560px',
-         maxWidth: '92vw',
-         data: { projectId },
       });
    }
 
@@ -562,87 +466,6 @@ export class EditorComponent {
             break;
       }
    }
-
-   /** Canvas items the command palette can search and jump to. */
-   private paletteItems(): CanvasItemRef[] {
-      const items: CanvasItemRef[] = this.store.tables().map((t) => ({ kind: 'table', id: t.id, label: t.name }));
-      for (const e of this.store.elements()) {
-         if (e.type === 'code') {
-            const first = (e.text ?? '').split(/\r?\n/).find((l) => l.trim()) ?? '';
-            items.push({ kind: 'code', id: e.id, label: e.fileName || first.trim().slice(0, 60) || 'Code block' });
-         } else if (e.type === 'text' && e.text?.trim()) {
-            items.push({ kind: 'text', id: e.id, label: e.text.trim().split(/\r?\n/)[0].slice(0, 60) });
-         } else if (e.type === 'frame' && !e.slide && e.text?.trim()) {
-            items.push({ kind: 'frame', id: e.id, label: e.text.trim() });
-         }
-      }
-      for (const d of this.store.sequenceDiagrams()) {
-         items.push({ kind: 'sequence', id: d.id, label: d.title || 'Sequence diagram' });
-      }
-      return items;
-   }
-
-   /** Select a palette item and centre it in view. */
-   private jumpToItem(item: CanvasItemRef): void {
-      if (item.kind === 'table') {
-         const t = this.store.tables().find((x) => x.id === item.id);
-         if (!t) return;
-         this.store.setSelection([t.id], [], []);
-         this.viewport.panToWorld({ x: t.x + 120, y: t.y + 60 });
-      } else if (item.kind === 'sequence') {
-         const d = this.store.sequenceDiagrams().find((x) => x.id === item.id);
-         if (!d) return;
-         const xs = this.store
-            .lifelines()
-            .filter((l) => l.diagramId === d.id)
-            .map((l) => l.x);
-         this.store.setSelection([], [], [], [], [], [d.id]);
-         if (xs.length) {
-            this.viewport.panToWorld({ x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d.originY + 160 });
-         }
-      } else {
-         const e = this.store.elements().find((x) => x.id === item.id);
-         if (!e) return;
-         this.store.setSelection([], [], [e.id]);
-         this.viewport.panToWorld({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
-      }
-   }
-
-   /** Every presentation with its slide count and current presenter (top-right Presentations menu). */
-   private readonly deckSummaries$ = computed<DeckSummary[]>(() => {
-      const frames = this.store.slideFrames();
-      const presenters = this.slideshow.presenters();
-      return this.store.presentations().map((name) => {
-         const p = presenters.find((x) => {
-            const f = frames.find((fr) => fr.id === x.presenting?.frameId);
-            return !!f && presentationOf(f) === name;
-         });
-         return {
-            name,
-            slides: presentationSlides(frames, name).length,
-            presenter: p ? { id: p.id, name: p.name, color: p.color } : null,
-         };
-      });
-   });
-   private readonly hasTableSelection$ = computed(() => this.store.selectedTableIds().length > 0);
-   /** SQL needs unique table names within the exported scope (selection or whole diagram). */
-   private readonly canExportSql$ = computed(() => {
-      const selected = this.store.selectedTableIds();
-      const tables = this.store.tables();
-      const scope = selected.length ? tables.filter((t) => selected.includes(t.id)) : tables;
-      const names = scope.map((t) => t.name.trim().toLowerCase());
-      return new Set(names).size === names.length;
-   });
-   /** The export menu offers plain frames apart from the selected presentation's slides. */
-   private readonly hasPlainFrames$ = computed(() => this.store.elements().some((e) => e.type === 'frame' && !e.slide));
-   private readonly hasSelection$ = computed(
-      () =>
-         this.store.selectedTableIds().length > 0 ||
-         this.store.selectedElementIds().length > 0 ||
-         this.store.selectedMessageIds().length > 0 ||
-         this.store.selectedLifelineIds().length > 0 ||
-         this.store.selectedDiagramIds().length > 0
-   );
 
    // --- copy / paste ---
 

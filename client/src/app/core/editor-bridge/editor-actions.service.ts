@@ -1,6 +1,9 @@
 import { Injectable, type Signal, signal } from '@angular/core';
-import type { ExportImageFormat } from '../../features/editor/models/toolbar-actions';
+import type { AccessLevel } from '@devdesigner/shared';
 import { proxySignal } from '../../shared/helpers/signals';
+
+/** Image export formats offered in the export menu. */
+export type ExportImageFormat = 'svg' | 'png' | 'pdf';
 
 /** Callbacks the editor registers so app-level chrome (the top bar) can invoke
  *  editor-scoped actions (Export, Share) that depend on canvas-local state. */
@@ -28,6 +31,8 @@ export interface EditorActionHandlers {
    setHome: () => void;
    canvasItems: () => CanvasItemRef[];
    jumpTo: (item: CanvasItemRef) => void;
+   undo: () => void;
+   redo: () => void;
 }
 
 /** Something on the canvas the command palette can jump to. */
@@ -55,15 +60,19 @@ export interface EditorStateSources {
    decks: Signal<DeckSummary[]>;
    focusedDeck: Signal<string | null>;
    following: Signal<string | null>;
+   projectId: Signal<string | null>;
+   accessMode: Signal<AccessLevel>;
+   canEdit: Signal<boolean>;
+   canUndo: Signal<boolean>;
+   canRedo: Signal<boolean>;
 }
 
 /**
  * Bridge between the mounted editor and the global top bar. The editor registers
  * its Export/Share handlers and its state signals (proxies) on init and clears them
  * on destroy; the top bar reads `active()` to know an editor is present and calls
- * the handlers. Undo/redo, project id and access mode already live on the root
- * `ProjectStore`, so the top bar reads those directly — only canvas-dependent
- * actions and state need bridging.
+ * the handlers. App chrome never injects the editor's store: everything it needs
+ * from the open project (access, undo/redo, the id) comes through here.
  */
 @Injectable({ providedIn: 'root' })
 export class EditorActionsService {
@@ -85,6 +94,13 @@ export class EditorActionsService {
    readonly focusedDeck = proxySignal<string | null>(null);
    /** The collaborator whose cursor the canvas is following, or null. */
    readonly following = proxySignal<string | null>(null);
+   /** The open project's id, or null without an editor. */
+   readonly projectId = proxySignal<string | null>(null);
+   /** Access to the open project (VIEW without an editor). */
+   readonly accessMode = proxySignal<AccessLevel>('VIEW');
+   readonly canEdit = proxySignal(false);
+   readonly canUndo = proxySignal(false);
+   readonly canRedo = proxySignal(false);
    private handlers: EditorActionHandlers | null = null;
 
    register(handlers: EditorActionHandlers): void {
@@ -102,6 +118,11 @@ export class EditorActionsService {
       this.decks.register(state.decks);
       this.focusedDeck.register(state.focusedDeck);
       this.following.register(state.following);
+      this.projectId.register(state.projectId);
+      this.accessMode.register(state.accessMode);
+      this.canEdit.register(state.canEdit);
+      this.canUndo.register(state.canUndo);
+      this.canRedo.register(state.canRedo);
    }
 
    clear(): void {
@@ -114,6 +135,11 @@ export class EditorActionsService {
       this.decks.reset();
       this.focusedDeck.reset();
       this.following.reset();
+      this.projectId.reset();
+      this.accessMode.reset();
+      this.canEdit.reset();
+      this.canUndo.reset();
+      this.canRedo.reset();
       this.active.set(false);
    }
 
@@ -186,5 +212,11 @@ export class EditorActionsService {
    }
    jumpTo(item: CanvasItemRef): void {
       this.handlers?.jumpTo(item);
+   }
+   undo(): void {
+      this.handlers?.undo();
+   }
+   redo(): void {
+      this.handlers?.redo();
    }
 }

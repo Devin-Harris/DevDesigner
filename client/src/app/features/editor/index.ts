@@ -5,8 +5,9 @@
 export { EditorComponent } from './editor.component';
 export type { EditorTool } from './models/editor-tool.model';
 
-// Pass 3 (§4.1 #1, §4.4): ProjectStore moves behind provideEditor() and the shell/palette talk to the
-// editor through core/editor-bridge instead. Until then hosts that read editor state inject it from here.
+// The shell, command palette and realtime reach the editor through core/editor-bridge. Only the home
+// showcase still injects ProjectStore (it drives the store and renders deck-compare outside the editor),
+// which is why the store stays providedIn: 'root' (C3.8 replaces this with an EditorEmbedApi).
 export { ProjectStore } from './state/project/project.store';
 
 // Home showcase (§4.2 "home"): reuses the deck-compare view, code highlighting and table metrics.

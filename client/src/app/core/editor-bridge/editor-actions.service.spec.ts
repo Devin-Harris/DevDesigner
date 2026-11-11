@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import type { AccessLevel } from '@devdesigner/shared';
 import { TestBed } from '@angular/core/testing';
 import { type DeckSummary, EditorActionsService, type EditorStateSources } from './editor-actions.service';
 
@@ -12,6 +13,11 @@ function sources() {
       decks: signal<DeckSummary[]>([{ name: 'Deck', slides: 2, presenter: null }]),
       focusedDeck: signal<string | null>(null),
       following: signal<string | null>(null),
+      projectId: signal<string | null>('p1'),
+      accessMode: signal<AccessLevel>('OWNER'),
+      canEdit: signal(true),
+      canUndo: signal(true),
+      canRedo: signal(false),
    } satisfies EditorStateSources;
 }
 
@@ -22,6 +28,9 @@ describe('EditorActionsService', () => {
       expect(actions.hasSelection()).toBe(false);
       expect(actions.decks()).toEqual([]);
       expect(actions.focusedDeck()).toBeNull();
+      expect(actions.projectId()).toBeNull();
+      expect(actions.accessMode()).toBe('VIEW');
+      expect([actions.canEdit(), actions.canUndo(), actions.canRedo()]).toEqual([false, false, false]);
    });
 
    it('follows the registered editor state live', () => {
@@ -35,6 +44,20 @@ describe('EditorActionsService', () => {
       s.following.set('p2');
       expect(actions.focusedDeck()).toBe('Deck');
       expect(actions.following()).toBe('p2');
+      expect(actions.projectId()).toBe('p1');
+      expect(actions.accessMode()).toBe('OWNER');
+      expect([actions.canEdit(), actions.canUndo(), actions.canRedo()]).toEqual([true, true, false]);
+   });
+
+   it('forwards undo and redo to the mounted editor', () => {
+      const actions = TestBed.inject(EditorActionsService);
+      const undo = jest.fn();
+      const redo = jest.fn();
+      actions.undo();
+      actions.register({ undo, redo } as never);
+      actions.undo();
+      actions.redo();
+      expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 1]);
    });
 
    it('falls back to the defaults on clear', () => {
@@ -48,5 +71,6 @@ describe('EditorActionsService', () => {
       expect(actions.canExportSql()).toBe(true);
       expect(actions.decks()).toEqual([]);
       expect(actions.presentationName()).toBeNull();
+      expect(actions.accessMode()).toBe('VIEW');
    });
 });

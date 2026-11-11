@@ -20,7 +20,6 @@ import { ProjectsApiService } from './shared/services/projects-api.service';
 import { ProjectFileService } from './shared/services/project-file.service';
 import { RealtimeService } from './core/realtime/realtime.service';
 import { ProjectsStore } from './shared/state/projects/projects.store';
-import { ProjectStore } from './features/editor/state/project/project.store';
 import { AuthDialogComponent } from './shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
 import {
    ConfirmDialogComponent,
@@ -30,7 +29,7 @@ import { ApiTokensDialogComponent } from './shared/features/auth-dialogs/api-tok
 import { ProjectsOverlayService } from './shared/features/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
-import type { ExportImageFormat } from './features/editor/models/toolbar-actions';
+import type { ExportImageFormat } from './core/editor-bridge/editor-actions.service';
 
 /**
  * Application shell: a single unified top bar (brand, breadcrumb → projects
@@ -60,7 +59,6 @@ export class AppComponent {
    protected readonly auth = inject(AuthService);
    private readonly dialog = inject(MatDialog);
    protected readonly projects = inject(ProjectsStore);
-   protected readonly editorStore = inject(ProjectStore);
    protected readonly editorActions = inject(EditorActionsService);
    private readonly router = inject(Router);
    private readonly routeUrl = toSignal(
@@ -137,7 +135,7 @@ export class AppComponent {
          clearTimeout(this.nameClickTimer);
          this.nameClickTimer = null;
       }
-      if (this.editorStore.accessMode() === 'OWNER') this.startRename();
+      if (this.editorActions.accessMode() === 'OWNER') this.startRename();
    }
 
    protected startRename(): void {
@@ -193,10 +191,10 @@ export class AppComponent {
 
    // ---- editor actions bridged to the top bar ----
    protected undo(): void {
-      this.editorStore.undoElement();
+      this.editorActions.undo();
    }
    protected redo(): void {
-      this.editorStore.redoElement();
+      this.editorActions.redo();
    }
    protected exportSql(): void {
       this.editorActions.exportSql();
@@ -211,7 +209,7 @@ export class AppComponent {
       this.editorActions.exportSlidesPdf();
    }
    protected exportProjectFile(): void {
-      const id = this.editorStore.projectId();
+      const id = this.editorActions.projectId();
       if (id) {
          void this.projectFile.download(id, this.projects.selected()?.name ?? 'project');
       }

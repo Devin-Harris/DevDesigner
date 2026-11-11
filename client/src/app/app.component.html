@@ -48,7 +48,7 @@
             class="nav-icon"
             type="button"
             (click)="undo()"
-            [disabled]="!editorStore.canUndo()"
+            [disabled]="!editorActions.canUndo()"
             matTooltip="Undo (Ctrl+Z)"
             aria-label="Undo"
          >
@@ -58,7 +58,7 @@
             class="nav-icon"
             type="button"
             (click)="redo()"
-            [disabled]="!editorStore.canRedo()"
+            [disabled]="!editorActions.canRedo()"
             matTooltip="Redo (Ctrl+Shift+Z)"
             aria-label="Redo"
          >
@@ -128,7 +128,7 @@
                <span class="count">{{ editorActions.decks().length }}</span>
             }
          </button>
-         @if (editorStore.accessMode() === 'OWNER') {
+         @if (editorActions.accessMode() === 'OWNER') {
             <button class="nav-btn primary" type="button" (click)="share()">
                <dd-icon name="share" />
                Share
@@ -171,7 +171,7 @@
 
          @if (projects.selected(); as project) {
             <div class="menu-label">This project</div>
-            @if (editorStore.accessMode() === 'OWNER') {
+            @if (editorActions.accessMode() === 'OWNER') {
                <button class="dd-menu-item" type="button" (click)="startRename(); close()">
                   <dd-icon name="edit" />Rename
                </button>
@@ -182,7 +182,7 @@
                   <dd-icon name="archive" />{{ project.archived ? 'Unarchive' : 'Archive' }}
                </button>
             }
-            @if (editorStore.canEdit()) {
+            @if (editorActions.canEdit()) {
                <button class="dd-menu-item" type="button" (click)="importInput.click(); close()">
                   <dd-icon name="upload" />Import<span class="kbd">.json</span>
                </button>
@@ -190,12 +190,12 @@
             <button class="dd-menu-item" type="button" [ddPopoverTrigger]="exportMenu" placement="right-start">
                <dd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span>
             </button>
-            @if (editorStore.accessMode() === 'OWNER') {
+            @if (editorActions.accessMode() === 'OWNER') {
                <button class="dd-menu-item" type="button" (click)="share(); close()">
                   <dd-icon name="share" />Share &amp; link access
                </button>
             }
-            @if (editorStore.canEdit()) {
+            @if (editorActions.canEdit()) {
                <button class="dd-menu-item" type="button" (click)="editorActions.setHome(); close()">
                   <dd-icon name="center_focus_strong" />Set home view here
                </button>
@@ -331,7 +331,7 @@
          } @empty {
             <div class="decks-empty">No presentations yet.</div>
          }
-         @if (editorStore.canEdit()) {
+         @if (editorActions.canEdit()) {
             <div class="dd-menu-sep"></div>
             <button class="dd-menu-item" type="button" (click)="editorActions.newDeck(); close()">
                <dd-icon name="add" />New presentation<span class="kbd">S</span>

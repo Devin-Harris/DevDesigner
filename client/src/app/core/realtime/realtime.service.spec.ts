@@ -1,7 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RT_EVENTS, type Participant } from '@devdesigner/shared';
-import { ProjectStore } from '../../features/editor/state/project/project.store';
 import { LaserService } from './laser.service';
 import { RealtimeService } from './realtime.service';
 import { ShareSessionService } from '../auth/share-session.service';
@@ -27,12 +26,12 @@ const session = { token: signal(null), guestId: 'g', setClientId: jest.fn() };
 function connect(): RealtimeService {
    TestBed.configureTestingModule({
       providers: [
-         { provide: ProjectStore, useValue: store },
          { provide: LaserService, useValue: { clear: jest.fn(), pruneRemote: jest.fn() } },
          { provide: ShareSessionService, useValue: session },
       ],
    });
    const rt = TestBed.inject(RealtimeService);
+   rt.setMutationSink(store);
    rt.connect('p1');
    handlers.get('connect')!();
    fakeSocket.emit.mockClear();

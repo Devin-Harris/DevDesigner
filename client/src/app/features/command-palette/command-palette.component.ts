@@ -15,7 +15,6 @@ import { EditorActionsService, type CanvasItemRef } from '../../core/editor-brid
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 // Deep import on purpose: the palette is eager (app shell) and the editor barrel would pull the whole
 // editor into the initial bundle. Pass 3 moves this onto core/editor-bridge (§4.1 #1).
-import { ProjectStore } from '../editor/state/project/project.store';
 import { ProjectsOverlayService } from '../../shared/features/projects-overlay/projects-overlay.service';
 
 interface PaletteEntry {
@@ -70,7 +69,6 @@ export class CommandPaletteComponent {
    private readonly theme = inject(ThemeService);
    private readonly actions = inject(EditorActionsService);
    private readonly projects = inject(ProjectsStore);
-   private readonly editorStore = inject(ProjectStore);
    private readonly overlay = inject(ProjectsOverlayService);
 
    private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('search');
@@ -128,7 +126,7 @@ export class CommandPaletteComponent {
          () => this.theme.toggle()
       );
       if (inEditor) {
-         const canEdit = this.editorStore.canEdit();
+         const canEdit = this.actions.canEdit();
          cmd('home', 'Go to home view', () => this.actions.resetView(), 'Home');
          if (canEdit) {
             cmd('center_focus_strong', 'Set current view as home', () => this.actions.setHome());
@@ -141,7 +139,7 @@ export class CommandPaletteComponent {
          cmd('photo', 'Export image (PNG)', () => this.actions.exportImage('png'));
          cmd('image', 'Export image (SVG)', () => this.actions.exportImage('svg'));
          cmd('picture_as_pdf', 'Export image (PDF)', () => this.actions.exportImage('pdf'));
-         if (this.editorStore.accessMode() === 'OWNER') cmd('share', 'Share…', () => this.actions.share());
+         if (this.actions.accessMode() === 'OWNER') cmd('share', 'Share…', () => this.actions.share());
          cmd('home', 'Back to the home page', () => this.projects.select(null));
       }
       return out;

@@ -11,9 +11,9 @@ import {
    type PresenceSelection,
    type RealtimeHandshakeAuth,
    type RealtimeSession,
+   type SchemaMutation,
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
-import { ProjectStore } from '../../features/editor/state/project/project.store';
 import { LaserService } from './laser.service';
 import { ShareSessionService } from '../auth/share-session.service';
 
@@ -21,6 +21,12 @@ import { ShareSessionService } from '../auth/share-session.service';
 export interface RemoteCursor extends PresenceCursor {
    name: string;
    color: string;
+}
+
+/** Receives peers' schema changes (the editor's ProjectStore implements it). */
+export interface RemoteMutationSink {
+   applyRemote(mutation: SchemaMutation): void;
+   applyRemoteBatch(mutations: readonly SchemaMutation[]): void;
 }
 
 /**
@@ -32,7 +38,8 @@ export interface RemoteCursor extends PresenceCursor {
  */
 @Injectable({ providedIn: 'root' })
 export class RealtimeService {
-   private readonly store = inject(ProjectStore);
+   /** Where peers' schema changes go: the mounted editor's store (see `setMutationSink`). */
+   private sink: RemoteMutationSink | null = null;
    private readonly session = inject(ShareSessionService);
    private readonly laser = inject(LaserService);
 
@@ -133,10 +140,15 @@ export class RealtimeService {
          }
       });
       // The server never sends a tab its own changes, so everything here is a peer's.
-      socket.on(RT_EVENTS.mutation, (event: MutationEvent) => this.store.applyRemote(event.mutation));
-      socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => this.store.applyRemoteBatch(event.mutations));
+      socket.on(RT_EVENTS.mutation, (event: MutationEvent) => this.sink?.applyRemote(event.mutation));
+      socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => this.sink?.applyRemoteBatch(event.mutations));
 
       this.socket = socket;
+   }
+
+   /** The editor hands over its store while mounted (null on teardown). */
+   setMutationSink(sink: RemoteMutationSink | null): void {
+      this.sink = sink;
    }
 
    disconnect(): void {

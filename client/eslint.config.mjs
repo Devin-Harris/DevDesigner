@@ -149,17 +149,10 @@ const boundaryExceptions = [
    // sub-feature: Pass 3 adds canvas.component, which composes sub-feature entries instead.
    'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
 
-   // Pass 3 (§4.1 #1, C3.3): core services that still know the editor. realtime splits into a socket
-   // transport + an editor-side sync service; editor-actions takes its ExportImageFormat type from models.
-   'src/app/core/realtime/realtime.service.ts',
-   'src/app/core/editor-bridge/editor-actions.service.ts',
    // C3.1: the sandbox measures code blocks/fonts with editor helpers until they move to @devdesigner/shared.
    'src/app/core/sandbox/sandbox-backend.service.ts',
    'src/app/core/sandbox/sandbox-seeds.helper.ts',
 
-   // Pass 3 (§4.1 #1): the eager palette deep-imports ProjectStore (the barrel would pull the editor into
-   // the initial bundle); it moves onto core/editor-bridge.
-   'src/app/features/command-palette/command-palette.component.ts',
    // Pass 3: downloadText comes from the editor's export helpers (move it down to shared/helpers).
    'src/app/shared/services/project-file.service.ts',
    // Pass 3: thumbnails render with the editor's diagram SVG/frame helpers (move them to a shared renderer).
