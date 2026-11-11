@@ -175,7 +175,14 @@
                      </span>
                   </div>
                   <div class="mo-body">
-                     <dd-deck-compare class="focus-compare mo-stage" [slide]="tr.to" [previous]="tr.from" [index]="1" />
+                     @defer (on immediate) {
+                        <dd-deck-compare
+                           class="focus-compare mo-stage"
+                           [slide]="tr.to"
+                           [previous]="tr.from"
+                           [index]="1"
+                        />
+                     }
                      @if (moLine(); as l) {
                         <svg class="mo-drag">
                            <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
@@ -196,7 +203,9 @@
                      }
                      <div class="mo-side">
                         <div class="mo-head">Pairs</div>
-                        <dd-deck-compare class="mo-pairs" mode="pairs" [slide]="tr.to" [previous]="tr.from" />
+                        @defer (on immediate) {
+                           <dd-deck-compare class="mo-pairs" mode="pairs" [slide]="tr.to" [previous]="tr.from" />
+                        }
                      </div>
                   </div>
                </div>

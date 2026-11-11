@@ -14,7 +14,6 @@ import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import { type DeckSummary, EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { ProjectStore } from './state/project/project.store';
-import { ShareDialogComponent } from './features/share-dialog/share-dialog.component';
 import type { EditorTool } from './models/editor-tool.model';
 /**
  * The mounted editor's side of the app bridge (part of the editor entry): registers its actions
@@ -61,8 +60,8 @@ export class EditorBridgeService {
       });
       // Expose Export/Share to the global top bar while this editor is mounted.
       this.editorActions.register({
-         share: () => this.openShare(),
-         exportSql: () => this.exporter.openSqlExport(),
+         share: () => void this.openShare(),
+         exportSql: () => void this.exporter.openSqlExport(),
          exportImage: (format) => void this.exporter.onExportImage(format),
          exportFramesPdf: () => void this.exporter.exportAllFramesPdf(),
          exportSlidesPdf: () => void this.exporter.exportAllSlidesPdf(),
@@ -107,11 +106,12 @@ export class EditorBridgeService {
    }
 
    /** Open the owner share dialog (create/list/revoke VIEW/EDIT links). */
-   openShare(): void {
+   async openShare(): Promise<void> {
       const projectId = this.store.projectId();
       if (!projectId || this.store.accessMode() !== 'OWNER') {
          return;
       }
+      const { ShareDialogComponent } = await import('./features/share-dialog/share-dialog.component');
       this.dialog.open(ShareDialogComponent, {
          width: '560px',
          maxWidth: '92vw',

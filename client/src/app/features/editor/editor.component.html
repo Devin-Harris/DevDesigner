@@ -682,16 +682,18 @@
                         </button>
                      </div>
                   </div>
-                  <dd-deck-compare
-                     class="focus-compare"
-                     [slide]="fslide.frame"
-                     [previous]="fslide.prev"
-                     [before]="fslide.prev2"
-                     [after]="fslide.next"
-                     [index]="fslide.index - 1"
-                     (preview)="deckFocus.previewTransitionFor(fslide.frame.id)"
-                     (pointerdown)="$event.stopPropagation()"
-                  />
+                  @defer (on immediate) {
+                     <dd-deck-compare
+                        class="focus-compare"
+                        [slide]="fslide.frame"
+                        [previous]="fslide.prev"
+                        [before]="fslide.prev2"
+                        [after]="fslide.next"
+                        [index]="fslide.index - 1"
+                        (preview)="deckFocus.previewTransitionFor(fslide.frame.id)"
+                        (pointerdown)="$event.stopPropagation()"
+                     />
+                  }
                } @else {
                   <div class="focus-empty">The first slide has no transition into it.</div>
                }
@@ -709,7 +711,9 @@
                      (command)="deckFocus.onFocusCommand($event, fd)"
                   />
                   @if (fslide && fslide.prev) {
-                     <dd-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+                     @defer (on immediate) {
+                        <dd-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+                     }
                   }
                </div>
             }
@@ -758,13 +762,15 @@
       }
 
       @if (slideshow.presentation(); as p) {
-         <dd-present-mode
-            [slides]="p.slides"
-            [startIndex]="p.start"
-            [autoplay]="p.preview"
-            [follow]="p.follow"
-            (closed)="slideshow.onPresentationClosed($event)"
-         ></dd-present-mode>
+         @defer (on immediate) {
+            <dd-present-mode
+               [slides]="p.slides"
+               [startIndex]="p.start"
+               [autoplay]="p.preview"
+               [follow]="p.follow"
+               (closed)="slideshow.onPresentationClosed($event)"
+            ></dd-present-mode>
+         }
       }
 
       @if (cellEditors.fileNameEditor(); as f) {

@@ -20,10 +20,9 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { contentForFrame } from '../../../helpers/frame-contents.helper';
 import { buildDiagramSvg, type SequenceExportData } from '../../../helpers/diagram-svg.helper';
 import { embedFonts } from '../../../helpers/font-embed.helper';
-import { ExportDialogComponent } from '../components/export-dialog/export-dialog.component';
-import {
+import type {
    FrameOrderDialogComponent,
-   type FrameOrderDialogData,
+   FrameOrderDialogData,
 } from '../components/frame-order-dialog/frame-order-dialog.component';
 import {
    downloadBlob,
@@ -223,7 +222,7 @@ export class EditorExportService {
    }
 
    /** Open the SQL export dialog for the current scope (selection or whole diagram). */
-   openSqlExport(): void {
+   async openSqlExport(): Promise<void> {
       const { tables, relationships, selectionOnly } = this.exportScope();
       const sql = generateSql(
          // Elements are decorative and are ignored by the SQL generator.
@@ -239,6 +238,8 @@ export class EditorExportService {
          },
          { dialect: 'mysql' }
       );
+      // Loaded on first use: the dialog (and the SQL formatter it pulls in) stays out of the editor chunk.
+      const { ExportDialogComponent } = await import('../components/export-dialog/export-dialog.component');
       this.dialog.open(ExportDialogComponent, {
          width: '720px',
          maxWidth: '92vw',
@@ -403,21 +404,20 @@ export class EditorExportService {
          return i < 0 ? Number.MAX_SAFE_INTEGER : i;
       };
       const start = [...frames].sort((a, b) => rank(a) - rank(b)); // stable: reading order for new ones
-      const ref = this.dialog.open<FrameOrderDialogComponent, FrameOrderDialogData, string[]>(
-         FrameOrderDialogComponent,
-         {
-            width: '460px',
-            maxWidth: '92vw',
-            data: {
-               frames: start.map((f) => ({
-                  id: f.id,
-                  name: f.text || 'Untitled frame',
-                  width: Math.round(f.width),
-                  height: Math.round(f.height),
-               })),
-            },
-         }
-      );
+      const { FrameOrderDialogComponent: dialog } =
+         await import('../components/frame-order-dialog/frame-order-dialog.component');
+      const ref = this.dialog.open<FrameOrderDialogComponent, FrameOrderDialogData, string[]>(dialog, {
+         width: '460px',
+         maxWidth: '92vw',
+         data: {
+            frames: start.map((f) => ({
+               id: f.id,
+               name: f.text || 'Untitled frame',
+               width: Math.round(f.width),
+               height: Math.round(f.height),
+            })),
+         },
+      });
       const ids = await firstValueFrom(ref.afterClosed());
       if (!ids) {
          return null;
