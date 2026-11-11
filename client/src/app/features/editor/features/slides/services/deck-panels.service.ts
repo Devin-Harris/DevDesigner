@@ -2,7 +2,7 @@ import type { ShapePointerEvent } from '../../canvas/components/canvas-shapes/ca
 import { EditorToolService } from '../../../services/editor-tool.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { DeckFocusService } from './deck-focus.service';
-import { computed, inject, signal, Injectable } from '@angular/core';
+import { computed, inject, signal, Injectable, linkedSignal } from '@angular/core';
 import { layoutNameOf } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import type { Box } from '../../../models/geometry.model';
@@ -135,7 +135,15 @@ export class DeckPanelsService {
     * The presentations selected as a whole (outer border clicked, or enclosed by a
     * marquee): drawn with a selected outline, and Delete removes every slide of them.
     */
-   readonly selectedSlideSets = signal<string[]>([]);
+   readonly selectedSlideSets = linkedSignal<{ ids: string[]; shown: ReadonlyMap<string, string> }, string[]>({
+      source: () => ({ ids: this.store.selectedElementIds(), shown: this.store.shownByPresentation() }),
+      // Still selected while its shown frame is (a marquee can take it with other items).
+      computation: ({ ids, shown }, previous) => {
+         const sets = previous?.value ?? [];
+         const kept = sets.filter((set) => ids.includes(shown.get(set) ?? ''));
+         return kept.length === sets.length ? sets : kept;
+      },
+   });
 
    /**
     * Pointer down on a slide set's outer border: select the whole presentation and grab

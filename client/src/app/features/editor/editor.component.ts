@@ -373,104 +373,6 @@ export class EditorComponent {
 
       this.dblClick.attach(host);
 
-      // Initialise the contenteditable once per editing session (the DOM owns the
-      // content while typing, so it is never re-rendered from the store).
-      // The inspector's "Edit original / Edit changed" opens the inline editor on that side.
-      effect(() => {
-         const req = this.codeActions.editRequest();
-         if (!req) return;
-         untracked(() => {
-            this.codeActions.editRequest.set(null);
-            if (this.textEditing.editingTextId()) this.textEditing.commitTextEdit();
-            this.codeActions.diffEditSide.set(req.side);
-            this.textEditing.editingTextId.set(req.id);
-         });
-      });
-      // A diff card's editor opens with the caret in the pane that was asked for.
-      // Only when the editor opens: later keystrokes must not pull the caret across.
-      effect(() => {
-         const id = this.textEditing.editingTextId();
-         if (
-            !id ||
-            untracked(() => !this.textEditing.diffPaneEditor() || this.codeActions.diffEditSide() !== 'modified')
-         )
-            return;
-         setTimeout(() => {
-            const pane = document.querySelector('textarea.diff-pane') as HTMLTextAreaElement | null;
-            pane?.focus();
-            pane?.setSelectionRange(pane.value.length, pane.value.length);
-         }, 30);
-      });
-      effect(() => {
-         const ref = this.richEditorRef();
-         untracked(() => {
-            if (ref && ref.nativeElement !== this.textEditing.richInitFor) {
-               this.textEditing.richInitFor = ref.nativeElement;
-               this.textEditing.initRichEditor(ref.nativeElement);
-            } else if (!ref && this.textEditing.richInitFor) {
-               this.textEditing.teardownRichEditor();
-            }
-         });
-      });
-      this.destroyRef.onDestroy(() => this.textEditing.teardownRichEditor());
-      // Slides are locked together: moving one moves all of them (once the move settles).
-      effect((onCleanup) => {
-         this.store.slideFrames();
-         // Not mid-drag: a pause would shift the rest early; the whole move is caught up on release.
-         if (this.gesture.gestureActive()) return;
-         const timer = setTimeout(() => this.placement.syncSlideMoves(), 160);
-         onCleanup(() => clearTimeout(timer));
-      });
-      // A presentation stays selected as a whole only while its shown slide alone is selected.
-      effect(() => {
-         const ids = this.store.selectedElementIds();
-         const shown = this.store.shownByPresentation();
-         untracked(() => {
-            const sets = this.deckPanels.selectedSlideSets();
-            // Still selected while its shown frame is (a marquee can take it with other items).
-            const kept = sets.filter((set) => ids.includes(shown.get(set) ?? ''));
-            if (kept.length !== sets.length) {
-               this.deckPanels.selectedSlideSets.set(kept);
-            }
-         });
-      });
-      // Things dropped or moved into the shown slide's frame become part of that slide.
-      effect((onCleanup) => {
-         this.store.elements();
-         this.store.tables();
-         this.store.sequenceDiagrams();
-         this.store.lifelines();
-         this.store.sequenceMessages();
-         this.store.shownSlideIds();
-         this.canvasView.slideViews();
-         // Never mid-drag: adopting re-maps items into a zoomed slide, which would jump them.
-         if (this.gesture.gestureActive()) {
-            return;
-         }
-         const timer = setTimeout(() => void this.placement.adoptIntoShownSlide(), 350);
-         onCleanup(() => clearTimeout(timer));
-      });
-      // Selecting something on a presentation's slide makes that presentation the selected one.
-      effect(() => {
-         const id = this.store.selectedElementIds()[0];
-         const frames = this.store.slideFrames();
-         untracked(() => {
-            const el = id ? this.store.elements().find((e) => e.id === id) : undefined;
-            const frame = el?.type === 'frame' ? el : frames.find((f) => f.id === el?.slideId);
-            if (frame?.slide) {
-               this.store.selectPresentation(presentationOf(frame));
-            }
-         });
-      });
-      // Bring slides saved side by side onto their presentation's spot (once per such
-      // slide), and give presentations that were stacked on one spot their own.
-      effect(() => {
-         this.store.slideFrames();
-         this.store.elements();
-         untracked(
-            () => void this.placement.stackLegacySlides().then(() => this.placement.separateStackedPresentations())
-         );
-      });
       // Load the project: from a share token (anonymous) or a project id (owner).
       effect(() => {
          const token = this.shareToken();
@@ -564,34 +466,10 @@ export class EditorComponent {
          jumpTo: (item) => this.jumpToItem(item),
       });
       // Feed the top-right Presentations menu.
-      // The transition screen shows its own preview: hide the canvas's floating toolbars.
-      effect(() => {
-         document.body.classList.toggle(
-            'dd-focus-morph',
-            !!this.deckFocus.focusedDeck() && this.deckFocus.focusScreen() === 'morph'
-         );
-      });
       // Floating islands fade while dragging or drawing (toolbar setting).
       effect(() => {
          const on = this.gesture.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
          document.body.classList.toggle('dd-gesture', on);
-      });
-      // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
-      effect(() => {
-         if (!this.deckFocus.focusedDeck()) return;
-         this.deckFocus.focusScreen();
-         const f = this.deckFocus.focusShown();
-         this.viewport.canvasSize();
-         if (!f) return;
-         void [f.x, f.y, f.width, f.height];
-         untracked(() => this.deckFocus.fitFocus(true));
-      });
-      // Focus mode follows the deck: tell the app chrome, and end it when the deck is gone.
-      effect(() => {
-         const name = this.deckFocus.focusedDeck();
-         if (name && !this.store.presentations().includes(name)) {
-            untracked(() => this.deckFocus.focusedDeck.set(null));
-         }
       });
       // The app chrome (top bar, Presentations menu, palette) reads this editor's state.
       this.editorActions.registerState({

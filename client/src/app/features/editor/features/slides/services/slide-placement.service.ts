@@ -1,6 +1,7 @@
 import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { inject, Injectable } from '@angular/core';
+import { PointerGestureService } from '../../../services/pointer-gesture.service';
+import { inject, Injectable, effect, untracked } from '@angular/core';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import {
    presentationOf,
@@ -28,10 +29,57 @@ import { CanvasViewService } from '../../../services/canvas-view.service';
  */
 @Injectable()
 export class SlidePlacementService {
+   private readonly gesture = inject(PointerGestureService);
    private readonly store = inject(ProjectStore);
    private readonly viewport = inject(EditorViewportService);
    private readonly slideshow = inject(SlideshowService);
    private readonly canvasView = inject(CanvasViewService);
+
+   constructor() {
+      // Slides are locked together: moving one moves all of them (once the move settles).
+      effect((onCleanup) => {
+         this.store.slideFrames();
+         // Not mid-drag: a pause would shift the rest early; the whole move is caught up on release.
+         if (this.gesture.gestureActive()) return;
+         const timer = setTimeout(() => this.syncSlideMoves(), 160);
+         onCleanup(() => clearTimeout(timer));
+      });
+      // Things dropped or moved into the shown slide's frame become part of that slide.
+      effect((onCleanup) => {
+         this.store.elements();
+         this.store.tables();
+         this.store.sequenceDiagrams();
+         this.store.lifelines();
+         this.store.sequenceMessages();
+         this.store.shownSlideIds();
+         this.canvasView.slideViews();
+         // Never mid-drag: adopting re-maps items into a zoomed slide, which would jump them.
+         if (this.gesture.gestureActive()) {
+            return;
+         }
+         const timer = setTimeout(() => void this.adoptIntoShownSlide(), 350);
+         onCleanup(() => clearTimeout(timer));
+      });
+      // Selecting something on a presentation's slide makes that presentation the selected one.
+      effect(() => {
+         const id = this.store.selectedElementIds()[0];
+         const frames = this.store.slideFrames();
+         untracked(() => {
+            const el = id ? this.store.elements().find((e) => e.id === id) : undefined;
+            const frame = el?.type === 'frame' ? el : frames.find((f) => f.id === el?.slideId);
+            if (frame?.slide) {
+               this.store.selectPresentation(presentationOf(frame));
+            }
+         });
+      });
+      // Bring slides saved side by side onto their presentation's spot (once per such
+      // slide), and give presentations that were stacked on one spot their own.
+      effect(() => {
+         this.store.slideFrames();
+         this.store.elements();
+         untracked(() => void this.stackLegacySlides().then(() => this.separateStackedPresentations()));
+      });
+   }
    private migratingSlides = false;
 
    /** Project whose misplaced slides stackLegacySlides already gathered (once per load). */
@@ -578,6 +626,11 @@ export class SlidePlacementService {
          if (f.slide) {
             await this.store.updateElement(f.id, { slide: { ...f.slide, order: f.slide.order + 1 } });
          }
+      }
+      // Plain "New" (no layout picked) is always a blank slide: the deck's Blank layout.
+      if (!layout && layoutId === undefined && presentation) {
+         layoutId =
+            presentationLayouts(this.store.slideFrames(), presentation).find((l) => l.slide?.defaultLayout)?.id ?? null;
       }
       const created = await this.store.addElement({
          type: 'frame',

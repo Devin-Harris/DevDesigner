@@ -1,6 +1,6 @@
 import { SlideshowService } from './slideshow.service';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { computed, inject, signal, Injectable } from '@angular/core';
+import { computed, inject, signal, Injectable, effect, untracked, linkedSignal } from '@angular/core';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import type { SlidesCommand } from '../features/slides-panel/models/slides-command.model';
@@ -21,6 +21,23 @@ export class DeckFocusService {
    private readonly viewport = inject(EditorViewportService);
    private readonly slideshow = inject(SlideshowService);
    private host!: DeckFocusHost;
+
+   constructor() {
+      // The transition screen shows its own preview: hide the canvas's floating toolbars.
+      effect(() => {
+         document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck() && this.focusScreen() === 'morph');
+      });
+      // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
+      effect(() => {
+         if (!this.focusedDeck()) return;
+         this.focusScreen();
+         const f = this.focusShown();
+         this.viewport.canvasSize();
+         if (!f) return;
+         void [f.x, f.y, f.width, f.height];
+         untracked(() => this.fitFocus(true));
+      });
+   }
 
    connect(host: DeckFocusHost): void {
       this.host = host;
@@ -67,7 +84,14 @@ export class DeckFocusService {
 
    // ---- Deck focus mode ----------------------------------------------------
    /** The presentation being edited in focus mode (the rest of the canvas dimmed), or null. */
-   readonly focusedDeck = signal<string | null>(null);
+   readonly focusedDeck = linkedSignal<readonly string[], string | null>({
+      source: () => this.store.presentations(),
+      // Focus mode ends when its deck is gone.
+      computation: (decks, previous) => {
+         const name = previous?.value ?? null;
+         return name && decks.includes(name) ? name : null;
+      },
+   });
 
    /** The view before focus mode, restored when it ends. */
    private viewBeforeFocus: { x: number; y: number; zoom: number } | null = null;

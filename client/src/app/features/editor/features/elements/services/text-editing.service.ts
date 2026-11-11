@@ -1,5 +1,15 @@
 import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
-import { type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
+import {
+   type ElementRef,
+   computed,
+   inject,
+   signal,
+   Injectable,
+   type Signal,
+   effect,
+   untracked,
+   DestroyRef,
+} from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeLanguage, TextRun } from '@devdesigner/shared';
 import { themeColorCss, resolveThemeElement, resolveThemeColor, themeSwatchCss } from '@devdesigner/shared';
@@ -64,11 +74,51 @@ export interface TextEditingHost {
  */
 @Injectable()
 export class TextEditingService {
+   private readonly destroyRef = inject(DestroyRef);
    private readonly store = inject(ProjectStore);
    private readonly codeActions = inject(CodeActionsService);
    private readonly snackBar = inject(MatSnackBar);
    private readonly canvasView = inject(CanvasViewService);
    private host!: TextEditingHost;
+
+   constructor() {
+      // Initialise the contenteditable once per editing session (the DOM owns the
+      // content while typing, so it is never re-rendered from the store).
+      // The inspector's "Edit original / Edit changed" opens the inline editor on that side.
+      effect(() => {
+         const req = this.codeActions.editRequest();
+         if (!req) return;
+         untracked(() => {
+            this.codeActions.editRequest.set(null);
+            if (this.editingTextId()) this.commitTextEdit();
+            this.codeActions.diffEditSide.set(req.side);
+            this.editingTextId.set(req.id);
+         });
+      });
+      // A diff card's editor opens with the caret in the pane that was asked for.
+      // Only when the editor opens: later keystrokes must not pull the caret across.
+      effect(() => {
+         const id = this.editingTextId();
+         if (!id || untracked(() => !this.diffPaneEditor() || this.codeActions.diffEditSide() !== 'modified')) return;
+         setTimeout(() => {
+            const pane = document.querySelector('textarea.diff-pane') as HTMLTextAreaElement | null;
+            pane?.focus();
+            pane?.setSelectionRange(pane.value.length, pane.value.length);
+         }, 30);
+      });
+      effect(() => {
+         const ref = this.host.richEditorRef();
+         untracked(() => {
+            if (ref && ref.nativeElement !== this.richInitFor) {
+               this.richInitFor = ref.nativeElement;
+               this.initRichEditor(ref.nativeElement);
+            } else if (!ref && this.richInitFor) {
+               this.teardownRichEditor();
+            }
+         });
+      });
+      this.destroyRef.onDestroy(() => this.teardownRichEditor());
+   }
 
    connect(host: TextEditingHost): void {
       this.host = host;
