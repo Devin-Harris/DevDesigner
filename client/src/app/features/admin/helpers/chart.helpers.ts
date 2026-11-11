@@ -30,7 +30,7 @@ export function nearestIndex(x: number, width: number, count: number): number {
 }
 
 /** Which x-axis labels to print so they never crowd: about `maxLabels`, always first and last. */
-export function labelIndexes(count: number, maxLabels = 6): number[] {
+export function labelIndexes(count: number, maxLabels = 5): number[] {
    if (count <= maxLabels) return Array.from({ length: count }, (_, i) => i);
    const step = (count - 1) / (maxLabels - 1);
    return Array.from({ length: maxLabels }, (_, i) => Math.round(i * step));
