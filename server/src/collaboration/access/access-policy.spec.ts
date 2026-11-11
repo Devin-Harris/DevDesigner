@@ -2,6 +2,8 @@ import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { RequestMethod } from '@nestjs/common';
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { AdminGuard } from '../../identity/admin/admin.guard';
+import { RATE_POLICY_KEY } from '../../platform/throttle/rate-limit';
 import { ACCESS_POLICY_KEY, type AccessPolicy } from './access-policy';
 import { ProjectAccessGuard } from './project-access.guard';
 
@@ -27,6 +29,18 @@ const EXPECTED: Record<string, string> = {
   'GET /health': 'public',
   'GET /health/ready': 'public',
   'GET /admin/ping': 'admin',
+  'GET /admin/overview': 'admin',
+  'GET /admin/timeseries': 'admin',
+  'GET /admin/features': 'admin',
+  'GET /admin/retention': 'admin',
+  'GET /admin/users': 'admin',
+  'GET /admin/users/:userId': 'admin',
+  'GET /admin/projects': 'admin',
+  'GET /admin/storage': 'admin',
+  'GET /admin/api-tokens': 'admin',
+  'GET /admin/errors': 'admin',
+  'GET /admin/realtime': 'admin',
+  'GET /admin/events': 'admin',
   // projects
   'GET /projects': 'caller',
   'POST /projects': 'caller',
@@ -125,6 +139,8 @@ interface Route {
   key: string;
   policy: string;
   guarded: boolean;
+  adminGuarded: boolean;
+  ratePolicy: string | undefined;
   file: string;
 }
 
@@ -155,6 +171,10 @@ function collectRoutes(): Route[] {
           key: `${method} ${joinPath(base, path)}`,
           policy: describePolicy(policy),
           guarded: guards.includes(ProjectAccessGuard),
+          adminGuarded: guards.includes(AdminGuard),
+          ratePolicy:
+            (Reflect.getMetadata(RATE_POLICY_KEY, handler) as string | undefined) ??
+            (Reflect.getMetadata(RATE_POLICY_KEY, ctor) as string | undefined),
           file: relative(root, file),
         });
       }
@@ -178,6 +198,14 @@ describe('route access policies', () => {
   it('every route matches the reviewed route -> access table', () => {
     const actual = Object.fromEntries(routes.map((r) => [r.key, r.policy]));
     expect(actual).toEqual(EXPECTED);
+  });
+
+  it('every admin route is behind AdminGuard and the admin rate limit, and only admin routes are', () => {
+    const admin = routes.filter((r) => r.policy === 'admin');
+    expect(admin.length).toBeGreaterThan(10);
+    expect(admin.filter((r) => !r.adminGuarded || r.ratePolicy !== 'admin').map((r) => r.key)).toEqual([]);
+    expect(routes.filter((r) => r.key.startsWith('GET /admin') !== (r.policy === 'admin')).map((r) => r.key)).toEqual([]);
+    expect(admin.every((r) => r.key.startsWith('GET '))).toBe(true);
   });
 
   it('every project route is actually guarded by ProjectAccessGuard', () => {

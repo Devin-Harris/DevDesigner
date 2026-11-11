@@ -217,6 +217,16 @@ describe('RealtimeGateway', () => {
     expect(seen).toHaveLength(1);
   });
 
+  it('reports live rooms to the admin snapshot as counts only', async () => {
+    access.resolveProjectAccess.mockResolvedValueOnce('EDIT').mockResolvedValueOnce('VIEW');
+    const presenter = await connect({ projectId: 'snap' });
+    await connect({ projectId: 'snap', token: 'view-link' });
+    presenter.emit(RT_EVENTS.present, { frameId: 'frame-1', step: 0 });
+    await settle();
+    const room = app.get(RealtimeGateway).snapshot().find((r) => r.projectId === 'snap');
+    expect(room).toEqual({ projectId: 'snap', participants: 2, editors: 1, viewers: 1, presenters: 1 });
+  });
+
   it('refuses a socket without access', async () => {
     access.resolveProjectAccess.mockRejectedValue(new ForbiddenException());
     await expect(connect({ projectId: 'p1' })).rejects.toThrow();

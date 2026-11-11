@@ -11,6 +11,7 @@ import {
   type PresenceLaser,
   type PresenceSelection,
   type RealtimeHandshakeAuth,
+  type RealtimeRoomSnapshot,
   type RealtimeSession,
 } from '@devdesigner/shared';
 import {
@@ -437,6 +438,18 @@ export class RealtimeGateway
       track(this.events, 'present.ended', { durationMs: Date.now() - data.presentingSince }, extra);
       data.presentingSince = null;
     }
+  }
+
+  /** Live rooms for the admin dashboard: counts only, no names, emails or ids of people. */
+  snapshot(): RealtimeRoomSnapshot[] {
+    return [...this.rooms].map(([projectId, room]) => {
+      let viewers = 0;
+      for (const participant of room.values()) if (participant.accessLevel === 'VIEW') viewers++;
+      const presenters = this.server
+        ? this.socketsIn(projectId).filter((s) => (s.data as SocketData).presentingSince != null).length
+        : 0;
+      return { projectId, participants: room.size, editors: room.size - viewers, viewers, presenters };
+    });
   }
 
   /** The socket's data once it has fully joined a project, else null. */

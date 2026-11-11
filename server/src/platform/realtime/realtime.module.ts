@@ -16,6 +16,6 @@ import { RealtimePublisher } from './realtime.publisher';
 @Module({
   imports: [AuthModule],
   providers: [RealtimeGateway, RealtimePublisher],
-  exports: [RealtimePublisher],
+  exports: [RealtimePublisher, RealtimeGateway],
 })
 export class RealtimeModule {}
