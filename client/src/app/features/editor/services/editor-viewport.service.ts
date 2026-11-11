@@ -1,6 +1,7 @@
 import { DestroyRef, type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
 import { presentationOf, type SequenceDiagramModel } from '@devdesigner/shared';
 import { inBlock, type SlideView, toInner } from '../helpers/slide-zoom.helper';
+import { notifySignal } from '../../../shared/helpers/signals';
 import { ProjectStore } from '../state/project/project.store';
 import { MAX_ZOOM, MIN_ZOOM } from '../shared/constants/canvas.constants';
 import { elementBox, tableBox } from '../helpers/element-geometry.helper';
@@ -45,8 +46,35 @@ export class EditorViewportService {
 
    readonly zoomLabel = computed(() => `${Math.round(this.store.viewport().zoom * 100)}%`);
 
-   canvasRect(): DOMRect {
+   /** Bumped when the canvas may have moved or resized on screen (resize, scroll). */
+   private readonly canvasLayout$ = notifySignal();
+   /** The canvas's screen rect, read once per layout change instead of per pointer move. */
+   private readonly canvasRect$ = computed(() => {
+      this.canvasLayout$();
       return this.host.canvasRef().nativeElement.getBoundingClientRect();
+   });
+
+   canvasRect(): DOMRect {
+      return this.canvasRect$();
+   }
+
+   /** Watch the canvas element's size and position; returns the teardown. */
+   observeCanvas(el: HTMLElement): () => void {
+      const update = (): void => {
+         this.canvasSize.set({ width: el.clientWidth, height: el.clientHeight });
+         this.canvasLayout$.notify();
+      };
+      update();
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      const moved = (): void => this.canvasLayout$.notify();
+      window.addEventListener('resize', moved);
+      window.addEventListener('scroll', moved, { capture: true, passive: true });
+      return () => {
+         ro.disconnect();
+         window.removeEventListener('resize', moved);
+         window.removeEventListener('scroll', moved, { capture: true });
+      };
    }
 
    /**

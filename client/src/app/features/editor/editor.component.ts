@@ -421,15 +421,8 @@ export class EditorComponent {
             this.realtime.connect(id);
          }
       });
-      // Track the canvas size for the minimap's viewport rectangle.
-      effect((onCleanup) => {
-         const el = this.canvasRef().nativeElement;
-         const update = (): void => this.viewport.canvasSize.set({ width: el.clientWidth, height: el.clientHeight });
-         update();
-         const ro = new ResizeObserver(update);
-         ro.observe(el);
-         onCleanup(() => ro.disconnect());
-      });
+      // Track the canvas size and position (minimap rectangle, cached screen/world mapping).
+      effect((onCleanup) => onCleanup(this.viewport.observeCanvas(this.canvasRef().nativeElement)));
       // Broadcast this participant's selection so others see what is being edited (only with
       // someone in the room; it re-sends when a peer joins).
       effect(() => {
@@ -657,11 +650,6 @@ export class EditorComponent {
    @HostListener('window:dragstart', ['$event'])
    protected onNativeDragStart(event: DragEvent): void {
       this.pointer.onNativeDragStart(event);
-   }
-
-   @HostListener('window:pointermove', ['$event'])
-   protected onPointerMove(event: PointerEvent): void {
-      this.pointer.onPointerMove(event);
    }
 
    @HostListener('window:pointerup')

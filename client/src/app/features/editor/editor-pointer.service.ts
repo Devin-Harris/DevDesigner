@@ -12,7 +12,7 @@ import { PointerGestureService } from './services/pointer-gesture.service';
 import { SlidePlacementService } from './features/slides/services/slide-placement.service';
 import { DeckFocusService } from './features/slides/services/deck-focus.service';
 import { EditorViewportService } from './services/editor-viewport.service';
-import { computed, inject, signal, Injectable } from '@angular/core';
+import { computed, inject, signal, Injectable, DestroyRef } from '@angular/core';
 import { PenPrefsService } from './services/pen-prefs.service';
 import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from './state/project/project.store';
@@ -45,6 +45,30 @@ export class EditorPointerService {
    private readonly placement = inject(SlidePlacementService);
    private readonly dblClick = inject(CanvasDblClickService);
    private readonly laserInput = inject(LaserInputService);
+   private readonly destroyRef = inject(DestroyRef);
+   /** Moves waiting for the next animation frame (only the latest, except while drawing). */
+   private pendingMoves: PointerEvent[] = [];
+   private moveFrame = 0;
+
+   constructor() {
+      // A native listener: an idle mouse move costs no change detection, and moves are
+      // handled once per frame (the pen keeps every sample so strokes stay smooth).
+      const onMove = (event: PointerEvent): void => this.onPointerMove(event);
+      window.addEventListener('pointermove', onMove);
+      this.destroyRef.onDestroy(() => {
+         window.removeEventListener('pointermove', onMove);
+         cancelAnimationFrame(this.moveFrame);
+      });
+   }
+
+   /** Run the moves still waiting for their frame now (before a release or key acts on them). */
+   flushPointerMoves(): void {
+      cancelAnimationFrame(this.moveFrame);
+      this.moveFrame = 0;
+      const moves = this.pendingMoves;
+      this.pendingMoves = [];
+      for (const event of moves) this.handlePointerMove(event);
+   }
 
    // Marquee (screen coords relative to the canvas)
    private readonly marqueeStart = signal<{ x: number; y: number } | null>(null);
@@ -161,7 +185,14 @@ export class EditorPointerService {
    onPointerMove(event: PointerEvent): void {
       this.gesture.lastPointer = event;
       this.gesture.shiftHeld = event.shiftKey;
-      this.handlePointerMove(event);
+      if (this.gesture.mode === 'draw') {
+         this.pendingMoves.push(event);
+      } else {
+         this.pendingMoves = [event];
+      }
+      if (!this.moveFrame) {
+         this.moveFrame = requestAnimationFrame(() => this.flushPointerMoves());
+      }
    }
 
    handlePointerMove(event: PointerEvent): void {
@@ -280,6 +311,7 @@ export class EditorPointerService {
    }
 
    onPointerUp(): void {
+      this.flushPointerMoves();
       if (this.gesture.mode === 'duplicating') {
          // The copies are still being created; finish the drop once they exist.
          this.gesture.releasedWhileDuplicating = true;
