@@ -1,0 +1,17 @@
+@use '../../styles/admin';
+
+@include admin.page;
+
+.sub-title {
+   margin: 18px 0 10px;
+   color: var(--dd-text-muted);
+   font-family: var(--dd-font);
+   font-size: 12px;
+   font-weight: 500;
+}
+
+.facts {
+   margin: 16px 0 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}

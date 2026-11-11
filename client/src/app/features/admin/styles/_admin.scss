@@ -1,0 +1,178 @@
+// Mixins shared by the admin pages and components (each component stays encapsulated and
+// includes what it needs). Colors come from the --dd-* tokens only.
+
+@mixin visually-hidden {
+   position: absolute;
+   width: 1px;
+   height: 1px;
+   overflow: hidden;
+   clip: rect(0 0 0 0);
+   white-space: nowrap;
+}
+
+@mixin card {
+   min-width: 0;
+   padding: 16px 18px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   box-sizing: border-box;
+}
+
+@mixin card-title {
+   margin: 0 0 12px;
+   color: var(--dd-text);
+   font-family: var(--dd-font);
+   font-size: 13px;
+   font-weight: 600;
+}
+
+@mixin data-table {
+   width: 100%;
+   border-collapse: collapse;
+   font-size: 12px;
+
+   th,
+   td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--dd-border);
+      text-align: left;
+      white-space: nowrap;
+   }
+
+   thead th {
+      position: sticky;
+      top: 0;
+      background: var(--dd-surface-2);
+      color: var(--dd-text-muted);
+      font-weight: 500;
+   }
+
+   .is-num {
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+   }
+}
+
+/** Page scaffold: header with title + meta, then a responsive grid of cards. */
+@mixin page {
+   :host {
+      display: block;
+      max-width: 1200px;
+   }
+
+   .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px 16px;
+      margin-bottom: 18px;
+   }
+
+   .page-title {
+      margin: 0;
+      font-family: var(--dd-display);
+      font-size: 22px;
+      font-weight: 600;
+   }
+
+   .page-meta {
+      margin: 0;
+      color: var(--dd-text-muted);
+      font-size: 12px;
+   }
+
+   .page-notice {
+      margin: 0 0 16px;
+      padding: 10px 14px;
+      background: var(--dd-surface-2);
+      border: 1px solid var(--dd-border);
+      border-radius: var(--dd-radius-sm);
+      color: var(--dd-text-muted);
+      font-size: 12px;
+
+      &.is-error {
+         color: var(--dd-danger);
+      }
+   }
+
+   .page-body {
+      transition: opacity 120ms ease;
+
+      &.is-stale {
+         opacity: 0.55;
+      }
+   }
+
+   .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+   }
+
+   .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+   }
+
+   .card {
+      @include card;
+   }
+
+   .card-wide {
+      grid-column: 1 / -1;
+   }
+
+   .card-title {
+      @include card-title;
+   }
+
+   .card-note {
+      margin: -6px 0 12px;
+      color: var(--dd-text-muted);
+      font-size: 12px;
+   }
+
+   .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-bottom: 14px;
+   }
+
+   .text-button {
+      padding: 6px 12px;
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+      border: 1px solid var(--dd-border);
+      border-radius: var(--dd-radius-sm);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+
+      &:hover:not(:disabled) {
+         border-color: var(--dd-border-strong);
+      }
+
+      &:disabled {
+         color: var(--dd-faint);
+         cursor: default;
+      }
+
+      &:focus-visible {
+         outline: 2px solid var(--dd-primary);
+         outline-offset: 1px;
+      }
+   }
+
+   @media (max-width: 900px) {
+      .card-grid {
+         grid-template-columns: minmax(0, 1fr);
+      }
+   }
+}

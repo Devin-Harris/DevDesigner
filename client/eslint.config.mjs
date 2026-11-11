@@ -221,6 +221,25 @@ export default tseslint.config(
       },
    },
    {
+      // A2: the admin dashboard stays in its lazy chunk. Nothing outside features/admin may import it
+      // statically (app.routes.ts reaches it only through `loadChildren: () => import(...)`).
+      files: ['src/**/*.ts'],
+      ignores: ['src/app/features/admin/**'],
+      rules: {
+         'no-restricted-imports': [
+            'error',
+            {
+               patterns: [
+                  {
+                     group: ['**/features/admin', '**/features/admin/**'],
+                     message: 'features/admin is lazy-loaded behind adminGuard; import it only via the admin route.',
+                  },
+               ],
+            },
+         ],
+      },
+   },
+   {
       files: ['**/*.spec.ts'],
       rules: {
          'max-lines': 'off',

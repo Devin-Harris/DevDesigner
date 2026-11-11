@@ -1,0 +1,60 @@
+<header class="page-header">
+   <h1 class="page-title">Errors</h1>
+   <dd-admin-date-range-picker [value]="range$()" (valueChange)="setRange($event)"></dd-admin-date-range-picker>
+</header>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+@if (view$().value; as report) {
+   <div class="page-body" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+      <section class="kpi-grid" aria-label="Error figures">
+         <dd-admin-kpi-tile
+            [hint]="'Sampled reads scaled up'"
+            [label]="'Requests'"
+            [value]="report.requests"
+         ></dd-admin-kpi-tile>
+         <dd-admin-kpi-tile [label]="'Server errors (5xx)'" [value]="report.serverErrors"></dd-admin-kpi-tile>
+         <dd-admin-kpi-tile [label]="'Client errors (4xx)'" [value]="report.clientErrors"></dd-admin-kpi-tile>
+         <dd-admin-kpi-tile [format]="'percent'" [label]="'Server error rate'" [value]="rate$()"></dd-admin-kpi-tile>
+      </section>
+
+      <div class="card-grid">
+         <section class="card">
+            <h2 class="card-title">Server errors per day</h2>
+            <dd-admin-line-chart [label]="'Server errors per day'" [series]="series$()"></dd-admin-line-chart>
+         </section>
+         <section class="card">
+            <h2 class="card-title">Browser errors</h2>
+            <p class="card-note">From the client beacon, by kind</p>
+            <dd-admin-bar-list
+               [emptyText]="'No browser errors reported'"
+               [items]="client$()"
+               [label]="'Browser errors by kind'"
+            ></dd-admin-bar-list>
+         </section>
+         <section class="card card-wide">
+            <h2 class="card-title">By route and status</h2>
+            <p class="card-note">Server errors first; match a request id to the server logs</p>
+            <dd-admin-data-table
+               [columns]="groupColumns"
+               [emptyText]="'No errors in this period'"
+               [label]="'Errors by route and status'"
+               [rows]="groups$()"
+            ></dd-admin-data-table>
+         </section>
+         <section class="card card-wide">
+            <h2 class="card-title">Slow routes</h2>
+            <dd-admin-data-table
+               [columns]="slowColumns"
+               [emptyText]="'No slow requests in this period'"
+               [label]="'Slow routes'"
+               [rows]="slow$()"
+            ></dd-admin-data-table>
+         </section>
+      </div>
+   </div>
+} @else if (view$().loading) {
+   <p class="page-meta" aria-live="polite">Loading…</p>
+}

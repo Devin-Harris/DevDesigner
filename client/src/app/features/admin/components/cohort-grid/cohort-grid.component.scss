@@ -1,0 +1,43 @@
+@use '../../styles/admin';
+
+:host {
+   display: block;
+   min-width: 0;
+}
+
+.cohort-scroll {
+   overflow-x: auto;
+}
+
+.cohort-table {
+   @include admin.data-table;
+
+   thead th {
+      position: static;
+      background: none;
+   }
+
+   th,
+   td {
+      border-bottom: 0;
+   }
+}
+
+.cohort-cell {
+   min-width: 40px;
+   border: 2px solid var(--dd-surface);
+   border-radius: 4px;
+   color: var(--dd-text);
+   font-variant-numeric: tabular-nums;
+   text-align: center;
+}
+
+.cohort-empty {
+   margin: 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.visually-hidden {
+   @include admin.visually-hidden;
+}

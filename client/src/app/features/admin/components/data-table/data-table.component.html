@@ -1,0 +1,73 @@
+<div class="table-scroll">
+   <table class="table">
+      <caption class="visually-hidden">
+         {{
+            label$()
+         }}
+      </caption>
+      <thead>
+         <tr>
+            @for (col of headers$(); track col.key) {
+               <th scope="col" [attr.aria-sort]="col.ariaSort" [class.is-num]="col.numeric">
+                  @if (col.sortable) {
+                     <button
+                        class="sort-button"
+                        type="button"
+                        [class.on]="col.active"
+                        (click)="sortChange.emit(col.key)"
+                     >
+                        {{ col.label }}
+                        @if (col.active) {
+                           <dd-icon [name]="dir$() === 'asc' ? 'arrow_upward' : 'arrow_downward'"></dd-icon>
+                        }
+                     </button>
+                  } @else {
+                     {{ col.label }}
+                  }
+               </th>
+            }
+         </tr>
+      </thead>
+      <tbody>
+         @for (row of rows$(); track $index) {
+            <tr
+               [attr.tabindex]="clickable$() ? 0 : null"
+               [class.is-clickable]="clickable$()"
+               (click)="activate(row)"
+               (keydown.enter)="activate(row)"
+            >
+               @for (col of headers$(); track col.key) {
+                  <td [class.is-num]="col.numeric">{{ row[col.key] | adminFormat: col.format ?? 'text' }}</td>
+               }
+            </tr>
+         } @empty {
+            <tr>
+               <td class="table-empty" [attr.colspan]="columns$().length">{{ emptyText$() }}</td>
+            </tr>
+         }
+      </tbody>
+   </table>
+</div>
+@if (total$() !== null && range$().total > 0) {
+   <nav class="pager" aria-label="Pages">
+      <span class="pager-range">{{ range$().start }}–{{ range$().end }} of {{ range$().total }}</span>
+      <button
+         class="pager-button"
+         type="button"
+         aria-label="Previous page"
+         [disabled]="page$() <= 1"
+         (click)="pageChange.emit(page$() - 1)"
+      >
+         <dd-icon name="chevron_left"></dd-icon>
+      </button>
+      <button
+         class="pager-button"
+         type="button"
+         aria-label="Next page"
+         [disabled]="page$() >= pages$()"
+         (click)="pageChange.emit(page$() + 1)"
+      >
+         <dd-icon name="chevron_right"></dd-icon>
+      </button>
+   </nav>
+}

@@ -1,27 +1,86 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { DatePipe } from '@angular/common';
-import { AdminApiService } from '../../services/admin-api.service';
-import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
+import type { AdminKpiKey, AdminOverviewResponse, AdminRange } from '@devdesigner/shared';
+import { CohortGridComponent } from '../../components/cohort-grid/cohort-grid.component';
+import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
+import { KpiTileComponent } from '../../components/kpi-tile/kpi-tile.component';
+import { LineChartComponent } from '../../components/line-chart/line-chart.component';
+import { KPI_LABELS, KPI_UP_IS_BAD, type ChartSeries } from '../../models/admin.models';
+import { AdminStore } from '../../state/admin/admin.store';
 
-/** Overview placeholder: proves the admin API is reachable until the Phase 2 KPIs land. */
+/** KPI -> the daily series drawn as its sparkline. */
+const TRENDS: Partial<Record<AdminKpiKey, keyof AdminOverviewResponse['series']>> = {
+   activeUsers: 'activeUsers',
+   dau: 'activeUsers',
+   activeGuests: 'activeGuests',
+   signups: 'signups',
+   projectsCreated: 'projectsCreated',
+};
+
+/** Headline KPIs with previous-period deltas, activity and growth over time, retention cohorts. */
 @Component({
    selector: 'dd-admin-overview',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [DatePipe, IconComponent],
+   imports: [CohortGridComponent, DateRangePickerComponent, KpiTileComponent, LineChartComponent],
    templateUrl: './overview.component.html',
    styleUrl: './overview.component.scss',
 })
 export class OverviewComponent {
-   private readonly adminApi = inject(AdminApiService);
+   protected readonly store = inject(AdminStore);
 
-   private readonly ping = rxResource({ stream: () => this.adminApi.ping() });
+   protected readonly view$ = this.store.overviewView;
+   protected readonly retention$ = this.store.retentionView;
+   protected readonly range$ = this.store.range;
 
-   protected readonly loading$ = this.ping.isLoading;
-   protected readonly failed$ = computed(() => this.ping.error() !== undefined);
-   protected readonly serverTime$ = computed(() => this.ping.value()?.serverTime ?? null);
+   protected readonly kpis$ = computed(() => {
+      const overview = this.view$().value;
+      if (!overview) return [];
+      return overview.kpis.map((kpi) => {
+         const trend = TRENDS[kpi.key];
+         return {
+            ...kpi,
+            label: KPI_LABELS[kpi.key],
+            upIsBad: KPI_UP_IS_BAD.has(kpi.key),
+            trend: trend ? overview.series[trend].map((p) => p.value) : [],
+            hint: kpi.key === 'dbBytes' ? 'App database file' : kpi.value === null ? 'Analytics is off' : '',
+         };
+      });
+   });
+   protected readonly activity$ = computed<ChartSeries[]>(() => {
+      const series = this.view$().value?.series;
+      if (!series) return [];
+      return [
+         { id: 'users', label: 'Signed-in users', slot: 1, points: series.activeUsers },
+         { id: 'guests', label: 'Guests', slot: 2, points: series.activeGuests },
+      ];
+   });
+   protected readonly growth$ = computed<ChartSeries[]>(() => {
+      const series = this.view$().value?.series;
+      if (!series) return [];
+      return [
+         { id: 'signups', label: 'Signups', slot: 1, points: series.signups },
+         { id: 'projects', label: 'Projects created', slot: 2, points: series.projectsCreated },
+      ];
+   });
+   protected readonly requests$ = computed<ChartSeries[]>(() => {
+      const series = this.view$().value?.series;
+      return series ? [{ id: 'requests', label: 'Requests (estimated)', slot: 1, points: series.requests }] : [];
+   });
+   protected readonly errors$ = computed<ChartSeries[]>(() => {
+      const series = this.view$().value?.series;
+      return series ? [{ id: 'errors', label: 'Server errors (5xx)', slot: 1, points: series.errors }] : [];
+   });
+
+   constructor() {
+      this.store.connect('overview');
+      this.store.connect('retention');
+   }
+
+   protected setRange(range: AdminRange): void {
+      this.store.setRange(range);
+   }
 
    protected retry(): void {
-      this.ping.reload();
+      this.store.reload('overview');
+      this.store.reload('retention');
    }
 }

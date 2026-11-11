@@ -1,0 +1,124 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Storage</h1>
+      @if (view$().value; as report) {
+         <p class="page-meta">
+            Computed {{ report.generatedAt | adminFormat: 'datetime' }} UTC, refreshed at most every 5 minutes
+         </p>
+      }
+   </div>
+</header>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+@if (view$().value; as report) {
+   <section class="kpi-grid" aria-label="Database files">
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="report.database.file ? report.database.file.path : 'In memory'"
+         [label]="'App database'"
+         [value]="dbBytes$()"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="'Write-ahead log'"
+         [label]="'WAL file'"
+         [value]="report.database.file?.walBytes ?? null"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="'Reclaimable with VACUUM'"
+         [label]="'Free pages'"
+         [value]="freeBytes$()"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="report.analyticsDatabase ? report.analyticsDatabase.path : 'Analytics is off'"
+         [label]="'Analytics database'"
+         [value]="report.analyticsDatabase?.bytes ?? null"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="'All stored images'"
+         [label]="'Media'"
+         [value]="mediaBytes$()"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'bytes'"
+         [hint]="report.orphanImages.count + ' files no element uses'"
+         [label]="'Orphaned media'"
+         [value]="report.orphanImages.bytes"
+      ></dd-admin-kpi-tile>
+   </section>
+
+   <div class="card-grid">
+      <section class="card">
+         <h2 class="card-title">Project activity</h2>
+         <p class="card-note">
+            By last opened{{
+               report.projectActivityApprox ? ' (last update where never opened since tracking began)' : ''
+            }}
+         </p>
+         <dd-admin-stat-bar [label]="'Projects by activity'" [segments]="activity$()"></dd-admin-stat-bar>
+         <h3 class="sub-title">Accounts by sign-in method</h3>
+         <dd-admin-stat-bar [label]="'Accounts by sign-in method'" [segments]="auth$()"></dd-admin-stat-bar>
+         <h3 class="sub-title">Live share links by access</h3>
+         <dd-admin-stat-bar [label]="'Live share links by access level'" [segments]="shares$()"></dd-admin-stat-bar>
+         <p class="facts">
+            {{ report.guests.owners }} guests own {{ report.guests.projects }} projects ·
+            {{ report.ownerlessProjects }} ownerless · {{ report.slides }} slides
+         </p>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Projects per account</h2>
+         <dd-admin-bar-list [items]="perUser$()" [label]="'Accounts by number of projects'"></dd-admin-bar-list>
+         <h3 class="sub-title">API tokens</h3>
+         <dd-admin-bar-list
+            [emptyText]="'No tokens'"
+            [items]="tokens$()"
+            [label]="'Active API tokens by scope'"
+         ></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Rows per table</h2>
+         <dd-admin-bar-list [items]="rows$()" [label]="'Rows per table'" [limit]="14"></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Bytes on disk</h2>
+         @if (report.tableBytes === null) {
+            <p class="card-note">This SQLite build has no DBSTAT table.</p>
+         } @else {
+            <dd-admin-bar-list
+               [format]="'bytes'"
+               [items]="tableBytes$()"
+               [label]="'Bytes on disk per table and index'"
+            ></dd-admin-bar-list>
+         }
+      </section>
+      <section class="card">
+         <h2 class="card-title">Canvas elements by type</h2>
+         <dd-admin-bar-list [items]="elementTypes$()" [label]="'Canvas elements by type'"></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Media by type</h2>
+         <dd-admin-bar-list
+            [emptyText]="'No media'"
+            [format]="'bytes'"
+            [items]="images$()"
+            [label]="'Media bytes by type'"
+         ></dd-admin-bar-list>
+      </section>
+      <section class="card card-wide">
+         <h2 class="card-title">Largest projects</h2>
+         <dd-admin-data-table
+            [columns]="largestColumns"
+            [label]="'Largest projects'"
+            [rows]="largest$()"
+         ></dd-admin-data-table>
+      </section>
+   </div>
+} @else if (view$().loading) {
+   <p class="page-meta" aria-live="polite">Loading…</p>
+}

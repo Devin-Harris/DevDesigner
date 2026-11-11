@@ -4,12 +4,22 @@
          <span class="admin-brand-tile"><dd-icon name="schema"></dd-icon></span>
          <span class="admin-brand-name">Admin</span>
       </a>
-      <a class="admin-rail-link" routerLink="." routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">
-         <dd-icon name="grid_view"></dd-icon>Overview
-      </a>
+      @for (link of links; track link.path) {
+         <a
+            class="admin-rail-link"
+            routerLinkActive="on"
+            ariaCurrentWhenActive="page"
+            [routerLink]="link.path"
+            [routerLinkActiveOptions]="{ exact: link.exact }"
+         >
+            <dd-icon [name]="link.icon"></dd-icon><span class="admin-rail-label">{{ link.label }}</span>
+         </a>
+      }
       <div class="admin-rail-footer">
          <span class="admin-rail-user">{{ userLabel$() }}</span>
-         <a class="admin-rail-link" routerLink="/"><dd-icon name="arrow_back"></dd-icon>Back to app</a>
+         <a class="admin-rail-link" routerLink="/">
+            <dd-icon name="arrow_back"></dd-icon><span class="admin-rail-label">Back to app</span>
+         </a>
       </div>
    </nav>
    <main class="admin-main">

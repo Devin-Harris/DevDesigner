@@ -1,0 +1,23 @@
+@use '../../styles/admin';
+
+@include admin.page;
+
+.trend-card {
+   margin-bottom: 16px;
+}
+
+.trend-head {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   justify-content: space-between;
+   gap: 8px;
+
+   .card-title {
+      margin: 0;
+   }
+
+   dd-select {
+      width: 200px;
+   }
+}

@@ -1,0 +1,107 @@
+<div class="chart">
+   <div class="chart-body">
+      <div class="chart-y" aria-hidden="true">
+         @for (tick of yTicks$(); track tick.value) {
+            <span class="chart-y-label" [style.top.%]="tick.top">{{ tick.label }}</span>
+         }
+      </div>
+      <div
+         class="chart-plot"
+         role="img"
+         tabindex="0"
+         [attr.aria-label]="summary$()"
+         (blur)="clear()"
+         (focus)="focusLast()"
+         (keydown)="onKey($event)"
+         (pointerleave)="clear()"
+         (pointermove)="onPointerMove($event)"
+      >
+         <svg class="chart-svg" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+            @for (tick of yTicks$(); track tick.value) {
+               <line class="chart-grid" x1="0" x2="1000" [attr.y1]="tick.top" [attr.y2]="tick.top"></line>
+            }
+            @for (path of paths$(); track path.id) {
+               @if (path.area) {
+                  <path class="chart-area" [attr.d]="path.area" [style.fill]="path.color"></path>
+               }
+               <path class="chart-line" [attr.d]="path.line" [style.stroke]="path.color"></path>
+            }
+         </svg>
+         @if (empty$()) {
+            <span class="chart-empty">No activity in this period</span>
+         }
+         @if (readout$(); as readout) {
+            <span class="chart-crosshair" [style.left.%]="readout.left"></span>
+            @for (row of readout.rows; track row.id) {
+               <span
+                  class="chart-dot"
+                  [style.background]="row.color"
+                  [style.left.%]="readout.left"
+                  [style.top.%]="row.top"
+               ></span>
+            }
+            <div
+               class="chart-tooltip"
+               aria-live="polite"
+               [class.is-end]="readout.alignEnd"
+               [style.left.%]="readout.left"
+            >
+               <div class="chart-tooltip-day">{{ readout.day }}</div>
+               @for (row of readout.rows; track row.id) {
+                  <div class="chart-tooltip-row">
+                     <span class="chart-key" [style.background]="row.color"></span>
+                     <strong>{{ row.value | adminFormat: format$() }}</strong>
+                     <span class="chart-tooltip-name">{{ row.label }}</span>
+                  </div>
+               }
+            </div>
+         }
+      </div>
+   </div>
+   <div class="chart-x" aria-hidden="true">
+      @for (x of xLabels$(); track x.day) {
+         <span class="chart-x-label" [style.left.%]="x.left">{{ x.label }}</span>
+      }
+   </div>
+   <div class="chart-foot">
+      @if (legend$().length > 1) {
+         <ul class="chart-legend" aria-label="Legend">
+            @for (item of legend$(); track item.id) {
+               <li class="chart-legend-item">
+                  <span class="chart-key" [style.background]="item.color"></span>{{ item.label }}
+               </li>
+            }
+         </ul>
+      }
+      <details class="chart-table">
+         <summary>Data table</summary>
+         <div class="chart-table-scroll">
+            <table>
+               <caption class="visually-hidden">
+                  {{
+                     label$()
+                  }}
+               </caption>
+               <thead>
+                  <tr>
+                     <th scope="col">Day</th>
+                     @for (item of legend$(); track item.id) {
+                        <th scope="col">{{ item.label }}</th>
+                     }
+                  </tr>
+               </thead>
+               <tbody>
+                  @for (row of table$(); track row.day) {
+                     <tr>
+                        <th scope="row">{{ row.day }}</th>
+                        @for (value of row.values; track $index) {
+                           <td>{{ value | adminFormat: format$() }}</td>
+                        }
+                     </tr>
+                  }
+               </tbody>
+            </table>
+         </div>
+      </details>
+   </div>
+</div>

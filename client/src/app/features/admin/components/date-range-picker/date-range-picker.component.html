@@ -1,0 +1,16 @@
+<div class="range" role="radiogroup" aria-label="Date range">
+   @for (option of options; track option.value; let i = $index) {
+      <button
+         class="range-option"
+         role="radio"
+         type="button"
+         [attr.aria-checked]="option.value === value$()"
+         [class.on]="option.value === value$()"
+         [tabindex]="option.value === value$() ? 0 : -1"
+         (click)="valueChange.emit(option.value)"
+         (keydown)="onKey($event, i)"
+      >
+         {{ option.label }}
+      </button>
+   }
+</div>

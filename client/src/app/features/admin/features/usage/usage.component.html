@@ -1,0 +1,44 @@
+<header class="page-header">
+   <h1 class="page-title">Usage</h1>
+   <dd-admin-date-range-picker [value]="range$()" (valueChange)="setRange($event)"></dd-admin-date-range-picker>
+</header>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+<div class="page-body" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+   <section class="card trend-card">
+      <div class="trend-head">
+         <h2 class="card-title">Over time</h2>
+         <dd-select
+            aria-label="Metric"
+            [ngModel]="metric$()"
+            [options]="metricOptions"
+            (ngModelChange)="setMetric($event)"
+         ></dd-select>
+      </div>
+      <dd-admin-line-chart [label]="chartLabel$()" [series]="chart$()"></dd-admin-line-chart>
+   </section>
+
+   <div class="card-grid">
+      <section class="card">
+         <h2 class="card-title">Writes by kind</h2>
+         <p class="card-note">Persisted changes, with the share of active signed-in users making them</p>
+         <dd-admin-bar-list [items]="kinds$()" [label]="'Writes by kind'"></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Canvas element types</h2>
+         <p class="card-note">Element writes by type</p>
+         <dd-admin-bar-list [items]="elementTypes$()" [label]="'Element writes by type'"></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Features</h2>
+         <dd-admin-bar-list [items]="events$()" [label]="'Feature events'"></dd-admin-bar-list>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Exports by format</h2>
+         <dd-admin-bar-list [items]="exports$()" [label]="'Exports by format'"></dd-admin-bar-list>
+      </section>
+   </div>
+</div>

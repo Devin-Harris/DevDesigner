@@ -97,6 +97,12 @@ html {
    --dd-handle-hover: var(--dd-primary);
    --dd-chip-bg: #efece5;
    --dd-chip-active: #e8edfb;
+
+   // data viz: categorical series in fixed order (validated for CVD separation on both
+   // surfaces; slot 3 is under 3:1 on Paper, so charts always ship a table view)
+   --dd-chart-1: #2a78d6;
+   --dd-chart-2: #eb6834;
+   --dd-chart-3: #1baf7a;
 }
 
 html.dark {
@@ -136,6 +142,10 @@ html.dark {
    --dd-handle-hover: var(--dd-primary);
    --dd-chip-bg: #1e2733;
    --dd-chip-active: #1b2b46;
+
+   --dd-chart-1: #3987e5;
+   --dd-chart-2: #d95926;
+   --dd-chart-3: #199e70;
 }
 
 html,

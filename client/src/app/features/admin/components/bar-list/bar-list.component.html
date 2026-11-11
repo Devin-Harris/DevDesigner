@@ -1,0 +1,23 @@
+@if (rows$().length === 0) {
+   <p class="bars-empty">{{ emptyText$() }}</p>
+} @else {
+   <ul class="bars" [attr.aria-label]="label$()">
+      @for (row of rows$(); track row.key) {
+         <li class="bar-row">
+            <span class="bar-label" [title]="row.label">{{ row.label }}</span>
+            <span class="bar-track" aria-hidden="true"><span class="bar-fill" [style.width.%]="row.width"></span></span>
+            <span class="bar-value">
+               {{ row.value | adminFormat: format$() }}
+               @if (row.note) {
+                  <span class="bar-note">{{ row.note }}</span>
+               }
+            </span>
+         </li>
+      }
+   </ul>
+   @if (hidden$() > 0) {
+      <button class="bars-more" type="button" [attr.aria-expanded]="expanded$()" (click)="toggle()">
+         {{ expanded$() ? 'Show fewer' : 'Show all ' + items$().length }}
+      </button>
+   }
+}
