@@ -637,3 +637,29 @@ Client:
 3. **Performance pass and phase 1** (event capture) together, so capture is benchmarked against the optimized hot paths.
 4. **Cleanliness refactor skeleton**, then **phase 2** (dashboard), built as an exemplar of the new structure.
 5. **Phase 3b** (PostHog, consent, privacy page) and **phase 4** (rollups, retention) last. The privacy page and font self-hosting can move earlier at any time because they are independent.
+
+---
+
+## Phase 1 benchmark
+
+Measured 2026-11-10 on the built server (`tsc -p server/tsconfig.build.json`, `NODE_ENV=production`, `RATE_LIMIT_ENABLED=false`, port 3104, fresh app and analytics SQLite files per boot, never `server/devdesigner.sqlite`). Windows 11 dev machine, Node 24; a client build was running on the same machine, so absolute numbers are noisy. 4 boots per mode, alternating off/on; the table shows the median across boots of each run's statistic.
+
+Each run: a guest project with 200 text elements, 50 warm-up batches, then:
+- **batch**: 500 sequential `PATCH /projects/:id/batch` moving 20 elements each;
+- **burst**: 200 `PATCH /elements/:id/position` fired concurrently (latency includes queueing behind the others);
+- **drag**: 200 sequential position saves of one element.
+
+| Scenario | `ANALYTICS_ENABLED=false` | `ANALYTICS_ENABLED=true` | Delta |
+|---|---|---|---|
+| batch p50 / p95 (ms) | 3.52 / 4.89 | 3.94 / 5.26 | +0.4 / +0.4 |
+| burst p50 / p95 (ms) | 101.4 / 160.1 | 113.1 / 163.4 | +11.7 / +3.3 |
+| burst wall time, 200 requests (ms) | 175.4 | 178.0 | +2.6 (+1.5%) |
+| drag p50 / p95 (ms) | 0.73 / 1.45 | 0.96 / 1.41 | +0.2 / -0.04 |
+
+Per boot, one run wrote 1,151 `api.request` rows, but the 11,600 element moves became only **5 `entity.write` rows** (per-minute aggregation). With analytics off, no `analytics.sqlite` is created.
+
+Flush cost, measured directly on a file-backed analytics DB (`DbAnalyticsSink.write`, 500 rows per transaction, 40 flushes): p50 2.9 ms, p95 22.5 ms, max 67 ms. The tail comes from WAL auto-checkpoints, which happen at most once per 10 s flush. Because better-sqlite3 is synchronous, this is the one event-loop stall analytics adds.
+
+Reading:
+- The per-request cost is about 0.2-0.4 ms: building the ALS facts, hashing the IP, and two `track`/`count` pushes. It is within run-to-run noise at p95. Burst wall time is unchanged.
+- The defaults (10 s or 500 rows, 10k-row cap) stand. If the checkpoint tail ever shows up in production p99, raise `wal_autocheckpoint` on the analytics connection or split each flush into 100-row chunks yielded with `setImmediate`.
