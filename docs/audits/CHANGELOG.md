@@ -171,3 +171,82 @@ A running summary of what each wave of [00-master-plan.md](00-master-plan.md) ch
 - View-only guests no longer see "Save failed" after panning.
 - Text re-lays out once web fonts load.
 - `PATCH /projects/:id/viewport` is now only used by the guide sandbox and can be deprecated.
+
+---
+
+## Wave 4: server, backend reorg with authorization, limits, caching, media, analytics
+
+**Commits:** about 20 server/shared/mcp commits since `89f6d34` (`d7ad239` … `81687fc`). Wave 5 client commits are interleaved on the same branch.
+
+### Part A: reorg + declarative authorization
+- **Layout.** `server/src` is now `platform/` (config, http, database, throttle, quotas, analytics), `identity/` (auth, admin), `collaboration/` (access, sharing, realtime) and `projects/{projects,project-file,schema,canvas,batch,export,common}`. All moves were pure `git mv` commits.
+- **`@Caller()`.** Returns user, guest, owner, share token, validated client id and token flag. Every remaining env read now goes through ConfigService.
+- **`@RequiresAccess` + `ProjectAccessGuard` + entity→project resolvers (S2.4).**
+  - Every route declares its access level (public, caller, admin, owner, write or read).
+  - `access-policy.spec.ts` compares every controller handler against a reviewed table.
+  - Services no longer take `userId/shareToken/clientId` and no longer re-check access.
+- **Validation (S1.2, S2.2, S2.3).**
+  - `isColorValue` / `@IsColor` on all 21 color fields and in the import parser.
+  - Theme layouts and masters are validated per item, with a 256 KB cap.
+  - Clone entries are validated like batch entries.
+  - Cross-project references (slideId, bindings, lifelines, index columns) are refused.
+- **Ownerless projects (S2.1).** They can't be created (401). Existing ones grant no access, and a migration archives them; no data is deleted.
+- **Cleanup.** `applyDefined` patch helper; `GraphLoaderService`; the import writer is split per entity. Dead code removed: NotesModule, OAuth stubs, passport and supertest.
+- The SQLite UNIQUE/FK errors now map to 409/400.
+- One loosening: SQL export now accepts a share link's read access, which the graph and export-file already allowed.
+
+### Part B: limits, caches, media
+- **Rate limits (S3.1).**
+  - Global per-caller and per-IP buckets, plus named policies for login, register, create, import, export, upload, share and admin.
+  - Login lockout doubles from 30 s up to 15 min, and unknown emails get a dummy bcrypt compare.
+  - `trust proxy` uses `TRUST_PROXY_HOPS`.
+- **Quotas (S3.2).** Env-configurable; defaults are 500 projects per owner, 5k tables and 20k elements per project, and 1 GiB of images per owner.
+- **Caching (P3.3, P3.4).**
+  - An access cache with event-driven invalidation.
+  - A persisted `projects.revision`; ETags survive restarts and change per deploy.
+  - A graph LRU of pre-gzipped bodies.
+- **Patch mutations, client ids, batch sections (P3.1, P3.2, P3.6).**
+  - Patch mutation types exist, but `REALTIME_PATCH_MUTATIONS` defaults to **off** until the client handles them.
+  - Create DTOs accept client UUIDs (409 on conflict).
+  - Columns and indexes are batch sections; MCP column loops use them.
+- **Media store (P4.5, S4.4).**
+  - Content-addressed files under `MEDIA_DIR`, default `media/` next to the DB.
+  - Range/206 and hash ETags.
+  - Raw-bytes upload route.
+  - Allow-list SVG *sanitizer*: uploads are cleaned, not rejected.
+  - `npm run media:migrate -w server -- --gc --vacuum`; on a copy of the dev DB, 154 blobs / 7.5 MB became 4.1 MB on disk.
+- `proxy-addr` was bumped to fix the critical advisory.
+
+### Part C: analytics Phase 1 (A1)
+- **`platform/analytics/`.**
+  - A separate `analytics.sqlite`.
+  - A buffered service with per-minute aggregates, 10 s / 500-row flushes, a 10k cap and daily retention purge.
+  - A request middleware + interceptor recording route templates, actor kind, source (web/api/mcp) and MCP tool.
+  - Domain events: auth, projects, sharing, images, tokens, export, realtime/present.
+  - Mutation counts per minute, never content.
+- **Activity columns.** `lastSeenAt`, `lastOpenedAt` and share-link `useCount` are written through throttled touches.
+- **`POST /api/telemetry`.** Allow-listed `client.*` events, 8 KB limit, rate limited.
+- **Privacy.** IP hashes are salted and rotated daily, user agents are reduced to their family, and guest/share ids are hashed. The event catalog in `shared/src/analytics` has no free-text props, and a spec enforces this.
+- **MCP.** Sends `User-Agent` and a per-tool `X-MCP-Tool` header.
+- **Benchmark.** About +0.4 ms p50 per batch request with analytics on. Details are in `04-auditing-analytics.md`.
+
+### New env vars (all optional; documented in `server/.env.example`)
+- **Proxy and rate limits:** `TRUST_PROXY_HOPS`, `RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_MIN`, `RATE_LIMIT_IP_PER_MIN`.
+- **Quotas:** `QUOTA_*`.
+- **Caches:** `ACCESS_CACHE_TTL_MS`, `GRAPH_CACHE_MAX_BYTES`.
+- **Realtime:** `REALTIME_PATCH_MUTATIONS`.
+- **Media:** `MEDIA_DRIVER`, `MEDIA_DIR`.
+- **Analytics:** `ANALYTICS_ENABLED`, `ANALYTICS_DATABASE_PATH`, `ANALYTICS_SALT_SECRET` (set it in prod), `ANALYTICS_GET_SAMPLE`, `SLOW_REQUEST_MS`, `ANALYTICS_RAW_RETENTION_DAYS`.
+
+### Verified
+- Server tests went from 124 to 278; MCP has 59.
+- Shared passes apart from the 2 failures in `themes.spec.ts`, which predate this branch.
+- Built-server smoke checks passed: 34, 33 + 21 and 33 across the three parts.
+
+### Deploy notes
+- Make sure `DATABASE_PATH` and `MEDIA_DIR` are on the Railway volume.
+- After deploying, run `npm run media:migrate -w server -- --gc --vacuum` (build first).
+- Set `ANALYTICS_SALT_SECRET`.
+- Deploy the server before pointing the new MCP build at production.
+- The in-memory throttle, caches and lockouts assume a single replica.
+- The project list now orders by last content change.
