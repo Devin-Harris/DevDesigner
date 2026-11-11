@@ -377,24 +377,24 @@ Measured 2026-11-09 at the start of Wave 3, before any Wave 3 client change. Dev
 
 **Method.** A page-side harness (no app code changed) dispatches synthetic pointer/wheel/input events, one per animation frame. For each event it measures *work* = the synchronous handler + Angular's change-detection tick (zoneless; it runs in the `setTimeout(0)` the scheduler queues) + a forced style/layout read. Paint is not included. Each gesture starts from the project's home view and runs 3 times; the table shows the median run's mean (and p95). `fetch`/XHR calls (minus socket.io polling) and socket.io emits (`WebSocket.send`) are counted from the gesture's start until 2.5 s after it ends.
 
-| Scenario | Baseline (P0) | After Wave 3 |
-|---|---|---|
-| (a) small: pan 2 s (120 frames), work per frame | 6.7 ms (p95 8.1) | **3.5 ms** (p95 3.9) |
-| (a) small: pan, requests / socket emits | 1 `PATCH /viewport`; ~40 `presence:cursor` | none (viewport kept in this browser); no emits alone in the room |
-| (b) small: zoom (24 wheel ticks), work per tick | 7.0 ms (p95 10.3) | **3.8 ms** (p95 4.9) |
-| (b) small: zoom, requests | 1 `PATCH /viewport` | none |
-| (c) small: drag a table (60 frames), work per frame | 7.1 ms (p95 9.6) | **5.6 ms** (p95 7.3) |
-| (c) small: drag a shape (60 frames), work per frame | 6.7 ms (p95 9.8) | **4.8 ms** (p95 6.3) |
-| (c) drag, requests / socket emits | 1 `PATCH /batch`; 20 `presence:cursor` + 1 `presence:selection` | 1 `PATCH /batch?return=none` (ack body); no emits alone |
-| (d) small: type 20 characters in a text element, work per character | 9.4 ms (p95 11.6) | **6.1 ms** (p95 8.9) |
-| (d) typing, requests | none while typing; 1 `PATCH /batch` on commit | none while typing; 1 `PATCH /batch?return=none` on commit |
-| (e) show a layout + move one of its items: theme saves | **2× `PUT /themes` + 4× `POST /me/themes`; one edit created two new "Default custom N" designs** | **1× `PUT /themes` + 2× `POST /me/themes`; one design set** |
-| Idle mouse move (no button), work per move / emits | 1.3 ms; ~20 `presence:cursor` per second | 0.35 ms; no emits |
-| big: pan, work per frame | **16.8 ms** (p95 18.6): over the 16.7 ms frame budget | **6.6 ms** (p95 7.1) |
-| big: zoom, work per tick | 14.5 ms (p95 18.2) | **6.0 ms** (p95 8.4) |
-| big: drag a table, work per frame | 14.6 ms (p95 16.3) | 11.4 ms (p95 12.9) |
-| big: type in a slide text element, work per character | 18.9 ms p50 (mean 21.9, p95 63) | 16.7 ms p50 (mean 17.4, p95 26.8) |
-| big: one committed text edit on a slide → images re-encoded for thumbnails | **120 `readAsDataURL` calls, 5.1 MB** (60 images × 2 panel instances) | **0** (data URLs cached per file) |
+| Scenario | Baseline (P0) | After Wave 3 | After Wave 5 (editor split) |
+|---|---|---|---|
+| (a) small: pan 2 s (120 frames), work per frame | 6.7 ms (p95 8.1) | **3.5 ms** (p95 3.9) | not re-measured (see below) |
+| (a) small: pan, requests / socket emits | 1 `PATCH /viewport`; ~40 `presence:cursor` | none (viewport kept in this browser); no emits alone in the room | not re-measured (see below) |
+| (b) small: zoom (24 wheel ticks), work per tick | 7.0 ms (p95 10.3) | **3.8 ms** (p95 4.9) | not re-measured (see below) |
+| (b) small: zoom, requests | 1 `PATCH /viewport` | none | not re-measured (see below) |
+| (c) small: drag a table (60 frames), work per frame | 7.1 ms (p95 9.6) | **5.6 ms** (p95 7.3) | not re-measured (see below) |
+| (c) small: drag a shape (60 frames), work per frame | 6.7 ms (p95 9.8) | **4.8 ms** (p95 6.3) | not re-measured (see below) |
+| (c) drag, requests / socket emits | 1 `PATCH /batch`; 20 `presence:cursor` + 1 `presence:selection` | 1 `PATCH /batch?return=none` (ack body); no emits alone | not re-measured (see below) |
+| (d) small: type 20 characters in a text element, work per character | 9.4 ms (p95 11.6) | **6.1 ms** (p95 8.9) | not re-measured (see below) |
+| (d) typing, requests | none while typing; 1 `PATCH /batch` on commit | none while typing; 1 `PATCH /batch?return=none` on commit | not re-measured (see below) |
+| (e) show a layout + move one of its items: theme saves | **2× `PUT /themes` + 4× `POST /me/themes`; one edit created two new "Default custom N" designs** | **1× `PUT /themes` + 2× `POST /me/themes`; one design set** | not re-measured (see below) |
+| Idle mouse move (no button), work per move / emits | 1.3 ms; ~20 `presence:cursor` per second | 0.35 ms; no emits | not re-measured (see below) |
+| big: pan, work per frame | **16.8 ms** (p95 18.6): over the 16.7 ms frame budget | **6.6 ms** (p95 7.1) | not re-measured (see below) |
+| big: zoom, work per tick | 14.5 ms (p95 18.2) | **6.0 ms** (p95 8.4) | not re-measured (see below) |
+| big: drag a table, work per frame | 14.6 ms (p95 16.3) | 11.4 ms (p95 12.9) | not re-measured (see below) |
+| big: type in a slide text element, work per character | 18.9 ms p50 (mean 21.9, p95 63) | 16.7 ms p50 (mean 17.4, p95 26.8) | not re-measured (see below) |
+| big: one committed text edit on a slide → images re-encoded for thumbnails | **120 `readAsDataURL` calls, 5.1 MB** (60 images × 2 panel instances) | **0** (data URLs cached per file) | not re-measured (see below) |
 
 **What P0 confirms:**
 
@@ -410,3 +410,15 @@ Measured 2026-11-09 at the start of Wave 3, before any Wave 3 client change. Dev
 - Drags, typing and other edits rebuild only the changed elements (per-element view memo, stable derived collections, bulk local moves). A table drag on the big project is still 11.4 ms: table nodes and connectors re-render, and the remaining cost is in the editor's own computeds. P2.4 (pointer pipeline) and P2.5 (culling) come after the editor split.
 - Typing into a slide text element on the big deck improved least (18.9 → 16.7 ms p50). The rest is slide-side fan-out (slides-panel computeds per instance, C11), which is left to the slides-panel split (P2.6).
 - Network: no viewport writes, no presence emits while alone, batch/clone ask for an ack, restacks send only changed rows, one save per layout edit, and no image re-encoding for thumbnails.
+
+**After Wave 5 (editor split)** (2026-11-11; P2.4 pointer pipeline, P2.5 culling, P4.3 deferred children). The big and small projects live only in the backend DB, and no scratch backend could be run for this pass (port 3000 held by a process on the real dev DB), so the P0 projects were **not** re-measured; that column stays open for the next pass with a backend. Instead the same harness ran in a guide sandbox (in-browser backend, dev build, 1280×800):
+
+| Scenario (sandbox) | After Wave 5 |
+|---|---|
+| Select guide (5 items): pan 60 frames, work per frame | 2.3 ms (p95 3.8) |
+| Idle mouse move (no button), work per move | 0.32 ms (p95 0.5): the native listener runs no change detection |
+| Synthetic big canvas (1,406 elements + 40 tables + 38 relationships, added locally): items drawn at 60% zoom | 27–30 of 1,406 shapes (culling on) |
+| Synthetic big canvas: pan 120 frames, work per frame | 2.1–2.3 ms (p95 3.1–3.4) |
+| Synthetic big canvas: drag a table 60 frames, work per frame | 7.6–7.9 ms (p95 9.0–9.4) |
+
+The synthetic canvas is not the P0 "big" project (no images, code or slides), so these numbers are not comparable with the columns above.
