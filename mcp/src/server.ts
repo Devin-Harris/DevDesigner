@@ -3,7 +3,7 @@
 // server per request, token from the Authorization header).
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { DevDesignerApi } from './api';
+import { MCP_VERSION, type DevDesignerApi } from './api';
 import { registerResourcesAndPrompts, registerTools } from './tools';
 
 export const INSTRUCTIONS = [
@@ -28,7 +28,7 @@ export const INSTRUCTIONS = [
 
 export function createServer(api: DevDesignerApi): McpServer {
   const server = new McpServer(
-    { name: 'devdesigner', version: '0.1.0' },
+    { name: 'devdesigner', version: MCP_VERSION },
     { instructions: INSTRUCTIONS },
   );
   registerTools(server, api);

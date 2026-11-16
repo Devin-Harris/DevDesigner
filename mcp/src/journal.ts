@@ -14,7 +14,10 @@ import type {
   SequenceMessageModel,
   TableModel,
 } from '@devdesigner/shared';
-import type { BatchSection } from './batch';
+import type { BatchSection as AnyBatchSection } from './batch';
+
+/** Row sections the journal diffs (columns are tracked separately, per table). */
+type BatchSection = Exclude<AnyBatchSection, 'columns' | 'indexes'>;
 
 export interface JournalEntry {
   tool: string;

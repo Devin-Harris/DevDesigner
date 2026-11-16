@@ -1,0 +1,68 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Overview</h1>
+      @if (view$().value; as overview) {
+         <p class="page-meta">{{ overview.from }} to {{ overview.to }} (UTC)</p>
+      }
+   </div>
+   <dd-admin-date-range-picker [value]="range$()" (valueChange)="setRange($event)"></dd-admin-date-range-picker>
+</header>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">
+      {{ error }} <button class="text-button" type="button" (click)="retry()">Retry</button>
+   </p>
+}
+@if (view$().value?.analyticsEnabled === false) {
+   <p class="page-notice">Analytics is off (ANALYTICS_ENABLED=false): only signups, projects and storage are shown.</p>
+}
+
+@if (view$().value) {
+   <div class="page-body" aria-live="polite" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+      <section class="kpi-grid" aria-label="Key figures">
+         @for (kpi of kpis$(); track kpi.key) {
+            <dd-admin-kpi-tile
+               [format]="kpi.unit"
+               [hint]="kpi.hint"
+               [label]="kpi.label"
+               [previous]="kpi.previous"
+               [trend]="kpi.trend"
+               [upIsBad]="kpi.upIsBad"
+               [value]="kpi.value"
+            ></dd-admin-kpi-tile>
+         }
+      </section>
+
+      <div class="card-grid">
+         <section class="card">
+            <h2 class="card-title">Active people per day</h2>
+            <dd-admin-line-chart [label]="'Active people per day'" [series]="activity$()"></dd-admin-line-chart>
+         </section>
+         <section class="card">
+            <h2 class="card-title">Signups and new projects</h2>
+            <dd-admin-line-chart
+               [label]="'Signups and new projects per day'"
+               [series]="growth$()"
+            ></dd-admin-line-chart>
+         </section>
+         <section class="card">
+            <h2 class="card-title">Requests</h2>
+            <p class="card-note">Sampled reads scaled back up</p>
+            <dd-admin-line-chart [label]="'Requests per day'" [series]="requests$()"></dd-admin-line-chart>
+         </section>
+         <section class="card">
+            <h2 class="card-title">Server errors</h2>
+            <dd-admin-line-chart [label]="'Server errors per day'" [series]="errors$()"></dd-admin-line-chart>
+         </section>
+         <section class="card card-wide">
+            <h2 class="card-title">Weekly retention</h2>
+            <p class="card-note">Share of each signup week's users active N weeks later</p>
+            @if (retention$().value; as retention) {
+               <dd-admin-cohort-grid [cohorts]="retention.cohorts"></dd-admin-cohort-grid>
+            }
+         </section>
+      </div>
+   </div>
+} @else if (view$().loading) {
+   <p class="page-meta" aria-live="polite">Loading…</p>
+}

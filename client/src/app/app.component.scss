@@ -1,444 +1,440 @@
 .shell {
-  position: relative;
-  height: 100vh;
+   position: relative;
+   height: 100vh;
+   overflow: hidden;
 }
 
 .body {
-  height: 100%;
+   height: 100%;
 }
 
 // Floating chrome over the editor canvas (replaces the old top bar).
 .island {
-  position: absolute;
-  top: 14px;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 44px;
-  padding: 0 5px;
-  box-sizing: border-box;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  border: 1px solid var(--dd-border);
-  border-radius: 12px;
-  box-shadow: var(--dd-shadow-2);
+   position: absolute;
+   top: 14px;
+   z-index: 6;
+   display: flex;
+   align-items: center;
+   gap: 4px;
+   height: 44px;
+   padding: 0 5px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   box-shadow: var(--dd-shadow-2);
 
-  &.left {
-    left: 16px;
-    padding-right: 6px;
-  }
-  &.right {
-    right: 16px;
-  }
+   &.left {
+      left: 16px;
+      padding-right: 6px;
+   }
+   &.right {
+      right: 16px;
+   }
 }
 
 .brand-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 34px;
-  padding: 0 4px 0 3px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--dd-text-muted);
-  cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   gap: 2px;
+   height: 34px;
+   padding: 0 4px 0 3px;
+   border: none;
+   border-radius: 9px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
-  .brand-chev {
-    --dd-icon-size: 16px;
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
+   .brand-chev {
+      --dd-icon-size: 16px;
+   }
 }
 
 .menu-label {
-  padding: 8px 10px 4px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--dd-text-muted);
+   padding: 8px 10px 4px;
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.05em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
 }
 
 // Accent-filled logo tile (design system wordmark lockup).
 .brand-tile {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--dd-primary);
-  color: #fff;
-  --dd-icon-size: 18px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 28px;
+   height: 28px;
+   border-radius: 8px;
+   background: var(--dd-primary);
+   color: #fff;
+   --dd-icon-size: 18px;
 }
-
-
-
 
 .crumb-name {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  border: none;
-  background: transparent;
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: var(--dd-radius-sm);
-  cursor: pointer;
+   max-width: 260px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   border: none;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 14px;
+   font-weight: 600;
+   padding: 4px 8px;
+   border-radius: var(--dd-radius-sm);
+   cursor: pointer;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 }
-
 
 // ---- right-side editor actions ----
 .nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+   display: flex;
+   align-items: center;
+   gap: 4px;
 }
 
 .v-sep {
-  width: 1px;
-  height: 22px;
-  margin: 0 4px;
-  background: var(--dd-border);
+   width: 1px;
+   height: 22px;
+   margin: 0 4px;
+   background: var(--dd-border);
 }
 
 .nav-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--dd-radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--dd-text-muted);
-  cursor: pointer;
-  --dd-icon-size: 19px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 34px;
+   height: 34px;
+   border-radius: var(--dd-radius-sm);
+   border: 1px solid transparent;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 19px;
 
-  &:hover:not(:disabled) {
-    background: var(--dd-surface-2);
-    color: var(--dd-text);
-  }
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
+   &:hover:not(:disabled) {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
+   &:disabled {
+      opacity: 0.4;
+      cursor: default;
+   }
 }
 
 .nav-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: var(--dd-radius);
-  border: 1px solid var(--dd-border-strong);
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  --dd-icon-size: 17px;
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 34px;
+   padding: 0 12px;
+   border-radius: var(--dd-radius);
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 13px;
+   font-weight: 600;
+   cursor: pointer;
+   --dd-icon-size: 17px;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 
-  &.primary {
-    background: var(--dd-primary);
-    border-color: var(--dd-primary);
-    color: #fff;
-  }
-  &.primary:hover {
-    background: color-mix(in srgb, var(--dd-primary) 88%, #000);
-  }
+   &.primary {
+      background: var(--dd-primary);
+      border-color: var(--dd-primary);
+      color: #fff;
+   }
+   &.primary:hover {
+      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+   }
 }
 
 .avatars {
-  display: flex;
-  margin: 0 2px;
+   display: flex;
+   margin: 0 2px;
 }
 
 .avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  border: 2px solid var(--dd-surface);
-  margin-left: -8px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 28px;
+   height: 28px;
+   border-radius: 50%;
+   color: #fff;
+   font-size: 12px;
+   font-weight: 600;
+   border: 2px solid var(--dd-surface);
+   margin-left: -8px;
 
-  &:first-child {
-    margin-left: 0;
-  }
+   &:first-child {
+      margin-left: 0;
+   }
 }
 
 .menu-email {
-  padding: 6px 10px 8px;
-  font-size: 12px;
-  color: var(--dd-text-muted);
-  border-bottom: 1px solid var(--dd-border);
-  margin-bottom: 4px;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+   padding: 6px 10px 8px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
+   border-bottom: 1px solid var(--dd-border);
+   margin-bottom: 4px;
+   max-width: 240px;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
-
 .count {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--dd-surface-2);
-  color: var(--dd-text-muted);
+   font-size: 11px;
+   font-weight: 600;
+   padding: 0 6px;
+   border-radius: 999px;
+   background: var(--dd-surface-2);
+   color: var(--dd-text-muted);
 }
 
 // ---- Presentations menu ----
 .decks-menu {
-  min-width: 300px;
+   min-width: 300px;
 }
 
 .deck-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px;
-  border-radius: 8px;
+   display: flex;
+   align-items: center;
+   gap: 4px;
+   padding: 2px;
+   border-radius: 8px;
 
-  &:hover {
-    background: var(--dd-surface-2);
-  }
+   &:hover {
+      background: var(--dd-surface-2);
+   }
 }
 
 .deck-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 6px 8px;
-  border: none;
-  background: transparent;
-  color: var(--dd-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+   flex: 1;
+   min-width: 0;
+   display: flex;
+   flex-direction: column;
+   align-items: flex-start;
+   padding: 6px 8px;
+   border: none;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   text-align: left;
+   cursor: pointer;
 
-  .dn {
-    font-size: 13px;
-    font-weight: 600;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .ds {
-    font-size: 12px;
-    color: var(--dd-text-muted);
-  }
+   .dn {
+      font-size: 13px;
+      font-weight: 600;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+   }
+   .ds {
+      font-size: 12px;
+      color: var(--dd-text-muted);
+   }
 }
 
 .deck-act {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 9px 0 7px;
-  border: 1px solid var(--dd-border-strong);
-  border-radius: 7px;
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  --dd-icon-size: 15px;
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   height: 28px;
+   padding: 0 9px 0 7px;
+   border: 1px solid var(--dd-border-strong);
+   border-radius: 7px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+   white-space: nowrap;
+   --dd-icon-size: 15px;
 
-  &:hover:not(:disabled) {
-    border-color: var(--dd-primary);
-    color: var(--dd-primary);
-  }
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
+   &:hover:not(:disabled) {
+      border-color: var(--dd-primary);
+      color: var(--dd-primary);
+   }
+   &:disabled {
+      opacity: 0.4;
+      cursor: default;
+   }
 }
 
 .pdot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+   width: 8px;
+   height: 8px;
+   border-radius: 50%;
 }
 
 .decks-empty {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--dd-text-muted);
+   padding: 10px 12px;
+   font-size: 13px;
+   color: var(--dd-text-muted);
 }
 
 .kbd {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--dd-text-muted);
+   margin-left: auto;
+   font-size: 11px;
+   color: var(--dd-text-muted);
 }
 
 .crumb-input {
-  width: 220px;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--dd-primary);
-  border-radius: var(--dd-radius-sm);
-  background: var(--dd-surface);
-  color: var(--dd-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  outline: none;
+   width: 220px;
+   height: 30px;
+   padding: 0 8px;
+   border: 1px solid var(--dd-primary);
+   border-radius: var(--dd-radius-sm);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 14px;
+   font-weight: 600;
+   outline: none;
 }
 
 .menu-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px 8px;
-  font-weight: 700;
-  font-size: 14px;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 6px 10px 8px;
+   font-weight: 700;
+   font-size: 14px;
 }
 
 .brand-tile.sm {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  --dd-icon-size: 15px;
+   width: 24px;
+   height: 24px;
+   border-radius: 6px;
+   --dd-icon-size: 15px;
 }
 
 .theme-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 0 6px 0 10px;
-  font-size: 13px;
-  --dd-icon-size: 17px;
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   min-height: 34px;
+   padding: 0 6px 0 10px;
+   font-size: 13px;
+   --dd-icon-size: 17px;
 
-  dd-icon {
-    color: var(--dd-text-muted);
-  }
+   dd-icon {
+      color: var(--dd-text-muted);
+   }
 }
 
 .theme-seg {
-  display: flex;
-  gap: 2px;
-  margin-left: auto;
-  padding: 2px;
-  border-radius: 7px;
-  background: var(--dd-surface-2);
+   display: flex;
+   gap: 2px;
+   margin-left: auto;
+   padding: 2px;
+   border-radius: 7px;
+   background: var(--dd-surface-2);
 
-  button {
-    height: 24px;
-    padding: 0 8px;
-    border: none;
-    border-radius: 5px;
-    background: transparent;
-    color: var(--dd-text-muted);
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
+   button {
+      height: 24px;
+      padding: 0 8px;
+      border: none;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--dd-text-muted);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
 
-    &.on {
-      background: var(--dd-surface);
-      color: var(--dd-text);
-      font-weight: 600;
-      box-shadow: var(--dd-shadow-1);
-    }
-  }
+      &.on {
+         background: var(--dd-surface);
+         color: var(--dd-text);
+         font-weight: 600;
+         box-shadow: var(--dd-shadow-1);
+      }
+   }
 }
 
 .main-menu {
-  min-width: 300px;
+   min-width: 300px;
 }
 
 button.avatars {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
+   border: none;
+   background: transparent;
+   padding: 0;
+   cursor: pointer;
 }
 
 .avatar.followed {
-  box-shadow: 0 0 0 2px #0f8f86;
+   box-shadow: 0 0 0 2px #0f8f86;
 }
 
 .people-menu {
-  min-width: 280px;
+   min-width: 280px;
 }
 
 .person {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  font-size: 13px;
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 6px 8px;
+   font-size: 13px;
 
-  .avatar {
-    margin-left: 0;
-    flex-shrink: 0;
-  }
+   .avatar {
+      margin-left: 0;
+      flex-shrink: 0;
+   }
 
-  .pn {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    margin-right: auto;
+   .pn {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      margin-right: auto;
 
-    small {
-      font-size: 11px;
-      color: var(--dd-text-muted);
-    }
-  }
+      small {
+         font-size: 11px;
+         color: var(--dd-text-muted);
+      }
+   }
 }
 
 .pa {
-  height: 26px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dd-primary);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+   height: 26px;
+   padding: 0 8px;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-primary);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
 
-  &:hover {
-    background: var(--dd-primary-weak);
-  }
+   &:hover {
+      background: var(--dd-primary-weak);
+   }
 
-  &.on {
-    color: #0f8f86;
-    font-weight: 600;
-  }
+   &.on {
+      color: #0f8f86;
+      font-weight: 600;
+   }
 }
 
 .people-hint {
-  padding: 4px 10px 6px;
-  font-size: 12px;
-  color: var(--dd-text-muted);
+   padding: 4px 10px 6px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
 }

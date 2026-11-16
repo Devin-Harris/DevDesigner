@@ -174,11 +174,50 @@ class TextDecoderLite {
         cp = ((b & 7) << 18) | ((bytes[i + 1] & 63) << 12) | ((bytes[i + 2] & 63) << 6) | (bytes[i + 3] & 63);
         n = 4;
       }
-      out += String.fromCodePoint(cp);
+      out += String.fromCodePoint(cp > 0x10ffff ? 0xfffd : cp);
       i += n;
     }
     return out;
   }
+}
+
+const startsWith = (b: Uint8Array, sig: readonly number[], at = 0): boolean =>
+  b.length >= at + sig.length && sig.every((v, i) => b[at + i] === v);
+const ascii = (b: Uint8Array, at: number, n: number): string =>
+  b.length >= at + n ? String.fromCharCode(...Array.from(b.subarray(at, at + n))) : '';
+
+/** First box types seen at offset 4 of ISO-BMFF (MP4 / QuickTime) files. */
+const BMFF_BOXES = new Set(['ftyp', 'moov', 'mdat', 'wide', 'free', 'skip', 'pnot']);
+
+/** SVG markup: optional BOM/whitespace, then `<` (prolog, comment or root) and an `<svg` root early on. */
+function looksLikeSvg(bytes: Uint8Array): boolean {
+  const start = startsWith(bytes, [0xef, 0xbb, 0xbf]) ? 3 : 0;
+  // Byte-wise (latin1) is enough: the markers looked for are ASCII.
+  const head = ascii(bytes, start, Math.max(0, Math.min(4096, bytes.length) - start)).trimStart();
+  return head.startsWith('<') && /<svg[\s>/]/i.test(head);
+}
+
+/**
+ * The media type a file's leading bytes identify (one of MEDIA_MIME_TYPES), or null.
+ * ISO-BMFF video reports as `video/mp4` (QuickTime shares the container).
+ */
+export function sniffMediaType(bytes: Uint8Array): string | null {
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (ascii(bytes, 0, 6) === 'GIF87a' || ascii(bytes, 0, 6) === 'GIF89a') return 'image/gif';
+  if (ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP') return 'image/webp';
+  if (startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return 'video/webm';
+  if (ascii(bytes, 0, 4) === 'OggS') return 'video/ogg';
+  if (BMFF_BOXES.has(ascii(bytes, 4, 4))) return 'video/mp4';
+  if (looksLikeSvg(bytes)) return 'image/svg+xml';
+  return null;
+}
+
+/** Whether `bytes` really are a file of the declared `mimeType` (magic-byte check). */
+export function bytesMatchMediaType(mimeType: string, bytes: Uint8Array): boolean {
+  const sniffed = sniffMediaType(bytes);
+  if (mimeType === 'video/quicktime') return sniffed === 'video/mp4';
+  return sniffed !== null && sniffed === mimeType;
 }
 
 /** Scale `size` down (never up) to fit inside `maxW` x `maxH`, keeping the aspect ratio. */

@@ -1,0 +1,37 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Projects</h1>
+      <p class="page-meta">Sizes are live (media + text); writes come from analytics.</p>
+   </div>
+</header>
+
+<div class="toolbar">
+   <dd-input
+      class="search"
+      aria-label="Search projects by name"
+      placeholder="Search project name"
+      [maxlength]="100"
+      [ngModel]="term$()"
+      (ngModelChange)="term$.set($event)"
+   ></dd-input>
+</div>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+<div class="page-body" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+   <dd-admin-data-table
+      [columns]="columns"
+      [dir]="query$().dir"
+      [emptyText]="view$().loading ? 'Loading…' : 'No projects match'"
+      [label]="'Projects'"
+      [page]="query$().page"
+      [pageSize]="pageSize"
+      [rows]="rows$()"
+      [sort]="query$().sort"
+      [total]="view$().value?.total ?? 0"
+      (pageChange)="page($event)"
+      (sortChange)="sort($event)"
+   ></dd-admin-data-table>
+</div>

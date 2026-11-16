@@ -184,7 +184,7 @@ const slideItem = z.discriminatedUnion('type', [
       .describe('Inline SVG markup (<svg viewBox=...>): icons, logos, simple illustrations you draw yourself.'),
     data: z.string().optional().describe('Base64 PNG/JPEG/GIF/WebP/SVG (needs mimeType unless a data: URL).'),
     mimeType: z.string().optional(),
-    filePath: z.string().optional().describe('Path of an image file on the MCP server machine.'),
+    filePath: z.string().optional().describe('Path of an image file (.png/.jpg/.jpeg/.gif/.webp/.svg) on the MCP server machine; reads a local file, and its bytes must be a real image.'),
     url: z.string().optional().describe('http(s) URL of an image to download.'),
     width: z.number().optional().describe('Slide px; height follows the aspect ratio. Default: fits the space left.'),
     height: z.number().optional(),
@@ -214,7 +214,7 @@ const slideItem = z.discriminatedUnion('type', [
     type: z.literal('code'),
     code: z.string(),
     language: z
-      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'bash'])
+      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'scss', 'bash'])
       .optional(),
     fileName: z
       .string()

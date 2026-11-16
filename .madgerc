@@ -1,0 +1,8 @@
+{
+  "fileExtensions": ["ts"],
+  "excludeRegExp": ["[.]spec[.]ts$", "[/]dist[/]"],
+  "detectiveOptions": {
+    "ts": { "skipTypeImports": true },
+    "es6": { "skipTypeImports": true }
+  }
+}

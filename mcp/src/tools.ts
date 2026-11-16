@@ -20,6 +20,8 @@ import {
   estimateTableWidth,
   isUnsignedType,
   parseDataType,
+  parseProjectExport,
+  ProjectFileError,
   presentationOf,
   schemaRects,
   shiftPresentation,
@@ -37,7 +39,7 @@ import {
   type SequenceMessageModel,
   type TableModel,
 } from '@devdesigner/shared';
-import { ApiError, type DevDesignerApi } from './api';
+import { ApiError, runWithTool, type DevDesignerApi } from './api';
 import { applySpec } from './apply';
 import { colorArg, describePalette, tableColorArg } from './colors';
 import { loadImage } from './images';
@@ -204,18 +206,24 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
           openWorldHint: false,
         },
       },
-      (async (args: unknown) => {
+      // Every API request the tool makes (journal reads included) carries X-MCP-Tool.
+      ((args: unknown) => runWithTool(name, async () => {
         // Record before/after of every write for undo_last_change (per project).
         const pid = (args as { projectId?: unknown })?.projectId;
         const track = !hints.readOnly && typeof pid === 'string' && !UNJOURNALED.has(name);
         let before: ProjectGraphResponse['schema'] | undefined;
+        const started = Date.now();
+        let ok = true;
         try {
           if (track) before = (await graph(pid as string)).schema;
           const result = await run(args as z.infer<z.ZodObject<S>>);
           return isRich(result) ? { content: result.__rich } : text(result);
         } catch (err) {
+          ok = false;
           return failure(err);
         } finally {
+          // stderr only: stdout is the stdio MCP transport.
+          process.stderr.write(`${JSON.stringify({ tool: name, ms: Date.now() - started, ok })}\n`);
           if (track && before) {
             try {
               const after = (await graph(pid as string)).schema;
@@ -227,7 +235,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
             }
           }
         }
-      }) as never,
+      })) as never,
     );
   }
 
@@ -293,15 +301,25 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
     },
     {},
     async ({ file: rawFile, projectId: id }) => {
+      // Validate with the app's own parser first (same rules and messages as the
+      // server), so a bad file fails here with the offending field named.
+      let parsed: ReturnType<typeof parseProjectExport>;
+      try {
+        parsed = parseProjectExport(rawFile);
+      } catch (err) {
+        if (err instanceof ProjectFileError) throw new UserError(err.message);
+        throw err;
+      }
       // Slides of a presentation must share one spot; a hand-made file often lays them
       // out side by side, which makes the slide panels jump. Stack them before import.
-      const file = rawFile as unknown as ProjectExportFile;
-      let restackedSlides = 0;
-      if (file && typeof file === 'object' && file.schema && Array.isArray(file.schema.elements)) {
-        const stacked = stackSlideFrames(file.schema);
-        file.schema = stacked.schema;
-        restackedSlides = stacked.moved;
-      }
+      const stacked = stackSlideFrames(parsed.schema);
+      const restackedSlides = stacked.moved;
+      const file: ProjectExportFile = {
+        ...(rawFile as unknown as ProjectExportFile),
+        project: { name: parsed.name, description: parsed.description, type: parsed.type },
+        schema: stacked.schema,
+        images: parsed.images,
+      };
       if (id) {
         const current = await graph(id);
         const rects = schemaRects(current.schema);
@@ -1002,7 +1020,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
       svg: z.string().optional().describe('Inline SVG markup, e.g. <svg viewBox="0 0 24 24"><path d="..."/></svg>.'),
       data: z.string().optional().describe('Base64 file contents (a data: URL also works).'),
       mimeType: z.string().optional().describe('image/png, image/jpeg, image/gif, image/webp or image/svg+xml (needed with plain base64 data).'),
-      filePath: z.string().optional().describe('Absolute path of an image file on the MCP server machine.'),
+      filePath: z.string().optional().describe('Absolute path of an image file (.png/.jpg/.jpeg/.gif/.webp/.svg) on the MCP server machine; reads a local file, and its bytes must be a real image.'),
       url: z.string().optional().describe('http(s) URL of an image to download.'),
       width: z.number().min(8).max(4000).optional().describe('Canvas width in px; height follows the aspect ratio unless given too. Default: natural size, at most 480x400.'),
       height: z.number().min(8).max(4000).optional(),
@@ -1076,7 +1094,7 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
       const pos = layoutGraph(
         schema.tables.map((t) => ({
           key: t.id,
-          w: estimateTableWidth(t.name, t.columns, t.width),
+          w: estimateTableWidth(t.name, t.columns),
           h: estimateTableHeight(t.columns.length),
         })),
         edges,

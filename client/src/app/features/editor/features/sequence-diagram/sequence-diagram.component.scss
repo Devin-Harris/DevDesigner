@@ -1,0 +1,441 @@
+// A zero-size, pointer-transparent layer at the world origin; children are
+// positioned in world coordinates and opt back into pointer events.
+:host {
+   position: absolute;
+   left: 0;
+   top: 0;
+   width: 0;
+   height: 0;
+   overflow: visible;
+   pointer-events: none;
+   z-index: 2;
+}
+
+// Rounded bounding box: behind participants/messages (they keep their own
+// clicks); its empty interior + border select and move the whole diagram.
+.seq-title,
+.seq-title-edit {
+   position: absolute;
+   font-family: var(--dd-display, inherit);
+   font-size: 12px;
+   font-weight: 700;
+   line-height: 16px;
+   color: var(--seq-fg, var(--dd-text));
+}
+
+.seq-title {
+   box-sizing: border-box;
+   overflow: hidden;
+   white-space: nowrap;
+   text-overflow: ellipsis;
+   cursor: move;
+   pointer-events: auto;
+
+   &.placeholder {
+      font-weight: 500;
+      font-style: italic;
+      color: var(--dd-text-muted);
+      opacity: 0.7;
+   }
+}
+
+.seq-title-edit {
+   box-sizing: border-box;
+   height: 20px;
+   padding: 0 4px;
+   border: 0;
+   border-radius: 4px;
+   outline: 1.5px solid var(--dd-primary);
+   background: var(--seq-bg, var(--dd-surface));
+   pointer-events: auto;
+}
+
+.seq-box {
+   position: absolute;
+   box-sizing: border-box;
+   border-radius: 16px;
+   border: 1.5px solid var(--seq-border, var(--dd-border));
+   background: var(--seq-bg, var(--dd-surface));
+   cursor: move;
+   pointer-events: auto;
+   touch-action: none;
+   transition: border-color 0.12s ease;
+
+   &:hover {
+      border-color: var(--dd-border-strong);
+   }
+
+   &.selected {
+      border-color: var(--dd-primary);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-primary) 40%, transparent);
+   }
+}
+
+.spine {
+   position: absolute;
+   width: 0;
+   border-left: 1.4px dashed var(--line-color, var(--seq-spine, var(--dd-border)));
+   pointer-events: none;
+}
+
+// Invisible wider hit strip over each spine; drag it to connect to another.
+// Sits above message hit-strips so a connect can start anywhere on the spine.
+.spine-hit {
+   position: absolute;
+   width: 16px;
+   cursor: crosshair;
+   pointer-events: auto;
+   touch-action: none;
+   z-index: 3;
+}
+
+.ll-head {
+   position: absolute;
+   box-sizing: border-box;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 0 8px;
+   border-radius: 9px;
+   border: 1px solid var(--dd-node-border);
+   background: var(--dd-node-header);
+   color: var(--dd-text);
+   font-family: var(--dd-mono);
+   font-size: 12px;
+   font-weight: 600;
+   box-shadow: var(--dd-shadow-1);
+   cursor: move;
+   pointer-events: auto;
+   touch-action: none;
+
+   &.colored {
+      background: var(--ll-color);
+      color: #fff;
+      border-color: transparent;
+
+      &.light {
+         color: #0f172a;
+      }
+
+      // Stock swatches keep the theme's text color (white in dark, dark in light).
+      &.swatch {
+         color: var(--dd-text);
+      }
+   }
+
+   &.selected {
+      box-shadow:
+         0 0 0 2px var(--dd-primary),
+         var(--dd-shadow-2);
+   }
+}
+
+.ll-label {
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+
+.ll-edit {
+   width: 100%;
+   font: inherit;
+   font-family: var(--dd-mono);
+   text-align: center;
+   color: var(--dd-text);
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-primary);
+   border-radius: 6px;
+   outline: none;
+   padding: 1px 4px;
+   box-sizing: border-box;
+}
+
+// Circular add-participant buttons on the left/right bounds.
+.add-ll-btn {
+   position: absolute;
+   transform: translate(-50%, -50%);
+   width: 24px;
+   height: 24px;
+   border-radius: 50%;
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text-muted);
+   font-size: 16px;
+   line-height: 1;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   cursor: pointer;
+   pointer-events: auto;
+   z-index: 6;
+   box-shadow: var(--dd-shadow-1);
+   transition:
+      color 0.12s ease,
+      border-color 0.12s ease,
+      transform 0.1s ease;
+
+   &:hover {
+      color: var(--dd-primary);
+      border-color: var(--dd-primary);
+      transform: translate(-50%, -50%) scale(1.12);
+   }
+}
+
+// Resize handles on the box edges/corner (shown when the diagram is selected).
+.seq-handle {
+   position: absolute;
+   transform: translate(-50%, -50%);
+   width: 11px;
+   height: 11px;
+   border-radius: 3px;
+   background: var(--dd-surface);
+   border: 1.5px solid var(--dd-primary);
+   pointer-events: auto;
+   touch-action: none;
+   z-index: 6;
+
+   &.e,
+   &.w {
+      cursor: ew-resize;
+   }
+   &.n,
+   &.s {
+      cursor: ns-resize;
+   }
+   &.nw,
+   &.se {
+      cursor: nwse-resize;
+   }
+   &.ne,
+   &.sw {
+      cursor: nesw-resize;
+   }
+}
+
+.msg-line {
+   position: absolute;
+   height: 0;
+   border-top: 1.6px solid var(--msg-color, var(--seq-fg, var(--dd-connector)));
+   pointer-events: none;
+
+   &.dashed {
+      border-top-style: dashed;
+      // Return messages are quieter than calls, like break dividers.
+      border-top-color: var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
+   }
+   &.selected {
+      border-top-color: var(--dd-primary);
+   }
+}
+
+.msg-head {
+   position: absolute;
+   width: 10px;
+   height: 10px;
+   overflow: visible;
+   pointer-events: none;
+   fill: none;
+   stroke: var(--msg-color, var(--seq-fg, var(--dd-connector)));
+   stroke-width: 1.6;
+   stroke-linecap: round;
+   stroke-linejoin: round;
+
+   &.dashed {
+      stroke: var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
+   }
+   &.selected {
+      stroke: var(--dd-primary);
+   }
+}
+
+.msg-hit {
+   position: absolute;
+   height: 18px;
+   cursor: pointer;
+   pointer-events: auto;
+}
+
+// Endpoint reattach handles on a selected message (drag an end to another spine).
+.msg-endpoint {
+   position: absolute;
+   transform: translate(-50%, -50%);
+   width: 10px;
+   height: 10px;
+   border-radius: 50%;
+   background: var(--dd-surface);
+   border: 2px solid var(--dd-primary);
+   cursor: grab;
+   pointer-events: auto;
+   touch-action: none;
+   z-index: 5;
+
+   &:active {
+      cursor: grabbing;
+   }
+}
+
+// Live draw indicator shown while drag-connecting (snapped to the target row).
+.preview-line {
+   position: absolute;
+   height: 0;
+   border-top: 1.8px dashed var(--dd-primary);
+   pointer-events: none;
+
+   &.invalid {
+      border-top-color: var(--dd-text-muted);
+      opacity: 0.6;
+   }
+}
+
+.preview-head {
+   position: absolute;
+   width: 10px;
+   height: 10px;
+   overflow: visible;
+   pointer-events: none;
+   fill: none;
+   stroke: var(--dd-primary);
+   stroke-width: 1.8;
+   stroke-linecap: round;
+   stroke-linejoin: round;
+}
+
+.msg-label-wrap {
+   position: absolute;
+   width: max-content; // don't shrink to min-content (one glyph) next to the right edge
+   transform: translate(-50%, -50%);
+   pointer-events: none;
+   display: flex;
+   justify-content: center;
+}
+
+.msg-label {
+   pointer-events: auto;
+   cursor: text;
+   font-family: var(--dd-mono);
+   font-size: 11px;
+   color: var(--seq-fg, var(--dd-text));
+   background: var(--seq-bg, var(--dd-surface));
+   padding: 4px 10px;
+   border-radius: 4px;
+   white-space: pre; // honors Shift+Enter line breaks
+   text-align: center;
+   line-height: 1.35;
+
+   &.selected {
+      color: var(--dd-primary);
+   }
+
+   &.placeholder {
+      color: var(--dd-text-muted);
+      font-style: italic;
+      opacity: 0.6;
+   }
+}
+
+.msg-edit {
+   // Mirrors .msg-label exactly (font, padding, line height) so the text doesn't
+   // shift or resize when editing starts; the focus ring is an outline, not a border.
+   font: inherit;
+   font-family: var(--dd-mono);
+   font-size: 11px;
+   color: var(--seq-fg, var(--dd-text));
+   background: var(--seq-bg, var(--dd-surface));
+   border: 0;
+   border-radius: 4px;
+   outline: 1.5px solid var(--dd-primary);
+   padding: 4px 10px;
+   margin: 0;
+   box-sizing: content-box;
+   field-sizing: content; // grow/shrink to fit the text as you type
+   min-width: 1ch;
+   pointer-events: auto;
+   resize: none;
+   overflow: hidden;
+   text-align: center;
+   line-height: 1.35;
+   white-space: pre;
+
+   // Wrapping labels: wrap at the same width the finished label will.
+   &.wrap {
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+   }
+
+   // Break rows: match .break-label's pill styling.
+   &.break {
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--seq-fg-muted, var(--dd-text-muted));
+      background: var(--seq-bg, var(--dd-surface));
+      padding: 4px 14px;
+      border-radius: 12px;
+   }
+}
+
+// Side grips on a selected participant header: drag to widen/narrow it.
+.ll-width-handle {
+   position: absolute;
+   top: 50%;
+   width: 8px;
+   height: 18px;
+   margin-top: -9px;
+   border-radius: 3px;
+   background: var(--dd-surface);
+   border: 1.5px solid var(--dd-primary);
+   cursor: ew-resize;
+   touch-action: none;
+   z-index: 4;
+
+   &.left {
+      left: -5px;
+   }
+   &.right {
+      right: -5px;
+   }
+}
+
+// Break: a label-only divider spanning the diagram, no arrowheads.
+.break-line {
+   position: absolute;
+   height: 0;
+   border-top: 1.4px dashed var(--msg-color, var(--seq-fg-soft, var(--dd-text-muted)));
+   pointer-events: none;
+
+   &.selected {
+      border-top-color: var(--dd-primary);
+   }
+}
+
+.break-label {
+   pointer-events: auto;
+   cursor: text;
+   font-family: var(--dd-mono);
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.04em;
+   text-transform: uppercase;
+   color: var(--seq-fg-muted, var(--dd-text-muted));
+   background: var(--seq-bg, var(--dd-surface));
+   border: 1px solid var(--dd-border);
+   padding: 4px 14px;
+   border-radius: 12px;
+   white-space: pre;
+   text-align: center;
+   line-height: 1.35;
+
+   &.selected {
+      color: var(--dd-primary);
+      border-color: var(--dd-primary);
+   }
+}
+
+// Shift+drag selection rectangle for picking several messages.
+.seq-marquee {
+   position: absolute;
+   border: 1px solid var(--dd-primary);
+   background: color-mix(in srgb, var(--dd-primary) 12%, transparent);
+   pointer-events: none;
+   z-index: 7;
+}

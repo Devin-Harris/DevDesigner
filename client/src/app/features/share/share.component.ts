@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { EditorComponent } from '../editor/editor.component';
+import { EditorComponent } from '../editor';
 
 /**
  * Shared-link entry (route: /shared/:token). Renders the same editor in shared
@@ -10,14 +10,13 @@ import { EditorComponent } from '../editor/editor.component';
  * error overlay from the failed load.
  */
 @Component({
-  selector: 'app-share',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EditorComponent],
-  templateUrl: './share.component.html',
-  styleUrl: './share.component.scss',
+   selector: 'dd-share',
+   changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [EditorComponent],
+   templateUrl: './share.component.html',
+   styleUrl: './share.component.scss',
 })
 export class ShareComponent {
-  private readonly route = inject(ActivatedRoute);
-  protected readonly token = this.route.snapshot.paramMap.get('token');
+   private readonly route = inject(ActivatedRoute);
+   protected readonly token = this.route.snapshot.paramMap.get('token');
 }

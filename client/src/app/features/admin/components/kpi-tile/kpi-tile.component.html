@@ -1,0 +1,30 @@
+<figure class="kpi">
+   <figcaption class="kpi-label">{{ label$() }}</figcaption>
+   <div class="kpi-row">
+      <span class="kpi-value">{{ display$() }}</span>
+      @if (spark$(); as spark) {
+         <svg
+            class="kpi-spark"
+            aria-hidden="true"
+            preserveAspectRatio="none"
+            [attr.viewBox]="'0 0 ' + sparkWidth + ' ' + sparkHeight"
+         >
+            <path class="kpi-spark-line" [attr.d]="spark.path"></path>
+            <circle class="kpi-spark-end" r="2.5" [attr.cx]="spark.endX" [attr.cy]="spark.endY"></circle>
+         </svg>
+      }
+   </div>
+   <div class="kpi-foot">
+      @if (deltaLabel$()) {
+         <span class="kpi-delta" [class.is-good]="deltaTone$() === 'good'" [class.is-bad]="deltaTone$() === 'bad'">
+            <span class="kpi-delta-arrow" aria-hidden="true">{{
+               deltaTone$() === 'flat' ? '→' : (delta$() ?? 0) > 0 ? '↑' : '↓'
+            }}</span>
+            {{ deltaLabel$() }}
+            <span class="kpi-delta-period">vs previous period</span>
+         </span>
+      } @else if (hint$()) {
+         <span class="kpi-hint">{{ hint$() }}</span>
+      }
+   </div>
+</figure>

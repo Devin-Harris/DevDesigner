@@ -1,0 +1,312 @@
+@if (mode() === 'stage') {
+   @if (view() === 'map') {
+      <div class="heads">
+         <span class="lab">Slide {{ index() }} · before</span>
+         <span class="tip">
+            @if (armedHit(); as h) {
+               @if (h.partner) {
+                  <b>{{ h.label }}</b> morphs {{ armed()!.side === 'a' ? 'into' : 'from' }} {{ partnerLabel() }} ·
+               } @else if (h.cut) {
+                  <b>{{ h.label }}</b> switches with no transition ·
+               } @else {
+                  <b>{{ h.label }}</b> {{ armed()!.side === 'a' ? 'fades out' : 'fades in' }} ·
+               }
+               drag it to an object on the other slide to change that
+            } @else if (canEdit()) {
+               Drag from an object (or a line's end) to the object on the other slide it should morph into · click one
+               to see its options
+            }
+         </span>
+         <span class="lab r">Slide {{ index() + 1 }} · after</span>
+      </div>
+
+      <div class="fitwrap">
+         <div class="zoombar">
+            <button type="button" (click)="setZoom(zoom() / 1.25)" [disabled]="zoom() <= minZoom" aria-label="Zoom out">
+               −
+            </button>
+            <button class="pct" type="button" (click)="setZoom(1)" title="Fit">{{ (zoom() * 100).toFixed(0) }}%</button>
+            <button type="button" (click)="setZoom(zoom() * 1.25)" [disabled]="zoom() >= 4" aria-label="Zoom in">
+               +
+            </button>
+         </div>
+         <div
+            class="fit"
+            [class.zoomed]="zoom() > 1"
+            (wheel)="onZoomWheel($event)"
+            (pointerdown)="startPan($event)"
+            (auxclick)="$event.preventDefault()"
+         >
+            <div
+               #pairView
+               class="pairview"
+               [style.--z]="zoom()"
+               [class.dragging]="!!drag()"
+               [class.focusing]="!!focusKeys()"
+               [class.loading]="!srcs()[0] && !srcs()[1]"
+               [style.--ratio]="viewRatio()"
+               [style.--col]="colPct()"
+               [style.--gap]="gapPct()"
+               [style.--ml]="overhang().left"
+               [style.--mr]="overhang().right"
+               [style.--mt]="overhang().top"
+               [style.--mb]="overhang().bottom"
+            >
+               @for (side of ['a', 'b']; track side) {
+                  <div class="sl" [class.b]="side === 'b'">
+                     @if (side === 'a' ? reachA() : reachB(); as r) {
+                        <!-- Objects off this slide's edges still belong to it: one dotted outline around them all. -->
+                        <div
+                           class="reach"
+                           [style.left.%]="r.left"
+                           [style.top.%]="r.top"
+                           [style.width.%]="r.width"
+                           [style.height.%]="r.height"
+                        >
+                           <span class="reach-label">Slide {{ side === 'a' ? index() : index() + 1 }}</span>
+                        </div>
+                     }
+                     @if (srcs()[side === 'a' ? 0 : 1]; as s) {
+                        <img [src]="s" alt="" draggable="false" />
+                     }
+                     @for (h of side === 'a' ? hitsA() : hitsB(); track h.key) {
+                        <button
+                           class="hit"
+                           type="button"
+                           [style.z-index]="hitZ(h)"
+                           [class.paired]="!!h.num"
+                           [class.armed]="isArmed($any(side), h)"
+                           [class.lit]="lit() === h.key || lit() === h.partner"
+                           [class.locked]="!h.id"
+                           [style.left.%]="h.left"
+                           [style.top.%]="h.top"
+                           [style.width.%]="h.width"
+                           [style.height.%]="h.height"
+                           [style.--c]="h.color ?? 'var(--dd-text-muted)'"
+                           [attr.aria-label]="
+                              h.label +
+                              (h.num ? ' (pair ' + h.num + ')' : side === 'a' ? ' (fades out)' : ' (fades in)')
+                           "
+                           [class.target]="drag()?.over === h.key"
+                           [class.rel]="isRel(h.key)"
+                           [class.cut]="h.cut"
+                           [class.solo]="h.solo"
+                           [class.outside]="h.outside"
+                           [attr.data-side]="side"
+                           [attr.data-key]="h.key"
+                           [title]="
+                              h.id
+                                 ? h.label + ' · drag to an object on the other slide to morph into it'
+                                 : h.label + ' (tables pair by name)'
+                           "
+                           (pointerenter)="lit.set(h.key)"
+                           (pointerleave)="lit.set(null)"
+                           (pointerdown)="startDrag($event, $any(side), h)"
+                           (click)="clickHit($any(side), h)"
+                        >
+                           @if (h.num) {
+                              <span class="num">{{ h.num }}</span>
+                           } @else if (h.cut) {
+                              <span class="state">no transition</span>
+                           } @else if (h.solo) {
+                              <span class="state">won't morph</span>
+                           }
+                           @if (h.chain) {
+                              <span
+                                 class="chain"
+                                 [title]="
+                                    side === 'a'
+                                       ? 'Also morphs in from the slide before: ' + h.chain
+                                       : 'Also morphs on into the next slide: ' + h.chain
+                                 "
+                              >
+                                 {{ side === 'a' ? '↩' : '↪' }}
+                              </span>
+                           }
+                        </button>
+                     }
+                  </div>
+               }
+               <svg class="lines" [attr.viewBox]="'0 0 ' + total() + ' ' + viewH()" preserveAspectRatio="none" aria-hidden="true">
+                  @for (l of lines(); track l.key) {
+                     <path
+                        [attr.d]="l.d"
+                        [attr.stroke]="l.color"
+                        [class.lit]="isRel(l.a) || isRel(l.b)"
+                        [class.moving]="drag()?.moving === l.key"
+                        vector-effect="non-scaling-stroke"
+                     ></path>
+                  }
+                  @if (drag(); as d) {
+                     @if (d.active) {
+                        <path
+                           class="live"
+                           [attr.d]="d.path"
+                           [attr.stroke]="d.color"
+                           vector-effect="non-scaling-stroke"
+                        ></path>
+                     }
+                  }
+               </svg>
+               @if (canEdit()) {
+                  @for (l of lines(); track l.key) {
+                     @if (!drag()) {
+                        <button
+                           class="cut-line"
+                           type="button"
+                           [class.rel]="isRel(l.a) || isRel(l.b)"
+                           [disabled]="!!armed() && !isRel(l.a) && !isRel(l.b)"
+                           [style.left.%]="((l.x1 + l.x2) / 2 / total()) * 100"
+                           [style.top.%]="((l.y1 + l.y2) / 2 / viewH()) * 100"
+                           [style.--c]="l.color"
+                           title="Remove this pairing"
+                           aria-label="Remove this pairing"
+                           (pointerenter)="lit.set(l.b)"
+                           (pointerleave)="lit.set(null)"
+                           (click)="removeLine(l)"
+                        >
+                           <svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true">
+                              <path
+                                 d="M1.5 1.5l7 7M8.5 1.5l-7 7"
+                                 stroke="currentColor"
+                                 stroke-width="1.8"
+                                 stroke-linecap="round"
+                              />
+                           </svg>
+                        </button>
+                     }
+                     @if (l.aId) {
+                        <span
+                           class="end"
+                           [class.rel]="isRel(l.a) || isRel(l.b)"
+                           [style.left.%]="(l.x1 / total()) * 100"
+                           [style.top.%]="(l.y1 / viewH()) * 100"
+                           [style.z-index]="endZ('a', l.a, isRel(l.a) || isRel(l.b))"
+                           [style.--c]="l.color"
+                           title="Drag to another object on the slide before"
+                           (pointerdown)="startEndDrag($event, 'b', l.b, l.key)"
+                        ></span>
+                     }
+                     @if (l.bId) {
+                        <span
+                           class="end"
+                           [class.rel]="isRel(l.a) || isRel(l.b)"
+                           [style.left.%]="(l.x2 / total()) * 100"
+                           [style.top.%]="(l.y2 / viewH()) * 100"
+                           [style.z-index]="endZ('b', l.b, isRel(l.a) || isRel(l.b))"
+                           [style.--c]="l.color"
+                           title="Drag to another object on this slide"
+                           (pointerdown)="startEndDrag($event, 'a', l.a, l.key)"
+                        ></span>
+                     }
+                  }
+               }
+            </div>
+         </div>
+      </div>
+   }
+   @if (view() === 'map' && armedHit(); as h) {
+      <div class="actions">
+         @if (h.partner) {
+            <button class="btn" type="button" (click)="unpairArmed()">
+               {{ h.forced ? 'Remove pairing' : "Don't morph: fade instead" }}
+            </button>
+         }
+         @if (!h.cut) {
+            <button
+               class="btn"
+               type="button"
+               (click)="cutArmed()"
+               title="No fade, no morph: it just switches at the start of the transition"
+            >
+               No transition
+            </button>
+         }
+         @if (h.forced || h.cut || h.solo) {
+            <button class="btn" type="button" (click)="resetArmed()">Reset to automatic</button>
+         }
+         <button class="btn ghost" type="button" (click)="armed.set(null)">Done <span class="k">Esc</span></button>
+      </div>
+   }
+
+   @if (view() === 'preview') {
+      <div class="fit">
+         <div class="bigplayer" [style.--ratio]="ratio()">
+            <div #bigHost class="stage-host" [hidden]="!isMorph()"></div>
+            @if (!isMorph()) {
+               @if (srcs()[0]; as s) {
+                  <img class="fade" [src]="s" [style.opacity]="1 - progress()" alt="" draggable="false" />
+               }
+               @if (srcs()[1]; as s) {
+                  <img class="fade" [src]="s" [style.opacity]="progress()" alt="" draggable="false" />
+               }
+            }
+         </div>
+      </div>
+   }
+   <div class="dock bar">
+      <div class="player" [class.gone]="view() === 'preview'" [style.aspect-ratio]="ratio()">
+         <div #stageHost class="stage-host" [hidden]="!isMorph()"></div>
+         @if (!isMorph()) {
+            @if (srcs()[0]; as s) {
+               <img class="fade" [src]="s" [style.opacity]="1 - progress()" alt="" draggable="false" />
+            }
+            @if (srcs()[1]; as s) {
+               <img class="fade" [src]="s" [style.opacity]="progress()" alt="" draggable="false" />
+            }
+         }
+      </div>
+      <button class="go" type="button" (click)="togglePlay()">
+         {{ playing() ? '❚❚ Pause' : progress() >= 1 ? '↻ Restart' : '▶ Preview' }}
+      </button>
+      <div class="track">
+         <span class="t0">0 ms</span>
+         <span class="t1">{{ duration() }} ms</span>
+         <input
+            class="scrub"
+            type="range"
+            min="0"
+            max="1000"
+            step="1"
+            aria-label="Scrub the transition"
+            [value]="progress() * 1000"
+            (input)="scrub($any($event.target).valueAsNumber / 1000)"
+         />
+      </div>
+   </div>
+} @else {
+   <div class="lab pl">Pairs · {{ matched() }}{{ fresh() ? ' + ' + fresh() + ' new' : '' }}</div>
+   @for (p of pairs(); track $index) {
+      <div
+         class="pr"
+         [class.on]="rowOn(p)"
+         [class.armedrow]="rowArmed(p)"
+         [style.--c]="p.color ?? 'var(--dd-text-muted)'"
+         (pointerenter)="lit.set(p.bKey ?? p.aKey)"
+         (pointerleave)="lit.set(null)"
+         (click)="selectRow(p)"
+      >
+         <span class="dot" [class.empty]="!p.color">{{ pairNum(p) }}</span>
+         <span [class.none]="p.from === '—'">{{ p.from }}</span
+         ><span>→</span><span [class.none]="p.to === '—'">{{ p.to }}</span>
+         <span class="tag" [class.tg]="p.why === 'fades in' || p.why === 'tag'" [class.forced]="p.forced">{{
+            p.cut ? 'no transition' : p.forced ? 'set by you' : p.why
+         }}</span>
+         @if (canEdit() && p.forced) {
+            <button
+               class="act"
+               type="button"
+               (click)="resetPair(p)"
+               title="Reset to automatic"
+               aria-label="Reset to automatic"
+            >
+               ↺
+            </button>
+         } @else {
+            <span></span>
+         }
+      </div>
+   } @empty {
+      <div class="none">Nothing on these slides yet.</div>
+   }
+}

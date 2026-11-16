@@ -1,0 +1,74 @@
+:host {
+   display: block;
+   min-width: 0;
+}
+
+.bars {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+   margin: 0;
+   padding: 0;
+   list-style: none;
+}
+
+.bar-row {
+   display: grid;
+   grid-template-columns: minmax(90px, 38%) 1fr auto;
+   align-items: center;
+   gap: 10px;
+   font-size: 12px;
+}
+
+.bar-label {
+   overflow: hidden;
+   color: var(--dd-text);
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+
+.bar-track {
+   height: 10px;
+}
+
+.bar-fill {
+   display: block;
+   height: 100%;
+   background: var(--dd-chart-1);
+   border-radius: 0 4px 4px 0;
+}
+
+.bar-value {
+   min-width: 48px;
+   color: var(--dd-text);
+   font-variant-numeric: tabular-nums;
+   text-align: right;
+   white-space: nowrap;
+}
+
+.bar-note {
+   margin-left: 4px;
+   color: var(--dd-text-muted);
+}
+
+.bars-empty {
+   margin: 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.bars-more {
+   margin-top: 10px;
+   padding: 0;
+   background: none;
+   border: 0;
+   color: var(--dd-primary);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
+
+   &:focus-visible {
+      outline: 2px solid var(--dd-primary);
+      outline-offset: 2px;
+   }
+}

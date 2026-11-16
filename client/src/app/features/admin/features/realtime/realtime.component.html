@@ -1,0 +1,52 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Realtime</h1>
+      @if (view$().value; as live) {
+         <p class="page-meta">Live as of {{ live.generatedAt | adminFormat: 'datetime' }} UTC, refreshes every 15 s</p>
+      }
+   </div>
+   <button class="text-button" type="button" [disabled]="view$().loading" (click)="refresh()">Refresh</button>
+</header>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+@if (view$().value; as live) {
+   <section class="kpi-grid" aria-label="Live figures" aria-live="polite">
+      <dd-admin-kpi-tile [label]="'Open rooms'" [value]="live.totals.rooms"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile [label]="'People connected'" [value]="live.totals.participants"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile [label]="'Presenting now'" [value]="live.totals.presenters"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'ms'"
+         [hint]="'30 days'"
+         [label]="'Median session'"
+         [value]="live.sessionP50Ms"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [format]="'ms'"
+         [hint]="'30 days'"
+         [label]="'p95 session'"
+         [value]="live.sessionP95Ms"
+      ></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile [hint]="'30 days'" [label]="'Presentations'" [value]="live.presents30d"></dd-admin-kpi-tile>
+   </section>
+
+   <div class="card-grid">
+      <section class="card card-wide">
+         <h2 class="card-title">Open rooms</h2>
+         <dd-admin-data-table
+            [columns]="columns"
+            [emptyText]="'Nobody is collaborating right now'"
+            [label]="'Open realtime rooms'"
+            [rows]="rooms$()"
+         ></dd-admin-data-table>
+      </section>
+      <section class="card card-wide">
+         <h2 class="card-title">Joins per day, last 30 days</h2>
+         <dd-admin-line-chart [label]="'Realtime joins per day'" [series]="joins$()"></dd-admin-line-chart>
+      </section>
+   </div>
+} @else if (view$().loading) {
+   <p class="page-meta" aria-live="polite">Loading…</p>
+}

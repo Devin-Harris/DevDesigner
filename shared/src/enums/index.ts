@@ -104,6 +104,7 @@ export type CodeLanguage =
   | 'java'
   | 'html'
   | 'css'
+  | 'scss'
   | 'bash';
 
 export const CODE_LANGUAGES: readonly CodeLanguage[] = [
@@ -116,6 +117,7 @@ export const CODE_LANGUAGES: readonly CodeLanguage[] = [
   'java',
   'html',
   'css',
+  'scss',
   'bash',
 ] as const;
 

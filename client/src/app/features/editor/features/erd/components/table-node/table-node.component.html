@@ -1,0 +1,273 @@
+@if (selected() && editable()) {
+   @for (c of corners; track c) {
+      <span
+         [class]="'scale-handle ' + c"
+         title="Drag to scale - double-click to reset"
+         (pointerdown)="onScaleDown($event, c)"
+         (dblclick)="resetScale($event)"
+      ></span>
+   }
+}
+
+<header
+   class="node-head"
+   [class.colored]="!!table().color"
+   [class.light]="isLight(table().color)"
+   [class.stock]="isSwatch(table().color)"
+   [style.--tbl-color]="css(table().color)"
+   [style.height.px]="headerH"
+>
+   <button
+      class="icon-btn color"
+      type="button"
+      [ddPopoverTrigger]="colorMenu"
+      placement="below-start"
+      (pointerdown)="$event.stopPropagation()"
+      [disabled]="!editable()"
+      title="Header color"
+      aria-label="Header color"
+   >
+      <span class="color-dot" [style.background]="css(table().color) || 'var(--dd-handle)'"></span>
+   </button>
+   <ng-template #colorMenu let-close>
+      <div class="color-grid">
+         <dd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
+      </div>
+   </ng-template>
+
+   @if (editingName()) {
+      <input
+         class="edit title-edit"
+         ddAutofocus
+         [value]="table().name"
+         (pointerdown)="$event.stopPropagation()"
+         (keydown.enter)="commitName($event)"
+         (keydown.escape)="cancelInline()"
+         (blur)="commitName($event)"
+         maxlength="120"
+      />
+   } @else {
+      <span class="title" (dblclick)="startEditName($event)" title="Double-click to rename">
+         {{ table().name }}
+      </span>
+   }
+
+   <span class="count" title="Columns">{{ table().columns.length }}</span>
+</header>
+
+@for (b of uniqueBrackets(); track b.id) {
+   <span
+      class="uq-bracket"
+      [style.top.px]="b.top"
+      [style.height.px]="b.height"
+      [style.left.px]="b.left"
+      [title]="b.name"
+   >
+      @for (y of b.dots; track y) {
+         <span class="uq-dot" [style.top.px]="y"></span>
+      }
+   </span>
+}
+
+@if (table().columns.length === 0) {
+   <div class="empty">No columns yet — use +</div>
+} @else {
+   @for (column of table().columns; track column.id) {
+      <div class="row" [style.height.px]="rowH" [class.uq-peer]="uniqueHighlight().has(column.id)">
+         <span
+            class="handle left"
+            title="Drag to connect"
+            (pointerdown)="onHandleDown($event, column.id, 'left')"
+            (pointerup)="onHandleUp($event, column.id, 'left')"
+         ></span>
+
+         <span class="keyslot">
+            @if (column.isPrimaryKey) {
+               <dd-icon name="key" class="keyglyph pk" title="Primary key" />
+            }
+            @if (uniqueTitle(column); as title) {
+               <dd-icon
+                  name="key"
+                  class="keyglyph uq"
+                  [title]="title"
+                  (pointerenter)="hoverUnique.set(column.id)"
+                  (pointerleave)="hoverUnique.set(null)"
+               />
+            }
+            @if (!column.isPrimaryKey && fkColumnIds().has(column.id)) {
+               <dd-icon name="link" class="keyglyph fk" title="Foreign key" />
+            }
+         </span>
+
+         @if (editingColumnId() === column.id) {
+            <input
+               class="edit"
+               ddAutofocus
+               [value]="column.name"
+               (pointerdown)="$event.stopPropagation()"
+               (keydown)="onColumnKey(column, $event)"
+               (keydown.escape)="cancelInline()"
+               placeholder="name type"
+               title="Type “name type” (e.g. price numeric). Tab: next row · Enter on the last row: new column"
+               (blur)="commitColumn(column, $event)"
+               maxlength="120"
+            />
+         } @else {
+            <span
+               class="col-name"
+               (dblclick)="startEditColumn($event, column)"
+               title="Double-click to edit (name type)"
+            >
+               {{ column.name }}
+            </span>
+         }
+
+         <div class="chips">
+            <button
+               class="chip pk"
+               type="button"
+               [class.on]="column.isPrimaryKey"
+               (pointerdown)="$event.stopPropagation()"
+               (click)="togglePk(column)"
+               title="Primary key"
+            >
+               PK
+            </button>
+            <button
+               class="chip nn"
+               type="button"
+               [class.on]="!column.isNullable"
+               (pointerdown)="$event.stopPropagation()"
+               (click)="toggleNotNull(column)"
+               title="Not null"
+            >
+               NN
+            </button>
+            <button
+               class="chip uq"
+               type="button"
+               [class.on]="column.isUnique || uniqueSets().has(column.id)"
+               [ddPopoverTrigger]="uniqueMenu"
+               placement="below-end"
+               (pointerdown)="$event.stopPropagation()"
+               [disabled]="!editable()"
+               title="Unique"
+            >
+               UQ
+            </button>
+            <ng-template #uniqueMenu let-close>
+               <div class="dd-menu">
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     [class.on]="column.isUnique"
+                     (click)="toggleUnique(column); close()"
+                  >
+                     <dd-icon [name]="column.isUnique ? 'check' : 'key'" />
+                     Unique on its own
+                  </button>
+                  @if (uniqueIndexes().length) {
+                     <div class="dd-menu-sep"></div>
+                     @for (ix of uniqueIndexes(); track ix.id) {
+                        <button
+                           class="dd-menu-item"
+                           type="button"
+                           [class.on]="ix.columnIds.includes(column.id)"
+                           (click)="toggleIndexMember(ix, column)"
+                           [title]="indexColumnNames(ix)"
+                        >
+                           <dd-icon [name]="ix.columnIds.includes(column.id) ? 'check' : 'add'" />
+                           {{ ix.name }} <span class="ix-cols">({{ indexColumnNames(ix) }})</span>
+                        </button>
+                     }
+                  }
+                  <div class="dd-menu-sep"></div>
+                  <button class="dd-menu-item" type="button" (click)="newUniqueIndex(column); close()">
+                     <dd-icon name="add" />
+                     New multi-column unique set
+                  </button>
+               </div>
+            </ng-template>
+            <button
+               class="chip ai"
+               type="button"
+               [class.on]="column.isAutoIncrement"
+               (pointerdown)="$event.stopPropagation()"
+               (click)="toggleAuto(column)"
+               title="Auto increment"
+            >
+               AI
+            </button>
+            @if (isNumeric(column.dataType.name)) {
+               <button
+                  class="chip un"
+                  type="button"
+                  [class.on]="!!column.isUnsigned"
+                  (pointerdown)="$event.stopPropagation()"
+                  (click)="toggleUnsigned(column)"
+                  title="Unsigned"
+               >
+                  UN
+               </button>
+            }
+         </div>
+
+         <button
+            class="type"
+            type="button"
+            [ddPopoverTrigger]="typeMenu"
+            placement="below-end"
+            (pointerdown)="$event.stopPropagation()"
+            title="Change type"
+         >
+            <span class="type-name">{{ column.dataType.name }}</span>
+            <dd-icon name="arrow_drop_down" class="chev" />
+         </button>
+         <ng-template #typeMenu let-close>
+            <div class="dd-menu type-menu">
+               @for (name of dataTypeNames; track name) {
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     [class.on]="name === column.dataType.name"
+                     (click)="setType(column, name); close()"
+                  >
+                     {{ name }}
+                  </button>
+               }
+            </div>
+         </ng-template>
+
+         @if (column.dataType.name === 'VARCHAR') {
+            <input
+               class="len"
+               type="number"
+               min="1"
+               [value]="column.dataType.length ?? 255"
+               (pointerdown)="$event.stopPropagation()"
+               (change)="setLength(column, $event)"
+               title="Length"
+            />
+         }
+
+         <button
+            class="icon-btn tiny"
+            type="button"
+            (pointerdown)="$event.stopPropagation()"
+            (click)="deleteColumn(column)"
+            [disabled]="!editable()"
+            title="Delete column"
+            aria-label="Delete column"
+         >
+            <dd-icon name="close" />
+         </button>
+
+         <span
+            class="handle right"
+            title="Drag to connect"
+            (pointerdown)="onHandleDown($event, column.id, 'right')"
+            (pointerup)="onHandleUp($event, column.id, 'right')"
+         ></span>
+      </div>
+   }
+}

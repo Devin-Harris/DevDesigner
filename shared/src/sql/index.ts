@@ -5,6 +5,8 @@
 // Only MySQL is implemented today. The signature is designed so generatePostgres
 // / generateSQLite can be added behind the `dialect` switch.
 
+export * from './data-type';
+
 import type { SqlDialect } from '../enums';
 import type {
   ColumnModel,

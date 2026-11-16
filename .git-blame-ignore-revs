@@ -1,0 +1,9 @@
+# Commits listed here are skipped by `git blame` when configured with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub applies this file automatically.)
+#
+# Add only pure, mechanical commits (formatting, renames with no logic change).
+# Wave 2 / cleanliness step 1.1: add the client Prettier reformat commit (3-space, 120 cols) here.
+
+# style(client): Prettier reformat (Wave 2, C1.1)
+0647f5b23622bbaf17ca9728fdc9fc7d6002b8a0

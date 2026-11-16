@@ -1,0 +1,12 @@
+<input
+   class="dd-input"
+   [type]="type()"
+   [attr.placeholder]="placeholder()"
+   [attr.min]="min()"
+   [attr.maxlength]="maxlength()"
+   [disabled]="disabled()"
+   [value]="value()"
+   (input)="onInput($event)"
+   (change)="onCommit($event)"
+   (blur)="onTouched()"
+/>

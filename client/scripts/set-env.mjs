@@ -2,7 +2,8 @@
 // time (Angular inlines config into the bundle; it cannot read env vars at runtime).
 // Set API_URL to the server's public origin, e.g. https://devdesigner-api.up.railway.app
 // (no trailing /api). With API_URL unset this does nothing, so local builds keep
-// using the checked-in localhost defaults.
+// using the checked-in localhost defaults. Optional: SENTRY_DSN (browser DSN) and
+// TELEMETRY=true (first-party usage beacon, see core/telemetry/telemetry.service.ts).
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +19,8 @@ export const environment = {
   apiBaseUrl: '${origin}/api',
   wsBaseUrl: '${origin}',
   mcpUrl: '${process.env.mcpUrl?.trim() ?? ''}',
+  sentryDsn: '${process.env.SENTRY_DSN?.trim() ?? ''}',
+  telemetry: ${process.env.TELEMETRY?.trim() === 'true'},
 };
 `,
   );

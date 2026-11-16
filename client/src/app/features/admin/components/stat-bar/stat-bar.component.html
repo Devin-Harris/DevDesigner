@@ -1,0 +1,23 @@
+@if (parts$().length === 0) {
+   <p class="stat-empty">None</p>
+} @else {
+   <div class="stat-bar" role="img" [attr.aria-label]="ariaLabel$()">
+      @for (part of parts$(); track part.key) {
+         <span
+            class="stat-part"
+            [style.background]="part.color"
+            [style.flex-grow]="part.share"
+            [title]="part.label + ': ' + part.text"
+         ></span>
+      }
+   </div>
+   <ul class="stat-legend" aria-hidden="true">
+      @for (part of parts$(); track part.key) {
+         <li class="stat-legend-item">
+            <span class="stat-swatch" [style.background]="part.color"></span>
+            <span class="stat-name">{{ part.label }}</span>
+            <span class="stat-value">{{ part.text }}</span>
+         </li>
+      }
+   </ul>
+}

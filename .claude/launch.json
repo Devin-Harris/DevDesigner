@@ -32,6 +32,20 @@
         "server"
       ],
       "port": 3000
+    },
+    {
+      "name": "server-scratch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:dev",
+        "-w",
+        "server"
+      ],
+      "port": 3000,
+      "env": {
+        "DATABASE_PATH": "C:/Users/devin/AppData/Local/Temp/claude/75d331d4a32054b1/c39a29ce-5d1c-41ba-92e0-942ef6cd39fb/scratchpad/devdb/devdesigner-scratch.sqlite"
+      }
     }
   ]
 }

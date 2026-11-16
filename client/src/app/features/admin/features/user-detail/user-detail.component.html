@@ -1,0 +1,59 @@
+<a class="back-link" routerLink="/admin/users"><dd-icon name="arrow_back"></dd-icon>Users</a>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+@if (user$(); as user) {
+   <header class="page-header">
+      <div>
+         <h1 class="page-title">{{ user.displayName || user.email || 'Unnamed user' }}</h1>
+         <p class="page-meta">
+            {{ user.email }} · {{ user.method }}{{ user.role === 'admin' ? ' · admin' : '' }} · joined
+            {{ user.createdAt | adminFormat: 'date' }}
+         </p>
+      </div>
+   </header>
+
+   <section class="kpi-grid" aria-label="Account figures">
+      <dd-admin-kpi-tile [label]="'Projects'" [value]="user.projects"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile [format]="'bytes'" [label]="'Media stored'" [value]="user.imageBytes"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile [label]="'Active API tokens'" [value]="user.activeTokens"></dd-admin-kpi-tile>
+      <dd-admin-kpi-tile
+         [hint]="user.lastSeenAt ? (user.lastSeenAt | adminFormat: 'datetime') + ' UTC' : 'Never'"
+         [label]="'Last seen'"
+         [value]="null"
+      ></dd-admin-kpi-tile>
+   </section>
+
+   <div class="card-grid">
+      <section class="card">
+         <h2 class="card-title">Activity, last 90 days</h2>
+         <dd-admin-line-chart [label]="'Events per day, last 90 days'" [series]="activity$()"></dd-admin-line-chart>
+      </section>
+      <section class="card">
+         <h2 class="card-title">Top features</h2>
+         <dd-admin-bar-list [items]="features$()" [label]="'Most used features'"></dd-admin-bar-list>
+      </section>
+      <section class="card card-wide">
+         <h2 class="card-title">Projects</h2>
+         <dd-admin-data-table
+            [columns]="projectColumns"
+            [emptyText]="'No projects'"
+            [label]="'Projects of this user'"
+            [rows]="projects$()"
+         ></dd-admin-data-table>
+      </section>
+      <section class="card card-wide">
+         <h2 class="card-title">API tokens</h2>
+         <dd-admin-data-table
+            [columns]="tokenColumns"
+            [emptyText]="'No tokens'"
+            [label]="'API tokens of this user'"
+            [rows]="tokens$()"
+         ></dd-admin-data-table>
+      </section>
+   </div>
+} @else if (view$().loading) {
+   <p class="page-meta" aria-live="polite">Loading…</p>
+}

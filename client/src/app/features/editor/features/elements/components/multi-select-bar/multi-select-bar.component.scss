@@ -1,0 +1,139 @@
+:host {
+   position: absolute;
+   z-index: 6;
+   transform: translateX(-50%);
+   display: flex;
+   align-items: center;
+   gap: 2px;
+   height: 40px;
+   padding: 0 4px;
+   box-sizing: border-box;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   border: 1px solid var(--dd-border);
+   border-radius: 11px;
+   box-shadow: var(--dd-shadow-2);
+   white-space: nowrap;
+   font-size: 13px;
+}
+.count {
+   padding: 0 8px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
+}
+.sep {
+   width: 1px;
+   height: 20px;
+   background: var(--dd-border);
+   margin: 0 2px;
+}
+.tb,
+.ib {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 5px;
+   height: 30px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 13px;
+   cursor: pointer;
+   --dd-icon-size: 17px;
+}
+.tb {
+   padding: 0 8px;
+}
+.ib {
+   width: 30px;
+   color: var(--dd-text-muted);
+}
+.tb:hover,
+.ib:hover {
+   background: var(--dd-surface-2);
+   color: var(--dd-text);
+}
+.del:hover {
+   color: #e5484d;
+}
+.chev {
+   --dd-icon-size: 14px;
+   color: var(--dd-text-muted);
+}
+.align-pop {
+   width: 268px;
+   padding: 10px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   box-shadow: var(--dd-shadow-2);
+}
+.lab {
+   margin: 2px 0 8px;
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.05em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+}
+.lab.gap {
+   margin-top: 12px;
+}
+.grid6 {
+   display: grid;
+   grid-template-columns: repeat(6, minmax(0, 1fr));
+   gap: 4px;
+}
+.chips {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px;
+}
+.chip {
+   height: 26px;
+   padding: 0 10px;
+   border: 1px solid var(--dd-border);
+   border-radius: 999px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
+}
+.chip:hover:not(:disabled) {
+   border-color: var(--dd-primary);
+   color: var(--dd-primary);
+   background: var(--dd-primary-weak);
+}
+.chip:disabled {
+   opacity: 0.45;
+   cursor: default;
+}
+.sw {
+   width: 18px;
+   height: 18px;
+   border-radius: 50%;
+   box-sizing: border-box;
+}
+.sw.fill {
+   background: linear-gradient(135deg, var(--dd-surface-2) 50%, var(--dd-text-muted) 50%);
+   box-shadow: inset 0 0 0 1px var(--dd-border);
+}
+.sw.stroke {
+   border: 3px solid var(--dd-text-muted);
+}
+.picker {
+   padding: 10px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: 12px;
+   box-shadow: var(--dd-shadow-2);
+}
+.kbd {
+   margin-left: auto;
+   padding-left: 16px;
+   font-size: 11px;
+   color: var(--dd-text-muted);
+}

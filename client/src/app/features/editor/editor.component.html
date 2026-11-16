@@ -1,933 +1,1118 @@
 <div class="editor" [style.--dock-w.px]="toolbarPrefs.leftDockWidth()">
-  <div
-    #canvas
-    class="canvas"
-    [class.tool-active]="activeTool() !== 'select'"
-    [style.cursor]="canvasCursor()"
-    (pointerdown)="onCanvasPointerDown($event)"
-    (dblclick)="onCanvasDblClick($event)"
-    (wheel)="onWheel($event)"
-    (dragover)="onCanvasDragOver($event)"
-    (drop)="onCanvasDrop($event)"
-  >
-    <div class="world" [style.transform]="worldTransform()">
-      @if (croppingElement(); as ce) {
-        <app-image-crop-overlay [element]="ce"></app-image-crop-overlay>
-      }
-      <svg class="grid" width="1" height="1">
-        <defs>
-          <pattern id="dd-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path class="grid-line" d="M 24 0 L 0 0 0 24" fill="none" stroke-width="1" />
-          </pattern>
-        </defs>
-        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dd-grid)" />
-      </svg>
+   <div
+      #canvas
+      class="canvas"
+      [class.tool-active]="tools.activeTool() !== 'select'"
+      [style.cursor]="tools.canvasCursor()"
+      (pointerdown)="pointer.onCanvasPointerDown($event)"
+      (dblclick)="dblClick.onCanvasDblClick($event)"
+      (wheel)="viewport.onWheel($event)"
+      (dragover)="mediaDrop.onCanvasDragOver($event)"
+      (drop)="mediaDrop.onCanvasDrop($event)"
+   >
+      <div class="world" [style.transform]="viewport.worldTransform()">
+         @if (align.croppingElement(); as ce) {
+            <dd-image-crop-overlay [element]="ce"></dd-image-crop-overlay>
+         }
+         <svg class="grid" width="1" height="1">
+            <defs>
+               <pattern id="dd-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                  <path class="grid-line" d="M 24 0 L 0 0 0 24" fill="none" stroke-width="1" />
+               </pattern>
+            </defs>
+            <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dd-grid)" />
+         </svg>
 
-      <!-- Frames sit at the very back so their fills never cover connectors. -->
-      <app-canvas-shapes
-        layer="frames"
-        [shapes]="outerShapeViews()"
-        [svgOffset]="svgOffset"
-        [dragging]="dragging()"
-        [interactive]="shapesInteractive()"
-        [editingId]="editingTextId()"
-        (elementPointerDown)="onElementPointerDown($event)"
-        (resizeDown)="onElementResizeDown($event)"
-        (rotateDown)="onElementRotateDown($event)"
-        (endpointDown)="onElementEndpointDown($event)"
-        (bendDown)="onElementBendDown($event)"
-      ></app-canvas-shapes>
+         <!-- Frames sit at the very back so their fills never cover connectors. -->
+         <dd-canvas-shapes
+            layer="frames"
+            [shapes]="canvasView.outerShapeViews()"
+            [svgOffset]="svgOffset"
+            [dragging]="relLink.dragging()"
+            [interactive]="tools.shapesInteractive()"
+            [editingId]="textEditing.editingTextId()"
+            (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+            (resizeDown)="elementGestures.onElementResizeDown($event)"
+            (rotateDown)="elementGestures.onElementRotateDown($event)"
+            (endpointDown)="elementGestures.onElementEndpointDown($event)"
+            (bendDown)="elementGestures.onElementBendDown($event)"
+         ></dd-canvas-shapes>
 
-      <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
+         <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
            items, scaled about the frame's centre and clipped to the block (not while
            dragging, so an item can be carried out of it). -->
-      @for (z of slideViewLayers(); track z.view.frameId) {
-        <div
-          class="slide-zoom"
-          [class.clipped]="!slideUnclipped()"
-          [style.left.px]="z.left"
-          [style.top.px]="z.top"
-          [style.width.px]="z.width"
-          [style.height.px]="z.height"
-        >
-          <div class="slide-zoom-inner" [style.transform]="z.transform">
-            <app-canvas-shapes
-              layer="frames"
-              [shapes]="z.shapes"
-              [svgOffset]="svgOffset"
-              [dragging]="dragging()"
-              [interactive]="shapesInteractive()"
-              [editingId]="editingTextId()"
-              (elementPointerDown)="onElementPointerDown($event)"
-              (resizeDown)="onElementResizeDown($event)"
-              (rotateDown)="onElementRotateDown($event)"
-              (endpointDown)="onElementEndpointDown($event)"
-              (bendDown)="onElementBendDown($event)"
-            ></app-canvas-shapes>
-            <app-canvas-connectors
-              [connectors]="z.connectors"
-              [tempLinkPath]="null"
-              [snapAnchor]="null"
-              [svgOffset]="svgOffset"
-              [dragging]="dragging()"
-              (selectConnector)="onConnectorSelect($event)"
-              (endpointDown)="onEndpointDown($event)"
-              (segmentDown)="onSegmentDown($event)"
-              (resetRoute)="onAutoRoute($event)"
-            ></app-canvas-connectors>
-            @for (seg of contentSegments(); track seg.index) {
-              <app-canvas-shapes
-                layer="content"
-                [hostZ]="seg.z"
-                [accept]="seg.accept"
-                [shapes]="z.shapes"
-                [svgOffset]="svgOffset"
-                [dragging]="dragging()"
-                [interactive]="shapesInteractive()"
-                [editingId]="editingTextId()"
-                (elementPointerDown)="onElementPointerDown($event)"
-                (resizeDown)="onElementResizeDown($event)"
-                (rotateDown)="onElementRotateDown($event)"
-                (endpointDown)="onElementEndpointDown($event)"
-                (bendDown)="onElementBendDown($event)"
-              ></app-canvas-shapes>
-            }
-            @for (table of z.tables; track table.id) {
-              <app-table-node
-                [table]="table"
-                [selected]="store.selectedTableIds().includes(table.id)"
-                [editable]="store.canEdit()"
-                [fkColumnIds]="store.foreignKeyColumnIds()"
-                [snap]="snapWorld"
-                (nodePointerDown)="onNodePointerDown($event, table)"
-                (handleDown)="onHandleDown($event)"
-                (handleUp)="onHandleUp($event)"
-              ></app-table-node>
-            }
-            <app-canvas-sequence
-              [toWorld]="z.toWorld"
-              [snap]="snapWorld"
-              [smartDrag]="smartDrag"
-              [smartDragEnd]="smartDragEnd"
-              [groupResize]="startGroupResize"
-              [hiddenIds]="z.hiddenDiagramIds"
-              [layerZ]="diagramLayers().z"
-            ></app-canvas-sequence>
-            <app-canvas-shapes
-              layer="lines"
-              [shapes]="z.shapes"
-              [svgOffset]="svgOffset"
-              [dragging]="dragging()"
-              [interactive]="shapesInteractive()"
-              [editingId]="editingTextId()"
-              [bindHighlight]="bindHighlight()"
-              (elementPointerDown)="onElementPointerDown($event)"
-              (resizeDown)="onElementResizeDown($event)"
-              (rotateDown)="onElementRotateDown($event)"
-              (endpointDown)="onElementEndpointDown($event)"
-              (bendDown)="onElementBendDown($event)"
-            ></app-canvas-shapes>
-          </div>
-        </div>
-      }
+         @for (z of canvasView.slideViewLayers(); track z.view.frameId) {
+            <div
+               class="slide-zoom"
+               [class.clipped]="!slideUnclipped()"
+               [style.left.px]="z.left"
+               [style.top.px]="z.top"
+               [style.width.px]="z.width"
+               [style.height.px]="z.height"
+            >
+               <div class="slide-zoom-inner" [style.transform]="z.transform">
+                  <dd-canvas-shapes
+                     layer="frames"
+                     [shapes]="z.shapes"
+                     [svgOffset]="svgOffset"
+                     [dragging]="relLink.dragging()"
+                     [interactive]="tools.shapesInteractive()"
+                     [editingId]="textEditing.editingTextId()"
+                     (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                     (resizeDown)="elementGestures.onElementResizeDown($event)"
+                     (rotateDown)="elementGestures.onElementRotateDown($event)"
+                     (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                     (bendDown)="elementGestures.onElementBendDown($event)"
+                  ></dd-canvas-shapes>
+                  <dd-canvas-connectors
+                     [connectors]="z.connectors"
+                     [tempLinkPath]="null"
+                     [snapAnchor]="null"
+                     [svgOffset]="svgOffset"
+                     [dragging]="relLink.dragging()"
+                     (selectConnector)="relLink.onConnectorSelect($event)"
+                     (endpointDown)="relLink.onEndpointDown($event)"
+                     (segmentDown)="relLink.onSegmentDown($event)"
+                     (resetRoute)="relLink.onAutoRoute($event)"
+                  ></dd-canvas-connectors>
+                  @for (seg of canvasView.contentSegments(); track seg.index) {
+                     <dd-canvas-shapes
+                        layer="content"
+                        [hostZ]="seg.z"
+                        [accept]="seg.accept"
+                        [shapes]="z.shapes"
+                        [svgOffset]="svgOffset"
+                        [dragging]="relLink.dragging()"
+                        [interactive]="tools.shapesInteractive()"
+                        [editingId]="textEditing.editingTextId()"
+                        (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                        (resizeDown)="elementGestures.onElementResizeDown($event)"
+                        (rotateDown)="elementGestures.onElementRotateDown($event)"
+                        (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                        (bendDown)="elementGestures.onElementBendDown($event)"
+                     ></dd-canvas-shapes>
+                  }
+                  @for (table of z.tables; track table.id) {
+                     <dd-table-node
+                        [table]="table"
+                        [selected]="store.selectedTableIdSet().has(table.id)"
+                        [editable]="store.canEdit()"
+                        [fkColumnIds]="store.foreignKeyColumnIds()"
+                        [snap]="snap.snapWorld"
+                        (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
+                        (handleDown)="relLink.onHandleDown($event)"
+                        (handleUp)="relLink.onHandleUp($event)"
+                     ></dd-table-node>
+                  }
+                  <dd-canvas-sequence
+                     [diagrams]="store.sequenceDiagrams()"
+                     [toWorld]="z.toWorld"
+                     [snap]="snap.snapWorld"
+                     [smartDrag]="snap.smartDrag"
+                     [smartDragEnd]="snap.smartDragEnd"
+                     [groupResize]="groupTransform.startGroupResize"
+                     [hiddenIds]="z.hiddenDiagramIds"
+                     [layerZ]="canvasView.diagramLayers().z"
+                  ></dd-canvas-sequence>
+                  <dd-canvas-shapes
+                     layer="lines"
+                     [shapes]="z.shapes"
+                     [svgOffset]="svgOffset"
+                     [dragging]="relLink.dragging()"
+                     [interactive]="tools.shapesInteractive()"
+                     [editingId]="textEditing.editingTextId()"
+                     [bindHighlight]="elementGestures.bindHighlight()"
+                     (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+                     (resizeDown)="elementGestures.onElementResizeDown($event)"
+                     (rotateDown)="elementGestures.onElementRotateDown($event)"
+                     (endpointDown)="elementGestures.onElementEndpointDown($event)"
+                     (bendDown)="elementGestures.onElementBendDown($event)"
+                  ></dd-canvas-shapes>
+               </div>
+            </div>
+         }
 
-      <!-- Connectors render behind nodes so lines are hidden where they pass a
+         <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
-      <app-canvas-connectors
-        [connectors]="outerConnectors()"
-        [tempLinkPath]="tempLink()"
-        [snapAnchor]="linkSnap()?.anchor ?? null"
-        [svgOffset]="svgOffset"
-        [dragging]="dragging()"
-        (selectConnector)="onConnectorSelect($event)"
-        (endpointDown)="onEndpointDown($event)"
-        (segmentDown)="onSegmentDown($event)"
-        (resetRoute)="onAutoRoute($event)"
-      ></app-canvas-connectors>
+         <dd-canvas-connectors
+            [connectors]="canvasView.outerConnectors()"
+            [tempLinkPath]="relLink.tempLink()"
+            [snapAnchor]="relLink.linkSnap()?.anchor ?? null"
+            [svgOffset]="svgOffset"
+            [dragging]="relLink.dragging()"
+            (selectConnector)="relLink.onConnectorSelect($event)"
+            (endpointDown)="relLink.onEndpointDown($event)"
+            (segmentDown)="relLink.onSegmentDown($event)"
+            (resetRoute)="relLink.onAutoRoute($event)"
+         ></dd-canvas-connectors>
 
-      <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
+         <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
-      @for (seg of contentSegments(); track seg.index) {
-        <app-canvas-shapes
-          layer="content"
-          [hostZ]="seg.z"
-          [accept]="seg.accept"
-          [shapes]="outerShapeViews()"
-          [svgOffset]="svgOffset"
-          [dragging]="dragging()"
-          [interactive]="shapesInteractive()"
-          [editingId]="editingTextId()"
-          (elementPointerDown)="onElementPointerDown($event)"
-          (resizeDown)="onElementResizeDown($event)"
-          (rotateDown)="onElementRotateDown($event)"
-          (endpointDown)="onElementEndpointDown($event)"
-          (bendDown)="onElementBendDown($event)"
-        ></app-canvas-shapes>
-      }
+         @for (seg of canvasView.contentSegments(); track seg.index) {
+            <dd-canvas-shapes
+               layer="content"
+               [hostZ]="seg.z"
+               [accept]="seg.accept"
+               [shapes]="canvasView.outerShapeViews()"
+               [svgOffset]="svgOffset"
+               [dragging]="relLink.dragging()"
+               [interactive]="tools.shapesInteractive()"
+               [editingId]="textEditing.editingTextId()"
+               (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+               (resizeDown)="elementGestures.onElementResizeDown($event)"
+               (rotateDown)="elementGestures.onElementRotateDown($event)"
+               (endpointDown)="elementGestures.onElementEndpointDown($event)"
+               (bendDown)="elementGestures.onElementBendDown($event)"
+            ></dd-canvas-shapes>
+         }
 
-      @for (table of outerTables(); track table.id) {
-        <app-table-node
-          [table]="table"
-          [selected]="store.selectedTableIds().includes(table.id)"
-          [editable]="store.canEdit()"
-          [fkColumnIds]="store.foreignKeyColumnIds()"
-          [snap]="snapWorld"
-          (nodePointerDown)="onNodePointerDown($event, table)"
-          (handleDown)="onHandleDown($event)"
-          (handleUp)="onHandleUp($event)"
-        ></app-table-node>
-      }
+         @for (table of canvasView.outerTables(); track table.id) {
+            <dd-table-node
+               [table]="table"
+               [selected]="store.selectedTableIdSet().has(table.id)"
+               [editable]="store.canEdit()"
+               [fkColumnIds]="store.foreignKeyColumnIds()"
+               [snap]="snap.snapWorld"
+               (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
+               (handleDown)="relLink.onHandleDown($event)"
+               (handleUp)="relLink.onHandleUp($event)"
+            ></dd-table-node>
+         }
 
-      <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
-      <app-canvas-sequence
-        [toWorld]="toWorldPoint"
-        [snap]="snapWorld"
-        [smartDrag]="smartDrag"
-        [smartDragEnd]="smartDragEnd"
-        [groupResize]="startGroupResize"
-        [hiddenIds]="outerHiddenDiagramIds()"
-        [layerZ]="diagramLayers().z"
-      ></app-canvas-sequence>
+         <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
+         <dd-canvas-sequence
+            [diagrams]="store.sequenceDiagrams()"
+            [toWorld]="viewport.toWorldPoint"
+            [snap]="snap.snapWorld"
+            [smartDrag]="snap.smartDrag"
+            [smartDragEnd]="snap.smartDragEnd"
+            [groupResize]="groupTransform.startGroupResize"
+            [hiddenIds]="canvasView.outerHiddenDiagramIds()"
+            [layerZ]="canvasView.diagramLayers().z"
+         ></dd-canvas-sequence>
 
-      <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
+         <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
            to message labels. -->
-      <app-canvas-shapes
-        layer="lines"
-        [shapes]="outerShapeViews()"
-        [svgOffset]="svgOffset"
-        [dragging]="dragging()"
-        [interactive]="shapesInteractive()"
-        [editingId]="editingTextId()"
-        [bindHighlight]="bindHighlight()"
-        (elementPointerDown)="onElementPointerDown($event)"
-        (resizeDown)="onElementResizeDown($event)"
-        (rotateDown)="onElementRotateDown($event)"
-        (endpointDown)="onElementEndpointDown($event)"
-        (bendDown)="onElementBendDown($event)"
-      ></app-canvas-shapes>
+         <dd-canvas-shapes
+            layer="lines"
+            [shapes]="canvasView.outerShapeViews()"
+            [svgOffset]="svgOffset"
+            [dragging]="relLink.dragging()"
+            [interactive]="tools.shapesInteractive()"
+            [editingId]="textEditing.editingTextId()"
+            [bindHighlight]="elementGestures.bindHighlight()"
+            (elementPointerDown)="elementGestures.onElementPointerDown($event)"
+            (resizeDown)="elementGestures.onElementResizeDown($event)"
+            (rotateDown)="elementGestures.onElementRotateDown($event)"
+            (endpointDown)="elementGestures.onElementEndpointDown($event)"
+            (bendDown)="elementGestures.onElementBendDown($event)"
+         ></dd-canvas-shapes>
 
-      @for (g of groupOutlines(); track g.id) {
-        <div
-          class="group-outline"
-          [class.entered]="g.entered"
-          [style.left.px]="g.left"
-          [style.top.px]="g.top"
-          [style.width.px]="g.width"
-          [style.height.px]="g.height"
-        ></div>
-      }
+         @for (g of canvasView.groupOutlines(); track g.id) {
+            <div
+               class="group-outline"
+               [class.entered]="g.entered"
+               [style.left.px]="g.left"
+               [style.top.px]="g.top"
+               [style.width.px]="g.width"
+               [style.height.px]="g.height"
+            ></div>
+         }
 
-      <!-- Selection highlights: a colored ring around tables another participant
+         <!-- Selection highlights: a colored ring around tables another participant
            currently has selected (what they are editing). -->
-      @for (ring of remoteTableHighlights(); track ring.id) {
-        <div
-          class="remote-ring"
-          [style.left.px]="ring.x"
-          [style.top.px]="ring.y"
-          [style.width.px]="ring.width"
-          [style.height.px]="ring.height"
-          [style.border-color]="ring.color"
-        ></div>
-      }
-    </div>
-
-    <!-- Live cursors of other participants (screen coords, above the canvas). -->
-    @for (cursor of remoteCursors(); track cursor.id) {
-      <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
-        <dd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
-        <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
+         @for (ring of presence.remoteTableHighlights(); track ring.id) {
+            <div
+               class="remote-ring"
+               [style.left.px]="ring.x"
+               [style.top.px]="ring.y"
+               [style.width.px]="ring.width"
+               [style.height.px]="ring.height"
+               [style.border-color]="ring.color"
+            ></div>
+         }
       </div>
-    }
 
-    <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
+      <!-- Live cursors of other participants (screen coords, above the canvas). -->
+      @for (cursor of presence.remoteCursors(); track cursor.id) {
+         <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
+            <dd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
+            <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
+         </div>
+      }
+
+      <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
-    <app-laser-layer></app-laser-layer>
-    @if (activeTool() === 'laser') {
-      <div
-        class="laser-capture"
-        (pointerdown)="onLaserPointerDown($event)"
-        (pointermove)="onLaserPointerMove($event)"
-        (pointerup)="onLaserPointerUp($event)"
-        (pointercancel)="onLaserPointerUp($event)"
-      ></div>
-    }
-
-    @if (showMinimap() && !focusedDeck()) {
-    <app-minimap
-      (pointerdown)="$event.stopPropagation()"
-      (wheel)="$event.stopPropagation()"
-      [items]="minimapItems()"
-      [view]="minimapView()"
-      (panTo)="panToWorld($event)"
-    ></app-minimap>
-    }
-
-    <app-shape-toolbar
-      (pointerdown)="$event.stopPropagation()"
-      [tool]="activeTool()"
-      [disabled]="!store.canEdit() || !store.projectId()"
-      [zoomLabel]="zoomLabel()"
-      [saveLabel]="saveLabel()"
-      [gridSnap]="gridSnap()"
-      [smartGuides]="smartGuides()"
-      [minimap]="showMinimap()"
-      (toggleMinimap)="toggleMinimap()"
-      [canAlign]="alignToContainer() || !!croppingElement()"
-      [canDistribute]="canDistribute()"
-      [alignToContainer]="alignToContainer() || !!croppingElement()"
-      [canExport]="!!store.projectId()"
-      [canUndo]="store.canUndo()"
-      [canRedo]="store.canRedo()"
-      [hasHome]="!!store.home()"
-      [canSetHome]="store.canEdit() && !!store.projectId()"
-      [(framePreset)]="framePresetId"
-      (toolChange)="onToolChange($event)"
-      (addImage)="pickImages()"
-      (undo)="store.undoElement()"
-      (redo)="store.redoElement()"
-      (zoomIn)="zoomIn()"
-      (zoomOut)="zoomOut()"
-      (resetView)="resetView()"
-      (zoomFit)="zoomToFit()"
-      (zoomSelection)="zoomToSelection()"
-      (setHome)="setHome()"
-      (clearHome)="clearHome()"
-      (toggleGrid)="toggleGrid()"
-      (toggleSmartGuides)="toggleSmartGuides()"
-      (align)="onAlign($event)"
-      (exportSql)="openSqlExport()"
-      (exportImage)="onExportImage($event)"
-    ></app-shape-toolbar>
-
-    @if (followingName(); as who) {
-      <div class="follow-ring" aria-hidden="true"></div>
-      <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
-        Following {{ who }}
-        <button (click)="followingId.set(null)">Stop · Esc</button>
-      </div>
-    }
-
-    @if (activeTool() === 'laser') {
-      <div class="laser-hint" aria-live="polite">
-        <span class="ldot"></span>Laser on: drag to point, the trail fades
-        <span class="lk">K</span><span class="lk">Esc</span>
-      </div>
-    }
-
-    @if (activeTool() === 'freedraw' && store.canEdit()) {
-      <app-pen-options-bar class="pen-bar" [class.low]="!!focusedDeck() || toolbarPosTop()" (pointerdown)="$event.stopPropagation()" />
-    }
-
-    @for (set of slideSets(); track set.name) {
-      @if (set.layoutEdit; as le) {
-        <div
-          class="layout-edit-ring"
-          [style.left.px]="le.left"
-          [style.top.px]="le.top"
-          [style.width.px]="le.width"
-          [style.height.px]="le.height"
-        >
-          @if (focusedDeck() !== set.name) {
-          <span class="layout-edit-badge"><dd-icon name="template" />{{ le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name }}</span>
-          }
-        </div>
+      <dd-laser-layer [viewport]="store.viewport()"></dd-laser-layer>
+      @if (tools.activeTool() === 'laser') {
+         <div
+            class="laser-capture"
+            (pointerdown)="laserInput.onLaserPointerDown($event)"
+            (pointermove)="laserInput.onLaserPointerMove($event)"
+            (pointerup)="laserInput.onLaserPointerUp($event)"
+            (pointercancel)="laserInput.onLaserPointerUp($event)"
+         ></div>
       }
-      @if (focusedDeck() !== set.name) {
-      <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
-      <div
-        class="deck-header"
-        [class.selected]="selectedSlideSets().includes(set.name)"
-        [style.left.px]="set.outline.left"
-        [style.top.px]="set.outline.top - 36 - 10 * set.list.scale"
-        [style.transform]="'scale(' + set.list.scale + ')'"
-        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      >
-        <dd-icon name="slideshow" class="dh-ico" />
-        <span class="dh-name">{{ set.name }}</span>
-        <span class="dh-count">Slide {{ deckSlideIndex(set.name, set.frameId) }} of {{ deckSlideCount(set.name) }}</span>
-        <span class="dh-sep"></span>
-        <button class="dh-btn" (click)="enterDeckFocus(set.name)" title="Focus: edit this presentation on its own (Shift+F)"><dd-icon name="open_in_full" class="dh-chev" />Focus</button>
-        <button class="dh-present" (click)="presentDeck(set.name)" title="Present from the first slide (F5)">
-          <dd-icon name="play_arrow" />Present
-        </button>
-      </div>
-      <div
-        class="slide-bounds"
-        [style.left.px]="set.outline.left"
-        [style.top.px]="set.outline.top"
-        [style.width.px]="set.outline.width"
-        [style.height.px]="set.outline.height"
-        [style.border-radius.px]="set.outline.radius"
-        [class.grabbable]="shapesInteractive()"
-        [class.selected]="selectedSlideSets().includes(set.name)"
-      >
-        <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
-        <span class="slide-edge top" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-        <span class="slide-edge bottom" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-        <span class="slide-edge left" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-        <span class="slide-edge right" (pointerdown)="onSlideBorderDown(set.name, set.frameId, $event)"></span>
-      </div>
-      <app-slides-panel
-        class="slides-panel"
-        [style.left.px]="set.list.left"
-        [style.top.px]="set.list.top"
-        [style.width.px]="set.list.width"
-        [style.height.px]="set.list.height"
-        [style.transform]="'scale(' + set.list.scale + ')'"
-        [presentation]="set.name"
-        [active]="set.frameId"
-        [lastSlide]="lastSlideOf(set.name)"
-        part="list"
-        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (command)="onSlidesCommand($event, set.name)"
-      ></app-slides-panel>
-      <app-slides-panel
-        class="slide-settings"
-        part="settings"
-        [requestTab]="deckTabRequest()?.name === set.name ? deckTabRequest() : null"
-        [presentation]="set.name"
-        [folded]="settingsFolded()"
-        [style.width.px]="set.settings.width"
-        [style.left.px]="set.settings.left"
-        [style.top.px]="set.settings.top"
-        [style.height.px]="set.settings.height"
-        [style.transform]="'scale(' + set.settings.scale + ')'"
-        [active]="set.frameId"
-        [lastSlide]="lastSlideOf(set.name)"
-        (pointerdown)="selectSlideSet(set.name); $event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-        (command)="onSlidesCommand($event, set.name)"
-      ></app-slides-panel>
-      }
-    }
 
-    @if (focusedDeck(); as fd) {
-      @let fframe = store.shownByPresentation().get(fd) ?? '';
-      @let fslide = focusSlide();
-      <!-- Focus mode (DeckFocus / DeckDesign / DeckMorph / DeckAnim mocks). The canvas
+      @if (showMinimap() && !deckFocus.focusedDeck()) {
+         <dd-minimap
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            [items]="canvasView.minimapItems()"
+            [view]="viewport.minimapView()"
+            (panTo)="viewport.panToWorld($event)"
+         ></dd-minimap>
+      }
+
+      <dd-shape-toolbar
+         (pointerdown)="$event.stopPropagation()"
+         [tool]="tools.activeTool()"
+         [disabled]="!store.canEdit() || !store.projectId()"
+         [zoomLabel]="viewport.zoomLabel()"
+         [saveLabel]="saveLabel()"
+         [gridSnap]="snap.gridSnap()"
+         [smartGuides]="snap.smartGuides()"
+         [minimap]="showMinimap()"
+         (toggleMinimap)="toggleMinimap()"
+         [canAlign]="align.alignToContainer() || !!align.croppingElement()"
+         [canDistribute]="align.canDistribute()"
+         [alignToContainer]="align.alignToContainer() || !!align.croppingElement()"
+         [canExport]="!!store.projectId()"
+         [canUndo]="store.canUndo()"
+         [canRedo]="store.canRedo()"
+         [hasHome]="!!store.home()"
+         [canSetHome]="store.canEdit() && !!store.projectId()"
+         [(framePreset)]="tools.framePresetId"
+         (toolChange)="tools.onToolChange($event)"
+         (addImage)="mediaDrop.pickImages()"
+         (undo)="store.undoElement()"
+         (redo)="store.redoElement()"
+         (zoomIn)="viewport.zoomIn()"
+         (zoomOut)="viewport.zoomOut()"
+         (resetView)="viewport.resetView()"
+         (zoomFit)="viewport.zoomToFit()"
+         (zoomSelection)="viewport.zoomToSelection()"
+         (setHome)="viewport.setHome()"
+         (clearHome)="viewport.clearHome()"
+         (toggleGrid)="snap.toggleGrid()"
+         (toggleSmartGuides)="snap.toggleSmartGuides()"
+         (align)="align.onAlign($event)"
+         (exportSql)="exporter.openSqlExport()"
+         (exportImage)="exporter.onExportImage($event)"
+      ></dd-shape-toolbar>
+
+      @if (follow.followingName(); as who) {
+         <div class="follow-ring" aria-hidden="true"></div>
+         <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
+            Following {{ who }}
+            <button type="button" (click)="follow.followingId.set(null)">Stop · Esc</button>
+         </div>
+      }
+
+      @if (tools.activeTool() === 'laser') {
+         <div class="laser-hint" aria-live="polite">
+            <span class="ldot"></span>Laser on: drag to point, the trail fades <span class="lk">K</span
+            ><span class="lk">Esc</span>
+         </div>
+      }
+
+      @if (tools.activeTool() === 'freedraw' && store.canEdit()) {
+         <dd-pen-options-bar
+            class="pen-bar"
+            [class.low]="!!deckFocus.focusedDeck() || toolbarPosTop()"
+            [strokeColor]="store.elementStyle().strokeColor"
+            (colorChange)="store.setElementStyle({ strokeColor: $event })"
+            (pointerdown)="$event.stopPropagation()"
+         />
+      }
+
+      @for (set of deckPanels.slideSets(); track set.name) {
+         @if (set.layoutEdit; as le) {
+            <div
+               class="layout-edit-ring"
+               [style.left.px]="le.left"
+               [style.top.px]="le.top"
+               [style.width.px]="le.width"
+               [style.height.px]="le.height"
+            >
+               @if (deckFocus.focusedDeck() !== set.name) {
+                  <span class="layout-edit-badge"
+                     ><dd-icon name="template" />{{
+                        le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name
+                     }}</span
+                  >
+               }
+            </div>
+         }
+         @if (deckFocus.focusedDeck() !== set.name) {
+            <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
+            <div
+               class="deck-header"
+               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
+               [style.left.px]="set.outline.left"
+               [style.top.px]="set.outline.top - 36 - 10 * set.list.scale"
+               [style.transform]="'scale(' + set.list.scale + ')'"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
+               (wheel)="$event.stopPropagation()"
+            >
+               <dd-icon name="slideshow" class="dh-ico" />
+               <span class="dh-name">{{ set.name }}</span>
+               <span class="dh-count"
+                  >Slide {{ deckFocus.deckSlideIndex(set.name, set.frameId) }} of
+                  {{ deckFocus.deckSlideCount(set.name) }}</span
+               >
+               <span class="dh-sep"></span>
+               <button
+                  class="dh-btn"
+                  type="button"
+                  (click)="deckFocus.enterDeckFocus(set.name)"
+                  title="Focus: edit this presentation on its own (Shift+F)"
+               >
+                  <dd-icon name="open_in_full" class="dh-chev" />Focus
+               </button>
+               <button
+                  class="dh-present"
+                  type="button"
+                  (click)="deckFocus.presentDeck(set.name)"
+                  title="Present from the first slide (F5)"
+               >
+                  <dd-icon name="play_arrow" />Present
+               </button>
+            </div>
+            <div
+               class="slide-bounds"
+               [style.left.px]="set.outline.left"
+               [style.top.px]="set.outline.top"
+               [style.width.px]="set.outline.width"
+               [style.height.px]="set.outline.height"
+               [style.border-radius.px]="set.outline.radius"
+               [class.grabbable]="tools.shapesInteractive()"
+               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
+            >
+               <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
+               <span
+                  class="slide-edge top"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge bottom"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge left"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+               <span
+                  class="slide-edge right"
+                  (pointerdown)="deckPanels.onSlideBorderDown(set.name, set.frameId, $event)"
+               ></span>
+            </div>
+            <dd-slides-panel
+               class="slides-panel"
+               [style.left.px]="set.list.left"
+               [style.top.px]="set.list.top"
+               [style.width.px]="set.list.width"
+               [style.height.px]="set.list.height"
+               [style.transform]="'scale(' + set.list.scale + ')'"
+               [presentation]="set.name"
+               [active]="set.frameId"
+               [lastSlide]="slideshow.lastSlideOf(set.name)"
+               part="list"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
+               (wheel)="$event.stopPropagation()"
+               (command)="onSlidesCommand($event, set.name)"
+            ></dd-slides-panel>
+            <dd-slides-panel
+               class="slide-settings"
+               part="settings"
+               [requestTab]="deckFocus.deckTabRequest()?.name === set.name ? deckFocus.deckTabRequest() : null"
+               [presentation]="set.name"
+               [folded]="deckFocus.settingsFolded()"
+               [style.width.px]="set.settings.width"
+               [style.left.px]="set.settings.left"
+               [style.top.px]="set.settings.top"
+               [style.height.px]="set.settings.height"
+               [style.transform]="'scale(' + set.settings.scale + ')'"
+               [active]="set.frameId"
+               [lastSlide]="slideshow.lastSlideOf(set.name)"
+               (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
+               (wheel)="$event.stopPropagation()"
+               (command)="onSlidesCommand($event, set.name)"
+            ></dd-slides-panel>
+         }
+      }
+
+      @if (deckFocus.focusedDeck(); as fd) {
+         @let fframe = store.shownByPresentation().get(fd) ?? '';
+         @let fslide = deckFocus.focusSlide();
+         <!-- Focus mode (DeckFocus / DeckDesign / DeckMorph / DeckAnim mocks). The canvas
            stays live under the dim, locked to the slide. -->
-      <div
-        class="focus-dim"
-        [class.solid]="focusScreen() === 'morph'"
-        [style.clip-path]="focusScreen() === 'morph' ? null : focusDimClip()"
-        (pointerdown)="$event.stopPropagation(); $event.preventDefault()"
-        (wheel)="$event.preventDefault()"
-      ></div>
-      @if (focusStage(); as st) {
-        @if (focusScreen() !== 'morph') {
-          <div class="focus-stage" [class.amber]="focusScreen() === 'design'" [style.left.px]="st.left" [style.top.px]="st.top" [style.width.px]="st.width" [style.height.px]="st.height"></div>
-        }
-      }
-
-      @switch (focusScreen()) {
-        @case ('main') {
-          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" (click)="exitDeckFocus()">← Canvas <span class="fb-k">Esc</span></button>
-            <span class="fb-sep"></span>
-            <span class="fb-name">{{ fd }}</span>
-            <span class="fb-count">{{ deckSlideCount(fd) }} slides</span>
-          </div>
-          <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" [ddPopoverTrigger]="themeMenu" placement="below-start">Theme: {{ deckThemeName(fframe) }} ▾</button>
-            <ng-template #themeMenu>
-              <app-slides-panel class="menu-host" part="theme-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
-            </ng-template>
-            <button class="fb-btn" [ddPopoverTrigger]="designMenu" placement="below-start">Design ▾</button>
-            <ng-template #designMenu>
-              <app-slides-panel class="menu-host" part="design-menu" [presentation]="fd" [active]="fframe" (command)="onFocusCommand($event, fd)" />
-            </ng-template>
-            <button class="fb-btn" (click)="openFocusDesign()">Layouts &amp; master</button>
-            <button class="fb-btn" [ddPopoverTrigger]="sizeMenu" placement="below-start" [disabled]="!store.canEdit()">{{ deckRatioLabel(fframe) }} ▾</button>
-            <ng-template #sizeMenu let-close>
-              <app-slides-panel class="menu-host" part="size-menu" [presentation]="fd" [active]="fframe" (command)="close()" />
-            </ng-template>
-            <span class="fb-sep"></span>
-            <button class="fb-btn" (click)="exportAllSlidesPdf()">Export PDF</button>
-          </div>
-          <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn go" (click)="presentDeck(fd)" [disabled]="!deckSlideCount(fd)">▶ Present <span class="fb-f5">F5</span></button>
-            @if (store.accessMode() === 'OWNER') {
-              <button class="fb-btn outline" (click)="openShare()">Share</button>
+         <div
+            class="focus-dim"
+            [class.solid]="deckFocus.focusScreen() === 'morph'"
+            [style.clip-path]="deckFocus.focusScreen() === 'morph' ? null : deckFocus.focusDimClip()"
+            (pointerdown)="$event.stopPropagation(); $event.preventDefault()"
+            (wheel)="$event.preventDefault()"
+         ></div>
+         @if (deckFocus.focusStage(); as st) {
+            @if (deckFocus.focusScreen() !== 'morph') {
+               <div
+                  class="focus-stage"
+                  [class.amber]="deckFocus.focusScreen() === 'design'"
+                  [style.left.px]="st.left"
+                  [style.top.px]="st.top"
+                  [style.width.px]="st.width"
+                  [style.height.px]="st.height"
+               ></div>
             }
-          </div>
-          <app-slides-panel
-            class="fdock left"
-            [class.above-align]="alignToContainer() || !!croppingElement()"
-            part="focus-list"
-            [presentation]="fd"
-            [active]="fframe"
-            [lastSlide]="lastSlideOf(fd)"
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
-            (command)="onFocusCommand($event, fd)"
-          />
-          <app-slides-panel
-            class="fdock right"
-            part="focus-settings"
-            [presentation]="fd"
-            [active]="fframe"
-            [lastSlide]="lastSlideOf(fd)"
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
-            (command)="onFocusCommand($event, fd)"
-          />
-        }
+         }
 
-        @case ('design') {
-          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" (click)="closeFocusDesign(fd)">← Slides</button>
-            <span class="fb-sep"></span>
-            <span class="fb-name">{{ fd }}</span>
-          </div>
-          <div class="focus-bar center amber" (pointerdown)="$event.stopPropagation()">
-            @if (focusLayoutInfo(); as li) {
-              <span class="fb-banner">
-                @if (li.master) {
-                  <b>Editing the master</b> · shown under every layout and slide
-                } @else {
-                  <b>Editing layout “{{ li.name }}”</b> · used by {{ li.used }} slide{{ li.used === 1 ? '' : 's' }} — changes show on all of them
-                }
-              </span>
-            } @else {
-              <span class="fb-banner"><b>Design</b> · pick a layout on the left to edit it</span>
-            }
-            <button class="fb-btn go" (click)="closeFocusDesign(fd)">Done</button>
-          </div>
-          <app-slides-panel
-            class="fdock left"
-            [class.above-align]="alignToContainer() || !!croppingElement()"
-            part="design-layouts"
-            [presentation]="fd"
-            [active]="fframe"
-            [lastSlide]="lastSlideOf(fd)"
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
-            (command)="onFocusCommand($event, fd)"
-          />
-          <app-slides-panel
-            class="fdock right design"
-            part="design-theme"
-            [presentation]="fd"
-            [active]="fframe"
-            [lastSlide]="lastSlideOf(fd)"
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
-            (command)="onFocusCommand($event, fd)"
-          />
-        }
-
-        @case ('morph') {
-          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
-            <span class="fb-sep"></span>
-            <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
-          </div>
-          @if (fslide && fslide.prev) {
-            <div class="focus-row">
-            <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
-              <button class="fb-btn" [disabled]="fslide.index <= 2" (click)="stepTransition(-1)" title="Previous transition" aria-label="Previous transition">‹</button>
-              <button class="fb-btn on" [ddPopoverTrigger]="pickTransition" placement="below-start">Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾</button>
-              <ng-template #pickTransition let-close>
-                <div class="tr-pick" role="menu">
-                  @for (n of transitionNumbers(fd); track n) {
-                    <button role="menuitem" [class.on]="n === fslide.index" (click)="goToTransition(n); close()">Slide {{ n - 1 }} → {{ n }}</button>
+         @switch (deckFocus.focusScreen()) {
+            @case ('main') {
+               <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn" type="button" (click)="deckFocus.exitDeckFocus()">
+                     ← Canvas <span class="fb-k">Esc</span>
+                  </button>
+                  <span class="fb-sep"></span>
+                  <span class="fb-name">{{ fd }}</span>
+                  <span class="fb-count">{{ deckFocus.deckSlideCount(fd) }} slides</span>
+               </div>
+               <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn" type="button" [ddPopoverTrigger]="themeMenu" placement="below-start">
+                     Theme: {{ deckFocus.deckThemeName(fframe) }} ▾
+                  </button>
+                  <ng-template #themeMenu>
+                     <dd-slides-panel
+                        class="menu-host"
+                        part="theme-menu"
+                        [presentation]="fd"
+                        [active]="fframe"
+                        (command)="deckFocus.onFocusCommand($event, fd)"
+                     />
+                  </ng-template>
+                  <button class="fb-btn" type="button" [ddPopoverTrigger]="designMenu" placement="below-start">
+                     Design ▾
+                  </button>
+                  <ng-template #designMenu>
+                     <dd-slides-panel
+                        class="menu-host"
+                        part="design-menu"
+                        [presentation]="fd"
+                        [active]="fframe"
+                        (command)="deckFocus.onFocusCommand($event, fd)"
+                     />
+                  </ng-template>
+                  <button class="fb-btn" type="button" (click)="deckFocus.openFocusDesign()">
+                     Layouts &amp; master
+                  </button>
+                  <button
+                     class="fb-btn"
+                     type="button"
+                     [ddPopoverTrigger]="sizeMenu"
+                     placement="below-start"
+                     [disabled]="!store.canEdit()"
+                  >
+                     {{ deckFocus.deckRatioLabel(fframe) }} ▾
+                  </button>
+                  <ng-template #sizeMenu let-close>
+                     <dd-slides-panel
+                        class="menu-host"
+                        part="size-menu"
+                        [presentation]="fd"
+                        [active]="fframe"
+                        (command)="close()"
+                     />
+                  </ng-template>
+                  <span class="fb-sep"></span>
+                  <button class="fb-btn" type="button" (click)="exporter.exportAllSlidesPdf()">Export PDF</button>
+               </div>
+               <div class="focus-bar right" (pointerdown)="$event.stopPropagation()">
+                  <button
+                     class="fb-btn go"
+                     type="button"
+                     (click)="deckFocus.presentDeck(fd)"
+                     [disabled]="!deckFocus.deckSlideCount(fd)"
+                  >
+                     ▶ Present <span class="fb-f5">F5</span>
+                  </button>
+                  @if (store.accessMode() === 'OWNER') {
+                     <button class="fb-btn outline" type="button" (click)="bridge.openShare()">Share</button>
                   }
-                </div>
-              </ng-template>
-              <button class="fb-btn" [disabled]="fslide.index >= deckSlideCount(fd)" (click)="stepTransition(1)" title="Next transition" aria-label="Next transition">›</button>
-            </div>
-            <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
-              <button class="fb-btn" [class.on]="compareUi.view() === 'map'" (click)="compareUi.view.set('map')">Map pairs</button>
-              <button class="fb-btn" [class.on]="compareUi.view() === 'preview'" (click)="compareUi.view.set('preview')">Preview</button>
-            </div>
-            </div>
-            <app-deck-compare
-              class="focus-compare"
-              [slide]="fslide.frame"
-              [previous]="fslide.prev"
-              [before]="fslide.prev2"
-              [after]="fslide.next"
-              [index]="fslide.index - 1"
-              (preview)="previewTransitionFor(fslide.frame.id)"
-              (pointerdown)="$event.stopPropagation()"
-            />
-          } @else {
-            <div class="focus-empty">The first slide has no transition into it.</div>
-          }
-          <div class="fdock right design col" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
-            <app-slides-panel
-              class="inner"
-              part="focus-transition"
-              [presentation]="fd"
-              [active]="fframe"
-              [lastSlide]="lastSlideOf(fd)"
-              (command)="onFocusCommand($event, fd)"
-            />
-            @if (fslide && fslide.prev) {
-              <app-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+               </div>
+               <dd-slides-panel
+                  class="fdock left"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
+                  part="focus-list"
+                  [presentation]="fd"
+                  [active]="fframe"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
+               />
+               <dd-slides-panel
+                  class="fdock right"
+                  part="focus-settings"
+                  [presentation]="fd"
+                  [active]="fframe"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
+               />
             }
-          </div>
-        }
 
-        @case ('anim') {
-          <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn" (click)="leaveFocusScreen()">{{ focusBackLabel() }}</button>
-            <span class="fb-sep"></span>
-            <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
-          </div>
-          <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-            <button class="fb-btn go" (click)="presentFromCurrent(fd)">▶ Preview slide</button>
-          </div>
-          <div class="fdock right anim col" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
-            <div class="fd-tabs">
-              <button class="fd-tab" (click)="stayInFocus()">Slide</button>
-              <button class="fd-tab" (click)="focusScreen.set('morph')">Transition</button>
-              <button class="fd-tab on">Animations</button>
-            </div>
-            <div class="fd-body">
-              @if (fslide) {
-                <app-animation-pane [slide]="fslide.frame" (play)="presentFromCurrent(fd)" />
-              }
-            </div>
-          </div>
-        }
+            @case ('design') {
+               <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn" type="button" (click)="deckFocus.closeFocusDesign(fd)">← Slides</button>
+                  <span class="fb-sep"></span>
+                  <span class="fb-name">{{ fd }}</span>
+               </div>
+               <div class="focus-bar center amber" (pointerdown)="$event.stopPropagation()">
+                  @if (deckFocus.focusLayoutInfo(); as li) {
+                     <span class="fb-banner">
+                        @if (li.master) {
+                           <b>Editing the master</b> · shown under every layout and slide
+                        } @else {
+                           <b>Editing layout “{{ li.name }}”</b> · used by {{ li.used }} slide{{
+                              li.used === 1 ? '' : 's'
+                           }}
+                           — changes show on all of them
+                        }
+                     </span>
+                  } @else {
+                     <span class="fb-banner"><b>Design</b> · pick a layout on the left to edit it</span>
+                  }
+                  <button class="fb-btn go" type="button" (click)="deckFocus.closeFocusDesign(fd)">Done</button>
+               </div>
+               <dd-slides-panel
+                  class="fdock left"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
+                  part="design-layouts"
+                  [presentation]="fd"
+                  [active]="fframe"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
+               />
+               <dd-slides-panel
+                  class="fdock right design"
+                  part="design-theme"
+                  [presentation]="fd"
+                  [active]="fframe"
+                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+                  (command)="deckFocus.onFocusCommand($event, fd)"
+               />
+            }
+
+            @case ('morph') {
+               <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
+                     {{ deckFocus.focusBackLabel() }}
+                  </button>
+                  <span class="fb-sep"></span>
+                  <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
+               </div>
+               @if (fslide && fslide.prev) {
+                  <div class="focus-row">
+                     <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
+                        <button
+                           class="fb-btn"
+                           type="button"
+                           [disabled]="fslide.index <= 2"
+                           (click)="deckFocus.stepTransition(-1)"
+                           title="Previous transition"
+                           aria-label="Previous transition"
+                        >
+                           ‹
+                        </button>
+                        <button
+                           class="fb-btn on"
+                           type="button"
+                           [ddPopoverTrigger]="pickTransition"
+                           placement="below-start"
+                        >
+                           Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾
+                        </button>
+                        <ng-template #pickTransition let-close>
+                           <div class="tr-pick" role="menu">
+                              @for (n of deckFocus.transitionNumbers(fd); track n) {
+                                 <button
+                                    role="menuitem"
+                                    type="button"
+                                    [class.on]="n === fslide.index"
+                                    (click)="deckFocus.goToTransition(n); close()"
+                                 >
+                                    Slide {{ n - 1 }} → {{ n }}
+                                 </button>
+                              }
+                           </div>
+                        </ng-template>
+                        <button
+                           class="fb-btn"
+                           type="button"
+                           [disabled]="fslide.index >= deckFocus.deckSlideCount(fd)"
+                           (click)="deckFocus.stepTransition(1)"
+                           title="Next transition"
+                           aria-label="Next transition"
+                        >
+                           ›
+                        </button>
+                     </div>
+                     <div class="focus-bar" (pointerdown)="$event.stopPropagation()">
+                        <button
+                           class="fb-btn"
+                           type="button"
+                           [class.on]="compareUi.view() === 'map'"
+                           (click)="compareUi.view.set('map')"
+                        >
+                           Map pairs
+                        </button>
+                        <button
+                           class="fb-btn"
+                           type="button"
+                           [class.on]="compareUi.view() === 'preview'"
+                           (click)="compareUi.view.set('preview')"
+                        >
+                           Preview
+                        </button>
+                     </div>
+                  </div>
+                  @defer (on immediate) {
+                     <dd-deck-compare
+                        class="focus-compare"
+                        [slide]="fslide.frame"
+                        [previous]="fslide.prev"
+                        [before]="fslide.prev2"
+                        [after]="fslide.next"
+                        [index]="fslide.index - 1"
+                        (preview)="deckFocus.previewTransitionFor(fslide.frame.id)"
+                        (pointerdown)="$event.stopPropagation()"
+                     />
+                  }
+               } @else {
+                  <div class="focus-empty">The first slide has no transition into it.</div>
+               }
+               <div
+                  class="fdock right design col"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+               >
+                  <dd-slides-panel
+                     class="inner"
+                     part="focus-transition"
+                     [presentation]="fd"
+                     [active]="fframe"
+                     [lastSlide]="slideshow.lastSlideOf(fd)"
+                     (command)="deckFocus.onFocusCommand($event, fd)"
+                  />
+                  @if (fslide && fslide.prev) {
+                     @defer (on immediate) {
+                        <dd-deck-compare class="pairs" mode="pairs" [slide]="fslide.frame" [previous]="fslide.prev" />
+                     }
+                  }
+               </div>
+            }
+
+            @case ('anim') {
+               <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
+                     {{ deckFocus.focusBackLabel() }}
+                  </button>
+                  <span class="fb-sep"></span>
+                  <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
+               </div>
+               <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
+                  <button class="fb-btn go" type="button" (click)="deckFocus.presentFromCurrent(fd)">
+                     ▶ Preview slide
+                  </button>
+               </div>
+               <div
+                  class="fdock right anim col"
+                  (pointerdown)="$event.stopPropagation()"
+                  (wheel)="$event.stopPropagation()"
+               >
+                  <div class="fd-tabs">
+                     <button class="fd-tab" type="button" (click)="deckFocus.stayInFocus()">Slide</button>
+                     <button class="fd-tab" type="button" (click)="deckFocus.focusScreen.set('morph')">
+                        Transition
+                     </button>
+                     <button class="fd-tab on" type="button">Animations</button>
+                  </div>
+                  <div class="fd-body">
+                     @if (fslide) {
+                        <dd-animation-pane [slide]="fslide.frame" (play)="deckFocus.presentFromCurrent(fd)" />
+                     }
+                  </div>
+               </div>
+            }
+         }
       }
-    }
 
-    @if (!presentation() && presenters()[0]; as who) {
-      <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
-        <span class="dot" [style.background]="who.color"></span>
-        {{ who.name }} is presenting
-        <button (click)="followPresenter(who.id)">Follow</button>
-      </div>
-    }
-
-    @if (presentation(); as p) {
-      <app-present-mode
-        [slides]="p.slides"
-        [startIndex]="p.start"
-        [autoplay]="p.preview"
-        [follow]="p.follow"
-        (closed)="onPresentationClosed($event)"
-      ></app-present-mode>
-    }
-
-    @if (fileNameEditor(); as f) {
-      <input
-        appAutofocus
-        class="file-name-editor"
-        type="text"
-        maxlength="120"
-        placeholder="untitled"
-        spellcheck="false"
-        [style.left.px]="f.left"
-        [style.top.px]="f.top"
-        [style.width.px]="f.width"
-        [style.height.px]="f.height"
-        [style.font-size.px]="f.fontSize"
-        [style.background]="f.background"
-        [style.color]="f.color"
-        [value]="f.value"
-        (pointerdown)="$event.stopPropagation()"
-        (dblclick)="$event.stopPropagation()"
-        (keydown)="onFileNameKeydown($event, f.id)"
-        (blur)="commitFileName(f.id, $any($event.target).value)"
-      />
-    }
-
-    @if (textEditor(); as t) {
-     @if (t.rich) {
-      @if (t.ink; as k) {
-        <div class="text-edit-frame" [style.left.px]="k.left" [style.top.px]="k.top" [style.width.px]="k.width" [style.height.px]="k.height"></div>
+      @if (!slideshow.presentation() && slideshow.presenters()[0]; as who) {
+         <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
+            <span class="dot" [style.background]="who.color"></span>
+            {{ who.name }} is presenting
+            <button type="button" (click)="slideshow.followPresenter(who.id)">Follow</button>
+         </div>
       }
-      <div
-        #richEditor
-        class="text-editor rich"
-        [class.bare]="!!t.ink"
-        [class.wrap]="t.wrap"
-        [style.width.px]="t.wrap ? t.width : null"
-        contenteditable="true"
-        spellcheck="false"
-        role="textbox"
-        aria-multiline="true"
-        [style.line-height.px]="t.lineHeight"
-        [style.left.px]="t.left"
-        [style.top.px]="t.top"
-        [style.min-width.px]="t.width"
-        [style.min-height.px]="t.height"
-        [style.font-size.px]="t.fontSize"
-        [style.font-family]="t.fontFamily"
-        [style.font-weight]="t.fontWeight"
-        [style.font-style]="t.italic ? 'italic' : 'normal'"
-        [style.text-align]="t.align"
-        [style.padding.px]="t.padding"
-        [style.color]="t.color"
-        (pointerdown)="$event.stopPropagation()"
-        (keydown)="onRichKeydown($event)"
-        (input)="onRichInput($event)"
-        (paste)="onRichPaste($event)"
-        (drop)="$event.preventDefault()"
-        (blur)="onRichBlur()"
-      ></div>
-     } @else {
-      <textarea
-        appAutofocus
-        class="text-editor"
-        [class.centered]="t.center"
-        [class.wrap]="t.wrap"
-        [class.code]="t.code"
-        [class.code-pane]="t.code"
-        [class.split-pane]="t.code && !!diffPaneEditor()"
-        [attr.spellcheck]="t.code ? 'false' : null"
-        [style.line-height.px]="t.lineHeight"
-        [style.left.px]="t.left"
-        [style.top.px]="t.top"
-        [style.width.px]="t.width"
-        [style.height.px]="t.height"
-        [style.font-size.px]="t.fontSize"
-        [style.font-family]="t.fontFamily"
-        [style.font-weight]="t.fontWeight"
-        [style.font-style]="t.italic ? 'italic' : 'normal'"
-        [style.text-align]="t.align"
-        [style.padding.px]="t.padding"
-        [style.padding-left.px]="t.padLeft"
-        [style.color]="t.color"
-        [style.caret-color]="t.code ? 'var(--dd-text)' : null"
-        [value]="t.value"
-        (pointerdown)="$event.stopPropagation()"
-        (keydown)="onEditorKeydown($event)"
-        (input)="onTextInput($any($event.target).value)"
-        (blur)="t.code ? onCodePaneBlur($event) : commitTextEdit()"
-      ></textarea>
-     }
-    }
 
-    @if (diffPaneEditor(); as p) {
-      <div class="diff-edit-frame" [style.left.px]="p.frame.left" [style.top.px]="p.frame.top"
-        [style.width.px]="p.frame.width" [style.height.px]="p.frame.height"></div>
-      <!-- A diff code block's changed (right) side, edited alongside the original. -->
-      <textarea
-        class="text-editor code code-pane split-pane diff-pane"
-        spellcheck="false"
-        [style.line-height.px]="p.lineHeight"
-        [style.left.px]="p.left"
-        [style.top.px]="p.top"
-        [style.width.px]="p.width"
-        [style.height.px]="p.height"
-        [style.font-size.px]="p.fontSize"
-        [style.font-family]="p.fontFamily"
-        [style.padding.px]="p.padding"
-        [style.padding-left.px]="p.padLeft"
-        style="color: transparent; caret-color: var(--dd-text)"
-        [value]="p.value"
-        (pointerdown)="$event.stopPropagation()"
-        (keydown)="onEditorKeydown($event)"
-        (input)="onDiffPaneInput($any($event.target).value)"
-        (blur)="onCodePaneBlur($event)"
-      ></textarea>
-    }
-
-    @if (gridCellEditor(); as gc) {
-      <textarea
-        #gridCellArea
-        class="text-editor wrap grid-cell-editor"
-        spellcheck="false"
-        [style.left.px]="gc.left"
-        [style.top.px]="gc.top"
-        [style.width.px]="gc.width"
-        [style.height.px]="gc.height"
-        [style.font-size.px]="gc.fontSize"
-        [style.font-family]="gc.fontFamily"
-        [style.font-weight]="gc.fontWeight"
-        [style.font-style]="gc.italic ? 'italic' : 'normal'"
-        [style.line-height.px]="gc.lineHeight"
-        [style.padding.px]="gc.padding"
-        [style.text-align]="gc.align"
-        [style.color]="gc.color"
-        [style.background]="gc.background"
-        (pointerdown)="$event.stopPropagation()"
-        (keydown)="onGridCellKeydown($event)"
-        (input)="grids.setEditingText($any($event.target).value); alignGridCellArea()"
-        (blur)="onGridCellBlur(gc.key)"
-      ></textarea>
-    }
-
-    @if (elementToolbar(); as et) {
-      <app-element-floating-toolbar
-        [style.left.px]="et.left"
-        [style.top.px]="et.top"
-        [element]="et.element"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      ></app-element-floating-toolbar>
-    }
-
-    @if (smartGuideMarks(); as sg) {
-      <svg class="smart-guides">
-        @for (l of sg.lines; track $index) {
-          <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
-        }
-        @for (g of sg.gaps; track $index) {
-          @for (s of g.segs; track $index) {
-            <line class="gap" [attr.x1]="s.x1" [attr.y1]="s.y1" [attr.x2]="s.x2" [attr.y2]="s.y2" />
-          }
-          <text [attr.x]="g.lx" [attr.y]="g.ly">{{ g.label }}</text>
-        }
-      </svg>
-    }
-
-    @if (spacingHandles(); as sh) {
-      <svg class="smart-guides">
-        @for (h of sh; track $index) {
-          <line class="gap" [attr.x1]="h.line.x1" [attr.y1]="h.line.y1" [attr.x2]="h.line.x2" [attr.y2]="h.line.y2" />
-          @for (k of h.ticks; track $index) {
-            <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" />
-          }
-          <text [attr.x]="h.lx" [attr.y]="h.ly">{{ h.label }}</text>
-        }
-      </svg>
-      @for (h of sh; track $index) {
-        <div
-          class="spacing-handle"
-          [class.vertical]="h.vertical"
-          [style.left.px]="h.left"
-          [style.top.px]="h.top"
-          [style.--span.px]="h.span"
-          title="Drag to change spacing"
-          (pointerdown)="startSpacingDrag($event)"
-        ></div>
+      @if (slideshow.presentation(); as p) {
+         @defer (on immediate) {
+            <dd-present-mode
+               [slides]="p.slides"
+               [startIndex]="p.start"
+               [autoplay]="p.preview"
+               [follow]="p.follow"
+               (closed)="slideshow.onPresentationClosed($event)"
+            ></dd-present-mode>
+         }
       }
-    }
 
-    @if (marqueeRect(); as m) {
-      <div
-        class="marquee"
-        [style.left.px]="m.left"
-        [style.top.px]="m.top"
-        [style.width.px]="m.width"
-        [style.height.px]="m.height"
-      ></div>
-    }
+      @if (cellEditors.fileNameEditor(); as f) {
+         <input
+            ddAutofocus
+            ddAutofocusSelect="textarea"
+            class="file-name-editor"
+            type="text"
+            maxlength="120"
+            placeholder="untitled"
+            spellcheck="false"
+            [style.left.px]="f.left"
+            [style.top.px]="f.top"
+            [style.width.px]="f.width"
+            [style.height.px]="f.height"
+            [style.font-size.px]="f.fontSize"
+            [style.background]="f.background"
+            [style.color]="f.color"
+            [value]="f.value"
+            (pointerdown)="$event.stopPropagation()"
+            (dblclick)="$event.stopPropagation()"
+            (keydown)="cellEditors.onFileNameKeydown($event, f.id)"
+            (blur)="cellEditors.commitFileName(f.id, $any($event.target).value)"
+         />
+      }
 
-    @if (multiSelectBar(); as ms) {
-      <app-multi-select-bar
-        [style.left.px]="ms.left"
-        [style.top.px]="ms.top"
-        [count]="ms.count"
-        [grouped]="ms.grouped"
-        [canDistribute]="canDistribute()"
-        [canStyle]="selectionStylable()"
-        (fill)="styleSelection('fill', $event)"
-        (stroke)="styleSelection('stroke', $event)"
-        (pointerdown)="$event.stopPropagation()"
-        (align)="onAlign($event)"
-        (group)="store.groupSelection()"
-        (ungroup)="store.ungroupSelection()"
-        (arrange)="store.arrangeSelection($event)"
-        (duplicate)="duplicateSelectionInPlace()"
-        (remove)="deleteSelection()"
-      ></app-multi-select-bar>
-    }
+      @if (textEditing.textEditor(); as t) {
+         @if (t.rich) {
+            @if (t.ink; as k) {
+               <div
+                  class="text-edit-frame"
+                  [style.left.px]="k.left"
+                  [style.top.px]="k.top"
+                  [style.width.px]="k.width"
+                  [style.height.px]="k.height"
+               ></div>
+            }
+            <div
+               #richEditor
+               class="text-editor rich"
+               [class.bare]="!!t.ink"
+               [class.wrap]="t.wrap"
+               [style.width.px]="t.wrap ? t.width : null"
+               contenteditable="true"
+               spellcheck="false"
+               role="textbox"
+               aria-multiline="true"
+               [style.line-height.px]="t.lineHeight"
+               [style.left.px]="t.left"
+               [style.top.px]="t.top"
+               [style.min-width.px]="t.width"
+               [style.min-height.px]="t.height"
+               [style.font-size.px]="t.fontSize"
+               [style.font-family]="t.fontFamily"
+               [style.font-weight]="t.fontWeight"
+               [style.font-style]="t.italic ? 'italic' : 'normal'"
+               [style.text-align]="t.align"
+               [style.padding.px]="t.padding"
+               [style.color]="t.color"
+               (pointerdown)="$event.stopPropagation()"
+               (keydown)="textEditing.onRichKeydown($event)"
+               (input)="textEditing.onRichInput($event)"
+               (paste)="textEditing.onRichPaste($event)"
+               (drop)="$event.preventDefault()"
+               (blur)="textEditing.onRichBlur()"
+            ></div>
+         } @else {
+            <textarea
+               ddAutofocus
+               ddAutofocusSelect="textarea"
+               class="text-editor"
+               [class.centered]="t.center"
+               [class.wrap]="t.wrap"
+               [class.code]="t.code"
+               [class.code-pane]="t.code"
+               [class.split-pane]="t.code && !!textEditing.diffPaneEditor()"
+               [attr.spellcheck]="t.code ? 'false' : null"
+               [style.line-height.px]="t.lineHeight"
+               [style.left.px]="t.left"
+               [style.top.px]="t.top"
+               [style.width.px]="t.width"
+               [style.height.px]="t.height"
+               [style.font-size.px]="t.fontSize"
+               [style.font-family]="t.fontFamily"
+               [style.font-weight]="t.fontWeight"
+               [style.font-style]="t.italic ? 'italic' : 'normal'"
+               [style.text-align]="t.align"
+               [style.padding.px]="t.padding"
+               [style.padding-left.px]="t.padLeft"
+               [style.color]="t.color"
+               [style.caret-color]="t.code ? 'var(--dd-text)' : null"
+               [value]="t.value"
+               (pointerdown)="$event.stopPropagation()"
+               (keydown)="textEditing.onEditorKeydown($event)"
+               (input)="textEditing.onTextInput($any($event.target).value)"
+               (blur)="t.code ? textEditing.onCodePaneBlur($event) : textEditing.commitTextEdit()"
+            ></textarea>
+         }
+      }
 
-    @if (tableToolbar(); as tt) {
-      <app-table-toolbar
-        [style.left.px]="tt.left"
-        [style.top.px]="tt.top"
-        [table]="tt.table"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      ></app-table-toolbar>
-    }
+      @if (textEditing.diffPaneEditor(); as p) {
+         <div
+            class="diff-edit-frame"
+            [style.left.px]="p.frame.left"
+            [style.top.px]="p.frame.top"
+            [style.width.px]="p.frame.width"
+            [style.height.px]="p.frame.height"
+         ></div>
+         <!-- A diff code block's changed (right) side, edited alongside the original. -->
+         <textarea
+            class="text-editor code code-pane split-pane diff-pane"
+            spellcheck="false"
+            [style.line-height.px]="p.lineHeight"
+            [style.left.px]="p.left"
+            [style.top.px]="p.top"
+            [style.width.px]="p.width"
+            [style.height.px]="p.height"
+            [style.font-size.px]="p.fontSize"
+            [style.font-family]="p.fontFamily"
+            [style.padding.px]="p.padding"
+            [style.padding-left.px]="p.padLeft"
+            style="color: transparent; caret-color: var(--dd-text)"
+            [value]="p.value"
+            (pointerdown)="$event.stopPropagation()"
+            (keydown)="textEditing.onEditorKeydown($event)"
+            (input)="textEditing.onDiffPaneInput($any($event.target).value)"
+            (blur)="textEditing.onCodePaneBlur($event)"
+         ></textarea>
+      }
 
-    @if (sequenceMessageToolbar(); as mt) {
-      <app-sequence-message-toolbar
-        [style.left.px]="mt.left"
-        [style.top.px]="mt.top"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      ></app-sequence-message-toolbar>
-    }
+      @if (cellEditors.gridCellEditor(); as gc) {
+         <textarea
+            #gridCellArea
+            class="text-editor wrap grid-cell-editor"
+            spellcheck="false"
+            [style.left.px]="gc.left"
+            [style.top.px]="gc.top"
+            [style.width.px]="gc.width"
+            [style.height.px]="gc.height"
+            [style.font-size.px]="gc.fontSize"
+            [style.font-family]="gc.fontFamily"
+            [style.font-weight]="gc.fontWeight"
+            [style.font-style]="gc.italic ? 'italic' : 'normal'"
+            [style.line-height.px]="gc.lineHeight"
+            [style.padding.px]="gc.padding"
+            [style.text-align]="gc.align"
+            [style.color]="gc.color"
+            [style.background]="gc.background"
+            (pointerdown)="$event.stopPropagation()"
+            (keydown)="cellEditors.onGridCellKeydown($event)"
+            (input)="grids.setEditingText($any($event.target).value); cellEditors.alignGridCellArea()"
+            (blur)="cellEditors.onGridCellBlur(gc.key)"
+         ></textarea>
+      }
 
-    @if (sequenceDiagramToolbar(); as dt) {
-      <app-sequence-diagram-toolbar
-        [style.left.px]="dt.left"
-        [style.top.px]="dt.top"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      ></app-sequence-diagram-toolbar>
-    }
+      @if (bars.elementToolbar(); as et) {
+         <dd-element-floating-toolbar
+            [style.left.px]="et.left"
+            [style.top.px]="et.top"
+            [element]="et.element"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+         ></dd-element-floating-toolbar>
+      }
 
-    @if (sequenceParticipantToolbar(); as pt) {
-      <app-sequence-participant-toolbar
-        [style.left.px]="pt.left"
-        [style.top.px]="pt.top"
-        (pointerdown)="$event.stopPropagation()"
-        (wheel)="$event.stopPropagation()"
-      ></app-sequence-participant-toolbar>
-    }
+      @if (snap.smartGuideMarks(); as sg) {
+         <svg class="smart-guides">
+            @for (l of sg.lines; track $index) {
+               <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
+            }
+            @for (g of sg.gaps; track $index) {
+               @for (s of g.segs; track $index) {
+                  <line class="gap" [attr.x1]="s.x1" [attr.y1]="s.y1" [attr.x2]="s.x2" [attr.y2]="s.y2" />
+               }
+               <text [attr.x]="g.lx" [attr.y]="g.ly">{{ g.label }}</text>
+            }
+         </svg>
+      }
 
-    @if (selectedRelInline(); as info) {
-      <app-relationship-toolbar
-        [style.left.px]="info.x"
-        [style.top.px]="info.y"
-        [type]="info.rel.type"
-        [autoRoute]="info.rel.autoRoute !== false"
-        [canEdit]="store.canEdit()"
-        (pointerdown)="$event.stopPropagation()"
-        (toggleAutoRoute)="onToggleAutoRoute()"
-        (setType)="onSetRelType($event)"
-        (resetRoute)="onResetRoute(info.rel.id)"
-        (deleteRelationship)="onDeleteRel()"
-      ></app-relationship-toolbar>
-    }
+      @if (groupTransform.spacingHandles(); as sh) {
+         <svg class="smart-guides">
+            @for (h of sh; track $index) {
+               <line
+                  class="gap"
+                  [attr.x1]="h.line.x1"
+                  [attr.y1]="h.line.y1"
+                  [attr.x2]="h.line.x2"
+                  [attr.y2]="h.line.y2"
+               />
+               @for (k of h.ticks; track $index) {
+                  <line [attr.x1]="k.x1" [attr.y1]="k.y1" [attr.x2]="k.x2" [attr.y2]="k.y2" />
+               }
+               <text [attr.x]="h.lx" [attr.y]="h.ly">{{ h.label }}</text>
+            }
+         </svg>
+         @for (h of sh; track $index) {
+            <div
+               class="spacing-handle"
+               [class.vertical]="h.vertical"
+               [style.left.px]="h.left"
+               [style.top.px]="h.top"
+               [style.--span.px]="h.span"
+               title="Drag to change spacing"
+               (pointerdown)="groupTransform.startSpacingDrag($event)"
+            ></div>
+         }
+      }
 
-    @if (store.loading()) {
-      <div class="overlay">
-        <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
-      </div>
-    } @else if (store.error()) {
-      <div class="overlay muted">{{ store.error() }}</div>
-    } @else if (
-      store.tables().length === 0 &&
-      store.elements().length === 0 &&
-      store.lifelines().length === 0
-    ) {
-      <div class="overlay hint">
-        Use the Table or Sequence tool to start, or double-click the canvas to add text.
-      </div>
-    }
+      @if (pointer.marqueeRect(); as m) {
+         <div
+            class="marquee"
+            [style.left.px]="m.left"
+            [style.top.px]="m.top"
+            [style.width.px]="m.width"
+            [style.height.px]="m.height"
+         ></div>
+      }
 
-    <!-- Inspectors float over the canvas (they do not push it, and clear the top
+      @if (bars.multiSelectBar(); as ms) {
+         <dd-multi-select-bar
+            [style.left.px]="ms.left"
+            [style.top.px]="ms.top"
+            [count]="ms.count"
+            [grouped]="ms.grouped"
+            [canDistribute]="align.canDistribute()"
+            [canStyle]="bars.selectionStylable()"
+            (fill)="bars.styleSelection('fill', $event)"
+            (stroke)="bars.styleSelection('stroke', $event)"
+            (pointerdown)="$event.stopPropagation()"
+            (align)="align.onAlign($event)"
+            (group)="store.groupSelection()"
+            (ungroup)="store.ungroupSelection()"
+            (arrange)="store.arrangeSelection($event)"
+            (duplicate)="duplicateSelectionInPlace()"
+            (remove)="shortcuts.deleteSelection()"
+         ></dd-multi-select-bar>
+      }
+
+      @if (bars.tableToolbar(); as tt) {
+         <dd-table-toolbar
+            [style.left.px]="tt.left"
+            [style.top.px]="tt.top"
+            [table]="tt.table"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+         ></dd-table-toolbar>
+      }
+
+      @if (bars.sequenceMessageToolbar(); as mt) {
+         <dd-sequence-message-toolbar
+            [style.left.px]="mt.left"
+            [style.top.px]="mt.top"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+         ></dd-sequence-message-toolbar>
+      }
+
+      @if (bars.sequenceDiagramToolbar(); as dt) {
+         <dd-sequence-diagram-toolbar
+            [diagram]="store.selectedDiagram()"
+            [canEdit]="store.canEdit()"
+            [style.left.px]="dt.left"
+            [style.top.px]="dt.top"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+            (diagramPatch)="store.updateSequenceConfig($event.id, $event.patch)"
+         ></dd-sequence-diagram-toolbar>
+      }
+
+      @if (bars.sequenceParticipantToolbar(); as pt) {
+         <dd-sequence-participant-toolbar
+            [style.left.px]="pt.left"
+            [style.top.px]="pt.top"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
+         ></dd-sequence-participant-toolbar>
+      }
+
+      @if (relLink.selectedRelInline(); as info) {
+         <dd-relationship-toolbar
+            [style.left.px]="info.x"
+            [style.top.px]="info.y"
+            [type]="info.rel.type"
+            [autoRoute]="info.rel.autoRoute !== false"
+            [canEdit]="store.canEdit()"
+            (pointerdown)="$event.stopPropagation()"
+            (toggleAutoRoute)="relLink.onToggleAutoRoute()"
+            (setType)="relLink.onSetRelType($event)"
+            (resetRoute)="relLink.onResetRoute(info.rel.id)"
+            (deleteRelationship)="relLink.onDeleteRel()"
+         ></dd-relationship-toolbar>
+      }
+
+      @if (store.loading()) {
+         <div class="overlay">
+            <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+         </div>
+      } @else if (store.error()) {
+         <div class="overlay muted">{{ store.error() }}</div>
+      } @else if (store.tables().length === 0 && store.elements().length === 0 && store.lifelines().length === 0) {
+         <div class="overlay hint">
+            Use the Table or Sequence tool to start, or double-click the canvas to add text.
+         </div>
+      }
+
+      <!-- Inspectors float over the canvas (they do not push it, and clear the top
          bar and share button). -->
-    @if (inspector.shown() && hasInspectable()) {
-      <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
-        <div class="side-ctrls">
-          <button
-            class="side-ctrl"
-            [class.on]="inspector.pinned()"
-            (click)="inspector.togglePin()"
-            [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
-            [attr.title]="inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'"
-          >
-            <dd-icon name="push_pin" />
-          </button>
-          <button class="side-ctrl" (click)="inspector.close()" aria-label="Close details" title="Close details">
-            <dd-icon name="close" />
-          </button>
-        </div>
-        @if (store.selectedTable(); as table) {
-          <app-inspector [table]="table"></app-inspector>
-        } @else if (store.selectedRelationship(); as relationship) {
-          <app-relationship-inspector [relationship]="relationship"></app-relationship-inspector>
-        } @else if (store.selectedElement(); as element) {
-          <app-element-inspector [element]="element"></app-element-inspector>
-        } @else {
-          <app-sequence-inspector></app-sequence-inspector>
-        }
-      </div>
-    }
-  </div>
+      @if (inspector.shown() && hasInspectable()) {
+         <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+            <div class="side-ctrls">
+               <button
+                  class="side-ctrl"
+                  type="button"
+                  [class.on]="inspector.pinned()"
+                  (click)="inspector.togglePin()"
+                  [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
+                  [attr.title]="
+                     inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'
+                  "
+               >
+                  <dd-icon name="push_pin" />
+               </button>
+               <button
+                  class="side-ctrl"
+                  type="button"
+                  (click)="inspector.close()"
+                  aria-label="Close details"
+                  title="Close details"
+               >
+                  <dd-icon name="close" />
+               </button>
+            </div>
+            @if (store.selectedTable(); as table) {
+               <dd-inspector [table]="table"></dd-inspector>
+            } @else if (store.selectedRelationship(); as relationship) {
+               <dd-relationship-inspector [relationship]="relationship"></dd-relationship-inspector>
+            } @else if (store.selectedElement(); as element) {
+               <dd-element-inspector [element]="element"></dd-element-inspector>
+            } @else {
+               <dd-sequence-inspector></dd-sequence-inspector>
+            }
+         </div>
+      }
+   </div>
 </div>

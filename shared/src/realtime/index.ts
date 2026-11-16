@@ -33,6 +33,8 @@ export const RT_EVENTS = {
   mutation: 'project:mutation',
   /** Several changes from one request (batch, import, clone), applied as one update. */
   mutations: 'project:mutations',
+  /** Sent once per connection: the server-assigned client id for this socket (L-1). */
+  session: 'session',
   // clients -> server (cursor/selection/laser are reused by name)
 } as const;
 
@@ -80,8 +82,8 @@ export interface PresenceSelection {
 /**
  * A single broadcastable schema change. The payload of each variant matches the
  * shape the corresponding REST endpoint returns, so peers apply it directly to
- * their store. `originClientId` is the X-Client-Id of the tab that made the
- * change, so that tab can ignore its own echo (it already applied it optimistically).
+ * their store. The tab that made the change does not receive it: the server skips
+ * the socket whose server-assigned client id came with the write (X-Client-Id).
  */
 export type SchemaMutation =
   | { kind: 'table.created'; table: TableModel }
@@ -116,11 +118,67 @@ export type SchemaMutation =
   | { kind: 'message.moved'; messageId: string; y: number }
   | { kind: 'message.deleted'; messageId: string }
   | { kind: 'home.updated'; home: ViewportModel | null }
-  | { kind: 'themes.updated'; themes: SlideTheme[] };
+  | { kind: 'themes.updated'; themes: SlideTheme[] }
+  | SchemaPatchMutation;
+
+/**
+ * Partial-update mutations (perf P3.1). `patch` holds only the model fields that
+ * changed, in the shape of the matching model; `unset` lists optional model fields
+ * that are now absent. Apply as `{ ...model, ...patch }` minus the `unset` keys.
+ * Creates keep the full-model kinds.
+ *
+ * Part of {@link SchemaMutation}: every client's applyRemote merges them. The server
+ * emits them for batch updates when REALTIME_PATCH_MUTATIONS is on (the default).
+ */
+export interface ModelPatch<T> {
+  patch: Partial<T>;
+  unset?: Array<keyof T & string>;
+}
+
+export type SchemaPatchMutation =
+  | ({ kind: 'table.patched'; tableId: string } & ModelPatch<Omit<TableModel, 'id' | 'columns' | 'indexes'>>)
+  | ({ kind: 'column.patched'; tableId: string; columnId: string } & ModelPatch<Omit<ColumnModel, 'id'>>)
+  | ({ kind: 'index.patched'; tableId: string; indexId: string } & ModelPatch<Omit<IndexModel, 'id'>>)
+  | ({ kind: 'relationship.patched'; relationshipId: string } & ModelPatch<Omit<RelationshipModel, 'id'>>)
+  | ({ kind: 'element.patched'; elementId: string } & ModelPatch<Omit<CanvasElementModel, 'id'>>)
+  | ({ kind: 'sequenceDiagram.patched'; diagramId: string } & ModelPatch<Omit<SequenceDiagramModel, 'id'>>)
+  | ({ kind: 'lifeline.patched'; lifelineId: string } & ModelPatch<Omit<LifelineModel, 'id'>>)
+  | ({ kind: 'message.patched'; messageId: string } & ModelPatch<Omit<SequenceMessageModel, 'id'>>);
+
+/** Everything the server may broadcast (patch kinds included). Kept as an alias of {@link SchemaMutation}. */
+export type RealtimeMutation = SchemaMutation;
+
+/** Fields of a model whose values differ (by JSON value), as a {@link ModelPatch} (never the id). */
+export function diffModel<T extends object>(before: T, after: T): ModelPatch<Omit<T, 'id'>> | null {
+  const patch: Partial<T> = {};
+  const unset: Array<keyof T & string> = [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<keyof T & string>;
+  for (const key of keys) {
+    if (key === ('id' as keyof T)) continue;
+    const a = before[key];
+    const b = after[key];
+    if (b === undefined) {
+      if (a !== undefined) unset.push(key);
+    } else if (a === undefined || JSON.stringify(a) !== JSON.stringify(b)) {
+      patch[key] = b;
+    }
+  }
+  if (!unset.length && !Object.keys(patch).length) return null;
+  const change = (unset.length ? { patch, unset } : { patch }) as unknown as ModelPatch<Omit<T, 'id'>>;
+  return change;
+}
+
+/** Apply a {@link ModelPatch} to a model (pure). */
+export function applyModelPatch<T extends object>(model: T, change: ModelPatch<Partial<T>>): T {
+  const next = { ...model, ...change.patch } as T;
+  for (const key of change.unset ?? []) delete (next as Record<string, unknown>)[key];
+  return next;
+}
 
 /** Envelope broadcast to a project room for every persisted schema change. */
 export interface MutationEvent {
   projectId: string;
+  /** The writer's X-Client-Id on the server bus; always null on the wire. */
   originClientId: string | null;
   mutation: SchemaMutation;
 }
@@ -128,6 +186,7 @@ export interface MutationEvent {
 /** Envelope for many changes persisted by one request, broadcast as ONE socket message. */
 export interface MutationBatchEvent {
   projectId: string;
+  /** The writer's X-Client-Id on the server bus; always null on the wire. */
   originClientId: string | null;
   mutations: SchemaMutation[];
 }
@@ -137,13 +196,20 @@ export const PROJECT_MUTATION_EVENT = 'project.mutation';
 /** Internal bus event carrying a MutationBatchEvent. */
 export const PROJECT_MUTATIONS_EVENT = 'project.mutations';
 
+/**
+ * Sent by the server right after a socket joins. The client sends `clientId` as
+ * X-Client-Id on its writes so their broadcasts skip this socket. It is minted
+ * by the server and only honored for the principal that opened the socket.
+ */
+export interface RealtimeSession {
+  clientId: string;
+}
+
 /** Handshake auth payload the client sends when opening the socket. */
 export interface RealtimeHandshakeAuth {
   projectId: string;
   /** Present only in shared (anonymous link) mode. */
   token?: string;
-  /** The tab's X-Client-Id, so its own broadcasts can be self-filtered. */
-  clientId: string;
   /** This browser's guest id (localStorage), scoping account-free projects. */
   guestId?: string;
 }

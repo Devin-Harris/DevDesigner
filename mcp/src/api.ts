@@ -1,5 +1,34 @@
 /** Thin REST client for the DevDesigner backend. Every call acts as the token's owner. */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+/** Reported in the User-Agent and the MCP server info. */
+export const MCP_VERSION = '0.1.0';
+export const MCP_USER_AGENT = `devdesigner-mcp/${MCP_VERSION}`;
+
+/**
+ * The MCP tool whose handler is running, per async call chain (tools of one
+ * session can run concurrently). Sent as X-MCP-Tool so the API can attribute
+ * requests to tools (analytics only; never trusted for authorization).
+ */
+const currentTool = new AsyncLocalStorage<string>();
+
+/** Run `fn` with every API request it makes tagged with `tool`. */
+export function runWithTool<T>(tool: string, fn: () => T): T {
+  return currentTool.run(tool, fn);
+}
+
+/** Headers every request carries: auth, the realtime origin tag, user agent and tool name. */
+export function baseHeaders(token: string): Record<string, string> {
+  const tool = currentTool.getStore();
+  return {
+    Authorization: `Bearer ${token}`,
+    'X-Client-Id': 'mcp-server',
+    'User-Agent': MCP_USER_AGENT,
+    ...(tool ? { 'X-MCP-Tool': tool } : {}),
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -81,7 +110,7 @@ export class DevDesignerApi {
     let response: Response;
     try {
       response = await fetch(`${this.config.baseUrl}${path}`, {
-        headers: { Authorization: `Bearer ${this.config.token}`, 'X-Client-Id': 'mcp-server' },
+        headers: baseHeaders(this.config.token),
       });
     } catch (err) {
       throw new ApiError(0, `Cannot reach the DevDesigner API at ${this.config.baseUrl} (${(err as Error).message}).`);
@@ -109,8 +138,7 @@ export class DevDesignerApi {
       response = await fetch(`${this.config.baseUrl}${path}`, {
         method,
         headers: {
-          Authorization: `Bearer ${this.config.token}`,
-          'X-Client-Id': 'mcp-server',
+          ...baseHeaders(this.config.token),
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(method === 'GET' && this.etags.has(path) ? { 'If-None-Match': this.etags.get(path)!.tag } : {}),
         },

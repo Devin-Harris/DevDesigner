@@ -1,0 +1,39 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Events</h1>
+      <p class="page-meta">Raw captured events, last 7 days. Props are allow-listed: no content is ever recorded.</p>
+   </div>
+</header>
+
+<div class="toolbar">
+   <dd-select
+      class="name-filter"
+      aria-label="Event name"
+      [ngModel]="query$().name"
+      [options]="nameOptions"
+      (ngModelChange)="filter($event)"
+   ></dd-select>
+   <span class="toolbar-spacer"></span>
+   <button class="text-button" type="button" [disabled]="!hasNewer$()" (click)="newer()">Newer</button>
+   @if (nextCursor$(); as cursor) {
+      <button class="text-button" type="button" (click)="older(cursor)">Older</button>
+   } @else {
+      <button class="text-button" type="button" disabled>Older</button>
+   }
+</div>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+@if (view$().value?.analyticsEnabled === false) {
+   <p class="page-notice">Analytics is off (ANALYTICS_ENABLED=false): nothing is captured.</p>
+}
+
+<div class="page-body" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+   <dd-admin-data-table
+      [columns]="columns"
+      [emptyText]="view$().loading ? 'Loading…' : 'No events'"
+      [label]="'Captured events'"
+      [rows]="rows$()"
+   ></dd-admin-data-table>
+</div>

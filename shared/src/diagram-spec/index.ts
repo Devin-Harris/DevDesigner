@@ -10,10 +10,11 @@ import type { RelationshipType } from '../enums';
 import { HEADER_COLOR_CYCLE, paletteNames } from '../palette';
 import { resolveColorOrToken, tokenOf } from '../slides/themes';
 import { morphIdForTag } from '../slides';
+import { estimateTableHeight, estimateTableWidth, tableDisplayScale } from './table-metrics';
+import { isUnsignedType, parseDataType } from '../sql/data-type';
 import type {
   CanvasElementModel,
   ColumnModel,
-  DataType,
   LifelineModel,
   RelationshipModel,
   SchemaModel,
@@ -24,16 +25,7 @@ import type {
 
 // --- Geometry ----------------------------------------------------------------
 
-/** Rendered table node metrics. Mirror of the client's canvas constants. */
-export const TABLE_NODE_WIDTH = 280;
-export const TABLE_HEADER_H = 40;
-export const TABLE_ROW_H = 34;
-const MAX_NAME_CHARS = 50;
-const NAME_CHAR_W = 8;
-const HEADER_CHAR_W = 8.5;
-const ROW_FIXED_W = 220;
-const VARCHAR_FIXED_W = 50;
-const HEADER_FIXED_W = 92;
+export * from './table-metrics';
 
 /** An axis-aligned world-space rectangle. */
 export interface Rect {
@@ -43,46 +35,13 @@ export interface Rect {
   h: number;
 }
 
-/** Rendered width of a table (matches the client's auto-fit rule). */
-export function estimateTableWidth(
-  name: string,
-  columns: ReadonlyArray<{ name: string; dataType: { name: string } }>,
-  manualWidth?: number,
-): number {
-  if (manualWidth) {
-    return Math.round(Math.min(1200, Math.max(240, manualWidth)));
-  }
-  const chars = (s: string): number => Math.min(s.length, MAX_NAME_CHARS);
-  let need = HEADER_FIXED_W + chars(name) * HEADER_CHAR_W;
-  for (const column of columns) {
-    const fixed = ROW_FIXED_W + (column.dataType.name === 'VARCHAR' ? VARCHAR_FIXED_W : 0);
-    need = Math.max(need, fixed + chars(column.name) * NAME_CHAR_W);
-  }
-  return Math.max(TABLE_NODE_WIDTH, Math.ceil(need));
-}
-
-/** Rendered height of a table node. */
-export function estimateTableHeight(columnCount: number): number {
-  return TABLE_HEADER_H + Math.max(1, columnCount) * TABLE_ROW_H;
-}
-
-/** Range the editor allows a table's display scale to take (mirror of canvas.constants). */
-export const MIN_TABLE_SCALE = 0.4;
-export const MAX_TABLE_SCALE = 3;
-
-/** A table's effective display scale (1 = natural size), clamped like the editor does. */
-export function tableDisplayScale(table: Pick<TableModel, 'scale'>): number {
-  const s = table.scale;
-  return s && s > 0 ? Math.min(MAX_TABLE_SCALE, Math.max(MIN_TABLE_SCALE, s)) : 1;
-}
-
 /** A table's world-space footprint (including its display scale). */
 export function tableRect(table: TableModel): Rect {
   const s = tableDisplayScale(table);
   return {
     x: table.x,
     y: table.y,
-    w: Math.round(estimateTableWidth(table.name, table.columns, table.width) * s),
+    w: Math.round(estimateTableWidth(table.name, table.columns) * s),
     h: estimateTableHeight(table.columns.length) * s,
   };
 }
@@ -446,40 +405,6 @@ export interface BuiltSpec {
   file: ProjectExportFile;
   /** Human-readable problems found while resolving references (skipped, not fatal). */
   warnings: string[];
-}
-
-const UNSIGNED_SUFFIX = /\s+(UN)?SIGNED(\s+ZEROFILL)?\s*$/i;
-
-/** True when a raw SQL type carries the UNSIGNED modifier ("INT UNSIGNED", "BIGINT(20) unsigned"). */
-export function isUnsignedType(input: string | undefined): boolean {
-  return /\s+UNSIGNED(\s+ZEROFILL)?\s*$/i.test(input ?? '');
-}
-
-/**
- * Parse "VARCHAR(255)" / "DECIMAL(10,2)" / "ENUM('a','b')" into a DataType. A
- * trailing SIGNED/UNSIGNED modifier is dropped: it is a column flag
- * (`isUnsigned`, see isUnsignedType), not part of the type name.
- */
-export function parseDataType(input: string | undefined): DataType {
-  const raw = (input ?? 'VARCHAR(255)').trim().replace(UNSIGNED_SUFFIX, '');
-  const m = /^([A-Za-z_ ]+?)\s*(?:\((.*)\))?$/.exec(raw);
-  if (!m) {
-    return { name: raw.toUpperCase() };
-  }
-  const name = m[1].trim().toUpperCase();
-  const inner = m[2]?.trim();
-  if (!inner) {
-    return name === 'VARCHAR' ? { name, length: 255 } : { name };
-  }
-  const parts = inner
-    .split(',')
-    .map((p) => p.trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1'))
-    .filter((p) => p.length > 0);
-  if (name === 'VARCHAR' || name === 'CHAR') {
-    const n = Number(parts[0]);
-    return Number.isInteger(n) && n > 0 ? { name: 'VARCHAR', length: n } : { name: 'VARCHAR', length: 255 };
-  }
-  return { name, args: parts };
 }
 
 /**

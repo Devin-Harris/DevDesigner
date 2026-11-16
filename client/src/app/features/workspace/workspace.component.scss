@@ -1,19 +1,19 @@
 :host {
-  display: block;
-  height: 100%;
+   display: block;
+   height: 100%;
 }
 
 .ws {
-  height: 100%;
-  background: var(--dd-canvas-bg);
+   height: 100%;
+   background: var(--dd-canvas-bg);
 }
 
-app-editor {
-  display: block;
-  height: 100%;
+dd-editor {
+   display: block;
+   height: 100%;
 }
 
-app-home {
-  display: block;
-  height: 100%;
+dd-home {
+   display: block;
+   height: 100%;
 }

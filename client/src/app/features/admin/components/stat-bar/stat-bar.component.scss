@@ -1,0 +1,54 @@
+:host {
+   display: block;
+   min-width: 0;
+}
+
+.stat-bar {
+   display: flex;
+   gap: 2px;
+   height: 8px;
+   overflow: hidden;
+   border-radius: 4px;
+}
+
+.stat-part {
+   flex-basis: 0;
+   min-width: 2px;
+}
+
+.stat-legend {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px 16px;
+   margin: 10px 0 0;
+   padding: 0;
+   list-style: none;
+}
+
+.stat-legend-item {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   font-size: 12px;
+}
+
+.stat-swatch {
+   width: 8px;
+   height: 8px;
+   border-radius: 2px;
+}
+
+.stat-name {
+   color: var(--dd-text);
+}
+
+.stat-value {
+   color: var(--dd-text-muted);
+   font-variant-numeric: tabular-nums;
+}
+
+.stat-empty {
+   margin: 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}

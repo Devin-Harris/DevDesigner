@@ -1,12 +1,10 @@
 // Pure helpers over the shared schema model: name resolution and the compact
 // summaries returned to the model. No network, no MCP types, so they unit-test.
 
-import {
-  gridSummary, colorName, isSoloTag, morphTagOf } from '@devdesigner/shared';
+import { colorName, formatDataType, gridSummary, isSoloTag, morphTagOf } from '@devdesigner/shared';
 import type {
   CanvasElementModel,
   ColumnModel,
-  DataType,
   LifelineModel,
   ProjectGraphResponse,
   SchemaModel,
@@ -17,12 +15,8 @@ import type {
 /** A failure the model can act on (bad name, ambiguous reference...). Shown verbatim. */
 export class UserError extends Error {}
 
-/** "VARCHAR(255)", "DECIMAL(10,2)", "ENUM('a','b')" -> display string. */
-export function formatDataType(type: DataType): string {
-  if (type.length) return `${type.name}(${type.length})`;
-  if (type.args?.length) return `${type.name}(${type.args.join(',')})`;
-  return type.name;
-}
+/** Moved to `@devdesigner/shared` (sql/data-type); re-exported for the tool modules. */
+export { formatDataType } from '@devdesigner/shared';
 
 function norm(s: string): string {
   return s.trim().toLowerCase();

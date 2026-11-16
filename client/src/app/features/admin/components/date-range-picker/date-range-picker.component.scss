@@ -1,0 +1,40 @@
+:host {
+   display: inline-block;
+}
+
+.range {
+   display: inline-flex;
+   gap: 2px;
+   padding: 2px;
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+}
+
+.range-option {
+   padding: 5px 10px;
+   background: none;
+   border: 0;
+   border-radius: 4px;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 12px;
+   white-space: nowrap;
+   cursor: pointer;
+
+   &:hover {
+      color: var(--dd-text);
+   }
+
+   &.on {
+      background: var(--dd-surface);
+      box-shadow: var(--dd-shadow-1);
+      color: var(--dd-text);
+      font-weight: 600;
+   }
+
+   &:focus-visible {
+      outline: 2px solid var(--dd-primary);
+      outline-offset: 1px;
+   }
+}

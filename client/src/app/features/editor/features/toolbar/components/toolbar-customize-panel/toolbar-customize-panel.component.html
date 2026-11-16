@@ -1,0 +1,135 @@
+<div class="scrim" (pointerdown)="close()"></div>
+<div class="panel" role="dialog" aria-label="Customize toolbar" (pointerdown)="$event.stopPropagation()">
+   <div class="head">
+      <span class="title">Customize toolbar</span>
+      <label class="preset">
+         <span class="sr">Preset</span>
+         <select [value]="prefs.activePreset() ?? ''" (change)="pickPreset($any($event.target).value)">
+            @if (!prefs.activePreset()) {
+               <option value="">Custom</option>
+            }
+            @for (p of prefs.presets; track p.id) {
+               <option [value]="p.id">{{ p.label }}</option>
+            }
+         </select>
+      </label>
+      <button class="x" type="button" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
+   </div>
+
+   <div class="body">
+      <div class="col">
+         <div class="lab">In toolbar · drag to reorder</div>
+         <div class="list" (dragover)="allowDrop($event)" (drop)="dropShown($event, null)">
+            <div class="row fixed">
+               <span class="grip"></span><span class="name">Select</span><span class="k">V</span
+               ><span class="fx">fixed</span>
+            </div>
+            @for (t of shown(); track t.id) {
+               <div
+                  class="row"
+                  draggable="true"
+                  [class.over]="overId() === t.id"
+                  (dragstart)="dragStart($event, t.id)"
+                  (dragend)="dragId = null; overId.set(null)"
+                  (dragover)="allowDrop($event); overId.set(t.id)"
+                  (dragleave)="overId.set(null)"
+                  (drop)="dropShown($event, t.id)"
+               >
+                  <span class="grip">⋮⋮</span>
+                  <span class="name"
+                     >{{ t.label }}
+                     @if (t.note) {
+                        <small> · {{ t.note }}</small>
+                     }
+                  </span>
+                  <span class="k">{{ t.key || '—' }}</span>
+                  <button
+                     class="hide"
+                     type="button"
+                     (click)="prefs.setVisible(t.id, false)"
+                     [attr.aria-label]="'Hide ' + t.label"
+                  >
+                     <dd-icon name="visibility_off" />
+                  </button>
+               </div>
+            }
+         </div>
+
+         <div class="lab">Hidden · still in “More” at the end of the bar, and keys still work</div>
+         <div
+            class="list hidden-zone"
+            [class.over]="overHidden()"
+            (dragover)="allowDrop($event); overHidden.set(true)"
+            (dragleave)="overHidden.set(false)"
+            (drop)="dropHidden($event)"
+         >
+            @for (t of hiddenList(); track t.id) {
+               <div class="row" draggable="true" (dragstart)="dragStart($event, t.id)" (dragend)="dragId = null">
+                  <span class="grip">⋮⋮</span>
+                  <span class="name">{{ t.label }}</span>
+                  <span class="k">{{ t.key || '—' }}</span>
+                  <button class="show" type="button" (click)="prefs.setVisible(t.id, true)">Show</button>
+               </div>
+            } @empty {
+               <div class="empty">Drag a tool here to hide it</div>
+            }
+         </div>
+      </div>
+
+      <div class="col side">
+         <div class="lab">Toolbar position</div>
+         <div class="seg">
+            @for (p of positions; track p.id) {
+               <button type="button" [class.on]="prefs.position() === p.id" (click)="prefs.setPosition(p.id)">
+                  {{ p.label }}
+               </button>
+            }
+         </div>
+
+         <div class="lab">Behaviour</div>
+         <label class="tog"
+            ><input
+               type="checkbox"
+               [checked]="prefs.labels()"
+               (change)="prefs.setFlag('labels', $any($event.target).checked)"
+            />Labels under icons</label
+         >
+         <label class="tog"
+            ><input
+               type="checkbox"
+               [checked]="prefs.compact()"
+               (change)="prefs.setFlag('compact', $any($event.target).checked)"
+            />Compact buttons (32 px)</label
+         >
+         <label class="tog"
+            ><input
+               type="checkbox"
+               [checked]="prefs.twoColumns()"
+               [disabled]="prefs.position() === 'top' || prefs.position() === 'bottom'"
+               (change)="prefs.setFlag('twoColumns', $any($event.target).checked)"
+            />Two columns (side dock)</label
+         >
+         <label class="tog"
+            ><input
+               type="checkbox"
+               [checked]="prefs.stayOnTool()"
+               (change)="prefs.setFlag('stayOnTool', $any($event.target).checked)"
+            />Stay on tool after placing (else back to Select)</label
+         >
+         <label class="tog"
+            ><input
+               type="checkbox"
+               [checked]="prefs.fadeWhileDragging()"
+               (change)="prefs.setFlag('fadeWhileDragging', $any($event.target).checked)"
+            />Fade islands while dragging or drawing</label
+         >
+
+         <p class="note">Saved in this browser, so it applies to every project.</p>
+      </div>
+   </div>
+
+   <div class="foot">
+      <button class="ghost" type="button" (click)="prefs.reset()">Reset to default</button>
+      <button class="primary" type="button" (click)="close()">Done</button>
+   </div>
+</div>

@@ -177,8 +177,13 @@ export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): void {
     if (item.kind === 'element') {
       const el = item.el;
       return {
-        ...el,
+        // The element keeps its own opacity and corner radius; only its place is the default.
         ...base,
+        ...el,
+        x: base.x,
+        y: base.y,
+        width: base.width,
+        slideId: frameId,
         height: Math.max(1, Math.round(item.h * fh)),
         ...(el.fontSize ? { fontSize: Math.round(el.fontSize * k) } : {}),
         ...(el.points ? { points: el.points.map((pt) => ({ x: pt.x * k, y: pt.y * k })) } : {}),

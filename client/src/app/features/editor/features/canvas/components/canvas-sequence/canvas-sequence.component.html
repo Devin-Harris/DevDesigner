@@ -1,0 +1,13 @@
+@for (d of diagrams(); track d.id) {
+   @if (!hiddenIds()?.has(d.id)) {
+      <dd-sequence-diagram
+         [diagramId]="d.id"
+         [toWorld]="toWorld()"
+         [snap]="snap()"
+         [smartDrag]="smartDrag()"
+         [smartDragEnd]="smartDragEnd()"
+         [groupResize]="groupResize()"
+         [style.z-index]="layerZ()?.get(d.id) ?? null"
+      />
+   }
+}

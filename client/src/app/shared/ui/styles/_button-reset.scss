@@ -1,0 +1,16 @@
+// `.dd-button-reset`: strips the browser's button chrome so a clickable row or card can be a
+// real <button type="button"> (focusable, Enter/Space) and still look like the element it
+// replaced. Global on purpose: component styles (with their encapsulation attribute) win.
+.dd-button-reset {
+   appearance: none;
+   margin: 0;
+   padding: 0;
+   border: 0;
+   background: none;
+   color: inherit;
+   font: inherit;
+   line-height: inherit;
+   letter-spacing: inherit;
+   text-align: inherit;
+   cursor: pointer;
+}

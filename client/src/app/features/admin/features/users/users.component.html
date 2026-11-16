@@ -1,0 +1,39 @@
+<header class="page-header">
+   <div>
+      <h1 class="page-title">Users</h1>
+      <p class="page-meta">Accounts, their projects and media. Project content is never shown.</p>
+   </div>
+</header>
+
+<div class="toolbar">
+   <dd-input
+      class="search"
+      aria-label="Search users by email or name"
+      placeholder="Search email or name"
+      [maxlength]="100"
+      [ngModel]="term$()"
+      (ngModelChange)="term$.set($event)"
+   ></dd-input>
+</div>
+
+@if (view$().error; as error) {
+   <p class="page-notice is-error" role="alert">{{ error }}</p>
+}
+
+<div class="page-body" [attr.aria-busy]="view$().loading" [class.is-stale]="view$().stale">
+   <dd-admin-data-table
+      [clickable]="true"
+      [columns]="columns"
+      [dir]="query$().dir"
+      [emptyText]="view$().loading ? 'Loading…' : 'No users match'"
+      [label]="'Users'"
+      [page]="query$().page"
+      [pageSize]="pageSize"
+      [rows]="rows$()"
+      [sort]="query$().sort"
+      [total]="view$().value?.total ?? 0"
+      (pageChange)="page($event)"
+      (rowClick)="open($event)"
+      (sortChange)="sort($event)"
+   ></dd-admin-data-table>
+</div>

@@ -1,0 +1,57 @@
+:host {
+   position: absolute;
+   right: 16px;
+   bottom: 16px;
+   z-index: 5;
+}
+.mm,
+.mm-toggle {
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   box-shadow: var(--dd-shadow-2);
+   border-radius: 13px;
+}
+.mm {
+   position: relative;
+   overflow: hidden;
+}
+canvas {
+   display: block;
+   cursor: pointer;
+   touch-action: none;
+}
+.mm-hide {
+   position: absolute;
+   top: 4px;
+   right: 4px;
+   width: 22px;
+   height: 22px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   border-radius: 6px;
+   background: color-mix(in srgb, var(--dd-surface) 80%, transparent);
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   opacity: 0;
+   transition: opacity 0.1s ease;
+   --dd-icon-size: 14px;
+}
+.mm:hover .mm-hide {
+   opacity: 1;
+}
+.mm-toggle {
+   width: 44px;
+   height: 44px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 19px;
+}
+.mm-toggle:hover {
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+}

@@ -205,6 +205,24 @@ export function isLightFill(fill: string | undefined | null): boolean {
   return !!fill && !!normalizeHex(fill) && readableTextOn(fill) === DARK_TEXT;
 }
 
+/** Text colors for content drawn on a custom fill: body text plus a muted and a soft variant. */
+export interface ReadableTextSet {
+  text: string;
+  muted: string;
+  soft: string;
+}
+
+/**
+ * The text set that reads best on `fill` (same rule as readableTextOn), or null
+ * when `fill` is unset or not a hex color, so callers fall back to theme colors.
+ */
+export function readableTextSet(fill: string | undefined | null): ReadableTextSet | null {
+  if (!fill || !normalizeHex(fill)) return null;
+  return readableTextOn(fill) === DARK_TEXT
+    ? { text: DARK_TEXT, muted: '#475569', soft: '#334155' }
+    : { text: '#f8fafc', muted: '#cbd5e1', soft: '#e2e8f0' };
+}
+
 /**
  * True for the stock strong/soft swatches the pickers offer. These keep the
  * theme's own text color (white in dark mode, dark in light mode); only custom
@@ -258,4 +276,36 @@ export function themeColorCss(color: string | undefined | null): string | null {
   if (color === THEME_FILL) return 'var(--dd-surface)';
   if (color === THEME_STROKE) return 'var(--dd-text)';
   return color;
+}
+
+/** Longest string a stored color may be. */
+export const MAX_COLOR_LENGTH = 64;
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** `$heading`, `$accent1`, ...: theme tokens (resolved against the presentation theme). */
+const THEME_TOKEN = /^\$[a-z][a-z0-9]{0,23}$/i;
+/** rgb()/rgba()/hsl()/hsla() with plain numbers only (older files may carry them). */
+const FUNCTIONAL_COLOR =
+  /^(?:rgba?|hsla?)\((?:\s*-?(?:\d+(?:\.\d+)?|\.\d+)%?\s*,){2}\s*-?(?:\d+(?:\.\d+)?|\.\d+)%?\s*(?:,\s*(?:\d+(?:\.\d+)?|\.\d+)%?\s*)?\)$/i;
+const KEYWORDS = new Set(['transparent', 'none', THEME_FILL, THEME_STROKE]);
+
+/**
+ * Whether a string is an acceptable stored color (security H-1 / S1.2): `''` (cleared),
+ * #hex (3/4/6/8 digits), `transparent`/`none`, the theme sentinels (`surface`,
+ * `theme`), a `$token`, a palette name ("blue", "amber-soft") or a numeric
+ * rgb()/hsl(). Everything else, notably anything with quotes, `<`, `;` or `url(`,
+ * is refused, so a color can never break out of an SVG/CSS attribute.
+ */
+export function isColorValue(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (value.length > MAX_COLOR_LENGTH) return false;
+  const v = value.trim();
+  if (v === '') return true;
+  return (
+    HEX_COLOR.test(v) ||
+    KEYWORDS.has(v.toLowerCase()) ||
+    THEME_TOKEN.test(v) ||
+    FUNCTIONAL_COLOR.test(v) ||
+    paletteColor(v) !== undefined
+  );
 }

@@ -1,0 +1,31 @@
+@if (rows$().length === 0) {
+   <p class="cohort-empty">No signups in this period</p>
+} @else {
+   <div class="cohort-scroll">
+      <table class="cohort-table">
+         <caption class="visually-hidden">
+            Share of each weekly signup cohort active in each week after signup
+         </caption>
+         <thead>
+            <tr>
+               <th scope="col">Signup week</th>
+               <th class="is-num" scope="col">Users</th>
+               @for (week of weeks$(); track week) {
+                  <th class="is-num" scope="col">W{{ week }}</th>
+               }
+            </tr>
+         </thead>
+         <tbody>
+            @for (row of rows$(); track row.week) {
+               <tr>
+                  <th scope="row">{{ row.label }}</th>
+                  <td class="is-num">{{ row.size }}</td>
+                  @for (cell of row.cells; track cell.index) {
+                     <td class="cohort-cell" [style.background]="cell.shade" [title]="cell.title">{{ cell.text }}</td>
+                  }
+               </tr>
+            }
+         </tbody>
+      </table>
+   </div>
+}

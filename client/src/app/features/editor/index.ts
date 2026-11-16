@@ -1,0 +1,18 @@
+// Public surface of the editor feature (docs/audits/03-code-cleanliness.md §2 A5).
+// Hosts (workspace, share, guide, home, command palette) import the editor only from this file;
+// eslint-plugin-boundaries rejects deep imports into features/editor from other features.
+
+export { EditorComponent } from './editor.component';
+export type { EditorTool } from './models/editor-tool.model';
+
+// The shell, command palette and realtime reach the editor through core/editor-bridge. Only the home
+// showcase still injects ProjectStore (it drives the store and renders deck-compare outside the editor),
+// which is why the store stays providedIn: 'root' (C3.8 replaces this with an EditorEmbedApi).
+export { ProjectStore } from './state/project/project.store';
+
+// Home showcase (§4.2 "home"): reuses the deck-compare view, code highlighting and table metrics.
+// Pass 3 replaces these with an EditorEmbedApi / showcase variant.
+export { DeckCompareComponent } from './features/slides/features/deck-compare/deck-compare.component';
+export { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
+export { codePalette, tokenColor, tokenizeCode } from './helpers/code-highlight.helper';
+export { columnAnchor } from './helpers/node-metrics.helper';

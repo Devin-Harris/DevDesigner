@@ -1,0 +1,20 @@
+<div class="scrim" (pointerdown)="closed.emit()"></div>
+<div class="sheet" role="dialog" aria-label="Keyboard shortcuts">
+   <div class="head">
+      <span class="title">Keyboard shortcuts</span>
+      <button class="x" type="button" (click)="closed.emit()" aria-label="Close"><dd-icon name="close" /></button>
+   </div>
+   <div class="cols">
+      @for (g of groups; track g.name) {
+         <section>
+            <h3>{{ g.name }}</h3>
+            @for (it of g.items; track it[1]) {
+               <div class="row">
+                  <span class="lbl">{{ it[1] }}</span
+                  ><span class="k">{{ it[0] }}</span>
+               </div>
+            }
+         </section>
+      }
+   </div>
+</div>

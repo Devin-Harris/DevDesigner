@@ -1,0 +1,426 @@
+<div class="home">
+   <header class="wrap top">
+      <span class="logo">
+         <span class="brand-tile"><dd-icon name="code" /></span>
+         <span class="disp">DevDesigner</span>
+      </span>
+      <nav aria-label="Main">
+         <a routerLink="/guide">Canvas guide</a>
+         <a href="#features">Features</a>
+         <a href="#ai">AI &amp; MCP</a>
+      </nav>
+      <div class="top-actions">
+         <button
+            class="icon-btn"
+            type="button"
+            (click)="theme.toggle()"
+            [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+            [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+         >
+            <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+         </button>
+         @if (auth.currentUser(); as user) {
+            <button class="link-btn" type="button" [ddPopoverTrigger]="accountMenu" placement="below-end">
+               {{ user.email ?? 'Account' }}
+            </button>
+            <ng-template #accountMenu let-close>
+               <div class="dd-menu">
+                  @if (auth.isAdmin$()) {
+                     <button class="dd-menu-item" routerLink="/admin" type="button" (click)="close()">
+                        <dd-icon name="lock"></dd-icon>Admin
+                     </button>
+                  }
+                  <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
+                     <dd-icon name="key" />API tokens
+                  </button>
+                  <button class="dd-menu-item" type="button" (click)="signOut(); close()">
+                     <dd-icon name="logout" />Sign out
+                  </button>
+               </div>
+            </ng-template>
+         } @else {
+            <button class="link-btn" type="button" (click)="openAuth()">Sign in</button>
+         }
+         <button class="btn primary" type="button" (click)="openProjects()">Open my projects</button>
+      </div>
+   </header>
+
+   <section class="wrap hero">
+      <div class="hero-copy">
+         <span class="lab">Whiteboard · Diagrams · Code · Slides</span>
+         <h1 class="disp">One canvas for explaining how your software works.</h1>
+         <p class="lede">
+            Sketch architecture, map a request with a sequence diagram, drop in the code that matters, model the data —
+            then turn any part of the board into a slide deck and present it live with your team.
+         </p>
+         <div class="ctas">
+            <button class="btn primary lg" type="button" (click)="newCanvas()">
+               <dd-icon name="add" />Start a blank canvas
+            </button>
+            <button class="btn lg" type="button" (click)="openProjects()">
+               <dd-icon name="template" />Browse projects &amp; templates
+            </button>
+            <a class="btn lg" routerLink="/guide"><dd-icon name="play_circle" />Learn the tools</a>
+         </div>
+         <p class="fine">Works in the browser · bring SQL, images, video or a project file</p>
+      </div>
+
+      <div class="board" aria-hidden="true">
+         <div class="board-body">
+            <div class="b-grid"></div>
+            <span class="presence">
+               <b class="av av-m">D</b><b class="av av-s">E</b>
+               <span class="live"><em></em>2 editing</span>
+            </span>
+            <div class="b-scene">
+               <svg class="b-wires" viewBox="0 0 400 280" preserveAspectRatio="none">
+                  <defs>
+                     <marker
+                        id="hb-head"
+                        viewBox="0 0 12 12"
+                        refX="10"
+                        refY="6"
+                        markerWidth="9"
+                        markerHeight="9"
+                        markerUnits="userSpaceOnUse"
+                        orient="auto"
+                     >
+                        <path d="M2 1.5 L10 6 L2 10.5" />
+                     </marker>
+                  </defs>
+                  <path class="w1" d="M112 131 L154 131" marker-end="url(#hb-head)" />
+                  <path class="w2" d="M244 120 L286 72" marker-end="url(#hb-head)" />
+                  <path class="w3" d="M244 142 L286 190" marker-end="url(#hb-head)" />
+                  <path
+                     class="pen"
+                     d="M282 168 C 300 156, 362 156, 380 172 C 394 186, 384 220, 350 228 C 316 234, 282 226, 278 206 C 275 192, 284 176, 300 168"
+                  />
+               </svg>
+               <div class="b-note">enqueue</div>
+               <div class="b-shape b-web"><span class="typed">Web app</span></div>
+               <div class="b-shape b-api">API</div>
+               <div class="b-shape b-queue"><span class="typed">Queue</span></div>
+               <div class="b-shape b-orders">Orders</div>
+               <div class="b-select"><span>Emily</span></div>
+               <div class="b-code">
+                  <div class="cb-bar"><i></i><i></i><i></i><span>enqueue.ts</span></div>
+                  <div class="cb-body mono">
+                     <span class="ln l1"><b>async function</b>&nbsp;<i>enqueue</i>(order) {{ '{' }}</span>
+                     <span class="ln l2">&nbsp;&nbsp;<b>await</b> queue.<i>push</i>(order);</span>
+                     <span class="ln l3">&nbsp;&nbsp;<b>return</b> {{ '{' }} status: <em>202</em> {{ '}' }};</span>
+                     <span class="ln l4">{{ '}' }}</span>
+                  </div>
+               </div>
+               <div class="b-sticky">
+                  <div class="st"><span class="typed">retry 3×?</span><i class="handle"></i></div>
+               </div>
+            </div>
+            <div class="cursor c1">
+               <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" /></svg><span>Devin</span>
+            </div>
+            <div class="cursor c2">
+               <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" /></svg><span>Emily</span>
+            </div>
+         </div>
+      </div>
+   </section>
+
+   <section class="wrap showcase reveal" #reveal>
+      <div class="sc-tabs" role="tablist">
+         @for (t of showcase; track t.id; let i = $index) {
+            <button
+               role="tab"
+               class="sc-tab"
+               type="button"
+               [class.on]="active() === i"
+               [attr.aria-selected]="active() === i"
+               (click)="pick(i)"
+            >
+               <dd-icon [name]="t.icon" />{{ t.label }}
+            </button>
+         }
+      </div>
+      <div class="sc-stage" (mouseenter)="paused.set(true)" (mouseleave)="paused.set(false)">
+         @for (t of showcase; track t.id; let i = $index) {
+            @if (active() === i) {
+               <div class="sc-text">
+                  <h3 class="disp">{{ t.title }}</h3>
+                  <a class="link-btn accent" [routerLink]="['/guide', t.guide]">Open the full guide →</a>
+               </div>
+            }
+         }
+         <div
+            class="sc-demo"
+            #demo
+            [class.prepping]="prepping()"
+            [class.morphing]="morphing()"
+            [class.seq-tab]="showcase[active()].id === 'seq' || showcase[active()].id === 'more'"
+            aria-hidden="true"
+            inert
+         >
+            @if (sandboxId(); as id) {
+               @for (k of [mountKey()]; track k) {
+                  <dd-editor [projectId]="id" [fitOnLoad]="true"></dd-editor>
+               }
+            } @else {
+               <div class="sc-loading">Loading example…</div>
+            }
+            @if (transition(); as tr) {
+               <div class="sc-morph">
+                  <div class="mo-bar">
+                     <span class="mo-name">Transition into slide 2</span>
+                     <span class="mo-seg">
+                        <span [class.on]="compareUi.view() === 'map'">Map pairs</span>
+                        <span [class.on]="compareUi.view() === 'preview'">Preview</span>
+                     </span>
+                  </div>
+                  <div class="mo-body">
+                     @defer (on immediate) {
+                        <dd-deck-compare
+                           class="focus-compare mo-stage"
+                           [slide]="tr.to"
+                           [previous]="tr.from"
+                           [index]="1"
+                        />
+                     }
+                     @if (moLine(); as l) {
+                        <svg class="mo-drag">
+                           <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
+                        </svg>
+                     }
+                     @if (moCursor(); as c) {
+                        <div
+                           class="sc-cursor mo-cursor"
+                           [class.fast]="cursorFast()"
+                           [style.left.px]="c.x"
+                           [style.top.px]="c.y"
+                        >
+                           <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" /></svg>
+                           @if (c.label) {
+                              <span>{{ c.label }}</span>
+                           }
+                        </div>
+                     }
+                     <div class="mo-side">
+                        <div class="mo-head">Pairs</div>
+                        @defer (on immediate) {
+                           <dd-deck-compare class="mo-pairs" mode="pairs" [slide]="tr.to" [previous]="tr.from" />
+                        }
+                     </div>
+                  </div>
+               </div>
+            }
+            @if (canvasBadge(); as cb) {
+               <div class="sc-badge">{{ cb }}</div>
+            }
+            @if (ctxMenu(); as cm) {
+               <div class="dd-menu sc-ctx" [style.left.px]="cm.left" [style.top.px]="cm.top">
+                  @for (it of cm.items; track it.label; let i = $index) {
+                     <div class="dd-menu-item" [class.hot]="i === cm.hot">
+                        {{ it.label }}
+                        @if (it.kbd) {
+                           <span class="kbd">{{ it.kbd }}</span>
+                        }
+                     </div>
+                  }
+               </div>
+            }
+            @if (swatches(); as sw) {
+               <div class="dd-menu sc-swatches" [style.left.px]="sw.left" [style.top.px]="sw.top">
+                  <dd-color-swatches [value]="sw.value" noneLabel="Default" />
+               </div>
+            }
+            @if (sqlPanel(); as q) {
+               <div class="sc-sql">
+                  <div class="sq-bar">
+                     <span class="sq-title">Export SQL</span>
+                     <span class="sq-chip">MySQL</span>
+                     <span class="sq-act">Copy</span>
+                     <span class="sq-act primary">Download .sql</span>
+                  </div>
+                  <pre
+                     class="sq-body mono"
+                  >@for (line of sqlLines(); track $index) {<div class="sq-line">@for (t of line; track $index) {<span [style.color]="t.color">{{ t.text }}</span>}&#8203;</div>}</pre>
+               </div>
+            }
+            @if (slideThumbs(); as sp) {
+               <div class="sc-slides">
+                  <div class="sp-head">Slides</div>
+                  @for (t of sp.slides; track $index; let i = $index) {
+                     <div class="sp-row" [class.on]="i === sp.active">
+                        <span class="sp-num">{{ i + 1 }}</span>
+                        <div class="sp-thumb" [style.background]="t.background">
+                           @for (it of t.items; track $index) {
+                              <i
+                                 [class]="it.kind"
+                                 [style.left.%]="it.left"
+                                 [style.top.%]="it.top"
+                                 [style.width.%]="it.width"
+                                 [style.height.%]="it.height"
+                                 [style.background]="it.color"
+                                 [style.opacity]="it.opacity"
+                              ></i>
+                           }
+                        </div>
+                     </div>
+                  }
+               </div>
+            }
+            @for (lc of laneCursors(); track $index) {
+               @if (lc) {
+                  @if (lc.box; as b) {
+                     <div
+                        class="sc-typebox"
+                        [style.border-color]="lc.color"
+                        [style.left.px]="b.left"
+                        [style.top.px]="b.top"
+                        [style.width.px]="b.width"
+                        [style.height.px]="b.height"
+                     ></div>
+                  }
+                  @if (lc.caret) {
+                     <div
+                        class="sc-caret"
+                        [style.background]="lc.color"
+                        [style.left.px]="lc.left"
+                        [style.top.px]="lc.top"
+                        [style.height.px]="lc.caretH"
+                     ></div>
+                  } @else {
+                     <div class="sc-cursor fast" [style.left.px]="lc.left" [style.top.px]="lc.top">
+                        <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" [style.fill]="lc.color" /></svg>
+                        <span [style.background]="lc.color">{{ lc.label ?? lc.name }}</span>
+                     </div>
+                  }
+               }
+            }
+            @if (cursor(); as c) {
+               @if (c.box; as b) {
+                  <div
+                     class="sc-typebox"
+                     [style.left.px]="b.left"
+                     [style.top.px]="b.top"
+                     [style.width.px]="b.width"
+                     [style.height.px]="b.height"
+                  ></div>
+               }
+               @if (c.caret) {
+                  <div
+                     class="sc-caret"
+                     [style.left.px]="c.left"
+                     [style.top.px]="c.top"
+                     [style.height.px]="c.caretH"
+                  ></div>
+               } @else {
+                  <div class="sc-cursor" [class.fast]="cursorFast()" [style.left.px]="c.left" [style.top.px]="c.top">
+                     <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" /></svg>
+                     @if (c.label) {
+                        <span>{{ c.label }}</span>
+                     }
+                  </div>
+               }
+            }
+         </div>
+      </div>
+   </section>
+
+   @if (recent().length) {
+      <section class="wrap recent">
+         <div class="sec-head">
+            <h2 class="disp">Jump back in</h2>
+            <button class="link-btn" type="button" (click)="openProjects()">All projects →</button>
+         </div>
+         <div class="recent-grid">
+            @for (p of recent(); track p.id) {
+               <button class="recent-card" type="button" (click)="open(p.id)">
+                  <span class="rc-name">{{ p.name }}</span>
+                  @if (p.description) {
+                     <span class="rc-desc">{{ p.description }}</span>
+                  }
+                  <span class="rc-date">Edited {{ p.updatedAt | date: 'mediumDate' }}</span>
+               </button>
+            }
+         </div>
+      </section>
+   }
+
+   <section id="features" class="band reveal" #reveal>
+      <div class="wrap">
+         <div class="sec-intro">
+            <h2 class="disp">Every way developers explain things, side by side</h2>
+            <p>Mix them freely on one infinite board. The sketch, the code and the deck stay in sync.</p>
+            <a class="link-btn accent" routerLink="/guide">Try every tool in the canvas guide →</a>
+         </div>
+         <div class="feat-grid">
+            @for (f of features; track f.title; let i = $index) {
+               <div class="feat" [style.--i]="i">
+                  <span class="feat-icon" [attr.data-tone]="f.tone"><dd-icon [name]="f.icon" /></span>
+                  <h3>{{ f.title }}</h3>
+                  <p>{{ f.body }}</p>
+               </div>
+            }
+         </div>
+      </div>
+   </section>
+
+   <section class="wrap uses reveal" #reveal>
+      <h2 class="disp">Made for the moments you have to explain it</h2>
+      <div class="use-grid">
+         @for (u of uses; track u.title; let i = $index) {
+            <div class="use" [style.--i]="i">
+               <b>{{ u.title }}</b>
+               <p>{{ u.body }}</p>
+            </div>
+         }
+      </div>
+   </section>
+
+   <section id="ai" class="wrap ai reveal" #reveal>
+      <div class="ai-intro">
+         <span class="lab">Built-in MCP server</span>
+         <h2 class="disp">Ask your AI assistant to draw it</h2>
+         <p>
+            Create an API token, connect any MCP client, and have it build diagrams, data models, code walk-throughs or
+            a whole deck. Every change lands live for everyone in the project — and can be undone.
+         </p>
+         <ol class="mcp-steps">
+            <li>
+               <button class="link-btn accent" type="button" (click)="openApiTokens()">Create an API token</button>
+               (Account → API tokens).
+            </li>
+            <li>Add the hosted server to <code>.mcp.json</code> at your project root, with your token:</li>
+         </ol>
+      </div>
+      <div class="mcp-config">
+         <button class="mcp-copy" type="button" (click)="copyMcp('config')">
+            {{ mcpCopied() === 'config' ? 'Copied' : 'Copy' }}
+         </button>
+         <pre class="mono">{{ mcpConfig }}</pre>
+      </div>
+      <div class="mcp-note">
+         <p>Or add it from the Claude Code CLI:</p>
+         <div class="mcp-config mcp-cmd">
+            <button class="mcp-copy" type="button" (click)="copyMcp('command')">
+               {{ mcpCopied() === 'command' ? 'Copied' : 'Copy' }}
+            </button>
+            <pre class="mono">{{ mcpCommand }}</pre>
+         </div>
+         <p>
+            Restart your client and check it's connected. Keep <code>.mcp.json</code> out of git; it holds your token.
+         </p>
+      </div>
+      <div class="ai-chat mono">
+         <div class="muted">// you</div>
+         <div>Sketch our checkout flow as a sequence diagram,</div>
+         <div>then make a 3-slide deck explaining the queue.</div>
+         <div class="muted gap">// assistant</div>
+         <div><span class="ok">✓</span> create_sequence_diagram · 4 participants</div>
+         <div><span class="ok">✓</span> create_presentation · “Checkout v2 review”</div>
+      </div>
+   </section>
+
+   <footer class="wrap foot">
+      <span class="disp">DevDesigner</span>
+      <span class="muted">Light and dark themes · real-time collaboration</span>
+   </footer>
+</div>

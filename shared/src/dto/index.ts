@@ -50,6 +50,8 @@ export interface CurrentUserResponse {
   id: string;
   email: string | null;
   displayName: string | null;
+  /** Present (true) only for admins; the role itself is never in the session token. */
+  isAdmin?: boolean;
 }
 
 // --- API tokens (MCP / automation) ---
@@ -109,6 +111,11 @@ export interface ProjectSummary {
   type: ProjectType;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Graph revision: bumped by every persisted change to the project's content (not by
+   * viewport saves). Equal revisions mean equal graphs, so thumbnails can key on it.
+   */
+  revision?: number;
 }
 /** Initial-load payload for a project: the assembled schema plus access context. */
 export interface ProjectGraphResponse {
@@ -182,6 +189,8 @@ export interface ImportIntoProjectResponse {
 
 // --- Tables ---
 export interface CreateTableDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   x: number;
   y: number;
@@ -213,6 +222,8 @@ export interface UpdatePositionDto {
 
 // --- Columns ---
 export interface CreateColumnDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   dataType: DataType;
   isPrimaryKey?: boolean;
@@ -239,6 +250,8 @@ export interface ReorderColumnsDto {
 
 // --- Indexes ---
 export interface CreateIndexDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   name: string;
   columnIds: string[];
   isUnique?: boolean;
@@ -254,6 +267,8 @@ export interface ReorderIndexesDto {
 
 // --- Relationships ---
 export interface CreateRelationshipDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   sourceColumnId: string;
   targetColumnId: string;
   type: RelationshipType;
@@ -275,24 +290,6 @@ export interface UpdateRelationshipDto {
   sourceSide?: ConnectorSide;
   targetSide?: ConnectorSide;
   autoRoute?: boolean;
-}
-
-// --- Notes ---
-export interface CreateNoteDto {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  color?: string;
-}
-export interface UpdateNoteDto {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  content?: string;
-  color?: string;
 }
 
 // --- Canvas elements (excalidraw-style drawing layer) ---
@@ -437,6 +434,8 @@ export interface ReorderElementsDto {
 
 // --- Sequence diagrams (groups) ---
 export interface CreateSequenceDiagramDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   originY: number;
   lifelineSpacing?: number;
   rowSpacing?: number;
@@ -475,6 +474,8 @@ export interface UpdateSequenceDiagramDto {
 
 // --- Lifelines (sequence diagram participant columns) ---
 export interface CreateLifelineDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   diagramId: string;
   label: string;
   color?: string;
@@ -507,6 +508,8 @@ export interface UpdateLifelinePositionDto {
 
 // --- Sequence messages (rows between lifelines) ---
 export interface CreateSequenceMessageDto {
+  /** Client-generated UUID (optimistic create); 409 when it is already taken. */
+  id?: string;
   diagramId: string;
   fromLifelineId: string;
   toLifelineId: string;
@@ -560,6 +563,8 @@ export interface ShareLinkResponse {
  */
 export interface BatchUpdateDto {
   tables?: Array<{ id: string; x?: number; y?: number } & UpdateTableDto>;
+  columns?: Array<{ id: string } & UpdateColumnDto>;
+  indexes?: Array<{ id: string } & UpdateIndexDto>;
   elements?: Array<{ id: string } & UpdateElementDto>;
   diagrams?: Array<{ id: string } & UpdateSequenceDiagramDto>;
   lifelines?: Array<{ id: string; x?: number } & UpdateLifelineDto>;
@@ -568,6 +573,8 @@ export interface BatchUpdateDto {
   /** Ids to delete (children of a deleted parent go with it). */
   deletes?: {
     tables?: string[];
+    columns?: string[];
+    indexes?: string[];
     elements?: string[];
     relationships?: string[];
     diagrams?: string[];
@@ -577,6 +584,21 @@ export interface BatchUpdateDto {
 }
 export interface BatchUpdateResponse {
   mutations: SchemaMutation[];
+}
+
+/** Query value for `?return=` on batch / clone that asks for a {@link BatchUpdateAck}. */
+export const BATCH_RETURN_NONE = 'none';
+
+/**
+ * Answer to `PATCH /projects/:id/batch?return=none` (and clone): an acknowledgement
+ * instead of every changed row, for callers that already applied the change locally.
+ */
+export interface BatchUpdateAck {
+  ok: true;
+  /** The project's in-memory graph revision after this write (grows with every change). */
+  revision: number;
+  /** Ids of the rows the request changed, created or deleted, in mutation order. */
+  ids: string[];
 }
 
 /**

@@ -1,0 +1,48 @@
+@if (draft(); as d) {
+   <div class="shade" (pointerdown)="finish($event)"></div>
+   <div class="rot" [style.transform-origin]="origin()" [style.transform]="rotate()">
+      <!-- The whole picture, faded: what can be brought back into the box. -->
+      <div
+         class="source"
+         [style.left.px]="d.src.x"
+         [style.top.px]="d.src.y"
+         [style.width.px]="d.src.width"
+         [style.height.px]="d.src.height"
+         (pointerdown)="begin('pan', $event)"
+      >
+         @if (picture(); as href) {
+            <img [src]="href" alt="" draggable="false" />
+         }
+      </div>
+      <div
+         class="box"
+         [style.left.px]="d.box.x"
+         [style.top.px]="d.box.y"
+         [style.width.px]="d.box.width"
+         [style.height.px]="d.box.height"
+         (pointerdown)="begin('move', $event)"
+      >
+         <div class="kept" [style.clip-path]="clipCss()">
+            @if (picture(); as href) {
+               <img
+                  [src]="href"
+                  alt=""
+                  draggable="false"
+                  [style.left.px]="d.src.x - d.box.x"
+                  [style.top.px]="d.src.y - d.box.y"
+                  [style.width.px]="d.src.width"
+                  [style.height.px]="d.src.height"
+               />
+            }
+         </div>
+         @for (h of edges; track h) {
+            <span
+               class="handle"
+               [class]="'handle ' + h"
+               [style.--s]="handleSize()"
+               (pointerdown)="begin(h, $event)"
+            ></span>
+         }
+      </div>
+   </div>
+}

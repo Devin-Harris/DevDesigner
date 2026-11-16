@@ -5,7 +5,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/.angular/**', '**/coverage/**'],
+    // client/ has its own Angular config (client/eslint.config.mjs, run via `npm run lint -w client`).
+    ignores: ['**/dist/**', '**/node_modules/**', '**/.angular/**', '**/coverage/**', 'client/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
