@@ -67,9 +67,9 @@
    &.primary {
       background: var(--dd-primary);
       border-color: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-on-accent);
    }
    &.primary:hover {
-      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-shade));
    }
 }

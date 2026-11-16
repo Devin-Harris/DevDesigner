@@ -72,7 +72,7 @@
    --dd-icon-size: 14px;
 }
 .pen.del:hover {
-   color: #ef6b6b;
+   color: var(--dd-danger);
 }
 .pen:hover {
    background: var(--dd-surface-2);

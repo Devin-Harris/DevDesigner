@@ -50,9 +50,9 @@
    &.danger {
       background: var(--dd-danger);
       border-color: var(--dd-danger);
-      color: #fff;
+      color: var(--dd-on-accent);
    }
    &.danger:hover {
-      background: color-mix(in srgb, var(--dd-danger) 88%, #000);
+      background: color-mix(in srgb, var(--dd-danger) 88%, var(--dd-shade));
    }
 }

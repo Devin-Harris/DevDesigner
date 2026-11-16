@@ -25,7 +25,7 @@
    height: 16px;
    border: 1.5px solid var(--dd-border-strong);
    border-radius: 5px;
-   color: #fff;
+   color: var(--dd-on-accent);
    --dd-icon-size: 12px;
    transition:
       background 0.12s ease,

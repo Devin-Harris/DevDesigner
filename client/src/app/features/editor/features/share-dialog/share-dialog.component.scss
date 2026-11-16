@@ -42,10 +42,10 @@
    &.primary {
       background: var(--dd-primary);
       border-color: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-on-accent);
    }
    &.primary:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-shade));
    }
 }
 
@@ -117,7 +117,7 @@
    border-radius: 10px;
    font-size: 11px;
    font-weight: 600;
-   color: #fff;
+   color: var(--dd-on-accent);
    background: var(--dd-primary);
 
    &.view {

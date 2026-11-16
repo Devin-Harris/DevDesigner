@@ -81,6 +81,10 @@ html {
    --dd-success: #0f8f86;
    --dd-teal: #0f8f86;
    --dd-amber: #bd7d1c;
+   // Theme-independent: text/marks on a filled accent button or chip, the shade color-mix
+   // darkens accents with on hover, and the letterbox behind media.
+   --dd-on-accent: #ffffff;
+   --dd-shade: #000000;
 
    // canvas & diagram
    --dd-canvas-bg: #eceae4;
