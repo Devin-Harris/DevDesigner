@@ -133,8 +133,15 @@ function createStore(start: Partial<SchemaModel> = {}) {
          updateViewport: jest.fn(() => of(undefined)),
          getGraph: jest.fn(),
       },
-      tables: { remove: jest.fn((): Observable<unknown> => of(undefined)), update: jest.fn(() => of({})) },
-      columns: { remove: jest.fn((): Observable<unknown> => of(undefined)) },
+      tables: {
+         remove: jest.fn((): Observable<unknown> => of(undefined)),
+         update: jest.fn(() => of({})),
+         create: jest.fn((): Observable<unknown> => of({})),
+      },
+      columns: {
+         remove: jest.fn((): Observable<unknown> => of(undefined)),
+         create: jest.fn((): Observable<unknown> => of({})),
+      },
       elements: {
          create: jest.fn((_projectId: string, body: CanvasElementModel) => of(body)),
          remove: jest.fn((): Observable<unknown> => of(undefined)),
@@ -610,6 +617,33 @@ describe('ProjectStore optimistic saves', () => {
       // A delete of a failed create is refused (nothing to restore later).
       await store.deleteElement('x1');
       expect(api.elements.remove).not.toHaveBeenCalled();
+   });
+});
+
+describe('ProjectStore optimistic table creates (P3.2)', () => {
+   it('shows a new table and column at once under client ids, before the server answers', async () => {
+      const { store, api } = createStore();
+      api.tables.create.mockReturnValue(new Subject());
+      api.columns.create.mockReturnValue(new Subject());
+
+      await store.addTable(10, 20);
+      const table = store.tables()[0];
+      expect(table).toMatchObject({ x: 10, y: 20, columns: [] });
+      expect(store.selectedTableIds()).toEqual([table.id]);
+      await settle();
+      expect(api.tables.create).toHaveBeenCalledWith('p1', expect.objectContaining({ id: table.id }));
+
+      await store.addColumn(table.id, { name: 'id', dataType: { name: 'INT' } });
+      expect(store.tables()[0].columns).toEqual([expect.objectContaining({ name: 'id', isNullable: true })]);
+   });
+
+   it('drops a table the server refuses', async () => {
+      const { store, api } = createStore();
+      api.tables.create.mockReturnValue(throwError(() => new Error('409')));
+      await store.addTable(0, 0);
+      await settle();
+      expect(store.tables()).toEqual([]);
+      expect(store.selectedTableIds()).toEqual([]);
    });
 });
 

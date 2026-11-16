@@ -31,7 +31,7 @@ export function withProjectLoadMethods() {
    return signalStoreFeature(
       type<ProjectInternals>(),
       withMethods((store) => {
-         const { debounce, runSave } = store._queue;
+         const { debounce, runSave, enqueue, notifyFailure } = store._queue;
          const { projectsApi, shareLinksApi, shareSession } = store._api;
 
          /** The last pan/zoom not yet written to this browser's storage. */
@@ -100,8 +100,17 @@ export function withProjectLoadMethods() {
                if (!projectId) {
                   return;
                }
+               const before = store.customThemes();
                patchState(store, { customThemes: themes });
-               await runSave(() => firstValueFrom(projectsApi.updateThemes(projectId, { themes })));
+               try {
+                  await enqueue('themes', () =>
+                     runSave(() => firstValueFrom(projectsApi.updateThemes(projectId, { themes })))
+                  );
+               } catch {
+                  // Roll back unless a newer library replaced it meanwhile.
+                  if (store.customThemes() === themes) patchState(store, { customThemes: before });
+                  notifyFailure('save the themes');
+               }
             },
 
             /** Save (or clear, with null) the shared home view that reset-view returns to. */
@@ -110,8 +119,16 @@ export function withProjectLoadMethods() {
                if (!projectId) {
                   return;
                }
+               const before = store.home();
                patchState(store, { home });
-               await runSave(() => firstValueFrom(projectsApi.updateHome(projectId, { home })));
+               try {
+                  await enqueue('home', () =>
+                     runSave(() => firstValueFrom(projectsApi.updateHome(projectId, { home })))
+                  );
+               } catch {
+                  if (store.home() === home) patchState(store, { home: before });
+                  notifyFailure('save the home view');
+               }
             },
 
             /**

@@ -4,6 +4,9 @@ import {
    type ColumnModel,
    type CreateColumnDto,
    type CreateIndexDto,
+   type CreateTableDto,
+   type IndexModel,
+   type TableModel,
    type UpdateColumnDto,
    type UpdateIndexDto,
    type UpdateTableDto,
@@ -19,7 +22,8 @@ export function withProjectTablesMethods() {
       type<ProjectInternalsWith<{ _placement: SlidePlacement }>>(),
       withMethods((store) => {
          const { setSchema, mapTable } = store._schema;
-         const { debounce, flushTimers, runSave, optimistic, commitPatch, stage, patchTableLocal } = store._queue;
+         const { debounce, flushTimers, runSave, optimistic, createOptimistic, commitPatch, stage, patchTableLocal } =
+            store._queue;
          const { push: pushHistory, rid, aliasTo } = store._history;
          const { tablesApi, columnsApi, indexesApi, relationshipsApi } = store._api;
          const { shownSlideAt } = store._placement;
@@ -130,19 +134,26 @@ export function withProjectTablesMethods() {
                }
                const name = uniqueTableName(store.tables());
                const color = TABLE_PALETTE[store.tables().length % TABLE_PALETTE.length];
-               const created = await runSave(() =>
-                  firstValueFrom(
-                     tablesApi.create(projectId, {
-                        name,
-                        x,
-                        y,
-                        color,
-                        slideId: shownSlideAt(x, y),
-                     })
-                  )
-               );
-               setSchema((s) => ({ ...s, tables: [...s.tables, created] }));
-               patchState(store, { selectedTableIds: [created.id], selectedRelationshipIds: [] });
+               // Optimistic (P3.2): the table shows at once under a client id.
+               const dto: CreateTableDto = { id: crypto.randomUUID(), name, x, y, color, slideId: shownSlideAt(x, y) };
+               const id = dto.id!;
+               const local = { ...dto, id, columns: [], indexes: [] } as TableModel;
+               createOptimistic({
+                  id,
+                  queueKey: `table:${id}`,
+                  section: 'tables',
+                  insert: () => setSchema((s) => ({ ...s, tables: [...s.tables, local] })),
+                  remove: () => {
+                     setSchema((s) => ({ ...s, tables: s.tables.filter((tb) => tb.id !== id) }));
+                     patchState(store, { selectedTableIds: store.selectedTableIds().filter((x) => x !== id) });
+                  },
+                  persist: () => firstValueFrom(tablesApi.create(projectId, dto)),
+                  // Keep columns/indexes added locally since; the server copy has none yet.
+                  reconcile: (created) =>
+                     mapTable(id, (tb) => ({ ...created, columns: tb.columns, indexes: tb.indexes })),
+                  what: 'add the table',
+               });
+               patchState(store, { selectedTableIds: [id], selectedRelationshipIds: [] });
             },
 
             /** Optimistic local move; the position PATCH is debounced per table. */
@@ -258,8 +269,28 @@ export function withProjectTablesMethods() {
             },
 
             async addColumn(tableId: string, dto: CreateColumnDto): Promise<void> {
-               const created = await runSave(() => firstValueFrom(columnsApi.create(tableId, dto)));
-               mapTable(tableId, (t) => ({ ...t, columns: [...t.columns, created] }));
+               // Optimistic (P3.2): the column shows at once under a client id.
+               const body: CreateColumnDto = { ...dto, id: dto.id ?? crypto.randomUUID() };
+               const created = {
+                  isPrimaryKey: false,
+                  isNullable: true,
+                  isUnique: false,
+                  isAutoIncrement: false,
+                  ...body,
+               } as ColumnModel;
+               const id = created.id;
+               const withoutColumn = (): void =>
+                  mapTable(tableId, (t) => ({ ...t, columns: t.columns.filter((c) => c.id !== id) }));
+               createOptimistic({
+                  id,
+                  queueKey: `table:${tableId}`,
+                  insert: () => mapTable(tableId, (t) => ({ ...t, columns: [...t.columns, created] })),
+                  remove: withoutColumn,
+                  persist: () => firstValueFrom(columnsApi.create(tableId, body)),
+                  reconcile: (saved) =>
+                     mapTable(tableId, (t) => ({ ...t, columns: t.columns.map((c) => (c.id === id ? saved : c)) })),
+                  what: 'add the column',
+               });
                const snap: ColumnSnapshot = { tableId, column: created, index: -1, relationships: [] };
                pushHistory({
                   undo: async () => {
@@ -323,8 +354,21 @@ export function withProjectTablesMethods() {
             },
 
             async addIndex(tableId: string, dto: CreateIndexDto): Promise<void> {
-               const created = await runSave(() => firstValueFrom(indexesApi.create(tableId, dto)));
-               mapTable(tableId, (t) => ({ ...t, indexes: [...(t.indexes ?? []), created] }));
+               // Optimistic (P3.2): the index shows at once under a client id.
+               const body: CreateIndexDto = { ...dto, id: dto.id ?? crypto.randomUUID() };
+               const created = { isUnique: false, ...body } as IndexModel;
+               const id = created.id;
+               const mapIndexes = (fn: (list: IndexModel[]) => IndexModel[]): void =>
+                  mapTable(tableId, (t) => ({ ...t, indexes: fn(t.indexes ?? []) }));
+               createOptimistic({
+                  id,
+                  queueKey: `table:${tableId}`,
+                  insert: () => mapIndexes((list) => [...list, created]),
+                  remove: () => mapIndexes((list) => list.filter((i) => i.id !== id)),
+                  persist: () => firstValueFrom(indexesApi.create(tableId, body)),
+                  reconcile: (saved) => mapIndexes((list) => list.map((i) => (i.id === id ? saved : i))),
+                  what: 'add the index',
+               });
             },
 
             async updateIndex(tableId: string, indexId: string, patch: UpdateIndexDto): Promise<void> {

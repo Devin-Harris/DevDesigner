@@ -189,6 +189,36 @@ function createSaveQueue(store: QueueHost) {
       }
    }
 
+   /**
+    * Optimistic create under a client-chosen id (perf P3.2): `insert` shows the row now and
+    * the create request queues under `queueKey`, so follow-up edits and deletes of the row
+    * line up behind it. When the server answers and nothing newer is pending for the row,
+    * `reconcile` swaps in the server's copy; when it refuses, the id joins `failedCreates`
+    * (later rollbacks must not bring the row back), `remove` drops it and the user is told.
+    */
+   function createOptimistic<T extends { id: string }>(opts: {
+      queueKey: string;
+      section?: BatchSection;
+      insert: () => void;
+      remove: () => void;
+      persist: () => Promise<T>;
+      reconcile: (created: T) => void;
+      what: string;
+      id: string;
+   }): void {
+      opts.insert();
+      void enqueue(opts.queueKey, () => runSave(opts.persist))
+         .then((created) => {
+            if (!queueSettling(opts.queueKey) || (opts.section && isStaged(opts.section, opts.id))) return;
+            opts.reconcile(created);
+         })
+         .catch(() => {
+            failedCreates.add(opts.id);
+            opts.remove();
+            notifyFailure(opts.what);
+         });
+   }
+
    /** Send (instead of waiting out) pending debounced saves, e.g. before a delete. */
    function flushTimers(...keys: string[]): void {
       for (const key of ['batch', ...keys]) {
@@ -337,6 +367,7 @@ function createSaveQueue(store: QueueHost) {
       checkpoint,
       notifyFailure,
       optimistic,
+      createOptimistic,
       commitPatch,
       stage,
       isStaged,

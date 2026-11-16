@@ -15,7 +15,7 @@ export function withProjectRelationshipsMethods() {
       type<ProjectInternals>(),
       withMethods((store) => {
          const { setSchema } = store._schema;
-         const { flushTimers, runSave, optimistic, commitPatch, stage } = store._queue;
+         const { flushTimers, runSave, optimistic, createOptimistic, commitPatch, stage } = store._queue;
          const { relationshipsApi } = store._api;
 
          return {
@@ -29,18 +29,33 @@ export function withProjectRelationshipsMethods() {
                if (!projectId) {
                   return;
                }
-               const created = await runSave(() =>
-                  firstValueFrom(
-                     relationshipsApi.create(projectId, {
-                        sourceColumnId,
-                        targetColumnId,
-                        type,
-                        ...routing,
-                     })
-                  )
-               );
-               setSchema((s) => ({ ...s, relationships: [...s.relationships, created] }));
-               patchState(store, { selectedRelationshipIds: [created.id], selectedTableIds: [] });
+               // Optimistic (P3.2): the line shows at once under a client id.
+               const dto: CreateRelationshipDto = {
+                  id: crypto.randomUUID(),
+                  sourceColumnId,
+                  targetColumnId,
+                  type,
+                  ...routing,
+               };
+               const id = dto.id!;
+               const mapRels = (fn: (list: RelationshipModel[]) => RelationshipModel[]): void =>
+                  setSchema((s) => ({ ...s, relationships: fn(s.relationships) }));
+               createOptimistic({
+                  id,
+                  queueKey: `rel:${id}`,
+                  section: 'relationships',
+                  insert: () => mapRels((list) => [...list, { ...dto, id } as RelationshipModel]),
+                  remove: () => {
+                     mapRels((list) => list.filter((r) => r.id !== id));
+                     patchState(store, {
+                        selectedRelationshipIds: store.selectedRelationshipIds().filter((x) => x !== id),
+                     });
+                  },
+                  persist: () => firstValueFrom(relationshipsApi.create(projectId, dto)),
+                  reconcile: (saved) => mapRels((list) => list.map((r) => (r.id === id ? saved : r))),
+                  what: 'add the relationship',
+               });
+               patchState(store, { selectedRelationshipIds: [id], selectedTableIds: [] });
             },
 
             /**

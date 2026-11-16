@@ -1,6 +1,8 @@
 import { patchState, signalStoreFeature, type, withMethods, withProps } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import {
+   type CreateLifelineDto,
+   type CreateSequenceMessageDto,
    type LifelineModel,
    type SequenceMessageModel,
    type UpdateLifelineDto,
@@ -18,7 +20,7 @@ export function withProjectSequenceRowsMethods() {
       withProps((store) => ({ _sequenceOps: createSequenceOps(store) })),
       withMethods((store) => {
          const { setSchema, mapLifeline, mapMessage } = store._schema;
-         const { debounce, runSave, stage } = store._queue;
+         const { debounce, runSave, stage, createOptimistic } = store._queue;
          const { push: pushHistory, rid } = store._history;
          const { sequenceApi } = store._api;
          const { captureSeq, restoreSeq, removeSeq, recordSeqCreate, recordSeqDelete, resolveRefs } =
@@ -61,30 +63,42 @@ export function withProjectSequenceRowsMethods() {
                      }
                   }
                }
-               const created = await runSave(() =>
-                  firstValueFrom(
-                     sequenceApi.createLifeline(projectId, {
-                        diagramId,
-                        label: `Participant ${order + 1}`,
-                        x,
-                        width: 120,
-                        order,
-                        color: TABLE_PALETTE[order % TABLE_PALETTE.length],
-                     })
-                  )
-               );
-               setSchema((s) => ({ ...s, lifelines: [...s.lifelines, created] }));
+               // Optimistic (P3.2): the participant shows at once under a client id.
+               const dto: CreateLifelineDto = {
+                  id: crypto.randomUUID(),
+                  diagramId,
+                  label: `Participant ${order + 1}`,
+                  x,
+                  width: 120,
+                  order,
+                  color: TABLE_PALETTE[order % TABLE_PALETTE.length],
+               };
+               const id = dto.id!;
+               createOptimistic({
+                  id,
+                  queueKey: `lifeline:${id}`,
+                  section: 'lifelines',
+                  insert: () =>
+                     setSchema((s) => ({ ...s, lifelines: [...s.lifelines, { ...dto, id } as LifelineModel] })),
+                  remove: () => {
+                     setSchema((s) => ({ ...s, lifelines: s.lifelines.filter((l) => l.id !== id) }));
+                     patchState(store, { selectedLifelineIds: store.selectedLifelineIds().filter((x) => x !== id) });
+                  },
+                  persist: () => firstValueFrom(sequenceApi.createLifeline(projectId, dto)),
+                  reconcile: (saved) => mapLifeline(id, () => saved),
+                  what: 'add the participant',
+               });
                patchState(store, {
-                  selectedLifelineIds: [created.id],
+                  selectedLifelineIds: [id],
                   selectedMessageIds: [],
                   selectedDiagramIds: [],
                });
-               let snap = captureSeq('lifeline', created.id);
+               let snap = captureSeq('lifeline', id);
                if (snap) {
                   pushHistory({
                      undo: async () => {
-                        snap = captureSeq('lifeline', rid(created.id)) ?? snap;
-                        await removeSeq('lifeline', rid(created.id));
+                        snap = captureSeq('lifeline', rid(id)) ?? snap;
+                        await removeSeq('lifeline', rid(id));
                         shifted.forEach((s) => this.moveLifeline(rid(s.id), s.from));
                      },
                      redo: async () => {
@@ -214,26 +228,41 @@ export function withProjectSequenceRowsMethods() {
                const msgs = store.sequenceMessages().filter((m) => m.diagramId === diagramId);
                const row = atY != null ? rowOf(atY) : msgs.length ? Math.max(...msgs.map((m) => rowOf(m.y))) + 1 : 1;
                const y = base + gap * row;
-               const created = await runSave(() =>
-                  firstValueFrom(
-                     sequenceApi.createMessage(projectId, {
-                        diagramId,
-                        fromLifelineId,
-                        toLifelineId,
-                        y,
-                        style: 'solid',
-                        direction: 'forward',
-                        arrowhead: 'arrow',
-                     })
-                  )
-               );
-               setSchema((s) => ({ ...s, sequenceMessages: [...s.sequenceMessages, created] }));
+               // Optimistic (P3.2): the message shows at once under a client id.
+               const dto: CreateSequenceMessageDto = {
+                  id: crypto.randomUUID(),
+                  diagramId,
+                  fromLifelineId,
+                  toLifelineId,
+                  y,
+                  style: 'solid',
+                  direction: 'forward',
+                  arrowhead: 'arrow',
+               };
+               const id = dto.id!;
+               createOptimistic({
+                  id,
+                  queueKey: `message:${id}`,
+                  section: 'messages',
+                  insert: () =>
+                     setSchema((s) => ({
+                        ...s,
+                        sequenceMessages: [...s.sequenceMessages, { ...dto, id } as SequenceMessageModel],
+                     })),
+                  remove: () => {
+                     setSchema((s) => ({ ...s, sequenceMessages: s.sequenceMessages.filter((m) => m.id !== id) }));
+                     patchState(store, { selectedMessageIds: store.selectedMessageIds().filter((x) => x !== id) });
+                  },
+                  persist: () => firstValueFrom(sequenceApi.createMessage(projectId, dto)),
+                  reconcile: (saved) => mapMessage(id, () => saved),
+                  what: 'add the message',
+               });
                patchState(store, {
-                  selectedMessageIds: [created.id],
+                  selectedMessageIds: [id],
                   selectedLifelineIds: [],
                   selectedDiagramIds: [],
                });
-               recordSeqCreate('message', created.id);
+               recordSeqCreate('message', id);
             },
 
             /** Clone one message (same endpoints, style and row) and select it. */

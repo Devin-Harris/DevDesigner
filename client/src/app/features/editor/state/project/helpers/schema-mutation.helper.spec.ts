@@ -326,8 +326,8 @@ describe('applySchemaMutation', () => {
       ],
       [
          'lifeline.patched',
-         { kind: 'lifeline.patched', lifelineId: 'l1', patch: { name: 'API' } },
-         (s) => expect(s.lifelines[0].name).toBe('API'),
+         { kind: 'lifeline.patched', lifelineId: 'l1', patch: { label: 'API' } },
+         (s) => expect(s.lifelines[0].label).toBe('API'),
       ],
       [
          'message.patched',
