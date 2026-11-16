@@ -24,7 +24,7 @@ import {
    ProjectFileError,
    remapProjectIds,
 } from '@devdesigner/shared';
-import { codeElementContentSize } from '../../features/editor/helpers/shape-render.helper';
+import { codeElementContentSize } from '../../features/editor/helpers/render';
 
 /** Project ids served by the sandbox backend instead of the API. */
 export const SANDBOX_PREFIX = 'sandbox-';
