@@ -3,8 +3,8 @@
       <input
          #inl
          class="rename inline"
-         [value]="sel.label"
          aria-label="Name"
+         [value]="sel.label"
          (keydown.enter)="finishRename(sel, inl.value)"
          (keydown.escape)="editing.set(null)"
          (blur)="finishRename(sel, inl.value)"
@@ -16,9 +16,9 @@
       <button
          type="button"
          class="dd-select-trigger"
+         placement="below-start"
          [class.compact]="compact()"
          [ddPopoverTrigger]="menu"
-         placement="below-start"
          [disabled]="disabled()"
       >
          <span class="val" [style.font-family]="selectedFont()">{{ selectedLabel() }}</span>
@@ -41,8 +41,8 @@
             <input
                #name
                class="rename"
-               [value]="opt.label"
                aria-label="Name"
+               [value]="opt.label"
                (keydown.enter)="finishRename(opt, name.value)"
                (keydown.escape)="editing.set(null); $event.stopPropagation()"
                (blur)="finishRename(opt, name.value)"

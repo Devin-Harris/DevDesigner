@@ -1,8 +1,8 @@
 @if (selected() && editable()) {
    @for (c of corners; track c) {
       <span
-         [class]="'scale-handle ' + c"
          title="Drag to scale - double-click to reset"
+         [class]="'scale-handle ' + c"
          (pointerdown)="onScaleDown($event, c)"
          (dblclick)="resetScale($event)"
       ></span>
@@ -20,18 +20,18 @@
    <button
       class="icon-btn color"
       type="button"
-      [ddPopoverTrigger]="colorMenu"
       placement="below-start"
-      (pointerdown)="$event.stopPropagation()"
-      [disabled]="!editable()"
       title="Header color"
       aria-label="Header color"
+      [ddPopoverTrigger]="colorMenu"
+      [disabled]="!editable()"
+      (pointerdown)="$event.stopPropagation()"
    >
       <span class="color-dot" [style.background]="css(table().color) || 'var(--dd-handle)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
-         <dd-color-swatches [value]="table().color" themeValue="surface" (pick)="setColor($event); close()" />
+         <dd-color-swatches themeValue="surface" [value]="table().color" (pick)="setColor($event); close()" />
       </div>
    </ng-template>
 
@@ -39,15 +39,15 @@
       <input
          class="edit title-edit"
          ddAutofocus
+         maxlength="120"
          [value]="table().name"
          (pointerdown)="$event.stopPropagation()"
          (keydown.enter)="commitName($event)"
          (keydown.escape)="cancelInline()"
          (blur)="commitName($event)"
-         maxlength="120"
       />
    } @else {
-      <span class="title" (dblclick)="startEditName($event)" title="Double-click to rename">
+      <span class="title" title="Double-click to rename" (dblclick)="startEditName($event)">
          {{ table().name }}
       </span>
    }
@@ -103,20 +103,20 @@
             <input
                class="edit"
                ddAutofocus
+               placeholder="name type"
+               title="Type “name type” (e.g. price numeric). Tab: next row · Enter on the last row: new column"
+               maxlength="120"
                [value]="column.name"
                (pointerdown)="$event.stopPropagation()"
                (keydown)="onColumnKey(column, $event)"
                (keydown.escape)="cancelInline()"
-               placeholder="name type"
-               title="Type “name type” (e.g. price numeric). Tab: next row · Enter on the last row: new column"
                (blur)="commitColumn(column, $event)"
-               maxlength="120"
             />
          } @else {
             <span
                class="col-name"
-               (dblclick)="startEditColumn($event, column)"
                title="Double-click to edit (name type)"
+               (dblclick)="startEditColumn($event, column)"
             >
                {{ column.name }}
             </span>
@@ -126,32 +126,32 @@
             <button
                class="chip pk"
                type="button"
+               title="Primary key"
                [class.on]="column.isPrimaryKey"
                (pointerdown)="$event.stopPropagation()"
                (click)="togglePk(column)"
-               title="Primary key"
             >
                PK
             </button>
             <button
                class="chip nn"
                type="button"
+               title="Not null"
                [class.on]="!column.isNullable"
                (pointerdown)="$event.stopPropagation()"
                (click)="toggleNotNull(column)"
-               title="Not null"
             >
                NN
             </button>
             <button
                class="chip uq"
                type="button"
+               placement="below-end"
+               title="Unique"
                [class.on]="column.isUnique || uniqueSets().has(column.id)"
                [ddPopoverTrigger]="uniqueMenu"
-               placement="below-end"
-               (pointerdown)="$event.stopPropagation()"
                [disabled]="!editable()"
-               title="Unique"
+               (pointerdown)="$event.stopPropagation()"
             >
                UQ
             </button>
@@ -173,8 +173,8 @@
                            class="dd-menu-item"
                            type="button"
                            [class.on]="ix.columnIds.includes(column.id)"
-                           (click)="toggleIndexMember(ix, column)"
                            [title]="indexColumnNames(ix)"
+                           (click)="toggleIndexMember(ix, column)"
                         >
                            <dd-icon [name]="ix.columnIds.includes(column.id) ? 'check' : 'add'" />
                            {{ ix.name }} <span class="ix-cols">({{ indexColumnNames(ix) }})</span>
@@ -191,10 +191,10 @@
             <button
                class="chip ai"
                type="button"
+               title="Auto increment"
                [class.on]="column.isAutoIncrement"
                (pointerdown)="$event.stopPropagation()"
                (click)="toggleAuto(column)"
-               title="Auto increment"
             >
                AI
             </button>
@@ -202,10 +202,10 @@
                <button
                   class="chip un"
                   type="button"
+                  title="Unsigned"
                   [class.on]="!!column.isUnsigned"
                   (pointerdown)="$event.stopPropagation()"
                   (click)="toggleUnsigned(column)"
-                  title="Unsigned"
                >
                   UN
                </button>
@@ -215,10 +215,10 @@
          <button
             class="type"
             type="button"
-            [ddPopoverTrigger]="typeMenu"
             placement="below-end"
-            (pointerdown)="$event.stopPropagation()"
             title="Change type"
+            [ddPopoverTrigger]="typeMenu"
+            (pointerdown)="$event.stopPropagation()"
          >
             <span class="type-name">{{ column.dataType.name }}</span>
             <dd-icon name="arrow_drop_down" class="chev" />
@@ -243,21 +243,21 @@
                class="len"
                type="number"
                min="1"
+               title="Length"
                [value]="column.dataType.length ?? 255"
                (pointerdown)="$event.stopPropagation()"
                (change)="setLength(column, $event)"
-               title="Length"
             />
          }
 
          <button
             class="icon-btn tiny"
             type="button"
-            (pointerdown)="$event.stopPropagation()"
-            (click)="deleteColumn(column)"
-            [disabled]="!editable()"
             title="Delete column"
             aria-label="Delete column"
+            [disabled]="!editable()"
+            (pointerdown)="$event.stopPropagation()"
+            (click)="deleteColumn(column)"
          >
             <dd-icon name="close" />
          </button>

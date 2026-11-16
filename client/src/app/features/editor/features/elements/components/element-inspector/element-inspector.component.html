@@ -7,10 +7,10 @@
       <button
          class="icon-btn del"
          type="button"
-         (click)="remove()"
-         [disabled]="!store.canEdit()"
          title="Delete"
          aria-label="Delete"
+         [disabled]="!store.canEdit()"
+         (click)="remove()"
       >
          <dd-icon name="delete" />
       </button>
@@ -19,11 +19,11 @@
    <!-- Stroke -->
    <div class="field-label">Stroke</div>
    <dd-color-swatches
-      [value]="element().strokeColor"
-      [allowNone]="strokeCanBeNone()"
       noneValue="transparent"
       noneLabel="No stroke"
       themeValue="theme"
+      [value]="element().strokeColor"
+      [allowNone]="strokeCanBeNone()"
       [deckTheme]="deckTheme()"
       [disabled]="!store.canEdit()"
       (pick)="setStroke($event)"
@@ -72,12 +72,12 @@
       <div class="field-label">Fill</div>
       <div class="swatches">
          <dd-color-swatches
-            [value]="
-               element().fillStyle === 'none' || !element().backgroundColor ? 'transparent' : element().backgroundColor
-            "
             noneValue="transparent"
             noneLabel="No fill"
             themeValue="surface"
+            [value]="
+               element().fillStyle === 'none' || !element().backgroundColor ? 'transparent' : element().backgroundColor
+            "
             [deckTheme]="deckTheme()"
             [disabled]="!store.canEdit()"
             (pick)="setFill($event)"
@@ -85,10 +85,10 @@
          <button
             class="hatch-btn"
             type="button"
+            title="Hatch fill"
             [class.on]="element().fillStyle === 'hachure'"
             [disabled]="!store.canEdit() || element().fillStyle === 'none'"
             (click)="setFillStyle('hachure')"
-            title="Hatch fill"
          >
             hatch
          </button>
@@ -211,18 +211,18 @@
          <button
             class="seg text"
             type="button"
+            title="Format with Prettier (Shift+Alt+F)"
             [disabled]="!store.canEdit() || !canFormat()"
             (click)="format()"
-            title="Format with Prettier (Shift+Alt+F)"
          >
             Format code
          </button>
          <button
             class="seg text"
             type="button"
+            title="Resize the block to fit its code (Shift+Alt+S)"
             [disabled]="!store.canEdit()"
             (click)="fitToContent()"
-            title="Resize the block to fit its code (Shift+Alt+S)"
          >
             Fit to content
          </button>
@@ -235,8 +235,8 @@
                type="button"
                [class.on]="(element().diffView ?? 'off') === v.id"
                [disabled]="!store.canEdit()"
-               (click)="setDiffView(v.id)"
                [title]="v.title"
+               (click)="setDiffView(v.id)"
             >
                {{ v.label }}
             </button>
@@ -246,10 +246,10 @@
          <button
             class="seg text"
             type="button"
+            title="Treat lines that differ only in spaces or indentation as unchanged"
             [class.on]="!element().diffShowWhitespace"
             [disabled]="!store.canEdit()"
             (click)="toggleWhitespace()"
-            title="Treat lines that differ only in spaces or indentation as unchanged"
          >
             Ignore whitespace
          </button>
@@ -259,36 +259,36 @@
             <button
                class="seg text"
                type="button"
+               title="Edit the original (left) side"
                [disabled]="!store.canEdit()"
                (click)="editDiff('original')"
-               title="Edit the original (left) side"
             >
                Edit original
             </button>
             <button
                class="seg text"
                type="button"
+               title="Edit the changed (right) side"
                [disabled]="!store.canEdit() || (element().diffView ?? 'off') === 'off'"
                (click)="editDiff('modified')"
-               title="Edit the changed (right) side"
             >
                Edit changed
             </button>
             <button
                class="seg text"
                type="button"
+               title="Swap the original and changed sides"
                [disabled]="!store.canEdit()"
                (click)="swapDiff()"
-               title="Swap the original and changed sides"
             >
                Swap
             </button>
             <button
                class="seg text"
                type="button"
+               title="Delete the changed side and keep the original"
                [disabled]="!store.canEdit()"
                (click)="clearDiff()"
-               title="Delete the changed side and keep the original"
             >
                Remove diff
             </button>

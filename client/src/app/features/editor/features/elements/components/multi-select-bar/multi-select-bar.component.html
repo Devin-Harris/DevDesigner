@@ -1,6 +1,6 @@
 <span class="count">{{ count() }} selected</span>
 <span class="sep"></span>
-<button class="tb" type="button" [ddPopoverTrigger]="alignMenu" placement="below-start">
+<button class="tb" type="button" placement="below-start" [ddPopoverTrigger]="alignMenu">
    <dd-icon name="align_horizontal_left" />Align<dd-icon name="expand_more" class="chev" />
 </button>
 <ng-template #alignMenu let-close>
@@ -10,54 +10,54 @@
          <button
             class="ib"
             type="button"
-            (click)="align.emit('left'); close()"
             matTooltip="Align left"
             aria-label="Align left"
+            (click)="align.emit('left'); close()"
          >
             <dd-icon name="align_horizontal_left" />
          </button>
          <button
             class="ib"
             type="button"
-            (click)="align.emit('hcenter'); close()"
             matTooltip="Center horizontally"
             aria-label="Center horizontally"
+            (click)="align.emit('hcenter'); close()"
          >
             <dd-icon name="align_horizontal_center" />
          </button>
          <button
             class="ib"
             type="button"
-            (click)="align.emit('right'); close()"
             matTooltip="Align right"
             aria-label="Align right"
+            (click)="align.emit('right'); close()"
          >
             <dd-icon name="align_horizontal_right" />
          </button>
          <button
             class="ib"
             type="button"
-            (click)="align.emit('top'); close()"
             matTooltip="Align top"
             aria-label="Align top"
+            (click)="align.emit('top'); close()"
          >
             <dd-icon name="align_vertical_top" />
          </button>
          <button
             class="ib"
             type="button"
-            (click)="align.emit('vcenter'); close()"
             matTooltip="Center vertically"
             aria-label="Center vertically"
+            (click)="align.emit('vcenter'); close()"
          >
             <dd-icon name="align_vertical_center" />
          </button>
          <button
             class="ib"
             type="button"
-            (click)="align.emit('bottom'); close()"
             matTooltip="Align bottom"
             aria-label="Align bottom"
+            (click)="align.emit('bottom'); close()"
          >
             <dd-icon name="align_vertical_bottom" />
          </button>
@@ -73,16 +73,16 @@
          <button
             class="chip"
             type="button"
-            (click)="align.emit('gaps-h'); close()"
             matTooltip="Line up left to right, 40 px apart"
+            (click)="align.emit('gaps-h'); close()"
          >
             Equal gaps &#8596; 40
          </button>
          <button
             class="chip"
             type="button"
-            (click)="align.emit('gaps-v'); close()"
             matTooltip="Stack top to bottom, 40 px apart"
+            (click)="align.emit('gaps-v'); close()"
          >
             Equal gaps &#8597; 40
          </button>
@@ -95,10 +95,10 @@
    <button
       class="ib"
       type="button"
-      [ddPopoverTrigger]="fillMenu"
       placement="below-start"
       matTooltip="Fill for all"
       aria-label="Fill for all"
+      [ddPopoverTrigger]="fillMenu"
    >
       <span class="sw fill"></span>
    </button>
@@ -110,10 +110,10 @@
    <button
       class="ib"
       type="button"
-      [ddPopoverTrigger]="strokeMenu"
       placement="below-start"
       matTooltip="Stroke for all"
       aria-label="Stroke for all"
+      [ddPopoverTrigger]="strokeMenu"
    >
       <span class="sw stroke"></span>
    </button>
@@ -125,18 +125,18 @@
 }
 
 @if (grouped()) {
-   <button class="tb" type="button" (click)="ungroup.emit()" matTooltip="Ungroup (Ctrl+Shift+G)">Ungroup</button>
+   <button class="tb" type="button" matTooltip="Ungroup (Ctrl+Shift+G)" (click)="ungroup.emit()">Ungroup</button>
 } @else {
-   <button class="tb" type="button" (click)="group.emit()" matTooltip="Group (Ctrl+G)">Group</button>
+   <button class="tb" type="button" matTooltip="Group (Ctrl+G)" (click)="group.emit()">Group</button>
 }
 
 <button
    class="ib"
    type="button"
-   [ddPopoverTrigger]="layerMenu"
    placement="below-start"
    matTooltip="Layer order"
    aria-label="Layer order"
+   [ddPopoverTrigger]="layerMenu"
 >
    <dd-icon name="flip_to_front" />
 </button>
@@ -157,9 +157,9 @@
    </div>
 </ng-template>
 
-<button class="ib" type="button" (click)="duplicate.emit()" matTooltip="Duplicate" aria-label="Duplicate">
+<button class="ib" type="button" matTooltip="Duplicate" aria-label="Duplicate" (click)="duplicate.emit()">
    <dd-icon name="content_copy" />
 </button>
-<button class="ib del" type="button" (click)="remove.emit()" matTooltip="Delete" aria-label="Delete">
+<button class="ib del" type="button" matTooltip="Delete" aria-label="Delete" (click)="remove.emit()">
    <dd-icon name="delete" />
 </button>

@@ -15,9 +15,9 @@
          <button
             class="icon"
             type="button"
-            (click)="command.emit({ kind: 'deletePresentation' })"
             title="Delete presentation and its slides"
             aria-label="Delete presentation"
+            (click)="command.emit({ kind: 'deletePresentation' })"
          >
             <dd-icon name="delete" />
          </button>
@@ -29,18 +29,18 @@
       <button
          class="f-go"
          type="button"
+         title="Present from the first slide (F5)"
          [disabled]="!playable()"
          (click)="command.emit({ kind: 'present', from: 'start' })"
-         title="Present from the first slide (F5)"
       >
          <span>▶ Present <span class="f5">F5</span></span>
       </button>
       <button
          class="f-tb outline"
          type="button"
+         title="Present from the selected slide"
          [disabled]="!playable()"
          (click)="command.emit({ kind: 'present', from: 'current' })"
-         title="Present from the selected slide"
       >
          From here
       </button>
@@ -68,6 +68,7 @@
          @for (f of shown(); track f.id; let i = $index) {
             <li
                class="card"
+               title="Drag to reorder · Alt-drag to duplicate"
                [class.on]="isSelected(f.id)"
                [class.current]="f.id === (shownLayout() ? lastSlide() : active_())"
                [class.hidden]="!!f.slide?.hidden"
@@ -77,12 +78,11 @@
                [style.transform]="cardTransform(i)"
                (pointerdown)="onCardDown(i, $event)"
                (click)="onRowClick(f, $event)"
-               title="Drag to reorder · Alt-drag to duplicate"
             >
                <span class="num">{{ i + 1 }}</span>
                <span class="thumb" [style.aspect-ratio]="f.width + ' / ' + f.height">
                   @if (thumbs().get(thumbId(f)); as src) {
-                     <img [src]="src" alt="" draggable="false" />
+                     <img alt="" draggable="false" [src]="src" />
                   }
                   @if (slideForeign(f)) {
                      <dd-icon
@@ -97,27 +97,27 @@
                      <button
                         class="icon"
                         type="button"
-                        (click)="toggleHidden(f)"
-                        [title]="f.slide?.hidden ? 'Skipped: include in the presentation' : 'Skip in the presentation'"
                         aria-label="Skip slide"
+                        [title]="f.slide?.hidden ? 'Skipped: include in the presentation' : 'Skip in the presentation'"
+                        (click)="toggleHidden(f)"
                      >
                         <dd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
                      </button>
                      <button
                         class="icon"
                         type="button"
-                        (click)="command.emit({ kind: 'duplicate', id: f.id })"
                         title="Duplicate slide"
                         aria-label="Duplicate slide"
+                        (click)="command.emit({ kind: 'duplicate', id: f.id })"
                      >
                         <dd-icon name="content_copy" />
                      </button>
                      <button
                         class="icon"
                         type="button"
-                        (click)="command.emit({ kind: 'delete', id: f.id })"
                         title="Delete slide and its contents"
                         aria-label="Delete slide"
+                        (click)="command.emit({ kind: 'delete', id: f.id })"
                      >
                         <dd-icon name="delete" />
                      </button>
@@ -137,7 +137,7 @@
                <span class="num">+{{ g.count > 1 ? g.count : '' }}</span>
                <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
                   @if (thumbs().get(g.id); as src) {
-                     <img [src]="src" alt="" draggable="false" />
+                     <img alt="" draggable="false" [src]="src" />
                   }
                </span>
             </li>
@@ -148,15 +148,15 @@
       <!-- New slides go at the bottom, as in focus mode's slide rail. -->
       <div class="newfoot">
          <div class="newsplit">
-            <button class="f-go" type="button" (click)="command.emit({ kind: 'add' })" title="Add a blank slide">
+            <button class="f-go" type="button" title="Add a blank slide" (click)="command.emit({ kind: 'add' })">
                <span>+ Slide</span>
             </button>
             <button
                class="f-tb outline"
                type="button"
-               (click)="newMenu.set(!newMenu())"
                aria-label="New slide with a layout"
                title="New slide with a layout…"
+               (click)="newMenu.set(!newMenu())"
             >
                Layout ▾
             </button>
@@ -166,7 +166,7 @@
                      <button role="menuitem" type="button" (click)="addWithLayout(l.id)">
                         <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                            @if (layoutThumbs().get(l.id); as src) {
-                              <img [src]="src" alt="" draggable="false" />
+                              <img alt="" draggable="false" [src]="src" />
                            }</span
                         >{{ layoutName(l) }}
                      </button>
@@ -187,9 +187,9 @@
          <button
             class="strip"
             type="button"
-            (click)="command.emit({ kind: 'fold' })"
             aria-label="Expand slide settings"
             title="Expand slide settings"
+            (click)="command.emit({ kind: 'fold' })"
          >
             <dd-icon name="chevron_left" />
             <span class="vert">Slide settings</span>
@@ -210,9 +210,9 @@
             <button
                class="icon fold"
                type="button"
-               (click)="command.emit({ kind: 'fold' })"
                aria-label="Collapse slide settings"
                title="Collapse to the side"
+               (click)="command.emit({ kind: 'fold' })"
             >
                <dd-icon name="chevron_right" />
             </button>
@@ -239,8 +239,8 @@
                               <button
                                  class="btn wide map-pairs"
                                  type="button"
-                                 (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                                  title="See what morphs into what on the next slide, and change it"
+                                 (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                               >
                                  <dd-icon name="open_in_full" />Refine
                               </button>
@@ -315,8 +315,8 @@
                               <button
                                  class="btn wide map-pairs"
                                  type="button"
-                                 (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                                  title="See what morphs into what, and change it"
+                                 (click)="command.emit({ kind: 'screen', screen: 'morph' })"
                               >
                                  <dd-icon name="open_in_full" />Refine
                               </button>
@@ -334,12 +334,12 @@
                                     <button
                                        class="link"
                                        type="button"
-                                       (click)="toggleSplit(st)"
                                        [title]="
                                           st.split
                                              ? 'Use one tag both ways again'
                                              : 'Use a different tag into this slide than out of it'
                                        "
+                                       (click)="toggleSplit(st)"
                                     >
                                        {{ st.split ? 'Join in / out' : 'Split in / out' }}
                                     </button>
@@ -348,17 +348,17 @@
                               @if (splitTarget()?.split) {
                                  <span class="sublab">In · from the slide before</span>
                                  <dd-tag-input
+                                    placeholder="type a tag…"
                                     [value]="tagText(splitTarget()!.in)"
                                     [suggestions]="morphTagSuggestions()"
                                     [maxlength]="80"
-                                    placeholder="type a tag…"
                                     (commit)="setSplitTag('in', $event)"
                                  />
                                  <span class="sublab">Out · to the slide after</span>
                                  <dd-tag-input
+                                    placeholder="type a tag…"
                                     [value]="tagText(splitTarget()!.out)"
                                     [maxlength]="80"
-                                    placeholder="type a tag…"
                                     (commit)="setSplitTag('out', $event)"
                                  />
                               } @else {
@@ -412,9 +412,9 @@
                               <button
                                  class="icon"
                                  type="button"
-                                 (click)="newDesign()"
                                  aria-label="New design"
                                  matTooltip="New design: a copy of this one (its layouts and theme) to change"
+                                 (click)="newDesign()"
                               >
                                  <dd-icon name="add" />
                               </button>
@@ -422,9 +422,9 @@
                                  <button
                                     class="icon"
                                     type="button"
-                                    (click)="deleteDesign()"
                                     aria-label="Delete design"
                                     matTooltip="Delete this design; the deck goes back to the Default layouts"
+                                    (click)="deleteDesign()"
                                  >
                                     <dd-icon name="delete" />
                                  </button>
@@ -432,18 +432,18 @@
                               <button
                                  class="icon"
                                  type="button"
-                                 (click)="exportDesign('design')"
                                  aria-label="Export design"
                                  matTooltip="Download this design (its layouts and theme) as one file"
+                                 (click)="exportDesign('design')"
                               >
                                  <dd-icon name="download" />
                               </button>
                               <button
                                  class="icon"
                                  type="button"
-                                 (click)="importPart.set('design'); designFileInput.click()"
                                  aria-label="Import design"
                                  matTooltip="Add a design from a file and use it"
+                                 (click)="importPart.set('design'); designFileInput.click()"
                               >
                                  <dd-icon name="upload" />
                               </button>
@@ -456,9 +456,9 @@
                         [options]="designOptions()"
                         [ngModel]="design().id"
                         [disabled]="!canEdit()"
+                        [removable]="true"
                         (ngModelChange)="pickDesign($event)"
                         (rename)="renameRecord($event.value, $event.label)"
-                        [removable]="true"
                         (remove)="deleteDesignById($event)"
                      />
                      @if (themeNote() ?? relayoutNote(); as note) {
@@ -534,8 +534,8 @@
                                  <button
                                     class="btn"
                                     type="button"
-                                    (click)="command.emit({ kind: 'add', layoutId: shownLayout()!.id })"
                                     title="Add a slide that uses this layout"
+                                    (click)="command.emit({ kind: 'add', layoutId: shownLayout()!.id })"
                                  >
                                     <dd-icon name="add" />New slide
                                  </button>
@@ -560,8 +560,8 @@
                                  <button
                                     class="btn wide"
                                     type="button"
-                                    (click)="resetSlide(true)"
                                     title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
+                                    (click)="resetSlide(true)"
                                  >
                                     <dd-icon name="undo" />Reset selected to layout
                                  </button>
@@ -569,8 +569,8 @@
                                  <button
                                     class="btn wide"
                                     type="button"
-                                    (click)="resetSlide(false)"
                                     title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
+                                    (click)="resetSlide(false)"
                                  >
                                     <dd-icon name="undo" />Reset slide to layout
                                  </button>
@@ -587,8 +587,8 @@
                                  <button
                                     class="btn wide"
                                     type="button"
-                                    (click)="resetMaster(true)"
                                     title="Show the master's version of the selected items again"
+                                    (click)="resetMaster(true)"
                                  >
                                     <dd-icon name="undo" />Reset selected to master
                                  </button>
@@ -596,8 +596,8 @@
                                  <button
                                     class="btn wide"
                                     type="button"
-                                    (click)="resetMaster(false)"
                                     title="Show the master's version of every item changed here again"
+                                    (click)="resetMaster(false)"
                                  >
                                     <dd-icon name="undo" />Reset to master
                                  </button>
@@ -619,35 +619,35 @@
                                  <button
                                     class="icon"
                                     type="button"
-                                    (click)="exportDesign('layouts')"
                                     aria-label="Export layouts"
                                     matTooltip="Download this design's layouts and master as a file"
+                                    (click)="exportDesign('layouts')"
                                  >
                                     <dd-icon name="download" />
                                  </button>
                                  <button
                                     class="icon"
                                     type="button"
-                                    (click)="importPart.set('layouts'); designFileInput.click()"
                                     aria-label="Import layouts"
                                     matTooltip="Use layouts from a file in this design (its theme stays)"
+                                    (click)="importPart.set('layouts'); designFileInput.click()"
                                  >
                                     <dd-icon name="upload" />
                                  </button>
                                  <button
                                     class="link"
                                     type="button"
-                                    [ddPopoverTrigger]="standardMenu"
                                     placement="below-end"
                                     matTooltip="Add ready-made layouts that follow the theme"
+                                    [ddPopoverTrigger]="standardMenu"
                                  >
                                     <dd-icon name="template" />Standard
                                  </button>
                                  <button
                                     class="link"
                                     type="button"
-                                    (click)="command.emit({ kind: 'add', layout: true })"
                                     matTooltip="Add an empty layout"
+                                    (click)="command.emit({ kind: 'add', layout: true })"
                                  >
                                     <dd-icon name="add" />Layout
                                  </button>
@@ -688,7 +688,7 @@
                                  >
                                     <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
                                        @if (thumbs().get(m.id); as src) {
-                                          <img [src]="src" alt="" draggable="false" />
+                                          <img alt="" draggable="false" [src]="src" />
                                        }
                                     </span>
                                     <span class="lname">Master</span>
@@ -699,12 +699,12 @@
                               <li
                                  class="lcard"
                                  [class.current]="l.id === active_()"
-                                 (click)="command.emit({ kind: 'focus', id: l.id })"
                                  [title]="'Edit layout ' + layoutName(l)"
+                                 (click)="command.emit({ kind: 'focus', id: l.id })"
                               >
                                  <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                                     @if (thumbs().get(l.id); as src) {
-                                       <img [src]="src" alt="" draggable="false" />
+                                       <img alt="" draggable="false" [src]="src" />
                                     }
                                  </span>
                                  <span class="lname">{{ layoutName(l) }}</span>
@@ -713,11 +713,11 @@
                                        <button
                                           class="icon"
                                           type="button"
+                                          title="Duplicate layout"
+                                          aria-label="Duplicate layout"
                                           (click)="
                                              $event.stopPropagation(); command.emit({ kind: 'duplicate', id: l.id })
                                           "
-                                          title="Duplicate layout"
-                                          aria-label="Duplicate layout"
                                        >
                                           <dd-icon name="content_copy" />
                                        </button>
@@ -725,11 +725,11 @@
                                           <button
                                              class="icon"
                                              type="button"
+                                             title="Delete layout and its items"
+                                             aria-label="Delete layout"
                                              (click)="
                                                 $event.stopPropagation(); command.emit({ kind: 'delete', id: l.id })
                                              "
-                                             title="Delete layout and its items"
-                                             aria-label="Delete layout"
                                           >
                                              <dd-icon name="delete" />
                                           </button>
@@ -759,9 +759,9 @@
                                     <button
                                        class="icon"
                                        type="button"
-                                       (click)="deleteTheme()"
                                        aria-label="Delete theme"
                                        matTooltip="Delete this theme; the deck takes the Default theme"
+                                       (click)="deleteTheme()"
                                     >
                                        <dd-icon name="delete" />
                                     </button>
@@ -769,18 +769,18 @@
                                  <button
                                     class="icon"
                                     type="button"
-                                    (click)="exportDesign('theme')"
                                     aria-label="Export theme"
                                     matTooltip="Download this theme's colors and fonts as a file"
+                                    (click)="exportDesign('theme')"
                                  >
                                     <dd-icon name="download" />
                                  </button>
                                  <button
                                     class="icon"
                                     type="button"
-                                    (click)="importPart.set('theme'); designFileInput.click()"
                                     aria-label="Import theme"
                                     matTooltip="Add a theme from a file and use it in this design (its layouts stay)"
+                                    (click)="importPart.set('theme'); designFileInput.click()"
                                  >
                                     <dd-icon name="upload" />
                                  </button>
@@ -793,9 +793,9 @@
                            [options]="themeOptions()"
                            [ngModel]="deckTheme().id ?? 'default'"
                            [disabled]="!canEdit()"
+                           [removable]="true"
                            (ngModelChange)="pickTheme($event)"
                            (rename)="renameRecord($event.value, $event.label)"
-                           [removable]="true"
                            (remove)="deleteThemeById($event)"
                         />
                         <div class="field">
@@ -805,8 +805,8 @@
                                  <button
                                     type="button"
                                     class="token"
-                                    [ddPopoverTrigger]="tokenPicker"
                                     placement="below-start"
+                                    [ddPopoverTrigger]="tokenPicker"
                                     [disabled]="!canEdit()"
                                     [title]="colorLabels[k]"
                                  >
@@ -829,9 +829,9 @@
                                  <ng-template #tokenPicker let-close>
                                     <div class="picker">
                                        <dd-color-swatches
-                                          [value]="deckTheme().colors[k]"
                                           noneValue="transparent"
                                           noneLabel="None"
+                                          [value]="deckTheme().colors[k]"
                                           [themeValue]="followValue(k)"
                                           (pick)="setThemeColor(k, $event); close()"
                                        />
@@ -926,14 +926,14 @@
             @if (renaming() === o.id) {
                <input
                   class="rec-input"
+                  ddAutofocus
+                  ddAutofocusSelect="textarea"
                   [value]="o.name"
+                  [attr.aria-label]="'Rename ' + o.name"
                   (keydown.enter)="finishRename(o.id, $any($event.target).value)"
                   (keydown.escape)="renaming.set(null)"
                   (blur)="finishRename(o.id, $any($event.target).value)"
                   (pointerdown)="$event.stopPropagation()"
-                  [attr.aria-label]="'Rename ' + o.name"
-                  ddAutofocus
-                  ddAutofocusSelect="textarea"
                />
             } @else {
                <div class="rec-row" [class.on]="o.on">
@@ -956,18 +956,18 @@
                      <button
                         class="rec-edit"
                         type="button"
-                        (click)="renaming.set(o.id)"
-                        [attr.aria-label]="'Rename ' + o.name"
                         title="Rename"
+                        [attr.aria-label]="'Rename ' + o.name"
+                        (click)="renaming.set(o.id)"
                      >
                         <dd-icon name="edit" />
                      </button>
                      <button
                         class="rec-edit del"
                         type="button"
-                        (click)="isTheme ? deleteThemeById(o.id) : deleteDesignById(o.id)"
-                        [attr.aria-label]="'Delete ' + o.name"
                         title="Delete"
+                        [attr.aria-label]="'Delete ' + o.name"
+                        (click)="isTheme ? deleteThemeById(o.id) : deleteDesignById(o.id)"
                      >
                         <dd-icon name="delete" />
                      </button>
@@ -999,8 +999,8 @@
    <div class="f-head"><span class="f-lab">Slides</span><span class="f-k">↑↓</span></div>
    <div
       class="f-cards"
-      [class.reordering]="draggingIndex() !== null"
       tabindex="0"
+      [class.reordering]="draggingIndex() !== null"
       (keydown.arrowUp)="stepSlide(-1, $event)"
       (keydown.arrowDown)="stepSlide(1, $event)"
    >
@@ -1015,14 +1015,14 @@
             [class.settling]="draggingIndex() === i && !cloning() && settling()"
             [class.pending]="f.id === pendingCloneId"
             [style.transform]="cardTransform(i)"
+            [title]="canEdit() ? 'Drag to reorder · Alt-drag to duplicate' : ''"
             (pointerdown)="onCardDown(i, $event)"
             (click)="onRowClick(f, $event)"
-            [title]="canEdit() ? 'Drag to reorder · Alt-drag to duplicate' : ''"
          >
             <span class="n">{{ i + 1 }}</span>
             <span class="tn" [style.aspect-ratio]="f.width + ' / ' + f.height">
                @if (thumbs().get(thumbId(f)); as src) {
-                  <img [src]="src" alt="" draggable="false" />
+                  <img alt="" draggable="false" [src]="src" />
                }
                <span class="bd">
                   @if (f.slide?.hidden) {
@@ -1038,18 +1038,18 @@
                      <button
                         class="f-act dd-button-reset"
                         type="button"
-                        (click)="command.emit({ kind: 'duplicate', id: f.id })"
                         title="Duplicate slide"
                         aria-label="Duplicate slide"
+                        (click)="command.emit({ kind: 'duplicate', id: f.id })"
                      >
                         <dd-icon name="content_copy" />
                      </button>
                      <button
                         class="f-act dd-button-reset"
                         type="button"
-                        (click)="command.emit({ kind: 'delete', id: f.id })"
                         title="Delete slide and its contents"
                         aria-label="Delete slide"
+                        (click)="command.emit({ kind: 'delete', id: f.id })"
                      >
                         <dd-icon name="delete" />
                      </button>
@@ -1070,7 +1070,7 @@
             <span class="n">+{{ g.count > 1 ? g.count : '' }}</span>
             <span class="tn" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
                @if (thumbs().get(g.id); as src) {
-                  <img [src]="src" alt="" draggable="false" />
+                  <img alt="" draggable="false" [src]="src" />
                }
             </span>
          </div>
@@ -1082,9 +1082,9 @@
          <button
             class="f-tb"
             type="button"
-            [ddPopoverTrigger]="focusLayoutMenu"
             placement="above-start"
             aria-label="New slide with a layout"
+            [ddPopoverTrigger]="focusLayoutMenu"
          >
             Layout ▾
          </button>
@@ -1094,7 +1094,7 @@
                   <button class="dd-menu-item lay-item" type="button" (click)="addWithLayout(l.id); close()">
                      <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
                         @if (layoutThumbs().get(l.id); as src) {
-                           <img [src]="src" alt="" draggable="false" />
+                           <img alt="" draggable="false" [src]="src" />
                         }</span
                      >{{ layoutName(l) }}
                   </button>
@@ -1152,7 +1152,7 @@
                   >
                      <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
                         @if (thumbs().get(l.id); as src) {
-                           <img [src]="src" alt="" draggable="false" />
+                           <img alt="" draggable="false" [src]="src" />
                         }
                      </span>
                      {{ layoutName(l) }}
@@ -1189,10 +1189,10 @@
                <button
                   class="tg"
                   type="button"
+                  aria-label="Skip in slideshow"
                   [class.on]="!!a.slide?.hidden"
                   [disabled]="!canEdit()"
                   (click)="toggleHidden(a)"
-                  aria-label="Skip in slideshow"
                ></button>
             </div>
             <div class="f-row">
@@ -1277,10 +1277,10 @@
                }
                <button
                   type="button"
+                  placement="below-end"
                   [class.on]="![200, 300, 500].includes(transition().duration)"
                   [disabled]="!canEdit()"
                   [ddPopoverTrigger]="durMenu"
-                  placement="below-end"
                >
                   ms…
                </button>
@@ -1359,10 +1359,10 @@
                <button
                   class="f-link"
                   type="button"
-                  (click)="toggleSplit(st)"
                   [title]="
                      st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'
                   "
+                  (click)="toggleSplit(st)"
                >
                   {{ st.split ? 'Join in / out' : 'Split in / out' }}
                </button>
@@ -1372,27 +1372,27 @@
             <div class="f-split">
                <span class="f-small">In · from the slide before</span>
                <dd-tag-input
+                  placeholder="type a tag…"
                   [value]="tagText(splitTarget()!.in)"
                   [suggestions]="morphTagSuggestions()"
                   [maxlength]="80"
-                  placeholder="type a tag…"
                   (commit)="setSplitTag('in', $event)"
                />
                <span class="f-small">Out · to the slide after</span>
                <dd-tag-input
+                  placeholder="type a tag…"
                   [value]="tagText(splitTarget()!.out)"
                   [maxlength]="80"
-                  placeholder="type a tag…"
                   (commit)="setSplitTag('out', $event)"
                />
             </div>
          } @else {
             <dd-tag-input
+               placeholder="type a tag…"
                [value]="morphTag()"
                [suggestions]="morphTagSuggestions()"
                [taken]="takenTags()"
                [maxlength]="80"
-               placeholder="type a tag…"
                (commit)="setMorphTag($event)"
             />
          }
@@ -1400,7 +1400,7 @@
             <div class="f-small">
                Tags used on the previous slide:
                @for (t of morphTagSuggestions(); track t; let last = $last) {
-                  <span [class.taken]="takenTags().includes(t)" class="vt">{{ t }}</span
+                  <span class="vt" [class.taken]="takenTags().includes(t)">{{ t }}</span
                   >{{ last ? '' : ' · ' }}
                }
             </div>
@@ -1436,7 +1436,7 @@
          >
             <span class="lt" [style.aspect-ratio]="m.width + ' / ' + m.height">
                @if (thumbs().get(m.id); as src) {
-                  <img [src]="src" alt="" draggable="false" />
+                  <img alt="" draggable="false" [src]="src" />
                }
             </span>
             <span class="meta"><b>Master</b><span>under all</span></span>
@@ -1456,9 +1456,9 @@
                <button
                   class="rec-edit del ly-del"
                   type="button"
-                  (click)="command.emit({ kind: 'delete', id: l.id })"
                   title="Delete layout and its items"
                   aria-label="Delete layout"
+                  (click)="command.emit({ kind: 'delete', id: l.id })"
                >
                   <dd-icon name="delete" />
                </button>
@@ -1471,7 +1471,7 @@
             >
                <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
                   @if (thumbs().get(l.id); as src) {
-                     <img [src]="src" alt="" draggable="false" />
+                     <img alt="" draggable="false" [src]="src" />
                   }
                </span>
                <span class="meta"
@@ -1517,9 +1517,9 @@
                [options]="designOptions()"
                [ngModel]="design().id"
                [disabled]="!canEdit()"
+               [removable]="true"
                (ngModelChange)="pickDesign($event)"
                (rename)="renameRecord($event.value, $event.label)"
-               [removable]="true"
                (remove)="deleteDesignById($event)"
             />
             @if (canEdit()) {
@@ -1556,10 +1556,10 @@
                      class="pv"
                      type="button"
                      [disabled]="!canEdit()"
-                     (click)="pickTheme(t.id)"
                      [style.background]="css(t.theme!.colors.background)"
                      [style.color]="css(t.theme!.colors.heading)"
                      [style.font-family]="stackOf(t.theme!.fonts.heading)"
+                     (click)="pickTheme(t.id)"
                   >
                      Aa
                      <span class="bars">
@@ -1571,13 +1571,13 @@
                   @if (renaming() === t.id) {
                      <input
                         class="rec-input card"
+                        ddAutofocus
+                        ddAutofocusSelect="textarea"
                         [value]="t.name"
+                        [attr.aria-label]="'Rename ' + t.name"
                         (keydown.enter)="finishRename(t.id, $any($event.target).value)"
                         (keydown.escape)="renaming.set(null)"
                         (blur)="finishRename(t.id, $any($event.target).value)"
-                        ddAutofocus
-                        ddAutofocusSelect="textarea"
-                        [attr.aria-label]="'Rename ' + t.name"
                      />
                   } @else {
                      <span class="nm">
@@ -1587,18 +1587,18 @@
                               <button
                                  class="rec-edit"
                                  type="button"
-                                 (click)="renaming.set(t.id)"
-                                 [attr.aria-label]="'Rename ' + t.name"
                                  title="Rename"
+                                 [attr.aria-label]="'Rename ' + t.name"
+                                 (click)="renaming.set(t.id)"
                               >
                                  <dd-icon name="edit" />
                               </button>
                               <button
                                  class="rec-edit del"
                                  type="button"
-                                 (click)="deleteThemeById(t.id)"
-                                 [attr.aria-label]="'Delete ' + t.name"
                                  title="Delete"
+                                 [attr.aria-label]="'Delete ' + t.name"
+                                 (click)="deleteThemeById(t.id)"
                               >
                                  <dd-icon name="delete" />
                               </button>
@@ -1616,8 +1616,8 @@
             <button
                class="tok"
                type="button"
-               [ddPopoverTrigger]="tokPick"
                placement="below-start"
+               [ddPopoverTrigger]="tokPick"
                [disabled]="!canEdit()"
             >
                <span
@@ -1633,9 +1633,9 @@
             <ng-template #tokPick let-close>
                <div class="picker">
                   <dd-color-swatches
-                     [value]="deckTheme().colors[k]"
                      noneValue="transparent"
                      noneLabel="None"
+                     [value]="deckTheme().colors[k]"
                      [themeValue]="followValue(k)"
                      (pick)="setThemeColor(k, $event); close()"
                   />

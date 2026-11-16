@@ -3,7 +3,6 @@ import type { SequenceStart } from '../../../models/sequence-start.model';
 import { inject, Injectable } from '@angular/core';
 import type { TableModel } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
-import type { Point } from '../../../models/geometry.model';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What table drags read from the editor entry; the entry wires it with `connect`. */
 export interface TableDragHost {

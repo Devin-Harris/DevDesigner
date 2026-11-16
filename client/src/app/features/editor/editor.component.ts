@@ -70,7 +70,6 @@ import { CanvasConnectorsComponent } from './features/canvas/components/canvas-c
 import { CanvasShapesComponent } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
 import { MinimapComponent } from './features/minimap/minimap.component';
 import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
-import { framePreset } from './shared/constants/frame-presets';
 import { snapToGrid } from './helpers/node-metrics.helper';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';

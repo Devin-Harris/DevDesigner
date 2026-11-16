@@ -30,9 +30,9 @@
                   class="icon-btn"
                   matTooltip="Copy link"
                   type="button"
+                  aria-label="Copy link"
                   [disabled]="!link.url"
                   (click)="copy(link)"
-                  aria-label="Copy link"
                >
                   <dd-icon name="content_copy" />
                </button>
@@ -40,8 +40,8 @@
                   class="icon-btn del"
                   matTooltip="Revoke link"
                   type="button"
-                  (click)="revoke(link)"
                   aria-label="Revoke link"
+                  (click)="revoke(link)"
                >
                   <dd-icon name="link_off" />
                </button>

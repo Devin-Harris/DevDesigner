@@ -4,9 +4,9 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="strokeMenu"
          placement="below-start"
          matTooltip="Stroke color"
+         [ddPopoverTrigger]="strokeMenu"
          [disabled]="!store.canEdit()"
       >
          <span
@@ -18,10 +18,10 @@
       <ng-template #strokeMenu let-close>
          <div class="picker">
             <dd-color-swatches
-               [value]="strokeSwatch()"
-               [allowNone]="strokeCanBeNone()"
                noneValue="transparent"
                noneLabel="No stroke"
+               [value]="strokeSwatch()"
+               [allowNone]="strokeCanBeNone()"
                [themeValue]="strokeThemeValue()"
                [deckTheme]="swatchTheme()"
                (pick)="setStroke($event); close()"
@@ -34,9 +34,9 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="fillMenu"
          placement="below-start"
          matTooltip="Fill color"
+         [ddPopoverTrigger]="fillMenu"
          [disabled]="!store.canEdit()"
       >
          <span
@@ -48,9 +48,9 @@
       <ng-template #fillMenu let-close>
          <div class="picker">
             <dd-color-swatches
-               [value]="fillShown().none ? 'transparent' : fillShown().color"
                noneValue="transparent"
                noneLabel="No fill"
+               [value]="fillShown().none ? 'transparent' : fillShown().color"
                [themeValue]="surfaceFill"
                [deckTheme]="swatchTheme()"
                (pick)="setFill($event); close()"
@@ -68,10 +68,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="widthMenu"
          placement="below-start"
          matTooltip="Stroke width"
          aria-label="Stroke width"
+         [ddPopoverTrigger]="widthMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="line_weight" />
@@ -97,10 +97,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="styleMenu"
          placement="below-start"
          matTooltip="Stroke style"
          aria-label="Stroke style"
+         [ddPopoverTrigger]="styleMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="timeline" />
@@ -127,9 +127,9 @@
       <button
          class="tb wide"
          type="button"
-         [ddPopoverTrigger]="ratioMenu"
          placement="below-start"
          matTooltip="Frame size"
+         [ddPopoverTrigger]="ratioMenu"
          [disabled]="!store.canEdit()"
       >
          <span class="lang">{{ frameRatioLabel() }}</span
@@ -167,10 +167,10 @@
       <button
          class="tb wide"
          type="button"
-         [ddPopoverTrigger]="frameExportMenu"
          placement="below-start"
          matTooltip="Export frame"
          aria-label="Export frame"
+         [ddPopoverTrigger]="frameExportMenu"
       >
          <dd-icon name="download" /><dd-icon name="expand_more" />
       </button>
@@ -191,9 +191,9 @@
          <button
             class="tb wide add-deck"
             type="button"
-            [ddPopoverTrigger]="addDeckMenu"
             placement="below-start"
             matTooltip="Make this frame a slide"
+            [ddPopoverTrigger]="addDeckMenu"
          >
             <dd-icon name="add" />Add to presentation<dd-icon name="expand_more" />
          </button>
@@ -227,10 +227,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="radiusMenu"
          placement="below-start"
          matTooltip="Corner radius"
          aria-label="Corner radius"
+         [ddPopoverTrigger]="radiusMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="rounded_corner" />
@@ -253,8 +253,8 @@
                <button
                   class="tb"
                   type="button"
-                  [class.on]="!element().ellipticCorners"
                   matTooltip="Large radius rounds into a pill"
+                  [class.on]="!element().ellipticCorners"
                   (click)="setEllipticCorners(false)"
                >
                   Pill
@@ -262,8 +262,8 @@
                <button
                   class="tb"
                   type="button"
-                  [class.on]="!!element().ellipticCorners"
                   matTooltip="Large radius stretches into an oval"
+                  [class.on]="!!element().ellipticCorners"
                   (click)="setEllipticCorners(true)"
                >
                   Oval
@@ -278,9 +278,9 @@
       <button
          class="tb wide"
          type="button"
-         [ddPopoverTrigger]="languageMenu"
          placement="below-start"
          matTooltip="Language"
+         [ddPopoverTrigger]="languageMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="code" />
@@ -347,11 +347,11 @@
       <button
          class="tb"
          type="button"
-         [class.on]="diffOn()"
-         [ddPopoverTrigger]="diffMenu"
          placement="below-start"
          matTooltip="Diff"
          aria-label="Diff"
+         [class.on]="diffOn()"
+         [ddPopoverTrigger]="diffMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="difference" />
@@ -388,10 +388,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="codeSizeMenu"
          placement="below-start"
          matTooltip="Text size"
          aria-label="Text size"
+         [ddPopoverTrigger]="codeSizeMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_size" />
@@ -441,9 +441,9 @@
       <button
          class="tb"
          type="button"
-         [class.on]="gridHeaderOn()"
          matTooltip="Header row"
          aria-label="Header row"
+         [class.on]="gridHeaderOn()"
          [disabled]="!store.canEdit()"
          (click)="toggleGridHeader()"
       >
@@ -452,10 +452,10 @@
       <button
          class="tb wide"
          type="button"
-         [ddPopoverTrigger]="bordersMenu"
          placement="below-start"
          matTooltip="Borders"
          aria-label="Borders"
+         [ddPopoverTrigger]="bordersMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="grid_4x4" /><dd-icon name="expand_more" />
@@ -482,11 +482,11 @@
          <button
             class="tb"
             type="button"
-            [ddPopoverTrigger]="fieldMenu"
             placement="below-start"
-            [disabled]="!store.canEdit()"
             matTooltip="Insert field (slide number, date, ...)"
             aria-label="Insert field (slide number, date, ...)"
+            [ddPopoverTrigger]="fieldMenu"
+            [disabled]="!store.canEdit()"
          >
             <dd-icon name="data_object" />
          </button>
@@ -511,8 +511,8 @@
       <button
          class="tb wide font-pick"
          type="button"
-         [ddPopoverTrigger]="fontMenu"
          placement="below-start"
+         [ddPopoverTrigger]="fontMenu"
          [matTooltip]="multiText() ? 'Font (all selected text)' : 'Font'"
          [disabled]="!store.canEdit()"
       >
@@ -565,8 +565,8 @@
          <button
             class="tb wide size-pick"
             type="button"
-            [ddPopoverTrigger]="sizeMenu"
             placement="below-start"
+            [ddPopoverTrigger]="sizeMenu"
             [matTooltip]="multiText() ? 'Font size (all selected text)' : 'Font size'"
             [disabled]="!store.canEdit()"
          >
@@ -591,8 +591,8 @@
                type="number"
                min="4"
                max="400"
-               [value]="sharedSize() ?? ''"
                placeholder="Mixed"
+               [value]="sharedSize() ?? ''"
                (keydown.enter)="setCustomFontSize($any($event.target).value); close()"
             />
             @for (s of fontSizes; track s) {
@@ -611,10 +611,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="lineHeightMenu"
          placement="below-start"
          matTooltip="Line height"
          aria-label="Line height"
+         [ddPopoverTrigger]="lineHeightMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_line_spacing" />
@@ -637,22 +637,22 @@
       <button
          class="tb"
          type="button"
-         [class.on]="boldOn()"
-         (click)="toggleBold()"
          matTooltip="Bold (Ctrl+B)"
          aria-label="Bold (Ctrl+B)"
+         [class.on]="boldOn()"
          [disabled]="!store.canEdit()"
+         (click)="toggleBold()"
       >
          <dd-icon name="format_bold" />
       </button>
       <button
          class="tb"
          type="button"
-         [class.on]="italicOn()"
-         (click)="toggleItalic()"
          matTooltip="Italic (Ctrl+I)"
          aria-label="Italic (Ctrl+I)"
+         [class.on]="italicOn()"
          [disabled]="!store.canEdit()"
+         (click)="toggleItalic()"
       >
          <dd-icon name="format_italic" />
       </button>
@@ -661,11 +661,11 @@
             <button
                class="tb"
                type="button"
-               [class.on]="element().wrap"
-               (click)="toggleWrap()"
                matTooltip="Wrap text to a fixed width (drag a side handle)"
                aria-label="Wrap text to a fixed width (drag a side handle)"
+               [class.on]="element().wrap"
                [disabled]="!store.canEdit()"
+               (click)="toggleWrap()"
             >
                <dd-icon name="wrap_text" />
             </button>
@@ -673,33 +673,33 @@
          <button
             class="tb"
             type="button"
-            [class.on]="underlineOn()"
-            (click)="toggleUnderline()"
             matTooltip="Underline (Ctrl+U)"
             aria-label="Underline (Ctrl+U)"
+            [class.on]="underlineOn()"
             [disabled]="!store.canEdit()"
+            (click)="toggleUnderline()"
          >
             <dd-icon name="format_underlined" />
          </button>
          <button
             class="tb"
             type="button"
-            [class.on]="listKind() === 'bullet'"
-            (click)="toggleList('bullet')"
             matTooltip="Bulleted list (Ctrl+Shift+8)"
             aria-label="Bulleted list (Ctrl+Shift+8)"
+            [class.on]="listKind() === 'bullet'"
             [disabled]="!store.canEdit()"
+            (click)="toggleList('bullet')"
          >
             <dd-icon name="format_list_bulleted" />
          </button>
          <button
             class="tb"
             type="button"
-            [class.on]="listKind() === 'number'"
-            (click)="toggleList('number')"
             matTooltip="Numbered list (Ctrl+Shift+7)"
             aria-label="Numbered list (Ctrl+Shift+7)"
+            [class.on]="listKind() === 'number'"
             [disabled]="!store.canEdit()"
+            (click)="toggleList('number')"
          >
             <dd-icon name="format_list_numbered" />
          </button>
@@ -707,11 +707,11 @@
             <button
                class="tb"
                type="button"
-               [class.on]="!!runMorphTag()"
-               [ddPopoverTrigger]="morphMenu"
                placement="below-start"
                matTooltip="Morph tag for the selected words"
                aria-label="Morph tag for the selected words"
+               [class.on]="!!runMorphTag()"
+               [ddPopoverTrigger]="morphMenu"
                [disabled]="!store.canEdit()"
             >
                <dd-icon name="link" />
@@ -738,10 +738,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="alignMenu"
          placement="below-start"
          matTooltip="Text alignment"
          aria-label="Text alignment"
+         [ddPopoverTrigger]="alignMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="format_align_center" />
@@ -753,9 +753,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="alignOn() === 'left'"
                   matTooltip="Left"
                   aria-label="Left"
+                  [class.on]="alignOn() === 'left'"
                   (click)="setTextAlign('left')"
                >
                   <dd-icon name="format_align_left" />
@@ -763,9 +763,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="alignOn() === 'center'"
                   matTooltip="Center"
                   aria-label="Center"
+                  [class.on]="alignOn() === 'center'"
                   (click)="setTextAlign('center')"
                >
                   <dd-icon name="format_align_center" />
@@ -773,9 +773,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="alignOn() === 'right'"
                   matTooltip="Right"
                   aria-label="Right"
+                  [class.on]="alignOn() === 'right'"
                   (click)="setTextAlign('right')"
                >
                   <dd-icon name="format_align_right" />
@@ -786,9 +786,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="vAlignOn() === 'top'"
                   matTooltip="Top"
                   aria-label="Top"
+                  [class.on]="vAlignOn() === 'top'"
                   (click)="setVerticalAlign('top')"
                >
                   <dd-icon name="vertical_align_top" />
@@ -796,9 +796,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="vAlignOn() === 'middle'"
                   matTooltip="Middle"
                   aria-label="Middle"
+                  [class.on]="vAlignOn() === 'middle'"
                   (click)="setVerticalAlign('middle')"
                >
                   <dd-icon name="vertical_align_center" />
@@ -806,9 +806,9 @@
                <button
                   class="tb sm"
                   type="button"
-                  [class.on]="vAlignOn() === 'bottom'"
                   matTooltip="Bottom"
                   aria-label="Bottom"
+                  [class.on]="vAlignOn() === 'bottom'"
                   (click)="setVerticalAlign('bottom')"
                >
                   <dd-icon name="vertical_align_bottom" />
@@ -824,9 +824,9 @@
          <button
             class="tb sm"
             type="button"
-            [class.on]="route() === 'straight'"
             matTooltip="Straight"
             aria-label="Straight"
+            [class.on]="route() === 'straight'"
             [disabled]="!store.canEdit()"
             (click)="setRoute('straight')"
          >
@@ -835,9 +835,9 @@
          <button
             class="tb sm"
             type="button"
-            [class.on]="route() === 'curved'"
             matTooltip="Curved"
             aria-label="Curved"
+            [class.on]="route() === 'curved'"
             [disabled]="!store.canEdit()"
             (click)="setRoute('curved')"
          >
@@ -846,9 +846,9 @@
          <button
             class="tb sm"
             type="button"
-            [class.on]="route() === 'elbow'"
             matTooltip="Elbow"
             aria-label="Elbow"
+            [class.on]="route() === 'elbow'"
             [disabled]="!store.canEdit()"
             (click)="setRoute('elbow')"
          >
@@ -858,10 +858,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="headMenu"
          placement="below-start"
          matTooltip="Arrowheads"
          aria-label="Arrowheads"
+         [ddPopoverTrigger]="headMenu"
          [disabled]="!store.canEdit()"
       >
          <dd-icon name="swap_horiz" />
@@ -931,10 +931,10 @@
       <button
          class="tb"
          type="button"
-         [ddPopoverTrigger]="altMenu"
          placement="below-start"
          matTooltip="Alt text"
          aria-label="Alt text"
+         [ddPopoverTrigger]="altMenu"
          [class.on]="!!element().media?.alt"
          [disabled]="!store.canEdit()"
       >
@@ -981,10 +981,10 @@
          <button
             class="tb"
             type="button"
-            [ddPopoverTrigger]="playMenu"
             placement="below-start"
             matTooltip="Playback"
             aria-label="Playback"
+            [ddPopoverTrigger]="playMenu"
             [disabled]="!store.canEdit()"
          >
             <dd-icon name="play_circle" />
@@ -1029,8 +1029,8 @@
                            type="number"
                            min="0"
                            step="0.5"
-                           [value]="element().media?.start ?? ''"
                            placeholder="0"
+                           [value]="element().media?.start ?? ''"
                            (change)="setTrim('start', $any($event.target).value)"
                      /></label>
                      <label
@@ -1039,8 +1039,8 @@
                            type="number"
                            min="0"
                            step="0.5"
-                           [value]="element().media?.end ?? ''"
                            placeholder="end"
+                           [value]="element().media?.end ?? ''"
                            (change)="setTrim('end', $any($event.target).value)"
                      /></label>
                   </div>
@@ -1068,10 +1068,10 @@
    <button
       class="tb"
       type="button"
-      [ddPopoverTrigger]="moreMenu"
       placement="below-end"
       matTooltip="More"
       aria-label="More"
+      [ddPopoverTrigger]="moreMenu"
       [disabled]="!store.canEdit()"
    >
       <dd-icon name="more_vert" />
@@ -1102,10 +1102,10 @@
    <button
       type="button"
       class="tb details"
-      [class.on]="inspector.shown()"
-      (click)="inspector.toggle()"
       title="Details"
       aria-label="Details"
+      [class.on]="inspector.shown()"
+      (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
    </button>
@@ -1114,8 +1114,8 @@
       matTooltip="Delete"
       aria-label="Delete"
       type="button"
-      (click)="remove()"
       [disabled]="!store.canEdit()"
+      (click)="remove()"
    >
       <dd-icon name="delete" />
    </button>

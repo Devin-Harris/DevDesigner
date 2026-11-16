@@ -1,7 +1,7 @@
 // Client ESLint flat config (Angular). Run with `npm run lint -w client` (ng lint).
-// Pass 0 guardrails (docs/audits/03-code-cleanliness.md §7): every rule is a WARNING except
-// `@typescript-eslint/no-explicit-any` and (since pass 2.7) `boundaries/dependencies`. Rules are flipped
-// to error as each later pass clears them.
+// C5.3 (Wave 6): every rule is an ERROR, except the few listed under "Still warnings" below, which
+// have too many hand-fix violations to flip yet (counts in docs/audits/CHANGELOG.md, Wave 6). Template
+// rules follow the same scheme.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
@@ -10,22 +10,6 @@ import angular from 'angular-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 
 const clientRoot = path.dirname(fileURLToPath(import.meta.url));
-
-/** Downgrade every `error` in the given configs to `warn` (pass 0 is warn-only). */
-function warnOnly(configs) {
-   return configs.map((config) => {
-      if (!config.rules) return config;
-      const rules = Object.fromEntries(
-         Object.entries(config.rules).map(([name, value]) => {
-            if (value === 'error' || value === 2) return [name, 'warn'];
-            if (Array.isArray(value) && (value[0] === 'error' || value[0] === 2))
-               return [name, ['warn', ...value.slice(1)]];
-            return [name, value];
-         })
-      );
-      return { ...config, rules };
-   });
-}
 
 // ---------------------------------------------------------------------------
 // Boundaries (§2 A5/A17 + folder-structure import rules) over the pass-2 tree (§4.3).
@@ -152,6 +136,7 @@ const boundaryExceptions = [
    // C3.1: the sandbox measures code blocks/fonts with editor helpers until they move to @devdesigner/shared.
    'src/app/core/sandbox/sandbox-backend.service.ts',
    'src/app/core/sandbox/sandbox-seeds.helper.ts',
+   'src/app/core/sandbox/sandbox-schema.helpers.ts',
 
    // Pass 3: downloadText comes from the editor's export helpers (move it down to shared/helpers).
    'src/app/shared/services/project-file.service.ts',
@@ -173,7 +158,7 @@ export default tseslint.config(
    },
    {
       files: ['**/*.ts'],
-      extends: warnOnly([js.configs.recommended, ...tseslint.configs.recommended, ...angular.configs.tsRecommended]),
+      extends: [js.configs.recommended, ...tseslint.configs.recommended, ...angular.configs.tsRecommended],
       processor: angular.processInlineTemplates,
       plugins: { boundaries },
       settings: {
@@ -184,15 +169,16 @@ export default tseslint.config(
          },
       },
       rules: {
-         '@angular-eslint/component-selector': ['warn', { type: 'element', prefix: 'dd', style: 'kebab-case' }],
-         '@angular-eslint/directive-selector': ['warn', { type: 'attribute', prefix: 'dd', style: 'camelCase' }],
-         '@angular-eslint/prefer-on-push-component-change-detection': 'warn',
-         '@angular-eslint/prefer-signals': 'warn',
-         '@angular-eslint/prefer-output-readonly': 'warn',
-         '@angular-eslint/use-lifecycle-interface': 'warn',
+         '@angular-eslint/component-selector': ['error', { type: 'element', prefix: 'dd', style: 'kebab-case' }],
+         '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: 'dd', style: 'camelCase' }],
+         '@angular-eslint/prefer-on-push-component-change-detection': 'error',
+         '@angular-eslint/prefer-signals': 'error',
+         '@angular-eslint/prefer-output-readonly': 'error',
+         '@angular-eslint/use-lifecycle-interface': 'error',
+         // Still warnings: 32 renamed inputs across 8 components (public binding names; needs template updates).
          '@angular-eslint/no-input-rename': 'warn',
          'no-restricted-syntax': [
-            'warn',
+            'error',
             {
                selector: "Property[key.name='standalone'][value.value=true]",
                message: "Don't write `standalone: true`; standalone is the default.",
@@ -202,13 +188,16 @@ export default tseslint.config(
                message: 'Keep component styles encapsulated (no ViewEncapsulation.None).',
             },
          ],
-         'no-console': 'warn',
+         // console.warn / console.error are the deliberate fallback logs in catch blocks.
+         'no-console': ['error', { allow: ['warn', 'error'] }],
          '@typescript-eslint/no-explicit-any': 'error',
-         '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+         '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+         // Still warnings: 61 object-literal `as` assertions in 16 files (each needs a typed const).
          '@typescript-eslint/consistent-type-assertions': [
             'warn',
             { assertionStyle: 'as', objectLiteralTypeAssertions: 'allow-as-parameter' },
          ],
+         // Still warnings: 14 files over 600 lines; they shrink with the C3.x component splits.
          'max-lines': ['warn', { max: 600, skipBlankLines: true, skipComments: true }],
          'boundaries/dependencies': ['error', { default: 'allow', policies: boundaryPolicies }],
       },
@@ -244,18 +233,28 @@ export default tseslint.config(
       rules: {
          'max-lines': 'off',
          'boundaries/dependencies': 'off',
+         // Test hosts get generated, numbered selectors.
+         '@angular-eslint/component-selector': 'off',
       },
    },
    {
       files: ['**/*.html'],
-      extends: warnOnly([...angular.configs.templateRecommended, ...angular.configs.templateAccessibility]),
+      extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
       rules: {
          // Event bindings are always allowed. Signal reads count too until the `$` suffix is adopted (pass 3),
          // then `allowSuffix: '$'` lets `{{ name$() }}` through and only real method calls remain.
+         // Still warnings: ~1570 signal reads; flips once the `$` suffix convention is adopted.
          '@angular-eslint/template/no-call-expression': ['warn', { allowSuffix: '$' }],
-         '@angular-eslint/template/attributes-order': 'warn',
-         '@angular-eslint/template/button-has-type': 'warn',
-         '@angular-eslint/template/prefer-control-flow': 'warn',
+         '@angular-eslint/template/attributes-order': 'error',
+         '@angular-eslint/template/button-has-type': 'error',
+         '@angular-eslint/template/prefer-control-flow': 'error',
+         '@angular-eslint/template/eqeqeq': ['error', { allowNullOrUndefined: true }],
+         '@angular-eslint/template/banana-in-box': 'error',
+         '@angular-eslint/template/no-negated-async': 'error',
+         // Still warnings (17 each, keyboard/label a11y on clickable divs): need real markup changes.
+         '@angular-eslint/template/click-events-have-key-events': 'warn',
+         '@angular-eslint/template/interactive-supports-focus': 'warn',
+         '@angular-eslint/template/label-has-associated-control': 'warn',
          // A13: component tags are written with explicit closing tags. Do not enable.
          '@angular-eslint/template/prefer-self-closing-tags': 'off',
       },

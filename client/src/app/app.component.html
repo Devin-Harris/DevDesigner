@@ -10,10 +10,10 @@
          <button
             class="brand-btn"
             type="button"
-            [ddPopoverTrigger]="mainMenu"
             placement="below-start"
             matTooltip="Menu"
             aria-label="Main menu"
+            [ddPopoverTrigger]="mainMenu"
          >
             <span class="brand-tile"><dd-icon name="schema" /></span>
             <dd-icon name="expand_more" class="brand-chev" />
@@ -21,23 +21,23 @@
          @if (projects.selected(); as project) {
             @if (renaming()) {
                <input
-                  class="crumb-input"
-                  [value]="project.name"
-                  aria-label="Project name"
                   #nameInput
+                  class="crumb-input"
+                  aria-label="Project name"
+                  ddAutofocus
+                  ddAutofocusSelect="textarea"
+                  [value]="project.name"
                   (keydown.enter)="commitRename(nameInput.value)"
                   (keydown.escape)="renaming.set(false)"
                   (blur)="commitRename(nameInput.value)"
-                  ddAutofocus
-                  ddAutofocusSelect="textarea"
                />
             } @else {
                <button
                   class="crumb-name"
                   type="button"
+                  matTooltip="Switch project · double-click to rename"
                   (click)="onNameClick($event)"
                   (dblclick)="onNameDblClick()"
-                  matTooltip="Switch project · double-click to rename"
                >
                   {{ project.name }}
                </button>
@@ -47,20 +47,20 @@
          <button
             class="nav-icon"
             type="button"
-            (click)="undo()"
-            [disabled]="!editorActions.canUndo()"
             matTooltip="Undo (Ctrl+Z)"
             aria-label="Undo"
+            [disabled]="!editorActions.canUndo()"
+            (click)="undo()"
          >
             <dd-icon name="undo" />
          </button>
          <button
             class="nav-icon"
             type="button"
-            (click)="redo()"
-            [disabled]="!editorActions.canRedo()"
             matTooltip="Redo (Ctrl+Shift+Z)"
             aria-label="Redo"
+            [disabled]="!editorActions.canRedo()"
+            (click)="redo()"
          >
             <dd-icon name="redo" />
          </button>
@@ -71,9 +71,9 @@
             <button
                class="avatars"
                type="button"
-               [ddPopoverTrigger]="peopleMenu"
                placement="below-end"
                aria-label="People here"
+               [ddPopoverTrigger]="peopleMenu"
             >
                @for (p of realtime.participants(); track p.id) {
                   <span
@@ -121,7 +121,7 @@
             </ng-template>
             <span class="v-sep"></span>
          }
-         <button class="nav-btn" type="button" [ddPopoverTrigger]="decksMenu" placement="below-end">
+         <button class="nav-btn" type="button" placement="below-end" [ddPopoverTrigger]="decksMenu">
             <dd-icon name="slideshow" />
             Presentations
             @if (editorActions.decks().length) {
@@ -138,10 +138,10 @@
             <button
                class="nav-icon"
                type="button"
-               [ddPopoverTrigger]="accountMenu"
                placement="below-end"
                matTooltip="Account"
                aria-label="Account"
+               [ddPopoverTrigger]="accountMenu"
             >
                <dd-icon name="account_circle" />
             </button>
@@ -187,7 +187,7 @@
                   <dd-icon name="upload" />Import<span class="kbd">.json</span>
                </button>
             }
-            <button class="dd-menu-item" type="button" [ddPopoverTrigger]="exportMenu" placement="right-start">
+            <button class="dd-menu-item" type="button" placement="right-start" [ddPopoverTrigger]="exportMenu">
                <dd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span>
             </button>
             @if (editorActions.accessMode() === 'OWNER') {
@@ -294,8 +294,8 @@
                <button
                   class="deck-name"
                   type="button"
-                  (click)="editorActions.focusDeck(d.name); close()"
                   title="Show on canvas"
+                  (click)="editorActions.focusDeck(d.name); close()"
                >
                   <span class="dn">{{ d.name }}</span>
                   <span class="ds">{{ d.slides }} slide{{ d.slides === 1 ? '' : 's' }}</span>
@@ -304,8 +304,8 @@
                   <button
                      class="deck-act follow"
                      type="button"
-                     (click)="editorActions.followPresenter(p.id); close()"
                      [title]="'Follow ' + p.name"
+                     (click)="editorActions.followPresenter(p.id); close()"
                   >
                      <span class="pdot" [style.background]="p.color"></span>Follow
                   </button>
@@ -313,17 +313,17 @@
                <button
                   class="deck-act"
                   type="button"
-                  (click)="editorActions.enterDeckFocus(d.name); close()"
                   [title]="'Edit ' + d.name + ' on its own'"
+                  (click)="editorActions.enterDeckFocus(d.name); close()"
                >
                   <dd-icon name="open_in_full" />Focus
                </button>
                <button
                   class="deck-act"
                   type="button"
-                  (click)="editorActions.presentDeck(d.name); close()"
                   [title]="'Present ' + d.name"
                   [disabled]="!d.slides"
+                  (click)="editorActions.presentDeck(d.name); close()"
                >
                   <dd-icon name="play_arrow" />Present
                </button>

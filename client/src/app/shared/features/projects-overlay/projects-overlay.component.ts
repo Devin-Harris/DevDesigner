@@ -444,7 +444,6 @@ export class ProjectsOverlayComponent {
       this.snackBar.open(message, undefined, { duration: 2500 });
    }
    private notifyError(message: string, err: unknown): void {
-      // eslint-disable-next-line no-console
       console.error(message, err);
       this.snackBar.open(message, 'Dismiss', { duration: 5000 });
    }

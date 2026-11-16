@@ -2,7 +2,7 @@
 <div class="sheet" role="dialog" aria-label="Keyboard shortcuts">
    <div class="head">
       <span class="title">Keyboard shortcuts</span>
-      <button class="x" type="button" (click)="closed.emit()" aria-label="Close"><dd-icon name="close" /></button>
+      <button class="x" type="button" aria-label="Close" (click)="closed.emit()"><dd-icon name="close" /></button>
    </div>
    <div class="cols">
       @for (g of groups; track g.name) {

@@ -12,7 +12,7 @@
                <dd-icon name="add" />
                New
             </button>
-            <button class="icon-btn" type="button" (click)="close()" aria-label="Close">
+            <button class="icon-btn" type="button" aria-label="Close" (click)="close()">
                <dd-icon name="close" />
             </button>
          </div>
@@ -55,7 +55,7 @@
                      <div class="thumb project-thumb" [style.--a]="accent(project.id)">
                         @switch (thumbState.status) {
                            @case ('ready') {
-                              <img [src]="thumbState.url" alt="" draggable="false" />
+                              <img alt="" draggable="false" [src]="thumbState.url" />
                            }
                            @case ('loading') {
                               <div class="thumb-skeleton"></div>
@@ -96,12 +96,12 @@
                               <input
                                  class="rename"
                                  ddAutofocus
+                                 maxlength="120"
                                  [formControl]="editName"
                                  (click)="$event.stopPropagation()"
                                  (keydown.enter)="commitRename(project)"
                                  (keydown.escape)="cancelRename()"
                                  (blur)="commitRename(project)"
-                                 maxlength="120"
                               />
                            } @else {
                               <span class="name">{{ project.name }}</span>
@@ -119,19 +119,19 @@
                      <button
                         class="icon-btn quick-delete"
                         type="button"
-                        (click)="removeOne(project, $event.shiftKey); $event.stopPropagation()"
                         title="Delete (Shift+click to skip confirmation)"
                         aria-label="Delete project"
+                        (click)="removeOne(project, $event.shiftKey); $event.stopPropagation()"
                      >
                         <dd-icon name="delete" />
                      </button>
                      <button
                         class="icon-btn more"
                         type="button"
-                        [ddPopoverTrigger]="cardMenu"
                         placement="below-end"
-                        (click)="$event.stopPropagation()"
                         aria-label="Project actions"
+                        [ddPopoverTrigger]="cardMenu"
+                        (click)="$event.stopPropagation()"
                      >
                         <dd-icon name="more_vert" />
                      </button>
@@ -183,12 +183,12 @@
       </footer>
    } @else {
       <header class="panel-head">
-         <button class="icon-btn" type="button" (click)="view.set('projects')" aria-label="Back">
+         <button class="icon-btn" type="button" aria-label="Back" (click)="view.set('projects')">
             <dd-icon name="chevron_left" />
          </button>
          <h2 class="title">Templates</h2>
          <div class="head-actions">
-            <button class="icon-btn" type="button" (click)="close()" aria-label="Close">
+            <button class="icon-btn" type="button" aria-label="Close" (click)="close()">
                <dd-icon name="close" />
             </button>
          </div>

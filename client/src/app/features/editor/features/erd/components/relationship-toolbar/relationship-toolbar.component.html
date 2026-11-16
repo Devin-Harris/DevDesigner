@@ -35,28 +35,28 @@
    class="tb"
    [class.on]="autoRoute()"
    [disabled]="!canEdit()"
-   (click)="toggleAutoRoute.emit()"
    [attr.aria-pressed]="autoRoute()"
    [matTooltip]="autoRoute() ? 'Best path, avoids tables' : 'Line stays where you put it'"
+   (click)="toggleAutoRoute.emit()"
 >
    Auto-route
 </button>
 <button
    type="button"
    class="tb"
+   matTooltip="Clear bends and go back to the best path"
    [disabled]="!canEdit()"
    (click)="resetRoute.emit()"
-   matTooltip="Clear bends and go back to the best path"
 >
    Reset route
 </button>
 <button
    type="button"
    class="ib del"
-   [disabled]="!canEdit()"
-   (click)="deleteRelationship.emit()"
    matTooltip="Delete relationship"
    aria-label="Delete relationship"
+   [disabled]="!canEdit()"
+   (click)="deleteRelationship.emit()"
 >
    <dd-icon name="delete" />
 </button>

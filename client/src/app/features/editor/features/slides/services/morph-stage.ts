@@ -604,6 +604,7 @@ function blendGridRows(ga: GridData, gb: GridData, boxA: GridBox, boxB: GridBox,
    // removed (more rows line up by content than by position). Empty rows never count.
    const sa = ga.rows.map((_v, r) =>
       sig(ga, r)
+         // eslint-disable-next-line no-control-regex -- U+0001 is the row separator sig() inserts
          .replace(/\u0001/g, '')
          .trim()
          ? sig(ga, r)
@@ -611,6 +612,7 @@ function blendGridRows(ga: GridData, gb: GridData, boxA: GridBox, boxB: GridBox,
    );
    const sb = gb.rows.map((_v, r) =>
       sig(gb, r)
+         // eslint-disable-next-line no-control-regex -- U+0001 is the row separator sig() inserts
          .replace(/\u0001/g, '')
          .trim()
          ? sig(gb, r)

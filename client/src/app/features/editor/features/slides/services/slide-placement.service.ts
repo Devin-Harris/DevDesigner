@@ -1,4 +1,3 @@
-import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { inject, Injectable, effect, untracked } from '@angular/core';

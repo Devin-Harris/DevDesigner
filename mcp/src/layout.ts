@@ -723,7 +723,7 @@ export function arrangeStack(
     return [...rest.slice(0, cut), ...picked, ...rest.slice(cut)];
   }
   const step = op === 'forward' ? 1 : -1;
-  let next = [...stack];
+  const next = [...stack];
   for (let n = 0; n < Math.max(1, options.steps ?? 1); n += 1) {
     const order = next.map((_, i) => i);
     if (step === 1) order.reverse();

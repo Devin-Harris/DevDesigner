@@ -211,6 +211,7 @@ const deckSettleUntil = new Map<string, number>();
    styleUrl: './slides-panel.component.scss',
 })
 export class SlidesPanelComponent {
+   // eslint-disable-next-line @angular-eslint/no-output-native -- component output, unrelated to the invoker `command` event
    readonly command = output<SlidesCommand>();
    /** `list`: the slide cards (left of the frame); `settings`: transition/size/notes (right). */
    readonly part = input<

@@ -98,6 +98,7 @@ export class AnimationPaneComponent {
    /** The slide (frame) whose animations are listed. */
    readonly slide = input.required<CanvasElementModel>();
    /** Preview the slide: the panel runs it in present mode. */
+   // eslint-disable-next-line @angular-eslint/no-output-native -- component output, never on a <video>/<audio> element
    readonly play = output<void>();
 
    private readonly store = inject(ProjectStore);

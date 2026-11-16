@@ -56,13 +56,13 @@ describe('themes', () => {
 describe('theme files', () => {
   const bold = BUILT_IN_THEMES.find((t) => t.id === 'bold')!;
 
-  it('round-trips a theme with its layout designs', () => {
-    const parsed = parseThemeFile(JSON.parse(JSON.stringify(themeFile(bold))));
-    expect(parsed).toEqual(bold);
+  it('round-trips a theme file (tokens only, layouts travel separately)', () => {
+    const parsed = parseThemeFile(JSON.parse(JSON.stringify(themeFile('theme', { theme: bold }))));
+    expect(parsed).toEqual({ part: 'theme', name: bold.name, theme: JSON.parse(JSON.stringify(themeTokensOnly(bold))) });
   });
 
   it('explains what is wrong with a bad file', () => {
-    expect(parseThemeFile({ format: 'other' })).toMatch(/not a DevDesigner theme/);
+    expect(parseThemeFile({ format: 'other' })).toMatch(/not a DevDesigner design file/);
     expect(parseThemeFile({ format: 'devdesigner-theme', version: 99, theme: bold })).toMatch(/newer version/);
     const noAccent = { ...bold, colors: { ...bold.colors, accent1: undefined } };
     expect(parseThemeFile({ format: 'devdesigner-theme', version: 1, theme: noAccent })).toMatch(/accent1/);

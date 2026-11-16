@@ -10,6 +10,5 @@ bootstrapApplication(AppComponent, appConfig)
    // Page views (route templates only); a no-op unless environment.telemetry is true.
    .then((app) => app.injector.get(TelemetryService).start())
    .catch((err) => {
-      // eslint-disable-next-line no-console
       console.error(err);
    });

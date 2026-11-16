@@ -1,5 +1,7 @@
 <video
    #video
+   playsinline
+   preload="auto"
    [src]="src()"
    [poster]="poster() ?? ''"
    [loop]="view().loop && !hasTrim()"
@@ -9,8 +11,6 @@
    [style.top.%]="frame().top"
    [style.width.%]="frame().width"
    [style.height.%]="frame().height"
-   playsinline
-   preload="auto"
    (play)="playing.set(true)"
    (pause)="playing.set(false)"
    (ended)="playing.set(false)"

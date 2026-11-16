@@ -2,11 +2,11 @@
    <button
       type="button"
       class="ico-act"
-      [ddPopoverTrigger]="bgMenu"
       placement="below-start"
-      [disabled]="!canEdit()"
       title="Background"
       aria-label="Background"
+      [ddPopoverTrigger]="bgMenu"
+      [disabled]="!canEdit()"
    >
       <span
          class="color-dot"
@@ -20,10 +20,10 @@
       <div class="color-grid">
          <div class="grid-label">Background</div>
          <dd-color-swatches
-            [value]="d.backgroundColor"
             noneValue="transparent"
             noneLabel="No background"
             themeValue=""
+            [value]="d.backgroundColor"
             (pick)="patch({ backgroundColor: $event }); close()"
          />
       </div>
@@ -32,11 +32,11 @@
    <button
       type="button"
       class="ico-act"
-      [ddPopoverTrigger]="borderMenu"
       placement="below-start"
-      [disabled]="!canEdit()"
       title="Border"
       aria-label="Border"
+      [ddPopoverTrigger]="borderMenu"
+      [disabled]="!canEdit()"
    >
       <span
          class="color-dot ring"
@@ -50,10 +50,10 @@
       <div class="color-grid">
          <div class="grid-label">Border</div>
          <dd-color-swatches
-            [value]="d.borderColor"
             noneValue="transparent"
             noneLabel="No border"
             themeValue=""
+            [value]="d.borderColor"
             (pick)="patch({ borderColor: $event }); close()"
          />
       </div>
@@ -61,10 +61,10 @@
    <button
       type="button"
       class="ico-act details"
-      [class.on]="inspector.shown()"
-      (click)="inspector.toggle()"
       title="Details"
       aria-label="Details"
+      [class.on]="inspector.shown()"
+      (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
    </button>

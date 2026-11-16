@@ -1,5 +1,5 @@
 <div class="guide" [class.expanded]="expanded()" [class.collapsed]="railCollapsed()">
-   <aside class="rail" [class.open]="navOpen()" aria-label="Canvas tools">
+   <aside class="rail" aria-label="Canvas tools" [class.open]="navOpen()">
       <div class="rail-head">
          <a class="logo" routerLink="/">
             <span class="brand-tile"><dd-icon name="code" /></span>
@@ -8,24 +8,24 @@
          <button
             class="icon-btn collapse-btn"
             type="button"
-            (click)="toggleRail()"
             [attr.aria-label]="railCollapsed() ? 'Expand tool list' : 'Collapse tool list'"
             [attr.aria-expanded]="!railCollapsed()"
             [title]="railCollapsed() ? 'Expand' : 'Collapse'"
+            (click)="toggleRail()"
          >
             <dd-icon [name]="railCollapsed() ? 'chevron_right' : 'chevron_left'" />
          </button>
          <button
             class="icon-btn theme-btn"
             type="button"
-            (click)="theme.toggle()"
             [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+            (click)="theme.toggle()"
          >
             <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
          </button>
       </div>
       <div class="rail-title">
-         <button class="rail-toggle" type="button" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()">
+         <button class="rail-toggle" type="button" [attr.aria-expanded]="navOpen()" (click)="navOpen.set(!navOpen())">
             <dd-icon [name]="tool().icon" />{{ tool().name }}
             <dd-icon name="expand_more" />
          </button>
@@ -39,9 +39,9 @@
                   type="button"
                   [class.on]="t.id === tool().id"
                   [attr.aria-current]="t.id === tool().id ? 'page' : null"
-                  (click)="go(t)"
                   [attr.title]="railCollapsed() ? (t.keys ? t.name + ' (' + t.keys + ')' : t.name) : null"
                   [attr.aria-label]="t.name"
+                  (click)="go(t)"
                >
                   <span class="tab-icon" [attr.data-tone]="t.tone"><dd-icon [name]="t.icon" /></span>
                   <span class="tab-name">{{ t.name }}</span>
@@ -55,7 +55,7 @@
       <a class="rail-foot" routerLink="/"><dd-icon name="arrow_back" />Back to home</a>
    </aside>
 
-   <main class="page" #page>
+   <main #page class="page">
       <header class="hero">
          <span class="hero-icon" [attr.data-tone]="tool().tone"><dd-icon [name]="tool().icon" /></span>
          <div class="hero-text">
@@ -87,8 +87,8 @@
                      <button
                         class="btn sm"
                         type="button"
-                        (click)="actions.exportSelectionFile()"
                         [disabled]="!actions.hasSelection()"
+                        (click)="actions.exportSelectionFile()"
                      >
                         <dd-icon name="download" />Selection
                      </button>
@@ -108,8 +108,8 @@
                <button
                   class="btn sm"
                   type="button"
-                  (click)="expanded.set(!expanded())"
                   [attr.aria-label]="expanded() ? 'Exit full screen' : 'Full screen'"
+                  (click)="expanded.set(!expanded())"
                >
                   <dd-icon [name]="expanded() ? 'close' : 'open_in_full'" />{{ expanded() ? 'Close' : 'Expand' }}
                </button>

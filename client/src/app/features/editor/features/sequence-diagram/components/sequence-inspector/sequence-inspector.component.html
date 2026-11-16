@@ -9,24 +9,24 @@
          <button
             class="icon-btn"
             type="button"
-            (click)="deleteLifeline()"
-            [disabled]="!store.canEdit()"
             title="Delete participant"
             aria-label="Delete participant"
+            [disabled]="!store.canEdit()"
+            (click)="deleteLifeline()"
          >
             <dd-icon name="delete" />
          </button>
       </div>
 
       <div class="field-label">Label</div>
-      <dd-input [ngModel]="l.label" (commit)="setLabel($event)" [maxlength]="120" [disabled]="!store.canEdit()" />
+      <dd-input [ngModel]="l.label" [maxlength]="120" [disabled]="!store.canEdit()" (commit)="setLabel($event)" />
 
       <div class="field-label">Header color</div>
       <dd-color-swatches
          class="swatches"
-         [value]="l.color"
          noneLabel="Default"
          themeValue="surface"
+         [value]="l.color"
          [disabled]="!store.canEdit()"
          (pick)="setColor($event)"
       />
@@ -34,9 +34,9 @@
       <div class="field-label">Header stroke</div>
       <dd-color-swatches
          class="swatches"
-         [value]="l.strokeColor"
          noneLabel="No stroke"
          themeValue="theme"
+         [value]="l.strokeColor"
          [disabled]="!store.canEdit()"
          (pick)="setStrokeColor($event)"
       />
@@ -44,9 +44,9 @@
       <div class="field-label">Header text</div>
       <dd-color-swatches
          class="swatches"
-         [value]="l.textColor"
          noneLabel="Automatic"
          themeValue="theme"
+         [value]="l.textColor"
          [disabled]="!store.canEdit()"
          (pick)="setTextColor($event)"
       />
@@ -54,25 +54,25 @@
       <div class="field-label">Line color</div>
       <dd-color-swatches
          class="swatches"
-         [value]="l.lineColor"
          noneLabel="Default"
          themeValue="theme"
+         [value]="l.lineColor"
          [disabled]="!store.canEdit()"
          (pick)="setLineColor($event)"
       />
 
       <div class="field-label">Width</div>
       <div class="flag-chips">
-         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)" title="Narrower">
+         <button class="flag" type="button" title="Narrower" [disabled]="!store.canEdit()" (click)="nudgeWidth(-20)">
             −
          </button>
          <span class="width-val">{{ l.width }}px</span>
-         <button class="flag" type="button" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)" title="Wider">
+         <button class="flag" type="button" title="Wider" [disabled]="!store.canEdit()" (click)="nudgeWidth(20)">
             +
          </button>
       </div>
 
-      <button class="add-btn full" type="button" (click)="addParticipant()" [disabled]="!store.canEdit()">
+      <button class="add-btn full" type="button" [disabled]="!store.canEdit()" (click)="addParticipant()">
          <dd-icon name="add" />Add participant
       </button>
    } @else if (message(); as m) {
@@ -85,10 +85,10 @@
          <button
             class="icon-btn"
             type="button"
-            (click)="deleteMessage()"
-            [disabled]="!store.canEdit()"
             title="Delete message"
             aria-label="Delete message"
+            [disabled]="!store.canEdit()"
+            (click)="deleteMessage()"
          >
             <dd-icon name="delete" />
          </button>
@@ -97,24 +97,24 @@
       <div class="field-label">Label</div>
       <dd-input
          [ngModel]="m.label ?? ''"
-         (commit)="setMsgLabel($event)"
          [maxlength]="200"
          [disabled]="!store.canEdit()"
+         (commit)="setMsgLabel($event)"
       />
 
       <div class="field-label">From</div>
       <dd-select
          [options]="lifelineOptions()"
          [ngModel]="m.fromLifelineId"
-         (ngModelChange)="setFrom($event)"
          [disabled]="!store.canEdit()"
+         (ngModelChange)="setFrom($event)"
       />
       <div class="field-label">To</div>
       <dd-select
          [options]="lifelineOptions()"
          [ngModel]="m.toLifelineId"
-         (ngModelChange)="setTo($event)"
          [disabled]="!store.canEdit()"
+         (ngModelChange)="setTo($event)"
       />
 
       <div class="field-label">Style</div>
@@ -151,9 +151,9 @@
       <div class="field-label">Line color</div>
       <dd-color-swatches
          class="swatches"
-         [value]="m.color"
          noneLabel="Default"
          themeValue="theme"
+         [value]="m.color"
          [disabled]="!store.canEdit()"
          (pick)="setMsgColor($event)"
       />
@@ -172,7 +172,7 @@
       </div>
 
       @if (m.style !== 'break') {
-         <button class="add-btn full" type="button" (click)="flipDirection()" [disabled]="!store.canEdit()">
+         <button class="add-btn full" type="button" [disabled]="!store.canEdit()" (click)="flipDirection()">
             <dd-icon name="swap_horiz" />Flip direction
          </button>
       }
@@ -188,10 +188,10 @@
       <div class="field-label">Background</div>
       <dd-color-swatches
          class="swatches"
-         [value]="diagram()!.backgroundColor"
          noneValue="transparent"
          noneLabel="No background"
          themeValue=""
+         [value]="diagram()!.backgroundColor"
          [disabled]="!store.canEdit()"
          (pick)="setBackground($event)"
       />
@@ -199,10 +199,10 @@
       <div class="field-label">Border</div>
       <dd-color-swatches
          class="swatches"
-         [value]="diagram()!.borderColor"
          noneValue="transparent"
          noneLabel="No border"
          themeValue=""
+         [value]="diagram()!.borderColor"
          [disabled]="!store.canEdit()"
          (pick)="setBorder($event)"
       />
