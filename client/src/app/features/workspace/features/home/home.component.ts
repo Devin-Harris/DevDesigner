@@ -28,7 +28,6 @@ import { SandboxBackendService } from '../../../../core/sandbox/sandbox-backend.
 import { prepareSandbox } from '../../../../core/sandbox/sandbox-seeds.helper';
 import { playBuild, type Box, type CursorFn } from './helpers/showcase-player';
 import { RouterLink } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
@@ -36,8 +35,7 @@ import { ThemeService } from '../../../../core/theme/theme.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ProjectsStore } from '../../../../shared/state/projects/projects.store';
 import { ProjectsOverlayService } from '../../../../shared/features/projects-overlay/projects-overlay.service';
-import { AuthDialogComponent } from '../../../../shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
-import { ApiTokensDialogComponent } from '../../../../shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';
+import { AccountDialogsService } from '../../../../shared/features/auth-dialogs/account-dialogs.service';
 import {
    HOME_FEATURES,
    HOME_SHOWCASE,
@@ -75,7 +73,7 @@ export class HomeComponent {
    protected readonly auth = inject(AuthService);
    protected readonly projects = inject(ProjectsStore);
    private readonly overlay = inject(ProjectsOverlayService);
-   private readonly dialog = inject(MatDialog);
+   private readonly accountDialogs = inject(AccountDialogsService);
    private readonly snackBar = inject(MatSnackBar);
 
    /** Six most recently updated projects. */
@@ -1072,21 +1070,16 @@ export class HomeComponent {
       }
    }
 
-   protected openAuth(): void {
-      this.dialog
-         .open(AuthDialogComponent, { width: '420px', maxWidth: '92vw' })
-         .afterClosed()
-         .subscribe((signedIn) => {
-            if (signedIn) this.projects.loadProjects();
-         });
+   protected async openAuth(): Promise<void> {
+      if (await this.accountDialogs.openAuth()) this.projects.loadProjects();
    }
 
    protected openApiTokens(): void {
       if (!this.auth.currentUser()) {
-         this.openAuth();
+         void this.openAuth();
          return;
       }
-      this.dialog.open(ApiTokensDialogComponent, { width: '560px', maxWidth: '94vw' });
+      void this.accountDialogs.openApiTokens();
    }
 
    protected async signOut(): Promise<void> {

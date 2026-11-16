@@ -20,12 +20,11 @@ import { ProjectsApiService } from './shared/services/projects-api.service';
 import { ProjectFileService } from './shared/services/project-file.service';
 import { RealtimeService } from './core/realtime/realtime.service';
 import { ProjectsStore } from './shared/state/projects/projects.store';
-import { AuthDialogComponent } from './shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
+import { AccountDialogsService } from './shared/features/auth-dialogs/account-dialogs.service';
 import {
    ConfirmDialogComponent,
    type ConfirmDialogData,
 } from './shared/ui/components/confirm-dialog/confirm-dialog.component';
-import { ApiTokensDialogComponent } from './shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';
 import { ProjectsOverlayService } from './shared/features/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
@@ -58,6 +57,7 @@ export class AppComponent {
    protected readonly theme = inject(ThemeService);
    protected readonly auth = inject(AuthService);
    private readonly dialog = inject(MatDialog);
+   private readonly accountDialogs = inject(AccountDialogsService);
    protected readonly projects = inject(ProjectsStore);
    protected readonly editorActions = inject(EditorActionsService);
    private readonly router = inject(Router);
@@ -247,14 +247,11 @@ export class AppComponent {
       this.editorActions.share();
    }
 
-   protected openAuth(): void {
-      const ref = this.dialog.open(AuthDialogComponent, { width: '420px', maxWidth: '92vw' });
-      ref.afterClosed().subscribe(async (signedIn) => {
-         if (signedIn) {
-            await this.offerGuestProjectClaim();
-            this.refreshForIdentity();
-         }
-      });
+   protected async openAuth(): Promise<void> {
+      if (await this.accountDialogs.openAuth()) {
+         await this.offerGuestProjectClaim();
+         this.refreshForIdentity();
+      }
    }
 
    /** After sign-in, offer to move this browser's guest projects into the account. */
@@ -292,7 +289,7 @@ export class AppComponent {
    }
 
    protected openApiTokens(): void {
-      this.dialog.open(ApiTokensDialogComponent, { width: '560px', maxWidth: '94vw' });
+      void this.accountDialogs.openApiTokens();
    }
 
    protected async signOut(): Promise<void> {
