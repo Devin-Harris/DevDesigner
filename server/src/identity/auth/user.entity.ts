@@ -43,6 +43,13 @@ export class User {
   @Column({ type: 'datetime', nullable: true })
   lastSeenAt!: Date | null;
 
+  /**
+   * Bumped by "log out everywhere" (and account deletion): session JWTs carry the
+   * version they were signed with and stop verifying once it moves on (security L-3).
+   */
+  @Column({ type: 'integer', default: 0 })
+  tokenVersion!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

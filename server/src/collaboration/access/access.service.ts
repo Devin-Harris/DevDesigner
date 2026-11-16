@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { AccessLevel } from '@devdesigner/shared';
 import { Project } from '../../projects/projects/project.entity';
+import { hashShareToken, isHashedShareToken } from '../sharing/share-token';
 import { ShareLink } from '../sharing/share-link.entity';
 import type { RequiredAccess } from './access-policy.types';
 import { EntityProjectResolver, type ProjectEntityKind } from './entity-project-resolver';
@@ -177,7 +178,10 @@ export class AccessService {
       const hit = this.cache.links.get(token);
       if (hit !== undefined) return hit;
     }
-    const row = await this.shareLinks.findOne({ where: { token } });
+    // Rows are matched by hash; a row from before hashing (converted on boot) still matches as-is.
+    const row =
+      (await this.shareLinks.findOne({ where: { tokenHash: hashShareToken(token) } })) ??
+      (isHashedShareToken(token) ? null : await this.shareLinks.findOne({ where: { tokenHash: token } }));
     const link: CachedShareLink | null = row
       ? {
           projectId: row.projectId,

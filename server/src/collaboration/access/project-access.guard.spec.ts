@@ -9,6 +9,7 @@ import type { Project } from '../../projects/projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
 import type { ConfigService } from '@nestjs/config';
 import { AccessCache } from './access-cache';
+import { hashShareToken } from '../sharing/share-token';
 
 /**
  * ProjectAccessGuard with the real AccessService rules (repositories mocked):
@@ -23,7 +24,7 @@ describe('ProjectAccessGuard', () => {
 
   const access = new AccessService(
     { findOne: jest.fn(async ({ where }: { where: { id: string } }) => projects.get(where.id) ?? null) } as unknown as Repository<Project>,
-    { findOne: jest.fn(async ({ where }: { where: { token: string } }) => links.get(where.token) ?? null) } as unknown as Repository<ShareLink>,
+    { findOne: jest.fn(async ({ where }: { where: { tokenHash: string } }) => links.get(where.tokenHash) ?? null) } as unknown as Repository<ShareLink>,
     {} as EntityProjectResolver,
     new AccessCache({ get: () => 0 } as unknown as ConfigService),
   );
@@ -66,11 +67,11 @@ describe('ProjectAccessGuard', () => {
     projects.set('G', { id: 'G', ownerId: 'guest:browser-guest-0001' });
     children.set('tableA', 'A');
     children.set('tableB', 'B');
-    links.set('edit-A', { token: 'edit-A', projectId: 'A', accessLevel: 'EDIT', revokedAt: null, expiresAt: null });
-    links.set('view-A', { token: 'view-A', projectId: 'A', accessLevel: 'VIEW', revokedAt: null, expiresAt: null });
-    links.set('revoked-A', { token: 'revoked-A', projectId: 'A', accessLevel: 'EDIT', revokedAt: new Date(), expiresAt: null });
-    links.set('expired-A', {
-      token: 'expired-A',
+    links.set(hashShareToken('edit-A'), { tokenHash: hashShareToken('edit-A'), projectId: 'A', accessLevel: 'EDIT', revokedAt: null, expiresAt: null });
+    links.set(hashShareToken('view-A'), { tokenHash: hashShareToken('view-A'), projectId: 'A', accessLevel: 'VIEW', revokedAt: null, expiresAt: null });
+    links.set(hashShareToken('revoked-A'), { tokenHash: hashShareToken('revoked-A'), projectId: 'A', accessLevel: 'EDIT', revokedAt: new Date(), expiresAt: null });
+    links.set(hashShareToken('expired-A'), {
+      tokenHash: hashShareToken('expired-A'),
       projectId: 'A',
       accessLevel: 'EDIT',
       revokedAt: null,

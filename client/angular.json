@@ -42,7 +42,8 @@
                         "styles": { "minify": true, "inlineCritical": true },
                         "fonts": false
                      },
-                     "outputHashing": "all"
+                     "outputHashing": "all",
+                     "security": { "autoCsp": true }
                   },
                   "development": {
                      "optimization": false,

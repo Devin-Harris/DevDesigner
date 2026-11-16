@@ -1,5 +1,5 @@
 import type { AccessLevel, ProjectGraphResponse, ShareLinkResponse } from '@devdesigner/shared';
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, type OnModuleInit, Optional } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { GraphLoaderService } from '../../projects/common/graph-loader.service';
 import { RealtimePublisher } from '../../platform/realtime/realtime.publisher';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
 import { ShareLink } from './share-link.entity';
+import { hashShareToken, isHashedShareToken, ShareTokenSealer } from './share-token';
 import { track } from '../../platform/analytics/track';
 
 /** Length of the unguessable share token (BUILD_INSTRUCTIONS.md section 4.1). */
@@ -22,7 +23,10 @@ const TOKEN_LENGTH = 32;
  * needed. Tokens are generated with nanoid and are unique per link.
  */
 @Injectable()
-export class SharingService {
+export class SharingService implements OnModuleInit {
+  private readonly logger = new Logger(SharingService.name);
+  private readonly sealer: ShareTokenSealer;
+
   constructor(
     @InjectRepository(ShareLink)
     private readonly shareLinks: Repository<ShareLink>,
@@ -31,21 +35,54 @@ export class SharingService {
     private readonly config: ConfigService,
     private readonly realtime: RealtimePublisher,
     @Optional() private readonly events?: EventEmitter2,
-  ) {}
+  ) {
+    this.sealer = new ShareTokenSealer(
+      this.config.get<string>('SHARE_TOKEN_SECRET', '') ||
+        this.config.get<string>('JWT_SECRET', 'change-me-in-production'),
+    );
+  }
+
+  /** Convert links stored before hashing (plaintext token) before the app takes traffic. */
+  async onModuleInit(): Promise<void> {
+    try {
+      const converted = await this.hashPlaintextTokens();
+      if (converted > 0) this.logger.log(`Hashed ${converted} plaintext share token(s)`);
+    } catch (err) {
+      // Lookups still fall back to plaintext rows, so links keep working regardless.
+      this.logger.warn({ err }, 'Share token hashing failed; will retry on next boot');
+    }
+  }
+
+  /** Hash every share_links row still holding a plaintext token; returns how many changed. */
+  async hashPlaintextTokens(): Promise<number> {
+    const rows = await this.shareLinks.find({ select: { id: true, tokenHash: true } });
+    let converted = 0;
+    for (const row of rows) {
+      if (isHashedShareToken(row.tokenHash)) continue;
+      await this.shareLinks.update(
+        { id: row.id },
+        { tokenHash: hashShareToken(row.tokenHash), tokenSealed: this.sealer.seal(row.tokenHash) },
+      );
+      converted++;
+    }
+    return converted;
+  }
 
   /** Owner creates a link. Returns the token and the full shareable URL. */
   async create(projectId: string, dto: CreateShareLinkDto): Promise<ShareLinkResponse> {
+    const token = nanoid(TOKEN_LENGTH);
     const link = this.shareLinks.create({
       projectId,
-      token: nanoid(TOKEN_LENGTH),
+      tokenHash: hashShareToken(token),
+      tokenSealed: this.sealer.seal(token),
       accessLevel: dto.accessLevel,
       revokedAt: null,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
     });
     const saved = await this.shareLinks.save(link);
-    this.realtime.accessChanged(projectId, saved.token);
+    this.realtime.accessChanged(projectId);
     track(this.events, 'share.created', { access: saved.accessLevel, hasExpiry: saved.expiresAt !== null }, { projectId });
-    return this.toResponse(saved);
+    return this.toResponse(saved, token);
   }
 
   /** Owner lists a project's active (non-revoked) links. */
@@ -62,15 +99,12 @@ export class SharingService {
    * from now on, and open sockets that joined with it are dropped.
    */
   async revoke(projectId: string, linkId: string): Promise<void> {
-    const link = await this.shareLinks.findOne({
-      where: { id: linkId, projectId },
-      select: { id: true, token: true },
-    });
-    if (!link) {
+    const result = await this.shareLinks.update({ id: linkId, projectId }, { revokedAt: new Date() });
+    if (!result.affected) {
       throw new NotFoundException(`Share link ${linkId} not found.`);
     }
-    await this.shareLinks.update({ id: linkId, projectId }, { revokedAt: new Date() });
-    this.realtime.accessRevoked(projectId, link.token);
+    // Only the hash is known here: every socket of the project is re-checked.
+    this.realtime.accessRevoked(projectId);
     track(this.events, 'share.revoked', {}, { projectId });
   }
 
@@ -103,16 +137,21 @@ export class SharingService {
     return { projectId: link.projectId, accessLevel };
   }
 
-  private toResponse(link: ShareLink): ShareLinkResponse {
+  private toResponse(link: ShareLink, token = this.displayToken(link)): ShareLinkResponse {
     return {
       id: link.id,
-      token: link.token,
-      url: `${this.baseUrl()}/shared/${link.token}`,
+      token,
+      url: token ? `${this.baseUrl()}/shared/${token}` : null,
       accessLevel: link.accessLevel as ShareLinkResponse['accessLevel'],
       createdAt: link.createdAt.toISOString(),
       expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
       revokedAt: link.revokedAt ? link.revokedAt.toISOString() : null,
     };
+  }
+
+  /** The token for the owner: unsealed, or as stored on a row not yet converted (next boot). */
+  private displayToken(link: ShareLink): string | null {
+    return isHashedShareToken(link.tokenHash) ? this.sealer.open(link.tokenSealed) : link.tokenHash;
   }
 
   /** Client origin used to build shareable URLs (falls back to the dev client). */

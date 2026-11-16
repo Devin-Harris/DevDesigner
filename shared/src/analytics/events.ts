@@ -75,6 +75,8 @@ export const ANALYTICS_EVENTS = {
   'auth.login': { props: { method: oneOf(['password']) } },
   'auth.login_failed': { props: { reason: oneOf(['credentials', 'locked']) } },
   'auth.logout': { props: {} },
+  'auth.logout_all': { props: {} },
+  'auth.account_deleted': { props: {} },
   'guest.claimed': { props: { count: num() } },
 
   // --- Projects ---

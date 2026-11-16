@@ -35,7 +35,7 @@ import {
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
 import { AccessService } from '../../collaboration/access/access.service';
-import { guestOwnerId } from '../../identity/auth/guest-id';
+import { guestOwnerId, presentedGuestId } from '../../identity/auth/guest-id';
 import { AuthService } from '../../identity/auth/auth.service';
 import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
 import { track } from '../analytics/track';
@@ -182,7 +182,7 @@ export class RealtimeGateway
     const auth = (client.handshake.auth ?? {}) as Partial<RealtimeHandshakeAuth>;
     const projectId = typeof auth.projectId === 'string' ? auth.projectId : null;
     const token = typeof auth.token === 'string' ? auth.token : null;
-    const guestId = guestOwnerId(auth.guestId);
+    const guestId = guestOwnerId(presentedGuestId(client.handshake.headers.cookie, auth.guestId));
     if (!projectId) {
       client.disconnect(true);
       return;

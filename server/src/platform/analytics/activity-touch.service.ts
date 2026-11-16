@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../../identity/auth/user.entity';
 import { Project } from '../../projects/projects/project.entity';
+import { hashShareToken } from '../../collaboration/sharing/share-token';
 import { ShareLink } from '../../collaboration/sharing/share-link.entity';
 import { TouchThrottle } from './touch-throttle';
 
@@ -75,7 +76,7 @@ export class ActivityTouchService implements OnModuleInit, OnModuleDestroy, Befo
           .createQueryBuilder()
           .update(ShareLink)
           .set({ lastUsedAt: new Date(at), useCount: () => `useCount + ${Math.floor(count)}` })
-          .where('token = :token', { token })
+          .where('token = :hash', { hash: hashShareToken(token) })
           .execute();
       } catch (err) {
         this.logger.warn({ err }, 'Share link activity update failed');

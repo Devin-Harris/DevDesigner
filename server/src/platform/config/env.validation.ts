@@ -63,6 +63,8 @@ export interface EnvConfig {
   SLOW_REQUEST_MS: number;
   /** Raw analytics events older than this are purged daily (0 = keep). */
   ANALYTICS_RAW_RETENTION_DAYS: number;
+  /** Seals share tokens for the owner's share dialog; empty = derived from JWT_SECRET. */
+  SHARE_TOKEN_SECRET: string;
   [key: string]: unknown;
 }
 
@@ -173,6 +175,7 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     ANALYTICS_GET_SAMPLE: fraction('ANALYTICS_GET_SAMPLE', 0.05),
     SLOW_REQUEST_MS: int('SLOW_REQUEST_MS', 1000, 0, 600_000),
     ANALYTICS_RAW_RETENTION_DAYS: int('ANALYTICS_RAW_RETENTION_DAYS', 90, 0, 36_500),
+    SHARE_TOKEN_SECRET: str('SHARE_TOKEN_SECRET', ''),
   };
 
   if (errors.length > 0) {

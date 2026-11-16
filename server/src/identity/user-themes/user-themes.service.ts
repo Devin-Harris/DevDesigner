@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ACCOUNT_DELETED_EVENT, type AccountDeletedEvent } from '../auth/auth.types';
 import { Repository } from 'typeorm';
 import type { SlideTheme, UserThemeResponse } from '@devdesigner/shared';
 import { UserThemeEntity } from './user-theme.entity';
@@ -29,6 +31,12 @@ export class UserThemesService {
     const row = same ?? this.themes.create({ ownerId: owner });
     row.themeJson = JSON.stringify(dto.theme);
     return toResponse(await this.themes.save(row));
+  }
+
+  /** Account deletion: drop the account's theme library. */
+  @OnEvent(ACCOUNT_DELETED_EVENT, { suppressErrors: false })
+  async removeAllOwnedBy({ userId }: AccountDeletedEvent): Promise<void> {
+    await this.themes.delete({ ownerId: userId });
   }
 
   async remove(ownerId: string | null, id: string): Promise<void> {

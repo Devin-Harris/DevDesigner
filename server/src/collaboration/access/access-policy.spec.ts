@@ -25,6 +25,8 @@ const EXPECTED: Record<string, string> = {
   'GET /auth/api-tokens': 'caller',
   'POST /auth/api-tokens': 'caller',
   'DELETE /auth/api-tokens/:tokenId': 'caller',
+  'POST /auth/logout-all': 'caller',
+  'DELETE /auth/me': 'caller',
   // health, admin
   'GET /health': 'public',
   'GET /health/ready': 'public',

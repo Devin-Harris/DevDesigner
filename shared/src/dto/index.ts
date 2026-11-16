@@ -546,8 +546,12 @@ export interface CreateShareLinkDto {
 }
 export interface ShareLinkResponse {
   id: string;
-  token: string;
-  url: string;
+  /**
+   * The token, for the owner. Stored only hashed + sealed server-side; null when it
+   * can no longer be unsealed (the server's secret changed). The link still works.
+   */
+  token: string | null;
+  url: string | null;
   accessLevel: ShareAccessLevel;
   createdAt: string;
   expiresAt: string | null;

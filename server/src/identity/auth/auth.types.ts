@@ -3,13 +3,25 @@
 /** Name of the httpOnly cookie carrying the session JWT. */
 export const AUTH_COOKIE = 'access_token';
 
-/** Session lifetime, applied to both the JWT and the cookie maxAge. */
+/** Default session lifetime (JWT_EXPIRES_IN unset or unparseable); the cookie maxAge follows JWT_EXPIRES_IN. */
 export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Emitted (awaited, via emitAsync) right before an account row is deleted, so every
+ * module drops what the account owns: projects, themes, analytics rows.
+ */
+export const ACCOUNT_DELETED_EVENT = 'account.deleted';
+
+export interface AccountDeletedEvent {
+  userId: string;
+}
 
 /** Signed JWT payload. `sub` is the user id. */
 export interface JwtPayload {
   sub: string;
   email: string | null;
+  /** users.tokenVersion at signing time; absent on tokens issued before it existed (= 0). */
+  tv?: number;
 }
 
 /**

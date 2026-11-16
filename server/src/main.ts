@@ -5,9 +5,11 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import 'reflect-metadata';
 import compression from 'compression';
+import helmet from 'helmet';
 import { json, raw, urlencoded } from 'body-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { guestCookieMiddleware } from './identity/auth/guest-id';
 import { REQUEST_ID_HEADER } from './platform/http/request-context';
 import { TELEMETRY_MAX_BODY_BYTES } from '@devdesigner/shared';
 
@@ -39,6 +41,24 @@ async function bootstrap(): Promise<void> {
   // Railway terminates TLS one proxy hop in front of us: trust exactly that many
   // X-Forwarded-For entries so req.ip (the rate-limit key) is the real client.
   app.set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 1));
+  app.disable('x-powered-by');
+  // Security headers (security S4.1). The API only serves JSON and media, so its CSP
+  // denies everything and forbids framing. Media is embedded by the client from
+  // another site (Railway subdomains), so Cross-Origin-Resource-Policy stays open.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+      },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
+
+  // Guest identity comes from the server-issued httpOnly cookie (security L-2).
+  app.use(guestCookieMiddleware(config));
 
   // Route-scoped parsers first: once one has parsed a body, the global one skips it.
   // Raw media upload: the body is the file itself (40 MB video max, checked again in the service).

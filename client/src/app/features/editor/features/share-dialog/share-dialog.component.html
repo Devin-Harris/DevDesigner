@@ -25,11 +25,12 @@
          @for (link of items(); track link.id) {
             <li class="link">
                <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
-               <span class="url" [title]="link.url">{{ link.url }}</span>
+               <span class="url" [title]="link.url ?? ''">{{ link.url ?? 'Link can no longer be shown (still works)' }}</span>
                <button
                   class="icon-btn"
                   matTooltip="Copy link"
                   type="button"
+                  [disabled]="!link.url"
                   (click)="copy(link)"
                   aria-label="Copy link"
                >

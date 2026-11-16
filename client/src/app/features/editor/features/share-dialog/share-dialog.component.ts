@@ -92,6 +92,7 @@ export class ShareDialogComponent {
    }
 
    protected async copy(link: ShareLinkResponse): Promise<void> {
+      if (!link.url) return;
       try {
          await navigator.clipboard.writeText(link.url);
          this.snackBar.open('Link copied to clipboard', undefined, { duration: 2000 });
