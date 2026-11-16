@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http';
+import { RequestMethod } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Params } from 'nestjs-pino';
 import { resolveRequestId } from './request-context';
@@ -14,6 +15,8 @@ const scrubUrl = (url: string | undefined): string | undefined =>
 export function loggerParams(config: ConfigService): Params {
   const prod = config.get<string>('NODE_ENV') === 'production';
   return {
+    // Express 5 / path-to-regexp 8 syntax for "every route" (the default '*' is legacy).
+    forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
     pinoHttp: {
       level: config.get<string>('LOG_LEVEL', prod ? 'info' : 'debug'),
       genReqId: (req) => resolveRequestId(req),

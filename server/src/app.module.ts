@@ -77,6 +77,6 @@ import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // In this order: the analytics facts live on the request context.
-    consumer.apply(RequestContextMiddleware, AnalyticsMiddleware).forRoutes('*');
+    consumer.apply(RequestContextMiddleware, AnalyticsMiddleware).forRoutes('{*path}');
   }
 }

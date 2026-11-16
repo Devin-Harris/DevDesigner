@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
 import { AuthService } from './auth.service';
@@ -28,7 +28,8 @@ import { AdminModule } from '../admin/admin.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'change-me-in-production'),
-        signOptions: { algorithm: 'HS256', expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') },
+        // jsonwebtoken types the duration as a template literal ("7d"); the env value is validated as text.
+        signOptions: { algorithm: 'HS256', expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') as JwtSignOptions['expiresIn'] },
         verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
