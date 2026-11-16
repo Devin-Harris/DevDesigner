@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityTouchService } from './activity-touch.service';
+import { AnalyticsRollupService } from './analytics-rollup.service';
 import { buildAnalyticsDataSourceOptions } from './analytics-data-source';
 import { AnalyticsInterceptor, AnalyticsMiddleware, AnalyticsRequestRecorder } from './analytics-request';
 import { ANALYTICS_CONNECTION, analyticsConfig, analyticsEnabled } from './analytics.config';
@@ -75,12 +76,13 @@ export class AnalyticsModule {
         sinks,
         AnalyticsService,
         ActivityTouchService,
+        AnalyticsRollupService,
         AnalyticsRequestRecorder,
         AnalyticsMiddleware,
         AnalyticsListeners,
         { provide: APP_INTERCEPTOR, useClass: AnalyticsInterceptor },
       ],
-      exports: [AnalyticsService, ActivityTouchService, AnalyticsMiddleware, AnalyticsRequestRecorder],
+      exports: [AnalyticsService, ActivityTouchService, AnalyticsRollupService, AnalyticsMiddleware, AnalyticsRequestRecorder],
     };
   }
 }

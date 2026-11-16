@@ -57,6 +57,13 @@ export class DbAnalyticsSink implements AnalyticsSink {
     return removed;
   }
 
+  erase(actorId: string): number {
+    const db = this.native();
+    const events = db.prepare('DELETE FROM analytics_event WHERE actorId = ?').run(actorId).changes;
+    const days = db.prepare('DELETE FROM analytics_actor_day WHERE actorId = ?').run(actorId).changes;
+    return events + days;
+  }
+
   private native(): NativeDb {
     return (this.dataSource.driver as unknown as { databaseConnection: NativeDb }).databaseConnection;
   }

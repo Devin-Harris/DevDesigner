@@ -16,6 +16,9 @@ import { ProjectAccessGuard } from './project-access.guard';
  * Notation: `write:table(tableId)` = write access to the project that the table in
  * :tableId belongs to; `owner:project(projectId)` = owner of :projectId.
  */
+/** Admin POSTs that only read (dry runs). Anything else under /admin must be a GET. */
+const READ_ONLY_ADMIN_POSTS = ['POST /admin/hygiene/preview'];
+
 const EXPECTED: Record<string, string> = {
   // auth
   'POST /auth/register': 'public',
@@ -39,6 +42,7 @@ const EXPECTED: Record<string, string> = {
   'GET /admin/users/:userId': 'admin',
   'GET /admin/projects': 'admin',
   'GET /admin/storage': 'admin',
+  'POST /admin/hygiene/preview': 'admin',
   'GET /admin/api-tokens': 'admin',
   'GET /admin/errors': 'admin',
   'GET /admin/realtime': 'admin',
@@ -206,8 +210,10 @@ describe('route access policies', () => {
     const admin = routes.filter((r) => r.policy === 'admin');
     expect(admin.length).toBeGreaterThan(10);
     expect(admin.filter((r) => !r.adminGuarded || r.ratePolicy !== 'admin').map((r) => r.key)).toEqual([]);
-    expect(routes.filter((r) => r.key.startsWith('GET /admin') !== (r.policy === 'admin')).map((r) => r.key)).toEqual([]);
-    expect(admin.every((r) => r.key.startsWith('GET '))).toBe(true);
+    // The admin API is read-only: GETs, plus the hygiene dry run (counts only, deletes nothing).
+    const isAdminPath = (key: string): boolean => key.startsWith('GET /admin') || READ_ONLY_ADMIN_POSTS.includes(key);
+    expect(routes.filter((r) => isAdminPath(r.key) !== (r.policy === 'admin')).map((r) => r.key)).toEqual([]);
+    expect(admin.every((r) => r.key.startsWith('GET ') || READ_ONLY_ADMIN_POSTS.includes(r.key))).toBe(true);
   });
 
   it('every project route is actually guarded by ProjectAccessGuard', () => {

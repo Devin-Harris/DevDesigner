@@ -72,6 +72,8 @@ export interface AnalyticsSink {
   write(rows: AnalyticsRow[]): void | Promise<void>;
   /** Delete raw events older than `beforeTs` (epoch ms); returns rows removed. */
   purge?(beforeTs: number): number | Promise<number>;
+  /** Delete every stored row of one actor (account deletion). Returns rows removed. */
+  erase?(actorId: string): number | Promise<number>;
 }
 
 export const ANALYTICS_SINKS = Symbol('ANALYTICS_SINKS');

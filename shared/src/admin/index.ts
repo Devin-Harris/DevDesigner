@@ -411,3 +411,29 @@ export interface AdminEventsResponse {
   /** Pass as `cursor` for the next (older) page; null at the end. */
   nextCursor: number | null;
 }
+
+// --- POST /api/admin/hygiene/preview (dry run: counts only, nothing is deleted) ---
+
+export interface AdminHygieneCandidate {
+  count: number;
+  /** Stored bytes the cleanup would free, where known. */
+  bytes: number;
+}
+
+export interface AdminHygienePreviewResponse {
+  generatedAt: string;
+  /** Guest-owned projects not opened (or changed) in 180 days. */
+  dormantGuestProjects: AdminHygieneCandidate;
+  /** Image rows no element references any more. */
+  orphanImages: AdminHygieneCandidate;
+  /** Share links revoked or expired more than 90 days ago. */
+  staleShareLinks: AdminHygieneCandidate;
+  /** The nightly analytics rollup (null fields until it has run once since boot). */
+  rollup: {
+    lastRunAt: string | null;
+    lastDurationMs: number | null;
+    lastError: string | null;
+    snapshots: number;
+    purged: number;
+  };
+}

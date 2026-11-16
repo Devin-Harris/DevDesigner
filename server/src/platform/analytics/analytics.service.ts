@@ -7,7 +7,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { sanitizeAnalyticsProps, type AnalyticsEventName } from '@devdesigner/shared';
+import { OnEvent } from '@nestjs/event-emitter';
 import { requestContext } from '../http/request-context';
+import { ACCOUNT_DELETED_EVENT, type AccountDeletedEvent } from '../../identity/auth/auth.types';
 import type { AnalyticsConfig } from './analytics.config';
 import {
   ANALYTICS_SINKS,
@@ -64,6 +66,8 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy, BeforeAp
   private buffer: AnalyticsRow[] = [];
   private aggregates = new Map<string, AnalyticsRow>();
   private dropped = 0;
+  /** Deleted accounts: rows still produced for them (e.g. the deleting request itself) are dropped. */
+  private readonly erased = new Set<string>();
   private flushScheduled = false;
   private flushing = false;
   private timer: NodeJS.Timeout | null = null;
@@ -113,7 +117,7 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy, BeforeAp
   track(input: TrackInput): void {
     if (!this.enabled) return;
     const row = this.toRow(input);
-    if (!row) return;
+    if (!row || this.isErased(row)) return;
     if (!this.admit()) return;
     this.buffer.push(row);
     this.stats.recorded++;
@@ -127,7 +131,7 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy, BeforeAp
   count(input: TrackInput): void {
     if (!this.enabled) return;
     const row = this.toRow(input);
-    if (!row) return;
+    if (!row || this.isErased(row)) return;
     row.ts = row.ts - (row.ts % MINUTE);
     // Per-request ids would defeat aggregation.
     row.requestId = null;
@@ -193,6 +197,26 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy, BeforeAp
     if (this.depth >= this.config.flushAtRows) this.maybeScheduleFlush();
   }
 
+  /**
+   * Account deletion (audit 04 §4.6): drop the account's buffered rows and every
+   * stored event / active-day row keyed to it. Aggregates (analytics_daily) hold
+   * no actor ids and stay.
+   */
+  @OnEvent(ACCOUNT_DELETED_EVENT, { suppressErrors: false })
+  async erase({ userId }: AccountDeletedEvent): Promise<number> {
+    if (!this.enabled) return 0;
+    this.erased.add(userId);
+    this.buffer = this.buffer.filter((row) => row.actorId !== userId);
+    for (const [key, row] of this.aggregates) {
+      if (row.actorId === userId) this.aggregates.delete(key);
+    }
+    let removed = 0;
+    for (const sink of this.sinks) {
+      removed += (await sink.erase?.(userId)) ?? 0;
+    }
+    return removed;
+  }
+
   /** Purge raw events past retention (daily; aggregates are kept). */
   async purge(now = Date.now()): Promise<number> {
     if (!this.enabled || this.config.rawRetentionDays <= 0) return 0;
@@ -205,6 +229,10 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy, BeforeAp
       }
     }
     return removed;
+  }
+
+  private isErased(row: AnalyticsRow): boolean {
+    return row.actorId !== null && this.erased.has(row.actorId);
   }
 
   private admit(): boolean {
