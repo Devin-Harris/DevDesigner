@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { RealtimeService } from '../../../../../core/realtime/realtime.service';
+import { TelemetryService } from '../../../../../core/telemetry/telemetry.service';
 import { ProjectStore } from '../../../state/project/project.store';
 import { SlideRenderService, type RenderedSlide } from './slide-render.service';
 /**
@@ -17,6 +18,9 @@ export class SlideshowService {
    private readonly slideRender = inject(SlideRenderService);
    private readonly snackBar = inject(MatSnackBar);
    private readonly viewport = inject(EditorViewportService);
+   private readonly telemetry = inject(TelemetryService);
+   /** When the running (own, non-preview) presentation started, for `client.present` end. */
+   private presentStartedAt: number | null = null;
 
    /** The running presentation (or a one-transition preview), or null when not presenting. */
    readonly presentation = signal<{
@@ -89,8 +93,17 @@ export class SlideshowService {
 
    /** Leave the presenter, selecting the slide it was on (not for one-transition previews). */
    onPresentationClosed(frameId: string | null): void {
-      const preview = this.presentation()?.preview;
+      const shown = this.presentation();
+      const preview = shown?.preview;
       this.presentation.set(null);
+      if (this.presentStartedAt !== null) {
+         this.telemetry.track('client.present', {
+            action: 'end',
+            slides: shown?.slides.length ?? 0,
+            durationMs: Date.now() - this.presentStartedAt,
+         });
+         this.presentStartedAt = null;
+      }
       if (!preview && frameId) {
          this.focusFrame(frameId);
          // Center it once fullscreen has been left, so the canvas has its real size again.
@@ -171,6 +184,12 @@ export class SlideshowService {
       try {
          const rendered = await this.slideRender.render(slides);
          this.presentation.set({ slides: rendered, start, preview: false, follow: null });
+         this.presentStartedAt = Date.now();
+         this.telemetry.track('client.present', {
+            action: 'start',
+            slides: rendered.length,
+            solo: this.realtime.participants().length <= 1,
+         });
       } catch (err) {
          this.snackBar.open(
             `Could not start the presentation: ${err instanceof Error ? err.message : String(err)}`,

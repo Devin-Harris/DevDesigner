@@ -15,6 +15,7 @@ import {
 } from '@devdesigner/shared';
 import { environment } from '../../../environments/environment';
 import { clientRouteOf, routeTemplateOf } from './route-template.helper';
+import { classifyError } from './error-kind.helper';
 
 /** Buffered events are sent at least this often. */
 export const TELEMETRY_FLUSH_MS = 15_000;
@@ -59,6 +60,12 @@ export class TelemetryService {
       this.document.addEventListener('visibilitychange', () => {
          if (this.document.visibilityState === 'hidden') this.flush();
       });
+      // Errors outside Angular (the ErrorHandler counts the rest): kind only, never the message.
+      const win = this.document.defaultView;
+      win?.addEventListener('error', (e) => this.track('client.error', { kind: classifyError(e.error) }));
+      win?.addEventListener('unhandledrejection', (e) =>
+         this.track('client.error', { kind: classifyError(e.reason, 'unhandled_rejection') })
+      );
       this.timer = setInterval(() => this.flush(), TELEMETRY_FLUSH_MS);
    }
 

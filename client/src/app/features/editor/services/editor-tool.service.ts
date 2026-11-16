@@ -1,10 +1,12 @@
-import { inject, signal, Injectable, computed } from '@angular/core';
+import { inject, signal, Injectable, computed, effect } from '@angular/core';
 import { ToolbarPrefsService } from './toolbar-prefs.service';
 import { PenPrefsService } from './pen-prefs.service';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { DEFAULT_FRAME_PRESET } from '../shared/constants/frame-presets';
 import type { EditorTool } from '../models/editor-tool.model';
 import { ProjectStore } from '../state/project/project.store';
+import { TelemetryService } from '../../../core/telemetry/telemetry.service';
+
 /** The active canvas tool, its options, and the element being drawn with it. */
 @Injectable()
 export class EditorToolService {
@@ -65,4 +67,15 @@ export class EditorToolService {
    });
 
    readonly shapesInteractive = computed(() => this.activeTool() === 'select' && this.store.canEdit());
+
+   constructor() {
+      // `client.laser` on/off as the laser tool is picked or left (however the tool changes).
+      const telemetry = inject(TelemetryService);
+      let laser = false;
+      effect(() => {
+         const on = this.activeTool() === 'laser';
+         if (on !== laser) telemetry.track('client.laser', { action: on ? 'on' : 'off' });
+         laser = on;
+      });
+   }
 }

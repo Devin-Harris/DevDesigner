@@ -14,6 +14,7 @@ import {
    masterOf,
 } from '@devdesigner/shared';
 import { ProjectFileService } from '../../../../../shared/services/project-file.service';
+import { TelemetryService } from '../../../../../core/telemetry/telemetry.service';
 import { ElementImagesService } from '../../../services/element-images.service';
 import { ProjectsStore } from '../../../../../shared/state/projects/projects.store';
 import { ProjectStore } from '../../../state/project/project.store';
@@ -49,6 +50,7 @@ export class EditorExportService {
    private readonly images = inject(ElementImagesService);
    private readonly projectsStore = inject(ProjectsStore);
    private readonly projectFile = inject(ProjectFileService);
+   private readonly telemetry = inject(TelemetryService);
    private host!: ExportHost;
 
    connect(host: ExportHost): void {
@@ -268,6 +270,7 @@ export class EditorExportService {
          const built = buildDiagramSvg(tables, relationships, elements, sequences, undefined, imageData);
          const diagram = { ...built, svg: await embedFonts(built.svg) };
          await exportDiagramImage(format, diagram, this.exportBaseName(selectionOnly));
+         this.telemetry.track('client.export_image', { format, scope: selectionOnly ? 'selection' : 'canvas' });
       } catch (err) {
          this.snackBar.open(`Export failed: ${err instanceof Error ? err.message : String(err)}`, undefined, {
             duration: 4000,
@@ -375,6 +378,7 @@ export class EditorExportService {
                       ? 'slides'
                       : 'frames';
             downloadBlob(await pagesToPdfBlob(images), `${name}.pdf`);
+            this.trackFrames(format, ordered);
             return;
          }
          const used = new Map<string, number>();
@@ -384,11 +388,19 @@ export class EditorExportService {
             used.set(base, n);
             await exportDiagramImage(format, images[i], n > 1 ? `${base}-${n}` : base);
          }
+         this.trackFrames(format, ordered);
       } catch (err) {
          this.snackBar.open(`Export failed: ${err instanceof Error ? err.message : String(err)}`, undefined, {
             duration: 4000,
          });
       }
+   }
+
+   /** `client.export_image` for a frame export: slides count as slide / deck, other frames as a selection. */
+   private trackFrames(format: ImageFormat, frames: readonly CanvasElementModel[]): void {
+      const slides = frames.some((f) => f.slide);
+      const scope = slides ? (frames.length > 1 ? 'deck' : 'slide') : 'selection';
+      this.telemetry.track('client.export_image', { format, scope });
    }
 
    /** Page order the user last picked, reused as the starting order next time. */

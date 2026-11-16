@@ -19,6 +19,8 @@ import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.servic
 import { EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
 import { EditorComponent } from '../editor';
 import { GUIDE_GROUPS, GUIDE_TOOLS, type GuideTool } from './models/guide-tools';
+import type { GUIDE_TOOL_IDS } from '@devdesigner/shared';
+import { TelemetryService } from '../../core/telemetry/telemetry.service';
 import { prepareSandbox, writeStored } from '../../core/sandbox/sandbox-seeds.helper';
 import { SEEDS } from './helpers/guide-sandbox.helper';
 
@@ -94,6 +96,12 @@ export class GuideComponent {
       });
       effect(() => {
          void this.loadSandbox(this.seed());
+      });
+      // `client.guide_tab` per page shown (the catalog drops ids it does not list).
+      const telemetry = inject(TelemetryService);
+      effect(() => {
+         const tool = this.tool().id as (typeof GUIDE_TOOL_IDS)[number];
+         untracked(() => telemetry.track('client.guide_tab', { tool }));
       });
    }
 

@@ -6,7 +6,7 @@ import { routes } from './app.routes';
 import { withCredentialsInterceptor } from './core/http/interceptors/with-credentials.interceptor';
 import { shareTokenInterceptor } from './core/http/interceptors/share-token.interceptor';
 import { sandboxInterceptor } from './core/sandbox/sandbox.interceptor';
-import { provideSentry } from './core/telemetry/sentry';
+import { provideErrorTelemetry } from './core/telemetry/error-telemetry';
 import { FontMetricsService } from './features/editor/services/font-metrics.service';
 
 /**
@@ -21,7 +21,7 @@ export const appConfig: ApplicationConfig = {
       provideRouter(routes),
       provideAnimationsAsync(),
       provideHttpClient(withInterceptors([sandboxInterceptor, withCredentialsInterceptor, shareTokenInterceptor])),
-      ...provideSentry(),
+      provideErrorTelemetry(),
       // Listens for web fonts from the start, so text measured early is re-measured once they load.
       provideAppInitializer(() => void inject(FontMetricsService)),
    ],

@@ -1,4 +1,4 @@
-import { ErrorHandler, Provider } from '@angular/core';
+import { ErrorHandler } from '@angular/core';
 import * as Sentry from '@sentry/angular';
 import { environment } from '../../../environments/environment';
 
@@ -32,7 +32,6 @@ export function initSentry(): void {
 }
 
 /** Sentry's ErrorHandler when Sentry is configured; Angular's default otherwise. */
-export function provideSentry(): Provider[] {
-   if (!environment.sentryDsn) return [];
-   return [{ provide: ErrorHandler, useValue: Sentry.createErrorHandler({ showDialog: false }) }];
+export function sentryErrorHandler(): ErrorHandler {
+   return environment.sentryDsn ? Sentry.createErrorHandler({ showDialog: false }) : new ErrorHandler();
 }
