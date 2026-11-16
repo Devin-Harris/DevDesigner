@@ -166,6 +166,29 @@ function revealCard(card: Element | undefined, within: HTMLElement | null): void
  */
 /** Deck layouts signature last saved, per `deck|layout set` (shared by every panel instance). */
 const lastLayoutSave = new Map<string, string>();
+/**
+ * Per deck, shared by every panel instance: design switches in flight, and until when
+ * layout changes are follow-ups of one (saves, refits). Several panels of one deck are
+ * mounted at once and each watches its layouts; one that missed the switch must not
+ * mistake the half-applied layouts for an edit and save a custom copy of the design.
+ */
+const deckApplying = new Map<string, number>();
+
+/**
+ * What counts as an edit of a deck's layouts. A text box's height (and a non-wrapping
+ * one's width) follows from its text and font, and is refitted on its own when fonts
+ * load or the theme changes: that is not an edit and must not fork a built-in design.
+ */
+function layoutEditSignature(content: Pick<SlideTheme, 'layouts' | 'extraLayouts' | 'master'>): string {
+   return JSON.stringify(content, function (this: Record<string, unknown>, key, value) {
+      if (this && this['kind'] === 'element') {
+         const el = this['el'] as { type?: string; wrap?: boolean } | undefined;
+         if (el?.type === 'text' && (key === 'h' || (key === 'w' && !el.wrap))) return undefined;
+      }
+      return value;
+   });
+}
+const deckSettleUntil = new Map<string, number>();
 
 @Component({
    selector: 'dd-slides-panel',
@@ -586,12 +609,6 @@ export class SlidesPanelComponent {
          clearTimeout(t);
          document.removeEventListener('pointerdown', this.closeNewMenu);
       });
-   });
-   /** The layout plain "New" uses (the shown layout or the shown slide's), for its tooltip. */
-   protected readonly newLayoutName = computed(() => {
-      const shown = this.store.slideFrames().find((f) => f.id === this.active_());
-      const l = shown?.slide?.layout ? shown : shown && layoutOf(shown, this.store.slideFrames());
-      return l ? this.layoutName(l) : null;
    });
    protected addWithLayout(layoutId: string | null): void {
       this.newMenu.set(false);
@@ -1427,10 +1444,18 @@ export class SlidesPanelComponent {
       if (!this.presentation() || !this.canEdit()) return;
       const from = this.deckTheme();
       await this.loadFonts(theme);
-      await this.store.batchHistory(async () => {
-         const frames = await this.stamp(theme, designId, this.layoutSetId(), everywhere);
-         if (this.fontsDiffer(from, theme)) await this.refitText(frames);
-      });
+      // Refitting text to the new fonts resizes the layouts' placeholders: that is this
+      // switch, not an edit of the layouts (which would save a custom copy of the design).
+      this.applying = true;
+      try {
+         await this.store.batchHistory(async () => {
+            const frames = await this.stamp(theme, designId, this.layoutSetId(), everywhere);
+            if (this.fontsDiffer(from, theme)) await this.refitText(frames);
+         });
+      } finally {
+         this.applying = false;
+      }
+      this.rebaseline();
    }
 
    /**
@@ -1510,7 +1535,16 @@ export class SlidesPanelComponent {
    }
 
    // ---- Layout edits: saved into the design's layout set ----
-   private applying = false;
+   /** A design switch is being applied to this deck (by any of its panels). */
+   private get applying(): boolean {
+      return (deckApplying.get(this.presentation()) ?? 0) > 0;
+   }
+   private set applying(on: boolean) {
+      const name = this.presentation();
+      const n = (deckApplying.get(name) ?? 0) + (on ? 1 : -1);
+      if (n > 0) deckApplying.set(name, n);
+      else deckApplying.delete(name);
+   }
    private layoutTimer?: ReturnType<typeof setTimeout>;
    /** The deck's layouts as last saved (or first seen), per deck and set. */
    private layoutBaseline: { key: string; sig: string } | null = null;
@@ -1533,10 +1567,15 @@ export class SlidesPanelComponent {
       if (!name) return null;
       const setId = this.layoutSetId();
       const content = captureLayoutSet(this.store, name, setId);
-      return { key: `${name}|${setId}`, sig: JSON.stringify(content), content };
+      return { key: `${name}|${setId}`, sig: layoutEditSignature(content), content };
    }
    /** Until when changes to the layouts are follow-ups of our own switch (saves, refits), not edits. */
-   private settleUntil = 0;
+   private get settleUntil(): number {
+      return deckSettleUntil.get(this.presentation()) ?? 0;
+   }
+   private set settleUntil(t: number) {
+      deckSettleUntil.set(this.presentation(), t);
+   }
    private rebaseline(): void {
       clearTimeout(this.layoutTimer);
       this.settleUntil = Date.now() + 2500;
@@ -1837,10 +1876,13 @@ export class SlidesPanelComponent {
       }
       const startX = event.clientX;
       const startY = event.clientY;
-      const scroller = (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('.cards');
+      // The deck panel's list and focus mode's slide rail drag the same way.
+      const focus = this.part() === 'focus-list';
+      const root = this.host.nativeElement as HTMLElement;
+      const scroller = root.querySelector<HTMLElement>(focus ? '.f-cards' : '.cards');
       const startScroll = scroller?.scrollTop ?? 0;
       // Slot geometry in scroll-content coordinates, captured before anything moves.
-      const cards = Array.from((this.host.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('li.card'));
+      const cards = Array.from(root.querySelectorAll<HTMLElement>(focus ? '.fs:not(.ghost)' : 'li.card:not(.ghost)'));
       const slots = cards.map((el) => ({ top: el.offsetTop, height: el.offsetHeight }));
       const me = slots[index];
       if (!me) {

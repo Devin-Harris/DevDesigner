@@ -24,71 +24,33 @@
       }
    </header>
 
+   <!-- Separate buttons, worded and styled as in focus mode. -->
    <div class="actions">
-      <div class="split">
-         <button
-            class="main"
-            type="button"
-            [disabled]="!playable()"
-            (click)="command.emit({ kind: 'present', from: 'start' })"
-            title="Present from the first slide"
-         >
-            <dd-icon name="play_arrow" />Present
-         </button>
-         <button
-            class="from"
-            type="button"
-            [disabled]="!playable()"
-            (click)="command.emit({ kind: 'present', from: 'current' })"
-            title="Present from the selected slide"
-         >
-            From here
-         </button>
-      </div>
-      @if (canEdit()) {
-         <div class="newsplit">
-            <button
-               class="btn new"
-               type="button"
-               (click)="command.emit({ kind: 'add' })"
-               [title]="newLayoutName() ? 'Add a slide using ' + newLayoutName() : 'Add a new 16:9 slide'"
-            >
-               <dd-icon name="add" />New
-            </button>
-            <button
-               class="btn caret"
-               type="button"
-               (click)="newMenu.set(!newMenu())"
-               aria-label="Choose the new slide's layout"
-               title="New slide with a layout…"
-            >
-               <dd-icon name="expand_more" />
-            </button>
-            @if (newMenu()) {
-               <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
-                  @for (l of menuLayouts(); track l.id) {
-                     <button role="menuitem" type="button" (click)="addWithLayout(l.id)">
-                        <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
-                           @if (layoutThumbs().get(l.id); as src) {
-                              <img [src]="src" alt="" draggable="false" />
-                           }</span
-                        >{{ layoutName(l) }}
-                     </button>
-                  }
-                  @if (!layouts().length) {
-                     <p class="hint">Add layouts in the settings panel's Design tab.</p>
-                  }
-               </div>
-            }
-         </div>
-      }
+      <button
+         class="f-go"
+         type="button"
+         [disabled]="!playable()"
+         (click)="command.emit({ kind: 'present', from: 'start' })"
+         title="Present from the first slide (F5)"
+      >
+         <span>▶ Present <span class="f5">F5</span></span>
+      </button>
+      <button
+         class="f-tb outline"
+         type="button"
+         [disabled]="!playable()"
+         (click)="command.emit({ kind: 'present', from: 'current' })"
+         title="Present from the selected slide"
+      >
+         From here
+      </button>
    </div>
 
    <div class="top">
       @if (frames().length === 0) {
          <p class="empty">
-            No slides yet. Press <b>New</b> to add a 16:9 slide, or select a frame and add it here. Only one slide is
-            shown on the canvas at a time; everything inside its frame is part of it.
+            No slides yet. Press <b>New slide</b> to add a blank slide, or select a frame and add it here. Only one
+            slide is shown on the canvas at a time; everything inside its frame is part of it.
          </p>
       }
 
@@ -182,6 +144,41 @@
          }
       </ol>
    </div>
+   @if (canEdit()) {
+      <!-- New slides go at the bottom, as in focus mode's slide rail. -->
+      <div class="newfoot">
+         <div class="newsplit">
+            <button class="f-go" type="button" (click)="command.emit({ kind: 'add' })" title="Add a blank slide">
+               <span>+ Slide</span>
+            </button>
+            <button
+               class="f-tb outline"
+               type="button"
+               (click)="newMenu.set(!newMenu())"
+               aria-label="New slide with a layout"
+               title="New slide with a layout…"
+            >
+               Layout ▾
+            </button>
+            @if (newMenu()) {
+               <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
+                  @for (l of menuLayouts(); track l.id) {
+                     <button role="menuitem" type="button" (click)="addWithLayout(l.id)">
+                        <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                           @if (layoutThumbs().get(l.id); as src) {
+                              <img [src]="src" alt="" draggable="false" />
+                           }</span
+                        >{{ layoutName(l) }}
+                     </button>
+                  }
+                  @if (!layouts().length) {
+                     <p class="hint">Add layouts in the settings panel's Design tab.</p>
+                  }
+               </div>
+            }
+         </div>
+      </div>
+   }
 }
 
 @if (part() === 'settings') {
@@ -537,7 +534,7 @@
                                  <button
                                     class="btn"
                                     type="button"
-                                    (click)="command.emit({ kind: 'add' })"
+                                    (click)="command.emit({ kind: 'add', layoutId: shownLayout()!.id })"
                                     title="Add a slide that uses this layout"
                                  >
                                     <dd-icon name="add" />New slide
@@ -1002,17 +999,25 @@
    <div class="f-head"><span class="f-lab">Slides</span><span class="f-k">↑↓</span></div>
    <div
       class="f-cards"
+      [class.reordering]="draggingIndex() !== null"
       tabindex="0"
       (keydown.arrowUp)="stepSlide(-1, $event)"
       (keydown.arrowDown)="stepSlide(1, $event)"
    >
       @for (f of shown(); track f.id; let i = $index) {
-         <button
-            class="fs dd-button-reset"
-            type="button"
+         <div
+            class="fs"
+            role="button"
             [class.on]="f.id === active_()"
+            [class.sel]="isSelected(f.id) && f.id !== active_()"
             [class.skipped]="!!f.slide?.hidden"
+            [class.dragging]="draggingIndex() === i && !cloning()"
+            [class.settling]="draggingIndex() === i && !cloning() && settling()"
+            [class.pending]="f.id === pendingCloneId"
+            [style.transform]="cardTransform(i)"
+            (pointerdown)="onCardDown(i, $event)"
             (click)="onRowClick(f, $event)"
+            [title]="canEdit() ? 'Drag to reorder · Alt-drag to duplicate' : ''"
          >
             <span class="n">{{ i + 1 }}</span>
             <span class="tn" [style.aspect-ratio]="f.width + ' / ' + f.height">
@@ -1028,8 +1033,47 @@
                      }
                   }
                </span>
+               @if (canEdit() && f.id !== pendingCloneId) {
+                  <span class="f-acts" (click)="$event.stopPropagation()">
+                     <button
+                        class="f-act dd-button-reset"
+                        type="button"
+                        (click)="command.emit({ kind: 'duplicate', id: f.id })"
+                        title="Duplicate slide"
+                        aria-label="Duplicate slide"
+                     >
+                        <dd-icon name="content_copy" />
+                     </button>
+                     <button
+                        class="f-act dd-button-reset"
+                        type="button"
+                        (click)="command.emit({ kind: 'delete', id: f.id })"
+                        title="Delete slide and its contents"
+                        aria-label="Delete slide"
+                     >
+                        <dd-icon name="delete" />
+                     </button>
+                  </span>
+               }
             </span>
-         </button>
+         </div>
+      }
+      <!-- Alt-drag: the original stays put while this copy follows the pointer. -->
+      @if (cloneGhost(); as g) {
+         <div
+            class="fs dragging ghost"
+            [class.settling]="settling()"
+            [style.top.px]="g.top"
+            [style.height.px]="g.height"
+            [style.transform]="'translateY(' + dragDy() + 'px) scale(1.02)'"
+         >
+            <span class="n">+{{ g.count > 1 ? g.count : '' }}</span>
+            <span class="tn" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
+               @if (thumbs().get(g.id); as src) {
+                  <img [src]="src" alt="" draggable="false" />
+               }
+            </span>
+         </div>
       }
    </div>
    @if (canEdit()) {

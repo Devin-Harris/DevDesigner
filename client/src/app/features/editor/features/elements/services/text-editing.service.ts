@@ -30,6 +30,10 @@ import {
    codePrintWidth,
    fontStack,
    fontWeightFor,
+   layoutTextBlock,
+   shapeLabelOptions,
+   shapeTextBox,
+   SHAPE_TEXT_PADDING,
 } from '../../../helpers/render';
 import { DEFAULT_LINE_HEIGHT, fitTextElement } from '../../../helpers/text-metrics';
 import {
@@ -238,6 +242,44 @@ export class TextEditingService {
             rich: false,
             lineHeight: m.lineHeight * z,
             padLeft: m.textOffset * z,
+            ink: null,
+         };
+      }
+      if (el.type === 'rectangle' || el.type === 'ellipse' || el.type === 'diamond') {
+         // A shape label edits like a wrapping text box: rich text inside the shape's inset
+         // text box, laid out exactly as the renderer lays it out (wrap + alignment).
+         const opts = shapeLabelOptions(el, this.canvasView.themeColors());
+         const inner = shapeTextBox(el);
+         const block = layoutTextBlock(el.text || ' ', inner, opts);
+         const lh = opts.fontSize * (el.lineHeight ?? DEFAULT_LINE_HEIGHT);
+         const blockH = Math.max(1, block.lines.length) * lh + SHAPE_TEXT_PADDING * 2;
+         const vAlign = el.verticalAlign ?? 'middle';
+         const y =
+            vAlign === 'top'
+               ? inner.y
+               : vAlign === 'bottom'
+                 ? inner.y + inner.height - blockH
+                 : inner.y + (inner.height - blockH) / 2;
+         return {
+            id,
+            left: inner.x * z + v.x,
+            top: y * z + v.y,
+            width: inner.width * z,
+            height: blockH * z,
+            fontSize: opts.fontSize * z,
+            fontFamily: fontStack(el.fontFamily),
+            fontWeight: opts.fontWeight,
+            italic: !!el.italic,
+            value: el.text ?? '',
+            color: opts.color,
+            align: opts.align,
+            wrap: true,
+            center: false,
+            padding: SHAPE_TEXT_PADDING * z,
+            code: false,
+            rich: true,
+            lineHeight: lh * z,
+            padLeft: null as number | null,
             ink: null,
          };
       }
@@ -720,6 +762,11 @@ export class TextEditingService {
       }
       const text = plainOf(runs);
       const stored = isPlainRuns(runs) ? undefined : runs;
+      if (el.type !== 'text') {
+         // A shape label: the shape keeps its size.
+         this.store.patchElementLocal(id, { text, runs: stored });
+         return;
+      }
       const size = fitTextElement(el, { text, runs: stored ?? null });
       this.store.patchElementLocal(id, { text, runs: stored, width: size.width, height: size.height });
    }
@@ -818,7 +865,11 @@ export class TextEditingService {
    initRichEditor(root: HTMLDivElement): void {
       const id = this.editingTextId();
       const el = id ? this.store.elements().find((e) => e.id === id) : null;
-      if (!id || !el || el.type !== 'text') {
+      if (
+         !id ||
+         !el ||
+         (el.type !== 'text' && el.type !== 'rectangle' && el.type !== 'ellipse' && el.type !== 'diamond')
+      ) {
          return;
       }
       const text = el.text ?? '';
@@ -1048,7 +1099,7 @@ export class TextEditingService {
       }
       if (el.type !== 'text') {
          // Shape label: store the (possibly empty) label without resizing the shape.
-         void this.store.updateElement(id, { text });
+         void this.store.updateElement(id, { text, runs: text ? (usableRuns(text, el.runs) ?? null) : null });
          return;
       }
       if (text.trim() === '') {

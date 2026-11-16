@@ -22,7 +22,7 @@
 
       <div class="fitwrap">
          <div class="zoombar">
-            <button type="button" (click)="setZoom(zoom() / 1.25)" [disabled]="zoom() <= 1" aria-label="Zoom out">
+            <button type="button" (click)="setZoom(zoom() / 1.25)" [disabled]="zoom() <= minZoom" aria-label="Zoom out">
                −
             </button>
             <button class="pct" type="button" (click)="setZoom(1)" title="Fit">{{ (zoom() * 100).toFixed(0) }}%</button>
@@ -45,9 +45,27 @@
                [class.focusing]="!!focusKeys()"
                [class.loading]="!srcs()[0] && !srcs()[1]"
                [style.--ratio]="viewRatio()"
+               [style.--col]="colPct()"
+               [style.--gap]="gapPct()"
+               [style.--ml]="overhang().left"
+               [style.--mr]="overhang().right"
+               [style.--mt]="overhang().top"
+               [style.--mb]="overhang().bottom"
             >
                @for (side of ['a', 'b']; track side) {
                   <div class="sl" [class.b]="side === 'b'">
+                     @if (side === 'a' ? reachA() : reachB(); as r) {
+                        <!-- Objects off this slide's edges still belong to it: one dotted outline around them all. -->
+                        <div
+                           class="reach"
+                           [style.left.%]="r.left"
+                           [style.top.%]="r.top"
+                           [style.width.%]="r.width"
+                           [style.height.%]="r.height"
+                        >
+                           <span class="reach-label">Slide {{ side === 'a' ? index() : index() + 1 }}</span>
+                        </div>
+                     }
                      @if (srcs()[side === 'a' ? 0 : 1]; as s) {
                         <img [src]="s" alt="" draggable="false" />
                      }
@@ -73,6 +91,7 @@
                            [class.rel]="isRel(h.key)"
                            [class.cut]="h.cut"
                            [class.solo]="h.solo"
+                           [class.outside]="h.outside"
                            [attr.data-side]="side"
                            [attr.data-key]="h.key"
                            [title]="
@@ -108,7 +127,7 @@
                      }
                   </div>
                }
-               <svg class="lines" [attr.viewBox]="'0 0 100 ' + viewH()" preserveAspectRatio="none" aria-hidden="true">
+               <svg class="lines" [attr.viewBox]="'0 0 ' + total() + ' ' + viewH()" preserveAspectRatio="none" aria-hidden="true">
                   @for (l of lines(); track l.key) {
                      <path
                         [attr.d]="l.d"
@@ -137,7 +156,7 @@
                            type="button"
                            [class.rel]="isRel(l.a) || isRel(l.b)"
                            [disabled]="!!armed() && !isRel(l.a) && !isRel(l.b)"
-                           [style.left.%]="(l.x1 + l.x2) / 2"
+                           [style.left.%]="((l.x1 + l.x2) / 2 / total()) * 100"
                            [style.top.%]="((l.y1 + l.y2) / 2 / viewH()) * 100"
                            [style.--c]="l.color"
                            title="Remove this pairing"
@@ -160,7 +179,7 @@
                         <span
                            class="end"
                            [class.rel]="isRel(l.a) || isRel(l.b)"
-                           [style.left.%]="l.x1"
+                           [style.left.%]="(l.x1 / total()) * 100"
                            [style.top.%]="(l.y1 / viewH()) * 100"
                            [style.z-index]="endZ('a', l.a, isRel(l.a) || isRel(l.b))"
                            [style.--c]="l.color"
@@ -172,7 +191,7 @@
                         <span
                            class="end"
                            [class.rel]="isRel(l.a) || isRel(l.b)"
-                           [style.left.%]="l.x2"
+                           [style.left.%]="(l.x2 / total()) * 100"
                            [style.top.%]="(l.y2 / viewH()) * 100"
                            [style.z-index]="endZ('b', l.b, isRel(l.a) || isRel(l.b))"
                            [style.--c]="l.color"

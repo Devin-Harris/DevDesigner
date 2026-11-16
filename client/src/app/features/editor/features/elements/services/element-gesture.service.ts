@@ -569,17 +569,17 @@ export class ElementGestureService {
       const dx = (ev.clientX - this.gesture.startClientX) / zoom;
       const dy = (ev.clientY - this.gesture.startClientY) / zoom;
       const left = g.handle === 'nw' || g.handle === 'sw' || g.handle === 'w';
-      const top = g.handle === 'nw' || g.handle === 'ne';
+      const top = g.handle === 'nw' || g.handle === 'ne' || g.handle === 'n';
+      // A side (not a corner) of a shape resizes on that axis only.
+      const onlyX = g.handle === 'e' || g.handle === 'w';
+      const onlyY = g.handle === 'n' || g.handle === 's';
       const cx = s.x + s.width / 2;
       const cy = s.y + s.height / 2;
       const factor = ev.altKey ? 2 : 1;
 
       const resized = this.store.elements().find((e) => e.id === g.id);
-      if (g.handle === 'e' || g.handle === 'w') {
+      if (onlyX && resized?.type === 'text') {
          // A side handle on text fixes its width: it wraps and the height follows the text.
-         if (resized?.type !== 'text') {
-            return;
-         }
          let width = Math.max(24, s.width + (left ? -dx : dx) * factor);
          if (this.snap.gridSnap()) {
             width = Math.max(24, snapToGrid(width));
@@ -595,11 +595,16 @@ export class ElementGestureService {
          });
          return;
       }
+      // Text has no top/bottom side handles (its height follows its text).
+      if (onlyY && resized?.type === 'text') {
+         return;
+      }
       // Pictures keep their proportions by default; Shift frees them (inverse of shapes).
-      const keepProportions = resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
+      // A side drag stretches on its one axis, pictures too.
+      const keepProportions = onlyX || onlyY ? false : resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
 
-      const grow = (left ? -dx : dx) * factor;
-      const growY = (top ? -dy : dy) * factor;
+      const grow = onlyY ? 0 : (left ? -dx : dx) * factor;
+      const growY = onlyX ? 0 : (top ? -dy : dy) * factor;
       let width: number;
       let height: number;
       if (keepProportions && s.width > 0 && s.height > 0) {
@@ -630,11 +635,18 @@ export class ElementGestureService {
          width = Math.max(8, s.width + grow);
          height = Math.max(minH, s.height + growY);
          const smart =
-            ev.altKey || resized?.type === 'text' ? null : this.resizeSnap(g.id, s, left, top, width, height);
-         if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox));
-         else if (this.snap.gridSnap()) width = Math.max(8, snapToGrid(width));
-         if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy));
-         else if (this.snap.gridSnap()) height = Math.max(minH, snapToGrid(height));
+            ev.altKey || resized?.type === 'text'
+               ? null
+               : this.resizeSnap(g.id, s, left, top, width, height, { x: !onlyY, y: !onlyX });
+         // The axis a side drag leaves alone keeps its size exactly (no grid snapping either).
+         if (!onlyY) {
+            if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox));
+            else if (this.snap.gridSnap()) width = Math.max(8, snapToGrid(width));
+         }
+         if (!onlyX) {
+            if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy));
+            else if (this.snap.gridSnap()) height = Math.max(minH, snapToGrid(height));
+         }
       }
 
       let x: number;
@@ -717,14 +729,21 @@ export class ElementGestureService {
       left: boolean,
       top: boolean,
       width: number,
-      height: number
+      height: number,
+      /** Which axes are being resized (a side drag moves one edge only). */
+      axes: { x: boolean; y: boolean } = { x: true, y: true }
    ): SmartSnap | null {
       // Rotated boxes have no axis-aligned edges to line up.
       if (s.angle) return null;
       const x0 = left ? s.x + s.width - width : s.x;
       const y0 = top ? s.y + s.height - height : s.y;
       const box = { x0, y0, x1: x0 + width, y1: y0 + height };
-      return this.snap.smartEdges(id, box, [left ? box.x0 : box.x1], [top ? box.y0 : box.y1]);
+      return this.snap.smartEdges(
+         id,
+         box,
+         axes.x ? [left ? box.x0 : box.x1] : [],
+         axes.y ? [top ? box.y0 : box.y1] : []
+      );
    }
 
    rotateElement(ev: PointerEvent): void {
@@ -1142,6 +1161,9 @@ export class ElementGestureService {
          }
          return;
       }
+      // The snap targets were taken with the originals moving: now they stay put and
+      // the copies move, so measure against them afresh.
+      this.snap.smartBase = null;
       resume();
       if (this.gesture.lastPointer) {
          this.host.handlePointerMove(this.gesture.lastPointer);

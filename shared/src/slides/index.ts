@@ -301,6 +301,9 @@ export function matchMorphItems(
   to: readonly MorphItem[],
   maxDistance = 160,
   reversed = false,
+  /** The slide's size (item centers are slide-local): an item off the slide pairs with a
+   *  look-alike on it (it moves in / out), however far it travels. */
+  slideSize?: { width: number; height: number },
 ): Array<[number, number]> {
   // Split tags: the earlier slide speaks with its "out" key, the later with its "in" key
   // (swapped when playing backwards, where `from` is the later slide).
@@ -382,6 +385,19 @@ export function matchMorphItems(
     const d = dist(a, b);
     return d <= maxDistance && sizeRatioOk(a, b) ? d : null;
   });
+  if (slideSize) {
+    const off = (m: MorphItem): boolean =>
+      m.cx + m.w / 2 <= 0 ||
+      m.cy + m.h / 2 <= 0 ||
+      m.cx - m.w / 2 >= slideSize.width ||
+      m.cy - m.h / 2 >= slideSize.height;
+    // Off the slide on one side, on it on the other: the same thing moving in or out.
+    pass((a, b) =>
+      a.type === b.type && off(a) !== off(b) && a.text.trim() === b.text.trim() && sizeRatioOk(a, b)
+        ? dist(a, b)
+        : null,
+    );
+  }
   pass((a, b) =>
     a.type === b.type && !FREE_FORM_TYPES.has(a.type)
       ? dist(a, b) + Math.abs(a.w - b.w) + Math.abs(a.h - b.h)

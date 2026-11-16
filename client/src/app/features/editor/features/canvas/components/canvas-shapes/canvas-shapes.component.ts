@@ -10,7 +10,7 @@ import { MediaActionsService } from '../../../../services/media-actions.service'
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../../../../helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
-export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'e' | 'w';
+export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
 
 export interface ShapePointerEvent {
    id: string;
@@ -219,6 +219,11 @@ export class CanvasShapesComponent {
       }
       event.stopPropagation();
       this.elementPointerDown.emit({ id, event });
+   }
+
+   /** Length of a side's grab strip: the side minus room for the corner handles. */
+   protected edgeLen(side: number): number {
+      return Math.max(0, side - 12);
    }
 
    protected onResize(id: string, handle: ResizeHandle, event: PointerEvent): void {

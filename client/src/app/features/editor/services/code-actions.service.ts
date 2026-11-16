@@ -1,3 +1,4 @@
+import { languageForFileName } from '../helpers/code-highlight.helper';
 import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeDiffView } from '@devdesigner/shared';
@@ -123,8 +124,11 @@ export class CodeActionsService {
          el.fontSize ?? CODE_FONT_SIZE,
          codeTitle({ fileName, language: el.language })
       ).width;
+      // Renaming to another extension switches the highlighting to match.
+      const language = languageForFileName(fileName);
       await this.store.updateElement(id, {
          fileName,
+         ...(language && language !== el.language ? { language } : {}),
          ...(minWidth > el.width ? { width: minWidth } : {}),
       });
    }

@@ -22,7 +22,8 @@ export class FloatingToolbarsService {
       // Shown whenever element(s) are selected and no gesture/text-edit is active,
       // even while a draw tool stays active (drawing a shape selects it).
       const editingId = this.textEditing.editingTextId();
-      const richEditing = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type === 'text';
+      const editType = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type;
+      const richEditing = !!editingId && ['text', 'rectangle', 'ellipse', 'diamond'].includes(editType || '');
       if ((editingId && !richEditing) || this.gesture.gestureActive()) {
          return null;
       }

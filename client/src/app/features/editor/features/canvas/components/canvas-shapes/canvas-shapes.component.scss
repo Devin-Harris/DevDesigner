@@ -116,7 +116,26 @@
 .handle {
    cursor: nwse-resize;
 
+   &.nesw {
+      cursor: nesw-resize;
+   }
+
    &.side {
+      cursor: ew-resize;
+   }
+}
+
+/* Invisible strips along a selected shape's sides: drag to resize on one axis. */
+.edge {
+   fill: transparent;
+   stroke: none;
+   pointer-events: all;
+
+   &.ns {
+      cursor: ns-resize;
+   }
+
+   &.ew {
       cursor: ew-resize;
    }
 }

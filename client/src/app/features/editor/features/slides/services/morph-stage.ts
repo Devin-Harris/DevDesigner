@@ -840,7 +840,10 @@ export class MorphStage {
       const toItems = to.items.filter((i) => b.items.has(i.id));
       const matchedA = new Set<string>();
       const matchedB = new Set<string>();
-      for (const [i, j] of matchMorphItems(fromItems, toItems, undefined, this.reversed)) {
+      for (const [i, j] of matchMorphItems(fromItems, toItems, undefined, this.reversed, {
+         width: this.to.width,
+         height: this.to.height,
+      })) {
          const pair: Pair = { a: fromItems[i], b: toItems[j] };
          if (pair.a.element && pair.b.element) {
             this.elementPairs.push(pair);

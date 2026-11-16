@@ -307,6 +307,9 @@ export class EditorPointerService {
          this.store.moveItemsLocal({ tables, waypoints, ...this.elementGestures.nodeExtrasMoves(mx, my) });
       } else if (this.gesture.mode === 'marquee') {
          this.marqueeCurrent.set(this.viewport.screenPoint(event.clientX, event.clientY));
+      } else if (this.gesture.mode === 'idle') {
+         // A shape tool's cursor lines up with nearby items before anything is drawn.
+         this.drawTool.hoverSnap(event);
       }
    }
 

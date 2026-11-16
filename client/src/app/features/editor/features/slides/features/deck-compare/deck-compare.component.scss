@@ -52,10 +52,14 @@
 .fit::-webkit-scrollbar {
    display: none;
 }
-.fit > .pairview,
 .fit > .bigplayer {
    margin: auto;
    flex: none;
+}
+/* Centered while it fits; never cut off when larger (`safe`), so every edge scrolls into view. */
+.fit:has(> .pairview) {
+   justify-content: safe center;
+   align-items: safe center;
 }
 .fit.panning,
 .fit.panning * {
@@ -107,12 +111,16 @@
 }
 .pairview {
    position: relative;
-   width: calc(min(100cqw - 8px, calc((100cqh - 8px) * var(--ratio))) * var(--z, 1));
+   --w: calc(min(100cqw - 8px, calc((100cqh - 8px) * var(--ratio))) * var(--z, 1));
+   width: var(--w);
    flex: none;
+   /* Room for objects hanging off the slides' outer edges, so panning reaches them. */
+   margin: calc(var(--w) * var(--mt, 0)) calc(var(--w) * var(--mr, 0)) calc(var(--w) * var(--mb, 0))
+      calc(var(--w) * var(--ml, 0));
    aspect-ratio: var(--ratio);
    display: grid;
-   grid-template-columns: 46% 46%;
-   column-gap: 8%;
+   grid-template-columns: var(--col, 46%) var(--col, 46%);
+   column-gap: var(--gap, 8%);
 }
 /* Not clipped: badges on objects at the slide's edge stay readable. */
 .sl {
@@ -196,6 +204,14 @@
 /* ...and the slide pictures darken around the pair in focus (a cut-out shadow on its outlines). */
 .pairview.focusing .sl {
    overflow: hidden;
+}
+/* A slide with objects off its edges stays unclipped (clipping them would end the hover
+   that started the focus, and they could not be dragged): its pair glows instead. */
+.pairview.focusing .sl:has(.hit.outside) {
+   overflow: visible;
+}
+.pairview.focusing .sl:has(.hit.outside) .hit.rel {
+   box-shadow: 0 0 14px color-mix(in srgb, var(--c, var(--dd-primary)) 55%, transparent);
 }
 .pairview.focusing .hit.rel {
    box-shadow:
@@ -563,4 +579,23 @@
 .tag.forced {
    background: var(--dd-primary-weak);
    color: var(--dd-primary);
+}
+
+/* A slide's reach: its own frame plus objects off its edges, outlined dotted. */
+.reach {
+   position: absolute;
+   box-sizing: border-box;
+   border: 1.5px dotted color-mix(in srgb, var(--dd-text-muted) 70%, transparent);
+   border-radius: 6px;
+   pointer-events: none;
+}
+.reach-label {
+   position: absolute;
+   top: -16px;
+   left: 4px;
+   color: var(--dd-text-muted);
+   font:
+      600 10px/14px system-ui,
+      sans-serif;
+   white-space: nowrap;
 }

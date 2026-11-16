@@ -287,9 +287,8 @@
                               [attr.fill]="t.color"
                               [attr.text-anchor]="t.anchor"
                               xml:space="preserve"
-                           >
-                              {{ line.text }}
-                           </text>
+                              [textContent]="line.text"
+                           ></text>
                         }
                      }
                   </g>
@@ -430,9 +429,8 @@
                            text-anchor="middle"
                            [attr.font-family]="c.fontFamily"
                            [attr.fill]="h.color"
-                        >
-                           {{ h.text }}
-                        </text>
+                           [textContent]="h.text"
+                        ></text>
                         @for (d of h.dots; track $index) {
                            <circle [attr.cx]="d.x" [attr.cy]="d.y" [attr.r]="d.r" [attr.fill]="d.color"></circle>
                         }
@@ -465,9 +463,8 @@
                               [attr.font-size]="c.fontSize"
                               [attr.font-family]="c.fontFamily"
                               [attr.fill]="c.numberColor"
-                           >
-                              {{ on.text }}
-                           </text>
+                              [textContent]="on.text"
+                           ></text>
                         }
                         @if (line.sign; as sg) {
                            <text
@@ -476,9 +473,8 @@
                               [attr.font-size]="c.fontSize"
                               [attr.font-family]="c.fontFamily"
                               [attr.fill]="sg.color"
-                           >
-                              {{ sg.text }}
-                           </text>
+                              [textContent]="sg.text"
+                           ></text>
                         }
                         <text
                            [attr.x]="line.numberX ?? c.numberX"
@@ -487,9 +483,8 @@
                            [attr.font-size]="c.fontSize"
                            [attr.font-family]="c.fontFamily"
                            [attr.fill]="c.numberColor"
-                        >
-                           {{ line.number }}
-                        </text>
+                           [textContent]="line.number"
+                        ></text>
                         <text
                            [attr.x]="line.textX ?? c.textX"
                            [attr.y]="line.y"
@@ -498,9 +493,12 @@
                            [attr.font-family]="c.fontFamily"
                         >
                            @for (t of line.tokens; track $index) {
-                              <tspan [attr.fill]="t.color" [attr.font-style]="t.italic ? 'italic' : null">
-                                 {{ t.text }}
-                              </tspan>
+                              <!-- textContent, not {{ }}: the <text> preserves whitespace, so template padding would show. -->
+                              <tspan
+                                 [attr.fill]="t.color"
+                                 [attr.font-style]="t.italic ? 'italic' : null"
+                                 [textContent]="t.text"
+                              ></tspan>
                            }
                         </text>
                      }
@@ -624,12 +622,11 @@
                                     [attr.font-style]="sp.fontStyle"
                                     [attr.fill]="sp.color"
                                     [attr.text-decoration]="sp.underline ? 'underline' : null"
-                                 >
-                                    {{ sp.text }}
-                                 </tspan>
+                                    [textContent]="sp.text"
+                                 ></tspan>
                               }
                            } @else {
-                              {{ line.text }}
+                              <tspan [textContent]="line.text"></tspan>
                            }
                         </tspan>
                      }
@@ -657,12 +654,11 @@
                                     [attr.font-style]="sp.fontStyle"
                                     [attr.fill]="sp.color"
                                     [attr.text-decoration]="sp.underline ? 'underline' : null"
-                                 >
-                                    {{ sp.text }}
-                                 </tspan>
+                                    [textContent]="sp.text"
+                                 ></tspan>
                               }
                            } @else {
-                              {{ line.text }}
+                              <tspan [textContent]="line.text"></tspan>
                            }
                         </tspan>
                      }
@@ -724,6 +720,41 @@
                         (pointerdown)="onRotate(s.id, $event)"
                      ></circle>
                   }
+                  @if (s.type !== 'text') {
+                     <!-- Invisible grab strips along each side: drag one to resize on that axis only. -->
+                     <rect
+                        class="edge ns"
+                        [attr.x]="s.bbox.x + 6"
+                        [attr.y]="s.bbox.y - 4"
+                        [attr.width]="edgeLen(s.bbox.width)"
+                        height="8"
+                        (pointerdown)="onResize(s.id, 'n', $event)"
+                     ></rect>
+                     <rect
+                        class="edge ns"
+                        [attr.x]="s.bbox.x + 6"
+                        [attr.y]="s.bbox.y + s.bbox.height - 4"
+                        [attr.width]="edgeLen(s.bbox.width)"
+                        height="8"
+                        (pointerdown)="onResize(s.id, 's', $event)"
+                     ></rect>
+                     <rect
+                        class="edge ew"
+                        [attr.x]="s.bbox.x - 4"
+                        [attr.y]="s.bbox.y + 6"
+                        width="8"
+                        [attr.height]="edgeLen(s.bbox.height)"
+                        (pointerdown)="onResize(s.id, 'w', $event)"
+                     ></rect>
+                     <rect
+                        class="edge ew"
+                        [attr.x]="s.bbox.x + s.bbox.width - 4"
+                        [attr.y]="s.bbox.y + 6"
+                        width="8"
+                        [attr.height]="edgeLen(s.bbox.height)"
+                        (pointerdown)="onResize(s.id, 'e', $event)"
+                     ></rect>
+                  }
                   <rect
                      class="handle"
                      [attr.x]="s.bbox.x - 5"
@@ -733,7 +764,7 @@
                      (pointerdown)="onResize(s.id, 'nw', $event)"
                   ></rect>
                   <rect
-                     class="handle"
+                     class="handle nesw"
                      [attr.x]="s.bbox.x + s.bbox.width - 5"
                      [attr.y]="s.bbox.y - 5"
                      width="10"
@@ -741,7 +772,7 @@
                      (pointerdown)="onResize(s.id, 'ne', $event)"
                   ></rect>
                   <rect
-                     class="handle"
+                     class="handle nesw"
                      [attr.x]="s.bbox.x - 5"
                      [attr.y]="s.bbox.y + s.bbox.height - 5"
                      width="10"

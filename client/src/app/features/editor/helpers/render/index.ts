@@ -20,5 +20,13 @@ export {
    codeTitle,
 } from './code-block.render';
 export { gridFont, gridRowNeeds } from './grid-table.render';
-export { imageView, rectCornerRadius, splitAtGaps } from './shape-primitives';
+export {
+   imageView,
+   rectCornerRadius,
+   splitAtGaps,
+   shapeTextBox,
+   shapeLabelOptions,
+   SHAPE_TEXT_PADDING,
+} from './shape-primitives';
+export { layoutTextBlock } from './text-layout';
 export { ShapeViewCache, buildShapeViews } from './shape-views';

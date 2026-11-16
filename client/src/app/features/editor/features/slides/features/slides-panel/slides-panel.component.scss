@@ -209,6 +209,78 @@
 .fs.on {
    background: var(--dd-primary-weak);
 }
+.fs.sel .tn {
+   border-color: color-mix(in srgb, var(--dd-primary) 60%, transparent);
+}
+.f-cards {
+   position: relative;
+}
+.fs {
+   position: relative;
+   touch-action: none;
+   user-select: none;
+}
+.f-cards.reordering .fs:not(.dragging) {
+   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.fs.dragging {
+   z-index: 5;
+   cursor: grabbing;
+   background: var(--dd-surface-2);
+   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+   transition: box-shadow 120ms;
+}
+.fs.dragging.settling {
+   transition:
+      transform 170ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 120ms;
+}
+.fs.ghost {
+   position: absolute;
+   left: 8px;
+   right: 8px;
+   pointer-events: none;
+   box-sizing: border-box;
+}
+.fs.pending {
+   opacity: 0.6;
+}
+/* Duplicate / delete on hover, over the thumbnail's top-right corner. */
+.f-acts {
+   position: absolute;
+   top: 4px;
+   right: 4px;
+   display: flex;
+   gap: 3px;
+   opacity: 0;
+   transition: opacity 120ms;
+}
+.fs:hover .f-acts,
+.f-acts:focus-within {
+   opacity: 1;
+}
+.f-cards.reordering .f-acts {
+   opacity: 0;
+}
+.f-act {
+   width: 22px;
+   height: 22px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border-radius: 5px;
+   background: rgba(35, 38, 44, 0.8);
+   color: #fff;
+   cursor: pointer;
+}
+.f-act:hover {
+   background: rgba(35, 38, 44, 0.95);
+}
+.f-act dd-icon {
+   font-size: 14px;
+   width: 14px;
+   height: 14px;
+}
 .fs.skipped {
    opacity: 0.55;
 }
@@ -269,6 +341,20 @@
    font: inherit;
    font-weight: 600;
    cursor: pointer;
+   white-space: nowrap;
+}
+.f-go:hover:not(:disabled) {
+   background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+}
+.f-go:disabled,
+.f-tb:disabled {
+   opacity: 0.5;
+   cursor: default;
+}
+/* The shortcut hint inside "Present", as in the focus bar. */
+.f-go .f5 {
+   opacity: 0.75;
+   font-weight: 400;
 }
 .f-tb {
    height: 32px;
@@ -725,67 +811,20 @@ h3 {
    padding: 6px 12px 10px;
    align-items: center;
 }
-.split {
-   display: inline-flex;
-   flex: 1 1 auto;
-   /* Never squeezed under its buttons (they would slide under New). */
-   min-width: max-content;
-}
-.split button {
-   height: 32px;
-   border: 1px solid var(--dd-border);
-   font: inherit;
-   font-weight: 600;
-   cursor: pointer;
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   white-space: nowrap;
-}
-.split .main {
-   flex: 1 1 auto;
-   gap: 6px;
-   padding: 0 10px;
-   border-radius: 8px 0 0 8px;
-   background: var(--dd-primary);
-   border-color: var(--dd-primary);
-   color: #fff;
-}
-.split .from {
+.newfoot {
    flex: none;
-   padding: 0 10px;
-   border-radius: 0 8px 8px 0;
-   border-left: none;
-   background: var(--dd-surface-2);
-   color: var(--dd-text);
-}
-.split button:hover:not(:disabled) {
-   filter: brightness(1.12);
-}
-.split button:disabled {
-   opacity: 0.45;
-   cursor: default;
-}
-.btn.new {
-   flex: none;
-   height: 32px;
+   padding: 8px 10px 10px;
+   border-top: 1px solid var(--dd-border);
 }
 .newsplit {
    position: relative;
-   display: inline-flex;
-   flex: none;
+   display: flex;
+   gap: 6px;
 }
-.newsplit .new {
-   padding: 0 8px;
-   border-top-right-radius: 0;
-   border-bottom-right-radius: 0;
-}
-.newsplit .caret {
-   height: 32px;
-   padding: 0 4px;
-   border-top-left-radius: 0;
-   border-bottom-left-radius: 0;
-   border-left: none;
+/* At the bottom of the panel, the layout menu opens upward. */
+.newfoot .menu {
+   top: auto;
+   bottom: calc(100% + 4px);
 }
 .menu {
    position: absolute;

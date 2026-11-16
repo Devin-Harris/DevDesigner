@@ -196,6 +196,14 @@ const LANGUAGES: Record<CodeLanguage, readonly Rule[]> = {
       ['punct', sticky('[{}()[\\];,:>+~*]')],
    ],
 
+   // SCSS adds $variables and // line comments to CSS.
+   scss: [
+      ['comment', sticky('//[^\\n]*')],
+      ['constant', sticky('\\$[\\w-]+')],
+      ['keyword', sticky('&')],
+      // ...then everything CSS has (added below the table).
+   ],
+
    bash: [
       ['comment', sticky('#[^\\n]*')],
       ['string', sticky('"(?:\\\\.|[^"\\\\])*(?:"|$)')],
@@ -220,6 +228,7 @@ const LANGUAGES: Record<CodeLanguage, readonly Rule[]> = {
       ['punct', sticky('[(){}[\\]]')],
    ],
 };
+LANGUAGES.scss = [...LANGUAGES.scss, ...LANGUAGES.css];
 
 /**
  * A line that is nothing but an ellipsis (optionally inside a comment) is an
@@ -245,6 +254,7 @@ export const CODE_LANGUAGE_LABELS: Record<CodeLanguage, string> = {
    java: 'Java',
    html: 'HTML',
    css: 'CSS',
+   scss: 'SCSS',
    bash: 'Bash',
 };
 
@@ -259,8 +269,30 @@ export const CODE_LANGUAGE_EXTENSIONS: Record<CodeLanguage, string> = {
    java: 'java',
    html: 'html',
    css: 'css',
+   scss: 'scss',
    bash: 'sh',
 };
+
+/** The language a file name's extension says its code is in (null when unknown). */
+export function languageForFileName(fileName: string): CodeLanguage | null {
+   const ext = /.([A-Za-z0-9]+)$/.exec(fileName.trim())?.[1]?.toLowerCase();
+   if (!ext) return null;
+   const extra: Record<string, CodeLanguage> = {
+      tsx: 'typescript',
+      js: 'typescript',
+      jsx: 'typescript',
+      mjs: 'typescript',
+      cjs: 'typescript',
+      htm: 'html',
+      bash: 'bash',
+      zsh: 'bash',
+      md: 'plaintext',
+   };
+   const own = (Object.keys(CODE_LANGUAGE_EXTENSIONS) as CodeLanguage[]).find(
+      (l) => CODE_LANGUAGE_EXTENSIONS[l] === ext
+   );
+   return own ?? extra[ext] ?? null;
+}
 
 /** Tab stop used when laying out tabs (matches the editor textarea's `tab-size`). */
 export const TAB_SIZE = 2;

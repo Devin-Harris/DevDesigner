@@ -657,17 +657,19 @@
          <dd-icon name="format_italic" />
       </button>
       @if (isText()) {
-         <button
-            class="tb"
-            type="button"
-            [class.on]="element().wrap"
-            (click)="toggleWrap()"
-            matTooltip="Wrap text to a fixed width (drag a side handle)"
-            aria-label="Wrap text to a fixed width (drag a side handle)"
-            [disabled]="!store.canEdit()"
-         >
-            <dd-icon name="wrap_text" />
-         </button>
+         @if (element().type === 'text') {
+            <button
+               class="tb"
+               type="button"
+               [class.on]="element().wrap"
+               (click)="toggleWrap()"
+               matTooltip="Wrap text to a fixed width (drag a side handle)"
+               aria-label="Wrap text to a fixed width (drag a side handle)"
+               [disabled]="!store.canEdit()"
+            >
+               <dd-icon name="wrap_text" />
+            </button>
+         }
          <button
             class="tb"
             type="button"

@@ -102,7 +102,8 @@ export class ElementFloatingToolbarComponent {
    /** The representative element whose values the toolbar displays. */
    readonly element = input.required<CanvasElementModel>();
 
-   protected readonly isText = computed(() => this.element().type === 'text');
+   /** A text box, or a shape whose label is open in the rich editor (its text controls show). */
+   protected readonly isText = computed(() => this.element().type === 'text' || this.editingRich());
 
    /** True while this text element is open in the inline rich-text editor. */
    protected readonly editingRich = computed(() => this.rich.editingId() === this.element().id);

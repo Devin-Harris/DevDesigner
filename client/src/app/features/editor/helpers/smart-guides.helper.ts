@@ -94,6 +94,13 @@ function bestOnAxis(m: Box, parts: readonly Box[], targets: readonly Box[], a: A
    const size = hi(m, a) - lo(m, a);
    const crossOf = (p: Box, q: Box) => (Math.max(lo(p, c), lo(q, c)) + Math.min(hi(p, c), hi(q, c))) / 2;
    const gap = (p: Box, q: Box): GapGuide => ({ axis: a, a: hi(p, a), b: lo(q, a), cross: crossOf(p, q) });
+   /** A gap along the other axis (between side-by-side items), marked across their shared span. */
+   const crossGap = (p: Box, q: Box): GapGuide => ({
+      axis: c,
+      a: hi(p, c),
+      b: lo(q, c),
+      cross: (Math.max(lo(p, a), lo(q, a)) + Math.min(hi(p, a), hi(q, a))) / 2,
+   });
    // Centered between two neighbours.
    for (const l of row) {
       for (const r of row) {
@@ -116,7 +123,45 @@ function bestOnAxis(m: Box, parts: readonly Box[], targets: readonly Box[], a: A
          g: lo(q, a) - hi(p, a),
          marks: (s: Box) => [gap(shift(p, s), shift(q, s))],
       })),
+      // Grids: the spacing across the other axis counts too, so a row cloned below its
+      // original can sit as far down as its cards are apart (rows spaced like columns).
+      ...rowGaps(row, c).map(([p, q]) => ({ g: lo(q, c) - hi(p, c), marks: () => [crossGap(p, q)] })),
+      ...rowGaps(parts.length > 1 ? parts : [], c).map(([p, q]) => ({
+         g: lo(q, c) - hi(p, c),
+         marks: (s: Box) => [crossGap(shift(p, s), shift(q, s))],
+      })),
    ];
+   // Inside a frame (slide): an item as far from its nearest frame edge as another item
+   // inside the frame is from its own nearest edge (mirrored or same side).
+   const inside = (t: Box, f: Box) =>
+      t !== f &&
+      lo(t, 'x') >= lo(f, 'x') &&
+      hi(t, 'x') <= hi(f, 'x') &&
+      lo(t, 'y') >= lo(f, 'y') &&
+      hi(t, 'y') <= hi(f, 'y');
+   const frame = targets
+      .filter((f) => inside(m, f))
+      .sort(
+         (p, q) =>
+            (hi(p, 'x') - lo(p, 'x')) * (hi(p, 'y') - lo(p, 'y')) -
+            (hi(q, 'x') - lo(q, 'x')) * (hi(q, 'y') - lo(q, 'y'))
+      )[0];
+   if (frame) {
+      const crossMid = (b: Box) => (lo(b, c) + hi(b, c)) / 2;
+      const edgeGap = (b: Box, side: 'lo' | 'hi'): GapGuide =>
+         side === 'lo'
+            ? { axis: a, a: lo(frame, a), b: lo(b, a), cross: crossMid(b) }
+            : { axis: a, a: hi(b, a), b: hi(frame, a), cross: crossMid(b) };
+      for (const t of targets) {
+         if (!inside(t, frame) || inside(frame, t)) continue;
+         const dl = lo(t, a) - lo(frame, a);
+         const dr = hi(frame, a) - hi(t, a);
+         // The nearer side of the other item is the inset it shows.
+         const [inset, tSide] = dl <= dr ? ([dl, 'lo'] as const) : ([dr, 'hi'] as const);
+         consider({ delta: lo(frame, a) + inset - lo(m, a), gaps: (s) => [edgeGap(s, 'lo'), edgeGap(t, tSide)] });
+         consider({ delta: hi(frame, a) - inset - hi(m, a), gaps: (s) => [edgeGap(s, 'hi'), edgeGap(t, tSide)] });
+      }
+   }
    const before = row.filter((t) => hi(t, a) <= lo(m, a) + thr).pop();
    const after = row.find((t) => lo(t, a) >= hi(m, a) - thr);
    for (const { g, marks } of refs) {
@@ -156,17 +201,37 @@ export function smartSnap(moving: Box, targets: readonly Box[], zoom: number, pa
    const ox = bx?.delta ?? 0;
    const oy = by?.delta ?? 0;
    const s: Box = { x0: moving.x0 + ox, y0: moving.y0 + oy, x1: moving.x1 + ox, y1: moving.y1 + oy };
+   // Several items moving: each one counts on its own (a cloned row of cards shows
+   // a gap and alignment per card, not just for the selection's outer box).
+   const moved =
+      parts.length > 1 ? parts.map((b) => ({ x0: b.x0 + ox, y0: b.y0 + oy, x1: b.x1 + ox, y1: b.y1 + oy })) : [s];
+   const lines = (a: Axis) =>
+      dedupeGuides([s, ...(moved.length > 1 ? moved : [])].flatMap((m) => linesOn(m, targets, a)));
    return {
       ox,
       oy,
       snappedX: !!bx,
       snappedY: !!by,
-      guides: [...(bx ? linesOn(s, targets, 'x') : []), ...(by ? linesOn(s, targets, 'y') : [])],
+      guides: [...(bx ? lines('x') : []), ...(by ? lines('y') : [])],
       gaps: [
-         ...withMatchingGaps(bx?.gaps?.(s) ?? [], s, targets, 'x'),
-         ...withMatchingGaps(by?.gaps?.(s) ?? [], s, targets, 'y'),
+         ...withMatchingGaps(bx?.gaps?.(s) ?? [], s, moved, targets, 'x'),
+         ...withMatchingGaps(by?.gaps?.(s) ?? [], s, moved, targets, 'y'),
       ],
    };
+}
+
+/** One guide per line position, spanning everything that sits on it. */
+function dedupeGuides(guides: AlignGuide[]): AlignGuide[] {
+   const out = new Map<string, AlignGuide>();
+   for (const g of guides) {
+      const key = `${g.axis}:${Math.round(g.pos * 2)}`;
+      const had = out.get(key);
+      if (had) {
+         had.from = Math.min(had.from, g.from);
+         had.to = Math.max(had.to, g.to);
+      } else out.set(key, { ...g });
+   }
+   return [...out.values()];
 }
 
 /**
@@ -227,13 +292,20 @@ export function smartSnapEdges(
  * pair in the same row/column whose gap equals one of them, so a whole evenly
  * spaced run lights up rather than just the reference pair.
  */
-function withMatchingGaps(marks: GapGuide[], s: Box, targets: readonly Box[], a: Axis): GapGuide[] {
+function withMatchingGaps(
+   marks: GapGuide[],
+   s: Box,
+   moved: readonly Box[],
+   targets: readonly Box[],
+   a: Axis
+): GapGuide[] {
    if (!marks.length) return marks;
    const c = other(a);
    const sizes = marks.map((g) => g.b - g.a);
-   const row = [...targets.filter((t) => overlaps(t, s, c)), s];
+   const row = [...targets.filter((t) => overlaps(t, s, c)), ...moved];
    const out = [...marks];
-   const key = (g: GapGuide) => `${Math.round(g.a * 2)}:${Math.round(g.b * 2)}`;
+   // Columns of equal gaps at the same height each get their own mark.
+   const key = (g: GapGuide) => `${g.axis}:${Math.round(g.a * 2)}:${Math.round(g.b * 2)}:${Math.round(g.cross)}`;
    const seen = new Set(out.map(key));
    for (const [p, q] of rowGaps(row, a)) {
       const g = lo(q, a) - hi(p, a);

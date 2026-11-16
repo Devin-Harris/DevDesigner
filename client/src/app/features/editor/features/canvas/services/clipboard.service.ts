@@ -40,6 +40,8 @@ export class ClipboardService {
       diagramIds: string[];
       /** The first copied frame, so pasted slides land on free canvas. */
       frame: CanvasElementModel | null;
+      /** The slide loose copied items sat on (and its origin then), if they shared one. */
+      sourceSlide?: { id: string; x: number; y: number } | null;
    } | null = null;
 
    /** Text put on the system clipboard at the last in-app copy, to notice a newer outside copy. */
@@ -90,7 +92,13 @@ export class ClipboardService {
          (!elementIds.length || (elementIds.length === 1 && elementIds[0] === shownLayout.id)) &&
          !this.store.selectedDiagramIds().length
       ) {
-         this.clipboard = { tables: [], elements: [shownLayout], diagramIds: [], frame: shownLayout };
+         this.clipboard = {
+            tables: [],
+            elements: [shownLayout],
+            diagramIds: [],
+            frame: shownLayout,
+            sourceSlide: null,
+         };
          this.pasteCount = 0;
          const mark = `devdesigner:${Date.now()}`;
          this.clipboardMark = mark;
@@ -120,11 +128,18 @@ export class ClipboardService {
       if (!tables.length && !elements.length && !selectedDiagrams.size && !inner.diagramIds.size) {
          return;
       }
+      const frame = elements.find((e) => e.type === 'frame' && elementIds.includes(e.id)) ?? null;
+      // Loose items all on one slide remember where that slide was, so pasting onto
+      // another slide puts them at the same spot on it.
+      const owners = new Set<string | undefined>([...elements.map((e) => e.slideId), ...tables.map((t) => t.slideId)]);
+      const ownerId = !frame && owners.size === 1 ? [...owners][0] : undefined;
+      const owner = ownerId ? this.store.elements().find((e) => e.id === ownerId && e.slide) : undefined;
       this.clipboard = {
          tables,
          elements,
          diagramIds: [...new Set([...inner.diagramIds, ...selectedDiagrams])],
-         frame: elements.find((e) => e.type === 'frame' && elementIds.includes(e.id)) ?? null,
+         frame,
+         sourceSlide: owner ? { id: owner.id, x: owner.x, y: owner.y } : null,
       };
       this.pasteCount = 0;
       // A lone code block also lands on the system clipboard as plain text; anything else
@@ -199,9 +214,17 @@ export class ClipboardService {
          isSlide && !frame?.slide?.layout && !!target && !!targetShown && presentationOf(frame!) !== target;
       let dx = isSlide ? 0 : frame ? this.host.freeFrameOffset(frame, this.pasteCount) : 24 * this.pasteCount;
       let dy = frame && !isSlide ? 0 : isSlide ? 0 : 24 * this.pasteCount;
+      // Items copied off a slide and pasted while a different slide is shown land at the
+      // same spot on that slide (repeat pastes step diagonally from there).
+      const src = clip.sourceSlide;
+      const shownSlide = targetShown?.slide ? targetShown : null;
       if (intoOther) {
          dx = targetShown!.x - frame!.x;
          dy = targetShown!.y - frame!.y;
+      } else if (!frame && src && shownSlide && shownSlide.id !== src.id) {
+         const step = 24 * (this.pasteCount - 1);
+         dx = shownSlide.x - src.x + step;
+         dy = shownSlide.y - src.y + step;
       } else if (!frame) {
          // Loose items paste centered on the cursor when it is over the canvas.
          const at = this.pasteAnchor();
@@ -216,6 +239,26 @@ export class ClipboardService {
             const maxY = Math.max(...boxes.map((b) => b.y + b.h));
             dx = Math.round(at.x - (minX + maxX) / 2);
             dy = Math.round(at.y - (minY + maxY) / 2);
+         }
+      }
+      // Pasted onto a shown slide, loose items always land inside its frame: the slide
+      // owns them, and slide content off the frame is hidden on the canvas (it would only
+      // show faintly while the slide is dragged). Moved in by the least needed; centered
+      // when larger than the slide.
+      if (!frame && shownSlide) {
+         const boxes = [
+            ...clip.elements.map((e) => ({ x: e.x, y: e.y, w: e.width ?? 0, h: e.height ?? 0 })),
+            ...clip.tables.map((t) => ({ x: t.x, y: t.y, w: 0, h: 0 })),
+         ];
+         if (boxes.length) {
+            const x0 = Math.min(...boxes.map((b) => b.x)) + dx;
+            const y0 = Math.min(...boxes.map((b) => b.y)) + dy;
+            const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + dx;
+            const y1 = Math.max(...boxes.map((b) => b.y + b.h)) + dy;
+            const fit = (lo: number, hi: number, f0: number, f1: number): number =>
+               hi - lo > f1 - f0 ? (f0 + f1) / 2 - (lo + hi) / 2 : lo < f0 ? f0 - lo : hi > f1 ? f1 - hi : 0;
+            dx += Math.round(fit(x0, x1, shownSlide.x, shownSlide.x + shownSlide.width));
+            dy += Math.round(fit(y0, y1, shownSlide.y, shownSlide.y + shownSlide.height));
          }
       }
       let result: { copies: Map<string, CanvasElementModel>; tableIds: string[]; diagramIds: string[] } | null = null;

@@ -214,7 +214,7 @@ const slideItem = z.discriminatedUnion('type', [
     type: z.literal('code'),
     code: z.string(),
     language: z
-      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'bash'])
+      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'scss', 'bash'])
       .optional(),
     fileName: z
       .string()

@@ -94,3 +94,48 @@ describe('snapTargets', () => {
       expect(snapTargets(box(0, 0), many, null)).toHaveLength(40);
    });
 });
+
+describe('smartSnap with several moving items', () => {
+   // Two rows of four cards 50 apart; a cloned row is dragged in under them.
+   const row = (y: number) => [0, 140, 280, 420].map((x) => box(x, y, 100, 100));
+   const targets = [...row(0), ...row(150)];
+
+   it('marks the gap under every card of the moving row, not only one', () => {
+      const parts = row(303);
+      const outer = { x0: 0, y0: 303, x1: 520, y1: 403 };
+      const result = smartSnap(outer, targets, 1, parts);
+      expect(result.oy).toBeCloseTo(-3);
+      const below = result.gaps.filter((g) => g.axis === 'y' && g.a === 250 && g.b === 300);
+      expect(below.map((g) => g.cross).sort((a, b) => a - b)).toEqual([50, 190, 330, 470]);
+   });
+
+   it('draws alignment lines for each moving card', () => {
+      const parts = row(303);
+      const result = smartSnap({ x0: 2, y0: 303, x1: 522, y1: 403 }, targets, 1, parts.map((b) => ({ ...b, x0: b.x0 + 2, x1: b.x1 + 2 })));
+      const xs = result.guides.filter((g) => g.axis === 'x').map((g) => g.pos);
+      expect(xs).toEqual(expect.arrayContaining([140, 240, 280, 380]));
+   });
+
+   it('spaces a cloned row below the original as far apart as its columns', () => {
+      // Columns 40 apart; the copy is dropped 43 below the original row.
+      const parts = [0, 140, 280, 420].map((x) => box(x, 143, 100, 100));
+      const result = smartSnap({ x0: 0, y0: 143, x1: 520, y1: 243 }, row(0), 1, parts);
+      expect(result.oy).toBeCloseTo(-3);
+      // The 40 px column gap it matched, and the new 40 px row gap under each card.
+      expect(result.gaps.some((g) => g.axis === 'x' && g.b - g.a === 40)).toBe(true);
+      expect(result.gaps.filter((g) => g.axis === 'y' && g.a === 100 && g.b === 140)).toHaveLength(4);
+   });
+});
+
+describe('smartSnap inside a frame', () => {
+   it('mirrors another item\'s inset from the opposite frame edge', () => {
+      const frame = box(0, 0, 1280, 720);
+      // Right item sits 100 from the right edge; dragging the left one near 100 from the left.
+      const right = box(1080, 300, 100, 50);
+      const result = smartSnap(box(103, 500, 100, 50), [frame, right], 1);
+      expect(result.snappedX).toBe(true);
+      expect(result.ox).toBeCloseTo(-3);
+      expect(result.gaps.some((g) => g.axis === 'x' && g.a === 0 && g.b === 100)).toBe(true);
+      expect(result.gaps.some((g) => g.axis === 'x' && g.a === 1180 && g.b === 1280)).toBe(true);
+   });
+});

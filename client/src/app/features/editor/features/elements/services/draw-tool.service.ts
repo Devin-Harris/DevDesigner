@@ -5,7 +5,7 @@ import { EditorToolService } from '../../../services/editor-tool.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { TextEditingService } from './text-editing.service';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, untracked } from '@angular/core';
 import { ToolbarPrefsService } from '../../../services/toolbar-prefs.service';
 import { PenPrefsService } from '../../../services/pen-prefs.service';
 import type { CanvasElementModel, CreateElementDto, ElementType } from '@devdesigner/shared';
@@ -40,6 +40,90 @@ export class DrawToolService {
 
    /** World-space point a shape draw started from (the corner, or the center with Alt). */
    private drawAnchor = { x: 0, y: 0 };
+
+   /** The slide whose items a draw lines up with (null: the canvas), taken at press. */
+   private drawCtx: string | null = null;
+
+   /** The hover guides on screen are ours (so only we clear them). */
+   private hoverGuides = false;
+
+   constructor() {
+      // Switching tools (or starting any gesture) drops the pre-draw guides.
+      effect(() => {
+         this.tools.activeTool();
+         untracked(() => this.clearHoverSnap());
+      });
+   }
+
+   /** Tools whose starting point lines up with nearby items before you press. */
+   private presnaps(tool: EditorTool): boolean {
+      return (
+         tool === 'rectangle' ||
+         tool === 'ellipse' ||
+         tool === 'diamond' ||
+         tool === 'frame' ||
+         tool === 'line' ||
+         tool === 'arrow' ||
+         tool === 'code' ||
+         tool === 'grid'
+      );
+   }
+
+   /** The space a point is drawn in: a zoomed slide's own coordinates, else the canvas (on a shown slide, its items). */
+   private spaceAt(clientX: number, clientY: number): {
+      point: { x: number; y: number };
+      ctx: string | null;
+      view: ReturnType<CanvasViewService['slideViews']>[number] | undefined;
+   } {
+      const raw = this.viewport.toWorldRaw(clientX, clientY);
+      const view = this.canvasView.slideViews().find((v) => inBlock(v, raw));
+      if (view) return { point: toInner(view, raw), ctx: view.frameId, view };
+      const shown = this.store.shownSlideIds();
+      const frame = this.store
+         .slideFrames()
+         .find(
+            (f) => shown.has(f.id) && raw.x >= f.x && raw.x <= f.x + f.width && raw.y >= f.y && raw.y <= f.y + f.height
+         );
+      return { point: raw, ctx: frame?.id ?? null, view: undefined };
+   }
+
+   /** A point snapped to nearby items' edges and centers (guides shown), or null when nothing is in reach. */
+   private snapPoint(clientX: number, clientY: number): { x: number; y: number } | null {
+      if (!this.snap.smartGuides()) return null;
+      const { point: p, ctx, view } = this.spaceAt(clientX, clientY);
+      // Targets are picked nearest the point: rebuild them as it moves.
+      this.snap.smartBase = null;
+      const s = this.snap.smartEdges('draft-hover', { x0: p.x, y0: p.y, x1: p.x, y1: p.y }, [p.x], [p.y], {
+         ctx,
+         view,
+      });
+      this.snap.smartBase = null;
+      if (!s || (!s.snappedX && !s.snappedY)) return null;
+      return { x: p.x + (s.snappedX ? s.ox : 0), y: p.y + (s.snappedY ? s.oy : 0) };
+   }
+
+   /**
+    * Hovering with a shape tool: the cursor point lines up with nearby items (guides
+    * shown) before anything is drawn, so the first corner starts on the line.
+    */
+   hoverSnap(event: PointerEvent): void {
+      const target = event.target as Node | null;
+      const overCanvas = !!target && this.viewport.canvasRef().nativeElement.contains(target);
+      if (!overCanvas || !this.store.canEdit() || !this.presnaps(this.tools.activeTool())) {
+         this.clearHoverSnap();
+         return;
+      }
+      const hit = this.snapPoint(event.clientX, event.clientY);
+      this.hoverGuides = true;
+      if (!hit) this.snap.smartSnapState.set(null);
+   }
+
+   clearHoverSnap(): void {
+      if (!this.hoverGuides) return;
+      this.hoverGuides = false;
+      this.snap.smartBase = null;
+      this.snap.smartSnapState.set(null);
+   }
 
    /** Add an ERD table centered near the given screen point. */
    addTableAt(clientX: number, clientY: number): void {
@@ -178,8 +262,13 @@ export class DrawToolService {
       event: PointerEvent
    ): void {
       const world = this.viewport.toWorld(event.clientX, event.clientY);
-      const x = this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
-      const y = this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
+      // Start where the hover guides showed: lined up with nearby items, else on the grid.
+      const lined = this.presnaps(tool) ? this.snapPoint(event.clientX, event.clientY) : null;
+      this.hoverGuides = false;
+      this.snap.smartBase = null;
+      this.drawCtx = this.spaceAt(event.clientX, event.clientY).ctx;
+      const x = lined ? lined.x : this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
+      const y = lined ? lined.y : this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
       const type = tool as ElementType;
       const sticky = this.store.elementStyle();
       // Frames keep their own quiet look; they don't inherit the last-used shape style.
@@ -377,9 +466,26 @@ export class DrawToolService {
       }
       // Rectangle / ellipse / diamond: grow the box from the anchor. Shift forces a
       // square (circle for an ellipse); Alt makes the anchor the center.
-      const ex = snap ? snapToGrid(world.x) : world.x;
-      const ey = snap ? snapToGrid(world.y) : world.y;
       const { x: ax, y: ay } = this.drawAnchor;
+      // The dragged corner lines up with nearby items too (not with Alt: the box grows about its center).
+      const ratioLocked = draft.type === 'frame' && !!framePreset(this.tools.framePresetId()).ratio;
+      const smart =
+         alt || draft.type === 'text'
+            ? null
+            : this.snap.smartEdges(
+                 draft.id,
+                 {
+                    x0: Math.min(ax, world.x),
+                    y0: Math.min(ay, world.y),
+                    x1: Math.max(ax, world.x),
+                    y1: Math.max(ay, world.y),
+                 },
+                 [world.x],
+                 ratioLocked ? [] : [world.y],
+                 { ctx: this.drawCtx, view }
+              );
+      const ex = smart?.snappedX ? world.x + smart.ox : snap ? snapToGrid(world.x) : world.x;
+      const ey = smart?.snappedY ? world.y + smart.oy : snap ? snapToGrid(world.y) : world.y;
       let dx = ex - ax;
       let dy = ey - ay;
       if (draft.type === 'frame') {

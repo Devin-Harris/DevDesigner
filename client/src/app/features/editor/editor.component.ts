@@ -494,6 +494,14 @@ export class EditorComponent {
 
    @HostListener('window:paste', ['$event'])
    protected onPaste(event: ClipboardEvent): void {
+      // A selected cell block in a grid table takes pasted cells (adding rows as needed).
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || (event.target as HTMLElement | null)?.isContentEditable;
+      if (!typing && this.grids.range() && !this.grids.editingCell() && !event.clipboardData?.files.length) {
+         event.preventDefault();
+         void this.grids.pasteCells(event.clipboardData?.getData('text/plain') ?? '');
+         return;
+      }
       this.clipboard.onPaste(event);
    }
 
@@ -530,7 +538,10 @@ export class EditorComponent {
    readonly cloneItems: SlidePlacementService['cloneItems'] = (...args) => this.placement.cloneItems(...args);
    readonly orderSlideCopies = (copies: readonly CanvasElementModel[], deck: string, afterId: string | null) =>
       this.placement.orderSlideCopies(copies, deck, afterId);
-   readonly copySelection = (): void => this.clipboard.copySelection();
+   readonly copySelection = (): void => {
+      if (!this.grids.editingCell() && this.grids.copySelectedCells()) return;
+      this.clipboard.copySelection();
+   };
    readonly followRoutes = (start: Map<string, { x: number; y: number }>): void => this.relLink.followRoutes(start);
    readonly handlePointerMove = (event: PointerEvent): void => this.pointer.handlePointerMove(event);
    readonly selectedSlideSets = this.deckPanels.selectedSlideSets;

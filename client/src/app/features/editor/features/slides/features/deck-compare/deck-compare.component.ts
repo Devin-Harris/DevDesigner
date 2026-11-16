@@ -50,6 +50,8 @@ export interface MorphPair {
 
 /** One object outline drawn over a slide picture (percent of the slide box). */
 interface Hit {
+   /** Sits wholly off the slide (it moves in / out): drawn with its label. */
+   outside: boolean;
    key: string;
    id: string | null;
    label: string;
@@ -83,6 +85,9 @@ const GAP = 8;
  * transition: their own in / out tags). A strip below scrubs the real morph.
  * Mode "pairs" is the list for the right-hand dock.
  */
+/** How far the pair view zooms out. */
+const MIN_ZOOM = 0.3;
+
 @Component({
    selector: 'dd-deck-compare',
    changeDetection: ChangeDetectionStrategy.OnPush,
@@ -202,7 +207,10 @@ export class DeckCompareComponent {
       const matches = morph
          ? matchMorphItems(
               A.map((x) => x.item),
-              B.map((x) => x.item)
+              B.map((x) => x.item),
+              undefined,
+              false,
+              { width: this.slide().width, height: this.slide().height }
            )
          : [];
       return { A, B, matches };
@@ -230,6 +238,11 @@ export class DeckCompareComponent {
             top: ((it.cy - it.h / 2) / frame.height) * 100,
             width: (it.w / frame.width) * 100,
             height: (it.h / frame.height) * 100,
+            outside:
+               it.cx + it.w / 2 <= 0 ||
+               it.cy + it.h / 2 <= 0 ||
+               it.cx - it.w / 2 >= frame.width ||
+               it.cy - it.h / 2 >= frame.height,
             num: p ? p.n + 1 : null,
             color: p ? PAIR_COLORS[p.n % PAIR_COLORS.length] : null,
             forced,
@@ -267,6 +280,36 @@ export class DeckCompareComponent {
    private readonly chainB = computed(() => this.neighbourPairs(this.slide(), this.after(), 'from'));
    protected readonly hitsA = computed(() => this.hits('a'));
    protected readonly hitsB = computed(() => this.hits('b'));
+   /**
+    * How far the slides' content reaches past the pair view's outer edges, as fractions of
+    * its width (its margins, so the scroll area covers it at any zoom).
+    */
+   protected readonly overhang = computed(() => {
+      const t = this.total();
+      const hx = (pct: number) => (Math.max(0, pct) / 100) * COL / t;
+      const hy = (pct: number) => ((Math.max(0, pct) / 100) * this.viewH()) / t;
+      const all = [...this.hitsA(), ...this.hitsB()];
+      const pad = 0.03;
+      return {
+         left: hx(-Math.min(0, ...this.hitsA().map((h) => h.left))) + pad,
+         right: hx(Math.max(100, ...this.hitsB().map((h) => h.left + h.width)) - 100) + pad,
+         top: hy(-Math.min(0, ...all.map((h) => h.top))) + pad,
+         bottom: hy(Math.max(100, ...all.map((h) => h.top + h.height)) - 100) + pad,
+      };
+   });
+   protected readonly reachA = computed(() => this.reach(this.hitsA()));
+   protected readonly reachB = computed(() => this.reach(this.hitsB()));
+
+   /** The box (in % of the slide) around a slide and its objects off its edges; null when none are. */
+   private reach(hits: readonly Hit[]): { left: number; top: number; width: number; height: number } | null {
+      if (!hits.some((h) => h.outside)) return null;
+      const pad = 1.5;
+      const x0 = Math.min(0, ...hits.map((h) => h.left)) - pad;
+      const y0 = Math.min(0, ...hits.map((h) => h.top)) - pad;
+      const x1 = Math.max(100, ...hits.map((h) => h.left + h.width)) + pad;
+      const y1 = Math.max(100, ...hits.map((h) => h.top + h.height)) + pad;
+      return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 };
+   }
 
    protected readonly armedHit = computed(() => {
       const a = this.armed();
@@ -309,7 +352,7 @@ export class DeckCompareComponent {
       const h = (side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === key);
       if (!h) return null;
       return {
-         x: ((h.left + h.width / 2) / 100) * COL + (side === 'b' ? COL + GAP : 0),
+         x: ((h.left + h.width / 2) / 100) * COL + (side === 'b' ? COL + this.gap() : 0),
          y: ((h.top + h.height / 2) / 100) * this.viewH(),
       };
    }
@@ -318,7 +361,7 @@ export class DeckCompareComponent {
       const el = this.pairView()?.nativeElement;
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      return { x: ((clientX - r.left) / r.width) * 100, y: ((clientY - r.top) / r.height) * this.viewH() };
+      return { x: ((clientX - r.left) / r.width) * this.total(), y: ((clientY - r.top) / r.height) * this.viewH() };
    }
 
    protected startDrag(event: PointerEvent, side: 'a' | 'b', h: Hit): void {
@@ -523,7 +566,21 @@ export class DeckCompareComponent {
 
    // ---- geometry of the pair view: two slides of COL units with a GAP between ----
    protected readonly viewH = computed(() => (COL * this.slide().height) / (this.slide().width || 1));
-   protected readonly viewRatio = computed(() => `${100} / ${this.viewH()}`);
+   /**
+    * Space between the two previews: wider by however far objects hang off the facing
+    * edges (the first slide's right, the second's left), so they never land on the
+    * other slide.
+    */
+   protected readonly gap = computed(() => {
+      const right = Math.max(0, ...this.hitsA().map((h) => h.left + h.width - 100));
+      const left = Math.max(0, ...this.hitsB().map((h) => -h.left));
+      return right || left ? GAP + ((right + left) / 100) * COL + 2 : GAP;
+   });
+   /** Width of the pair view in units (two slides and the gap). */
+   protected readonly total = computed(() => 2 * COL + this.gap());
+   protected readonly colPct = computed(() => `${(COL / this.total()) * 100}%`);
+   protected readonly gapPct = computed(() => `${(this.gap() / this.total()) * 100}%`);
+   protected readonly viewRatio = computed(() => `${this.total()} / ${this.viewH()}`);
    protected readonly lines = computed(() => {
       const prev = this.previous();
       const cur = this.slide();
@@ -536,7 +593,7 @@ export class DeckCompareComponent {
          const b = B[j].item;
          const x1 = a.cx * ka;
          const y1 = a.cy * ka;
-         const x2 = COL + GAP + b.cx * kb;
+         const x2 = COL + this.gap() + b.cx * kb;
          const y2 = b.cy * kb;
          const mx = (x1 + x2) / 2;
          return {
@@ -667,8 +724,10 @@ export class DeckCompareComponent {
 
    // ---- zoom (Map pairs) ----
    protected readonly zoom = signal(1);
+   /** Below 100% the objects sitting off the slides' edges come into view. */
+   protected readonly minZoom = MIN_ZOOM;
    protected setZoom(z: number): void {
-      this.zoom.set(Math.min(4, Math.max(1, Math.round(z * 100) / 100)));
+      this.zoom.set(Math.min(4, Math.max(MIN_ZOOM, Math.round(z * 100) / 100)));
    }
    /** The wheel zooms around the pointer, like the canvas. */
    protected onZoomWheel(e: WheelEvent): void {

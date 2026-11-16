@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ProjectStore } from '../state/project/project.store';
 import {
    type CellStyle,
@@ -36,6 +36,35 @@ export interface GridRange {
    c0: number;
    r1: number;
    c1: number;
+}
+
+/** Tab-separated values (as spreadsheets copy them, quoted cells may hold tabs/newlines). */
+function parseTsv(text: string): string[][] {
+   const src = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
+   if (!src) return [];
+   const rows: string[][] = [[]];
+   let cell = '';
+   let quoted = false;
+   for (let i = 0; i < src.length; i += 1) {
+      const ch = src[i];
+      if (quoted) {
+         if (ch === '"' && src[i + 1] === '"') {
+            cell += '"';
+            i += 1;
+         } else if (ch === '"') quoted = false;
+         else cell += ch;
+      } else if (ch === '"' && cell === '') quoted = true;
+      else if (ch === '\t') {
+         rows[rows.length - 1].push(cell);
+         cell = '';
+      } else if (ch === '\n') {
+         rows[rows.length - 1].push(cell);
+         rows.push([]);
+         cell = '';
+      } else cell += ch;
+   }
+   rows[rows.length - 1].push(cell);
+   return rows;
 }
 
 export type GridStructureAction = 'addCol' | 'delCol' | 'addRow' | 'delRow';
@@ -116,6 +145,18 @@ export class GridTableService {
    /** The element's state before the edit (for revert on Escape and undo). */
    private editOriginal: { text: string; width: number; height: number } | null = null;
 
+   constructor() {
+      // Selecting something else drops the cell selection, so re-selecting the table later
+      // starts as a whole-table selection (copy then copies the table, not stale cells).
+      effect(() => {
+         const ids = this.store.selectedElementIds();
+         const a = untracked(this.anchor);
+         if (a && (ids.length !== 1 || ids[0] !== a.id)) {
+            untracked(() => this.clearCellSelection());
+         }
+      });
+   }
+
    private grid(id: string) {
       const el = this.store.elements().find((e) => e.id === id && e.type === 'grid');
       return el ?? null;
@@ -168,6 +209,79 @@ export class GridTableService {
          }
       }
       await this.store.updateElement(r.id, { text: serializeGrid(g) });
+   }
+
+   /** The last copied cell block (texts + style overrides), as TSV text for the system clipboard too. */
+   private copiedCells: { cells: string[][]; styles: (CellStyle | undefined)[][]; tsv: string } | null = null;
+
+   /** Copy the selected cells. Returns false when no cell block is selected. */
+   copySelectedCells(): boolean {
+      const r = this.range();
+      const el = r && this.grid(r.id);
+      if (!r || !el) return false;
+      const g = parseGrid(el.text);
+      const cells: string[][] = [];
+      const styles: (CellStyle | undefined)[][] = [];
+      for (let row = r.r0; row <= r.r1; row += 1) {
+         cells.push(g.cells[row].slice(r.c0, r.c1 + 1));
+         styles.push(g.cells[row].slice(r.c0, r.c1 + 1).map((_, i) => g.styles?.[cellKey(row, r.c0 + i)]));
+      }
+      const tsv = cells
+         .map((line) => line.map((t) => (/[\t\n"]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t)).join('\t'))
+         .join('\n');
+      this.copiedCells = { cells, styles, tsv };
+      void navigator.clipboard?.writeText(tsv).catch(() => undefined);
+      return true;
+   }
+
+   /**
+    * Paste a cell block at the selected cell (top-left of the selection), adding rows and
+    * columns when it runs past the table. `text` is the system clipboard's text: our own
+    * copy keeps its styles, anything else is read as tab-separated values.
+    */
+   async pasteCells(text: string): Promise<boolean> {
+      const r = this.range();
+      const el = r && this.grid(r.id);
+      if (!r || !el || !this.store.canEdit()) return false;
+      const eol = (s: string) => s.replace(/\r\n?/g, '\n').replace(/\n$/, '');
+      const own = this.copiedCells && (!text || eol(text) === eol(this.copiedCells.tsv)) ? this.copiedCells : null;
+      const cells = own?.cells ?? parseTsv(text);
+      if (!cells.length) return false;
+      let cur = el;
+      let edit: GridEdit | null = null;
+      const needRows = r.r0 + cells.length - parseGrid(el.text).rows.length;
+      const needCols = r.c0 + Math.max(...cells.map((l) => l.length)) - parseGrid(el.text).cols.length;
+      for (let i = 0; i < needRows; i += 1) {
+         edit = insertRow(cur, parseGrid(cur.text).rows.length);
+         cur = { ...cur, text: serializeGrid(edit.grid), width: edit.width, height: edit.height };
+      }
+      for (let i = 0; i < needCols; i += 1) {
+         edit = insertCol(cur, parseGrid(cur.text).cols.length);
+         cur = { ...cur, text: serializeGrid(edit.grid), width: edit.width, height: edit.height };
+      }
+      const g = parseGrid(cur.text);
+      const styles = { ...(g.styles ?? {}) };
+      cells.forEach((line, i) =>
+         line.forEach((t, j) => {
+            const row = r.r0 + i;
+            const col = r.c0 + j;
+            g.cells[row][col] = t;
+            if (own) {
+               const st = own.styles[i]?.[j];
+               if (st) styles[cellKey(row, col)] = st;
+               else delete styles[cellKey(row, col)];
+            }
+         })
+      );
+      await this.store.updateElement(r.id, {
+         text: serializeGrid({ ...g, styles }),
+         ...(edit ? { width: cur.width, height: cur.height } : {}),
+      });
+      const lastRow = r.r0 + cells.length - 1;
+      const lastCol = r.c0 + Math.max(...cells.map((l) => l.length)) - 1;
+      this.anchor.set({ id: r.id, row: r.r0, col: r.c0 });
+      this.focus.set({ id: r.id, row: lastRow, col: lastCol });
+      return true;
    }
 
    /** Apply a style override to every selected cell (undefined values clear that override). */

@@ -7,6 +7,7 @@ import { ANCHOR_GAP } from '../../shared/constants/canvas.constants';
 import { fontWeightFor } from './fonts';
 import { contrastSafe, sentinelColor, type ThemeColors } from './theme-colors';
 import { LINE_HEIGHT, layoutTextBlock } from './text-layout';
+import { usableRuns } from '../rich-text.helper';
 
 /**
  * Rectangle corner radius. By default it clamps to half the shorter side, so a big
@@ -138,18 +139,47 @@ export function shapeLabel(
    if (!element.text) {
       return undefined;
    }
-   return layoutTextBlock(element.text, box, {
+   return layoutTextBlock(element.text, shapeTextBox(element, box), shapeLabelOptions(element, theme));
+}
+
+/** Padding inside a shape's text box (the editor uses the same, so it lines up). */
+export const SHAPE_TEXT_PADDING = 4;
+
+/**
+ * The box a shape's label wraps in: the shape's bounds pulled in from the edges, by
+ * more for an ellipse or diamond so the text stays inside the curved/slanted sides.
+ */
+export function shapeTextBox(
+   element: Pick<CanvasElementModel, 'type' | 'x' | 'y' | 'width' | 'height'>,
+   box: { x: number; y: number; width: number; height: number } = element
+): { x: number; y: number; width: number; height: number } {
+   const k = element.type === 'ellipse' ? 0.146 : element.type === 'diamond' ? 0.25 : 0;
+   const ix = Math.min(box.width * k + 6, box.width / 2 - 4);
+   const iy = Math.min(box.height * k + 4, box.height / 2 - 4);
+   return {
+      x: box.x + Math.max(0, ix),
+      y: box.y + Math.max(0, iy),
+      width: Math.max(8, box.width - 2 * Math.max(0, ix)),
+      height: Math.max(8, box.height - 2 * Math.max(0, iy)),
+   };
+}
+
+/** Text layout options for a shape label (shared by the renderer and the inline editor). */
+export function shapeLabelOptions(element: CanvasElementModel, theme: ThemeColors | undefined) {
+   return {
       fontSize: element.fontSize ?? 16,
       fontFamilyKey: element.fontFamily,
       fontWeight: element.bold ? 800 : fontWeightFor(element.strokeWidth),
       italic: element.italic,
       color: contrastSafe(element.strokeColor, theme),
-      align: element.textAlign ?? 'center',
-      vAlign: element.verticalAlign ?? 'middle',
-      padding: 8,
+      align: element.textAlign ?? ('center' as const),
+      vAlign: element.verticalAlign ?? ('middle' as const),
+      padding: SHAPE_TEXT_PADDING,
       wrap: true,
       lineHeight: element.lineHeight,
-   });
+      runs: usableRuns(element.text ?? '', element.runs),
+      resolveColor: (c: string) => contrastSafe(c, theme),
+   };
 }
 
 /** A line/arrow's optional label, centered just above the segment's midpoint. */

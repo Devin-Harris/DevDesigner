@@ -527,7 +527,7 @@ export class CanvasViewService {
    private readonly lockedViews = new WeakMap<ShapeView, ShapeView>();
 
    /** Resolved canvas background + text color for the render-time contrast guard. */
-   private readonly themeColors = computed(
+   readonly themeColors = computed(
       (): { canvasBg: string; text: string; surface: string } | undefined => {
          // Re-read the tokens only when the theme flips, not on every shape rebuild.
          this.theme.themeChanged$();
