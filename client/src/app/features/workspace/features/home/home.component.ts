@@ -48,6 +48,9 @@ import {
    SHOWCASE_VERSION,
 } from './helpers/home-content';
 
+/** Showcase pacing: resolves after `ms`. */
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Landing page shown at `/` when no project is open: what DevDesigner is, quick
  * ways to start, and the user's most recent projects.
@@ -295,7 +298,6 @@ export class HomeComponent {
     * example, rebuild it step by step, hold, then move on to the next tab.
     */
    private async playCycle(id: string, abort: AbortSignal): Promise<void> {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       for (let i = 0; i < 100; i++) {
          if (abort.aborted) return;
          if (this.store.projectId() === id && !this.store.loading() && this.store.schema()) break;
@@ -447,7 +449,6 @@ export class HomeComponent {
       pairs: [string, string][],
       abort: AbortSignal
    ): Promise<void> {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const go = () =>
          this.demo()?.nativeElement.querySelector<HTMLButtonElement>('.sc-morph dd-deck-compare button.go');
       this.compareUi.view.set('map');
@@ -520,7 +521,7 @@ export class HomeComponent {
       if (!el) return;
       const w = this.toWorld(el.getBoundingClientRect());
       this.cursorAt.set({ x: w.x + Math.min(w.w / 2, 26), y: w.y + w.h / 2, label, box });
-      await new Promise((r) => setTimeout(r, ms));
+      await sleep(ms);
    }
 
    /** Right-click → menu → choose an item (the app's menu styling). */
@@ -530,7 +531,6 @@ export class HomeComponent {
       pick: string,
       abort: AbortSignal
    ): Promise<void> {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       // Whatever is selected (its outline rides on the cursor state) stays selected through the menu.
       const selection = this.cursorAt()?.box;
       this.cursorAt.set({ ...at, label: 'Right-click', box: selection });
@@ -560,7 +560,6 @@ export class HomeComponent {
 
    /** Slides: right-click slide 1 in the slide panel → Duplicate slide. */
    private async duplicateSlide(abort: AbortSignal): Promise<void> {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const root = this.demo()?.nativeElement;
       const thumb = root?.querySelector('.sc-slides .sp-row:last-of-type .sp-thumb');
       if (!root || !thumb) return;
@@ -587,7 +586,6 @@ export class HomeComponent {
 
    /** Select a message, then use the editor's own message toolbar to set its style and colour. */
    private async styleMessage(m: SequenceMessageModel, abort: AbortSignal): Promise<void> {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const root = this.demo()?.nativeElement;
       const update = (patch: Partial<SequenceMessageModel>) => {
          const cur = this.store.schema()?.sequenceMessages.find((x) => x.id === m.id);
@@ -633,7 +631,6 @@ export class HomeComponent {
       const host = this.demo()?.nativeElement.querySelector<HTMLElement>('.sc-morph');
       const input = host?.querySelector<HTMLInputElement>('input.scrub');
       if (!host || !input) return;
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const h = host.getBoundingClientRect();
       const r = input.getBoundingClientRect();
       const thumb = 12;
@@ -682,7 +679,6 @@ export class HomeComponent {
       } catch {
          return;
       }
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       // Stays on screen with the model through the end of the tab (cleared when the tab changes).
       this.sqlPanel.set({ text: sql, shown: 0 });
       await sleep(350);
@@ -707,7 +703,6 @@ export class HomeComponent {
    ): Promise<void> {
       const host = this.demo()?.nativeElement.querySelector<HTMLElement>('.sc-morph');
       if (!host) return;
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const els = this.store.elements();
       // Outlines are placed in percent of their slide: find the one nearest each element's centre.
       const hitFor = (frameId: string, id: string, side: string): HTMLElement | undefined => {
@@ -775,7 +770,6 @@ export class HomeComponent {
    private async dragPair(fromLabel: string, toLabel: string, abort: AbortSignal): Promise<void> {
       const host = this.demo()?.nativeElement.querySelector<HTMLElement>('.sc-morph');
       if (!host) return;
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       const find = (side: string, label: string) =>
          Array.from(host.querySelectorAll<HTMLElement>(`.mo-stage .pairview ${side} button.hit`)).find((b) =>
             (b.getAttribute('aria-label') ?? '').startsWith(label)
@@ -817,7 +811,6 @@ export class HomeComponent {
    private async playLanes(abort: AbortSignal): Promise<void> {
       const source = structuredClone(this.store.schema()!);
       const finalView = { ...this.store.viewport() };
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       // One shared to-do list, from the middle outward: whoever is free next takes the next
       // item, so everyone's work interleaves across the board. Estimated effort keeps the
       // load even, so the whole team finishes at about the same moment.
@@ -1020,7 +1013,7 @@ export class HomeComponent {
             from.y + (to.y - from.y) * k,
             from.zoom + (to.zoom - from.zoom) * k
          );
-         await new Promise((r) => setTimeout(r, 25));
+         await sleep(25);
       }
    }
 
@@ -1028,7 +1021,6 @@ export class HomeComponent {
    private async showTransition(deck: string, slides: number, abort: AbortSignal): Promise<void> {
       const editor = this.editor();
       if (!editor) return;
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       this.morphing.set(true);
       try {
          // Map pairs: which object on slide 1 becomes which on slide 2.
