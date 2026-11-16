@@ -250,3 +250,32 @@ A running summary of what each wave of [00-master-plan.md](00-master-plan.md) ch
 - Deploy the server before pointing the new MCP build at production.
 - The in-memory throttle, caches and lockouts assume a single replica.
 - The project list now orders by last content change.
+
+---
+
+## Wave 5 (client), later batch
+
+### Write layer (P3.1, P3.2, P3.6 client halves)
+- **Patch mutations.** `SchemaPatchMutation` is now part of `SchemaMutation` (`RealtimeMutation` stays as an alias). `applySchemaMutation` merges every `*.patched` kind; elements re-sort when a patch changes `zIndex`. `REALTIME_PATCH_MUTATIONS` now defaults to **on**.
+- **Optimistic creates.** Tables, columns, indexes, relationships, participants and messages show at once under a client UUID (`createOptimistic` in the save queue). A refused create is dropped and never restored by a later rollback. `setHome` and `setCustomThemes` roll back on failure.
+- **Batch sections.** Column and index edits go through the staged `PATCH /batch` (`columns` / `indexes`) instead of a PATCH per row.
+- **Raw media upload.** The editor posts file bytes to `POST /projects/:id/images/raw` (no base64). Guide sandboxes keep the JSON route.
+
+### Cleanup (C3.8–C3.11)
+- The sandbox backend is split into `sandbox.helpers.ts`, `sandbox-schema.helpers.ts` and `sandbox-routes.helpers.ts`; the service keeps routing and storage.
+- Home: static copy, seeds and MCP snippets moved to `home/helpers/home-content.ts`; one `sleep` helper instead of eleven.
+- Dialogs and UI primitives use `--dd-on-accent` / `--dd-shade` tokens instead of hex colors.
+- Table selection in the canvas template uses a `selectedTableIdSet` computed.
+- Auth, API-token, share and projects-overlay dialogs use Reactive Forms (+ `formSignal`) instead of `ngModel`.
+
+### Bundle (P4.2)
+- Sign-in and API-token dialogs load on first use (`AccountDialogsService`): initial 477.8 kB → 448.7 kB at the time.
+- Deferring the command palette / shortcuts / customize panel and lazy-loading the projects overlay were measured and **not** kept. Each one made the Angular chunk optimizer fold realtime/socket.io/material into `main` (+27 to +81 kB initial).
+
+### Telemetry (A2)
+- `client.present` (start/end), `client.export_image`, `client.guide_tab`, `client.laser` and `client.error`.
+- Errors are counted by kind only: a wrapping `ErrorHandler` that still delegates to Sentry or the default, plus window `error` / `unhandledrejection` listeners.
+
+### Not done here
+- C3.7 leaf components and the C3.8 `EditorEmbedApi`. Every remaining leaf is mounted from `editor.component.ts`, which had uncommitted work.
+- C3.5/C3.6 (slides panel, present, morph, deck compare).
