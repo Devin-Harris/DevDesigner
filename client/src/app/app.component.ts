@@ -77,7 +77,10 @@ export class AppComponent {
       const path = this.routeUrl().split(/[?#]/)[0];
       if (path.startsWith('/guide')) return true;
       const onWorkspace = path === '/' || path === '' || path.startsWith('/projects/');
-      return onWorkspace && !this.projects.selectedId();
+      // Home shows whenever the selected project is not one of the loaded ones (signed out,
+      // no access, still loading), the same rule the workspace uses to pick home.
+      const id = this.projects.selectedId();
+      return onWorkspace && (!id || !this.projects.projects().some((p) => p.id === id));
    });
    protected readonly realtime = inject(RealtimeService);
    private readonly overlay = inject(ProjectsOverlayService);
