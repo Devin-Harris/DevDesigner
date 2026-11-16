@@ -38,27 +38,15 @@ import { ProjectsStore } from '../../../../shared/state/projects/projects.store'
 import { ProjectsOverlayService } from '../../../../shared/features/projects-overlay/projects-overlay.service';
 import { AuthDialogComponent } from '../../../../shared/features/auth-dialogs/auth-dialog/auth-dialog.component';
 import { ApiTokensDialogComponent } from '../../../../shared/features/auth-dialogs/api-tokens-dialog/api-tokens-dialog.component';
-import { environment } from '../../../../../environments/environment';
-
-/** Bump when the showcase seeds change, so a browser session drops its old copies. */
-const SHOWCASE_VERSION = 25;
-
-/** Showcase examples: small real projects made for the home page (see seeds/). */
-const SHOWCASE_SEEDS: Record<string, () => Promise<{ default: unknown }>> = {
-   whiteboard: () => import('./seeds/whiteboard.json'),
-   sequence: () => import('./seeds/sequence.json'),
-   code: () => import('./seeds/code.json'),
-   tables: () => import('./seeds/tables.json'),
-   slides: () => import('./seeds/slides.json'),
-   more: () => import('./seeds/more.json'),
-};
-
-interface Feature {
-   icon: string;
-   tone: string;
-   title: string;
-   body: string;
-}
+import {
+   HOME_FEATURES,
+   HOME_SHOWCASE,
+   HOME_USES,
+   MCP_COMMAND,
+   MCP_CONFIG,
+   SHOWCASE_SEEDS,
+   SHOWCASE_VERSION,
+} from './helpers/home-content';
 
 /**
  * Landing page shown at `/` when no project is open: what DevDesigner is, quick
@@ -92,64 +80,11 @@ export class HomeComponent {
       [...this.projects.projects()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6)
    );
 
-   protected readonly features: Feature[] = [
-      {
-         icon: 'crop_square',
-         tone: 'amber',
-         title: 'Whiteboard & architecture',
-         body: 'Shapes, arrows that stay bound to what they connect, freehand pen and rich text.',
-      },
-      {
-         icon: 'timeline',
-         tone: 'teal',
-         title: 'Sequence diagrams',
-         body: 'Participants and messages that respace themselves as the flow grows.',
-      },
-      {
-         icon: 'code',
-         tone: 'violet',
-         title: 'Code that reads like an IDE',
-         body: 'Syntax-highlighted blocks, file names, formatting and side-by-side or inline diffs.',
-      },
-      {
-         icon: 'table_chart',
-         tone: 'blue',
-         title: 'Data models',
-         body: 'Tables with types, keys and indexes. Import CREATE TABLE SQL, export it back out.',
-      },
-      {
-         icon: 'image',
-         tone: 'slate',
-         title: 'Grids, images & video',
-         body: 'Spreadsheet-style grids with merged cells, plus media you can crop and clip.',
-      },
-      {
-         icon: 'slideshow',
-         tone: 'red',
-         title: 'Decks from the board',
-         body: 'Any number of presentations per project, with layouts, themes, animations and morph.',
-      },
-   ];
-
-   // MCP endpoint from the build env (scripts/set-env.mjs `mcpUrl`). Unset: deployed builds
-   // fall back to the production server, local dev to the local HTTP MCP (npm run start:mcp:http).
-   protected readonly mcpUrl =
-      environment.mcpUrl ||
-      (environment.production ? 'https://devdesignermcp-production.up.railway.app/mcp' : 'http://localhost:3001/mcp');
-   protected readonly mcpConfig = JSON.stringify(
-      {
-         mcpServers: {
-            devdesigner: {
-               type: 'http',
-               url: this.mcpUrl,
-               headers: { Authorization: 'Bearer dd_...' },
-            },
-         },
-      },
-      null,
-      2
-   );
-   protected readonly mcpCommand = `claude mcp add --transport http devdesigner ${this.mcpUrl} --header "Authorization: Bearer dd_..."`;
+   protected readonly features = HOME_FEATURES;
+   protected readonly uses = HOME_USES;
+   protected readonly showcase = HOME_SHOWCASE;
+   protected readonly mcpConfig = MCP_CONFIG;
+   protected readonly mcpCommand = MCP_COMMAND;
    protected readonly mcpCopied = signal<'config' | 'command' | null>(null);
 
    protected async copyMcp(which: 'config' | 'command'): Promise<void> {
@@ -162,70 +97,6 @@ export class HomeComponent {
       }
    }
 
-   protected readonly uses = [
-      { title: 'Design reviews', body: 'Proposal, diagrams and the diff in one place.' },
-      { title: 'Onboarding', body: 'A living map of the system new people can click through.' },
-      { title: 'Incident walkthroughs', body: 'Replay the request path step by step with the laser.' },
-      { title: 'Talks & demos', body: 'Morphing slides built from the same board you designed on.' },
-   ];
-
-   /** Auto-rotating tool showcase under the hero. */
-   protected readonly showcase = [
-      {
-         id: 'draw',
-         icon: 'crop_square',
-         label: 'Whiteboard',
-         guide: 'shapes',
-         seed: 'whiteboard',
-         title: 'Sketch it fast',
-         body: 'Drag out shapes, type straight into them, and connect them with arrows that stay attached.',
-      },
-      {
-         id: 'seq',
-         icon: 'timeline',
-         label: 'Sequence',
-         guide: 'sequence',
-         seed: 'sequence',
-         title: 'Walk the request path',
-         body: 'Add participants, then drag messages between them. The diagram grows and respaces as you go.',
-      },
-      {
-         id: 'code',
-         icon: 'code',
-         label: 'Code',
-         guide: 'code',
-         seed: 'code',
-         title: 'Show the diff that matters',
-         body: 'Paste or type code into a highlighted block, then flip it to a side-by-side diff.',
-      },
-      {
-         id: 'data',
-         icon: 'table_chart',
-         label: 'Data model',
-         guide: 'tables',
-         seed: 'tables',
-         title: 'Model the data',
-         body: 'Add tables and columns, then drag one key onto another to relate them.',
-      },
-      {
-         id: 'slides',
-         icon: 'slideshow',
-         label: 'Slides',
-         guide: 'presentations',
-         seed: 'slides',
-         title: 'Build slides on the board',
-         body: 'Draw a frame and it becomes a slide. Add a second one, and shared objects morph between them. Check every pair before you present.',
-      },
-      {
-         id: 'more',
-         icon: 'auto_fix',
-         label: 'And more',
-         guide: 'select',
-         seed: 'more',
-         title: 'A project, coming together',
-         body: '',
-      },
-   ];
    protected readonly active = signal(0);
    protected readonly paused = signal(false);
    private readonly sandboxes = inject(SandboxBackendService);
