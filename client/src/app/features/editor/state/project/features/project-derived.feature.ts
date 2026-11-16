@@ -79,6 +79,10 @@ export function withProjectDerived() {
                elements: computed(() => schema()?.elements ?? []),
                /** Elements with theme tokens (`$accent1`, `$heading`) resolved per presentation: what renderers draw. */
                themedElements: computed(() => resolveThemedElements(schema()?.elements ?? [])),
+               /** Selected table ids as a Set, for per-row `has` checks in templates (C3.10). */
+               selectedTableIdSet: computed(() => new Set(selectedTableIds()) as ReadonlySet<string>, {
+                  equal: sameSet,
+               }),
                selectedTable: computed(() => {
                   const ids = selectedTableIds();
                   return ids.length === 1 ? (schema()?.tables.find((t) => t.id === ids[0]) ?? null) : null;

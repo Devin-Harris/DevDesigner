@@ -95,7 +95,7 @@
                   @for (table of z.tables; track table.id) {
                      <dd-table-node
                         [table]="table"
-                        [selected]="store.selectedTableIds().includes(table.id)"
+                        [selected]="store.selectedTableIdSet().has(table.id)"
                         [editable]="store.canEdit()"
                         [fkColumnIds]="store.foreignKeyColumnIds()"
                         [snap]="snap.snapWorld"
@@ -169,7 +169,7 @@
          @for (table of canvasView.outerTables(); track table.id) {
             <dd-table-node
                [table]="table"
-               [selected]="store.selectedTableIds().includes(table.id)"
+               [selected]="store.selectedTableIdSet().has(table.id)"
                [editable]="store.canEdit()"
                [fkColumnIds]="store.foreignKeyColumnIds()"
                [snap]="snap.snapWorld"
