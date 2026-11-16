@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, from, switchMap } from 'rxjs';
 import {
    MEDIA_MIME_TYPES,
    VIDEO_MIME_TYPES,
@@ -10,6 +10,7 @@ import {
 } from '@devdesigner/shared';
 import { environment } from '../../../../environments/environment';
 import { ApiClientService } from '../../../core/http/api-client.service';
+import { isSandboxId } from '../../../core/sandbox/sandbox.helpers';
 
 /** What a file is: a still picture, an animated GIF, or a video. */
 export type MediaKind = 'image' | 'gif' | 'video';
@@ -132,19 +133,31 @@ export class ElementImagesService {
          const what = VIDEO_MIME_TYPES.includes(mimeType) ? 'Videos' : 'Images';
          throw new Error(`${what} can be at most ${max / (1024 * 1024)} MB.`);
       }
-      const [dataUrl, size] = await Promise.all([
-         this.blobToDataUrl(file),
-         VIDEO_MIME_TYPES.includes(mimeType) ? this.videoSize(file) : this.naturalSize(file),
-      ]);
-      const body: UploadImageDto = { mimeType, data: dataUrl.slice(dataUrl.indexOf(',') + 1) };
+      const size = await (VIDEO_MIME_TYPES.includes(mimeType) ? this.videoSize(file) : this.naturalSize(file));
       let response: UploadImageResponse;
       try {
-         response = await firstValueFrom(this.api.post<UploadImageResponse>(`/projects/${projectId}/images`, body));
+         response = await firstValueFrom(this.send(projectId, file));
       } catch (err) {
          throw new Error(this.serverMessage(err) ?? 'The image could not be uploaded.');
       }
       this.seed(response.id, file);
       return { fileId: response.id, ...size };
+   }
+
+   /**
+    * Raw upload (the body is the file, Content-Type its media type): no base64, a third
+    * smaller. Guide sandboxes answer the JSON route in the browser, so they keep it.
+    */
+   private send(projectId: string, file: Blob) {
+      if (isSandboxId(projectId)) {
+         return from(this.blobToDataUrl(file)).pipe(
+            switchMap((dataUrl) => {
+               const body: UploadImageDto = { mimeType: file.type, data: dataUrl.slice(dataUrl.indexOf(',') + 1) };
+               return this.api.post<UploadImageResponse>(`/projects/${projectId}/images`, body);
+            })
+         );
+      }
+      return this.api.post<UploadImageResponse>(`/projects/${projectId}/images/raw`, file);
    }
 
    private blob(fileId: string): Promise<Blob | null> {
