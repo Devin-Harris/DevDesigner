@@ -136,11 +136,11 @@ function createStore(start: Partial<SchemaModel> = {}) {
       tables: {
          remove: jest.fn((): Observable<unknown> => of(undefined)),
          update: jest.fn(() => of({})),
-         create: jest.fn((): Observable<unknown> => of({})),
+         create: jest.fn((_projectId: string, body: object): Observable<unknown> => of({ ...body, columns: [] })),
       },
       columns: {
          remove: jest.fn((): Observable<unknown> => of(undefined)),
-         create: jest.fn((): Observable<unknown> => of({})),
+         create: jest.fn((_tableId: string, body: object): Observable<unknown> => of(body)),
       },
       elements: {
          create: jest.fn((_projectId: string, body: CanvasElementModel) => of(body)),
@@ -635,6 +635,27 @@ describe('ProjectStore optimistic table creates (P3.2)', () => {
 
       await store.addColumn(table.id, { name: 'id', dataType: { name: 'INT' } });
       expect(store.tables()[0].columns).toEqual([expect.objectContaining({ name: 'id', isNullable: true })]);
+   });
+
+   it('sends column and index edits through the staged batch (P3.6)', async () => {
+      jest.useFakeTimers();
+      try {
+         const { store, api } = createStore();
+         await store.addTable(0, 0);
+         const tableId = store.tables()[0].id;
+         await store.addColumn(tableId, { name: 'a', dataType: { name: 'INT' } });
+         await jest.advanceTimersByTimeAsync(0);
+         const columnId = store.tables()[0].columns[0].id;
+         await store.updateColumn(tableId, columnId, { name: 'b' });
+         await store.updateColumn(tableId, columnId, { isNullable: false });
+         expect(store.tables()[0].columns[0]).toMatchObject({ name: 'b', isNullable: false });
+         await jest.advanceTimersByTimeAsync(400);
+         expect(api.projects.batch).toHaveBeenCalledWith('p1', {
+            columns: [{ id: columnId, name: 'b', isNullable: false }],
+         });
+      } finally {
+         jest.useRealTimers();
+      }
    });
 
    it('drops a table the server refuses', async () => {

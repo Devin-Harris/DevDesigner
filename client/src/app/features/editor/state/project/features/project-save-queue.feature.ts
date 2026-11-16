@@ -19,7 +19,8 @@ type QueueHost = WritableStateSource<ProjectState> & {
    _schema: SchemaWriter;
 };
 
-export type BatchSection = 'tables' | 'elements' | 'diagrams' | 'lifelines' | 'messages' | 'relationships';
+export type BatchSection =
+   'tables' | 'columns' | 'indexes' | 'elements' | 'diagrams' | 'lifelines' | 'messages' | 'relationships';
 
 /**
  * The write queue (perf audit "write-queue module"): debounced timers, the per-row request
@@ -302,7 +303,16 @@ function createSaveQueue(store: QueueHost) {
    // atomic PATCH /projects/:id/batch once edits pause, so dragging a diagram
    // (its participants, messages, tables and shapes) is a single request. A
    // rejected batch restores every row it carried.
-   const BATCH_SECTIONS: BatchSection[] = ['tables', 'elements', 'diagrams', 'lifelines', 'messages', 'relationships'];
+   const BATCH_SECTIONS: BatchSection[] = [
+      'tables',
+      'columns',
+      'indexes',
+      'elements',
+      'diagrams',
+      'lifelines',
+      'messages',
+      'relationships',
+   ];
    const staged = new Map<BatchSection, Map<string, Record<string, unknown>>>(
       BATCH_SECTIONS.map((k) => [k, new Map()])
    );
@@ -313,11 +323,15 @@ function createSaveQueue(store: QueueHost) {
       return staged.get(section)!.has(id);
    }
 
-   /** Stage a patch for a row. Call BEFORE applying it locally (checkpoints the row). */
-   function stage(section: BatchSection, id: string, patch: object, ms = 400): void {
+   /**
+    * Stage a patch for a row. Call BEFORE applying it locally (checkpoints the row).
+    * Columns and indexes live inside their table: pass the table id as `ownerId` so a
+    * rejected batch restores that table row.
+    */
+   function stage(section: BatchSection, id: string, patch: object, ms = 400, ownerId = id): void {
       const ck = `${section}:${id}`;
       if (!stagedCheckpoints.has(ck)) {
-         stagedCheckpoints.set(ck, checkpoint(id));
+         stagedCheckpoints.set(ck, checkpoint(ownerId));
       }
       const rows = staged.get(section)!;
       rows.set(id, { ...(rows.get(id) ?? {}), ...patch });

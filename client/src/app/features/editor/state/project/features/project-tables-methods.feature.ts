@@ -22,8 +22,7 @@ export function withProjectTablesMethods() {
       type<ProjectInternalsWith<{ _placement: SlidePlacement }>>(),
       withMethods((store) => {
          const { setSchema, mapTable } = store._schema;
-         const { debounce, flushTimers, runSave, optimistic, createOptimistic, commitPatch, stage, patchTableLocal } =
-            store._queue;
+         const { debounce, flushTimers, runSave, optimistic, createOptimistic, stage, patchTableLocal } = store._queue;
          const { push: pushHistory, rid, aliasTo } = store._history;
          const { tablesApi, columnsApi, indexesApi, relationshipsApi } = store._api;
          const { shownSlideAt } = store._placement;
@@ -284,6 +283,7 @@ export function withProjectTablesMethods() {
                createOptimistic({
                   id,
                   queueKey: `table:${tableId}`,
+                  section: 'columns',
                   insert: () => mapTable(tableId, (t) => ({ ...t, columns: [...t.columns, created] })),
                   remove: withoutColumn,
                   persist: () => firstValueFrom(columnsApi.create(tableId, body)),
@@ -303,14 +303,8 @@ export function withProjectTablesMethods() {
             },
 
             async updateColumn(tableId: string, columnId: string, patch: UpdateColumnDto): Promise<void> {
-               commitPatch(
-                  `patch:col:${columnId}`,
-                  `table:${tableId}`,
-                  tableId,
-                  patch,
-                  (p) => firstValueFrom(columnsApi.update(columnId, p)),
-                  'save the column'
-               );
+               // Batched with every other staged edit (P3.6) instead of a per-column PATCH.
+               stage('columns', columnId, patch, 300, tableId);
                mapTable(tableId, (t) => ({
                   ...t,
                   columns: t.columns.map((c) => (c.id === columnId ? { ...c, ...(patch as Partial<ColumnModel>) } : c)),
@@ -363,6 +357,7 @@ export function withProjectTablesMethods() {
                createOptimistic({
                   id,
                   queueKey: `table:${tableId}`,
+                  section: 'indexes',
                   insert: () => mapIndexes((list) => [...list, created]),
                   remove: () => mapIndexes((list) => list.filter((i) => i.id !== id)),
                   persist: () => firstValueFrom(indexesApi.create(tableId, body)),
@@ -372,14 +367,7 @@ export function withProjectTablesMethods() {
             },
 
             async updateIndex(tableId: string, indexId: string, patch: UpdateIndexDto): Promise<void> {
-               commitPatch(
-                  `patch:index:${indexId}`,
-                  `table:${tableId}`,
-                  tableId,
-                  patch,
-                  (p) => firstValueFrom(indexesApi.update(indexId, p)),
-                  'save the index'
-               );
+               stage('indexes', indexId, patch, 300, tableId);
                mapTable(tableId, (t) => ({
                   ...t,
                   indexes: (t.indexes ?? []).map((i) => (i.id === indexId ? ({ ...i, ...patch } as typeof i) : i)),
