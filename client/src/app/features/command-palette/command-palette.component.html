@@ -13,7 +13,7 @@
       />
       <span class="k">Esc</span>
    </div>
-   <div class="list" #list>
+   <div #list class="list">
       @for (g of results(); track g.name) {
          <div class="lab">{{ g.name }}</div>
          @for (x of g.items; track x.index) {
@@ -24,7 +24,7 @@
                (pointerenter)="active.set(x.index)"
                (click)="run(x.entry)"
             >
-               <dd-icon [name]="x.entry.icon" class="ri" />
+               <dd-icon class="ri" [name]="x.entry.icon" />
                <span class="rl">{{ x.entry.label }}</span>
                @if (x.entry.sub) {
                   <span class="rs">{{ x.entry.sub }}</span>

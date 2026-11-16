@@ -25,7 +25,6 @@ export class ProjectFileService {
          const file = await this.store.exportProject(projectId);
          this.save(file, projectName);
       } catch (err) {
-         // eslint-disable-next-line no-console
          console.error('Could not export project', err);
          this.snackBar.open('Could not export project', 'Dismiss', { duration: 5000 });
       }

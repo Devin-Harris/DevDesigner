@@ -11,7 +11,7 @@
          (pointerdown)="begin('pan', $event)"
       >
          @if (picture(); as href) {
-            <img [src]="href" alt="" draggable="false" />
+            <img alt="" draggable="false" [src]="href" />
          }
       </div>
       <div
@@ -25,9 +25,9 @@
          <div class="kept" [style.clip-path]="clipCss()">
             @if (picture(); as href) {
                <img
-                  [src]="href"
                   alt=""
                   draggable="false"
+                  [src]="href"
                   [style.left.px]="d.src.x - d.box.x"
                   [style.top.px]="d.src.y - d.box.y"
                   [style.width.px]="d.src.width"

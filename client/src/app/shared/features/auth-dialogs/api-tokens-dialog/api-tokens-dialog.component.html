@@ -45,7 +45,7 @@
             formControlName="name"
             (keydown.enter)="create()"
          />
-         <dd-segmented [options]="scopeOptions" formControlName="scope" />
+         <dd-segmented formControlName="scope" [options]="scopeOptions" />
          <button class="btn primary" type="button" [disabled]="!canCreate()" (click)="create()">
             <dd-icon name="add" />Create
          </button>
@@ -72,7 +72,7 @@
                      {{ t.lastUsedAt ? 'used ' + (t.lastUsedAt | date: 'mediumDate') : 'never used' }}
                   </span>
                </div>
-               <button class="icon-btn" type="button" (click)="revoke(t)" aria-label="Revoke token" title="Revoke">
+               <button class="icon-btn" type="button" aria-label="Revoke token" title="Revoke" (click)="revoke(t)">
                   <dd-icon name="delete" />
                </button>
             </div>

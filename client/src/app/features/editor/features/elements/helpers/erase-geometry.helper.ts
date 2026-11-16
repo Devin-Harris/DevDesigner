@@ -1,4 +1,3 @@
-import type { Point } from '../../../models/geometry.model';
 /** Resample a polyline so consecutive points are at most `step` apart. */
 export function densify(
    pts: readonly { x: number; y: number }[],

@@ -1,9 +1,10 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import type {
   AdminApiTokensResponse,
   AdminErrorsResponse,
   AdminEventsResponse,
   AdminFeaturesResponse,
+  AdminHygienePreviewResponse,
   AdminOverviewResponse,
   AdminPage,
   AdminPingResponse,
@@ -18,6 +19,7 @@ import type {
 import { AdminRoute } from '../../collaboration/access/access-policy';
 import { RateLimit } from '../../platform/throttle/rate-limit';
 import { AdminAnalyticsService } from './admin-analytics.service';
+import { AdminHygieneService } from './admin-hygiene.service';
 import { AdminStorageService } from './admin-storage.service';
 import { AdminUsersService } from './admin-users.service';
 import { AdminGuard } from './admin.guard';
@@ -44,6 +46,7 @@ export class AdminController {
     private readonly analytics: AdminAnalyticsService,
     private readonly storage: AdminStorageService,
     private readonly users: AdminUsersService,
+    private readonly hygiene: AdminHygieneService,
   ) {}
 
   @Get('ping')
@@ -89,6 +92,13 @@ export class AdminController {
   @Get('storage')
   storageReport(): Promise<AdminStorageResponse> {
     return this.storage.report();
+  }
+
+  /** Dry run of the optional app-data cleanups: counts only, nothing is deleted. */
+  @Post('hygiene/preview')
+  @HttpCode(HttpStatus.OK)
+  hygienePreview(): Promise<AdminHygienePreviewResponse> {
+    return this.hygiene.preview();
   }
 
   @Get('api-tokens')

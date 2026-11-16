@@ -257,16 +257,15 @@
 
       @if (showMinimap() && !deckFocus.focusedDeck()) {
          <dd-minimap
-            (pointerdown)="$event.stopPropagation()"
-            (wheel)="$event.stopPropagation()"
             [items]="canvasView.minimapItems()"
             [view]="viewport.minimapView()"
+            (pointerdown)="$event.stopPropagation()"
+            (wheel)="$event.stopPropagation()"
             (panTo)="viewport.panToWorld($event)"
          ></dd-minimap>
       }
 
       <dd-shape-toolbar
-         (pointerdown)="$event.stopPropagation()"
          [tool]="tools.activeTool()"
          [disabled]="!store.canEdit() || !store.projectId()"
          [zoomLabel]="viewport.zoomLabel()"
@@ -274,7 +273,6 @@
          [gridSnap]="snap.gridSnap()"
          [smartGuides]="snap.smartGuides()"
          [minimap]="showMinimap()"
-         (toggleMinimap)="toggleMinimap()"
          [canAlign]="align.alignToContainer() || !!align.croppingElement()"
          [canDistribute]="align.canDistribute()"
          [alignToContainer]="align.alignToContainer() || !!align.croppingElement()"
@@ -284,6 +282,8 @@
          [hasHome]="!!store.home()"
          [canSetHome]="store.canEdit() && !!store.projectId()"
          [(framePreset)]="tools.framePresetId"
+         (pointerdown)="$event.stopPropagation()"
+         (toggleMinimap)="toggleMinimap()"
          (toolChange)="tools.onToolChange($event)"
          (addImage)="mediaDrop.pickImages()"
          (undo)="store.undoElement()"
@@ -366,16 +366,16 @@
                <button
                   class="dh-btn"
                   type="button"
-                  (click)="deckFocus.enterDeckFocus(set.name)"
                   title="Focus: edit this presentation on its own (Shift+F)"
+                  (click)="deckFocus.enterDeckFocus(set.name)"
                >
                   <dd-icon name="open_in_full" class="dh-chev" />Focus
                </button>
                <button
                   class="dh-present"
                   type="button"
-                  (click)="deckFocus.presentDeck(set.name)"
                   title="Present from the first slide (F5)"
+                  (click)="deckFocus.presentDeck(set.name)"
                >
                   <dd-icon name="play_arrow" />Present
                </button>
@@ -410,6 +410,7 @@
             </div>
             <dd-slides-panel
                class="slides-panel"
+               part="list"
                [style.left.px]="set.list.left"
                [style.top.px]="set.list.top"
                [style.width.px]="set.list.width"
@@ -418,7 +419,6 @@
                [presentation]="set.name"
                [active]="set.frameId"
                [lastSlide]="slideshow.lastSlideOf(set.name)"
-               part="list"
                (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
@@ -479,7 +479,7 @@
                   <span class="fb-count">{{ deckFocus.deckSlideCount(fd) }} slides</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn" type="button" [ddPopoverTrigger]="themeMenu" placement="below-start">
+                  <button class="fb-btn" type="button" placement="below-start" [ddPopoverTrigger]="themeMenu">
                      Theme: {{ deckFocus.deckThemeName(fframe) }} ▾
                   </button>
                   <ng-template #themeMenu>
@@ -491,7 +491,7 @@
                         (command)="deckFocus.onFocusCommand($event, fd)"
                      />
                   </ng-template>
-                  <button class="fb-btn" type="button" [ddPopoverTrigger]="designMenu" placement="below-start">
+                  <button class="fb-btn" type="button" placement="below-start" [ddPopoverTrigger]="designMenu">
                      Design ▾
                   </button>
                   <ng-template #designMenu>
@@ -509,8 +509,8 @@
                   <button
                      class="fb-btn"
                      type="button"
-                     [ddPopoverTrigger]="sizeMenu"
                      placement="below-start"
+                     [ddPopoverTrigger]="sizeMenu"
                      [disabled]="!store.canEdit()"
                   >
                      {{ deckFocus.deckRatioLabel(fframe) }} ▾
@@ -531,8 +531,8 @@
                   <button
                      class="fb-btn go"
                      type="button"
-                     (click)="deckFocus.presentDeck(fd)"
                      [disabled]="!deckFocus.deckSlideCount(fd)"
+                     (click)="deckFocus.presentDeck(fd)"
                   >
                      ▶ Present <span class="fb-f5">F5</span>
                   </button>
@@ -542,8 +542,8 @@
                </div>
                <dd-slides-panel
                   class="fdock left"
-                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   part="focus-list"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   [presentation]="fd"
                   [active]="fframe"
                   [lastSlide]="slideshow.lastSlideOf(fd)"
@@ -588,8 +588,8 @@
                </div>
                <dd-slides-panel
                   class="fdock left"
-                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   part="design-layouts"
+                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
                   [presentation]="fd"
                   [active]="fframe"
                   [lastSlide]="slideshow.lastSlideOf(fd)"
@@ -623,18 +623,18 @@
                         <button
                            class="fb-btn"
                            type="button"
-                           [disabled]="fslide.index <= 2"
-                           (click)="deckFocus.stepTransition(-1)"
                            title="Previous transition"
                            aria-label="Previous transition"
+                           [disabled]="fslide.index <= 2"
+                           (click)="deckFocus.stepTransition(-1)"
                         >
                            ‹
                         </button>
                         <button
                            class="fb-btn on"
                            type="button"
-                           [ddPopoverTrigger]="pickTransition"
                            placement="below-start"
+                           [ddPopoverTrigger]="pickTransition"
                         >
                            Compare {{ fslide.index - 1 }} → {{ fslide.index }} ▾
                         </button>
@@ -655,10 +655,10 @@
                         <button
                            class="fb-btn"
                            type="button"
-                           [disabled]="fslide.index >= deckFocus.deckSlideCount(fd)"
-                           (click)="deckFocus.stepTransition(1)"
                            title="Next transition"
                            aria-label="Next transition"
+                           [disabled]="fslide.index >= deckFocus.deckSlideCount(fd)"
+                           (click)="deckFocus.stepTransition(1)"
                         >
                            ›
                         </button>
@@ -811,13 +811,13 @@
             <div
                #richEditor
                class="text-editor rich"
-               [class.bare]="!!t.ink"
-               [class.wrap]="t.wrap"
-               [style.width.px]="t.wrap ? t.width : null"
                contenteditable="true"
                spellcheck="false"
                role="textbox"
                aria-multiline="true"
+               [class.bare]="!!t.ink"
+               [class.wrap]="t.wrap"
+               [style.width.px]="t.wrap ? t.width : null"
                [style.line-height.px]="t.lineHeight"
                [style.left.px]="t.left"
                [style.top.px]="t.top"
@@ -883,6 +883,7 @@
          <textarea
             class="text-editor code code-pane split-pane diff-pane"
             spellcheck="false"
+            style="color: transparent; caret-color: var(--dd-text)"
             [style.line-height.px]="p.lineHeight"
             [style.left.px]="p.left"
             [style.top.px]="p.top"
@@ -892,7 +893,6 @@
             [style.font-family]="p.fontFamily"
             [style.padding.px]="p.padding"
             [style.padding-left.px]="p.padLeft"
-            style="color: transparent; caret-color: var(--dd-text)"
             [value]="p.value"
             (pointerdown)="$event.stopPropagation()"
             (keydown)="textEditing.onEditorKeydown($event)"
@@ -969,11 +969,11 @@
          @for (h of sh; track $index) {
             <div
                class="spacing-handle"
+               title="Drag to change spacing"
                [class.vertical]="h.vertical"
                [style.left.px]="h.left"
                [style.top.px]="h.top"
                [style.--span.px]="h.span"
-               title="Drag to change spacing"
                (pointerdown)="groupTransform.startSpacingDrag($event)"
             ></div>
          }
@@ -1085,20 +1085,20 @@
                   class="side-ctrl"
                   type="button"
                   [class.on]="inspector.pinned()"
-                  (click)="inspector.togglePin()"
                   [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
                   [attr.title]="
                      inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'
                   "
+                  (click)="inspector.togglePin()"
                >
                   <dd-icon name="push_pin" />
                </button>
                <button
                   class="side-ctrl"
                   type="button"
-                  (click)="inspector.close()"
                   aria-label="Close details"
                   title="Close details"
+                  (click)="inspector.close()"
                >
                   <dd-icon name="close" />
                </button>

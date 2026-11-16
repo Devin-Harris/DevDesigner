@@ -110,6 +110,7 @@ function cleanAttribute(element: string, name: string, raw: string): string | nu
   if (!ATTRIBUTES.has(name)) return null;
   const value = decodeEntities(raw);
   // Control characters are how scheme checks get dodged ("java\tscript:").
+  // eslint-disable-next-line no-control-regex -- stripping control characters is the point here
   const compact = value.replace(/[\u0000- \u007f-\u009f]+/g, '');
   if (name in NS_VALUES) return value.trim() === NS_VALUES[name] ? value.trim() : null;
   if (name === 'href' || name === 'xlink:href') {
@@ -166,7 +167,7 @@ function parseTag(src: string, start: number): { tag: Tag; end: number } {
  * the input is not an SVG document at all or uses DTD features.
  */
 export function sanitizeSvg(input: string): string {
-  const src = input.replace(/^﻿/, '');
+  const src = input.replace(/^\uFEFF/, ''); // byte-order mark
   if (/<!DOCTYPE|<!ENTITY/i.test(src)) throw new SvgRejectedError('declares a DTD or XML entity');
   let out = '';
   let i = 0;

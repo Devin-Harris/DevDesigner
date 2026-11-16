@@ -27,6 +27,8 @@ import { CurrentUser } from './current-user.decorator';
 import { ApiTokenService } from './api-token.service';
 import { CreateApiTokenDto } from './dto/create-api-token.dto';
 import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
+import { baseCookieOptions, durationMs } from './cookies';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 import { track } from '../../platform/analytics/track';
 
 /**
@@ -84,6 +86,30 @@ export class AuthController {
     res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
   }
 
+  /** Sign out on every device: all existing session cookies stop working. */
+  @Post('logout-all')
+  @CallerScoped()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logoutAll(@CurrentUser() user: AuthUser | null, @Res({ passthrough: true }) res: Response): Promise<void> {
+    await this.auth.revokeSessions(this.requireSessionUser(user));
+    track(this.events, 'auth.logout_all');
+    res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
+  }
+
+  /** Delete the signed-in account and everything it owns (projects, themes, tokens, analytics). */
+  @Delete('me')
+  @CallerScoped()
+  @RateLimit('login')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMe(
+    @Body() dto: DeleteAccountDto,
+    @CurrentUser() user: AuthUser | null,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.auth.deleteAccount(this.requireSessionUser(user), dto.password);
+    res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
+  }
+
   @Get('me')
   @Public()
   me(@CurrentUser() user: AuthUser | null): Promise<CurrentUserResponse | null> {
@@ -120,31 +146,13 @@ export class AuthController {
 
   private requireSessionUser(user: AuthUser | null): string {
     if (!user || user.viaToken) {
-      throw new UnauthorizedException('Sign in to manage API tokens.');
+      throw new UnauthorizedException('Sign in with a browser session to manage your account.');
     }
     return user.id;
   }
 
-  /**
-   * httpOnly session cookie attributes. Secure is enabled in production. When the
-   * client and API live on different sites, set COOKIE_SAMESITE=none (browsers
-   * require Secure with it, so it is forced on). Cross-site cookies are also marked
-   * Partitioned (CHIPS): browsers that block third-party cookies still keep a
-   * partitioned one, keyed to the client's site, so the session survives reloads.
-   */
+  /** httpOnly session cookie attributes; maxAge follows JWT_EXPIRES_IN (security L-3). */
   private cookieOptions(): CookieOptions {
-    const raw = this.config.get<string>('COOKIE_SAMESITE', 'lax').toLowerCase();
-    const sameSite: CookieOptions['sameSite'] =
-      raw === 'none' || raw === 'strict' ? raw : 'lax';
-    const secure =
-      sameSite === 'none' || this.config.get<string>('COOKIE_SECURE', 'false') === 'true';
-    return {
-      httpOnly: true,
-      sameSite,
-      secure,
-      partitioned: sameSite === 'none',
-      path: '/',
-      maxAge: SESSION_MAX_AGE_MS,
-    };
+    return baseCookieOptions(this.config, durationMs(this.config.get<string>('JWT_EXPIRES_IN', '7d'), SESSION_MAX_AGE_MS));
   }
 }

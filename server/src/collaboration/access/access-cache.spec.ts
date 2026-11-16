@@ -9,6 +9,7 @@ import type { Project } from '../../projects/projects/project.entity';
 import type { ShareLink } from '../sharing/share-link.entity';
 import { ACCESS_CHANGED_EVENT, ACCESS_REVOKED_EVENT } from '../../platform/realtime/access-events';
 import { PROJECT_MUTATION_EVENT, PROJECT_MUTATIONS_EVENT } from '@devdesigner/shared';
+import { hashShareToken } from '../sharing/share-token';
 
 describe('TtlLru', () => {
   it('expires entries and evicts the least recently used', () => {
@@ -38,7 +39,7 @@ describe('AccessService with the access cache', () => {
     findOne: jest.fn(async ({ where }: { where: { id: string } }) => projects.get(where.id) ?? null),
   };
   const linkRepo = {
-    findOne: jest.fn(async ({ where }: { where: { token: string } }) => links.get(where.token) ?? null),
+    findOne: jest.fn(async ({ where }: { where: { tokenHash: string } }) => links.get(where.tokenHash) ?? null),
   };
   let cache: AccessCache;
   let access: AccessService;
@@ -49,7 +50,7 @@ describe('AccessService with the access cache', () => {
     projectRepo.findOne.mockClear();
     linkRepo.findOne.mockClear();
     projects.set('p1', { id: 'p1', ownerId: 'u1' });
-    links.set('tok', { token: 'tok', projectId: 'p1', accessLevel: 'EDIT', revokedAt: null, expiresAt: null });
+    links.set(hashShareToken('tok'), { tokenHash: hashShareToken('tok'), projectId: 'p1', accessLevel: 'EDIT', revokedAt: null, expiresAt: null });
     cache = new AccessCache({ get: (_k: string, d: unknown) => d } as unknown as ConfigService);
     access = new AccessService(
       projectRepo as unknown as Repository<Project>,
@@ -69,7 +70,7 @@ describe('AccessService with the access cache', () => {
 
   it('a revoked link stops working at once (access.revoked)', async () => {
     expect(await access.resolveProjectAccess('p1', null, 'tok')).toBe('EDIT');
-    links.set('tok', { ...links.get('tok'), revokedAt: new Date() });
+    links.set(hashShareToken('tok'), { ...links.get(hashShareToken('tok')), revokedAt: new Date() });
     cache.onAccessRevoked({ projectId: 'p1', token: 'tok' });
     await expect(access.resolveProjectAccess('p1', null, 'tok')).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -84,14 +85,14 @@ describe('AccessService with the access cache', () => {
 
   it('a link created after an unknown-token lookup is picked up (access.changed)', async () => {
     await expect(access.resolveProjectAccess('p1', null, 'new')).rejects.toBeInstanceOf(ForbiddenException);
-    links.set('new', { token: 'new', projectId: 'p1', accessLevel: 'VIEW', revokedAt: null, expiresAt: null });
+    links.set(hashShareToken('new'), { tokenHash: hashShareToken('new'), projectId: 'p1', accessLevel: 'VIEW', revokedAt: null, expiresAt: null });
     cache.onAccessChanged({ projectId: 'p1', token: 'new' });
     expect(await access.resolveProjectAccess('p1', null, 'new')).toBe('VIEW');
   });
 
   it('judges expiry against the current time even for a cached link', async () => {
-    links.set('soon', {
-      token: 'soon',
+    links.set(hashShareToken('soon'), {
+      tokenHash: hashShareToken('soon'),
       projectId: 'p1',
       accessLevel: 'VIEW',
       revokedAt: null,
@@ -105,7 +106,7 @@ describe('AccessService with the access cache', () => {
 
   it('fresh lookups bypass the cache (realtime re-checks)', async () => {
     expect(await access.resolveProjectAccess('p1', null, 'tok')).toBe('EDIT');
-    links.set('tok', { ...links.get('tok'), revokedAt: new Date() });
+    links.set(hashShareToken('tok'), { ...links.get(hashShareToken('tok')), revokedAt: new Date() });
     // No invalidation event yet: the cached grant still answers...
     expect(await access.resolveProjectAccess('p1', null, 'tok')).toBe('EDIT');
     // ...but a fresh re-check does not.

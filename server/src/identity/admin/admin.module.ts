@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../auth/user.entity';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { AdminBootstrapService } from './admin-bootstrap.service';
+import { AdminHygieneService } from './admin-hygiene.service';
 import { AdminStorageService } from './admin-storage.service';
 import { AdminUsersService } from './admin-users.service';
 import { AdminController } from './admin.controller';
@@ -17,7 +18,7 @@ import { AdminGuard } from './admin.guard';
 @Module({
   imports: [TypeOrmModule.forFeature([User])],
   controllers: [AdminController],
-  providers: [AdminBootstrapService, AdminGuard, AdminAnalyticsService, AdminStorageService, AdminUsersService],
+  providers: [AdminBootstrapService, AdminGuard, AdminAnalyticsService, AdminStorageService, AdminUsersService, AdminHygieneService],
   exports: [AdminBootstrapService],
 })
 export class AdminModule {}

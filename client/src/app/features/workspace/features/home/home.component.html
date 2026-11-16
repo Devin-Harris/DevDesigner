@@ -13,14 +13,14 @@
          <button
             class="icon-btn"
             type="button"
-            (click)="theme.toggle()"
             [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
             [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+            (click)="theme.toggle()"
          >
             <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
          </button>
          @if (auth.currentUser(); as user) {
-            <button class="link-btn" type="button" [ddPopoverTrigger]="accountMenu" placement="below-end">
+            <button class="link-btn" type="button" placement="below-end" [ddPopoverTrigger]="accountMenu">
                {{ user.email ?? 'Account' }}
             </button>
             <ng-template #accountMenu let-close>
@@ -125,7 +125,7 @@
       </div>
    </section>
 
-   <section class="wrap showcase reveal" #reveal>
+   <section #reveal class="wrap showcase reveal">
       <div class="sc-tabs" role="tablist">
          @for (t of showcase; track t.id; let i = $index) {
             <button
@@ -150,13 +150,13 @@
             }
          }
          <div
-            class="sc-demo"
             #demo
+            class="sc-demo"
+            aria-hidden="true"
+            inert
             [class.prepping]="prepping()"
             [class.morphing]="morphing()"
             [class.seq-tab]="showcase[active()].id === 'seq' || showcase[active()].id === 'more'"
-            aria-hidden="true"
-            inert
          >
             @if (sandboxId(); as id) {
                @for (k of [mountKey()]; track k) {
@@ -227,7 +227,7 @@
             }
             @if (swatches(); as sw) {
                <div class="dd-menu sc-swatches" [style.left.px]="sw.left" [style.top.px]="sw.top">
-                  <dd-color-swatches [value]="sw.value" noneLabel="Default" />
+                  <dd-color-swatches noneLabel="Default" [value]="sw.value" />
                </div>
             }
             @if (sqlPanel(); as q) {
@@ -344,7 +344,7 @@
       </section>
    }
 
-   <section id="features" class="band reveal" #reveal>
+   <section #reveal id="features" class="band reveal">
       <div class="wrap">
          <div class="sec-intro">
             <h2 class="disp">Every way developers explain things, side by side</h2>
@@ -363,7 +363,7 @@
       </div>
    </section>
 
-   <section class="wrap uses reveal" #reveal>
+   <section #reveal class="wrap uses reveal">
       <h2 class="disp">Made for the moments you have to explain it</h2>
       <div class="use-grid">
          @for (u of uses; track u.title; let i = $index) {
@@ -375,7 +375,7 @@
       </div>
    </section>
 
-   <section id="ai" class="wrap ai reveal" #reveal>
+   <section #reveal id="ai" class="wrap ai reveal">
       <div class="ai-intro">
          <span class="lab">Built-in MCP server</span>
          <h2 class="disp">Ask your AI assistant to draw it</h2>

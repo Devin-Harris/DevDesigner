@@ -24,9 +24,18 @@ export class ShareLink {
   @JoinColumn({ name: 'projectId' })
   project!: Project;
 
+  /**
+   * SHA-256 (hex) of the share token; the token itself is never stored in clear
+   * (security L-9, see share-token.ts). The column keeps its original name so the
+   * schema does not change; rows written before hashing are converted on boot.
+   */
   @Index('uq_share_links_token', { unique: true })
-  @Column({ type: 'varchar' })
-  token!: string;
+  @Column({ name: 'token', type: 'varchar' })
+  tokenHash!: string;
+
+  /** The token sealed for the owner's share dialog (AES-GCM); null when unknown. */
+  @Column({ type: 'text', nullable: true })
+  tokenSealed!: string | null;
 
   // Stored as varchar, typed in code against the shared ShareAccessLevel union.
   @Column({ type: 'varchar' })

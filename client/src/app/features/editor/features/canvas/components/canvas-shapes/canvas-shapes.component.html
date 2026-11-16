@@ -1,10 +1,10 @@
 <svg
    class="layer"
+   width="10000"
+   height="10000"
    [class.passive]="dragging() || !interactive()"
    [style.left.px]="-svgOffset()"
    [style.top.px]="-svgOffset()"
-   width="10000"
-   height="10000"
 >
    <defs>
       <!-- Arrowheads inherit the line's stroke color via context-stroke. -->
@@ -62,8 +62,8 @@
       <!-- Per-element diagonal hatch fills (fillStyle: 'hachure'). -->
       @for (s of visible(); track s.id) {
          @if (s.hatch; as h) {
-            <pattern [attr.id]="h.id" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-               <line x1="0" y1="0" x2="0" y2="7" [attr.stroke]="h.color" stroke-width="1.3" />
+            <pattern width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)" [attr.id]="h.id">
+               <line x1="0" y1="0" x2="0" y2="7" stroke-width="1.3" [attr.stroke]="h.color" />
             </pattern>
          }
          @if (s.grid; as g) {
@@ -114,11 +114,11 @@
       @if (bindHighlight(); as h) {
          <rect
             class="bind-highlight"
+            rx="8"
             [attr.x]="h.x - 4"
             [attr.y]="h.y - 4"
             [attr.width]="h.width + 8"
             [attr.height]="h.height + 8"
-            rx="8"
          ></rect>
       }
       @for (s of visible(); track s.id) {
@@ -181,11 +181,11 @@
                   } @else if (images.kind(img.fileId) === 'video' && images.url(img.fileId); as href) {
                      <!-- Videos play in a small HTML player (scales with the canvas zoom). -->
                      <foreignObject
+                        pointer-events="none"
                         [attr.x]="img.x"
                         [attr.y]="img.y"
                         [attr.width]="img.width"
                         [attr.height]="img.height"
-                        pointer-events="none"
                      >
                         <dd-media-video
                            [view]="img"
@@ -197,14 +197,14 @@
                   } @else if (pictureHref(s.id, img, s.selected); as href) {
                      <!-- Pictures render through <image> (static mode: SVG scripts never run). -->
                      <image
+                        preserveAspectRatio="none"
+                        pointer-events="none"
                         [attr.href]="href"
                         [attr.x]="img.src.x"
                         [attr.y]="img.src.y"
                         [attr.width]="img.src.width"
                         [attr.height]="img.src.height"
                         [attr.clip-path]="img.clip ? 'url(#' + img.clip.id + ')' : null"
-                        preserveAspectRatio="none"
-                        pointer-events="none"
                         [attr.role]="img.alt ? 'img' : null"
                         [attr.aria-label]="img.alt || null"
                      >
@@ -215,16 +215,17 @@
                   } @else {
                      <rect
                         class="image-pending"
+                        rx="4"
                         [attr.x]="img.x"
                         [attr.y]="img.y"
                         [attr.width]="img.width"
                         [attr.height]="img.height"
-                        rx="4"
                      ></rect>
                   }
                }
                @if (s.grid; as g) {
                   <rect
+                     stroke="none"
                      [attr.x]="g.rect.x"
                      [attr.y]="g.rect.y"
                      [attr.width]="g.rect.width"
@@ -232,17 +233,16 @@
                      [attr.rx]="g.rect.rx"
                      [attr.fill]="g.background"
                      [attr.fill-opacity]="s.fillOpacity"
-                     stroke="none"
                   ></rect>
-                  <g [attr.clip-path]="'url(#' + g.clipId + ')'" pointer-events="none">
+                  <g pointer-events="none" [attr.clip-path]="'url(#' + g.clipId + ')'">
                      @if (g.header; as h) {
                         <rect
+                           fill-opacity="0.12"
                            [attr.x]="h.x"
                            [attr.y]="h.y"
                            [attr.width]="h.width"
                            [attr.height]="h.height"
                            [attr.fill]="h.fill"
-                           fill-opacity="0.12"
                         ></rect>
                      }
                      @for (f of g.fills; track $index) {
@@ -265,6 +265,7 @@
                      }
                      @for (l of g.lines; track $index) {
                         <line
+                           stroke-opacity="0.55"
                            [attr.x1]="l.x1"
                            [attr.y1]="l.y1"
                            [attr.x2]="l.x2"
@@ -272,12 +273,12 @@
                            [attr.stroke]="s.stroke"
                            [attr.stroke-width]="s.strokeWidth * 0.75"
                            [attr.stroke-dasharray]="s.dash"
-                           stroke-opacity="0.55"
                         ></line>
                      }
                      @for (t of g.cells; track $index) {
                         @for (line of t.lines; track $index) {
                            <text
+                              xml:space="preserve"
                               [attr.x]="line.x"
                               [attr.y]="line.y"
                               [attr.font-size]="t.fontSize"
@@ -286,7 +287,6 @@
                               [attr.font-style]="t.fontStyle"
                               [attr.fill]="t.color"
                               [attr.text-anchor]="t.anchor"
-                              xml:space="preserve"
                               [textContent]="line.text"
                            ></text>
                         }
@@ -294,16 +294,16 @@
                   </g>
                   @if (g.outline) {
                      <rect
+                        fill="none"
+                        pointer-events="none"
                         [attr.x]="g.rect.x"
                         [attr.y]="g.rect.y"
                         [attr.width]="g.rect.width"
                         [attr.height]="g.rect.height"
                         [attr.rx]="g.rect.rx"
-                        fill="none"
                         [attr.stroke]="s.stroke"
                         [attr.stroke-width]="s.strokeWidth"
                         [attr.stroke-dasharray]="s.dash"
-                        pointer-events="none"
                      ></rect>
                   }
                   <rect
@@ -321,9 +321,9 @@
                         @if (i > 0) {
                            <rect
                               class="grid-border col"
+                              width="8"
                               [attr.x]="x - 4"
                               [attr.y]="g.rect.y"
-                              width="8"
                               [attr.height]="g.rect.height"
                               (pointerdown)="onGridBorder(s.id, 'col', i - 1, $event)"
                            ></rect>
@@ -333,10 +333,10 @@
                         @if (i > 0) {
                            <rect
                               class="grid-border row"
+                              height="8"
                               [attr.x]="g.rect.x"
                               [attr.y]="y - 4"
                               [attr.width]="g.rect.width"
-                              height="8"
                               (pointerdown)="onGridBorder(s.id, 'row', i - 1, $event)"
                            ></rect>
                         }
@@ -404,29 +404,29 @@
                      [attr.stroke-width]="s.strokeWidth"
                      [attr.stroke-dasharray]="s.dash"
                   ></rect>
-                  <g [attr.clip-path]="'url(#' + c.clipId + ')'" class="code" pointer-events="none">
+                  <g class="code" pointer-events="none" [attr.clip-path]="'url(#' + c.clipId + ')'">
                      @if (c.header; as h) {
                         <rect
+                           fill-opacity="0.14"
                            [attr.x]="c.rect.x"
                            [attr.y]="c.rect.y"
                            [attr.width]="c.rect.width"
                            [attr.height]="h.height"
                            [attr.fill]="h.tint"
-                           fill-opacity="0.14"
                         ></rect>
                         <line
+                           stroke-opacity="0.35"
                            [attr.x1]="c.rect.x"
                            [attr.x2]="c.rect.x + c.rect.width"
                            [attr.y1]="c.rect.y + h.height"
                            [attr.y2]="c.rect.y + h.height"
                            [attr.stroke]="h.tint"
-                           stroke-opacity="0.35"
                         ></line>
                         <text
-                           [attr.x]="h.x"
-                           [attr.y]="h.y"
                            font-size="12"
                            text-anchor="middle"
+                           [attr.x]="h.x"
+                           [attr.y]="h.y"
                            [attr.font-family]="c.fontFamily"
                            [attr.fill]="h.color"
                            [textContent]="h.text"
@@ -446,20 +446,20 @@
                      }
                      @if (c.divider; as dv) {
                         <line
+                           stroke-opacity="0.35"
                            [attr.x1]="dv.x"
                            [attr.x2]="dv.x"
                            [attr.y1]="dv.y1"
                            [attr.y2]="dv.y2"
                            [attr.stroke]="dv.color"
-                           stroke-opacity="0.35"
                         ></line>
                      }
                      @for (line of c.lines; track $index) {
                         @if (line.oldNumber; as on) {
                            <text
+                              text-anchor="end"
                               [attr.x]="on.x"
                               [attr.y]="line.y"
-                              text-anchor="end"
                               [attr.font-size]="c.fontSize"
                               [attr.font-family]="c.fontFamily"
                               [attr.fill]="c.numberColor"
@@ -477,18 +477,18 @@
                            ></text>
                         }
                         <text
+                           text-anchor="end"
                            [attr.x]="line.numberX ?? c.numberX"
                            [attr.y]="line.y"
-                           text-anchor="end"
                            [attr.font-size]="c.fontSize"
                            [attr.font-family]="c.fontFamily"
                            [attr.fill]="c.numberColor"
                            [textContent]="line.number"
                         ></text>
                         <text
+                           xml:space="preserve"
                            [attr.x]="line.textX ?? c.textX"
                            [attr.y]="line.y"
-                           xml:space="preserve"
                            [attr.font-size]="c.fontSize"
                            [attr.font-family]="c.fontFamily"
                         >
@@ -515,9 +515,9 @@
                      <!-- Split diff: drag the middle rule to give either side more room. -->
                      <rect
                         class="diff-divider"
+                        width="8"
                         [attr.x]="dv.x - 4"
                         [attr.y]="dv.y1"
-                        width="8"
                         [attr.height]="dv.y2 - dv.y1"
                         (pointerdown)="onDiffDivider(s.id, $event)"
                      >
@@ -561,13 +561,13 @@
                @if (s.polygon) {
                   <polygon class="hit" [attr.points]="s.polygon" (pointerdown)="onBody(s.id, $event)"></polygon>
                   <polygon
+                     stroke-linejoin="round"
                      [attr.points]="s.polygon"
                      [attr.fill]="s.fill"
                      [attr.fill-opacity]="s.fillOpacity"
                      [attr.stroke]="s.stroke"
                      [attr.stroke-width]="s.strokeWidth"
                      [attr.stroke-dasharray]="s.dash"
-                     stroke-linejoin="round"
                   ></polygon>
                }
                @if (s.path) {
@@ -578,16 +578,16 @@
                      (pointerdown)="onBody(s.id, $event)"
                   ></path>
                   @if (s.freehand) {
-                     <path [attr.d]="s.path" [attr.fill]="s.fill" stroke="none"></path>
+                     <path stroke="none" [attr.d]="s.path" [attr.fill]="s.fill"></path>
                   } @else {
                      <path
-                        [attr.d]="s.path"
                         fill="none"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        [attr.d]="s.path"
                         [attr.stroke]="s.stroke"
                         [attr.stroke-width]="s.strokeWidth"
                         [attr.stroke-dasharray]="s.dash"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
                         [attr.marker-end]="markerUrl(s.markerEnd)"
                         [attr.marker-start]="markerUrl(s.markerStart)"
                      ></path>
@@ -614,7 +614,7 @@
                      [attr.text-anchor]="t.anchor"
                   >
                      @for (line of t.lines; track $index) {
-                        <tspan [attr.x]="line.x" [attr.y]="line.y" style="white-space: pre">
+                        <tspan style="white-space: pre" [attr.x]="line.x" [attr.y]="line.y">
                            @if (line.spans; as spans) {
                               @for (sp of spans; track $index) {
                                  <tspan
@@ -646,7 +646,7 @@
                      [attr.text-anchor]="l.anchor"
                   >
                      @for (line of l.lines; track $index) {
-                        <tspan [attr.x]="line.x" [attr.y]="line.y" style="white-space: pre">
+                        <tspan style="white-space: pre" [attr.x]="line.x" [attr.y]="line.y">
                            @if (line.spans; as spans) {
                               @for (sp of spans; track $index) {
                                  <tspan
@@ -668,30 +668,30 @@
          </g>
 
          @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {
-            <g [attr.transform]="s.transform" class="selection">
+            <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {
                   <!-- Line/arrow: draggable endpoint handles. -->
                   <circle
                      class="endpoint"
+                     r="6"
                      [attr.cx]="s.ends.start.x"
                      [attr.cy]="s.ends.start.y"
-                     r="6"
                      (pointerdown)="onEndpoint(s.id, 'start', $event)"
                   ></circle>
                   <circle
                      class="endpoint"
+                     r="6"
                      [attr.cx]="s.ends.end.x"
                      [attr.cy]="s.ends.end.y"
-                     r="6"
                      (pointerdown)="onEndpoint(s.id, 'end', $event)"
                   ></circle>
                   @if (s.bend; as b) {
                      <!-- Drag to bend the line into a curve (drag back to the chord to straighten). -->
                      <circle
                         class="bend"
+                        r="5"
                         [attr.cx]="b.x"
                         [attr.cy]="b.y"
-                        r="5"
                         (pointerdown)="onBend(s.id, $event)"
                      ></circle>
                   }
@@ -714,9 +714,9 @@
                      ></line>
                      <circle
                         class="rotate"
+                        r="6"
                         [attr.cx]="s.bbox.x + s.bbox.width / 2"
                         [attr.cy]="s.bbox.y - 24"
-                        r="6"
                         (pointerdown)="onRotate(s.id, $event)"
                      ></circle>
                   }
@@ -724,67 +724,67 @@
                      <!-- Invisible grab strips along each side: drag one to resize on that axis only. -->
                      <rect
                         class="edge ns"
+                        height="8"
                         [attr.x]="s.bbox.x + 6"
                         [attr.y]="s.bbox.y - 4"
                         [attr.width]="edgeLen(s.bbox.width)"
-                        height="8"
                         (pointerdown)="onResize(s.id, 'n', $event)"
                      ></rect>
                      <rect
                         class="edge ns"
+                        height="8"
                         [attr.x]="s.bbox.x + 6"
                         [attr.y]="s.bbox.y + s.bbox.height - 4"
                         [attr.width]="edgeLen(s.bbox.width)"
-                        height="8"
                         (pointerdown)="onResize(s.id, 's', $event)"
                      ></rect>
                      <rect
                         class="edge ew"
+                        width="8"
                         [attr.x]="s.bbox.x - 4"
                         [attr.y]="s.bbox.y + 6"
-                        width="8"
                         [attr.height]="edgeLen(s.bbox.height)"
                         (pointerdown)="onResize(s.id, 'w', $event)"
                      ></rect>
                      <rect
                         class="edge ew"
+                        width="8"
                         [attr.x]="s.bbox.x + s.bbox.width - 4"
                         [attr.y]="s.bbox.y + 6"
-                        width="8"
                         [attr.height]="edgeLen(s.bbox.height)"
                         (pointerdown)="onResize(s.id, 'e', $event)"
                      ></rect>
                   }
                   <rect
                      class="handle"
-                     [attr.x]="s.bbox.x - 5"
-                     [attr.y]="s.bbox.y - 5"
                      width="10"
                      height="10"
+                     [attr.x]="s.bbox.x - 5"
+                     [attr.y]="s.bbox.y - 5"
                      (pointerdown)="onResize(s.id, 'nw', $event)"
                   ></rect>
                   <rect
                      class="handle nesw"
-                     [attr.x]="s.bbox.x + s.bbox.width - 5"
-                     [attr.y]="s.bbox.y - 5"
                      width="10"
                      height="10"
+                     [attr.x]="s.bbox.x + s.bbox.width - 5"
+                     [attr.y]="s.bbox.y - 5"
                      (pointerdown)="onResize(s.id, 'ne', $event)"
                   ></rect>
                   <rect
                      class="handle nesw"
-                     [attr.x]="s.bbox.x - 5"
-                     [attr.y]="s.bbox.y + s.bbox.height - 5"
                      width="10"
                      height="10"
+                     [attr.x]="s.bbox.x - 5"
+                     [attr.y]="s.bbox.y + s.bbox.height - 5"
                      (pointerdown)="onResize(s.id, 'sw', $event)"
                   ></rect>
                   <rect
                      class="handle"
-                     [attr.x]="s.bbox.x + s.bbox.width - 5"
-                     [attr.y]="s.bbox.y + s.bbox.height - 5"
                      width="10"
                      height="10"
+                     [attr.x]="s.bbox.x + s.bbox.width - 5"
+                     [attr.y]="s.bbox.y + s.bbox.height - 5"
                      (pointerdown)="onResize(s.id, 'se', $event)"
                   ></rect>
                   @if (s.type === 'text') {
@@ -792,19 +792,19 @@
                      <rect
                         class="handle side"
                         rx="3"
-                        [attr.x]="s.bbox.x - 4"
-                        [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
                         width="8"
                         height="18"
+                        [attr.x]="s.bbox.x - 4"
+                        [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
                         (pointerdown)="onResize(s.id, 'w', $event)"
                      ></rect>
                      <rect
                         class="handle side"
                         rx="3"
-                        [attr.x]="s.bbox.x + s.bbox.width - 4"
-                        [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
                         width="8"
                         height="18"
+                        [attr.x]="s.bbox.x + s.bbox.width - 4"
+                        [attr.y]="s.bbox.y + s.bbox.height / 2 - 9"
                         (pointerdown)="onResize(s.id, 'e', $event)"
                      ></rect>
                   }

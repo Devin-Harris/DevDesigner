@@ -4,8 +4,8 @@
       type="button"
       [class.on]="c === strokeColor()"
       [style.background]="css(c)"
-      (click)="setColor(c); pen.eraser.set(false)"
       [attr.aria-label]="'Pen color ' + c"
+      (click)="setColor(c); pen.eraser.set(false)"
    ></button>
 }
 <span class="sep"></span>
@@ -15,9 +15,9 @@
          class="ib"
          type="button"
          [class.on]="w.value === pen.eraserSize()"
-         (click)="pen.eraserSize.set(w.value)"
          [matTooltip]="w.label"
          [attr.aria-label]="w.label"
+         (click)="pen.eraserSize.set(w.value)"
       >
          <span class="dot ring" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
       </button>
@@ -25,13 +25,13 @@
    <input
       class="size"
       type="range"
-      [min]="eraserMin"
-      [max]="eraserMax"
       step="1"
-      [value]="pen.eraserSize()"
-      (input)="pen.eraserSize.set(+$any($event.target).value)"
       matTooltip="Eraser size ( [ and ] )"
       aria-label="Eraser size"
+      [min]="eraserMin"
+      [max]="eraserMax"
+      [value]="pen.eraserSize()"
+      (input)="pen.eraserSize.set(+$any($event.target).value)"
    />
    <span class="num">{{ pen.eraserSize() }}</span>
 } @else {
@@ -40,9 +40,9 @@
          class="ib"
          type="button"
          [class.on]="w.value === width()"
-         (click)="setWidth(w.value)"
          [matTooltip]="w.label"
          [attr.aria-label]="w.label"
+         (click)="setWidth(w.value)"
       >
          <span class="dot" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
       </button>
@@ -50,13 +50,13 @@
    <input
       class="size"
       type="range"
-      [min]="penMin"
-      [max]="penMax"
       step="0.5"
-      [value]="width()"
-      (input)="setWidth(+$any($event.target).value)"
       matTooltip="Pen size ( [ and ] )"
       aria-label="Pen size"
+      [min]="penMin"
+      [max]="penMax"
+      [value]="width()"
+      (input)="setWidth(+$any($event.target).value)"
    />
    <span class="num">{{ width() }}</span>
 }
@@ -64,20 +64,20 @@
 <button
    class="ib"
    type="button"
-   [class.on]="pen.highlighter()"
-   (click)="pen.highlighter.set(!pen.highlighter())"
    matTooltip="Highlighter (wide, 50% opacity)"
    aria-label="Highlighter"
+   [class.on]="pen.highlighter()"
+   (click)="pen.highlighter.set(!pen.highlighter())"
 >
    <dd-icon name="highlight" />
 </button>
 <button
    class="ib"
    type="button"
-   [class.on]="pen.eraser()"
-   (click)="pen.eraser.set(!pen.eraser())"
    matTooltip="Eraser (X): drag to rub out parts of strokes"
    aria-label="Eraser"
+   [class.on]="pen.eraser()"
+   (click)="pen.eraser.set(!pen.eraser())"
 >
    <dd-icon name="eraser" />
 </button>

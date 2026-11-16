@@ -13,7 +13,7 @@
             }
          </select>
       </label>
-      <button class="x" type="button" (click)="close()" aria-label="Close"><dd-icon name="close" /></button>
+      <button class="x" type="button" aria-label="Close" (click)="close()"><dd-icon name="close" /></button>
    </div>
 
    <div class="body">
@@ -46,8 +46,8 @@
                   <button
                      class="hide"
                      type="button"
-                     (click)="prefs.setVisible(t.id, false)"
                      [attr.aria-label]="'Hide ' + t.label"
+                     (click)="prefs.setVisible(t.id, false)"
                   >
                      <dd-icon name="visibility_off" />
                   </button>

@@ -33,10 +33,10 @@
       <button
          type="button"
          class="ico-act"
-         [disabled]="!canEdit()"
-         (click)="flip()"
          title="Flip direction"
          aria-label="Flip direction"
+         [disabled]="!canEdit()"
+         (click)="flip()"
       >
          <dd-icon name="swap_horiz" />
       </button>
@@ -45,12 +45,12 @@
    <button
       type="button"
       class="ico-act"
-      [class.active]="m.wrap !== false"
-      [disabled]="!canEdit()"
-      (click)="toggleWrap()"
       title="Auto-wrap label"
       aria-label="Auto-wrap label"
+      [class.active]="m.wrap !== false"
+      [disabled]="!canEdit()"
       [attr.aria-pressed]="m.wrap !== false"
+      (click)="toggleWrap()"
    >
       <dd-icon name="wrap_text" />
    </button>
@@ -58,20 +58,20 @@
    <button
       type="button"
       class="ico-act"
-      [ddPopoverTrigger]="colorMenu"
       placement="below-start"
-      [disabled]="!canEdit()"
       title="Line color"
       aria-label="Line color"
+      [ddPopoverTrigger]="colorMenu"
+      [disabled]="!canEdit()"
    >
       <span class="color-dot" [style.background]="css(m.color) || 'var(--dd-connector)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
          <dd-color-swatches
-            [value]="m.color"
             noneLabel="Default"
             themeValue="theme"
+            [value]="m.color"
             (pick)="setColor($event); close()"
          />
       </div>
@@ -80,10 +80,10 @@
    <button
       type="button"
       class="ico-act"
-      [disabled]="!canEdit()"
-      (click)="edit()"
       title="Edit label"
       aria-label="Edit label"
+      [disabled]="!canEdit()"
+      (click)="edit()"
    >
       <dd-icon name="edit" />
    </button>
@@ -91,20 +91,20 @@
    <button
       type="button"
       class="ico-act details"
-      [class.on]="inspector.shown()"
-      (click)="inspector.toggle()"
       title="Details"
       aria-label="Details"
+      [class.on]="inspector.shown()"
+      (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
    </button>
    <button
       type="button"
       class="ico-act del"
-      [disabled]="!canEdit()"
-      (click)="remove()"
       title="Delete message"
       aria-label="Delete message"
+      [disabled]="!canEdit()"
+      (click)="remove()"
    >
       <dd-icon name="delete" />
    </button>

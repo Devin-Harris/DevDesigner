@@ -17,7 +17,6 @@ import {
 import type {
   ImportIntoProjectResponse,
   ProjectExportFile,
-  ProjectGraphResponse,
   ProjectSummary,
 } from '@devdesigner/shared';
 import type { Request, Response } from 'express';

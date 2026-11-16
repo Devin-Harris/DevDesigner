@@ -1,10 +1,10 @@
 <svg
    class="layer"
+   width="10000"
+   height="10000"
    [class.dragging]="dragging()"
    [style.left.px]="-svgOffset()"
    [style.top.px]="-svgOffset()"
-   width="10000"
-   height="10000"
 >
    <defs>
       <!-- "one": a single perpendicular bar just before the entity. -->
@@ -47,26 +47,26 @@
             @for (seg of c.segments; track seg.index) {
                <circle
                   class="seg"
+                  r="5"
                   [class.h]="seg.orient === 'h'"
                   [class.v]="seg.orient === 'v'"
                   [attr.cx]="seg.mid.x"
                   [attr.cy]="seg.mid.y"
-                  r="5"
                   (pointerdown)="onSegment(c.id, seg.index, $event)"
                ></circle>
             }
             <circle
                class="endpoint"
+               r="6"
                [attr.cx]="c.ax"
                [attr.cy]="c.ay"
-               r="6"
                (pointerdown)="onEndpoint(c.id, 'source', $event)"
             ></circle>
             <circle
                class="endpoint"
+               r="6"
                [attr.cx]="c.bx"
                [attr.cy]="c.by"
-               r="6"
                (pointerdown)="onEndpoint(c.id, 'target', $event)"
             ></circle>
          }
@@ -76,7 +76,7 @@
          <path class="temp" [attr.d]="path"></path>
       }
       @if (snapAnchor(); as p) {
-         <circle class="snap" [attr.cx]="p.x" [attr.cy]="p.y" r="8"></circle>
+         <circle class="snap" r="8" [attr.cx]="p.x" [attr.cy]="p.y"></circle>
       }
    </g>
 </svg>

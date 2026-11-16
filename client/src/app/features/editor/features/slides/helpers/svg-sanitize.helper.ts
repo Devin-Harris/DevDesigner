@@ -9,6 +9,7 @@ const ANIMATION_TAGS = new Set(['set', 'animate', 'animatetransform', 'animatemo
 /** Same-document fragments, embedded images, or plain http(s) links. */
 function isSafeHref(value: string): boolean {
    // Browsers ignore ASCII whitespace/control chars inside schemes ("java\tscript:").
+   // eslint-disable-next-line no-control-regex -- stripping control characters is the point here
    const v = value.replace(/[\u0000- ]+/g, '').toLowerCase();
    return v.startsWith('#') || v.startsWith('data:image/') || v.startsWith('http://') || v.startsWith('https://');
 }

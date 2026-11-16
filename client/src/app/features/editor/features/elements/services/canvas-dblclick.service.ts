@@ -6,7 +6,7 @@ import { PointerGestureService } from '../../../services/pointer-gesture.service
 import { TextEditingService } from './text-editing.service';
 import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { effect, inject, input, untracked, Injectable, DestroyRef } from '@angular/core';
+import { effect, inject, untracked, Injectable, DestroyRef } from '@angular/core';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { layoutOf, masterOf } from '@devdesigner/shared';
 import { MediaActionsService } from '../../../services/media-actions.service';

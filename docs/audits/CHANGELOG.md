@@ -279,3 +279,50 @@ A running summary of what each wave of [00-master-plan.md](00-master-plan.md) ch
 ### Not done here
 - C3.7 leaf components and the C3.8 `EditorEmbedApi`. Every remaining leaf is mounted from `editor.component.ts`, which had uncommitted work.
 - C3.5/C3.6 (slides panel, present, morph, deck compare).
+
+---
+
+## Wave 6: hardening and lock-in
+
+### Security (S4.1-S4.7)
+- **Headers (S4.1).** `helmet` on the API: deny-all CSP with `frame-ancestors 'none'`, HSTS, `nosniff`, `Referrer-Policy`, no `X-Powered-By`. `Cross-Origin-Resource-Policy` stays `cross-origin` so the client (another Railway site) can still embed media. The client gets a meta CSP (`object-src 'none'; base-uri 'self'; form-action 'self'`) plus Angular's hash-based `script-src` (`security.autoCsp` in production builds), which covers the inline stylesheet loader. Connections, images, fonts and styles stay open (per-deploy API host, data:/blob: images, Google Fonts, Sentry). Checked in a browser on a production build: no CSP violations, lazy routes load.
+- **Sessions (S4.2).** `users.tokenVersion` (added by `DATABASE_SYNCHRONIZE`, default 0). JWTs carry `tv`; `POST /auth/logout-all` bumps it and every older cookie stops verifying. Versions are cached in memory (loaded on boot), so session checks stay DB-free. The cookie `maxAge` now follows `JWT_EXPIRES_IN`.
+- **Guest identity (S4.3).** The server issues an httpOnly `dd_guest` cookie. For a migration window the `X-Guest-Id` header is adopted into the cookie on first sight; after that the cookie wins (REST, rate limits, analytics and socket handshakes). The client still sends the header; nothing to change there yet.
+- **Share tokens (S4.5).** `share_links.token` now stores the SHA-256 of the token (same column, no schema change); a new `tokenSealed` column keeps an AES-GCM copy so owners can still copy old links. Plaintext rows are converted on boot, and lookups fall back to plaintext until then, so **existing links keep working** (checked on a copied database). If the seal key changes, links still work but the dialog shows "Link can no longer be shown". Revoking now re-checks every socket of the project.
+- **Dependencies (S4.6).** compression 1.8.2, body-parser 1.20.9, MCP SDK 1.32, zod 4.6.6, throttler 6.8, Sentry 11.12, Angular 22.2 (minor). Nest 11 is its own commit (below).
+- **Accounts (S4.7).** Register conflicts no longer echo the email ("Could not create an account with these details"). `DELETE /auth/me` (password confirm for password accounts) emits `account.deleted`: projects, theme library, API tokens and analytics rows go, then the user row; sessions die first.
+- Not done: the client has no UI yet for "log out everywhere" or account deletion (server routes only). S4.4 (uploads) shipped in Wave 4. The optional API-token expiry / per-project scope and the claim confirmation step are deferred.
+
+### Analytics (A4)
+- `AnalyticsRollupService` runs at 02:10 UTC (timer, no `@nestjs/schedule`): idempotent `analytics_daily` upserts for the last two days (events, distinct actors, 5xx, p50/p95), per-project snapshots in batches of 200, `api.error` purge after 30 days, snapshots kept 30 days plus each month's first, `PRAGMA incremental_vacuum`. The 90-day raw purge stays on the existing daily timer.
+- Account erase: buffered rows, `analytics_event` and `analytics_actor_day` rows for the user are deleted, and late rows for that id are dropped.
+- `POST /api/admin/hygiene/preview` (admin, dry run): dormant guest projects (180 d), orphan images, stale share links (90 d), plus the last rollup status. Nothing is deleted. No dashboard UI for it yet.
+- **Skipped: A3b** (consent banner, PostHog, privacy page, self-hosted fonts), as planned.
+
+### Bundle budgets (P4.4)
+- Measured: initial 1.07 MB raw / 274.7 kB transfer; largest component style `home.component.scss` 28.4 kB.
+- Budgets: initial warn 1.1 MB / error 1.2 MB (was 1 / 2 MB); `anyComponentStyle` warn 29 kB / error 32 kB (was 6 / 64 kB).
+
+### Quality (C5.1-C5.3)
+- New specs: auth sessions and account deletion, cookies and the guest cookie, share-token hashing and migration, rollups / purge / erase / hygiene, `OptionalAuthGuard`, the `account.deleted` listeners. `shared/src/slides/themes.spec.ts` updated to the v2 design-file API, which fixes its 2 old failures.
+- Lint: root `no-explicit-any` and `no-unused-vars` are errors. In the client, the recommended TS and template sets are no longer downgraded, and the guardrail rules are errors. `attributes-order` was auto-fixed (443 places).
+- **Still warnings** (each needs hand fixes in files this wave did not touch): `template/no-call-expression` 1567 (waits for the `$` suffix convention), `consistent-type-assertions` 61, `no-input-rename` 32, `click-events-have-key-events` / `interactive-supports-focus` / `label-has-associated-control` 17 each, `max-lines` 14, the listed boundary exceptions 18.
+- `check:cycles:server` excludes `*.entity.ts` (TypeORM relation cycles).
+- `npm run verify` runs: build shared, root lint, client lint + stylelint, cycles, all tests, build. `.github/workflows/ci.yml` runs it on push to `main` / `audit/**` and on PRs (Node 22).
+
+### NestJS 11
+- Nest 11.2 (Express 5), config 4, jwt 11, typeorm 11, event-emitter 3, cli 11. Catch-all routes use `{*path}`. Production `npm audit` went from 14 (5 high) to 3 moderate.
+
+### Fixes
+- A bare numeric `JWT_EXPIRES_IN` is read as milliseconds, like jsonwebtoken does.
+
+### New env vars (optional)
+- `SHARE_TOKEN_SECRET`: the seal key for share tokens. Empty = derived from `JWT_SECRET`. If set, keep it stable.
+
+### Verified
+- Tests: shared 193/193, server 315/315, MCP 59/59, client 349/349. `npm run verify` and `npm run build` pass.
+- Built-server smoke on a scratch database: auth, logout-all, delete account, projects, batch, export, share links (new and legacy plaintext), raw upload, telemetry, websocket join, and the helmet headers.
+
+### Deploy notes
+- Deploy with `DATABASE_SYNCHRONIZE=true` (as now): it adds `users.tokenVersion` and `share_links.tokenSealed`. Share tokens are hashed on the first boot.
+- Changing `JWT_SECRET` (or `SHARE_TOKEN_SECRET`) later hides old share URLs from the dialog; the links themselves keep working.

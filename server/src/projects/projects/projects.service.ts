@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -37,6 +37,7 @@ import { applyDefined } from '../common/apply-patch';
 import { QuotaService, type ImportFootprint } from '../../platform/quotas/quota.service';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
 import { track } from '../../platform/analytics/track';
+import { ACCOUNT_DELETED_EVENT, type AccountDeletedEvent } from '../../identity/auth/auth.types';
 
 /**
  * Business logic for projects. Data access goes through the injected repository;
@@ -294,6 +295,15 @@ export class ProjectsService {
     this.realtime.emitMany(projectId, mutations);
     track(this.events, 'project.imported', { ...importCounts(parsed.schema, images.length), into: true }, { projectId });
     return { mutations };
+  }
+
+  /** Account deletion: every project the account owns goes with it (cascades take the content). */
+  @OnEvent(ACCOUNT_DELETED_EVENT, { suppressErrors: false })
+  async removeAllOwnedBy({ userId }: AccountDeletedEvent): Promise<void> {
+    const owned = await this.projects.find({ where: { ownerId: userId }, select: { id: true } });
+    for (const { id } of owned) {
+      await this.remove(id);
+    }
   }
 
   async remove(id: string): Promise<void> {

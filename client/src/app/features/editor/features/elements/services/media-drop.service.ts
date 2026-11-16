@@ -1,4 +1,4 @@
-import { inject, Injectable, type Signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ElementImagesService } from '../../../services/element-images.service';
 import { ProjectStore } from '../../../state/project/project.store';
@@ -162,7 +162,6 @@ export class MediaDropService {
          } catch (err) {
             const e = err as { error?: { message?: string }; message?: string };
             const detail = e?.error?.message ?? e?.message;
-            // eslint-disable-next-line no-console
             console.error('Could not import file', err);
             this.snackBar.open(`Could not import file${detail ? `: ${detail}` : ''}`, 'Dismiss', {
                duration: 6000,

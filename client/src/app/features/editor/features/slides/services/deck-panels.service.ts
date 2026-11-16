@@ -2,7 +2,7 @@ import type { ShapePointerEvent } from '../../canvas/components/canvas-shapes/ca
 import { EditorToolService } from '../../../services/editor-tool.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { DeckFocusService } from './deck-focus.service';
-import { computed, inject, signal, Injectable, linkedSignal } from '@angular/core';
+import { computed, inject, Injectable, linkedSignal } from '@angular/core';
 import { layoutNameOf } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import type { Box } from '../../../models/geometry.model';

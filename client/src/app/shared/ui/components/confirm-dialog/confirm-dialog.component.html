@@ -4,7 +4,7 @@
 </mat-dialog-content>
 <mat-dialog-actions class="dlg-actions">
    <button class="btn" type="button" [mat-dialog-close]="false">Cancel</button>
-   <button class="btn danger" type="button" [mat-dialog-close]="true" cdkFocusInitial>
+   <button class="btn danger" type="button" cdkFocusInitial [mat-dialog-close]="true">
       {{ data.confirmLabel ?? 'Confirm' }}
    </button>
 </mat-dialog-actions>

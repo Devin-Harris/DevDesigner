@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Repository } from 'typeorm';
 import { SharingService } from './sharing.service';
+import { hashShareToken, isHashedShareToken } from './share-token';
 import type { ShareLink } from './share-link.entity';
 import type { AccessService } from '../access/access.service';
 import type { GraphLoaderService } from '../../projects/common/graph-loader.service';
@@ -67,8 +68,46 @@ describe('SharingService', () => {
     expect(response.accessLevel).toBe('EDIT');
     expect(response.url).toBe(`https://app.example.com/shared/${response.token}`);
     expect(response.revokedAt).toBeNull();
-    // The access cache forgets anything it knew about that token.
-    expect(realtime.accessChanged).toHaveBeenCalledWith('p1', response.token);
+    // The access cache forgets what it knew about the project's links.
+    expect(realtime.accessChanged).toHaveBeenCalledWith('p1');
+  });
+
+  it('stores only the hash and a sealed copy of the token', async () => {
+    const response = await service.create('p1', { accessLevel: 'VIEW' });
+    const stored = shareLinks.create.mock.calls[0][0] as Partial<ShareLink>;
+    expect(stored.tokenHash).toBe(hashShareToken(response.token!));
+    expect(stored.tokenSealed).not.toContain(response.token);
+    // Listing unseals it again for the owner.
+    shareLinks.find.mockResolvedValue([{ ...stored, id: 'l1', createdAt: new Date() }]);
+    const [listed] = await service.list('p1');
+    expect(listed.token).toBe(response.token);
+    expect(listed.url).toBe(`https://app.example.com/shared/${response.token}`);
+  });
+
+  it('lists a link sealed under another secret without its URL', async () => {
+    shareLinks.find.mockResolvedValue([
+      { id: 'l1', tokenHash: hashShareToken('x'), tokenSealed: 'v1.bad.bad.bad', accessLevel: 'VIEW', createdAt: new Date(), expiresAt: null, revokedAt: null },
+    ]);
+    const [listed] = await service.list('p1');
+    expect(listed.token).toBeNull();
+    expect(listed.url).toBeNull();
+  });
+
+  it('hashes plaintext tokens left from before hashing, once', async () => {
+    const plain = 'A'.repeat(32);
+    shareLinks.find.mockResolvedValue([
+      { id: 'old', tokenHash: plain },
+      { id: 'new', tokenHash: hashShareToken('b') },
+    ]);
+    expect(await service.hashPlaintextTokens()).toBe(1);
+    expect(shareLinks.update).toHaveBeenCalledTimes(1);
+    const [where, patch] = shareLinks.update.mock.calls[0] as [unknown, Partial<ShareLink>];
+    expect(where).toEqual({ id: 'old' });
+    expect(patch.tokenHash).toBe(hashShareToken(plain));
+    expect(isHashedShareToken(patch.tokenHash!)).toBe(true);
+    shareLinks.find.mockResolvedValue([{ ...patch, id: 'old', createdAt: new Date() }]);
+    const [listed] = await service.list('p1');
+    expect(listed.token).toBe(plain);
   });
 
   it('generates unique tokens across calls', async () => {
@@ -116,20 +155,18 @@ describe('SharingService', () => {
     await expect(service.getSharedGraph('nope')).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('revoking a link drops the sockets that joined with its token', async () => {
-    shareLinks.findOne.mockResolvedValue({ id: 'link1', token: 'tok' });
+  it('revoking a link re-checks the project sockets', async () => {
     await service.revoke('p1', 'link1');
     expect(shareLinks.update).toHaveBeenCalledWith(
       { id: 'link1', projectId: 'p1' },
       { revokedAt: expect.any(Date) },
     );
-    expect(realtime.accessRevoked).toHaveBeenCalledWith('p1', 'tok');
+    expect(realtime.accessRevoked).toHaveBeenCalledWith('p1');
   });
 
-  it('revoking an unknown link is a 404 and revokes nothing', async () => {
-    shareLinks.findOne.mockResolvedValue(null);
+  it('revoking an unknown link is a 404 and drops nobody', async () => {
+    shareLinks.update.mockResolvedValue({ affected: 0 });
     await expect(service.revoke('p1', 'nope')).rejects.toBeInstanceOf(NotFoundException);
-    expect(shareLinks.update).not.toHaveBeenCalled();
     expect(realtime.accessRevoked).not.toHaveBeenCalled();
   });
 });

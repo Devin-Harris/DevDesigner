@@ -236,7 +236,6 @@ export class AppComponent {
          });
       } catch (err) {
          const detail = err instanceof HttpErrorResponse ? err.error?.message : (err as Error).message;
-         // eslint-disable-next-line no-console
          console.error('Could not import file', err);
          this.snackBar.open(`Could not import file${detail ? `: ${detail}` : ''}`, 'Dismiss', {
             duration: 5000,

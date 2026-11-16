@@ -2,27 +2,27 @@
    <button
       type="button"
       class="ico-act"
-      [ddPopoverTrigger]="colorMenu"
       placement="below-start"
-      [disabled]="!canEdit()"
       title="Header color"
       aria-label="Header color"
+      [ddPopoverTrigger]="colorMenu"
+      [disabled]="!canEdit()"
    >
       <span class="color-dot" [style.background]="css(l.color) || 'var(--dd-handle)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
          <div class="grid-label">Fill</div>
-         <dd-color-swatches [value]="l.color" themeValue="surface" (pick)="setColor($event)" />
+         <dd-color-swatches themeValue="surface" [value]="l.color" (pick)="setColor($event)" />
          <div class="grid-label">Stroke</div>
          <dd-color-swatches
-            [value]="l.strokeColor"
             noneLabel="No stroke"
             themeValue="theme"
+            [value]="l.strokeColor"
             (pick)="setStroke($event)"
          />
          <div class="grid-label">Text</div>
-         <dd-color-swatches [value]="l.textColor" noneLabel="Automatic" themeValue="theme" (pick)="setText($event)" />
+         <dd-color-swatches noneLabel="Automatic" themeValue="theme" [value]="l.textColor" (pick)="setText($event)" />
       </div>
    </ng-template>
 
@@ -31,10 +31,10 @@
    <button
       type="button"
       class="ico-act"
-      [disabled]="!canEdit()"
-      (click)="edit()"
       title="Rename participant"
       aria-label="Rename participant"
+      [disabled]="!canEdit()"
+      (click)="edit()"
    >
       <dd-icon name="edit" />
    </button>
@@ -42,20 +42,20 @@
    <button
       type="button"
       class="ico-act details"
-      [class.on]="inspector.shown()"
-      (click)="inspector.toggle()"
       title="Details"
       aria-label="Details"
+      [class.on]="inspector.shown()"
+      (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
    </button>
    <button
       type="button"
       class="ico-act del"
-      [disabled]="!canEdit()"
-      (click)="remove()"
       title="Delete participant"
       aria-label="Delete participant"
+      [disabled]="!canEdit()"
+      (click)="remove()"
    >
       <dd-icon name="delete" />
    </button>

@@ -25,13 +25,14 @@
          @for (link of items(); track link.id) {
             <li class="link">
                <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
-               <span class="url" [title]="link.url">{{ link.url }}</span>
+               <span class="url" [title]="link.url ?? ''">{{ link.url ?? 'Link can no longer be shown (still works)' }}</span>
                <button
                   class="icon-btn"
                   matTooltip="Copy link"
                   type="button"
-                  (click)="copy(link)"
                   aria-label="Copy link"
+                  [disabled]="!link.url"
+                  (click)="copy(link)"
                >
                   <dd-icon name="content_copy" />
                </button>
@@ -39,8 +40,8 @@
                   class="icon-btn del"
                   matTooltip="Revoke link"
                   type="button"
-                  (click)="revoke(link)"
                   aria-label="Revoke link"
+                  (click)="revoke(link)"
                >
                   <dd-icon name="link_off" />
                </button>

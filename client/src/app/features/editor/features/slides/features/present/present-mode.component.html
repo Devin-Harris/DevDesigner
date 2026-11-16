@@ -12,7 +12,7 @@
        flip with no load or decode gap. -->
       @for (per of urlList(); track $index; let si = $index) {
          @for (u of per; track $index; let k = $index) {
-            <img class="slide" [class.hidden]="busy() || !isShown(si, k)" [src]="u" alt="" draggable="false" />
+            <img class="slide" alt="" draggable="false" [class.hidden]="busy() || !isShown(si, k)" [src]="u" />
          }
       }
       <div #overlay class="overlay"></div>
@@ -42,8 +42,8 @@
                />
             }
             @if (l.head; as h) {
-               <circle class="glow" [attr.cx]="h.x" [attr.cy]="h.y" r="12" />
-               <circle class="dot" [attr.cx]="h.x" [attr.cy]="h.y" r="5" />
+               <circle class="glow" r="12" [attr.cx]="h.x" [attr.cy]="h.y" />
+               <circle class="dot" r="5" [attr.cx]="h.x" [attr.cy]="h.y" />
             }
          }
       </svg>
@@ -69,7 +69,7 @@
          <div class="sg-list" (click)="$event.stopPropagation()">
             @for (u of gridThumbs(); track $index) {
                <button class="sg-item" type="button" [class.on]="$index === index()" (click)="jumpTo($index)">
-                  <img [src]="u" alt="" draggable="false" />
+                  <img alt="" draggable="false" [src]="u" />
                   <span class="sg-n">{{ $index + 1 }}</span>
                </button>
             }
@@ -106,9 +106,9 @@
       <button
          class="btn"
          type="button"
-         (click)="prev()"
-         [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
          aria-label="Previous"
+         [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
+         (click)="prev()"
       >
          <dd-icon name="chevron_left" />
       </button>
@@ -121,9 +121,9 @@
       <button
          class="btn"
          type="button"
-         (click)="next()"
-         [disabled]="!!following() || (index() === slides().length - 1 && step() >= current().maxStep)"
          aria-label="Next"
+         [disabled]="!!following() || (index() === slides().length - 1 && step() >= current().maxStep)"
+         (click)="next()"
       >
          <dd-icon name="chevron_right" />
       </button>
@@ -134,35 +134,35 @@
       <button
          class="btn"
          type="button"
-         [class.on]="laserOn()"
-         (click)="toggleLaser()"
          aria-label="Laser pointer (K)"
          title="Laser pointer (K): drag on the slide"
+         [class.on]="laserOn()"
+         (click)="toggleLaser()"
       >
          <dd-icon name="near_me" />
       </button>
       <button
          class="btn"
          type="button"
-         [class.on]="showNotes()"
-         (click)="toggleNotes()"
          aria-label="Speaker notes (N)"
          title="Speaker notes (N)"
+         [class.on]="showNotes()"
+         (click)="toggleNotes()"
       >
          <dd-icon name="notes" />
       </button>
       <button
          class="btn"
          type="button"
-         [class.on]="showGrid()"
-         (click)="toggleGrid()"
-         [disabled]="!!following()"
          aria-label="All slides (G)"
          title="All slides (G)"
+         [class.on]="showGrid()"
+         [disabled]="!!following()"
+         (click)="toggleGrid()"
       >
          <dd-icon name="grid_view" />
       </button>
-      <button class="btn" type="button" (click)="exit()" aria-label="Exit (Esc)" title="Exit (Esc)">
+      <button class="btn" type="button" aria-label="Exit (Esc)" title="Exit (Esc)" (click)="exit()">
          <dd-icon name="close" />
       </button>
    </div>
