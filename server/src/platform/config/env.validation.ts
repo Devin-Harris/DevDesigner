@@ -164,7 +164,7 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     QUOTA_IMPORT_MAX_IMAGES: int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
     ACCESS_CACHE_TTL_MS: int('ACCESS_CACHE_TTL_MS', 30_000, 0, 600_000),
     GRAPH_CACHE_MAX_BYTES: int('GRAPH_CACHE_MAX_BYTES', 64 * 1024 * 1024, 0, 2 ** 40),
-    REALTIME_PATCH_MUTATIONS: bool('REALTIME_PATCH_MUTATIONS', false),
+    REALTIME_PATCH_MUTATIONS: bool('REALTIME_PATCH_MUTATIONS', true),
     MEDIA_DRIVER: oneOf('MEDIA_DRIVER', ['fs'] as const, 'fs'),
     MEDIA_DIR: str('MEDIA_DIR', ''),
     ANALYTICS_ENABLED: bool('ANALYTICS_ENABLED', true),

@@ -76,7 +76,7 @@ describe('BatchService', () => {
     await ds.destroy();
   });
 
-  it('broadcasts full models by default (REALTIME_PATCH_MUTATIONS off)', async () => {
+  it('broadcasts full models with REALTIME_PATCH_MUTATIONS off', async () => {
     const { mutations } = await service(false).apply(ids.pA, { elements: [{ id: ids.eA, x: 5 }] });
     expect(mutations).toEqual([{ kind: 'element.updated', element: expect.objectContaining({ id: ids.eA, x: 5, text: expect.any(String) }) }]);
     expect((await ds.getRepository(ElementEntity).findOneByOrFail({ id: ids.eA })).x).toBe(5);

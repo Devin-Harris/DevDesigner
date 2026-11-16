@@ -137,9 +137,10 @@ async function persistChanged<E extends ObjectLiteral & { id: string }>(
  * Sections: tables, columns, indexes, elements, diagrams, lifelines, messages,
  * relationships (each `[{ id, ...patch }]`), plus `deletes` with the same keys.
  *
- * Broadcast shape: full `*.updated` models by default. With REALTIME_PATCH_MUTATIONS
- * on, each patched row is sent as `*.patched` with only the model fields that
+ * Broadcast shape: with REALTIME_PATCH_MUTATIONS (the default)
+ * each patched row is sent as `*.patched` with only the model fields that
  * changed (perf P3.1 / S3), and rows whose patch changed nothing are not sent.
+ * With it off, full `*.updated` models are broadcast.
  */
 @Injectable()
 export class BatchService {
@@ -151,7 +152,7 @@ export class BatchService {
     private readonly realtime: RealtimePublisher,
     config: ConfigService,
   ) {
-    this.patchMutations = config.get<string>('REALTIME_PATCH_MUTATIONS', 'false') === 'true';
+    this.patchMutations = config.get<string>('REALTIME_PATCH_MUTATIONS', 'true') === 'true';
   }
 
   /** The route guard has checked write access to `projectId`. */

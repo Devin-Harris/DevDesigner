@@ -118,7 +118,8 @@ export type SchemaMutation =
   | { kind: 'message.moved'; messageId: string; y: number }
   | { kind: 'message.deleted'; messageId: string }
   | { kind: 'home.updated'; home: ViewportModel | null }
-  | { kind: 'themes.updated'; themes: SlideTheme[] };
+  | { kind: 'themes.updated'; themes: SlideTheme[] }
+  | SchemaPatchMutation;
 
 /**
  * Partial-update mutations (perf P3.1). `patch` holds only the model fields that
@@ -126,10 +127,8 @@ export type SchemaMutation =
  * that are now absent. Apply as `{ ...model, ...patch }` minus the `unset` keys.
  * Creates keep the full-model kinds.
  *
- * Kept OUT of {@link SchemaMutation} on purpose: clients that do not handle them yet
- * must keep type-checking. The server only emits them when REALTIME_PATCH_MUTATIONS
- * is on; until then every partial update is still broadcast as a full `*.updated`.
- * Once every client's applyRemote merges these, fold them into SchemaMutation.
+ * Part of {@link SchemaMutation}: every client's applyRemote merges them. The server
+ * emits them for batch updates when REALTIME_PATCH_MUTATIONS is on (the default).
  */
 export interface ModelPatch<T> {
   patch: Partial<T>;
@@ -146,8 +145,8 @@ export type SchemaPatchMutation =
   | ({ kind: 'lifeline.patched'; lifelineId: string } & ModelPatch<Omit<LifelineModel, 'id'>>)
   | ({ kind: 'message.patched'; messageId: string } & ModelPatch<Omit<SequenceMessageModel, 'id'>>);
 
-/** Everything the server may broadcast: full mutations plus (when enabled) patches. */
-export type RealtimeMutation = SchemaMutation | SchemaPatchMutation;
+/** Everything the server may broadcast (patch kinds included). Kept as an alias of {@link SchemaMutation}. */
+export type RealtimeMutation = SchemaMutation;
 
 /** Fields of a model whose values differ (by JSON value), as a {@link ModelPatch} (never the id). */
 export function diffModel<T extends object>(before: T, after: T): ModelPatch<Omit<T, 'id'>> | null {

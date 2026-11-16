@@ -11,6 +11,7 @@ import type {
    TableModel,
    ViewportModel,
 } from '@devdesigner/shared';
+import { applyModelPatch } from '@devdesigner/shared';
 
 // Pure schema reducers: one realtime SchemaMutation applied to a SchemaModel (the body of the
 // store's `applyRemote`), plus the row helpers local edits share with it. No signals, no I/O,
@@ -245,6 +246,39 @@ export function applySchemaMutation(s: SchemaModel, mutation: SchemaMutation): S
             ...s,
             sequenceMessages: s.sequenceMessages.filter((m) => m.id !== mutation.messageId),
          };
+      // Partial updates (P3.1): merge only the changed fields into the current row.
+      case 'table.patched':
+         return mapTable(s, mutation.tableId, (t) => applyModelPatch(t, mutation));
+      case 'column.patched':
+         return mapTable(s, mutation.tableId, (t) => ({
+            ...t,
+            columns: t.columns.map((c) => (c.id === mutation.columnId ? applyModelPatch(c, mutation) : c)),
+         }));
+      case 'index.patched':
+         return mapTable(s, mutation.tableId, (t) => ({
+            ...t,
+            indexes: (t.indexes ?? []).map((i) => (i.id === mutation.indexId ? applyModelPatch(i, mutation) : i)),
+         }));
+      case 'relationship.patched':
+         return {
+            ...s,
+            relationships: s.relationships.map((r) =>
+               r.id === mutation.relationshipId ? applyModelPatch(r, mutation) : r
+            ),
+         };
+      case 'element.patched': {
+         const next = mapElement(s, mutation.elementId, (e) => applyModelPatch(e, mutation));
+         // Elements draw in array order: a restack (new zIndex) re-sorts them.
+         return mutation.patch.zIndex !== undefined
+            ? { ...next, elements: [...next.elements].sort((a, b) => a.zIndex - b.zIndex) }
+            : next;
+      }
+      case 'sequenceDiagram.patched':
+         return mapDiagram(s, mutation.diagramId, (d) => applyModelPatch(d, mutation));
+      case 'lifeline.patched':
+         return mapLifeline(s, mutation.lifelineId, (l) => applyModelPatch(l, mutation));
+      case 'message.patched':
+         return mapMessage(s, mutation.messageId, (m) => applyModelPatch(m, mutation));
       case 'home.updated':
       case 'themes.updated':
          return s;

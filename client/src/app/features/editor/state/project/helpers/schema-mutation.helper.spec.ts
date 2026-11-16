@@ -291,11 +291,54 @@ describe('applySchemaMutation', () => {
       ],
       ['home.updated', { kind: 'home.updated', home: { x: 1, y: 2, zoom: 3 } }, (s) => expect(s).toBe(s)],
       ['themes.updated', { kind: 'themes.updated', themes: [] }, (s) => expect(s).toBe(s)],
+      [
+         'table.patched',
+         { kind: 'table.patched', tableId: 't1', patch: { name: 'users', x: 9 } },
+         (s) => expect(s.tables[0]).toMatchObject({ name: 'users', x: 9, columns: base().tables[0].columns }),
+      ],
+      [
+         'column.patched',
+         { kind: 'column.patched', tableId: 't1', columnId: 'c2', patch: { name: 'email' } },
+         (s) => expect(s.tables[0].columns.map((c) => c.name)).toEqual(['c1', 'email']),
+      ],
+      [
+         'index.patched',
+         { kind: 'index.patched', tableId: 't1', indexId: 'i1', patch: { isUnique: true } },
+         (s) => expect(s.tables[0].indexes![0].isUnique).toBe(true),
+      ],
+      [
+         'relationship.patched',
+         { kind: 'relationship.patched', relationshipId: 'r2', patch: { type: 'ONE_TO_ONE' } },
+         (s) => expect(s.relationships.map((r) => r.type)).toEqual(['ONE_TO_MANY', 'ONE_TO_ONE']),
+      ],
+      [
+         'element.patched',
+         { kind: 'element.patched', elementId: 'e1', patch: { zIndex: 5 }, unset: ['startBinding'] },
+         (s) => {
+            expect(ids(s.elements)).toEqual(['e2', 'e1']);
+            expect(s.elements[1].startBinding).toBeUndefined();
+         },
+      ],
+      [
+         'sequenceDiagram.patched',
+         { kind: 'sequenceDiagram.patched', diagramId: 'd2', patch: { rowSpacing: 90 } },
+         (s) => expect(s.sequenceDiagrams[1].rowSpacing).toBe(90),
+      ],
+      [
+         'lifeline.patched',
+         { kind: 'lifeline.patched', lifelineId: 'l1', patch: { name: 'API' } },
+         (s) => expect(s.lifelines[0].name).toBe('API'),
+      ],
+      [
+         'message.patched',
+         { kind: 'message.patched', messageId: 'm1', patch: { label: 'GET' } },
+         (s) => expect(s.sequenceMessages[0].label).toBe('GET'),
+      ],
    ];
 
    it('covers every mutation kind', () => {
-      // 33 kinds in shared/src/realtime SchemaMutation; update this when a kind is added.
-      expect(new Set(cases.map(([kind]) => kind)).size).toBe(33);
+      // 41 kinds in shared/src/realtime SchemaMutation; update this when a kind is added.
+      expect(new Set(cases.map(([kind]) => kind)).size).toBe(41);
    });
 
    it.each(cases)('%s (without touching the input)', (_kind, mutation, check) => {
