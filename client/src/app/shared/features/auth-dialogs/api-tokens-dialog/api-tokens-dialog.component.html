@@ -35,18 +35,17 @@
       </div>
    }
 
-   <div class="create">
+   <div class="create" [formGroup]="form">
       <label class="field-label">New token</label>
       <div class="row">
          <dd-input
             class="grow"
             type="text"
             placeholder="e.g. Claude Desktop"
-            [ngModel]="name()"
-            (ngModelChange)="set(name, $event)"
+            formControlName="name"
             (keydown.enter)="create()"
          />
-         <dd-segmented [options]="scopeOptions" [ngModel]="scope()" (ngModelChange)="setScope($event)" />
+         <dd-segmented [options]="scopeOptions" formControlName="scope" />
          <button class="btn primary" type="button" [disabled]="!canCreate()" (click)="create()">
             <dd-icon name="add" />Create
          </button>

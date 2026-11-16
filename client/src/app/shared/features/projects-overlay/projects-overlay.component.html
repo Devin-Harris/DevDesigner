@@ -18,17 +18,10 @@
          </div>
       </header>
 
-      <div class="search-row">
+      <div class="search-row" [formGroup]="filters">
          <dd-icon name="search" class="search-ico" />
-         <dd-input
-            class="search-input"
-            placeholder="Search projects…"
-            [ngModel]="store.search()"
-            (ngModelChange)="setSearch($event)"
-         />
-         <dd-toggle class="archived-toggle" [ngModel]="store.showArchived()" (ngModelChange)="store.toggleArchived()">
-            Show archived
-         </dd-toggle>
+         <dd-input class="search-input" placeholder="Search projects…" formControlName="search" />
+         <dd-toggle class="archived-toggle" formControlName="showArchived"> Show archived </dd-toggle>
       </div>
 
       <div class="cards-scroll" (click)="onListClick($event)">
@@ -103,8 +96,7 @@
                               <input
                                  class="rename"
                                  ddAutofocus
-                                 [ngModel]="editName()"
-                                 (ngModelChange)="editName.set($event)"
+                                 [formControl]="editName"
                                  (click)="$event.stopPropagation()"
                                  (keydown.enter)="commitRename(project)"
                                  (keydown.escape)="cancelRename()"

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, type WritableSignal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { formSignal } from 'ngx-form-signal';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -16,7 +17,7 @@ type Mode = 'login' | 'register';
 @Component({
    selector: 'dd-auth-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [FormsModule, MatDialogModule, MatProgressSpinnerModule, InputComponent],
+   imports: [ReactiveFormsModule, MatDialogModule, MatProgressSpinnerModule, InputComponent],
    templateUrl: './auth-dialog.component.html',
    styleUrl: './auth-dialog.component.scss',
 })
@@ -25,9 +26,12 @@ export class AuthDialogComponent {
    private readonly dialogRef = inject(MatDialogRef<AuthDialogComponent, boolean>);
 
    protected readonly mode = signal<Mode>('login');
-   protected readonly email = signal('');
-   protected readonly password = signal('');
-   protected readonly displayName = signal('');
+   protected readonly form = new FormGroup({
+      displayName: new FormControl('', { nonNullable: true }),
+      email: new FormControl('', { nonNullable: true }),
+      password: new FormControl('', { nonNullable: true }),
+   });
+   private readonly form$ = formSignal(this.form);
    protected readonly busy = signal(false);
    protected readonly error = signal<string | null>(null);
 
@@ -35,14 +39,12 @@ export class AuthDialogComponent {
    protected readonly title = computed(() => (this.isRegister() ? 'Create account' : 'Sign in'));
    protected readonly submitLabel = computed(() => (this.isRegister() ? 'Create account' : 'Sign in'));
    protected readonly canSubmit = computed(() => {
-      const emailOk = this.email().trim().length > 3 && this.email().includes('@');
-      const passOk = this.isRegister() ? this.password().length >= 8 : this.password().length > 0;
+      const email = this.form$.value()?.email ?? '';
+      const password = this.form$.value()?.password ?? '';
+      const emailOk = email.trim().length > 3 && email.includes('@');
+      const passOk = this.isRegister() ? password.length >= 8 : password.length > 0;
       return emailOk && passOk && !this.busy();
    });
-
-   protected set(signalRef: WritableSignal<string>, value: string | number): void {
-      signalRef.set(String(value));
-   }
 
    protected toggleMode(): void {
       this.mode.update((m) => (m === 'login' ? 'register' : 'login'));
@@ -55,15 +57,16 @@ export class AuthDialogComponent {
       }
       this.busy.set(true);
       this.error.set(null);
+      const { email, password, displayName } = this.form.getRawValue();
       try {
          if (this.isRegister()) {
             await this.auth.register({
-               email: this.email().trim(),
-               password: this.password(),
-               displayName: this.displayName().trim() || undefined,
+               email: email.trim(),
+               password,
+               displayName: displayName.trim() || undefined,
             });
          } else {
-            await this.auth.login({ email: this.email().trim(), password: this.password() });
+            await this.auth.login({ email: email.trim(), password });
          }
          this.dialogRef.close(true);
       } catch (err) {

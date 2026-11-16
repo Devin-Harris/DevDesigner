@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectSummary } from '@devdesigner/shared';
@@ -31,7 +32,14 @@ type OverlayView = 'projects' | 'templates';
 @Component({
    selector: 'dd-projects-overlay',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [FormsModule, AutofocusDirective, IconComponent, InputComponent, ToggleComponent, PopoverTriggerDirective],
+   imports: [
+      ReactiveFormsModule,
+      AutofocusDirective,
+      IconComponent,
+      InputComponent,
+      ToggleComponent,
+      PopoverTriggerDirective,
+   ],
    templateUrl: './projects-overlay.component.html',
    styleUrl: './projects-overlay.component.scss',
 })
@@ -46,7 +54,12 @@ export class ProjectsOverlayComponent {
 
    protected readonly view = signal<OverlayView>('projects');
    protected readonly editingId = signal<string | null>(null);
-   protected readonly editName = signal('');
+   protected readonly editName = new FormControl('', { nonNullable: true });
+   /** Search box and show-archived toggle; they write through to the projects store. */
+   protected readonly filters = new FormGroup({
+      search: new FormControl(this.store.search(), { nonNullable: true }),
+      showArchived: new FormControl(this.store.showArchived(), { nonNullable: true }),
+   });
    protected readonly busy = signal(false);
    protected readonly templateDefs: ProjectTemplate[] = PROJECT_TEMPLATES;
    /** Projects ticked for a bulk action. */
@@ -66,6 +79,12 @@ export class ProjectsOverlayComponent {
       // closing the dialog (handled in onKeydown).
       effect(() => {
          this.dialogRef.disableClose = this.checked().size > 0;
+      });
+      this.filters.controls.search.valueChanges
+         .pipe(takeUntilDestroyed())
+         .subscribe((value) => this.store.setSearch(String(value)));
+      this.filters.controls.showArchived.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+         if (value !== this.store.showArchived()) this.store.toggleArchived();
       });
    }
 
@@ -90,10 +109,6 @@ export class ProjectsOverlayComponent {
       const d = Math.round(h / 24);
       if (d < 30) return `Edited ${d}d ago`;
       return `Edited ${new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
-   }
-
-   protected setSearch(value: string | number): void {
-      this.store.setSearch(String(value));
    }
 
    private openTimer: ReturnType<typeof setTimeout> | null = null;
@@ -192,14 +207,14 @@ export class ProjectsOverlayComponent {
    protected startRename(project: ProjectSummary): void {
       this.cancelPendingOpen();
       this.editingId.set(project.id);
-      this.editName.set(project.name);
+      this.editName.setValue(project.name);
    }
    protected cancelRename(): void {
       this.editingId.set(null);
    }
    protected async commitRename(project: ProjectSummary): Promise<void> {
       if (this.editingId() !== project.id) return;
-      const name = this.editName().trim();
+      const name = this.editName.value.trim();
       this.editingId.set(null);
       if (!name || name === project.name) return;
       try {

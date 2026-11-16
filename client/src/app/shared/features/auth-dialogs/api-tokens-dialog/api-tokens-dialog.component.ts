@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, type WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { formSignal } from 'ngx-form-signal';
 import { MatDialogModule } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
@@ -18,7 +19,7 @@ import { SegmentedComponent } from '../../../ui/components/segmented/segmented.c
 @Component({
    selector: 'dd-api-tokens-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [DatePipe, FormsModule, MatDialogModule, IconComponent, InputComponent, SegmentedComponent],
+   imports: [DatePipe, ReactiveFormsModule, MatDialogModule, IconComponent, InputComponent, SegmentedComponent],
    templateUrl: './api-tokens-dialog.component.html',
    styleUrl: './api-tokens-dialog.component.scss',
 })
@@ -27,8 +28,11 @@ export class ApiTokensDialogComponent {
 
    protected readonly tokens = signal<ApiTokenResponse[]>([]);
    protected readonly loading = signal(true);
-   protected readonly name = signal('');
-   protected readonly scope = signal<ApiTokenScope>('write');
+   protected readonly form = new FormGroup({
+      name: new FormControl('', { nonNullable: true }),
+      scope: new FormControl<ApiTokenScope>('write', { nonNullable: true }),
+   });
+   private readonly form$ = formSignal(this.form);
    protected readonly busy = signal(false);
    protected readonly error = signal<string | null>(null);
    /** The just-created token (with its secret); cleared when the user dismisses it. */
@@ -42,7 +46,7 @@ export class ApiTokensDialogComponent {
       { value: 'read', label: 'Read only' },
    ];
    protected readonly active = computed(() => this.tokens().filter((t) => !t.revokedAt));
-   protected readonly canCreate = computed(() => this.name().trim().length > 0 && !this.busy());
+   protected readonly canCreate = computed(() => (this.form$.value()?.name ?? '').trim().length > 0 && !this.busy());
 
    /** Claude Desktop / Claude Code style `mcpServers` entry for the new token. */
    protected readonly configSnippet = computed(() => {
@@ -86,29 +90,19 @@ export class ApiTokensDialogComponent {
       void this.load();
    }
 
-   protected set(signalRef: WritableSignal<string>, value: string | number): void {
-      signalRef.set(String(value));
-   }
-
-   protected setScope(value: string): void {
-      this.scope.set(value as ApiTokenScope);
-   }
-
    protected async create(): Promise<void> {
       if (!this.canCreate()) {
          return;
       }
       this.busy.set(true);
       this.error.set(null);
+      const { name, scope } = this.form.getRawValue();
       try {
          const created = await firstValueFrom(
-            this.api.post<CreatedApiTokenResponse>('/auth/api-tokens', {
-               name: this.name().trim(),
-               scope: this.scope(),
-            })
+            this.api.post<CreatedApiTokenResponse>('/auth/api-tokens', { name: name.trim(), scope })
          );
          this.created.set(created);
-         this.name.set('');
+         this.form.controls.name.reset();
          await this.load();
       } catch (err) {
          this.error.set(this.describe(err, 'Could not create the token.'));

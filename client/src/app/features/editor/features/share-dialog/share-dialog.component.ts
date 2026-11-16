@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -27,7 +27,7 @@ export interface ShareDialogData {
    selector: 'dd-share-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
-      FormsModule,
+      ReactiveFormsModule,
       MatDialogModule,
       MatProgressSpinnerModule,
       MatTooltipModule,
@@ -45,7 +45,8 @@ export class ShareDialogComponent {
    protected readonly items = signal<ShareLinkResponse[]>([]);
    protected readonly loading = signal(true);
    protected readonly creating = signal(false);
-   protected readonly newLevel = signal<ShareAccessLevel>('EDIT');
+   /** Access level for the next link. */
+   protected readonly newLevel = new FormControl<ShareAccessLevel>('EDIT', { nonNullable: true });
    protected readonly levelOptions: SegmentedOption[] = [
       { value: 'EDIT', label: 'Can edit' },
       { value: 'VIEW', label: 'Can view' },
@@ -53,10 +54,6 @@ export class ShareDialogComponent {
 
    constructor() {
       void this.refresh();
-   }
-
-   protected setLevel(level: string): void {
-      this.newLevel.set(level as ShareAccessLevel);
    }
 
    private async refresh(): Promise<void> {
@@ -74,7 +71,9 @@ export class ShareDialogComponent {
    protected async create(): Promise<void> {
       this.creating.set(true);
       try {
-         const link = await firstValueFrom(this.links.create(this.data.projectId, { accessLevel: this.newLevel() }));
+         const link = await firstValueFrom(
+            this.links.create(this.data.projectId, { accessLevel: this.newLevel.value })
+         );
          this.items.update((list) => [link, ...list]);
       } catch {
          this.snackBar.open('Could not create the link.', undefined, { duration: 3000 });

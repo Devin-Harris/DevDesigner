@@ -7,7 +7,7 @@
    </p>
 
    <div class="create-row">
-      <dd-segmented [options]="levelOptions" [ngModel]="newLevel()" (ngModelChange)="setLevel($event)" />
+      <dd-segmented [options]="levelOptions" [formControl]="newLevel" />
       <button class="btn primary" type="button" [disabled]="creating()" (click)="create()">
          <dd-icon name="add_link" />
          Create link
