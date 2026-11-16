@@ -17,7 +17,7 @@ describe('cookies', () => {
   it('parses JWT-style durations', () => {
     expect(durationMs('7d', 1)).toBe(7 * 86_400_000);
     expect(durationMs('12h', 1)).toBe(12 * 3_600_000);
-    expect(durationMs('3600', 1)).toBe(3_600_000);
+    expect(durationMs('3600', 1)).toBe(3600); // bare strings are ms, like jsonwebtoken
     expect(durationMs('soon', 42)).toBe(42);
     expect(durationMs(undefined, 42)).toBe(42);
   });
