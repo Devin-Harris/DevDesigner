@@ -429,6 +429,7 @@ export class EditorShortcutsService {
       c: 'code',
       g: 'grid',
       k: 'laser',
+      q: 'sequence',
    };
 
    /** Tool families a repeated shortcut cycles through. */
