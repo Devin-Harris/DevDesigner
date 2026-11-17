@@ -13,8 +13,19 @@ import { ElementEntity } from './element.entity';
 function toBinding(
   kind: 'element' | 'table' | 'message' | null,
   id: string | null,
+  focus: string | null = null,
 ): ElementBinding | undefined {
-  return kind && id ? { targetKind: kind, targetId: id } : undefined;
+  if (!kind || !id) return undefined;
+  const [x, y] = (focus ?? '').split(',').map(Number);
+  return focus && Number.isFinite(x) && Number.isFinite(y)
+    ? { targetKind: kind, targetId: id, focus: { x, y } }
+    : { targetKind: kind, targetId: id };
+}
+
+/** A binding's focus as stored ("x,y"), or null when unset. */
+export function focusColumn(binding: ElementBinding | null | undefined): string | null {
+  const f = binding?.focus;
+  return f ? `${f.x},${f.y}` : null;
 }
 
 /** Decode a stored placeholder; a corrupt value just means "not a placeholder". */
@@ -81,6 +92,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     strokeWidth: entity.strokeWidth,
     strokeStyle: entity.strokeStyle,
     opacity: entity.opacity,
+    strokeOpacity: entity.strokeOpacity ?? 100,
+    fillOpacity: entity.fillOpacity ?? 100,
     zIndex: entity.zIndex,
     cornerRadius: entity.cornerRadius ?? undefined,
     ellipticCorners: entity.ellipticCorners ?? undefined,
@@ -98,8 +111,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     runs: toRuns(entity.runsJson),
     textAlign: entity.textAlign ?? undefined,
     verticalAlign: entity.verticalAlign ?? undefined,
-    startBinding: toBinding(entity.startBindingKind, entity.startBindingId),
-    endBinding: toBinding(entity.endBindingKind, entity.endBindingId),
+    startBinding: toBinding(entity.startBindingKind, entity.startBindingId, entity.startBindingFocus),
+    endBinding: toBinding(entity.endBindingKind, entity.endBindingId, entity.endBindingFocus),
     startArrowhead: entity.startArrowhead ?? undefined,
     endArrowhead: entity.endArrowhead ?? undefined,
     curvature: entity.curvature ?? undefined,

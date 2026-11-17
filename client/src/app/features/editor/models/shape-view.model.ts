@@ -125,6 +125,8 @@ export interface ShapeView {
    locked?: boolean;
    opacity: number;
    stroke: string;
+   /** Outline opacity 0..1 (applied inside the element's overall opacity). */
+   strokeOpacity: number;
    strokeWidth: number;
    /** SVG stroke-dasharray, or null for a solid stroke. */
    dash: string | null;

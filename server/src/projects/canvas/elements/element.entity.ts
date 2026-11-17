@@ -69,6 +69,13 @@ export class ElementEntity {
   @Column({ type: 'float', default: 100 })
   opacity!: number;
 
+  // Per-channel opacity (0-100) on top of `opacity`: outline and fill separately.
+  @Column({ type: 'float', default: 100 })
+  strokeOpacity!: number;
+
+  @Column({ type: 'float', default: 100 })
+  fillOpacity!: number;
+
   @Column({ type: 'integer', default: 0 })
   zIndex!: number;
 
@@ -140,6 +147,13 @@ export class ElementEntity {
 
   @Column({ type: 'varchar', nullable: true })
   endBindingId!: string | null;
+
+  // Bound-end anchor on the target as "x,y" fractions of its box (ElementBinding.focus).
+  @Column({ type: 'varchar', nullable: true })
+  startBindingFocus!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  endBindingFocus!: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   startArrowhead!: ArrowheadType | null;

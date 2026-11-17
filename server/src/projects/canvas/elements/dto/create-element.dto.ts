@@ -94,6 +94,14 @@ export class CreateElementDto implements ICreateElementDto {
 
   @IsOptional()
   @IsNumber()
+  strokeOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  fillOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
   zIndex?: number;
 
   @IsOptional()

@@ -11,6 +11,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { guestCookieMiddleware } from './identity/auth/guest-id';
 import { REQUEST_ID_HEADER } from './platform/http/request-context';
+import { DB_ADMIN_PATH, dbAdminProxy } from './platform/http/db-admin-proxy';
 import { TELEMETRY_MAX_BODY_BYTES } from '@devdesigner/shared';
 
 /**
@@ -42,6 +43,11 @@ async function bootstrap(): Promise<void> {
   // X-Forwarded-For entries so req.ip (the rate-limit key) is the real client.
   app.set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 1));
   app.disable('x-powered-by');
+  // Optional sqlite-web GUI (sidecar started by scripts/start.sh). Before helmet and
+  // the body parsers so requests stream through with the GUI's own headers.
+  if (process.env.DB_ADMIN_PASSWORD) {
+    app.use(DB_ADMIN_PATH, dbAdminProxy(Number(process.env.DB_ADMIN_PORT ?? 8081)));
+  }
   // Security headers (security S4.1). The API only serves JSON and media, so its CSP
   // denies everything and forbids framing. Media is embedded by the client from
   // another site (Railway subdomains), so Cross-Origin-Resource-Policy stays open.

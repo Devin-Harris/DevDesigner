@@ -1,7 +1,7 @@
 import { InspectorPanelService } from '../../../../services/inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GridTableService } from '../../../../services/grid-table.service';
+import { GridTableService, type GridSelectionCommand } from '../../../../services/grid-table.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import { MediaActionsService } from '../../../../services/media-actions.service';
 import { parseGrid } from '../../../../helpers/grid-table.helper';
@@ -156,6 +156,12 @@ export class ElementFloatingToolbarComponent {
          this.element().strokeColor
    );
    protected readonly currentLineHeight = computed(() => this.element().lineHeight ?? DEFAULT_LINE_HEIGHT);
+   /** Elements whose stroke is an outline/line (text colour is not an outline). */
+   protected readonly strokeOpacityShown = computed(() =>
+      ['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw', 'frame', 'code', 'grid'].includes(
+         this.element().type
+      )
+   );
    /** Pictures have no stroke/fill styling, only opacity and layering. */
    protected readonly isImage = computed(() => this.element().type === 'image');
    /** A frame that is not a slide (slides are sized by their presentation). */
@@ -213,6 +219,16 @@ export class ElementFloatingToolbarComponent {
       void this.codeActions.clearDiff(this.element().id);
    }
    protected readonly isGrid = computed(() => this.element().type === 'grid');
+   /** Cells of this table are selected (row/column deletes need them). */
+   protected readonly hasCells = computed(() => this.grids.range()?.id === this.element().id);
+   protected readonly gridCommands: { id: GridSelectionCommand; label: string; keys: string; needsCells: boolean }[] = [
+      { id: 'rowAbove', label: 'Insert row above', keys: 'Ctrl+Alt+↑', needsCells: false },
+      { id: 'rowBelow', label: 'Insert row below', keys: 'Ctrl+Alt+↓', needsCells: false },
+      { id: 'colLeft', label: 'Insert column left', keys: 'Ctrl+Alt+←', needsCells: false },
+      { id: 'colRight', label: 'Insert column right', keys: 'Ctrl+Alt+→', needsCells: false },
+      { id: 'delRows', label: 'Delete rows', keys: 'Ctrl+Alt+-', needsCells: true },
+      { id: 'delCols', label: 'Delete columns', keys: 'Ctrl+Alt+Shift+-', needsCells: true },
+   ];
    protected readonly gridHeaderOn = computed(() => this.isGrid() && parseGrid(this.element().text).header);
    protected readonly languages = CODE_LANGUAGES.map((id) => ({
       id,
@@ -316,6 +332,8 @@ export class ElementFloatingToolbarComponent {
       'strokeWidth',
       'strokeStyle',
       'opacity',
+      'strokeOpacity',
+      'fillOpacity',
       'cornerRadius',
       'fontFamily',
       'fontSize',
@@ -669,6 +687,14 @@ export class ElementFloatingToolbarComponent {
 
    protected setOpacity(value: number): void {
       this.patchAll({ opacity: value });
+   }
+
+   protected setStrokeOpacity(value: number): void {
+      this.patchAll({ strokeOpacity: value });
+   }
+
+   protected setFillOpacity(value: number): void {
+      this.patchAll({ fillOpacity: value });
    }
 
    protected setPlayback(value: MediaPlayback): void {

@@ -223,10 +223,16 @@ function textRuns(value: unknown, path: string): TextRun[] | undefined {
 function binding(value: unknown, path: string): ElementBinding | undefined {
   if (value === undefined || value === null) return undefined;
   const b = obj(value, path);
-  return {
+  const out: ElementBinding = {
     targetKind: oneOf(b, 'targetKind', path, ['element', 'table', 'message'] as const),
     targetId: str(b, 'targetId', path, 100),
   };
+  if (b['focus'] !== undefined && b['focus'] !== null) {
+    const f = obj(b['focus'], `${path}.focus`);
+    const clamp = (v: number): number => Math.min(1, Math.max(0, v));
+    out.focus = { x: clamp(num(f, 'x', `${path}.focus`)), y: clamp(num(f, 'y', `${path}.focus`)) };
+  }
+  return out;
 }
 
 function slideAnimations(value: unknown, path: string): SlideAnimation[] | undefined {
@@ -442,6 +448,8 @@ function parseElement(raw: unknown, path: string, opts: ParseProjectExportOption
     strokeWidth: num(e, 'strokeWidth', path, 2),
     strokeStyle: oneOf(e, 'strokeStyle', path, STROKE_STYLES, 'solid'),
     opacity: num(e, 'opacity', path, 100),
+    strokeOpacity: num(e, 'strokeOpacity', path, 100),
+    fillOpacity: num(e, 'fillOpacity', path, 100),
     zIndex: num(e, 'zIndex', path, 0),
     cornerRadius: optNum(e, 'cornerRadius', path),
     ellipticCorners: e['ellipticCorners'] === true ? true : undefined,

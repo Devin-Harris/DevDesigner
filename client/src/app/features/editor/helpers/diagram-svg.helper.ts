@@ -345,10 +345,11 @@ function markerDefs(theme: Theme): string {
 function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): string {
    const dash = view.dash ? ` stroke-dasharray="${attr(view.dash)}"` : '';
    const open = `<g${view.transform ? ` transform="${esc(view.transform)}"` : ''} opacity="${attr(view.opacity)}">`;
-   const stroke = `stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${dash}`;
+   const strokeOp = view.strokeOpacity < 1 ? ` stroke-opacity="${attr(view.strokeOpacity)}"` : '';
+   const stroke = `stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${strokeOp}${dash}`;
    const body: string[] = [];
    if (view.code) {
-      body.push(renderCodeBlock(view.code, stroke));
+      body.push(renderCodeBlock(view.code, `fill-opacity="${attr(view.fillOpacity)}" ${stroke}`));
    } else if (view.grid) {
       body.push(renderGridTable(view, dash));
    } else if (view.image) {
@@ -387,10 +388,16 @@ function renderShape(view: ShapeView, imageData: ReadonlyMap<string, string>): s
          `<polygon points="${attr(view.polygon)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} stroke-linejoin="round" />`
       );
    } else if (view.freehand && view.path) {
-      body.push(`<path d="${attr(view.path)}" fill="${attr(view.fill)}" stroke="none" />`);
+      body.push(`<path d="${attr(view.path)}" fill="${attr(view.fill)}"${view.strokeOpacity < 1 ? ` fill-opacity="${attr(view.strokeOpacity)}"` : ''} stroke="none" />`);
    } else if (view.path) {
-      const ms = view.markerStart !== 'none' ? ` marker-start="url(#dd-ah-${attr(view.markerStart)})"` : '';
-      const me = view.markerEnd !== 'none' ? ` marker-end="url(#dd-ah-${attr(view.markerEnd)})"` : '';
+      // Arrowheads are tinted per stroke color (a shared theme-colored marker flashed
+      // white on colored arrows during morphs and in exports).
+      const ms =
+         view.markerStart !== 'none'
+            ? ` marker-start="url(#${arrowheadId(view.markerStart, view.markerColor)})"`
+            : '';
+      const me =
+         view.markerEnd !== 'none' ? ` marker-end="url(#${arrowheadId(view.markerEnd, view.markerColor)})"` : '';
       body.push(
          `<path d="${attr(view.path)}" fill="none" ${stroke} stroke-linecap="round" stroke-linejoin="round"${ms}${me} />`
       );
@@ -438,7 +445,7 @@ function renderGridTable(view: ShapeView, dash: string): string {
    if (g.outline) {
       out.push(
          `<rect x="${attr(rect.x)}" y="${attr(rect.y)}" width="${attr(rect.width)}" height="${attr(rect.height)}" rx="${attr(rect.rx)}" ` +
-            `fill="none" stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${dash} />`
+            `fill="none" stroke="${attr(view.stroke)}" stroke-width="${attr(view.strokeWidth)}"${view.strokeOpacity < 1 ? ` stroke-opacity="${attr(view.strokeOpacity)}"` : ''}${dash} />`
       );
    }
    return out.join('');
@@ -528,19 +535,31 @@ function renderTextBlock(t: TextBlockView): string {
    );
 }
 
-/** Arrowhead markers for exported lines/arrows (colored with the theme text color). */
-function arrowheadDef(theme: Theme): string {
-   const c = theme.text;
-   return `<marker id="dd-ah-arrow" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+/** Marker id for an arrowhead type in a stroke color (deterministic, so morph sides share it). */
+function arrowheadId(type: string, color: string | undefined): string {
+   return color ? `dd-ah-${type}-${color.replace(/[^a-zA-Z0-9]/g, '_')}` : `dd-ah-${type}`;
+}
+
+/** Arrowhead markers: the theme-colored defaults plus one set per arrow stroke color. */
+function arrowheadDefs(theme: Theme, colors: Iterable<string>): string {
+   const out = [arrowheadDef(theme.text, '')];
+   for (const c of new Set(colors)) {
+      out.push(arrowheadDef(c, `-${c.replace(/[^a-zA-Z0-9]/g, '_')}`));
+   }
+   return out.join('\n');
+}
+
+function arrowheadDef(c: string, suffix: string): string {
+   return `<marker id="dd-ah-arrow${suffix}" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M1 1 L9 5 L1 9" fill="none" stroke="${attr(c)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
   </marker>
-  <marker id="dd-ah-triangle" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-triangle${suffix}" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M1 1 L10 5 L1 9 Z" fill="${attr(c)}" stroke="${attr(c)}" stroke-linejoin="round" />
   </marker>
-  <marker id="dd-ah-dot" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-dot${suffix}" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
     <circle cx="5" cy="5" r="3.2" fill="${attr(c)}" />
   </marker>
-  <marker id="dd-ah-bar" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+  <marker id="dd-ah-bar${suffix}" markerWidth="10" markerHeight="12" refX="4" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <path d="M4 1 L4 11" stroke="${attr(c)}" stroke-width="1.6" stroke-linecap="round" />
   </marker>`;
 }
@@ -990,7 +1009,10 @@ export function buildDiagramSvg(
     <path d="M 24 0 L 0 0 0 24" fill="none" stroke="${attr(theme.gridLine)}" stroke-width="1" />
   </pattern>
   ${markerDefs(theme)}
-  ${arrowheadDef(theme)}
+  ${arrowheadDefs(
+     theme,
+     shapeViews.filter((v) => v.markerStart !== 'none' || v.markerEnd !== 'none').map((v) => v.markerColor).filter(Boolean)
+  )}
   ${hatchDefs}
 </defs>
 <rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="${attr(theme.canvasBg)}" />

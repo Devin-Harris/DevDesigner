@@ -333,6 +333,8 @@ export class DrawToolService {
                : style.strokeWidth,
          strokeStyle: style.strokeStyle,
          opacity: type === 'freedraw' && this.penPrefs.highlighter() ? 50 : style.opacity,
+         strokeOpacity: style.strokeOpacity,
+         fillOpacity: style.fillOpacity,
          zIndex: this.store.elements().length,
          cornerRadius: style.cornerRadius,
          startArrowhead: style.startArrowhead,
@@ -402,7 +404,9 @@ export class DrawToolService {
       }
       if (draft.type === 'line' || draft.type === 'arrow') {
          // Highlight the shape/table the free end would bind to; binding beats snapping.
-         const bindBox = this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null;
+         const bindBox = this.gesture.noBindHeld
+            ? null
+            : (this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null);
          this.elementGestures.bindHighlight.set(bindBox);
          const space = { ctx: this.tools.drawSlideId() ?? null, view };
          const spanOf = (px: number, py: number) => ({
@@ -539,7 +543,10 @@ export class DrawToolService {
       if ((draft.type === 'arrow' || draft.type === 'line') && draft.points?.length) {
          const pts = absolutePoints(draft);
          const start = this.elementGestures.bindingTargetAt(pts[0], draft.id);
-         const end = this.elementGestures.bindingTargetAt(pts[pts.length - 1], draft.id);
+         // Ctrl/Cmd on release leaves the end free (e.g. pointing at text inside a shape).
+         const end = this.gesture.noBindHeld
+            ? null
+            : this.elementGestures.bindingTargetAt(pts[pts.length - 1], draft.id);
          if (start) {
             dto.startBinding = start.binding;
          }
@@ -620,6 +627,8 @@ export class DrawToolService {
          strokeWidth: draft.strokeWidth,
          strokeStyle: draft.strokeStyle,
          opacity: draft.opacity,
+         strokeOpacity: draft.strokeOpacity,
+         fillOpacity: draft.fillOpacity,
          zIndex: draft.zIndex,
          cornerRadius: draft.cornerRadius,
          points,

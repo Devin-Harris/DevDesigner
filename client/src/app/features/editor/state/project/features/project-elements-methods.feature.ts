@@ -3,6 +3,10 @@ import { firstValueFrom } from 'rxjs';
 import {
    type CanvasElementModel,
    type CreateElementDto,
+   DEFAULT_THEME,
+   presentationOf,
+   presentationThemes,
+   resolveThemeElement,
    type PointModel,
    type UpdateElementDto,
 } from '@devdesigner/shared';
@@ -149,7 +153,29 @@ export function withProjectElementsMethods() {
                slideId: string | null
             ): Promise<void> {
                const projectId = store.projectId();
+               const all = store.schema()?.elements ?? [];
+               const themes = slideId === null ? presentationThemes(all) : null;
                for (const id of items.elements) {
+                  const el = all.find((e) => e.id === id);
+                  const frame = el?.slideId ? all.find((f) => f.id === el.slideId) : undefined;
+                  if (themes && el && frame) {
+                     // Off the slide, theme tokens ($body, $accent1...) have nothing to follow:
+                     // bake in the values they showed as.
+                     const theme = themes.get(presentationOf(frame)) ?? DEFAULT_THEME;
+                     const r = resolveThemeElement(el, theme);
+                     if (r !== el) {
+                        void updateElementRaw(id, {
+                           slideId,
+                           strokeColor: r.strokeColor,
+                           backgroundColor: r.backgroundColor,
+                           fontFamily: r.fontFamily,
+                           runs: r.runs ?? null,
+                           ...(r.text !== el.text ? { text: r.text } : {}),
+                           ...(r.fillStyle !== el.fillStyle ? { fillStyle: r.fillStyle } : {}),
+                        });
+                        continue;
+                     }
+                  }
                   void updateElementRaw(id, { slideId });
                }
                for (const id of items.tables) {

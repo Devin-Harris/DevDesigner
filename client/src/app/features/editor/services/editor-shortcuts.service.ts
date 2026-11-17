@@ -4,7 +4,7 @@ import { PenPrefsService } from './pen-prefs.service';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { ProjectStore } from '../state/project/project.store';
 import { CodeActionsService } from './code-actions.service';
-import { GridTableService } from './grid-table.service';
+import { GridTableService, type GridSelectionCommand } from './grid-table.service';
 import { deleteStandIn, detachFromLayout } from '../helpers/layout-placeholders';
 import { frameContents } from '../helpers/frame-contents.helper';
 import { PointerGestureService } from './pointer-gesture.service';
@@ -50,6 +50,13 @@ export class EditorShortcutsService {
 
    connect(host: ShortcutsHost): void {
       this.host = host;
+   }
+
+   /** The id of the selected grid table, when it is the only thing selected. */
+   private soleGridId(): string | null {
+      const ids = this.store.selectedElementIds();
+      if (ids.length !== 1) return null;
+      return this.store.elements().some((e) => e.id === ids[0] && e.type === 'grid') ? ids[0] : null;
    }
 
    onKeyDown(event: KeyboardEvent): void {
@@ -116,6 +123,11 @@ export class EditorShortcutsService {
          return;
       }
       if (event.key === 'Escape') {
+         if (this.grids.range()) {
+            // Esc on a cell selection drops back to the whole table.
+            this.grids.clearCellSelection();
+            return;
+         }
          if (this.host.followingId()) {
             this.host.followingId.set(null);
             return;
@@ -201,6 +213,10 @@ export class EditorShortcutsService {
          void this.host.duplicateAndDrag();
          return;
       }
+      if (event.key === 'Control' || event.key === 'Meta') {
+         // Ctrl/Cmd mid-drag lets the arrow end being placed go unbound.
+         this.gesture.noBindHeld = true;
+      }
       if (event.key === 'Shift' && (this.gesture.mode === 'element' || this.gesture.mode === 'node')) {
          this.gesture.shiftHeld = true;
          if (this.gesture.lastPointer) {
@@ -225,7 +241,47 @@ export class EditorShortcutsService {
          void (this.grids.canMerge() ? this.grids.mergeSelected() : this.grids.unmergeSelected());
          return;
       }
-      if (cells && !mod) {
+      // Ctrl+Alt+arrows insert rows/columns next to the cells, Ctrl+Alt+- deletes the rows (Shift: columns).
+      const gridId = cells?.id ?? this.soleGridId();
+      if (gridId && mod && event.altKey && this.store.canEdit()) {
+         const cmd: GridSelectionCommand | null =
+            event.key === 'ArrowUp'
+               ? 'rowAbove'
+               : event.key === 'ArrowDown'
+                 ? 'rowBelow'
+                 : event.key === 'ArrowLeft'
+                   ? 'colLeft'
+                   : event.key === 'ArrowRight'
+                     ? 'colRight'
+                     : event.code === 'Minus' && cells
+                       ? event.shiftKey
+                          ? 'delCols'
+                          : 'delRows'
+                       : null;
+         if (cmd) {
+            event.preventDefault();
+            void this.grids.structureAtSelection(gridId, cmd);
+            return;
+         }
+      }
+      if (cells && !mod && !event.altKey) {
+         const arrows: Record<string, [number, number]> = {
+            ArrowUp: [-1, 0],
+            ArrowDown: [1, 0],
+            ArrowLeft: [0, -1],
+            ArrowRight: [0, 1],
+         };
+         if (arrows[event.key]) {
+            event.preventDefault();
+            this.grids.moveSelection(arrows[event.key][0], arrows[event.key][1], event.shiftKey);
+            return;
+         }
+         // Typing on a selected cell starts editing it with that character (like a spreadsheet).
+         if (event.key.length === 1 && this.store.canEdit()) {
+            event.preventDefault();
+            this.grids.beginEdit({ id: cells.id, row: cells.r0, col: cells.c0 }, event.key);
+            return;
+         }
          if ((event.key === 'Delete' || event.key === 'Backspace') && this.store.canEdit()) {
             event.preventDefault();
             void this.grids.clearSelectedText();
@@ -441,6 +497,9 @@ export class EditorShortcutsService {
    onKeyUp(event: KeyboardEvent): void {
       if (event.key === ' ') {
          this.gesture.spaceDown = false;
+      }
+      if (event.key === 'Control' || event.key === 'Meta') {
+         this.gesture.noBindHeld = false;
       }
       if (event.key === 'Shift') {
          this.gesture.shiftHeld = false;

@@ -10,7 +10,13 @@ import { GRID_MIN_CELL, gridInPixels, serializeGrid } from '../../../helpers/gri
 import { absolutePoints, elementBox } from '../../../helpers/element-geometry.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 import { gridRowNeeds } from '../../../helpers/render';
-import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from '../../../helpers/text-metrics';
+import {
+   DEFAULT_LINE_HEIGHT,
+   fitTextElement,
+   TEXT_MAX_FONT_SIZE,
+   TEXT_MIN_FONT_SIZE,
+} from '../../../helpers/text-metrics';
+import { LIST_LINE } from '../helpers/rich-list.helper';
 import type { SequenceLayoutSnapshot } from '../../../state/project/models/project-state.model';
 import type { SequenceStart } from '../../../models/sequence-start.model';
 /** A resize of several selected items at once: everything scales about one shared box. */
@@ -223,6 +229,66 @@ export class GroupTransformService {
       return null;
    });
 
+   /**
+    * A lone selected list (bulleted / numbered text block): gap marks between its
+    * lines; dragging one changes the block's line spacing, so every item moves apart.
+    */
+   private readonly listSpacing = computed<{
+      el: CanvasElementModel;
+      lines: number;
+      pitch: number;
+   } | null>(() => {
+      if (!this.store.canEdit()) return null;
+      const ids = this.store.selectedElementIds();
+      if (ids.length !== 1 || this.store.selectedTableIds().length || this.store.selectedDiagramIds().length) {
+         return null;
+      }
+      const el = this.store.elements().find((e) => e.id === ids[0]);
+      const text = el?.text ?? '';
+      if (!el || el.type !== 'text' || el.wrap || !LIST_LINE.test(text)) return null;
+      const lines = text.split('\n').length;
+      if (lines < 2) return null;
+      const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
+      return { el, lines, pitch: fontSize * (el.lineHeight ?? DEFAULT_LINE_HEIGHT) };
+   });
+
+   private listSpacingDrag: { el: CanvasElementModel; pitch: number } | null = null;
+
+   /** Screen-space marks for {@link listSpacing}, on the block's left edge. */
+   private readonly listSpacingHandles = computed(() => {
+      const s = this.listSpacing();
+      if (!s || (this.gesture.gestureActive() && !this.spacingActive())) return null;
+      const v = this.store.viewport();
+      const fontSize = s.el.fontSize ?? DEFAULT_FONT_SIZE;
+      const lh = s.el.lineHeight ?? DEFAULT_LINE_HEIGHT;
+      // Centered across the block, between the lines; the value shows only while dragging.
+      const x = (s.el.x + s.el.width / 2) * v.zoom + v.x;
+      const dragging = this.spacingActive();
+      const T = 3;
+      // The gap shown is the leading between two lines' glyphs (pitch minus the font size).
+      const lead = Math.max(2, s.pitch - fontSize * 0.8);
+      return Array.from({ length: s.lines - 1 }, (_, i) => {
+         const boundary = s.el.y + 2 + (i + 1) * s.pitch;
+         const y1 = (boundary - lead / 2) * v.zoom + v.y;
+         const y2 = (boundary + lead / 2) * v.zoom + v.y;
+         const label = `${Number(lh.toFixed(2))}×`;
+         return {
+            vertical: false,
+            line: { x1: x, y1, x2: x, y2 },
+            ticks: [
+               { x1: x - T, y1, x2: x + T, y2: y1 },
+               { x1: x - T, y1: y2, x2: x + T, y2 },
+            ],
+            label: dragging && i === 0 ? label : '',
+            lx: x + 10 + label.length * 3,
+            ly: (y1 + y2) / 2 + 4,
+            left: x,
+            top: (y1 + y2) / 2,
+            span: Math.max(12, y2 - y1),
+         };
+      });
+   });
+
    /** True while a gap handle is being dragged (keeps the guides on screen). */
    private readonly spacingActive = signal(false);
 
@@ -232,7 +298,8 @@ export class GroupTransformService {
     */
    readonly spacingHandles = computed(() => {
       const s = this.evenSpacing();
-      if (!s || (this.gesture.gestureActive() && !this.spacingActive())) return null;
+      if (!s) return this.listSpacingHandles();
+      if ( (this.gesture.gestureActive() && !this.spacingActive())) return null;
       const v = this.store.viewport();
       const sx = (x: number): number => x * v.zoom + v.x;
       const sy = (y: number): number => y * v.zoom + v.y;
@@ -288,10 +355,12 @@ export class GroupTransformService {
 
    startSpacingDrag(event: PointerEvent): void {
       const s = this.evenSpacing();
-      if (!s || event.button !== 0) return;
+      const list = s ? null : this.listSpacing();
+      if ((!s && !list) || event.button !== 0) return;
       event.stopPropagation();
       event.preventDefault();
       this.spacingDrag = s;
+      this.listSpacingDrag = list ? { el: list.el, pitch: list.pitch } : null;
       this.gesture.mode = 'spacing';
       this.spacingActive.set(true);
       this.gesture.gestureActive.set(true);
@@ -301,6 +370,17 @@ export class GroupTransformService {
    }
 
    spacingMove(ev: PointerEvent): void {
+      const l = this.listSpacingDrag;
+      if (l) {
+         const fontSize = l.el.fontSize ?? DEFAULT_FONT_SIZE;
+         const delta = (ev.clientY - this.gesture.startClientY) / this.store.viewport().zoom;
+         // Each gap grows by the drag distance; Alt for fine steps, else 0.05 steps.
+         let lineHeight = Math.max(0.8, Math.min(5, (l.pitch + delta) / fontSize));
+         lineHeight = ev.altKey ? Math.round(lineHeight * 100) / 100 : Math.round(lineHeight * 20) / 20;
+         const size = fitTextElement({ ...l.el, lineHeight });
+         this.store.patchElementLocal(l.el.id, { lineHeight, width: size.width, height: size.height });
+         return;
+      }
       const g = this.spacingDrag;
       if (!g) return;
       const zoom = this.store.viewport().zoom;
@@ -321,8 +401,21 @@ export class GroupTransformService {
 
    commitSpacingDrag(): void {
       const g = this.spacingDrag;
+      const l = this.listSpacingDrag;
       this.spacingDrag = null;
+      this.listSpacingDrag = null;
       this.spacingActive.set(false);
+      if (l) {
+         const cur = this.store.elements().find((e) => e.id === l.el.id);
+         if (cur && (cur.lineHeight ?? DEFAULT_LINE_HEIGHT) !== (l.el.lineHeight ?? DEFAULT_LINE_HEIGHT)) {
+            void this.store.commitElementGeometry(
+               l.el.id,
+               { lineHeight: l.el.lineHeight ?? DEFAULT_LINE_HEIGHT, width: l.el.width, height: l.el.height },
+               { lineHeight: cur.lineHeight, width: cur.width, height: cur.height }
+            );
+         }
+         return;
+      }
       if (!g) return;
       const now = new Map(this.store.elements().map((e) => [e.id, e] as const));
       void this.store.batchHistory(async () => {

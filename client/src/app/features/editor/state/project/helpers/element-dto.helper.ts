@@ -15,6 +15,8 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
       strokeWidth: e.strokeWidth,
       strokeStyle: e.strokeStyle,
       opacity: e.opacity,
+      strokeOpacity: e.strokeOpacity,
+      fillOpacity: e.fillOpacity,
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius,
       ellipticCorners: e.ellipticCorners,

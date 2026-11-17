@@ -13,13 +13,58 @@ import {
    untracked,
    viewChild,
 } from '@angular/core';
-import { matchMorphItems, slideMorphKey, type CanvasElementModel, type MorphItem } from '@devdesigner/shared';
+import {
+   clearGridTag,
+   gridMorphPairs,
+   gridPartTag,
+   matchMorphItems,
+   parseGrid,
+   serializeGrid,
+   setGridPartTag,
+   type GridData,
+   type GridPart,
+   slideMorphKey,
+   type CanvasElementModel,
+   type ElementBinding,
+   type MorphItem,
+} from '@devdesigner/shared';
+import { lineEnds } from '../../../../helpers/render';
+import { elementBox, type RotatedBox } from '../../../../helpers/element-geometry.helper';
 import { ProjectStore } from '../../../../state/project/project.store';
 import { tableBox } from '../../../../helpers/node-metrics.helper';
 import { SlideRenderService, type RenderedSlide } from '../../services/slide-render.service';
 import { MorphStage } from '../../services/morph-stage';
 import { ease } from '../../helpers/ease.helper';
 import { CompareUiState } from './services/compare-ui-state.service';
+import { gridMirrorPart, gridPartBox, gridPartLabel, gridZoneAt, samePart } from './grid-zones.helper';
+
+/** One end of a drag: an object, or a row / column / cell of a grid table (`part`). */
+interface DragEnd {
+   side: 'a' | 'b';
+   key: string;
+   part?: GridPart | null;
+}
+
+type PctBox = { left: number; top: number; width: number; height: number };
+
+/** A row / column / cell pairing drawn between two paired tables. */
+interface PartLine {
+   key: string;
+   a: string;
+   b: string;
+   aId: string;
+   bId: string;
+   tag: string;
+   pa: GridPart;
+   pb: GridPart;
+   color: string;
+   label: string;
+   x1: number;
+   y1: number;
+   x2: number;
+   y2: number;
+   d: string;
+}
 
 interface Side {
    item: MorphItem;
@@ -71,6 +116,14 @@ interface Hit {
    solo: boolean;
    /** Also morphs from the slide before the before-slide (a side) / into the slide after (b side). */
    chain: string | null;
+   /**
+    * A line/arrow: its hit is a band along the drawn line (a box around a diagonal line
+    * would cover the shapes it connects). Center and length in % of the slide width/height,
+    * angle in degrees.
+    */
+   line: { cx: number; cy: number; len: number; angle: number } | null;
+   /** A grid table: its row / column weights (its rows, columns and cells pair too). */
+   grid: { rows: number[]; cols: number[] } | null;
 }
 
 const PAIR_COLORS = ['#2bb3a8', '#6f8bff', '#e0a84a', '#ef6b6b', '#9b7bff', '#3fb950', '#e879c6', '#5ac8fa'];
@@ -150,9 +203,11 @@ export class DeckCompareComponent {
    protected removeLine(l: { a: string; b: string; aId: string | null; bId: string | null }): void {
       const b = this.hitsB().find((h) => h.key === l.b);
       if (b?.forced) {
+         // Gone in one go: dropping only the tags would let the automatic matching pair
+         // the two straight back (a second line to delete).
          void this.store.batchHistory(async () => {
             if (l.aId) await this.store.updateElement(l.aId, { morphOut: null });
-            if (l.bId) await this.store.updateElement(l.bId, { morphIn: null });
+            if (l.bId) await this.store.updateElement(l.bId, { morphIn: `tag:solo-in-${l.bId.slice(0, 8)}` });
          });
       } else if (l.bId) {
          void this.store.updateElement(l.bId, { morphIn: `tag:solo-in-${l.bId.slice(0, 8)}` });
@@ -230,7 +285,31 @@ export class DeckCompareComponent {
          const own = side === 'a' ? it.keyOut : it.keyIn;
          const forced = !!own && own.startsWith('tag:pair-');
          const chainMap = side === 'a' ? this.chainA() : this.chainB();
+         const el = s.id ? this.store.elements().find((e) => e.id === s.id) : undefined;
+         let line: Hit['line'] = null;
+         if (el && (el.type === 'line' || el.type === 'arrow')) {
+            const pts = lineEnds(el, this.targetBox);
+            const p0 = pts[0];
+            const p1 = pts[pts.length - 1];
+            if (p0 && p1) {
+               const dx = p1.x - p0.x;
+               const dy = p1.y - p0.y;
+               line = {
+                  cx: (((p0.x + p1.x) / 2 - frame.x) / frame.width) * 100,
+                  cy: (((p0.y + p1.y) / 2 - frame.y) / frame.height) * 100,
+                  len: (Math.hypot(dx, dy) / frame.width) * 100,
+                  angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+               };
+            }
+         }
+         let grid: Hit['grid'] = null;
+         if (el?.type === 'grid') {
+            const g = parseGrid(el.text);
+            grid = { rows: g.rows, cols: g.cols };
+         }
          return {
+            line,
+            grid,
             key: `${side}${k}`,
             id: s.id,
             label: s.label,
@@ -334,7 +413,9 @@ export class DeckCompareComponent {
     * pairs the two.
     */
    protected readonly drag = signal<{
-      from: { side: 'a' | 'b'; key: string };
+      from: DragEnd;
+      /** The grid part under the pointer on the other slide (when dragging from a part). */
+      overPart: GridPart | null;
       /** The pair line being re-aimed (drawn faint while dragging). */
       moving: string | null;
       sx: number;
@@ -347,13 +428,28 @@ export class DeckCompareComponent {
    } | null>(null);
    private suppressClick = false;
 
-   /** Centre of an object in pair-view units. */
-   private centerOf(side: 'a' | 'b', key: string): { x: number; y: number } | null {
+   /** A grid part's box in % of its slide (like a hit). */
+   protected partRect(h: Hit, part: GridPart): PctBox {
+      const b = h.grid ? gridPartBox(h.grid.rows, h.grid.cols, part) : { x: 0, y: 0, w: 1, h: 1 };
+      return {
+         left: h.left + b.x * h.width,
+         top: h.top + b.y * h.height,
+         width: b.w * h.width,
+         height: b.h * h.height,
+      };
+   }
+
+   /** Centre of an object (or one of a grid's parts) in pair-view units. */
+   private centerOf(side: 'a' | 'b', key: string, part?: GridPart | null): { x: number; y: number } | null {
       const h = (side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === key);
       if (!h) return null;
+      const r = part && h.grid ? this.partRect(h, part) : null;
+      // A line/arrow's link sits at the middle of the drawn line.
+      const cx = r ? r.left + r.width / 2 : h.line ? h.line.cx : h.left + h.width / 2;
+      const cy = r ? r.top + r.height / 2 : h.line ? h.line.cy : h.top + h.height / 2;
       return {
-         x: ((h.left + h.width / 2) / 100) * COL + (side === 'b' ? COL + this.gap() : 0),
-         y: ((h.top + h.height / 2) / 100) * this.viewH(),
+         x: (cx / 100) * COL + (side === 'b' ? COL + this.gap() : 0),
+         y: (cy / 100) * this.viewH(),
       };
    }
 
@@ -361,31 +457,147 @@ export class DeckCompareComponent {
       const el = this.pairView()?.nativeElement;
       if (!el) return null;
       const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
       return { x: ((clientX - r.left) / r.width) * this.total(), y: ((clientY - r.top) / r.height) * this.viewH() };
    }
 
    protected startDrag(event: PointerEvent, side: 'a' | 'b', h: Hit): void {
       if (!this.canEdit() || !h.id || event.button !== 0) return;
-      this.beginDrag(event, { side, key: h.key }, null, false);
+      // On a grid table the zone under the pointer picks the level: the band round it is
+      // the whole table, the top / left strips a column / row, inside a cell (Alt: cells only).
+      const part = h.grid ? this.zoneAt(side, h, event.clientX, event.clientY, { cellOnly: event.altKey }) : undefined;
+      this.beginDrag(event, { side, key: h.key, part }, null, false);
    }
 
+   /** The screen element of a hit's outline. */
+   private hitEl(side: 'a' | 'b', key: string): HTMLElement | null {
+      return (
+         this.pairView()?.nativeElement.querySelector<HTMLElement>(
+            `.hit[data-side="${side}"][data-key="${CSS.escape(key)}"]`
+         ) ?? null
+      );
+   }
+
+   /** The grid part under a screen point (null = the whole table); see gridZoneAt. */
+   private zoneAt(
+      side: 'a' | 'b',
+      h: Hit,
+      clientX: number,
+      clientY: number,
+      opts: { level?: GridPart['kind']; cellOnly?: boolean }
+   ): GridPart | null {
+      const el = this.hitEl(side, h.key);
+      if (!el || !h.grid) return null;
+      const r = el.getBoundingClientRect();
+      return gridZoneAt(
+         h.grid.rows,
+         h.grid.cols,
+         (clientX - r.left) / (r.width || 1),
+         (clientY - r.top) / (r.height || 1),
+         r.width,
+         r.height,
+         opts
+      );
+   }
+
+   /** The grid zone under the pointer while not dragging (shows what a drag would pick). */
+   protected readonly hoverZone = signal<{ side: 'a' | 'b'; key: string; part: GridPart | null } | null>(null);
+   protected onHitMove(event: PointerEvent, side: 'a' | 'b', h: Hit): void {
+      if (!h.grid || this.drag() || !this.canEdit() || !h.id) return;
+      const part = this.zoneAt(side, h, event.clientX, event.clientY, { cellOnly: event.altKey });
+      const cur = this.hoverZone();
+      if (cur && cur.side === side && cur.key === h.key && samePart(cur.part, part)) return;
+      this.hoverZone.set({ side, key: h.key, part });
+   }
+   protected onHitLeave(h: Hit): void {
+      this.lit.set(null);
+      if (this.hoverZone()?.key === h.key) this.hoverZone.set(null);
+   }
+
+   /** Grid parts to outline over the slides: the hovered zone and both ends of a part drag. */
+   protected readonly zones = computed(() => {
+      const out: Array<{
+         side: 'a' | 'b';
+         key: string;
+         box: PctBox;
+         label: string;
+         kind: 'hover' | 'from' | 'over';
+         color: string;
+      }> = [];
+      const add = (
+         side: 'a' | 'b',
+         key: string,
+         part: GridPart | null,
+         kind: 'hover' | 'from' | 'over',
+         color: string
+      ): void => {
+         const h = (side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === key);
+         if (!h?.grid) return;
+         const box = part ? this.partRect(h, part) : { left: h.left, top: h.top, width: h.width, height: h.height };
+         out.push({ side, key: `${kind}-${key}`, box, label: gridPartLabel(part), kind, color });
+      };
+      const d = this.drag();
+      if (d?.active) {
+         if (d.from.part !== undefined) add(d.from.side, d.from.key, d.from.part, 'from', d.color);
+         if (d.over && (d.from.part !== undefined || d.overPart)) add(d.from.side === 'a' ? 'b' : 'a', d.over, d.overPart, 'over', d.color);
+      } else if (!d) {
+         const z = this.hoverZone();
+         if (z) add(z.side, z.key, z.part, 'hover', 'var(--dd-primary)');
+      }
+      return out;
+   });
+   protected zonesOf(side: string): ReturnType<DeckCompareComponent['zones']> {
+      return this.zones().filter((z) => z.side === side);
+   }
+
+   /** What a drag from a table part would pair, for the tip line. */
+   protected readonly dragTip = computed(() => {
+      const d = this.drag();
+      if (d?.active && !d.from.part && d.over && d.overPart) {
+         return `${gridPartLabel(d.overPart)} pairs with the same spot of the other table · move that end after if needed`;
+      }
+      if (!d?.active || !d.from.part) return '';
+      const kind = d.from.part.kind === 'row' ? 'row' : d.from.part.kind === 'col' ? 'column' : 'cell';
+      if (d.over && !d.overPart) return 'Not a table: the two whole objects will morph';
+      return d.over
+         ? `${gridPartLabel(d.from.part)} morphs ${d.from.side === 'a' ? 'into' : 'from'} ${gridPartLabel(d.overPart)}`
+         : `${gridPartLabel(d.from.part)}: drop on a ${kind} of a table on the other slide`;
+   });
+
    /** Grab one end of a pair line: the other end stays, this end follows the pointer. */
-   protected startEndDrag(event: PointerEvent, fixedSide: 'a' | 'b', fixedKey: string, line: string): void {
+   protected startEndDrag(
+      event: PointerEvent,
+      fixedSide: 'a' | 'b',
+      fixedKey: string,
+      line: string,
+      fixedPart?: GridPart
+   ): void {
       if (!this.canEdit() || event.button !== 0) return;
       event.preventDefault();
       event.stopPropagation();
-      this.beginDrag(event, { side: fixedSide, key: fixedKey }, line, true);
+      this.beginDrag(event, { side: fixedSide, key: fixedKey, part: fixedPart }, line, true);
    }
 
    private beginDrag(
       event: PointerEvent,
-      from: { side: 'a' | 'b'; key: string },
+      from: DragEnd,
       moving: string | null,
       active: boolean
    ): void {
       const fromHit = (from.side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === from.key);
       const color = this.lines().find((l) => l.key === moving)?.color ?? fromHit?.color ?? 'var(--dd-primary)';
-      this.drag.set({ from, moving, sx: event.clientX, sy: event.clientY, active, path: '', over: null, color });
+      this.hoverZone.set(null);
+      this.drag.set({
+         from,
+         moving,
+         sx: event.clientX,
+         sy: event.clientY,
+         active,
+         path: '',
+         over: null,
+         overPart: null,
+         color,
+      });
       if (active) this.dragTo(event.clientX, event.clientY);
       const move = (e: PointerEvent): void => {
          const d = this.drag();
@@ -406,13 +618,27 @@ export class DeckCompareComponent {
          // Drop on the object that was highlighted while dragging (what you see is what
          // you get); else whatever is under the pointer now.
          const other: 'a' | 'b' = d.from.side === 'a' ? 'b' : 'a';
-         const target = d.over ? { side: other, key: d.over } : this.targetAt(e.clientX, e.clientY, d.from.side);
+         const target: DragEnd | null = d.over
+            ? { side: other, key: d.over, part: d.overPart }
+            : this.targetAt(e.clientX, e.clientY, d.from);
          if (!target) return;
          const fromHit = (d.from.side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === d.from.key);
          const toHit = (target.side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === target.key);
          if (!fromHit?.id || !toHit?.id) return;
          const [aId, bId] = d.from.side === 'a' ? [fromHit.id, toHit.id] : [toHit.id, fromHit.id];
-         this.force(aId, bId);
+         // Re-aiming a whole-table line onto a row / column / cell: the fixed end takes the
+         // part at the same spot of its own table (its end can be re-aimed in turn).
+         const fromPart =
+            d.from.part ??
+            (target.part && fromHit.grid && toHit.grid
+               ? gridMirrorPart(toHit.grid, fromHit.grid, target.part)
+               : undefined);
+         if (fromPart && target.part) {
+            const [aPart, bPart] = d.from.side === 'a' ? [fromPart, target.part] : [target.part, fromPart];
+            this.forcePart(aId, aPart, bId, bPart, fromHit.partner === toHit.key);
+         } else {
+            this.force(aId, bId);
+         }
          // Keep the new pair selected, so it is clear what changed.
          this.armed.set({ side: target.side, key: target.key });
       };
@@ -424,16 +650,17 @@ export class DeckCompareComponent {
    private dragTo(clientX: number, clientY: number): void {
       const d = this.drag();
       if (!d) return;
-      const start = this.centerOf(d.from.side, d.from.key);
+      const start = this.centerOf(d.from.side, d.from.key, d.from.part);
       const end = this.toUnits(clientX, clientY);
       if (!start || !end) return;
-      const target = this.targetAt(clientX, clientY, d.from.side);
-      const snap = target ? this.centerOf(target.side, target.key) : null;
+      const target = this.targetAt(clientX, clientY, d.from);
+      const snap = target ? this.centerOf(target.side, target.key, target.part) : null;
       const e = snap ?? end;
       const mx = (start.x + e.x) / 2;
       this.drag.set({
          ...d,
          over: target?.key ?? null,
+         overPart: target?.part ?? null,
          path: `M${start.x} ${start.y} C ${mx} ${start.y}, ${mx} ${e.y}, ${e.x} ${e.y}`,
       });
    }
@@ -447,13 +674,25 @@ export class DeckCompareComponent {
       return 2 + (rel ? 20000 : 0) + (h ? this.hitZ(h) : 0);
    }
 
-   /** Smaller objects sit above larger ones, so things inside others stay pickable. */
+   /** Smaller objects sit above larger ones, so things inside others stay pickable; lines on top. */
    protected hitZ(h: Hit): number {
+      if (h.line) return 10002;
       return Math.max(1, 10001 - Math.round(h.width * h.height));
    }
 
+   /** Where a bound line end attaches, in world space (for drawing line hits). */
+   private readonly targetBox = (bd: ElementBinding): RotatedBox | null => {
+      if (bd.targetKind === 'table') {
+         const t = this.store.tables().find((x) => x.id === bd.targetId);
+         return t ? tableBox(t) : null;
+      }
+      const e = bd.targetKind === 'element' ? this.store.elements().find((x) => x.id === bd.targetId) : undefined;
+      return e ? { ...elementBox(e), angle: e.angle } : null;
+   };
+
    /** The object on the OTHER slide under the pointer, if it can be paired. */
-   private targetAt(clientX: number, clientY: number, fromSide: 'a' | 'b'): { side: 'a' | 'b'; key: string } | null {
+   private targetAt(clientX: number, clientY: number, from: DragEnd): DragEnd | null {
+      const fromSide = from.side;
       // The smallest object under the pointer (the innermost one).
       const el = document
          .elementsFromPoint(clientX, clientY)
@@ -469,7 +708,19 @@ export class DeckCompareComponent {
       const key = el?.dataset['key'];
       if (!side || !key || side === fromSide) return null;
       const h = (side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === key);
-      return h?.id ? { side, key } : null;
+      if (!h?.id) return null;
+      // From a row / column / cell: only a part of the same kind, of a table, will do.
+      // Over anything that is not a table, the drag pairs the whole objects instead.
+      if (from.part) {
+         if (!h.grid) return { side, key };
+         return { side, key, part: this.zoneAt(side, h, clientX, clientY, { level: from.part.kind }) };
+      }
+      // Re-aiming a table-to-table line: the zones pick a part (the band round it: the table).
+      const fromHit = (fromSide === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === from.key);
+      if (this.drag()?.moving && from.part === undefined && fromHit?.grid && h.grid) {
+         return { side, key, part: this.zoneAt(side, h, clientX, clientY, {}) };
+      }
+      return { side, key };
    }
 
    /** Select an object to see what it does and change it. Pairs are only made by dragging. */
@@ -534,6 +785,10 @@ export class DeckCompareComponent {
 
    /** Make `aId` (slide before) morph into `bId` (this slide) for this transition only. */
    protected force(aId: string, bId: string): void {
+      void this.store.batchHistory(() => this.forceOps(aId, bId));
+   }
+
+   private async forceOps(aId: string, bId: string): Promise<void> {
       const tag = `tag:pair-${aId.slice(0, 6)}-${bId.slice(0, 6)}`;
       const els = this.store.elements();
       const oldOut = els.find((e) => e.id === aId)?.morphOut;
@@ -547,14 +802,121 @@ export class DeckCompareComponent {
             ((!!oldOut && oldOut.startsWith('tag:pair-') && e.morphIn === oldOut) ||
                (!!oldIn && oldIn.startsWith('tag:pair-') && e.morphOut === oldIn))
       );
+      for (const e of stale) {
+         await this.store.updateElement(e.id, e.morphIn === oldOut ? { morphIn: null } : { morphOut: null });
+      }
+      await this.store.updateElement(aId, { morphOut: tag });
+      await this.store.updateElement(bId, { morphIn: tag });
+   }
+
+   /**
+    * Make a row / column / cell of grid `aId` (slide before) morph into one of grid
+    * `bId`: split `out` / `in` tags in the grids' own JSON. The two tables are paired
+    * too when they were not already.
+    */
+   protected forcePart(aId: string, aPart: GridPart, bId: string, bPart: GridPart, tablesPaired: boolean): void {
+      const tag = `pair-${Math.random().toString(36).slice(2, 10)}`;
+      const els = this.store.elements();
+      const ea = els.find((x) => x.id === aId);
+      const eb = els.find((x) => x.id === bId);
+      if (ea?.type !== 'grid' || eb?.type !== 'grid') return;
+      const oldOut = gridPartTag(parseGrid(ea.text), aPart, 'out');
+      const oldIn = gridPartTag(parseGrid(eb.text), bPart, 'in');
+      // The parts these two were paired with before lose that pairing too.
+      const frames = new Set([this.previous()?.id, this.slide().id]);
+      const grids = new Map<string, GridData>();
+      for (const e of els) {
+         if (e.type !== 'grid' || !e.slideId || !frames.has(e.slideId)) continue;
+         const g = parseGrid(e.text);
+         let m = g.morph;
+         if (oldOut) m = clearGridTag(m, 'in', oldOut);
+         if (oldIn) m = clearGridTag(m, 'out', oldIn);
+         if (e.id === aId) m = setGridPartTag(m, aPart, 'out', tag);
+         if (e.id === bId) m = setGridPartTag(m, bPart, 'in', tag);
+         grids.set(e.id, { ...g, morph: m });
+      }
       void this.store.batchHistory(async () => {
-         for (const e of stale) {
-            await this.store.updateElement(e.id, e.morphIn === oldOut ? { morphIn: null } : { morphOut: null });
+         if (!tablesPaired) await this.forceOps(aId, bId);
+         for (const [id, g] of grids) {
+            const text = serializeGrid(g);
+            if (text !== els.find((x) => x.id === id)?.text) await this.store.updateElement(id, { text });
          }
-         await this.store.updateElement(aId, { morphOut: tag });
-         await this.store.updateElement(bId, { morphIn: tag });
       });
    }
+
+   /** Remove a row / column / cell pairing (back to automatic). */
+   protected removePartLine(l: PartLine): void {
+      const els = this.store.elements();
+      void this.store.batchHistory(async () => {
+         for (const [id, dir] of [
+            [l.aId, 'out'],
+            [l.bId, 'in'],
+         ] as const) {
+            const e = els.find((x) => x.id === id);
+            if (!e) continue;
+            const g = parseGrid(e.text);
+            await this.store.updateElement(id, {
+               text: serializeGrid({ ...g, morph: clearGridTag(g.morph, dir, l.tag) }),
+            });
+         }
+      });
+      this.lit.set(null);
+   }
+
+   /** Rows, columns and cells paired by hand between two paired tables, as lines. */
+   protected readonly partLines = computed<PartLine[]>(() => {
+      if (!this.previous()) return [];
+      const els = new Map(this.store.elements().map((e) => [e.id, e] as const));
+      const out: PartLine[] = [];
+      const { A, B, matches } = this.matching();
+      matches.forEach(([i, j], n) => {
+         const ea = A[i].id ? els.get(A[i].id!) : undefined;
+         const eb = B[j].id ? els.get(B[j].id!) : undefined;
+         if (ea?.type !== 'grid' || eb?.type !== 'grid') return;
+         const ga = parseGrid(ea.text);
+         const gb = parseGrid(eb.text);
+         if (!ga.morph || !gb.morph) return;
+         const p = gridMorphPairs(ga, gb);
+         const parts: Array<[GridPart, GridPart]> = [
+            ...p.rows.map(([x, y]): [GridPart, GridPart] => [
+               { kind: 'row', i: x },
+               { kind: 'row', i: y },
+            ]),
+            ...p.cols.map(([x, y]): [GridPart, GridPart] => [
+               { kind: 'col', i: x },
+               { kind: 'col', i: y },
+            ]),
+            ...p.cells.map(([x, y]): [GridPart, GridPart] => [
+               { kind: 'cell', r: x[0], c: x[1] },
+               { kind: 'cell', r: y[0], c: y[1] },
+            ]),
+         ];
+         for (const [pa, pb] of parts) {
+            const s = this.centerOf('a', `a${i}`, pa);
+            const e = this.centerOf('b', `b${j}`, pb);
+            if (!s || !e) continue;
+            const mx = (s.x + e.x) / 2;
+            out.push({
+               key: `${i}-${j}-${JSON.stringify(pa)}`,
+               pa,
+               pb,
+               a: `a${i}`,
+               b: `b${j}`,
+               aId: ea.id,
+               bId: eb.id,
+               tag: gridPartTag(ga, pa, 'out')!,
+               color: PAIR_COLORS[n % PAIR_COLORS.length],
+               label: `${gridPartLabel(pa)} → ${gridPartLabel(pb)}`,
+               x1: s.x,
+               y1: s.y,
+               x2: e.x,
+               y2: e.y,
+               d: `M${s.x} ${s.y} C ${mx} ${s.y}, ${mx} ${e.y}, ${e.x} ${e.y}`,
+            });
+         }
+      });
+      return out;
+   });
 
    /** Drop the hand-set in / out tags of a pairing: back to automatic matching. */
    protected resetPair(p: MorphPair): void {
@@ -588,13 +950,19 @@ export class DeckCompareComponent {
       const ka = COL / (prev.width || 1);
       const kb = COL / (cur.width || 1);
       const { A, B, matches } = this.matching();
-      return matches.map(([i, j], n) => {
+      // Tables whose rows / columns / cells are paired show those links instead.
+      const parted = new Set(this.partLines().map((l) => `${l.a}-${l.b}`));
+      return matches.flatMap(([i, j], n) => {
+         if (parted.has(`a${i}-b${j}`)) return [];
          const a = A[i].item;
          const b = B[j].item;
-         const x1 = a.cx * ka;
-         const y1 = a.cy * ka;
-         const x2 = COL + this.gap() + b.cx * kb;
-         const y2 = b.cy * kb;
+         // A line/arrow's link end sits at the middle of the drawn line.
+         const la = this.hitsA()[i]?.line;
+         const lb = this.hitsB()[j]?.line;
+         const x1 = la ? (la.cx / 100) * COL : a.cx * ka;
+         const y1 = la ? (la.cy / 100) * prev.height * ka : a.cy * ka;
+         const x2 = COL + this.gap() + (lb ? (lb.cx / 100) * COL : b.cx * kb);
+         const y2 = lb ? (lb.cy / 100) * cur.height * kb : b.cy * kb;
          const mx = (x1 + x2) / 2;
          return {
             key: `${i}-${j}`,

@@ -13,7 +13,7 @@ import { ColumnEntity } from '../schema/columns/column.entity';
 import { IndexEntity } from '../schema/indexes/index.entity';
 import { toTableModel } from '../schema/tables/table.mapper';
 import { ElementEntity } from '../canvas/elements/element.entity';
-import { toElementModel } from '../canvas/elements/element.mapper';
+import { focusColumn, toElementModel } from '../canvas/elements/element.mapper';
 import { SequenceDiagramEntity } from '../canvas/sequence/sequence-diagram.entity';
 import { LifelineEntity } from '../canvas/sequence/lifeline.entity';
 import { SequenceMessageEntity } from '../canvas/sequence/sequence-message.entity';
@@ -318,6 +318,8 @@ export class CloneService {
           startBindingId: e.startBinding?.targetId ?? null,
           endBindingKind: e.endBinding?.targetKind ?? null,
           endBindingId: e.endBinding?.targetId ?? null,
+          startBindingFocus: focusColumn(e.startBinding),
+          endBindingFocus: focusColumn(e.endBinding),
         });
       });
       await save(m, ElementEntity, elementCopies);

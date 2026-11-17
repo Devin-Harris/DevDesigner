@@ -22,6 +22,7 @@ export {
 export { gridFont, gridRowNeeds } from './grid-table.render';
 export {
    imageView,
+   lineEnds,
    rectCornerRadius,
    splitAtGaps,
    shapeTextBox,

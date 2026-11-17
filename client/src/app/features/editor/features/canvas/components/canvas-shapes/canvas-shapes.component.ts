@@ -3,7 +3,7 @@ import { ProjectStore } from '../../../../state/project/project.store';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import type { ArrowheadType } from '@devdesigner/shared';
-import { GridTableService, type GridStructureAction } from '../../../../services/grid-table.service';
+import { GridTableService } from '../../../../services/grid-table.service';
 import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../../../../models/shape-view.model';
 import { MediaVideoComponent } from '../../../../shared/components/media-video/media-video.component';
 import { MediaActionsService } from '../../../../services/media-actions.service';
@@ -193,15 +193,6 @@ export class CanvasShapesComponent {
          return null;
       }
       return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-   }
-
-   protected onGridCtl(id: string, action: GridStructureAction, index: number, event: PointerEvent): void {
-      if (event.button !== 0) {
-         return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      void this.grids.structure(id, action, index);
    }
 
    protected onGridBorder(id: string, axis: 'col' | 'row', index: number, event: PointerEvent): void {

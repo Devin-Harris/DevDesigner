@@ -328,6 +328,13 @@
    z-index: 2;
    touch-action: none;
 }
+// The dot is small; an invisible ring around it makes it easy to grab.
+.end::before {
+   content: '';
+   position: absolute;
+   inset: -9px;
+   border-radius: 50%;
+}
 .end:hover {
    transform: scale(1.3);
 }
@@ -598,4 +605,68 @@
       600 10px/14px system-ui,
       sans-serif;
    white-space: nowrap;
+}
+
+// A line/arrow: a band along the line itself, rotated to it (its box would cover the
+// shapes it connects). Its labels turn back upright.
+.hit.line-hit {
+   height: 16px;
+   margin-top: -8px;
+   border-radius: 8px;
+   transform: rotate(var(--rot));
+   transform-origin: 50% 50%;
+}
+.hit.line-hit > * {
+   transform: rotate(calc(-1 * var(--rot)));
+}
+
+/* Grid tables: a band round the outline picks the whole table (see grid-zones.helper). */
+.hit.grid-hit::before {
+   content: '';
+   position: absolute;
+   inset: -8px;
+}
+/* The row / column / cell (or whole table) a drag from / onto a table picks. */
+.zone {
+   position: absolute;
+   box-sizing: border-box;
+   border: 2px solid var(--c);
+   background: color-mix(in srgb, var(--c) 18%, transparent);
+   border-radius: 2px;
+   pointer-events: none;
+   z-index: 20001;
+}
+.zone.from,
+.zone.over {
+   background: color-mix(in srgb, var(--c) 28%, transparent);
+}
+.zone-label {
+   position: absolute;
+   left: 0;
+   bottom: 100%;
+   margin-bottom: 2px;
+   padding: 1px 5px;
+   border-radius: 3px;
+   font-size: 10px;
+   line-height: 14px;
+   white-space: nowrap;
+   color: #fff;
+   background: var(--c);
+}
+.lines path.part {
+   stroke-width: 1.5;
+   stroke-dasharray: 2 3;
+   opacity: 0.85;
+}
+.cut-line.part {
+   width: 14px;
+   height: 14px;
+   margin: -7px 0 0 -7px;
+}
+
+.end.part {
+   width: 9px;
+   height: 9px;
+   margin: -4.5px 0 0 -4.5px;
+   border-width: 2px;
 }

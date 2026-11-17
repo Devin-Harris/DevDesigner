@@ -142,12 +142,21 @@ export class ClipboardService {
          sourceSlide: owner ? { id: owner.id, x: owner.x, y: owner.y } : null,
       };
       this.pasteCount = 0;
-      // A lone code block also lands on the system clipboard as plain text; anything else
-      // leaves a marker there, so a later copy in another app is noticed on paste.
-      const mark =
-         !tables.length && elements.length === 1 && elements[0].type === 'code'
-            ? (elements[0].text ?? '')
-            : `devdesigner:${Date.now()}`;
+      // Text and code blocks also land on the system clipboard as plain text (in reading
+      // order, blank line between blocks); anything else leaves a marker there, so a
+      // later copy in another app is noticed on paste.
+      const textual =
+         !tables.length &&
+         !selectedDiagrams.size &&
+         !inner.diagramIds.size &&
+         elements.length > 0 &&
+         elements.every((e) => (e.type === 'text' || e.type === 'code') && e.text);
+      const mark = textual
+         ? [...elements]
+              .sort((a, b) => (Math.abs(a.y - b.y) > 4 ? a.y - b.y : a.x - b.x))
+              .map((e) => e.text ?? '')
+              .join('\n\n')
+         : `devdesigner:${Date.now()}`;
       this.clipboardMark = mark || null;
       if (mark) {
          void navigator.clipboard?.writeText(mark).catch(() => (this.clipboardMark = null));

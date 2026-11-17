@@ -44,6 +44,7 @@ export const ICON_PATHS: Record<string, string> = {
       '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v4M12 16v4M7 12h3.5M8.5 10l2 2-2 2M17 12h-3.5M15.5 10l-2 2 2 2"/>',
    split_cells:
       '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M10 12H6M7.5 10l-2 2 2 2M14 12h4M16.5 10l2 2-2 2"/>',
+   table_rows: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.5h18"/>',
    grid_4x4: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
    smart_guides:
       '<rect x="4" y="5" width="7" height="6" rx="1"/><rect x="13" y="13" width="7" height="6" rx="1"/><path d="M2 5h20M16.5 2v20" stroke-dasharray="2 2"/>',

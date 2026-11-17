@@ -13,6 +13,28 @@ import { ProjectsOverlayService } from '../../shared/features/projects-overlay/p
  * the URL mirrors it without re-creating the component. When nothing is selected,
  * the landing page (HomeComponent) shows instead.
  */
+const LAST_PROJECT_KEY = 'dd.lastProjectId';
+
+function readLastProject(): string | null {
+   try {
+      return localStorage.getItem(LAST_PROJECT_KEY);
+   } catch {
+      return null;
+   }
+}
+
+function writeLastProject(id: string | null): void {
+   try {
+      if (id) {
+         localStorage.setItem(LAST_PROJECT_KEY, id);
+      } else {
+         localStorage.removeItem(LAST_PROJECT_KEY);
+      }
+   } catch {
+      // Storage unavailable (private mode): nothing to remember.
+   }
+}
+
 @Component({
    selector: 'dd-workspace',
    changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,7 +53,8 @@ export class WorkspaceComponent {
    );
 
    constructor() {
-      const initial = this.route.snapshot.paramMap.get('projectId');
+      // A bare "/" reopens the project the user was last viewing.
+      const initial = this.route.snapshot.paramMap.get('projectId') ?? readLastProject();
       if (initial) {
          this.store.select(initial);
       }
@@ -40,6 +63,17 @@ export class WorkspaceComponent {
       effect(() => {
          const id = this.store.selectedId();
          this.location.replaceState(id ? `/projects/${id}` : '/');
+         writeLastProject(id);
+      });
+
+      // A remembered project that no longer exists (deleted, access revoked) falls back home.
+      effect(() => {
+         const id = this.store.selectedId();
+         if (id && !this.store.loading() && this.store.projects().length && !this.selectedProject()) {
+            if (id === readLastProject() && id !== this.route.snapshot.paramMap.get('projectId')) {
+               this.store.select(null);
+            }
+         }
       });
    }
 

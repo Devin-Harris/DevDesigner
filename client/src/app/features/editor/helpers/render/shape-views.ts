@@ -25,9 +25,8 @@ import {
    fillOf,
    imageView,
    rectCornerRadius,
-   resolveEnds,
    rotation,
-   routeBoundConnector,
+   lineEnds,
    shapeLabel,
    splitAtGaps,
 } from './shape-primitives';
@@ -152,10 +151,11 @@ export function buildShapeViews(
          selected: selectedIds.has(element.id),
          opacity: element.opacity / 100,
          stroke,
+         strokeOpacity: (element.strokeOpacity ?? 100) / 100,
          strokeWidth: element.strokeWidth,
          dash: dashArray(element),
          fill,
-         fillOpacity,
+         fillOpacity: fillOpacity * ((element.fillOpacity ?? 100) / 100),
          hatch,
          transform: rotation(element, center),
          freehand: false,
@@ -244,15 +244,7 @@ export function buildShapeViews(
             break;
          case 'line':
          case 'arrow': {
-            const sBox = element.startBinding ? targetBox(element.startBinding) : null;
-            const tBox = element.endBinding ? targetBox(element.endBinding) : null;
-            let ends: Point[];
-            if (sBox && tBox) {
-               // Both ends bound: a straight line between the two shape boundaries.
-               ends = routeBoundConnector(sBox, tBox);
-            } else {
-               ends = resolveEnds(element, targetBox);
-            }
+            const ends: Point[] = lineEnds(element, targetBox);
             const curvature = ends.length >= 2 && !element.elbow ? (element.curvature ?? 0) : 0;
             let labelAt: Point | undefined;
             if (element.elbow && ends.length >= 2) {

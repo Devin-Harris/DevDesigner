@@ -173,36 +173,9 @@
    pointer-events: none;
 }
 
-// On a selected table the body picks cells rather than moving it.
+// On a selected table a click picks cells; a drag (with no cells picked) moves it.
 .hit.cells {
    cursor: cell;
-}
-
-.grid-ctl {
-   pointer-events: all;
-   cursor: pointer;
-   circle {
-      fill: var(--dd-surface);
-      stroke: var(--dd-border-strong);
-      stroke-width: 1;
-   }
-   path {
-      stroke: var(--dd-text-muted);
-      stroke-width: 1.6;
-      stroke-linecap: round;
-      fill: none;
-   }
-   &.add:hover circle {
-      fill: var(--dd-primary);
-      stroke: var(--dd-primary);
-   }
-   &.del:hover circle {
-      fill: #e5484d;
-      stroke: #e5484d;
-   }
-   &:hover path {
-      stroke: #fff;
-   }
 }
 
 // Split diff middle rule: a thin drag handle for resizing the two sides.

@@ -161,6 +161,7 @@
                      [attr.fill-opacity]="s.fillOpacity"
                      [attr.stroke]="s.stroke"
                      [attr.stroke-width]="s.strokeWidth"
+                     [attr.stroke-opacity]="s.strokeOpacity"
                      [attr.stroke-dasharray]="s.dash"
                      [attr.pointer-events]="s.type === 'frame' ? 'none' : null"
                   ></rect>
@@ -303,6 +304,7 @@
                         [attr.rx]="g.rect.rx"
                         [attr.stroke]="s.stroke"
                         [attr.stroke-width]="s.strokeWidth"
+                        [attr.stroke-opacity]="s.strokeOpacity"
                         [attr.stroke-dasharray]="s.dash"
                      ></rect>
                   }
@@ -312,7 +314,7 @@
                      [attr.y]="g.rect.y"
                      [attr.width]="g.rect.width"
                      [attr.height]="g.rect.height"
-                     [class.cells]="s.selected"
+                     [class.cells]="s.selected && !!cellRangeRect(s.id, g)"
                      (pointerdown)="onBody(s.id, $event)"
                   ></rect>
                   @if (s.selected && interactive() && s.id !== editingId()) {
@@ -341,55 +343,6 @@
                            ></rect>
                         }
                      }
-                     <!-- Structure controls on the edges: + on a border inserts there, - on a column/row removes it. -->
-                     @for (x of g.colEdges; track $index; let i = $index) {
-                        <g
-                           class="grid-ctl add"
-                           [attr.transform]="'translate(' + x + ' ' + (g.rect.y - 14) + ')'"
-                           (pointerdown)="onGridCtl(s.id, 'addCol', i, $event)"
-                        >
-                           <title>Insert column</title>
-                           <circle r="7"></circle>
-                           <path d="M-3.5 0h7M0 -3.5v7"></path>
-                        </g>
-                        @if (i < g.colEdges.length - 1 && g.colEdges.length > 2) {
-                           <g
-                              class="grid-ctl del"
-                              [attr.transform]="
-                                 'translate(' + (x + g.colEdges[i + 1]) / 2 + ' ' + (g.rect.y - 14) + ')'
-                              "
-                              (pointerdown)="onGridCtl(s.id, 'delCol', i, $event)"
-                           >
-                              <title>Delete column</title>
-                              <circle r="7"></circle>
-                              <path d="M-3.5 0h7"></path>
-                           </g>
-                        }
-                     }
-                     @for (y of g.rowEdges; track $index; let i = $index) {
-                        <g
-                           class="grid-ctl add"
-                           [attr.transform]="'translate(' + (g.rect.x - 14) + ' ' + y + ')'"
-                           (pointerdown)="onGridCtl(s.id, 'addRow', i, $event)"
-                        >
-                           <title>Insert row</title>
-                           <circle r="7"></circle>
-                           <path d="M-3.5 0h7M0 -3.5v7"></path>
-                        </g>
-                        @if (i < g.rowEdges.length - 1 && g.rowEdges.length > 2) {
-                           <g
-                              class="grid-ctl del"
-                              [attr.transform]="
-                                 'translate(' + (g.rect.x - 14) + ' ' + (y + g.rowEdges[i + 1]) / 2 + ')'
-                              "
-                              (pointerdown)="onGridCtl(s.id, 'delRow', i, $event)"
-                           >
-                              <title>Delete row</title>
-                              <circle r="7"></circle>
-                              <path d="M-3.5 0h7"></path>
-                           </g>
-                        }
-                     }
                   }
                }
                @if (s.code; as c) {
@@ -400,8 +353,10 @@
                      [attr.height]="c.rect.height"
                      [attr.rx]="c.rect.rx"
                      [attr.fill]="c.background"
+                     [attr.fill-opacity]="s.fillOpacity"
                      [attr.stroke]="s.stroke"
                      [attr.stroke-width]="s.strokeWidth"
+                     [attr.stroke-opacity]="s.strokeOpacity"
                      [attr.stroke-dasharray]="s.dash"
                   ></rect>
                   <g class="code" pointer-events="none" [attr.clip-path]="'url(#' + c.clipId + ')'">
@@ -555,6 +510,7 @@
                      [attr.fill-opacity]="s.fillOpacity"
                      [attr.stroke]="s.stroke"
                      [attr.stroke-width]="s.strokeWidth"
+                     [attr.stroke-opacity]="s.strokeOpacity"
                      [attr.stroke-dasharray]="s.dash"
                   ></ellipse>
                }
@@ -567,6 +523,7 @@
                      [attr.fill-opacity]="s.fillOpacity"
                      [attr.stroke]="s.stroke"
                      [attr.stroke-width]="s.strokeWidth"
+                     [attr.stroke-opacity]="s.strokeOpacity"
                      [attr.stroke-dasharray]="s.dash"
                   ></polygon>
                }
@@ -578,7 +535,7 @@
                      (pointerdown)="onBody(s.id, $event)"
                   ></path>
                   @if (s.freehand) {
-                     <path stroke="none" [attr.d]="s.path" [attr.fill]="s.fill"></path>
+                     <path stroke="none" [attr.d]="s.path" [attr.fill]="s.fill" [attr.fill-opacity]="s.strokeOpacity"></path>
                   } @else {
                      <path
                         fill="none"
@@ -587,6 +544,7 @@
                         [attr.d]="s.path"
                         [attr.stroke]="s.stroke"
                         [attr.stroke-width]="s.strokeWidth"
+                        [attr.stroke-opacity]="s.strokeOpacity"
                         [attr.stroke-dasharray]="s.dash"
                         [attr.marker-end]="markerUrl(s.markerEnd)"
                         [attr.marker-start]="markerUrl(s.markerStart)"

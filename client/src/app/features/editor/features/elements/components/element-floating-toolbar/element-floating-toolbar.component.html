@@ -26,6 +26,22 @@
                [deckTheme]="swatchTheme()"
                (pick)="setStroke($event); close()"
             />
+            @if (strokeOpacityShown()) {
+               <div class="opacity-row channel" [attr.aria-label]="'Stroke opacity'" matTooltip="Stroke opacity">
+                  <dd-icon name="opacity" />
+                  <input
+                     type="range"
+                     min="0"
+                     max="100"
+                     step="5"
+                     aria-label="Stroke opacity"
+                     [value]="element().strokeOpacity ?? 100"
+                     [style.--fill]="(element().strokeOpacity ?? 100) + '%'"
+                     (input)="setStrokeOpacity(+$any($event.target).value)"
+                  />
+                  <span class="opacity-val">{{ element().strokeOpacity ?? 100 }}%</span>
+               </div>
+            }
          </div>
       </ng-template>
    }
@@ -55,6 +71,22 @@
                [deckTheme]="swatchTheme()"
                (pick)="setFill($event); close()"
             />
+            @if (!fillShown().none) {
+               <div class="opacity-row channel" [attr.aria-label]="'Fill opacity'" matTooltip="Fill opacity">
+                  <dd-icon name="opacity" />
+                  <input
+                     type="range"
+                     min="0"
+                     max="100"
+                     step="5"
+                     aria-label="Fill opacity"
+                     [value]="element().fillOpacity ?? 100"
+                     [style.--fill]="(element().fillOpacity ?? 100) + '%'"
+                     (input)="setFillOpacity(+$any($event.target).value)"
+                  />
+                  <span class="opacity-val">{{ element().fillOpacity ?? 100 }}%</span>
+               </div>
+            }
          </div>
       </ng-template>
    }
@@ -412,8 +444,36 @@
       </ng-template>
    }
 
-   <!-- Grid table: header row (rows/columns are added and removed on the table's edges) -->
+   <!-- Grid table: rows/columns menu, merge, header row, borders -->
    @if (isGrid()) {
+      <button
+         class="tb wide"
+         type="button"
+         placement="below-start"
+         matTooltip="Rows & columns"
+         aria-label="Rows & columns"
+         [ddPopoverTrigger]="rowColMenu"
+         [disabled]="!store.canEdit()"
+      >
+         <dd-icon name="table_rows" /><dd-icon name="expand_more" />
+      </button>
+      <ng-template #rowColMenu let-close>
+         <div class="dd-menu">
+            @for (c of gridCommands; track c.id) {
+               @if (c.id === 'delRows') {
+                  <div class="dd-menu-sep"></div>
+               }
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  [disabled]="c.needsCells && !hasCells()"
+                  (click)="grids.structureAtSelection(element().id, c.id); close()"
+               >
+                  <span>{{ c.label }}</span><kbd>{{ c.keys }}</kbd>
+               </button>
+            }
+         </div>
+      </ng-template>
       @if (grids.canMerge()) {
          <button
             class="tb"

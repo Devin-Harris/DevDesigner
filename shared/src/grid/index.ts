@@ -1,5 +1,8 @@
 import type { TextAlign, VerticalAlign } from '../enums';
 import type { CanvasElementModel } from '../models';
+import { cleanGridMorph, remapGridMorph, type GridMorphTags } from './morph';
+
+export * from './morph';
 
 /** Per-cell overrides of the table's text styling (absent keys inherit the element's). */
 export interface GridCellStyle {
@@ -47,6 +50,8 @@ export interface GridData {
   merges?: GridCellMerge[];
   /** Which borders are drawn (absent = all). */
   borders?: GridBorders;
+  /** Hand-made morph pairings of rows, columns and cells (see ./morph). */
+  morph?: GridMorphTags;
 }
 
 /** Smallest a column/row may be dragged to (world px). */
@@ -102,7 +107,17 @@ export function parseGrid(text: string | undefined): GridData {
   const borders = (GRID_BORDER_MODES as readonly string[]).includes(raw.borders as string) && raw.borders !== 'all'
     ? (raw.borders as GridBorders)
     : undefined;
-  return { cols, rows, cells, header: raw.header !== false, styles, merges, ...(borders ? { borders } : {}) };
+  const morph = cleanGridMorph(raw.morph, rows.length, cols.length);
+  return {
+    cols,
+    rows,
+    cells,
+    header: raw.header !== false,
+    styles,
+    merges,
+    ...(borders ? { borders } : {}),
+    ...(morph ? { morph } : {}),
+  };
 }
 
 /** Keep only in-bounds, multi-cell, non-overlapping merges. */
@@ -231,6 +246,7 @@ export function serializeGrid(g: GridData): string {
     ...(g.merges?.length ? { merges: g.merges } : {}),
     ...(g.styles && Object.keys(g.styles).length ? { styles: g.styles } : {}),
     ...(g.borders && g.borders !== 'all' ? { borders: g.borders } : {}),
+    ...(g.morph ? { morph: g.morph } : {}),
   });
 }
 
@@ -296,6 +312,7 @@ function pixelGrid(el: CanvasElementModel): GridData {
     cells: g.cells.map((r) => [...r]),
     styles: { ...g.styles },
     merges: (g.merges ?? []).map((m) => ({ ...m })),
+    ...(g.morph ? { morph: (JSON.parse(JSON.stringify(g.morph)) as GridMorphTags) } : {}),
   };
 }
 
@@ -327,6 +344,7 @@ export function gridInsertRow(el: CanvasElementModel, at: number): GridEdit {
   g.rows.splice(i, 0, Math.max(GRID_MIN_CELL, Math.min(ref, GRID_DEFAULT_ROW_H * 1.5)));
   g.cells.splice(i, 0, Array(g.cols.length).fill(''));
   remapStyles(g, (r, c) => [r >= i ? r + 1 : r, c]);
+  g.morph = remapGridMorph(g.morph, 'r', (r) => (r >= i ? r + 1 : r));
   insertIntoMerges(g, 'r', i);
   return finish(g);
 }
@@ -338,6 +356,7 @@ export function gridInsertCol(el: CanvasElementModel, at: number): GridEdit {
   g.cols.splice(i, 0, ref);
   g.cells.forEach((r) => r.splice(i, 0, ''));
   remapStyles(g, (r, c) => [r, c >= i ? c + 1 : c]);
+  g.morph = remapGridMorph(g.morph, 'c', (c) => (c >= i ? c + 1 : c));
   insertIntoMerges(g, 'c', i);
   return finish(g);
 }
@@ -367,6 +386,7 @@ export function gridDeleteRow(el: CanvasElementModel, at: number): GridEdit | nu
   g.rows.splice(at, 1);
   g.cells.splice(at, 1);
   remapStyles(g, (r, c) => (r === at ? null : [r > at ? r - 1 : r, c]));
+  g.morph = remapGridMorph(g.morph, 'r', (r) => (r === at ? null : r > at ? r - 1 : r));
   deleteFromMerges(g, 'r', at);
   return finish(g);
 }
@@ -380,6 +400,7 @@ export function gridDeleteCol(el: CanvasElementModel, at: number): GridEdit | nu
   g.cols.splice(at, 1);
   g.cells.forEach((r) => r.splice(at, 1));
   remapStyles(g, (r, c) => (c === at ? null : [r, c > at ? c - 1 : c]));
+  g.morph = remapGridMorph(g.morph, 'c', (c) => (c === at ? null : c > at ? c - 1 : c));
   deleteFromMerges(g, 'c', at);
   return finish(g);
 }

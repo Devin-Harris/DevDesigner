@@ -69,6 +69,9 @@ function parseTsv(text: string): string[][] {
 
 export type GridStructureAction = 'addCol' | 'delCol' | 'addRow' | 'delRow';
 
+/** Row/column commands on the cell selection (toolbar menu + Ctrl+Alt shortcuts). */
+export type GridSelectionCommand = 'rowAbove' | 'rowBelow' | 'colLeft' | 'colRight' | 'delRows' | 'delCols';
+
 /**
  * State + actions for spreadsheet-style `grid` elements, shared by the canvas
  * layer (border drags, +/- controls, cell highlight), the editor (cell selection
@@ -341,6 +344,77 @@ export class GridTableService {
       });
    }
 
+   /**
+    * Insert next to / delete the rows or columns of the cell selection. With no cell
+    * selection the whole table counts (insert at the edges; deleting is not allowed).
+    */
+   async structureAtSelection(id: string, cmd: GridSelectionCommand): Promise<void> {
+      const el = this.grid(id);
+      if (!el || !this.store.canEdit()) return;
+      const g = parseGrid(el.text);
+      const r = this.range()?.id === id ? this.range() : null;
+      const box = r ?? { r0: 0, c0: 0, r1: g.rows.length - 1, c1: g.cols.length - 1 };
+      const keep = r && { anchor: this.anchor(), focus: this.focus() };
+      switch (cmd) {
+         case 'rowAbove':
+            await this.structure(id, 'addRow', box.r0);
+            if (keep) this.reselect(id, box.r0 + 1, box.c0, box.r1 + 1, box.c1);
+            return;
+         case 'rowBelow':
+            await this.structure(id, 'addRow', box.r1 + 1);
+            if (keep) this.reselect(id, box.r1 + 1, box.c0, box.r1 + 1, box.c1);
+            return;
+         case 'colLeft':
+            await this.structure(id, 'addCol', box.c0);
+            if (keep) this.reselect(id, box.r0, box.c0 + 1, box.r1, box.c1 + 1);
+            return;
+         case 'colRight':
+            await this.structure(id, 'addCol', box.c1 + 1);
+            if (keep) this.reselect(id, box.r0, box.c1 + 1, box.r1, box.c1 + 1);
+            return;
+      }
+      if (!r) return;
+      const rows = cmd === 'delRows';
+      const total = rows ? g.rows.length : g.cols.length;
+      const from = rows ? r.r0 : r.c0;
+      const to = rows ? r.r1 : r.c1;
+      // Always leave at least one row/column.
+      const count = Math.min(to - from + 1, total - 1);
+      if (count <= 0) return;
+      await this.store.batchHistory(async () => {
+         for (let i = 0; i < count; i += 1) {
+            await this.structure(id, rows ? 'delRow' : 'delCol', from);
+         }
+      });
+      const left = total - count;
+      const at = Math.min(from, left - 1);
+      this.reselect(id, rows ? at : r.r0, rows ? r.c0 : at, rows ? at : r.r1, rows ? r.c1 : at);
+   }
+
+   private reselect(id: string, r0: number, c0: number, r1: number, c1: number): void {
+      this.anchor.set({ id, row: r0, col: c0 });
+      this.focus.set({ id, row: r1, col: c1 });
+   }
+
+   /** Arrow keys on a cell selection: move it (or with `extend`, grow it from the anchor). */
+   moveSelection(dRow: number, dCol: number, extend: boolean): void {
+      const r = this.range();
+      const f = this.focus();
+      const el = r && this.grid(r.id);
+      if (!r || !f || !el) return;
+      const g = parseGrid(el.text);
+      // Step past a merged block when leaving it.
+      const here = mergeAt(g, f.row, f.col);
+      const row = dRow > 0 ? f.row + (here && !extend ? here.rs : 1) : f.row + dRow;
+      const col = dCol > 0 ? f.col + (here && !extend ? here.cs : 1) : f.col + dCol;
+      const next = {
+         id: r.id,
+         row: Math.max(0, Math.min(row, g.rows.length - 1)),
+         col: Math.max(0, Math.min(col, g.cols.length - 1)),
+      };
+      this.selectCell(extend ? next : { id: r.id, ...cellOrigin(g, next.row, next.col) }, extend);
+   }
+
    async toggleHeader(ids: string[]): Promise<void> {
       await this.store.batchHistory(async () => {
          for (const id of ids) {
@@ -366,12 +440,16 @@ export class GridTableService {
 
    // --- cell editing ---
 
-   beginEdit(cell: GridCellRef): void {
+   /** Open the cell editor; `replaceWith` starts it over with that text (typing on a selected cell). */
+   beginEdit(cell: GridCellRef, replaceWith?: string): void {
       const el = this.grid(cell.id);
       if (!el || !this.store.canEdit()) return;
       this.editOriginal = { text: el.text ?? '', width: el.width, height: el.height };
       this.selectCell(cell);
       this.editingCell.set(cell);
+      if (replaceWith !== undefined) {
+         this.setEditingText(replaceWith);
+      }
    }
 
    /** Live-update the edited cell, growing its row when the text needs more room. */

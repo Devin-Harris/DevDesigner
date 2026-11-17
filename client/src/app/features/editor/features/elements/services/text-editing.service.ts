@@ -63,7 +63,8 @@ import { RichTextSessionService } from './rich-text-session.service';
 import { TAB_SIZE } from '../../../helpers/code-highlight.helper';
 import { formatCode } from '../../../helpers/code-format.helper';
 import type { Box } from '../../../models/geometry.model';
-import { LIST_LINE } from '../helpers/rich-list.helper';
+import { LIST_LINE, parseLines } from '../helpers/rich-list.helper';
+import { hoistUniformColor } from '../../../helpers/rich-text.helper';
 import { LIST_LINE_PREFIX } from '../helpers/rich-list.helper';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What inline text editing reads from the editor entry; the entry wires it with `connect`. */
@@ -486,12 +487,13 @@ export class TextEditingService {
    private renderRichRuns(root: HTMLElement, runs: readonly TextRun[]): void {
       root.textContent = '';
       if (LIST_LINE.test(plainOf(runs))) {
+         // Every line is its own block (the block boundary is the newline).
          this.renderRichListLines(root, runs);
-      } else {
-         for (const run of runs) {
-            if (run.text) {
-               root.appendChild(this.richRunSpan(run));
-            }
+         return;
+      }
+      for (const run of runs) {
+         if (run.text) {
+            root.appendChild(this.richRunSpan(run));
          }
       }
       if (plainOf(runs).endsWith('\n')) {
@@ -501,22 +503,25 @@ export class TextEditingService {
    }
 
    /**
-    * Text with list items: each item is its own block with a hanging indent the
-    * width of its marker, so wrapped lines sit under the text (as on the canvas).
-    * The line's newline stays inside its block, so the text reads back unchanged.
+    * Text with list items: each line is its own block, list items with a hanging
+    * indent the width of their marker so wrapped lines sit under the text (as on the
+    * canvas). No newline characters live in the DOM: a newline inside a block let the
+    * caret sit on either side of it (looking like the line's end while really being
+    * the next line's start), so Enter/Tab hit the wrong line. Block boundaries read
+    * back as newlines instead (readRichRuns / richOffset / setRichSelection).
     */
    private renderRichListLines(root: HTMLElement, runs: readonly TextRun[]): void {
       const cs = getComputedStyle(root);
       const ctx = document.createElement('canvas').getContext('2d');
-      const lines = runLines(runs);
-      lines.forEach((line, i) => {
+      for (const line of runLines(runs)) {
          const plain = line.map((r) => r.text).join('');
          const prefix = LIST_LINE_PREFIX.exec(plain)?.[0];
-         let host: HTMLElement = root;
+         // Inline styles: component (encapsulated) CSS does not reach nodes made here.
+         const host = document.createElement('div');
+         host.className = 'li-line';
          let marker: HTMLElement | null = null;
          if (prefix) {
-            host = document.createElement('span');
-            host.className = 'li-line';
+            host.classList.add('li-item');
             let em = prefix.length * 0.5;
             if (ctx) {
                const bold = line[0]?.bold;
@@ -524,19 +529,14 @@ export class TextEditingService {
                ctx.font = `${cs.fontStyle} ${weight} 100px ${cs.fontFamily}`;
                em = ctx.measureText(prefix).width / 100;
             }
-            // Inline styles: component (encapsulated) CSS does not reach nodes made here.
-            // The marker floats in the left padding, so the text never breaks after it
-            // (a long first word stays beside the marker, as on the canvas).
-            host.style.display = 'block';
+            // A hanging indent (padding + negative text-indent) keeps the marker inline,
+            // so the caret sits right after it, even on an empty item.
             host.style.paddingLeft = `${em}em`;
+            host.style.textIndent = `-${em}em`;
             marker = document.createElement('span');
             marker.className = 'li-marker';
-            marker.style.cssFloat = 'left';
-            marker.style.width = `${em}em`;
-            marker.style.marginLeft = `-${em}em`;
             marker.style.whiteSpace = 'pre';
             host.appendChild(marker);
-            root.appendChild(host);
          }
          let seen = 0;
          for (const run of line) {
@@ -551,32 +551,28 @@ export class TextEditingService {
                host.appendChild(this.richRunSpan({ ...run, text }));
             }
          }
-         if (i < lines.length - 1) {
-            const last = line[line.length - 1] ?? runs[0];
-            host.appendChild(this.richRunSpan({ ...last, text: '\n', morph: undefined }));
+         if (!plain) {
+            // An empty line still needs height (and a place for the caret).
+            host.appendChild(document.createElement('br'));
          }
-      });
+         root.appendChild(host);
+      }
    }
 
-   /** True when the list blocks no longer match the content (e.g. after Enter). */
+   /** True when the line blocks no longer match the content (e.g. after Enter or a paste). */
    private richListLayoutStale(root: HTMLElement, runs: readonly TextRun[]): boolean {
       const lines = plainOf(runs).split('\n');
-      const items = lines.filter((l) => LIST_LINE_PREFIX.test(l)).length;
-      const blocks = Array.from(root.querySelectorAll<HTMLElement>('.li-line'));
-      if (blocks.length !== items) {
+      const blocks = Array.from(root.children);
+      if (blocks.length !== lines.length || blocks.some((b) => !b.classList.contains('li-line'))) {
          return true;
       }
-      return blocks.some((b) => {
+      return blocks.some((b, i) => {
          const t = b.textContent ?? '';
+         if (t !== lines[i] || t.includes('\n')) return true;
+         // A <br> is only the placeholder of an empty line.
+         if (b.querySelector('br') && t) return true;
          const m = b.querySelector('.li-marker')?.textContent ?? '';
-         if (m !== LIST_LINE_PREFIX.exec(t)?.[0]) {
-            return true;
-         }
-         return (
-            !!b.querySelector('br') ||
-            (t.indexOf('\n') !== t.length - 1 && t.includes('\n')) ||
-            !LIST_LINE_PREFIX.test(t)
-         );
+         return m !== (LIST_LINE_PREFIX.exec(t)?.[0] ?? '');
       });
    }
 
@@ -674,25 +670,61 @@ export class TextEditingService {
       const range = document.createRange();
       range.selectNodeContents(root);
       range.setEnd(node, offset);
-      // Range text skips <br>, which reads back as a newline; count them too.
+      // Range text skips <br>, which reads back as a newline; count them too (not an
+      // empty line block's placeholder). Each line block after the first is a newline.
       const frag = range.cloneContents();
-      return (frag.textContent ?? '').length + frag.querySelectorAll('br').length;
+      const brs = Array.from(frag.querySelectorAll('br')).filter((br) => !this.isLinePlaceholder(br)).length;
+      const blocks = Array.from(root.children).filter(
+         (b, i) => i > 0 && b.classList.contains('li-line') && range.intersectsNode(b)
+      ).length;
+      return (frag.textContent ?? '').length + brs + blocks;
+   }
+
+   /** A <br> that only holds an empty line block open (reads back as nothing). */
+   private isLinePlaceholder(br: Element): boolean {
+      const p = br.parentElement;
+      return !!p && p.classList.contains('li-line') && p.childNodes.length === 1;
    }
 
    private setRichSelection(root: HTMLElement, start: number, end: number): void {
       const locate = (target: number): { node: Node; offset: number } => {
-         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
          let seen = 0;
-         let lastNode: Text | null = null;
-         for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-            const len = n.nodeValue?.length ?? 0;
-            if (target <= seen + len) {
-               return { node: n, offset: target - seen };
+         let last: { node: Node; offset: number } = { node: root, offset: 0 };
+         const visit = (parent: Node): { node: Node; offset: number } | null => {
+            for (let i = 0; i < parent.childNodes.length; i++) {
+               const n = parent.childNodes[i];
+               if (n.nodeType === Node.TEXT_NODE) {
+                  const len = n.nodeValue?.length ?? 0;
+                  // A boundary goes to the start of the next node, so a caret right after a
+                  // list marker lands in the item's text rather than inside the marker span.
+                  if (target < seen + len) return { node: n, offset: target - seen };
+                  seen += len;
+                  last = { node: n, offset: len };
+               } else if (n instanceof HTMLElement) {
+                  if (n.tagName === 'BR') {
+                     if (this.isLinePlaceholder(n)) {
+                        last = { node: parent, offset: i };
+                        continue;
+                     }
+                     if (target <= seen) return last.node === root ? { node: parent, offset: i } : last;
+                     seen += 1;
+                     last = { node: parent, offset: i + 1 };
+                     continue;
+                  }
+                  const isLine = parent === root && n.classList.contains('li-line');
+                  if (isLine && i > 0) {
+                     // The newline between line blocks: the end of the previous line.
+                     if (target <= seen) return last;
+                     seen += 1;
+                  }
+                  if (isLine) last = { node: n, offset: 0 };
+                  const hit = visit(n);
+                  if (hit) return hit;
+               }
             }
-            seen += len;
-            lastNode = n;
-         }
-         return lastNode ? { node: lastNode, offset: lastNode.nodeValue?.length ?? 0 } : { node: root, offset: 0 };
+            return null;
+         };
+         return visit(root) ?? last;
       };
       const a = locate(start);
       const b = locate(end);
@@ -818,6 +850,83 @@ export class TextEditingService {
       }
    }
 
+   /**
+    * Keep a collapsed caret where it looks like it is. Each list line's newline is a
+    * character at the end of its block, so a caret placed "at the line end" can sit
+    * after it (logically the next line's start), making Enter/Tab act on the wrong
+    * line. A caret inside a bullet marker moves to just after it, so the marker and
+    * its space cannot be edited apart (Backspace there removes/outdents the marker).
+    */
+   private clampRichCaret(root: HTMLElement): void {
+      const sel = window.getSelection();
+      if (!sel?.rangeCount || !sel.isCollapsed) return;
+      const node = sel.anchorNode;
+      if (!node || node.nodeType !== Node.TEXT_NODE || !root.contains(node)) return;
+      const text = node.nodeValue ?? '';
+      const offset = sel.anchorOffset;
+      const marker = node.parentElement?.closest('.li-marker');
+      if (marker && root.contains(marker)) {
+         // Just after the marker: the first character of the item's text, else the marker's end.
+         const walker = document.createTreeWalker(marker.parentElement!, NodeFilter.SHOW_TEXT);
+         let next: Node | null = null;
+         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            if (!marker.contains(n)) {
+               next = n;
+               break;
+            }
+         }
+         const markerText = marker.lastChild?.lastChild ?? marker.lastChild;
+         const home = next ? { node: next, offset: 0 } : markerText ? { node: markerText, offset: markerText.nodeValue?.length ?? 0 } : null;
+         const prev = this.lastCaret;
+         const wasHome = !!home && !!prev && prev.node === home.node && prev.offset === home.offset;
+         const block = marker.closest('.li-line');
+         if (wasHome && this.arrowLeftHeld && block?.previousElementSibling) {
+            // ArrowLeft from an item's first character: to the end of the previous line.
+            const before = block.previousElementSibling;
+            const walker = document.createTreeWalker(before, NodeFilter.SHOW_TEXT);
+            let lastText: Node | null = null;
+            for (let n = walker.nextNode(); n; n = walker.nextNode()) lastText = n;
+            if (lastText) sel.collapse(lastText, lastText.nodeValue?.length ?? 0);
+            else sel.collapse(before, 0);
+            this.lastCaret = sel.anchorNode ? { node: sel.anchorNode, offset: sel.anchorOffset } : null;
+            return;
+         }
+         if (home && !(node === home.node && offset === home.offset)) {
+            sel.collapse(home.node, home.offset);
+         }
+         this.lastCaret = home;
+         return;
+      }
+      if (offset === text.length && text.endsWith('\n') && node.parentElement?.closest('.li-line')) {
+         const prev = this.lastCaret;
+         if (prev && prev.node === node && prev.offset === text.length - 1) {
+            // ArrowRight from the line's end: on to the next line (just after its marker).
+            const block = node.parentElement!.closest('.li-line')!;
+            const nextBlock = block.nextSibling;
+            const walker = nextBlock ? document.createTreeWalker(nextBlock, NodeFilter.SHOW_TEXT) : null;
+            let target: Node | null = null;
+            for (let n = walker?.nextNode() ?? null; n; n = walker!.nextNode()) {
+               if (!n.parentElement?.closest('.li-marker')) {
+                  target = n;
+                  break;
+               }
+            }
+            if (target) {
+               sel.collapse(target, 0);
+               this.lastCaret = { node: target, offset: 0 };
+               return;
+            }
+         }
+         sel.collapse(node, text.length - 1);
+      }
+      this.lastCaret = sel.anchorNode ? { node: sel.anchorNode, offset: sel.anchorOffset } : null;
+   }
+
+   private lastCaret: { node: Node; offset: number } | null = null;
+
+   /** Set briefly after an ArrowLeft keydown, so the caret can leave an item to the previous line. */
+   private arrowLeftHeld = false;
+
    private captureRichSelection(root: HTMLElement): void {
       const sel = window.getSelection();
       if (!sel?.rangeCount || !root.contains(sel.anchorNode)) {
@@ -897,6 +1006,7 @@ export class TextEditingService {
 
       const onSelection = (): void => {
          if (document.activeElement === root) {
+            this.clampRichCaret(root);
             this.captureRichSelection(root);
             this.publishRichSelection();
          }
@@ -968,6 +1078,13 @@ export class TextEditingService {
          return;
       }
       const root = this.host.richEditorRef()?.nativeElement;
+      if (root && !event.isComposing) this.clampRichCaret(root);
+      if (root && !event.isComposing && this.onRichArrowAcrossMarker(event, root)) {
+         return;
+      }
+      // The caret moves after this event; the selectionchange that follows reads the flag.
+      this.arrowLeftHeld = event.key === 'ArrowLeft' && !event.shiftKey;
+      if (this.arrowLeftHeld) setTimeout(() => (this.arrowLeftHeld = false), 50);
       if (root && !event.isComposing && this.onRichListKey(event, root)) {
          return;
       }
@@ -990,6 +1107,44 @@ export class TextEditingService {
             this.applyRichPatch({ [flag]: !(current?.[flag] ?? false) });
          }
       }
+   }
+
+   /**
+    * ArrowLeft/Right across a bullet: jump straight between an item's first character
+    * and the previous line's end (and back), so the caret never paints inside the
+    * marker first. True when handled.
+    */
+   private onRichArrowAcrossMarker(event: KeyboardEvent, root: HTMLElement): boolean {
+      if (
+         (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') ||
+         event.shiftKey ||
+         event.ctrlKey ||
+         event.metaKey ||
+         event.altKey
+      ) {
+         return false;
+      }
+      this.captureRichSelection(root);
+      const { start, end } = this.richSel;
+      if (start !== end) return false;
+      const lines = parseLines(plainOf(this.readRichRuns(root)));
+      const i = lines.findIndex((l) => start >= l.start && start <= l.end);
+      if (i < 0) return false;
+      let target: number | null = null;
+      if (event.key === 'ArrowLeft' && lines[i].kind && start === lines[i].markerEnd) {
+         target = i > 0 ? lines[i - 1].end : start;
+      } else if (event.key === 'ArrowRight' && start === lines[i].end && lines[i + 1]?.kind) {
+         target = lines[i + 1].markerEnd;
+      }
+      if (target === null) return false;
+      event.preventDefault();
+      this.setRichSelection(root, target, target);
+      this.richSel = { start: target, end: target };
+      this.lastCaret = (() => {
+         const s = window.getSelection();
+         return s?.anchorNode ? { node: s.anchorNode, offset: s.anchorOffset } : null;
+      })();
+      return true;
    }
 
    /** List behaviour of the rich editor's keys; true when the key was handled. */
@@ -1102,16 +1257,19 @@ export class TextEditingService {
          void this.store.updateElement(id, { text, runs: text ? (usableRuns(text, el.runs) ?? null) : null });
          return;
       }
+      // All text recolored alike: that is the block's color now, for text typed later too.
+      const hoisted = text.trim() ? hoistUniformColor(usableRuns(text, el.runs)) : null;
       if (text.trim() === '') {
          // An emptied placeholder stays: it goes back to showing its prompt.
          void (el.placeholder ? this.store.updateElement(id, { text: '', runs: null }) : this.store.deleteElement(id));
          return;
       }
-      const runs = usableRuns(text, el.runs);
+      const runs = hoisted ? hoisted.runs : usableRuns(text, el.runs);
       const size = fitTextElement(el, { text, runs });
       void this.store.updateElement(id, {
          text,
          runs: runs ?? null,
+         ...(hoisted ? { strokeColor: hoisted.color } : {}),
          width: size.width,
          height: size.height,
       });

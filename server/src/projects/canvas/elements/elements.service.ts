@@ -14,7 +14,7 @@ import { RealtimePublisher } from '../../../platform/realtime/realtime.publisher
 import { ImagesService } from '../images/images.service';
 import { QuotaService } from '../../../platform/quotas/quota.service';
 import { ElementEntity } from './element.entity';
-import { toElementModel } from './element.mapper';
+import { focusColumn, toElementModel } from './element.mapper';
 import { CreateElementDto } from './dto/create-element.dto';
 import { UpdateElementDto } from './dto/update-element.dto';
 import { UpdateElementPositionDto } from './dto/update-element-position.dto';
@@ -78,6 +78,8 @@ export class ElementsService {
       strokeWidth: dto.strokeWidth,
       strokeStyle: dto.strokeStyle,
       opacity: dto.opacity,
+      strokeOpacity: dto.strokeOpacity ?? 100,
+      fillOpacity: dto.fillOpacity ?? 100,
       zIndex: dto.zIndex ?? (await this.nextZIndex(projectId)),
       cornerRadius: dto.cornerRadius ?? null,
       ellipticCorners: dto.ellipticCorners ?? null,
@@ -99,6 +101,8 @@ export class ElementsService {
       startBindingId: dto.startBinding?.targetId ?? null,
       endBindingKind: dto.endBinding?.targetKind ?? null,
       endBindingId: dto.endBinding?.targetId ?? null,
+      startBindingFocus: focusColumn(dto.startBinding),
+      endBindingFocus: focusColumn(dto.endBinding),
       startArrowhead: dto.startArrowhead ?? null,
       endArrowhead: dto.endArrowhead ?? null,
       curvature: dto.curvature ?? null,
@@ -241,6 +245,8 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     'strokeStyle',
     'fillStyle',
     'opacity',
+    'strokeOpacity',
+    'fillOpacity',
     'zIndex',
     'cornerRadius',
     'ellipticCorners',
@@ -308,9 +314,11 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   if (dto.startBinding !== undefined) {
     element.startBindingKind = dto.startBinding?.targetKind ?? null;
     element.startBindingId = dto.startBinding?.targetId ?? null;
+    element.startBindingFocus = focusColumn(dto.startBinding);
   }
   if (dto.endBinding !== undefined) {
     element.endBindingKind = dto.endBinding?.targetKind ?? null;
     element.endBindingId = dto.endBinding?.targetId ?? null;
+    element.endBindingFocus = focusColumn(dto.endBinding);
   }
 }

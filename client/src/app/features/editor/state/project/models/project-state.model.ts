@@ -19,6 +19,8 @@ export interface ElementStyleState {
    strokeWidth: number;
    strokeStyle: CanvasElementModel['strokeStyle'];
    opacity: number;
+   strokeOpacity?: number;
+   fillOpacity?: number;
    fontFamily: string;
    fontSize: number;
    cornerRadius?: number;

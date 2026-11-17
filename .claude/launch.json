@@ -46,6 +46,33 @@
       "env": {
         "DATABASE_PATH": "C:/Users/devin/AppData/Local/Temp/claude/75d331d4a32054b1/c39a29ce-5d1c-41ba-92e0-942ef6cd39fb/scratchpad/devdb/devdesigner-scratch.sqlite"
       }
+    },
+    {
+      "name": "client-4300-fresh",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "ng",
+        "serve",
+        "--port",
+        "4300",
+        "--prebundle=false"
+      ],
+      "cwd": "client",
+      "port": 4300
+    },
+    {
+      "name": "server-cors-4300",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:dev",
+        "-w",
+        "server"
+      ],
+      "port": 3000,
+      "env": {
+        "CORS_ORIGIN": "http://localhost:4242,http://localhost:4300"
+      }
     }
   ]
 }

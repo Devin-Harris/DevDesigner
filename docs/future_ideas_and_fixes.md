@@ -2,30 +2,7 @@
 
 ## Bugs
 
-- when refining slide transitions, i cant see objects outside bounds of frame for wiring up morph stuff from offscreen elements
-  - i should be able to zoom out below 100% in this view as well
-  - the look a like morph stuff should also try to line up things that were off screen and are on screen on the next slide and vice versa for morphing purposes as well.
-
-- text inside code block content is a little messed up right now, the formatting is all off and spacing is strange.
-  - as a side note some languages cnat be formatted (css as an example). I would like all languages to be formattable, maybe using prettier or something
-
-- having trouble copy and pasting from one slide to another. I can alt drag objects to clone them out of one presentation to the canvas, then move them into a second presentation, but can move them directly sometimes
-
-- when copying from one slide and pasting on another, it should be in the same position it was copied from on the new slide
-
-- Typing inside shapes and slide placeholders is strange.
-  - For shapes the text bounding box should be closer to a normal text bounding box with the same wrapping logic, rich text and what not. Just have wrapping on, text centered and the bounds scaled in from the edges of the shape by default.
-  - for placeholders on slides, the bounds are not matching the text sometimes (its matching the placeholder text) so editing the text is a little finicky on where i double click to start editing
-
-- Spacing/Alignment Guides
-  - when moving multiple items inside a slide frame, it should add snapping for even spacing from the edges of the frame (i.e. i have to rectangles on either side of the frame, i should be able to move one left and right and get it as far from its closest edge as objects close to the opposite edges)
-
-- setting Font Size, Lineheight, etc... on placeholder text in a layout, is not reflected on slide using said layout.
-  - differences in these from the placeholder text should trigger the reset to layout
-  - i would also like better ways to increase spacing between bullets and numbered lists without changing lineheight. This goes for all text not just slides.
-
-- i want to be able to copy rows/cells from one grid table to the next
-  - it should be able to create new rows automatically on paste
+...
 
 ## Features
 

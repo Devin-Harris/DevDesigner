@@ -7,7 +7,7 @@ import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
 import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { inject, signal, Injectable, type WritableSignal } from '@angular/core';
-import type { CanvasElementModel } from '@devdesigner/shared';
+import type { CanvasElementModel, ElementBinding } from '@devdesigner/shared';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { ProjectStore, type ItemMoves } from '../../../state/project/project.store';
 import { GridTableService } from '../../../services/grid-table.service';
@@ -19,7 +19,14 @@ import {
    type ShapePointerEvent,
 } from '../../canvas/components/canvas-shapes/canvas-shapes.component';
 import { frameContents } from '../../../helpers/frame-contents.helper';
-import { absolutePoints, elementBox, hitTestElement, tableBox } from '../../../helpers/element-geometry.helper';
+import {
+   absolutePoints,
+   elementBox,
+   focusAt,
+   hitTestElement,
+   tableBox,
+   type RotatedBox,
+} from '../../../helpers/element-geometry.helper';
 import { chordNormal } from '../../../helpers/freedraw-path.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from '../../../helpers/text-metrics';
@@ -148,10 +155,15 @@ export class ElementGestureService {
          !this.store.groupIdOf(el.id)
       ) {
          const cell = gridCellAt(el, this.viewport.toWorld(ev.clientX, ev.clientY));
-         if (cell) {
+         // With cells already picked (or Shift held) a drag extends the cell selection;
+         // otherwise a drag moves the table and a plain click picks the cell.
+         if (cell && (this.grids.range()?.id === el.id || ev.shiftKey || !this.store.canEdit())) {
             this.grids.selectCell({ id: el.id, ...cell }, ev.shiftKey);
             this.beginCellDragSelect(el.id);
             return;
+         }
+         if (cell) {
+            this.selectCellOnClick(el.id, cell, ev);
          }
       }
       // Dragging part of the selection keeps whole-selected presentations selected.
@@ -181,6 +193,17 @@ export class ElementGestureService {
       if (payload.event.altKey) {
          void this.duplicateAndDrag();
       }
+   }
+
+   /** Pick the cell on release when the press turned out to be a click rather than a move. */
+   private selectCellOnClick(id: string, cell: { row: number; col: number }, down: PointerEvent): void {
+      const up = (e: PointerEvent): void => {
+         window.removeEventListener('pointerup', up);
+         if (Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < 4) {
+            this.grids.selectCell({ id, ...cell });
+         }
+      };
+      window.addEventListener('pointerup', up);
    }
 
    /** Extend a grid's cell selection to whatever cell the pointer is dragged over. */
@@ -774,7 +797,7 @@ export class ElementGestureService {
          return;
       }
       let world = this.viewport.toWorld(clientX, clientY);
-      const target = this.bindingTargetAt(world, g.id);
+      const target = this.gesture.noBindHeld ? null : this.bindingTargetAt(world, g.id);
       this.bindHighlight.set(target?.box ?? null);
       const binding = target?.binding ?? null;
       const pts = g.points.map((p) => ({ ...p }));
@@ -858,20 +881,25 @@ export class ElementGestureService {
       world: { x: number; y: number },
       excludeElementId: string
    ): {
-      binding: { targetKind: 'element' | 'table' | 'message'; targetId: string };
+      binding: ElementBinding;
       box: { x: number; y: number; width: number; height: number };
    } | null {
+      // Where on the target the end was dropped: it stays there as the target moves.
+      const withFocus = (b: ElementBinding, box: RotatedBox): ElementBinding => {
+         const focus = focusAt(box, world);
+         return focus ? { ...b, focus } : b;
+      };
       const toRect = (b: Box) => ({ x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 });
       // Sequence message labels are small and sit on top of everything: check first.
       for (const [id, box] of this.canvasView.messageBoxes()) {
          if (this.pointInBox(world, box)) {
-            return { binding: { targetKind: 'message', targetId: id }, box: toRect(box) };
+            return { binding: withFocus({ targetKind: 'message', targetId: id }, box), box: toRect(box) };
          }
       }
       for (const table of this.store.tables()) {
          const box = tableBox(table);
          if (this.pointInBox(world, box)) {
-            return { binding: { targetKind: 'table', targetId: table.id }, box: toRect(box) };
+            return { binding: withFocus({ targetKind: 'table', targetId: table.id }, box), box: toRect(box) };
          }
       }
       // Topmost element first (elements render in ascending zIndex order).
@@ -882,7 +910,10 @@ export class ElementGestureService {
          }
          const box = elementBox(el);
          if (this.pointInBox(world, box)) {
-            return { binding: { targetKind: 'element', targetId: el.id }, box: toRect(box) };
+            return {
+               binding: withFocus({ targetKind: 'element', targetId: el.id }, { ...box, angle: el.angle }),
+               box: toRect(box),
+            };
          }
       }
       return null;

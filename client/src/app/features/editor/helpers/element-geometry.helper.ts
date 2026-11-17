@@ -220,6 +220,62 @@ export function boundaryPoint(box: RotatedBox, toward: Point, gap = 0): Point {
 /** A box plus the rotation (radians, about its center) of the shape it bounds. */
 export type RotatedBox = Box & { angle?: number };
 
+/** A bound end's focus within a target box, as 0..1 fractions of its (unrotated) size. */
+export interface BindingFocus {
+   x: number;
+   y: number;
+}
+
+/** Within this distance of the center (as a fraction of the box), a focus means "automatic". */
+const FOCUS_CENTER_SNAP = 0.12;
+
+/** The world point a focus names on a (possibly rotated) box. */
+export function focusPoint(box: RotatedBox, focus: BindingFocus): Point {
+   const cx = (box.x0 + box.x1) / 2;
+   const cy = (box.y0 + box.y1) / 2;
+   const lx = box.x0 + focus.x * (box.x1 - box.x0) - cx;
+   const ly = box.y0 + focus.y * (box.y1 - box.y0) - cy;
+   const a = box.angle ?? 0;
+   if (!a) return { x: cx + lx, y: cy + ly };
+   const cos = Math.cos(a);
+   const sin = Math.sin(a);
+   return { x: cx + lx * cos - ly * sin, y: cy + lx * sin + ly * cos };
+}
+
+/**
+ * The focus for a world point dropped on a box (clamped to it), or undefined near the
+ * center, where the end keeps its automatic anchor (aimed from the other end).
+ */
+export function focusAt(box: RotatedBox, p: Point): BindingFocus | undefined {
+   const cx = (box.x0 + box.x1) / 2;
+   const cy = (box.y0 + box.y1) / 2;
+   const a = box.angle ?? 0;
+   let dx = p.x - cx;
+   let dy = p.y - cy;
+   if (a) {
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      [dx, dy] = [dx * cos + dy * sin, -dx * sin + dy * cos];
+   }
+   const w = box.x1 - box.x0 || 1;
+   const h = box.y1 - box.y0 || 1;
+   const fx = Math.min(1, Math.max(0, 0.5 + dx / w));
+   const fy = Math.min(1, Math.max(0, 0.5 + dy / h));
+   if (Math.abs(fx - 0.5) < FOCUS_CENTER_SNAP && Math.abs(fy - 0.5) < FOCUS_CENTER_SNAP) return undefined;
+   const r = (v: number): number => Math.round(v * 1000) / 1000;
+   return { x: r(fx), y: r(fy) };
+}
+
+/**
+ * Where a bound end sits on its target: on the boundary toward its focus when it has
+ * one (the user placed it), else toward `other` (the automatic anchor).
+ */
+export function anchorPoint(box: RotatedBox, focus: BindingFocus | undefined, other: Point, gap = 0): Point {
+   // A focus at the very center names no direction (mid-morph from an automatic anchor).
+   const aimed = focus && (Math.abs(focus.x - 0.5) > 0.01 || Math.abs(focus.y - 0.5) > 0.01);
+   return boundaryPoint(box, aimed ? focusPoint(box, focus) : other, gap);
+}
+
 function boundaryPointAxisAligned(box: Box, toward: Point, gap: number): Point {
    const cx = (box.x0 + box.x1) / 2;
    const cy = (box.y0 + box.y1) / 2;

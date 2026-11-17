@@ -130,6 +130,12 @@ export interface NoteModel {
 export interface ElementBinding {
   targetKind: 'element' | 'table' | 'message';
   targetId: string;
+  /**
+   * Where on the target the end points, as fractions of its box (0..1 each; 0.5,0.5 =
+   * center). The end sits on the boundary toward this point. Unset = the automatic
+   * anchor (aimed from the arrow's other end).
+   */
+  focus?: { x: number; y: number };
 }
 
 /** One styled stretch of a rich text block; unset flags inherit the element's style. */
@@ -311,6 +317,10 @@ export interface CanvasElementModel {
   strokeStyle: StrokeStyle;
   /** Opacity 0..100. */
   opacity: number;
+  /** Outline opacity 0..100 (absent = 100), multiplied with `opacity`. */
+  strokeOpacity?: number;
+  /** Fill opacity 0..100 (absent = 100), multiplied with `opacity`. */
+  fillOpacity?: number;
   /** Stacking order within the element layer. */
   zIndex: number;
   /** Draws above the ERD table nodes (brought to front past them). */

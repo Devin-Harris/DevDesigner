@@ -137,12 +137,13 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
     if (!b) return undefined;
     const ids = b.targetKind === 'table' ? tableIds : b.targetKind === 'message' ? messageIds : elementIds;
     const id = ids.get(b.targetId);
-    if (id) return { targetKind: b.targetKind, targetId: id };
+    const focus = b.focus ? { focus: b.focus } : {};
+    if (id) return { targetKind: b.targetKind, targetId: id, ...focus };
     const keep =
       b.targetKind === 'table'
         ? opts.linkExisting?.tableIds.has(b.targetId)
         : b.targetKind === 'element' && opts.linkExisting?.elementIds.has(b.targetId);
-    return keep ? { targetKind: b.targetKind, targetId: b.targetId } : undefined;
+    return keep ? { targetKind: b.targetKind, targetId: b.targetId, ...focus } : undefined;
   };
   const zShift = opts.zShift ?? 0;
   const slideShift = opts.slideShift ?? 0;

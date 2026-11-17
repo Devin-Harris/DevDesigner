@@ -1,5 +1,6 @@
 import type { CanvasElementModel, ExistingContent } from '@devdesigner/shared';
 import { ElementEntity } from '../../canvas/elements/element.entity';
+import { focusColumn } from '../../canvas/elements/element.mapper';
 import { insertAll, type WriteContext } from './write-context';
 
 /** The target project's top zIndex and slide configs, for planImportStacking. */
@@ -46,6 +47,8 @@ export async function writeElements(ctx: WriteContext, elements: readonly Canvas
       strokeWidth: e.strokeWidth,
       strokeStyle: e.strokeStyle,
       opacity: e.opacity,
+      strokeOpacity: e.strokeOpacity,
+      fillOpacity: e.fillOpacity,
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius ?? null,
       ellipticCorners: e.ellipticCorners ?? null,
@@ -67,6 +70,8 @@ export async function writeElements(ctx: WriteContext, elements: readonly Canvas
       startBindingId: e.startBinding?.targetId ?? null,
       endBindingKind: e.endBinding?.targetKind ?? null,
       endBindingId: e.endBinding?.targetId ?? null,
+      startBindingFocus: focusColumn(e.startBinding),
+      endBindingFocus: focusColumn(e.endBinding),
       startArrowhead: e.startArrowhead ?? null,
       endArrowhead: e.endArrowhead ?? null,
       curvature: e.curvature ?? null,

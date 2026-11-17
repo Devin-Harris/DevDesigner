@@ -6,6 +6,7 @@ import {
    matchMessages,
    matchMorphItems,
    parseGrid,
+   gridMorphPairs,
    serializeGrid,
    type CanvasElementModel,
    type GridData,
@@ -13,13 +14,15 @@ import {
    type MorphBy,
    type PointModel,
    type RelationshipModel,
+   type ElementBinding,
    type SequenceDiagramModel,
    type SequenceMessageModel,
    type TableModel,
 } from '@devdesigner/shared';
 import { buildDiagramSvg, sequenceBounds, type SequenceBox } from '../../../helpers/diagram-svg.helper';
 import { safeSvgFragment, sanitizeSvgDom } from '../helpers/svg-sanitize.helper';
-import { codeDiffActive } from '../../../helpers/render';
+import { codeDiffActive, lineEnds } from '../../../helpers/render';
+import { elementBox, tableBox, type RotatedBox } from '../../../helpers/element-geometry.helper';
 import type { RenderedSlide, SlideItem } from './slide-render.service';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -115,6 +118,61 @@ const isStockHeader = (c: string | undefined): boolean => !c || isSwatchColor(c)
 
 type Offset = { x: number; y: number };
 
+/**
+ * A bound end at progress `t`. Both sides' bindings point at the destination's target
+ * (the paired target), and an anchor the user placed (`focus`) slides from where it was
+ * to where it goes; an automatic anchor stands in as the box center when only one side
+ * has one, so the end glides instead of jumping.
+ */
+function blendBinding(
+   a: ElementBinding | undefined,
+   b: ElementBinding | undefined,
+   t: number
+): ElementBinding | undefined {
+   if (!b) return t < 0.5 ? a : undefined;
+   if (!a || (!a.focus && !b.focus)) return b;
+   const fa = a.focus ?? { x: 0.5, y: 0.5 };
+   const fb = b.focus ?? { x: 0.5, y: 0.5 };
+   return { ...b, focus: { x: lerp(fa.x, fb.x, t), y: lerp(fa.y, fb.y, t) } };
+}
+
+/** A bound end walking around its (morphing) target's outline, by angle in the target's frame. */
+interface Walk {
+   binding: ElementBinding;
+   from: number;
+   to: number;
+}
+
+/**
+ * The direction of a point from a box's center in the box's own normalized frame
+ * (unrotated, half-sizes scaled to 1): the same angle names the same spot on its outline
+ * whatever the box's size, position or rotation.
+ */
+function outlineAngle(box: RotatedBox, p: PointModel): number {
+   const cx = (box.x0 + box.x1) / 2;
+   const cy = (box.y0 + box.y1) / 2;
+   let dx = p.x - cx;
+   let dy = p.y - cy;
+   const a = box.angle ?? 0;
+   if (a) {
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      [dx, dy] = [dx * cos + dy * sin, -dx * sin + dy * cos];
+   }
+   return Math.atan2(dy / (((box.y1 - box.y0) / 2) || 1), dx / (((box.x1 - box.x0) / 2) || 1));
+}
+
+/** The binding for a walking end at progress `t`: a focus at the in-between outline angle. */
+function walkBinding(w: Walk | null, t: number): ElementBinding | undefined {
+   if (!w) return undefined;
+   let d = w.to - w.from;
+   // The short way round.
+   if (d > Math.PI) d -= 2 * Math.PI;
+   if (d < -Math.PI) d += 2 * Math.PI;
+   const th = w.from + d * t;
+   return { ...w.binding, focus: { x: 0.5 + 0.25 * Math.cos(th), y: 0.5 + 0.25 * Math.sin(th) } };
+}
+
 /** The element at progress `t` between its two slide versions (slide-local coordinates). */
 function blendElement(
    a: CanvasElementModel,
@@ -136,8 +194,8 @@ function blendElement(
    return {
       ...pick,
       id: b.id,
-      startBinding: b.startBinding,
-      endBinding: b.endBinding,
+      startBinding: blendBinding(a.startBinding, b.startBinding, t),
+      endBinding: blendBinding(a.endBinding, b.endBinding, t),
       x: lerp(a.x - offA.x, b.x - offB.x, t),
       y: lerp(a.y - offA.y, b.y - offB.y, t),
       width: lerp(a.width, b.width, t),
@@ -515,6 +573,9 @@ interface GridMorph {
    clip: SVGRectElement;
    /** Same number of rows and columns on both slides. */
    sameShape: boolean;
+   /** Rows / columns (a, b) whose borders glide into each other (in order). */
+   rowPairs: Array<[number, number]>;
+   colPairs: Array<[number, number]>;
    moves: Array<{ el: SVGGElement; dx: number; dy: number }>;
    fadeOut: SVGGElement[];
    fadeIn: SVGGElement[];
@@ -584,7 +645,15 @@ function transposeGrid(g: GridData): GridData {
  * and unpaired rows at the top or bottom just fade where they are. Cell text is
  * left blank (the grid text layer draws it).
  */
-function blendGridRows(ga: GridData, gb: GridData, boxA: GridBox, boxB: GridBox, t: number): GridPiece[] {
+export function blendGridRows(
+   ga: GridData,
+   gb: GridData,
+   boxA: GridBox,
+   boxB: GridBox,
+   t: number,
+   /** Rows paired by hand (a, b): they anchor the pairing instead of content. */
+   forced: ReadonlyArray<[number, number]> = []
+): GridPiece[] {
    const sig = (g: GridData, r: number): string => (g.cells[r] ?? []).join('\u0001');
    const entries: Array<{ a?: number; b?: number }> = [];
    let i = 0;
@@ -625,7 +694,15 @@ function blendGridRows(ga: GridData, gb: GridData, boxA: GridBox, boxB: GridBox,
          byIndex += 1;
       }
    }
-   for (const [pi, pj] of byContent.length > byIndex ? byContent : []) {
+   // Rows paired by hand win; kept in order (a pairing that crosses another is ignored).
+   const anchors: Array<[number, number]> = [];
+   for (const [pi, pj] of [...forced].sort((x, y) => x[0] - y[0])) {
+      const prev = anchors[anchors.length - 1];
+      if (pi < ga.rows.length && pj < gb.rows.length && (!prev || (pi > prev[0] && pj > prev[1]))) {
+         anchors.push([pi, pj]);
+      }
+   }
+   for (const [pi, pj] of anchors.length ? anchors : byContent.length > byIndex ? byContent : []) {
       gap(pi, pj);
       entries.push({ a: pi, b: pj });
       i = pi + 1;
@@ -697,40 +774,145 @@ function blendGridRows(ga: GridData, gb: GridData, boxA: GridBox, boxB: GridBox,
       },
    ];
 
-   // Rows above / below the paired span: the whole table of that side (its extra rows
-   // plus the span, so the outline and corners stay its own) fades over the steady span.
+   // Rows above / below the paired span fade where they are, as blocks of their own
+   // (a whole faded copy of either table over the span doubled every grid line).
    const whole = (
       key: string,
       g: GridData,
       lead: number[],
       tail: number[],
       h: number[],
-      side: 'a' | 'b',
       opacity: number
    ): void => {
-      if (!lead.length && !tail.length) {
-         return;
-      }
-      const styles: NonNullable<GridData['styles']> = {};
-      const rs: number[] = [];
-      const add = (src: number | undefined, height: number): void => {
-         styleOf(g, src, rs.length, styles);
-         rs.push(Math.max(height, 0.001));
+      const block = (k: string, list: number[], y: number): void => {
+         if (!list.length) {
+            return;
+         }
+         const styles: NonNullable<GridData['styles']> = {};
+         const rs = list.map((r, n) => {
+            styleOf(g, r, n, styles);
+            return Math.max(h[r], 0.001);
+         });
+         out.push({ key: `${key}${k}`, box: { x, y, width, height: sum(rs) }, grid: grid(rs, styles), opacity });
       };
-      lead.forEach((r) => add(r, h[r]));
-      span.forEach((e, k) => add(e[side], rows[k]));
-      tail.forEach((r) => add(r, h[r]));
-      const above = sum(lead.map((r) => h[r]));
-      out.push({
-         key,
-         box: { x, y: top - above, width, height: sum(rs) },
-         grid: grid(rs, styles),
-         opacity,
-      });
+      block('t', lead, top - sum(lead.map((r) => h[r])));
+      block('b', tail, top + height);
    };
-   whole('~a', ga, leadA, tailA, ha, 'a', fadeOut(t));
-   whole('~b', gb, leadB, tailB, hb, 'b', fadeIn(t));
+   whole('~a', ga, leadA, tailA, ha, fadeOut(t));
+   whole('~b', gb, leadB, tailB, hb, fadeIn(t));
    return out;
+}
+
+/**
+ * Which row of grid `b` each row of grid `a` became (`a` index -> `b` index), for
+ * matching cell text: rows paired by hand first, then the rows sharing the most
+ * cell texts (a row whose numbers changed still shares its label), then rows left
+ * at the same position. Columns: pass transposed grids.
+ */
+export function gridLineMap(
+   ga: GridData,
+   gb: GridData,
+   forced: ReadonlyArray<[number, number]> = []
+): Map<number, number> {
+   const na = ga.rows.length;
+   const nb = gb.rows.length;
+   const out = new Map<number, number>();
+   const usedB = new Set<number>();
+   const take = (i: number, j: number): void => {
+      if (i < na && j < nb && !out.has(i) && !usedB.has(j)) {
+         out.set(i, j);
+         usedB.add(j);
+      }
+   };
+   forced.forEach(([i, j]) => take(i, j));
+   // Shared text in order, wherever it sits along the line (a column added in front
+   // shifts every cell, but the row still reads the same).
+   const words = (g: GridData, r: number): string[] => (g.cells[r] ?? []).map((x) => x.trim()).filter(Boolean);
+   const pos = (i: number, n: number): number => (i + 0.5) / n;
+   const scores: Array<[number, number, number]> = [];
+   ga.rows.forEach((_v, i) =>
+      gb.rows.forEach((_w, j) => {
+         const n = lcsPairs(words(ga, i), words(gb, j)).length;
+         if (n) {
+            scores.push([n, i, j]);
+         }
+      })
+   );
+   // Most shared text first; ties go to the line nearest its old place.
+   scores.sort(
+      (x, y) => y[0] - x[0] || Math.abs(pos(x[1], na) - pos(x[2], nb)) - Math.abs(pos(y[1], na) - pos(y[2], nb))
+   );
+   scores.forEach(([, i, j]) => take(i, j));
+   // The rest: the nearest free line that keeps the order of those already placed.
+   for (let i = 0; i < na; i += 1) {
+      if (out.has(i)) {
+         continue;
+      }
+      let lo = -1;
+      let hi = nb;
+      out.forEach((j, k) => {
+         if (k < i) lo = Math.max(lo, j);
+         if (k > i) hi = Math.min(hi, j);
+      });
+      let best = -1;
+      for (let j = lo + 1; j < hi; j += 1) {
+         if (!usedB.has(j) && (best < 0 || Math.abs(pos(j, nb) - pos(i, na)) < Math.abs(pos(best, nb) - pos(i, na)))) {
+            best = j;
+         }
+      }
+      if (best >= 0) {
+         take(i, best);
+      }
+   }
+   return out;
+}
+
+/** A line map's pairs that keep their order (a row that jumped past others is left out). */
+function inOrder(map: Map<number, number>): Array<[number, number]> {
+   const out: Array<[number, number]> = [];
+   for (const [i, j] of [...map.entries()].sort((x, y) => x[0] - y[0])) {
+      if (!out.length || j > out[out.length - 1][1]) {
+         out.push([i, j]);
+      }
+   }
+   return out;
+}
+
+/**
+ * Row heights (or column widths) of a morphing grid at progress `t`, as weights:
+ * paired lines resize into each other, the rest shrink to / grow from nothing in
+ * place, so every border glides. `src` says which line of each side each one is.
+ */
+export function blendGridAxis(
+   wa: readonly number[],
+   wb: readonly number[],
+   pairs: ReadonlyArray<[number, number]>,
+   t: number
+): { sizes: number[]; src: Array<{ a?: number; b?: number }> } {
+   const fa = fractions(wa);
+   const fb = fractions(wb);
+   const src: Array<{ a?: number; b?: number }> = [];
+   let i = 0;
+   let j = 0;
+   for (const [pi, pj] of [...pairs, [wa.length, wb.length] as [number, number]]) {
+      while (i < pi) {
+         src.push({ a: i++ });
+      }
+      while (j < pj) {
+         src.push({ b: j++ });
+      }
+      if (pi < wa.length && pj < wb.length) {
+         src.push({ a: pi, b: pj });
+         i = pi + 1;
+         j = pj + 1;
+      }
+   }
+   const sizes = src.map((e) => {
+      const v = e.a !== undefined && e.b !== undefined ? lerp(fa[e.a], fb[e.b], t) : e.a !== undefined ? fa[e.a] * (1 - t) : fb[e.b!] * t;
+      // Weights are stored with two decimals: keep even a vanished line positive.
+      return Math.max(v * 1000, 0.01);
+   });
+   return { sizes, src };
 }
 
 /** Relative weights as fractions of their sum. */
@@ -754,6 +936,11 @@ export class MorphStage {
    private readonly offA: Offset;
    private readonly offB: Offset;
    private readonly elementPairs: Pair[] = [];
+   /** Paired bound lines: their drawn points on each slide (slide-local), glided between. */
+   private readonly lineEndsOf = new Map<
+      Pair,
+      { a: PointModel[]; b: PointModel[]; start: Walk | null; end: Walk | null }
+   >();
    private readonly tablePairs: Pair[] = [];
    private readonly codes: CodeMorph[] = [];
    private readonly grids: GridMorph[] = [];
@@ -856,6 +1043,64 @@ export class MorphStage {
          }
          matchedA.add(pair.a.id);
          matchedB.add(pair.b.id);
+      }
+
+      // Bound lines/arrows: each side's ends as drawn on its own slide (an automatic
+      // anchor has no stored spot, so blending bindings would start from the shape's
+      // center and snap). The morph glides between these drawn ends instead.
+      const boxesOf = (slide: RenderedSlide) => {
+         const els = new Map<string, CanvasElementModel>();
+         const tbs = new Map<string, TableModel>();
+         for (const it of slide.items) {
+            if (it.element) els.set(it.id, it.element);
+            if (it.table) tbs.set(it.id, it.table);
+         }
+         return (bd: ElementBinding): RotatedBox | null => {
+            if (bd.targetKind === 'table') {
+               const tb = tbs.get(bd.targetId);
+               return tb ? tableBox(tb) : null;
+            }
+            const e = bd.targetKind === 'element' ? els.get(bd.targetId) : undefined;
+            return e ? { ...elementBox(e), angle: e.angle } : null;
+         };
+      };
+      const boxA = boxesOf(from);
+      const morphedB = new Set(this.elementPairs.map((q) => q.b.id));
+      const boxB = boxesOf(to);
+      for (const p of this.elementPairs) {
+         const ea = p.a.element!;
+         const eb = p.b.element!;
+         const isLine = (e: CanvasElementModel): boolean => e.type === 'line' || e.type === 'arrow';
+         if (!isLine(ea) || !isLine(eb) || !(ea.startBinding || ea.endBinding || eb.startBinding || eb.endBinding)) {
+            continue;
+         }
+         const wa = lineEnds(ea, boxA);
+         const wb = lineEnds(eb, boxB);
+         const pa = wa.map((q) => ({ x: q.x - this.offA.x, y: q.y - this.offA.y }));
+         const pb = wb.map((q) => ({ x: q.x - this.offB.x, y: q.y - this.offB.y }));
+         if (pa.length !== pb.length || pa.length < 2) continue;
+         // An end bound on both slides to a shape that itself morphs walks around that
+         // shape's outline (by angle in the shape's own frame) as both move, so it never
+         // crosses the shape. Other ends glide straight between their drawn spots.
+         const walk = (
+            ba: ElementBinding | undefined,
+            bb: ElementBinding | undefined,
+            ptA: PointModel,
+            ptB: PointModel
+         ): Walk | null => {
+            if (!ba || !bb || bb.targetKind !== 'element' || !morphedB.has(bb.targetId)) return null;
+            const boxa = boxA(ba);
+            const boxb = boxB(bb);
+            if (!boxa || !boxb) return null;
+            return { binding: bb, from: outlineAngle(boxa, ptA), to: outlineAngle(boxb, ptB) };
+         };
+         const n = wa.length - 1;
+         this.lineEndsOf.set(p, {
+            a: pa,
+            b: pb,
+            start: walk(ea.startBinding, eb.startBinding, wa[0], wb[0]),
+            end: walk(ea.endBinding, eb.endBinding, wa[n], wb[n]),
+         });
       }
 
       // Relationship lines between two matched tables are redrawn live, so their
@@ -1260,6 +1505,8 @@ export class MorphStage {
          pair: p,
          clip,
          sameShape: da.rows.length === db.rows.length && da.cols.length === db.cols.length,
+         rowPairs: [],
+         colPairs: [],
          moves: [],
          fadeOut: [],
          fadeIn: [],
@@ -1281,24 +1528,76 @@ export class MorphStage {
          };
       };
 
-      // 1. The same text (in reading order) glides to wherever its cell went.
-      const pairs = lcsPairs(
-         ca.map((c) => c.text),
-         cb.map((c) => c.text)
-      );
-      const usedA = new Set(pairs.map((x) => x[0]));
-      const usedB = new Set(pairs.map((x) => x[1]));
-      // 2. A cell at the same row/column whose text changed morphs in place.
+      // 0. Cells paired by hand: the same text glides there, different text morphs glyph
+      // by glyph. (Rows / columns paired by hand only steer where lines go, below: a cell
+      // in them still prefers the same text nearby over morphing into other words.)
+      const pairs: Array<[number, number]> = [];
       const inPlace: Array<[number, number]> = [];
-      ca.forEach((x, i) => {
-         if (usedA.has(i)) {
-            return;
+      const usedA = new Set<number>();
+      const usedB = new Set<number>();
+      const at = (cells: GridCellRef[], r: number, c: number): number =>
+         cells.findIndex((x) => x.r === r && x.c === c);
+      for (const [[ra, cA], [rb, cB]] of gridMorphPairs(da, db, this.reversed).cells) {
+         const i = at(ca, ra, cA);
+         const j = at(cb, rb, cB);
+         if (i < 0 || j < 0) {
+            continue;
          }
-         const j = cb.findIndex((y, k) => !usedB.has(k) && y.r === x.r && y.c === x.c);
+         usedA.add(i);
+         usedB.add(j);
+         (ca[i].text === cb[j].text ? pairs : inPlace).push([i, j]);
+      }
+      // Where each row / column went: hand pairs, then shared text, else nearby.
+      const hand = gridMorphPairs(da, db, this.reversed);
+      const rowTo = gridLineMap(da, db, hand.rows);
+      const colTo = gridLineMap(transposeGrid(da), transposeGrid(db), hand.cols);
+      out.rowPairs = inOrder(rowTo);
+      out.colPairs = inOrder(colTo);
+      const take = (i: number, j: number, list: Array<[number, number]>): void => {
+         usedA.add(i);
+         usedB.add(j);
+         list.push([i, j]);
+      };
+      const mapped = (x: GridCellRef): number =>
+         cb.findIndex((y, k) => !usedB.has(k) && y.r === rowTo.get(x.r) && y.c === colTo.get(x.c));
+      // 1. Text that is still in its row / column's new cell glides there.
+      ca.forEach((x, i) => {
+         const j = usedA.has(i) ? -1 : mapped(x);
+         if (j >= 0 && cb[j].text === x.text) {
+            take(i, j, pairs);
+         }
+      });
+      // 2. Other text that is still on the table glides to the nearest cell with the
+      // same text (positions as fractions of each table, so a grown table still lines up).
+      const centers = (g: GridData) => {
+         const mid = (w: number[]) => {
+            const f = fractions(w);
+            let acc = 0;
+            return f.map((v) => ((acc += v), acc - v / 2));
+         };
+         return { r: mid(g.rows), c: mid(g.cols) };
+      };
+      const pa0 = centers(da);
+      const pb0 = centers(db);
+      const near: Array<[number, number, number]> = [];
+      ca.forEach((x, i) =>
+         cb.forEach((y, j) => {
+            if (!usedA.has(i) && !usedB.has(j) && x.text === y.text) {
+               near.push([Math.hypot(pa0.r[x.r] - pb0.r[y.r], pa0.c[x.c] - pb0.c[y.c]), i, j]);
+            }
+         })
+      );
+      near.sort((x, y) => x[0] - y[0]);
+      for (const [, i, j] of near) {
+         if (!usedA.has(i) && !usedB.has(j)) {
+            take(i, j, pairs);
+         }
+      }
+      // 3. A cell whose text changed morphs into its row / column's new cell.
+      ca.forEach((x, i) => {
+         const j = usedA.has(i) ? -1 : mapped(x);
          if (j >= 0) {
-            usedA.add(i);
-            usedB.add(j);
-            inPlace.push([i, j]);
+            take(i, j, inPlace);
          }
       });
       for (const [i, j] of pairs) {
@@ -1318,7 +1617,7 @@ export class MorphStage {
          out.fadeIn.push(eb);
          out.changed.push({ a: ea, b: eb });
       }
-      // 3. Everything else fades out / in where it is.
+      // 4. Everything else fades out / in where it is.
       ta.forEach((t, i) => {
          if (!usedA.has(i)) {
             out.fadeOut.push(place(a, t));
@@ -1344,6 +1643,41 @@ export class MorphStage {
          const g = parseGrid(text);
          return { ...g, cells: g.cells.map((row) => row.map(() => '')) };
       };
+      if (!parseGrid(ea.text).merges?.length && !parseGrid(eb.text).merges?.length) {
+         // One live table: every row / column border glides to where it ends up; rows
+         // and columns that come or go grow from / shrink to nothing.
+         const ga = parseGrid(ea.text);
+         const gb = parseGrid(eb.text);
+         const rows = blendGridAxis(ga.rows, gb.rows, gm.rowPairs, t);
+         const cols = blendGridAxis(ga.cols, gb.cols, gm.colPairs, t);
+         const useA = t < 0.5;
+         const styles: NonNullable<GridData['styles']> = {};
+         rows.src.forEach((re, r) =>
+            cols.src.forEach((ce, c) => {
+               const side = (useA && re.a !== undefined && ce.a !== undefined) || re.b === undefined || ce.b === undefined;
+               const st = side ? ga.styles?.[`${re.a},${ce.a}`] : gb.styles?.[`${re.b},${ce.b}`];
+               if (st) {
+                  styles[`${r},${c}`] = st;
+               }
+            })
+         );
+         const pick = useA ? ga : gb;
+         const top = rows.src[0];
+         return [
+            {
+               ...blended,
+               text: serializeGrid({
+                  cols: cols.sizes,
+                  rows: rows.sizes,
+                  cells: rows.sizes.map(() => cols.sizes.map(() => '')),
+                  header: pick.header && (useA ? top?.a : top?.b) === 0,
+                  styles,
+                  merges: [],
+                  ...(pick.borders ? { borders: pick.borders } : {}),
+               }),
+            },
+         ];
+      }
       if (gm.sameShape) {
          const ga = parseGrid(ea.text);
          const gb = parseGrid(eb.text);
@@ -1367,12 +1701,14 @@ export class MorphStage {
             flip
                ? { x: e.y - off.y, y: e.x - off.x, width: e.height, height: e.width }
                : { x: e.x - off.x, y: e.y - off.y, width: e.width, height: e.height };
+         const hand = gridMorphPairs(ga, gb, this.reversed);
          const pieces = blendGridRows(
             flip ? transposeGrid(ga) : ga,
             flip ? transposeGrid(gb) : gb,
             boxOf(ea, this.offA),
             boxOf(eb, this.offB),
-            t
+            t,
+            flip ? hand.cols : hand.rows
          );
          return pieces.map((pc) => {
             const box = flip ? { x: pc.box.y, y: pc.box.x, width: pc.box.height, height: pc.box.width } : pc.box;
@@ -1598,7 +1934,20 @@ export class MorphStage {
          if (glyphs && p.b.type === 'text') {
             continue;
          }
-         const blended = blendElement(p.a.element!, p.b.element!, t, this.offA, this.offB);
+         let blended = blendElement(p.a.element!, p.b.element!, t, this.offA, this.offB);
+         const ends = this.lineEndsOf.get(p);
+         if (ends) {
+            // Drawn ends glide from one slide's anchors to the other's (unbound while moving).
+            const pts = ends.a.map((q, i) => ({ x: lerp(q.x, ends.b[i].x, t), y: lerp(q.y, ends.b[i].y, t) }));
+            blended = {
+               ...blended,
+               x: pts[0].x,
+               y: pts[0].y,
+               points: pts.map((q) => ({ x: q.x - pts[0].x, y: q.y - pts[0].y })),
+               startBinding: walkBinding(ends.start, t),
+               endBinding: walkBinding(ends.end, t),
+            };
+         }
          const isCode = this.codes.some((c) => c.pair === p);
          const grid = this.grids.find((g) => g.pair === p);
          if (grid) {

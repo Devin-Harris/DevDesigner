@@ -308,6 +308,10 @@ export interface CreateElementDto {
   strokeWidth: number;
   strokeStyle: StrokeStyle;
   opacity: number;
+  /** Outline opacity 0..100 (default 100), on top of `opacity`. */
+  strokeOpacity?: number;
+  /** Fill opacity 0..100 (default 100), on top of `opacity`. */
+  fillOpacity?: number;
   zIndex?: number;
   cornerRadius?: number;
   ellipticCorners?: boolean;
@@ -370,6 +374,8 @@ export interface UpdateElementDto {
   strokeWidth?: number;
   strokeStyle?: StrokeStyle;
   opacity?: number;
+  strokeOpacity?: number;
+  fillOpacity?: number;
   zIndex?: number;
   cornerRadius?: number;
   ellipticCorners?: boolean;

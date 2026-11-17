@@ -185,6 +185,7 @@ export class EditorPointerService {
    onPointerMove(event: PointerEvent): void {
       this.gesture.lastPointer = event;
       this.gesture.shiftHeld = event.shiftKey;
+      this.gesture.noBindHeld = event.ctrlKey || event.metaKey;
       if (this.gesture.mode === 'draw') {
          this.pendingMoves.push(event);
       } else {

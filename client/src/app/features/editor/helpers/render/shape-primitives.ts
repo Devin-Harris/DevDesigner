@@ -2,7 +2,13 @@ import type { CanvasElementModel, ElementBinding } from '@devdesigner/shared';
 import type { Box, Point } from '../../models/geometry.model';
 import type { ImageView, ShapeView, TextBlockView } from '../../models/shape-view.model';
 import { isFullCrop, mediaSourceRect } from '../media.helper';
-import { absolutePoints, boundaryPoint, type RotatedBox } from '../element-geometry.helper';
+import {
+   absolutePoints,
+   anchorPoint,
+   focusPoint,
+   type BindingFocus,
+   type RotatedBox,
+} from '../element-geometry.helper';
 import { ANCHOR_GAP } from '../../shared/constants/canvas.constants';
 import { fontWeightFor } from './fonts';
 import { contrastSafe, sentinelColor, type ThemeColors } from './theme-colors';
@@ -104,6 +110,22 @@ export function rotation(element: CanvasElementModel, center: Point): string | n
  * to the boundary of its target (table or element) so it re-routes as the target
  * moves. Falls back to the stored point when the binding target is gone.
  */
+/**
+ * A line/arrow's points as drawn: both ends bound = a straight connector between the
+ * two boundaries; otherwise each bound end snapped to its target. World coordinates.
+ */
+export function lineEnds(
+   element: CanvasElementModel,
+   targetBox: (binding: ElementBinding) => RotatedBox | null
+): Point[] {
+   const sBox = element.startBinding ? targetBox(element.startBinding) : null;
+   const tBox = element.endBinding ? targetBox(element.endBinding) : null;
+   if (sBox && tBox) {
+      return routeBoundConnector(sBox, tBox, element.startBinding?.focus, element.endBinding?.focus);
+   }
+   return resolveEnds(element, targetBox);
+}
+
 export function resolveEnds(
    element: CanvasElementModel,
    targetBox: (binding: ElementBinding) => RotatedBox | null
@@ -118,10 +140,15 @@ export function resolveEnds(
    const endBox = element.endBinding ? targetBox(element.endBinding) : null;
    const resolved = pts.map((p) => ({ ...p }));
    if (startBox) {
-      resolved[0] = boundaryPoint(startBox, pts[1] ?? end, ANCHOR_GAP);
+      resolved[0] = anchorPoint(startBox, element.startBinding?.focus, pts[1] ?? end, ANCHOR_GAP);
    }
    if (endBox) {
-      resolved[resolved.length - 1] = boundaryPoint(endBox, pts[pts.length - 2] ?? start, ANCHOR_GAP);
+      resolved[resolved.length - 1] = anchorPoint(
+         endBox,
+         element.endBinding?.focus,
+         pts[pts.length - 2] ?? start,
+         ANCHOR_GAP
+      );
    }
    return resolved;
 }
@@ -217,10 +244,16 @@ export function arrowLabel(
  * fixed side midpoints), pushed `ANCHOR_GAP` outward so the line and its marker
  * stay clear of the shape. A direct segment — no orthogonal/elbow routing.
  */
-export function routeBoundConnector(sBox: RotatedBox, tBox: RotatedBox): Point[] {
-   const sc: Point = { x: (sBox.x0 + sBox.x1) / 2, y: (sBox.y0 + sBox.y1) / 2 };
-   const tc: Point = { x: (tBox.x0 + tBox.x1) / 2, y: (tBox.y0 + tBox.y1) / 2 };
-   return [boundaryPoint(sBox, tc, ANCHOR_GAP), boundaryPoint(tBox, sc, ANCHOR_GAP)];
+export function routeBoundConnector(
+   sBox: RotatedBox,
+   tBox: RotatedBox,
+   sFocus?: BindingFocus,
+   tFocus?: BindingFocus
+): Point[] {
+   // An end the user placed aims at its focus; the other end aims at that spot too.
+   const sAim: Point = sFocus ? focusPoint(sBox, sFocus) : { x: (sBox.x0 + sBox.x1) / 2, y: (sBox.y0 + sBox.y1) / 2 };
+   const tAim: Point = tFocus ? focusPoint(tBox, tFocus) : { x: (tBox.x0 + tBox.x1) / 2, y: (tBox.y0 + tBox.y1) / 2 };
+   return [anchorPoint(sBox, sFocus, tAim, ANCHOR_GAP), anchorPoint(tBox, tFocus, sAim, ANCHOR_GAP)];
 }
 
 /**

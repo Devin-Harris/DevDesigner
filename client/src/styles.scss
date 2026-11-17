@@ -246,6 +246,14 @@ textarea {
          color: var(--dd-danger);
       }
    }
+   // A shortcut hint on the right of the item.
+   kbd {
+      margin-left: auto;
+      padding-left: 16px;
+      font: inherit;
+      font-size: 11px;
+      color: var(--dd-text-muted);
+   }
 }
 .dd-menu-label {
    padding: 6px 10px 2px;

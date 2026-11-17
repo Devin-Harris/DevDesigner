@@ -210,3 +210,19 @@ export function clearRunKeys(
    );
    return isPlainRuns(cleared) ? null : cleared;
 }
+
+/**
+ * When every character carries the same color override, that color is really the
+ * block's color: return it (to store as the element's stroke) with the overrides
+ * removed, so text typed later matches. Null when colors are mixed or not overridden.
+ */
+export function hoistUniformColor(
+   runs: readonly TextRun[] | null | undefined
+): { color: string; runs: TextRun[] | null } | null {
+   const filled = (runs ?? []).filter((r) => r.text.replace(/\s/g, ''));
+   const color = filled[0]?.color;
+   if (!color || !filled.every((r) => r.color === color)) {
+      return null;
+   }
+   return { color, runs: clearRunKeys(runs, ['color']) };
+}

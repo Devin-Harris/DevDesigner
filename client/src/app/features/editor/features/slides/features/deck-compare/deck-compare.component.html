@@ -3,7 +3,9 @@
       <div class="heads">
          <span class="lab">Slide {{ index() }} · before</span>
          <span class="tip">
-            @if (armedHit(); as h) {
+            @if (dragTip(); as t) {
+               {{ t }}
+            } @else if (armedHit(); as h) {
                @if (h.partner) {
                   <b>{{ h.label }}</b> morphs {{ armed()!.side === 'a' ? 'into' : 'from' }} {{ partnerLabel() }} ·
                } @else if (h.cut) {
@@ -13,8 +15,8 @@
                }
                drag it to an object on the other slide to change that
             } @else if (canEdit()) {
-               Drag from an object (or a line's end) to the object on the other slide it should morph into · click one
-               to see its options
+               Drag from an object (or a line's end) to the object on the other slide it should morph into · on a
+               table, start on its top / left edge for a column / row, inside for a cell · click one to see its options
             }
          </span>
          <span class="lab r">Slide {{ index() + 1 }} · after</span>
@@ -78,10 +80,13 @@
                            [class.armed]="isArmed($any(side), h)"
                            [class.lit]="lit() === h.key || lit() === h.partner"
                            [class.locked]="!h.id"
-                           [style.left.%]="h.left"
-                           [style.top.%]="h.top"
-                           [style.width.%]="h.width"
-                           [style.height.%]="h.height"
+                           [class.line-hit]="!!h.line"
+                           [class.grid-hit]="!!h.grid && !!h.id && canEdit()"
+                           [style.left.%]="h.line ? h.line.cx - h.line.len / 2 : h.left"
+                           [style.top.%]="h.line ? h.line.cy : h.top"
+                           [style.width.%]="h.line ? h.line.len : h.width"
+                           [style.height.%]="h.line ? null : h.height"
+                           [style.--rot]="h.line ? h.line.angle + 'deg' : null"
                            [style.--c]="h.color ?? 'var(--dd-text-muted)'"
                            [attr.aria-label]="
                               h.label +
@@ -100,7 +105,8 @@
                                  : h.label + ' (tables pair by name)'
                            "
                            (pointerenter)="lit.set(h.key)"
-                           (pointerleave)="lit.set(null)"
+                           (pointerleave)="onHitLeave(h)"
+                           (pointermove)="onHitMove($event, $any(side), h)"
                            (pointerdown)="startDrag($event, $any(side), h)"
                            (click)="clickHit($any(side), h)"
                         >
@@ -125,11 +131,36 @@
                            }
                         </button>
                      }
+                     @for (z of zonesOf(side); track z.key) {
+                        <!-- The table part a drag picks here (row / column / cell, or the whole table). -->
+                        <div
+                           class="zone"
+                           [class.over]="z.kind === 'over'"
+                           [class.from]="z.kind === 'from'"
+                           [style.left.%]="z.box.left"
+                           [style.top.%]="z.box.top"
+                           [style.width.%]="z.box.width"
+                           [style.height.%]="z.box.height"
+                           [style.--c]="z.color"
+                        >
+                           <span class="zone-label">{{ z.label }}</span>
+                        </div>
+                     }
                   </div>
                }
                <svg class="lines" preserveAspectRatio="none" aria-hidden="true" [attr.viewBox]="'0 0 ' + total() + ' ' + viewH()">
                   @for (l of lines(); track l.key) {
                      <path
+                        vector-effect="non-scaling-stroke"
+                        [attr.d]="l.d"
+                        [attr.stroke]="l.color"
+                        [class.lit]="isRel(l.a) || isRel(l.b)"
+                        [class.moving]="drag()?.moving === l.key"
+                     ></path>
+                  }
+                  @for (l of partLines(); track l.key) {
+                     <path
+                        class="part"
                         vector-effect="non-scaling-stroke"
                         [attr.d]="l.d"
                         [attr.stroke]="l.color"
@@ -148,6 +179,47 @@
                      }
                   }
                </svg>
+               @if (canEdit() && !drag()) {
+                  @for (l of partLines(); track l.key) {
+                     <button
+                        class="cut-line part"
+                        type="button"
+                        [title]="l.label + ' · remove this pairing'"
+                        [attr.aria-label]="'Remove pairing ' + l.label"
+                        [class.rel]="isRel(l.a) || isRel(l.b)"
+                        [style.left.%]="((l.x1 + l.x2) / 2 / total()) * 100"
+                        [style.top.%]="((l.y1 + l.y2) / 2 / viewH()) * 100"
+                        [style.--c]="l.color"
+                        (pointerenter)="lit.set(l.b)"
+                        (pointerleave)="lit.set(null)"
+                        (click)="removePartLine(l)"
+                     >
+                        <svg viewBox="0 0 10 10" width="6" height="6" aria-hidden="true">
+                           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                        </svg>
+                     </button>
+                     <span
+                        class="end part"
+                        title="Drag to another row / column / cell on the slide before"
+                        [class.rel]="isRel(l.a) || isRel(l.b)"
+                        [style.left.%]="(l.x1 / total()) * 100"
+                        [style.top.%]="(l.y1 / viewH()) * 100"
+                        [style.z-index]="endZ('a', l.a, true)"
+                        [style.--c]="l.color"
+                        (pointerdown)="startEndDrag($event, 'b', l.b, l.key, l.pb)"
+                     ></span>
+                     <span
+                        class="end part"
+                        title="Drag to another row / column / cell on this slide"
+                        [class.rel]="isRel(l.a) || isRel(l.b)"
+                        [style.left.%]="(l.x2 / total()) * 100"
+                        [style.top.%]="(l.y2 / viewH()) * 100"
+                        [style.z-index]="endZ('b', l.b, true)"
+                        [style.--c]="l.color"
+                        (pointerdown)="startEndDrag($event, 'a', l.a, l.key, l.pa)"
+                     ></span>
+                  }
+               }
                @if (canEdit()) {
                   @for (l of lines(); track l.key) {
                      @if (!drag()) {

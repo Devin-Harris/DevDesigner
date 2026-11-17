@@ -46,6 +46,9 @@ export class PointerGestureService {
    /** Live Shift state, so a move drag can lock to an axis without a pointer move. */
    shiftHeld = false;
 
+   /** Live Ctrl/Cmd state: the arrow end being placed skips binding to whatever is under it. */
+   noBindHeld = false;
+
    private lastCursorSent = 0;
 
    /** Send our cursor position (world coords) to the room, throttled to ~25fps. */

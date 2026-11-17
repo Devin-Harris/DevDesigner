@@ -93,6 +93,14 @@ export class UpdateElementDto implements IUpdateElementDto {
 
   @IsOptional()
   @IsNumber()
+  strokeOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  fillOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
   zIndex?: number;
 
   @IsOptional()
