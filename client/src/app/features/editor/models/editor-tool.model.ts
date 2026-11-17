@@ -15,4 +15,6 @@ export type EditorTool =
    | 'slide'
    | 'code'
    | 'grid'
+   /** A live frame (sandboxed iframe of a URL). */
+   | 'embed'
    | 'laser';

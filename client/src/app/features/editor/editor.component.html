@@ -245,6 +245,8 @@
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
       <dd-laser-layer [viewport]="store.viewport()"></dd-laser-layer>
+      <dd-live-frames-notice></dd-live-frames-notice>
+
       @if (tools.activeTool() === 'laser') {
          <div
             class="laser-capture"

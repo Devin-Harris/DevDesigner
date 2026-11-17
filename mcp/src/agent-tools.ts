@@ -781,7 +781,7 @@ export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: J
         if (b) area = { x: b.x - 40, y: b.y - 40, w: b.w + 80, h: b.h + 80 };
       }
       // Embed only the images that are drawn.
-      const imgIds = new Set(schema.elements.filter((e) => e.type === 'image' && e.fileId && (!slideId || e.slideId === slideId)).map((e) => e.fileId as string));
+      const imgIds = new Set(schema.elements.filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId && (!slideId || e.slideId === slideId)).map((e) => e.fileId as string));
       const images = new Map<string, string>();
       await Promise.all(
         [...imgIds].map(async (fid) => {

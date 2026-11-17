@@ -255,7 +255,7 @@ export class ImagesService implements OnModuleInit {
 
   private async referencedIds(projectId: string): Promise<string[]> {
     const rows = await this.elements.find({
-      where: { projectId, type: 'image' },
+      where: { projectId, type: In(['image', 'embed']) },
       select: { id: true, fileId: true },
     });
     return [...new Set(rows.map((r) => r.fileId).filter((v): v is string => !!v))];

@@ -486,6 +486,7 @@ export class EditorShortcutsService {
       g: 'grid',
       k: 'laser',
       q: 'sequence',
+      w: 'embed',
    };
 
    /** Tool families a repeated shortcut cycles through. */

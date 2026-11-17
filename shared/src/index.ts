@@ -20,3 +20,4 @@ export * from './palette';
 export * from './images';
 export * from './grid';
 export * from './project-file';
+export * from './embed';

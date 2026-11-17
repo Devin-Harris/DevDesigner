@@ -24,6 +24,9 @@ export interface SmartSnap {
    snappedY: boolean;
    guides: AlignGuide[];
    gaps: GapGuide[];
+   /** Edge snaps only: index into the given xs / ys of the edge that snapped. */
+   edgeX?: number;
+   edgeY?: number;
 }
 
 /** Snap reach in screen px; divided by zoom so it feels the same at every zoom. */
@@ -83,6 +86,34 @@ function bestOnAxis(m: Box, parts: readonly Box[], targets: readonly Box[], a: A
    const consider = (c: Candidate) => {
       if (Math.abs(c.delta) <= thr && (!best || Math.abs(c.delta) < Math.abs(best.delta) - 0.01)) best = c;
    };
+   // Inside a frame (slide): an item as far from its nearest frame edge as another item
+   // inside the frame is from its own nearest edge (mirrored or same side).
+   const inside = (t: Box, f: Box) =>
+      t !== f &&
+      lo(t, 'x') >= lo(f, 'x') &&
+      hi(t, 'x') <= hi(f, 'x') &&
+      lo(t, 'y') >= lo(f, 'y') &&
+      hi(t, 'y') <= hi(f, 'y');
+   const frame = targets
+      .filter((f) => inside(m, f))
+      .sort(
+         (p, q) =>
+            (hi(p, 'x') - lo(p, 'x')) * (hi(p, 'y') - lo(p, 'y')) -
+            (hi(q, 'x') - lo(q, 'x')) * (hi(q, 'y') - lo(q, 'y'))
+      )[0];
+   // Centered in the frame (slide): equal margins to both edges, labelled on each side.
+   // Considered before plain centre alignment so the tie shows the margins.
+   if (frame) {
+      const size0 = hi(m, a) - lo(m, a);
+      const cm = (b: Box) => (lo(b, other(a)) + hi(b, other(a))) / 2;
+      consider({
+         delta: (lo(frame, a) + hi(frame, a) - size0) / 2 - lo(m, a),
+         gaps: (s) => [
+            { axis: a, a: lo(frame, a), b: lo(s, a), cross: cm(s) },
+            { axis: a, a: hi(s, a), b: hi(frame, a), cross: cm(s) },
+         ],
+      });
+   }
    const mLines = [lo(m, a), (lo(m, a) + hi(m, a)) / 2, hi(m, a)];
    for (const t of targets) {
       const tLines = [lo(t, a), (lo(t, a) + hi(t, a)) / 2, hi(t, a)];
@@ -131,21 +162,6 @@ function bestOnAxis(m: Box, parts: readonly Box[], targets: readonly Box[], a: A
          marks: (s: Box) => [crossGap(shift(p, s), shift(q, s))],
       })),
    ];
-   // Inside a frame (slide): an item as far from its nearest frame edge as another item
-   // inside the frame is from its own nearest edge (mirrored or same side).
-   const inside = (t: Box, f: Box) =>
-      t !== f &&
-      lo(t, 'x') >= lo(f, 'x') &&
-      hi(t, 'x') <= hi(f, 'x') &&
-      lo(t, 'y') >= lo(f, 'y') &&
-      hi(t, 'y') <= hi(f, 'y');
-   const frame = targets
-      .filter((f) => inside(m, f))
-      .sort(
-         (p, q) =>
-            (hi(p, 'x') - lo(p, 'x')) * (hi(p, 'y') - lo(p, 'y')) -
-            (hi(q, 'x') - lo(q, 'x')) * (hi(q, 'y') - lo(q, 'y'))
-      )[0];
    if (frame) {
       const crossMid = (b: Box) => (lo(b, c) + hi(b, c)) / 2;
       const edgeGap = (b: Box, side: 'lo' | 'hi'): GapGuide =>
@@ -247,20 +263,66 @@ export function smartSnapEdges(
    zoom: number
 ): SmartSnap {
    const thr = SNAP_PX / zoom;
-   const best = (vals: readonly number[], a: Axis): { d: number; at: number } | null => {
-      let out: { d: number; at: number } | null = null;
+   const best = (vals: readonly number[], a: Axis): { d: number; at: number; i: number } | null => {
+      let out: { d: number; at: number; i: number } | null = null;
       for (const t of targets) {
          for (const tl of [lo(t, a), (lo(t, a) + hi(t, a)) / 2, hi(t, a)]) {
-            for (const v of vals) {
-               const d = tl - v;
-               if (Math.abs(d) <= thr && (!out || Math.abs(d) < Math.abs(out.d))) out = { d, at: tl };
+            for (let i = 0; i < vals.length; i++) {
+               const d = tl - vals[i];
+               if (Math.abs(d) <= thr && (!out || Math.abs(d) < Math.abs(out.d))) out = { d, at: tl, i };
             }
          }
       }
       return out;
    };
-   const bx = best(xs, 'x');
-   const by = best(ys, 'y');
+   // The smallest target containing the box is its frame (slide): a dragged edge can
+   // snap to mirror the opposite edge's margin (equal margins on both sides).
+   const frame = targets
+      .filter(
+         (f) =>
+            box.x0 >= f.x0 - 1 && box.x1 <= f.x1 + 1 && box.y0 >= f.y0 - 1 && box.y1 <= f.y1 + 1 &&
+            !(f.x0 === box.x0 && f.x1 === box.x1 && f.y0 === box.y0 && f.y1 === box.y1)
+      )
+      .sort((p, q) => (p.x1 - p.x0) * (p.y1 - p.y0) - (q.x1 - q.x0) * (q.y1 - q.y0))[0];
+   const mirror = (vals: readonly number[], a: Axis): { d: number; at: number; i: number; gaps: GapGuide[] } | null => {
+      // Both edges moving (a centred resize): margins stay as they are, nothing to mirror.
+      if (!frame || vals.length !== 1) return null;
+      const thr2 = thr;
+      let out: { d: number; at: number; i: number; gaps: GapGuide[] } | null = null;
+      const c = other(a);
+      const cross = (lo(box, c) + hi(box, c)) / 2;
+      for (const v of vals) {
+         // Which edge moves: the one nearer v; the other stays put.
+         const movingHi = Math.abs(v - hi(box, a)) <= Math.abs(v - lo(box, a));
+         const at = movingHi
+            ? hi(frame, a) - (lo(box, a) - lo(frame, a))
+            : lo(frame, a) + (hi(frame, a) - hi(box, a));
+         const d = at - v;
+         if (Math.abs(d) > thr2 || (out && Math.abs(d) >= Math.abs(out.d))) continue;
+         const l = movingHi ? lo(box, a) : at;
+         const h = movingHi ? at : hi(box, a);
+         if (h <= l) continue;
+         out = {
+            d,
+            at,
+            i: 0,
+            gaps: [
+               { axis: a, a: lo(frame, a), b: l, cross },
+               { axis: a, a: h, b: hi(frame, a), cross },
+            ],
+         };
+      }
+      return out;
+   };
+   const ax = best(xs, 'x');
+   const ay = best(ys, 'y');
+   const mx = mirror(xs, 'x');
+   const my = mirror(ys, 'y');
+   // Equal margins win ties with plain alignment (they show more).
+   const bx = mx && (!ax || Math.abs(mx.d) <= Math.abs(ax.d) + 0.01) ? mx : ax;
+   const by = my && (!ay || Math.abs(my.d) <= Math.abs(ay.d) + 0.01) ? my : ay;
+   const gx: GapGuide[] = bx === mx && mx ? mx.gaps : [];
+   const gy: GapGuide[] = by === my && my ? my.gaps : [];
    const s: Box = {
       x0: Math.min(box.x0, bx?.at ?? box.x0),
       x1: Math.max(box.x1, bx?.at ?? box.x1),
@@ -282,8 +344,10 @@ export function smartSnapEdges(
       oy: by?.d ?? 0,
       snappedX: !!bx,
       snappedY: !!by,
-      guides: [...(bx ? [guideAt(bx.at, 'x')] : []), ...(by ? [guideAt(by.at, 'y')] : [])],
-      gaps: [],
+      guides: [...(bx && !gx.length ? [guideAt(bx.at, 'x')] : []), ...(by && !gy.length ? [guideAt(by.at, 'y')] : [])],
+      gaps: [...gx, ...gy],
+      edgeX: bx?.i,
+      edgeY: by?.i,
    };
 }
 

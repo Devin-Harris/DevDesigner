@@ -622,10 +622,50 @@
                      }
                   </text>
                }
+               @if (s.embed; as em) {
+                  <!-- Live frame: the page over its card (click-through until double-clicked). -->
+                  @if ((em.url && !embeds.blocked()) || (!em.url && interactive() && store.canEdit())) {
+                     <foreignObject
+                        [attr.x]="em.x"
+                        [attr.y]="em.y"
+                        [attr.width]="em.width"
+                        [attr.height]="em.height"
+                        [attr.pointer-events]="embeds.interactingId() !== s.id ? 'none' : null"
+                     >
+                        <dd-embed-frame
+                           [attr.data-embed-id]="s.id"
+                           [style.--embed-radius]="em.rx + 'px'"
+                           [url]="em.url"
+                           [editable]="interactive() && store.canEdit()"
+                           [interacting]="embeds.interactingId() === s.id"
+                           [nonce]="embeds.nonce(s.id)"
+                           (urlCommit)="commitEmbedUrl(s.id, $event)"
+                        ></dd-embed-frame>
+                     </foreignObject>
+                  }
+                  @if (em.url && s.selected && interactive() && embeds.capturingId() !== s.id) {
+                     <!-- Address bar floating inside the selected frame's bottom edge (inside, so a slide's
+                          clip never cuts it off): edit the URL, reload, open. -->
+                     <foreignObject
+                        [attr.x]="em.x + 8"
+                        [attr.y]="em.y + em.height - 42"
+                        [attr.width]="em.width - 16"
+                        height="34"
+                     >
+                        <dd-embed-url-bar
+                           [url]="em.url"
+                           [editable]="store.canEdit()"
+                           (urlCommit)="commitEmbedUrl(s.id, $event)"
+                           (reload)="embeds.reload(s.id)"
+                           (capture)="embeds.captureSnapshot(s.id)"
+                        ></dd-embed-url-bar>
+                     </foreignObject>
+                  }
+               }
             </g>
          </g>
 
-         @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {
+         @if (s.selected && s.id !== editingId() && s.id !== croppingId() && s.id !== embeds.capturingId()) {
             <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {
                   <!-- Line/arrow: draggable endpoint handles. -->

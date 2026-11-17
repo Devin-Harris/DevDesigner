@@ -1,3 +1,4 @@
+import { LiveFramesNoticeComponent } from './shared/components/embed-frame/live-frames-notice.component';
 import { provideEditor } from './editor.providers';
 import { EditorBridgeService } from './editor-bridge.service';
 import { FloatingToolbarsService } from './features/elements/services/floating-toolbars.service';
@@ -122,6 +123,7 @@ function readFlag(key: string, fallback: boolean): boolean {
    selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
+      LiveFramesNoticeComponent,
       ImageCropOverlayComponent,
       MatProgressSpinnerModule,
       IconComponent,

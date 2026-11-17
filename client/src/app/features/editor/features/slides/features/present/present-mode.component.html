@@ -16,10 +16,24 @@
          }
       }
       <div #overlay class="overlay"></div>
+      <!-- Live frames of every slide stay loaded (hidden off their slide), so arriving at a
+           slide shows the page at once instead of reloading it. -->
+      @for (sl of slides(); track $index; let si = $index) {
+         @if (embedsOf(sl).length) {
+            <dd-slide-media-layer
+               class="embed-layer"
+               [class.off]="si !== index()"
+               [media]="embedsOf(sl)"
+               [hidden]="si === index() ? (liveMedia()?.hidden ?? null) : null"
+               [slideWidth]="sl.width"
+               [slideHeight]="sl.height"
+            ></dd-slide-media-layer>
+         }
+      }
       <!-- GIFs and videos play live over the settled slide (not during transitions). -->
       @if (liveMedia(); as lm) {
          <dd-slide-media-layer
-            [media]="lm.slide.media"
+            [media]="otherMedia(lm.slide)"
             [hidden]="lm.hidden"
             [slideWidth]="lm.slide.width"
             [slideHeight]="lm.slide.height"

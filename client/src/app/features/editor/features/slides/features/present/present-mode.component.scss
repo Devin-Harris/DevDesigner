@@ -31,6 +31,17 @@
 .slide {
    object-fit: contain;
 }
+.embed-layer {
+   transition: opacity 300ms ease;
+}
+// Off-slide frames stay loaded but vanish at once (the incoming slide's fade in
+// over the transition, so the placeholder card never flashes on its own).
+.embed-layer.off {
+   opacity: 0;
+   visibility: hidden;
+   pointer-events: none;
+   transition: none;
+}
 .slide.hidden {
    opacity: 0;
    pointer-events: none;

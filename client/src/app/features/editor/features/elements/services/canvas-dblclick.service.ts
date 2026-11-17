@@ -16,6 +16,7 @@ import { GridTableService } from '../../../services/grid-table.service';
 import { gridCellAt } from '../../../helpers/grid-table.helper';
 import { standInFor } from '../../../helpers/layout-placeholders';
 import { hitTestElement } from '../../../helpers/element-geometry.helper';
+import { EmbedFramesService } from '../../../services/embed-frames.service';
 import {
    CODE_FONT_SIZE,
    codeDiffActive,
@@ -31,6 +32,7 @@ import {
 export class CanvasDblClickService {
    private readonly destroyRef = inject(DestroyRef);
    private readonly store = inject(ProjectStore);
+   private readonly embeds = inject(EmbedFramesService);
    private readonly gesture = inject(PointerGestureService);
    private readonly canvasView = inject(CanvasViewService);
    private readonly viewport = inject(EditorViewportService);
@@ -111,6 +113,12 @@ export class CanvasDblClickService {
       }
       if (hit && locked(hit.id)) {
          this.store.enterGroup('element', hit.id);
+         return;
+      }
+      // Double-clicking a live frame hands it the pointer (scroll, click, type in the page).
+      if (hit?.type === 'embed' && hit.text) {
+         this.store.selectElement(hit.id);
+         this.embeds.interactingId.set(hit.id);
          return;
       }
       if (!this.store.canEdit() || !this.store.projectId()) {

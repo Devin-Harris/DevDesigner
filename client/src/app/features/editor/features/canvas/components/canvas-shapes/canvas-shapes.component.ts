@@ -7,6 +7,9 @@ import { GridTableService } from '../../../../services/grid-table.service';
 import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../../../../models/shape-view.model';
 import { MediaVideoComponent } from '../../../../shared/components/media-video/media-video.component';
 import { MediaActionsService } from '../../../../services/media-actions.service';
+import { EmbedFramesService } from '../../../../services/embed-frames.service';
+import { EmbedUrlBarComponent } from '../../../../shared/components/embed-frame/embed-url-bar.component';
+import { EmbedFrameComponent } from '../../../../shared/components/embed-frame/embed-frame.component';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../../../../helpers/element-geometry.helper';
 
 /** Corner used to resize a shape's bounding box. */
@@ -47,7 +50,7 @@ export interface ShapeEndpointEvent {
    host: {
       '[style.z-index]': "layer() === 'lines' ? 1000 : layer() === 'content' ? (hostZ() ?? 10) : null",
    },
-   imports: [MediaVideoComponent],
+   imports: [MediaVideoComponent, EmbedFrameComponent, EmbedUrlBarComponent],
    templateUrl: './canvas-shapes.component.html',
    styleUrl: './canvas-shapes.component.scss',
 })
@@ -87,12 +90,18 @@ export class CanvasShapesComponent {
    protected readonly images = inject(ElementImagesService);
    private readonly codeActions = inject(CodeActionsService);
    private readonly grids = inject(GridTableService);
-   private readonly store = inject(ProjectStore);
+   protected readonly store = inject(ProjectStore);
+   protected readonly embeds = inject(EmbedFramesService);
 
    /** The picture under the pointer (GIFs set to play on hover animate while hovered). */
    protected readonly hoveredId = signal<string | null>(null);
    /** The picture being cropped inline (the crop overlay draws it instead). */
    protected readonly croppingId = inject(MediaActionsService).croppingId;
+
+   /** A live frame's address was typed in: save it (the page loads from the new value). */
+   protected commitEmbedUrl(id: string, url: string): void {
+      void this.store.updateElement(id, { text: url });
+   }
 
    protected readonly frameTitleW = FRAME_TITLE_W;
    protected readonly frameTitleH = FRAME_TITLE_H;

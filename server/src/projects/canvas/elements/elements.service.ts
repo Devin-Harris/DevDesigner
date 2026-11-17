@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { CanvasElementModel } from '@devdesigner/shared';
+import { isEmbedUrl } from '@devdesigner/shared';
 import { Project } from '../../projects/project.entity';
 import { AccessService, bindingRefs, mergeRefs, type ProjectRefs } from '../../../collaboration/access/access.service';
 import { applyDefined } from '../../common/apply-patch';
@@ -50,6 +51,13 @@ export class ElementsService {
       throw new NotFoundException(`Project ${projectId} not found.`);
     }
     await this.quota.assertProjectRoom(projectId, { elements: 1 });
+    if (dto.type === 'embed') {
+      assertEmbedUrl(dto.text);
+      // A live frame's snapshot must be a file uploaded to THIS project.
+      if (dto.fileId && !(await this.images.existsInProject(dto.fileId, projectId))) {
+        throw new BadRequestException('Live frame snapshots must be uploaded to this project.');
+      }
+    }
     if (dto.type === 'image') {
       // An image element must point at a file uploaded to THIS project.
       const owned = dto.fileId
@@ -106,7 +114,7 @@ export class ElementsService {
       startArrowhead: dto.startArrowhead ?? null,
       endArrowhead: dto.endArrowhead ?? null,
       curvature: dto.curvature ?? null,
-      fileId: dto.type === 'image' ? (dto.fileId ?? null) : null,
+      fileId: dto.type === 'image' || dto.type === 'embed' ? (dto.fileId ?? null) : null,
       mediaJson: dto.type === 'image' && dto.media ? JSON.stringify(dto.media) : null,
       language: dto.type === 'code' ? (dto.language ?? 'typescript') : null,
       fileName: dto.type === 'code' ? dto.fileName?.trim() || null : null,
@@ -137,6 +145,15 @@ export class ElementsService {
   ): Promise<CanvasElementModel> {
     await this.access.assertRefsInProject(elementRefs(dto), projectId);
     const element = await this.findOrThrow(elementId);
+    if (element.type === 'embed' && dto.text !== undefined) {
+      assertEmbedUrl(dto.text);
+    }
+    if (element.type === 'embed' && dto.fileId !== undefined) {
+      if (dto.fileId && !(await this.images.existsInProject(dto.fileId, projectId))) {
+        throw new BadRequestException('Live frame snapshots must be uploaded to this project.');
+      }
+      element.fileId = dto.fileId || null;
+    }
     applyElementPatch(element, dto);
     await this.elements.save(element);
     const model = toElementModel(element);
@@ -224,6 +241,13 @@ export class ElementsService {
       throw new NotFoundException(`Element ${elementId} not found.`);
     }
     return element;
+  }
+}
+
+/** A live frame's URL (`text`) must be empty or a plain http(s) address: no javascript:/data: frames. */
+export function assertEmbedUrl(url: string | null | undefined): void {
+  if (url && !isEmbedUrl(url)) {
+    throw new BadRequestException('Live frame URLs must start with http:// or https://.');
   }
 }
 

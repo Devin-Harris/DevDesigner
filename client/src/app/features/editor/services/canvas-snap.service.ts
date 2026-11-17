@@ -211,7 +211,7 @@ export class CanvasSnapService {
       if (!base) return null;
       const scale = draft ? (draft.view?.scale ?? 1) : this.canvasView.itemScale(id);
       const snap = smartSnapEdges(box, xs, ys, base.targets, this.store.viewport().zoom * scale);
-      this.smartSnapState.set(snap.guides.length ? { snap, view: base.view } : null);
+      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
       return snap;
    }
 

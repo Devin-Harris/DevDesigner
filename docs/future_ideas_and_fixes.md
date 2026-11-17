@@ -17,6 +17,7 @@
   - Might also need to consider how this works when sharing a project
   - maybe localhost urls just dont work for people that were shared the link
   - maybe we need a message when viewing a project that was shared with you denoting there are live frames that may not work, or the option to opt out and render a fallback block in place for the person viewing
+  - it would be nice to integrate this into the frame tool that exists, when exporting to pdf or images a screenshot of the frame at the point in time would suffice
 
 - Smart guidelines, minmap minimized, snap to grid, all should be persisted to the db so its not lost on local storage clearing
 

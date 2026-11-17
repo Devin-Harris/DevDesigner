@@ -150,7 +150,7 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
   const elements: CanvasElementModel[] = sourceElements.map((e) => ({
     ...e,
     id: elementIds.get(e.id)!,
-    fileId: e.type === 'image' ? (opts.fileOf ? opts.fileOf(e.fileId) : e.fileId) : undefined,
+    fileId: e.type === 'image' || e.type === 'embed' ? (opts.fileOf ? opts.fileOf(e.fileId) : e.fileId) : undefined,
     x: e.x + dx,
     y: e.y + dy,
     zIndex: e.zIndex + zShift,

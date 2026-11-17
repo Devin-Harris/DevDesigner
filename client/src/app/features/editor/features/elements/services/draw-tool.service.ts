@@ -65,7 +65,8 @@ export class DrawToolService {
          tool === 'line' ||
          tool === 'arrow' ||
          tool === 'code' ||
-         tool === 'grid'
+         tool === 'grid' ||
+         tool === 'embed'
       );
    }
 
@@ -290,6 +291,18 @@ export class DrawToolService {
                  fontFamily: 'code',
                  fontSize: CODE_FONT_SIZE,
               }
+            : type === 'embed'
+              ? {
+                   // A live frame: a quiet card the page sits on.
+                   ...sticky,
+                   strokeColor: this.canvasView.themeVar('--dd-border-strong') ?? sticky.strokeColor,
+                   backgroundColor: SURFACE_FILL,
+                   fillStyle: 'solid' as const,
+                   strokeWidth: 1,
+                   strokeStyle: 'solid' as const,
+                   opacity: 100,
+                   cornerRadius: 8,
+                }
             : type === 'grid'
               ? {
                    // A table: opaque surface, hairline borders, readable body text.
@@ -600,6 +613,10 @@ export class DrawToolService {
          const h0 = g.rows.reduce((a, b) => a + b, 0);
          const k = (width * w0 + height * h0) / (w0 * w0 + h0 * h0);
          fontSize = Math.round(Math.min(96, Math.max(10, (draft.fontSize ?? 14) * k)) * 2) / 2;
+      }
+      if (draft.type === 'embed' && (width < 80 || height < 60)) {
+         width = 640;
+         height = 400;
       }
       if (draft.type === 'code' && (width < 40 || height < 40)) {
          width = 360;

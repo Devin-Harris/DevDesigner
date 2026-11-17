@@ -1,4 +1,5 @@
 import type { CanvasElementModel, ElementBinding, TableModel } from '@devdesigner/shared';
+import { embedLabel, isEmbedUrl } from '@devdesigner/shared';
 import type { Box, Point } from '../../models/geometry.model';
 import type { ShapeView } from '../../models/shape-view.model';
 import { usableRuns } from '../rich-text.helper';
@@ -184,6 +185,38 @@ export function buildShapeViews(
          case 'grid':
             base.grid = gridTableView(element, theme, stroke, fill);
             break;
+         case 'embed': {
+            // A live frame: a card (exports and placeholders draw this) under the page.
+            const rx = element.cornerRadius ?? 8;
+            base.rect = { x: element.x, y: element.y, width: element.width, height: element.height, rx };
+            const url = isEmbedUrl(element.text) ? element.text!.trim() : null;
+            base.embed = { x: element.x, y: element.y, width: element.width, height: element.height, rx, url };
+            if (element.fileId) {
+               // A captured snapshot stands in for the page in thumbnails, transitions and exports.
+               base.image = imageView({ ...element, media: undefined }, element.fileId);
+               base.image.clip = {
+                  id: `embed-snap-${element.id}`,
+                  rect: { x: element.x, y: element.y, width: element.width, height: element.height, rx },
+                  css: `inset(0 round ${rx}px)`,
+               };
+               break;
+            }
+            base.label = layoutTextBlock(
+               url ? embedLabel(url) : 'Live frame',
+               { x: element.x, y: element.y, width: element.width, height: element.height },
+               {
+                  fontSize: Math.max(11, Math.min(16, Math.round(element.height / 22))),
+                  fontFamilyKey: 'normal',
+                  fontWeight: 500,
+                  color: stroke,
+                  align: 'center',
+                  vAlign: 'middle',
+                  padding: 12,
+                  wrap: true,
+               }
+            );
+            break;
+         }
          case 'image':
             if (element.fileId) {
                base.image = imageView(element, element.fileId);

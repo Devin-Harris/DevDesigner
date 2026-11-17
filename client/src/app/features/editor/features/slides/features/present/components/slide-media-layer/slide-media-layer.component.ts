@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { ElementImagesService } from '../../../../../../services/element-images.service';
 import type { SlideMedia } from '../../../../services/slide-render.service';
 import { MediaVideoComponent } from '../../../../../../shared/components/media-video/media-video.component';
+import { EmbedFrameComponent } from '../../../../../../shared/components/embed-frame/embed-frame.component';
+import { EmbedFramesService } from '../../../../../../services/embed-frames.service';
 
 /**
  * The live GIFs and videos of the slide being presented, laid over the slide
@@ -13,7 +15,7 @@ import { MediaVideoComponent } from '../../../../../../shared/components/media-v
 @Component({
    selector: 'dd-slide-media-layer',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [MediaVideoComponent],
+   imports: [MediaVideoComponent, EmbedFrameComponent],
    templateUrl: './slide-media-layer.component.html',
    styleUrl: './slide-media-layer.component.scss',
 })
@@ -25,6 +27,7 @@ export class SlideMediaLayerComponent {
    readonly slideHeight = input.required<number>();
 
    protected readonly images = inject(ElementImagesService);
+   protected readonly embeds = inject(EmbedFramesService);
    protected readonly hovered = signal<string | null>(null);
    /** Click-to-play GIFs that are playing, with a counter so each start begins at frame one. */
    private readonly started = signal<ReadonlyMap<string, number>>(new Map());
@@ -33,7 +36,9 @@ export class SlideMediaLayerComponent {
    protected readonly aspect = computed(() => String(this.slideWidth() / Math.max(1, this.slideHeight())));
    protected readonly items = computed(() => {
       const hidden = this.hidden();
-      return hidden ? this.media().filter((m) => !hidden.has(m.id)) : this.media();
+      // A viewer who turned live frames off sees the placeholder card in the slide picture.
+      const blocked = this.embeds.blocked();
+      return this.media().filter((m) => !hidden?.has(m.id) && !(blocked && m.kind === 'embed'));
    });
 
    protected playbackOf(m: SlideMedia): 'auto' | 'click' | 'hover' {

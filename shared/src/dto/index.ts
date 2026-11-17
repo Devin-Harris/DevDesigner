@@ -363,6 +363,8 @@ export interface CreateElementDto {
 }
 /** Style/content/geometry edits to a single element. */
 export interface UpdateElementDto {
+  /** Live frames only: the snapshot picture (an uploaded project image); null clears it. */
+  fileId?: string | null;
   x?: number;
   y?: number;
   width?: number;

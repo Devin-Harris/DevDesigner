@@ -169,7 +169,7 @@
                type="button"
                matTooltip="Frame (F) — a fixed-ratio page to export"
                aria-label="Frame"
-               [class.on]="tool() === 'frame'"
+               [class.on]="tool() === 'frame' || tool() === 'embed'"
                [disabled]="disabled()"
                [ddPopoverTrigger]="frameMenu"
                [placement]="morePlacement()"
@@ -193,6 +193,17 @@
                         {{ p.label }}
                      </button>
                   }
+                  <div class="dd-menu-sep" role="separator"></div>
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     matTooltip="Embed a running site or local dev server (W)"
+                     matTooltipPosition="right"
+                     [class.on]="tool() === 'embed'"
+                     (click)="onChange('embed'); close()"
+                  >
+                     Live frame (URL)
+                  </button>
                </div>
             </ng-template>
          }

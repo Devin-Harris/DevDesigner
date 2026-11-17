@@ -252,6 +252,11 @@ function drawElement(
       );
       return `${out}<rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" rx="${e.cornerRadius ?? 4}" fill="none" stroke="${stroke}" stroke-width="${sw}"${ds}/></g>`;
     }
+    case 'embed': {
+      // A live frame (an iframe in the app): previews show its card and address.
+      const host = (e.text ?? '').replace(/^https?:\/\//i, '') || 'no URL yet';
+      return `<g${op}><rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" rx="${e.cornerRadius ?? 8}" fill="#f8fafc" stroke="#94a3b8"/>${textBlock(['Live frame', host], e.x + e.width / 2, e.y + e.height / 2 - 10, 14, '#475569', { anchor: 'middle' })}</g>`;
+    }
     case 'image': {
       const uri = e.fileId ? images?.get(e.fileId) : undefined;
       if (uri) {

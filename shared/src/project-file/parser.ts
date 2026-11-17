@@ -5,6 +5,7 @@
 
 import { PROJECT_EXPORT_FORMAT, PROJECT_EXPORT_VERSION } from '../dto';
 import type { ProjectExportImage } from '../dto';
+import { isEmbedUrl } from '../embed';
 import {
   ARROWHEAD_TYPES,
   CODE_DIFF_VIEWS,
@@ -434,9 +435,11 @@ function parseRelationship(raw: unknown, path: string): RelationshipModel {
 
 function parseElement(raw: unknown, path: string, opts: ParseProjectExportOptions): CanvasElementModel {
   const e = obj(raw, path);
+  const type = oneOf(e, 'type', path, ELEMENT_TYPES);
+  const text = optStr(e, 'text', path, 100_000);
   return {
     id: str(e, 'id', path, 100),
-    type: oneOf(e, 'type', path, ELEMENT_TYPES),
+    type,
     x: num(e, 'x', path, 0),
     y: num(e, 'y', path, 0),
     width: num(e, 'width', path, 0),
@@ -456,7 +459,8 @@ function parseElement(raw: unknown, path: string, opts: ParseProjectExportOption
     elbow: e['elbow'] === true ? true : undefined,
     clipContent: e['clipContent'] === true ? true : undefined,
     points: points(e['points'], `${path}.points`),
-    text: optStr(e, 'text', path, 100_000),
+    // A live frame keeps only a plain http(s) URL (never javascript:/data: frames).
+    text: type === 'embed' ? (text && isEmbedUrl(text) ? text.trim() : undefined) : text,
     fontSize: optNum(e, 'fontSize', path),
     fontFamily: optStr(e, 'fontFamily', path, 100),
     bold: e['bold'] === undefined || e['bold'] === null ? undefined : bool(e, 'bold', path, false),

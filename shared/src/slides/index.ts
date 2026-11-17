@@ -273,6 +273,7 @@ const FREE_FORM_TYPES: ReadonlySet<string> = new Set([
   'code',
   'grid',
   'image',
+  'embed',
   'freedraw',
   'frame',
 ]);

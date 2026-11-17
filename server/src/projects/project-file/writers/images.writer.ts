@@ -48,7 +48,7 @@ export async function writeImages(
   const referenced = [
     ...new Set(
       schema.elements
-        .filter((e) => e.type === 'image' && e.fileId && !embedded.has(e.fileId))
+        .filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId && !embedded.has(e.fileId))
         .map((e) => e.fileId as string),
     ),
   ];

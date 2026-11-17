@@ -20,7 +20,7 @@ import { notifySignal } from '../../../../../../shared/helpers/signals';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { MorphStage } from '../../services/morph-stage';
 import { parseSafeSvg } from '../../helpers/svg-sanitize.helper';
-import { slideAtStep, type RenderedSlide } from '../../services/slide-render.service';
+import { slideAtStep, type RenderedSlide, type SlideMedia } from '../../services/slide-render.service';
 import { SlideMediaLayerComponent } from './components/slide-media-layer/slide-media-layer.component';
 import { playGroup, undoGroup } from './helpers/step-animator';
 import { ease } from '../../helpers/ease.helper';
@@ -126,6 +126,20 @@ export class PresentModeComponent {
       const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step(), slide.maxStep)] ?? null) : null;
       return { slide, hidden };
    });
+   private readonly embedCache = new WeakMap<RenderedSlide, readonly SlideMedia[]>();
+   /** A slide's live frames (kept mounted across slides). Cached so the array stays stable. */
+   protected embedsOf(slide: RenderedSlide): readonly SlideMedia[] {
+      let v = this.embedCache.get(slide);
+      if (!v) this.embedCache.set(slide, (v = (slide.media ?? []).filter((m) => m.kind === 'embed')));
+      return v;
+   }
+   private readonly otherCache = new WeakMap<RenderedSlide, readonly SlideMedia[]>();
+   /** A slide's GIFs and videos (live frames have their own persistent layer). */
+   protected otherMedia(slide: RenderedSlide): readonly SlideMedia[] {
+      let v = this.otherCache.get(slide);
+      if (!v) this.otherCache.set(slide, (v = (slide.media ?? []).filter((m) => m.kind !== 'embed')));
+      return v;
+   }
    protected readonly current = computed(() => this.slides()[this.index()] ?? { name: '', notes: '', maxStep: 0 });
    /** Steps of the current slide that wait for a click (a leading automatic group is not one). */
    protected readonly clicks = computed(() => {

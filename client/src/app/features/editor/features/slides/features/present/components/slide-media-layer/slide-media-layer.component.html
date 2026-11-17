@@ -9,11 +9,16 @@
          [style.height.%]="m.height"
          [style.opacity]="m.opacity"
          [style.transform]="m.angle ? 'rotate(' + m.angle + 'deg)' : null"
+         [style.border-radius]="m.radius ?? null"
+         [style.clip-path]="m.radius ? 'inset(0 round ' + m.radius + ')' : null"
+         [style.overflow]="m.radius ? 'hidden' : null"
          (pointerenter)="hovered.set(m.id)"
          (pointerleave)="hovered.set(null)"
          (click)="onClick(m, $event)"
       >
-         @if (m.kind === 'video') {
+         @if (m.kind === 'embed') {
+            <dd-embed-frame [url]="m.url" [interacting]="true" [nonce]="embeds.nonce(m.id)"></dd-embed-frame>
+         } @else if (m.kind === 'video') {
             @if (images.url(m.fileId); as src) {
                <dd-media-video
                   [view]="m.view"

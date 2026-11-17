@@ -25,6 +25,7 @@ import {
    type FieldContext,
    resolveThemedElements,
    resolveThemedSequences,
+   isEmbedUrl,
 } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../services/element-images.service';
 import { ProjectStore } from '../../../state/project/project.store';
@@ -107,8 +108,13 @@ export interface RenderedSlide {
 /** A GIF or video on a slide, placed in percent of the slide (so it scales with it). */
 export interface SlideMedia {
    id: string;
-   kind: 'gif' | 'video';
+   kind: 'gif' | 'video' | 'embed';
+   /** The media file ('' for a live frame). */
    fileId: string;
+   /** Live frames: the page's URL. */
+   url?: string;
+   /** Live frames: corner rounding as a CSS border-radius in % of the box (`x% / y%`). */
+   radius?: string;
    left: number;
    top: number;
    width: number;
@@ -390,6 +396,26 @@ export class SlideRenderService {
       const fw = frame.width || 1;
       const fh = frame.height || 1;
       for (const e of [...elements].sort((a, b) => a.zIndex - b.zIndex)) {
+         if (e.type === 'embed') {
+            // Live frames load their page over the slide picture (which shows the placeholder card).
+            if (!isEmbedUrl(e.text)) continue;
+            const view = imageView({ ...e, media: undefined }, '');
+            out.push({
+               id: e.id,
+               kind: 'embed',
+               fileId: '',
+               url: e.text!.trim(),
+               radius: `${((e.cornerRadius ?? 8) / (e.width || 1)) * 100}% / ${((e.cornerRadius ?? 8) / (e.height || 1)) * 100}%`,
+               left: ((e.x - frame.x) / fw) * 100,
+               top: ((e.y - frame.y) / fh) * 100,
+               width: (e.width / fw) * 100,
+               height: (e.height / fh) * 100,
+               angle: ((e.angle || 0) * 180) / Math.PI,
+               opacity: e.opacity / 100,
+               view,
+            });
+            continue;
+         }
          const kind = e.type === 'image' ? this.images.kind(e.fileId) : null;
          if (!e.fileId || (kind !== 'gif' && kind !== 'video')) {
             continue;
@@ -411,7 +437,7 @@ export class SlideRenderService {
    }
 
    private async imageData(elements: readonly CanvasElementModel[]): Promise<Map<string, string>> {
-      const ids = [...new Set(elements.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string))];
+      const ids = [...new Set(elements.filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId).map((e) => e.fileId as string))];
       const data = new Map<string, string>();
       await Promise.all(
          ids.map(async (id) => {

@@ -77,7 +77,9 @@ export type ElementType =
   | 'frame'
   | 'image'
   | 'code'
-  | 'grid';
+  | 'grid'
+  /** A live frame: a sandboxed iframe of the URL in `text`. */
+  | 'embed';
 
 export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
@@ -91,6 +93,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'image',
   'code',
   'grid',
+  'embed',
 ] as const;
 
 /** Languages a `code` element can be syntax-highlighted as (highlighting is render-only). */

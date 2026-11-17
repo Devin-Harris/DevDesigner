@@ -285,4 +285,10 @@ export class UpdateElementDto implements IUpdateElementDto {
   @IsString()
   @MaxLength(64)
   slideId?: string | null;
+
+  /** Live frames only: the snapshot picture (an image uploaded to this project); null clears it. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  fileId?: string | null;
 }

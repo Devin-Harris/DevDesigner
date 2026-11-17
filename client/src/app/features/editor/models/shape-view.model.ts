@@ -147,6 +147,8 @@ export interface ShapeView {
    code?: CodeBlockView;
    /** A spreadsheet-style table (grid element). */
    grid?: GridTableView;
+   /** A live frame (embed element): its page box and URL (the card is `rect` + `label`). */
+   embed?: EmbedView;
    path?: string;
    /** True for a freehand stroke: `path` is a filled outline (fill = stroke color). */
    freehand: boolean;
@@ -201,4 +203,14 @@ export interface ImageClipView {
    polygon?: string;
    /** The same outline as a CSS clip-path (for HTML overlays positioned on the box). */
    css: string;
+}
+
+/** A live frame's page area. `url` is null until one is set (or when it is not http(s)). */
+export interface EmbedView {
+   x: number;
+   y: number;
+   width: number;
+   height: number;
+   rx: number;
+   url: string | null;
 }

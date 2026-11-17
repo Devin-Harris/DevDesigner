@@ -638,12 +638,12 @@ export class ElementGestureService {
          const minScale = Math.max(8 / Math.min(s.width, s.height), frameMinH);
          let scale = Math.max(minScale, 1 + (grow * s.width + growY * s.height) / diag);
          const smart =
-            ev.altKey || resized?.type === 'text'
+            resized?.type === 'text'
                ? null
-               : this.resizeSnap(g.id, s, left, top, s.width * scale, s.height * scale);
+               : this.resizeSnap(g.id, s, left, top, s.width * scale, s.height * scale, undefined, ev.altKey);
          if (smart?.snappedX || smart?.snappedY) {
-            const w = s.width * scale + (smart.snappedX ? (left ? -smart.ox : smart.ox) : 0);
-            const h = s.height * scale + (smart.snappedY ? (top ? -smart.oy : smart.oy) : 0);
+            const w = s.width * scale + (smart.snappedX ? (left ? -smart.ox : smart.ox) * factor : 0);
+            const h = s.height * scale + (smart.snappedY ? (top ? -smart.oy : smart.oy) * factor : 0);
             // Follow whichever edge snapped (X wins when both did).
             scale = Math.max(minScale, smart.snappedX ? w / s.width : h / s.height);
          } else if (this.snap.gridSnap()) {
@@ -658,16 +658,16 @@ export class ElementGestureService {
          width = Math.max(8, s.width + grow);
          height = Math.max(minH, s.height + growY);
          const smart =
-            ev.altKey || resized?.type === 'text'
+            resized?.type === 'text'
                ? null
-               : this.resizeSnap(g.id, s, left, top, width, height, { x: !onlyY, y: !onlyX });
+               : this.resizeSnap(g.id, s, left, top, width, height, { x: !onlyY, y: !onlyX }, ev.altKey);
          // The axis a side drag leaves alone keeps its size exactly (no grid snapping either).
          if (!onlyY) {
-            if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox));
+            if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox) * factor);
             else if (this.snap.gridSnap()) width = Math.max(8, snapToGrid(width));
          }
          if (!onlyX) {
-            if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy));
+            if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy) * factor);
             else if (this.snap.gridSnap()) height = Math.max(minH, snapToGrid(height));
          }
       }
@@ -754,19 +754,25 @@ export class ElementGestureService {
       width: number,
       height: number,
       /** Which axes are being resized (a side drag moves one edge only). */
-      axes: { x: boolean; y: boolean } = { x: true, y: true }
+      axes: { x: boolean; y: boolean } = { x: true, y: true },
+      /** Alt: resizing about the centre, so both edges of an axis move (mirrored). */
+      centred = false
    ): SmartSnap | null {
       // Rotated boxes have no axis-aligned edges to line up.
       if (s.angle) return null;
-      const x0 = left ? s.x + s.width - width : s.x;
-      const y0 = top ? s.y + s.height - height : s.y;
+      const x0 = centred ? s.x + (s.width - width) / 2 : left ? s.x + s.width - width : s.x;
+      const y0 = centred ? s.y + (s.height - height) / 2 : top ? s.y + s.height - height : s.y;
       const box = { x0, y0, x1: x0 + width, y1: y0 + height };
-      return this.snap.smartEdges(
-         id,
-         box,
-         axes.x ? [left ? box.x0 : box.x1] : [],
-         axes.y ? [top ? box.y0 : box.y1] : []
-      );
+      // Dragged edge first; when centred the opposite edge snaps too.
+      const xs = !axes.x ? [] : centred ? [left ? box.x0 : box.x1, left ? box.x1 : box.x0] : [left ? box.x0 : box.x1];
+      const ys = !axes.y ? [] : centred ? [top ? box.y0 : box.y1, top ? box.y1 : box.y0] : [top ? box.y0 : box.y1];
+      const snap = this.snap.smartEdges(id, box, xs, ys);
+      // Express the correction as a move of the dragged edge (the opposite edge mirrors it).
+      if (snap && centred) {
+         if (snap.edgeX === 1) snap.ox = -snap.ox;
+         if (snap.edgeY === 1) snap.oy = -snap.oy;
+      }
+      return snap;
    }
 
    rotateElement(ev: PointerEvent): void {
