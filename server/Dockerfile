@@ -9,7 +9,7 @@ RUN apt-get update \
   && /opt/sqlite-web/bin/pip install --no-cache-dir sqlite-web==0.8.2
 
 WORKDIR /app
-COPY package.json package-lock.json tsconfig.base.json ./
+COPY package.json package-lock.json tsconfig.base.json .npmrc ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/
