@@ -638,9 +638,46 @@ export class ElementGestureService {
               ? 1 + growY / s.height
               : 1 + (grow * s.width + growY * s.height) / (s.width * s.width + s.height * s.height);
          const startFont = g.snapshot.fontSize ?? (resized.type === 'code' ? CODE_FONT_SIZE : DEFAULT_FONT_SIZE);
-         let fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, startFont * Math.max(0.05, raw)));
-         fontSize = Math.round(fontSize * 2) / 2;
-         // The font steps in half points; the box follows it so content and box stay in step.
+         const clampFont = (f: number): number => Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, f));
+         let fontSize = clampFont(startFont * Math.max(0.05, raw));
+         // 1) Match the scale of another object of the same kind (same font size) when
+         //    the dragged edge is within a few screen pixels of that size.
+         const tol = 6 / this.store.viewport().zoom;
+         const extent = onlyY ? s.height : s.width;
+         let match: number | null = null;
+         for (const e of this.store.elements()) {
+            if (e.id === g.id || e.type !== resized.type || e.fontSize == null) continue;
+            const off = Math.abs((e.fontSize - fontSize) / startFont) * extent * factor;
+            if (off <= tol && (match === null || Math.abs(e.fontSize - fontSize) < Math.abs(match - fontSize))) {
+               match = e.fontSize;
+            }
+         }
+         if (match !== null) {
+            fontSize = match;
+            this.snap.smartSnapState.set(null);
+         } else {
+            // 2) Line the scaled box up with nearby items (smart guides).
+            const k0 = fontSize / startFont;
+            const smart = this.resizeSnap(
+               g.id,
+               s,
+               left,
+               top,
+               s.width * k0,
+               s.height * k0,
+               { x: !onlyY, y: !onlyX },
+               ev.altKey
+            );
+            if (smart?.snappedX || smart?.snappedY) {
+               const w = s.width * k0 + (smart.snappedX ? (left ? -smart.ox : smart.ox) * factor : 0);
+               const h = s.height * k0 + (smart.snappedY ? (top ? -smart.oy : smart.oy) * factor : 0);
+               fontSize = clampFont(startFont * (smart.snappedX ? w / s.width : h / s.height));
+            } else {
+               // 3) Otherwise the font steps in half points.
+               fontSize = Math.round(fontSize * 2) / 2;
+            }
+         }
+         // The box follows the font so content and box stay in step.
          const k = fontSize / startFont;
          const width = Math.max(8, s.width * k);
          const height = Math.max(8, s.height * k);

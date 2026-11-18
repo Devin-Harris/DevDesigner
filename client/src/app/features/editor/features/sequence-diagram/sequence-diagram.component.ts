@@ -18,6 +18,7 @@ import {
 } from '@devdesigner/shared';
 import { AutofocusDirective } from '../../../../shared/ui/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../state/project/project.store';
+import { sequenceDiagramBox } from '../../helpers/frame-contents.helper';
 
 interface MessageView {
    id: string;
@@ -64,6 +65,13 @@ export type SmartDragFn = (
    dy: number
 ) => { ox: number; oy: number; snappedX: boolean; snappedY: boolean } | null;
 export type SmartDragEndFn = () => void;
+/** Smart-guide correction for edges of a box being resized (only `xs` / `ys` snap). */
+export type SmartEdgesFn = (
+   id: string,
+   box: { x0: number; y0: number; x1: number; y1: number },
+   xs: number[],
+   ys: number[]
+) => { ox: number; oy: number; snappedX: boolean; snappedY: boolean } | null;
 /** Start a resize of the whole multi-selection; false when it isn't one. */
 export type GroupResizeFn = (handle: string, event: PointerEvent) => boolean;
 /** All eight resize handles, like any other shape. */
@@ -127,6 +135,8 @@ type Drag =
         startWidths: Map<string, number>;
         /** The last Ctrl-scale applied (1 = none), so release knows to persist it. */
         scaled: number;
+        /** The drawn outer box at the start (Ctrl-resize lines it up with smart guides). */
+        startBox: { x0: number; y0: number; x1: number; y1: number } | null;
      }
    | { kind: 'marquee'; start: { x: number; y: number }; moved: boolean }
    | { kind: 'connect'; fromId: string; startY: number }
@@ -192,6 +202,7 @@ export class SequenceDiagramComponent {
    /** Smart-guide snapping against nearby items, supplied by the editor. */
    readonly smartDrag = input<SmartDragFn | null>(null);
    readonly smartDragEnd = input<SmartDragEndFn | null>(null);
+   readonly smartEdges = input<SmartEdgesFn | null>(null);
    /** Editor hook: resize the whole multi-selection together (false when not multi). */
    readonly groupResize = input<GroupResizeFn | null>(null);
 
@@ -603,6 +614,7 @@ export class SequenceDiagramComponent {
          startWidths: new Map(l.map((x) => [x.id, x.width])),
          startScale: this.diagram().scale ?? 1,
          scaled: 1,
+         startBox: sequenceDiagramBox(this.diagram(), this.store.lifelines(), this.store.sequenceMessages()),
          startRows: this.startRowsMap(),
          left,
          right,
@@ -869,6 +881,50 @@ export class SequenceDiagramComponent {
       });
    }
 
+   /**
+    * Ctrl-resize: the scale at which the dragged edge of the drawn box lands on a smart
+    * guide, or null when nothing snaps. The box is modelled as a function of the scale
+    * (lifelines, header and rows scale about the anchor; the outer padding does not),
+    * which is linear in k, so a snapped edge position inverts straight to a scale.
+    */
+   private smartScale(
+      d: Extract<Drag, { kind: 'resize' }>,
+      k: number,
+      centred: boolean,
+      horiz: boolean,
+      isLeft: boolean,
+      vert: boolean,
+      isTop: boolean
+   ): number | null {
+      const hook = this.smartEdges();
+      const b0 = d.startBox;
+      if (!hook || !b0) return null;
+      const anchorX = centred ? d.centerX : isLeft ? d.right : d.left;
+      const below = b0.y1 - BOX_PAD - d.top; // origin -> bottom edge, minus the padding
+      const above = d.top - b0.y0; // padding + title room above the origin (fixed)
+      const box = (s: number) => {
+         const originY = centred ? d.centerY - (d.contentH * s) / 2 : isTop ? d.top + d.contentH - d.contentH * s : d.top;
+         return {
+            x0: anchorX + (b0.x0 + BOX_PAD - anchorX) * s - BOX_PAD,
+            x1: anchorX + (b0.x1 - BOX_PAD - anchorX) * s + BOX_PAD,
+            y0: originY - above,
+            y1: originY + below * s + BOX_PAD,
+         };
+      };
+      const now = box(k);
+      const ex = isLeft ? 'x0' : 'x1';
+      const ey = isTop ? 'y0' : 'y1';
+      const snap = hook(this.diagram().id, now, horiz ? [now[ex]] : [], vert ? [now[ey]] : []);
+      const invert = (edge: 'x0' | 'x1' | 'y0' | 'y1', target: number): number | null => {
+         const at0 = box(0)[edge];
+         const slope = box(1)[edge] - at0;
+         return Math.abs(slope) > 1e-6 ? (target - at0) / slope : null;
+      };
+      if (snap?.snappedX) return invert(ex, now[ex] + snap.ox);
+      if (snap?.snappedY) return invert(ey, now[ey] + snap.oy);
+      return null;
+   }
+
    /** Compute new spread + vertical size for a resize drag (Shift locks, Alt centers). */
    private applyResize(d: Extract<Drag, { kind: 'resize' }>, event: PointerEvent): void {
       const dx = (event.clientX - d.startX) / this.zoom();
@@ -896,6 +952,9 @@ export class SequenceDiagramComponent {
          // Never below a readable size or the minimum row height.
          k = Math.max(k, 0.3 / d.startScale, MIN_ROW / Math.max(1, d.startRowSpacing));
          k = Math.min(k, 8 / d.startScale);
+         k = this.smartScale(d, k, event.altKey, horiz, isLeft, isTop || isBottom, isTop) ?? k;
+         k = Math.max(k, 0.3 / d.startScale, MIN_ROW / Math.max(1, d.startRowSpacing));
+         k = Math.min(k, 8 / d.startScale);
          const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
          const newContent = d.contentH * k;
          const originY = event.altKey ? d.centerY - newContent / 2 : isTop ? d.top + d.contentH - newContent : d.top;
@@ -909,6 +968,7 @@ export class SequenceDiagramComponent {
          this.store.resizeSequenceTo(this.diagram().id, d.startXs, anchorX, spanX > 1 ? k : 1, d.startRowSpacing * k, originY, d.startRows);
          return;
       }
+      this.smartDragEnd()?.();
       if (d.scaled !== 1) {
          // Ctrl let go mid-drag: back to the starting content size.
          d.scaled = 1;
@@ -1034,6 +1094,7 @@ export class SequenceDiagramComponent {
             this.smartDragEnd()?.();
          } else {
             this.applyResize(d, event);
+            this.smartDragEnd()?.();
          }
          const ids = d.kind === 'diagram' ? [d.diagramId, ...d.others.map((o) => o.diagramId)] : [this.diagram().id];
          for (const id of ids) {

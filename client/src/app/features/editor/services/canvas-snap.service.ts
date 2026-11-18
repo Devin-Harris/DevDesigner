@@ -149,6 +149,10 @@ export class CanvasSnapService {
       dy: number
    ): SmartSnap | null => this.smartDelta(diagramId, items.elements, items.tables, dx, dy, items.diagrams);
 
+   /** Smart guides for a resize a sequence diagram runs itself (only the moving edges snap). */
+   readonly smartResize = (id: string, box: Box, xs: number[], ys: number[]): SmartSnap | null =>
+      this.smartEdges(id, box, xs, ys);
+
    readonly smartDragEnd = (): void => {
       this.smartBase = null;
       this.smartSnapState.set(null);

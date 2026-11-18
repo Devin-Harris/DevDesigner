@@ -5,6 +5,7 @@ import {
    type SmartDragEndFn,
    type GroupResizeFn,
    type SmartDragFn,
+   type SmartEdgesFn,
 } from '../../../sequence-diagram/sequence-diagram.component';
 
 type WorldFn = (clientX: number, clientY: number) => { x: number; y: number };
@@ -33,6 +34,7 @@ export class CanvasSequenceComponent {
    /** Smart-guide snapping for whole-diagram drags (null when not wired). */
    readonly smartDrag = input<SmartDragFn | null>(null);
    readonly smartDragEnd = input<SmartDragEndFn | null>(null);
+   readonly smartEdges = input<SmartEdgesFn | null>(null);
    readonly groupResize = input<GroupResizeFn | null>(null);
    /** Diagram ids to leave out (collapsed by the slides focus mode). */
    readonly hiddenIds = input<ReadonlySet<string> | null>(null);
