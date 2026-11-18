@@ -14,6 +14,7 @@ import {
    viewChild,
 } from '@angular/core';
 import type { SlideEasing } from '@devdesigner/shared';
+import { transitionMorphs } from '@devdesigner/shared';
 import { LOCAL_LASER, LaserService } from '../../../../../../core/realtime/laser.service';
 import { RealtimeService } from '../../../../../../core/realtime/realtime.service';
 import { notifySignal } from '../../../../../../shared/helpers/signals';
@@ -687,7 +688,7 @@ export class PresentModeComponent {
          this.index.set(target);
          this.step.set(toStep);
       };
-      if (instant || !adjacent || t.type === 'none' || t.duration <= 0) {
+      if (instant || !adjacent || (t.type === 'none' && !transitionMorphs(t)) || t.duration <= 0) {
          commit();
          return;
       }
@@ -695,7 +696,9 @@ export class PresentModeComponent {
       const sameSize =
          Math.abs(slides[from].width - slides[target].width) < 1 &&
          Math.abs(slides[from].height - slides[target].height) < 1;
-      const isMorph = t.type === 'morph' && sameSize;
+      // Objects on both slides morph whenever the transition says so; the rest of the
+      // slide then moves the transition's own way (fade / slide / zoom / cut).
+      const isMorph = transitionMorphs(t) && sameSize;
       const fromView = slideAtStep(slides[from], this.step());
       const toView = slideAtStep(slides[target], toStep);
       await this.runLayers(

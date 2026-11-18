@@ -69,6 +69,15 @@ export class SlideTransitionDto implements SlideTransition {
   @IsOptional()
   @IsIn([...MORPH_BY_OPTIONS])
   morphBy?: MorphBy;
+
+  @IsOptional()
+  @IsBoolean()
+  morph?: boolean;
+
+  /** Per-object "animate by" (element id -> object | word | character); checked in the service. */
+  @IsOptional()
+  @IsObject()
+  morphByItems?: Record<string, MorphBy>;
 }
 
 /** One object animation on a slide. */

@@ -162,6 +162,13 @@ export interface SlideTransition {
   easing: SlideEasing;
   /** Morph only: animate whole objects, words, or characters of changed text (default characters). */
   morphBy?: MorphBy;
+  /**
+   * Morph objects that are on both slides while the rest of the slide uses `type`
+   * (none / fade / slide / zoom). Always on for `type: 'morph'`.
+   */
+  morph?: boolean;
+  /** Per object (this slide's element id): how its changed text animates, overriding `morphBy`. */
+  morphByItems?: Record<string, MorphBy>;
 }
 
 /**

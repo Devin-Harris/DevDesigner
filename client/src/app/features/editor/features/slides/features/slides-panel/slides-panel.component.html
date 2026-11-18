@@ -268,7 +268,18 @@
                                  />
                               </label>
                            }
-                           @if (transition().type !== 'none') {
+                           @if (transition().type !== 'morph') {
+                              <label class="check">
+                                 <input
+                                    type="checkbox"
+                                    [checked]="!!transition().morph"
+                                    [disabled]="!canEdit()"
+                                    (change)="setTransition({ morph: $any($event.target).checked })"
+                                 />
+                                 Morph matching objects
+                              </label>
+                           }
+                           @if (transition().type !== 'none' || morphs()) {
                               <div class="two">
                                  <label class="field">
                                     <span>Duration (ms)</span>
@@ -293,9 +304,9 @@
                                  </label>
                               </div>
                            }
-                           @if (transition().type === 'morph') {
+                           @if (morphs()) {
                               <label class="field">
-                                 <span>Animate text by</span>
+                                 <span>Animate by</span>
                                  <dd-select
                                     [options]="morphByOptions"
                                     [ngModel]="transition().morphBy ?? 'character'"
@@ -305,8 +316,20 @@
                               </label>
                               <p class="hint">
                                  Characters: letters and words glide. Words: whole words glide. Objects: text moves as
-                                 one piece and cross-fades.
+                                 one piece and cross-fades. Applies to text, code blocks, tables and diagrams.
                               </p>
+                              @if (itemMorphTarget(); as it) {
+                                 <label class="field">
+                                    <span>Selected object · animate by</span>
+                                    <dd-select
+                                       [options]="itemMorphByOptions"
+                                       [ngModel]="it.by"
+                                       [disabled]="!canEdit()"
+                                       (ngModelChange)="setItemMorphBy(it.id, $event)"
+                                    />
+                                 </label>
+                              }
+
                            }
                            @if (canEdit() && frames().length > 2) {
                               <button class="link" type="button" (click)="applyToAll()">Apply to all slides</button>
@@ -1261,7 +1284,16 @@
             </button>
          }
       </div>
-      @if (transition().type !== 'none') {
+      @if (transition().type !== 'morph') {
+         <div class="f-row">
+            Morph objects
+            <span class="f-seg">
+               <button type="button" [class.on]="!transition().morph" [disabled]="!canEdit()" (click)="setTransition({ morph: false })">Off</button>
+               <button type="button" [class.on]="!!transition().morph" [disabled]="!canEdit()" (click)="setTransition({ morph: true })">On</button>
+            </span>
+         </div>
+      }
+      @if (transition().type !== 'none' || morphs()) {
          <div class="f-row">
             Duration
             <span class="f-seg">
@@ -1322,9 +1354,9 @@
             />
          </div>
       }
-      @if (transition().type === 'morph') {
+      @if (morphs()) {
          <div class="f-row">
-            Morph text by
+            Animate by
             <span class="f-seg">
                @for (m of focusMorphBy; track m.value) {
                   <button

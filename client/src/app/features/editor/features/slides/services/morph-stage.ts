@@ -5,6 +5,8 @@ import {
    matchLifelines,
    matchMessages,
    matchMorphItems,
+   transitionMorphs,
+   type SlideTransitionType,
    parseGrid,
    gridMorphPairs,
    serializeGrid,
@@ -77,6 +79,14 @@ function lerpAngle(a: number, b: number, t: number): number {
 
 /** Fade in over the first half so a still-opaque twin never dips in brightness. */
 const fadeIn = (t: number): number => Math.min(1, t * 2);
+/** Slide travel per direction (unit vectors; the outgoing slide moves this way). */
+const TRAVEL: Record<string, [number, number]> = {
+   left: [-1, 0],
+   right: [1, 0],
+   up: [0, -1],
+   down: [0, 1],
+};
+
 /** Fade out over the second half (the incoming twin is already opaque by then). */
 const fadeOut = (t: number): number => 1 - Math.max(0, t * 2 - 1);
 
@@ -557,6 +567,8 @@ interface Pair {
 interface CodeMorph {
    pair: Pair;
    clip: SVGRectElement;
+   /** The clipped layer drawing its lines (stacked right above its card). */
+   layer: SVGGElement;
    moves: Array<{ el: SVGGElement; dx: number; dy: number }>;
    fadeOut: SVGGElement[];
    fadeIn: SVGGElement[];
@@ -571,6 +583,8 @@ interface CodeMorph {
 interface GridMorph {
    pair: Pair;
    clip: SVGRectElement;
+   /** The clipped layer drawing its cell text (stacked right above its card). */
+   layer: SVGGElement;
    /** Same number of rows and columns on both slides. */
    sameShape: boolean;
    /** Rows / columns (a, b) whose borders glide into each other (in order). */
@@ -957,6 +971,12 @@ export class MorphStage {
    private readonly hideTitle = new Set<string>();
    private codeSeq = 0;
    private readonly liveRels: RelationshipModel[] = [];
+   /**
+    * Objects on only one slide, with their slide's stacking order: each frame they are
+    * slotted into the live layer between the morphing objects, so an object on top
+    * on its slide stays on top during the transition (not under every morphing one).
+    */
+   private readonly stackZ = new Map<SVGGElement, { side: 'a' | 'b'; z: number }>();
    private readonly outgoing: SVGGElement[] = [];
    private readonly incoming: SVGGElement[] = [];
    /** Unpaired objects set to "no transition": they switch instantly instead of fading. */
@@ -974,6 +994,12 @@ export class MorphStage {
    private measure: SVGGElement | null = null;
    private lastT = 0;
    private readonly reversed: boolean;
+   private readonly tr: RenderedSlide['transition'];
+   /** Objects on both slides morph (off: everything moves with the slide as pictures). */
+   private readonly morphOn: boolean;
+   /** How the rest of the slide (background, one-slide objects) changes. */
+   private readonly restType: SlideTransitionType;
+   private readonly bgA = document.createElementNS(SVG_NS, 'g');
 
    /**
     * `reversed`: the transition plays backwards (`from` is the later slide), so the tag
@@ -982,7 +1008,12 @@ export class MorphStage {
    constructor(from: RenderedSlide, to: RenderedSlide, reversed = false) {
       this.reversed = reversed;
       this.to = to;
-      this.by = to.transition.morphBy ?? 'character';
+      // The transition belongs to the later slide (the one being entered going forward).
+      const tr = reversed ? from.transition : to.transition;
+      this.tr = tr;
+      this.by = tr.morphBy ?? 'character';
+      this.morphOn = transitionMorphs(tr);
+      this.restType = tr.type === 'morph' ? 'fade' : tr.type;
       this.fromSeq = from.sequences;
       this.toSeq = to.sequences;
       this.offA = { x: from.originX, y: from.originY };
@@ -1015,7 +1046,7 @@ export class MorphStage {
       }
       svg.appendChild(defs);
 
-      const bgA = document.createElementNS(SVG_NS, 'g');
+      const bgA = this.bgA;
       for (const r of Array.from(a.root.querySelectorAll(':scope > rect'))) {
          bgA.appendChild(document.importNode(r, true));
       }
@@ -1029,10 +1060,12 @@ export class MorphStage {
       const toItems = to.items.filter((i) => b.items.has(i.id));
       const matchedA = new Set<string>();
       const matchedB = new Set<string>();
-      for (const [i, j] of matchMorphItems(fromItems, toItems, undefined, this.reversed, {
-         width: this.to.width,
-         height: this.to.height,
-      })) {
+      for (const [i, j] of this.morphOn
+         ? matchMorphItems(fromItems, toItems, undefined, this.reversed, {
+              width: this.to.width,
+              height: this.to.height,
+           })
+         : []) {
          const pair: Pair = { a: fromItems[i], b: toItems[j] };
          if (pair.a.element && pair.b.element) {
             this.elementPairs.push(pair);
@@ -1190,11 +1223,13 @@ export class MorphStage {
          morphId: d.morphId,
          lifelines: seq.lifelines.filter((l) => l.diagramId === d.id),
       });
-      for (const [i, j] of matchDiagrams(
-         diagramsA.map((d) => like(from.sequences, d)),
-         diagramsB.map((d) => like(to.sequences, d)),
-         this.reversed
-      )) {
+      for (const [i, j] of this.morphOn
+         ? matchDiagrams(
+              diagramsA.map((d) => like(from.sequences, d)),
+              diagramsB.map((d) => like(to.sequences, d)),
+              this.reversed
+           )
+         : []) {
          usedSeqA.add(diagramsA[i].id);
          usedSeqB.add(diagramsB[j].id);
          this.seqPairs.push(this.pairSequence(diagramsA[i], diagramsB[j]));
@@ -1253,10 +1288,16 @@ export class MorphStage {
             if (matchedIds.has(item.id)) {
                continue;
             }
-            const g = shell(side);
-            g.appendChild(document.importNode(side.items.get(item.id)!, true));
+            // An extra group around the shell takes the slide-level motion (slide / zoom).
+            const inner = shell(side);
+            inner.appendChild(document.importNode(side.items.get(item.id)!, true));
+            const g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+            g.appendChild(inner);
             svg.appendChild(g);
             into.push(g);
+            if (item.element && item.element.type !== 'frame' && item.element.type !== 'line' && item.element.type !== 'arrow') {
+               this.stackZ.set(g, { side: into === this.outgoing ? 'a' : 'b', z: item.element.zIndex });
+            }
             // The earlier slide's "out" tag (its "in" tag when playing backwards) says cut.
             const early = into === this.outgoing ? !this.reversed : this.reversed;
             const key = early ? item.element?.morphOut : item.element?.morphIn;
@@ -1358,7 +1399,7 @@ export class MorphStage {
       layer.setAttribute('clip-path', `url(#${clipId})`);
       this.svg.appendChild(layer);
 
-      const out: CodeMorph = { pair: p, clip, moves: [], fadeOut: [], fadeIn: [] };
+      const out: CodeMorph = { pair: p, clip, layer, moves: [], fadeOut: [], fadeIn: [] };
       const place = (side: Side, t: SVGTextElement, into: SVGGElement[]): SVGGElement => {
          const holder = shell(side);
          holder.appendChild(t.cloneNode(true));
@@ -1393,13 +1434,16 @@ export class MorphStage {
          });
       };
       const textOf = (t: SVGTextElement): string => t.textContent ?? '';
-      // Identical lines glide whole.
-      const linePairs = lcsPairs(ra.code.map(textOf), rb.code.map(textOf));
+      // "Animate text by object": the code crossfades as one piece (the card still
+      // glides and resizes). Otherwise identical lines glide whole.
+      const by = this.byFor(p);
+      const whole = by === 'object';
+      const linePairs = whole ? [] : lcsPairs(ra.code.map(textOf), rb.code.map(textOf));
       // Changed lines (the unmatched ones between two matched anchors, zipped in order)
       // morph character by character instead of crossfading.
       const changed: Array<[number, number]> = [];
       const anchors: Array<[number, number]> = [[-1, -1], ...linePairs, [ra.code.length, rb.code.length]];
-      for (let k = 0; k + 1 < anchors.length; k++) {
+      for (let k = 0; !whole && k + 1 < anchors.length; k++) {
          const ia: number[] = [];
          const ib: number[] = [];
          for (let i = anchors[k][0] + 1; i < anchors[k + 1][0]; i++) {
@@ -1416,7 +1460,9 @@ export class MorphStage {
       for (const [i, j] of changed) {
          const ca = codeChars(ra.code[i]);
          const cb = codeChars(rb.code[j]);
-         const cp = lcsPairs(
+         // By word: whole tokens pair up (a word that stays glides as one piece and a
+         // changed word swaps whole); by character: letters pair up inside words too.
+         const cp = by === 'word' ? tokenPairs(ca, cb) : lcsPairs(
             ca.map((c) => c.ch),
             cb.map((c) => c.ch)
          );
@@ -1503,6 +1549,7 @@ export class MorphStage {
 
       const out: GridMorph = {
          pair: p,
+         layer,
          clip,
          sameShape: da.rows.length === db.rows.length && da.cols.length === db.cols.length,
          rowPairs: [],
@@ -1774,8 +1821,8 @@ export class MorphStage {
     * Animate one piece of text from `ga` to `gb`: paired glyphs glide, the rest fade
     * out / in while riding along with the text block's overall movement.
     */
-   private addGlyphMoves(layer: SVGGElement, ga: Glyph[], gb: Glyph[]): void {
-      const matched = matchGlyphs(ga, gb, this.by);
+   private addGlyphMoves(layer: SVGGElement, ga: Glyph[], gb: Glyph[], by: MorphBy = this.by): void {
+      const matched = matchGlyphs(ga, gb, by);
       const usedA = new Set(matched.map((m) => m[0]));
       const usedB = new Set(matched.map((m) => m[1]));
       const center = (g: readonly Glyph[]): { x: number; y: number } => {
@@ -1873,7 +1920,7 @@ export class MorphStage {
             return [find('a', p.a.id), find('b', p.b.id)];
          });
          if (glyphs) {
-            this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
+            this.addGlyphMoves(layer, glyphs[0], glyphs[1], this.byFor(p));
             this.glyphIds.add(p.b.id);
          }
       }
@@ -1884,7 +1931,7 @@ export class MorphStage {
             if (!glyphs) {
                continue; // stays a cross-fade
             }
-            this.addGlyphMoves(layer, glyphs[0], glyphs[1]);
+            this.addGlyphMoves(layer, glyphs[0], glyphs[1], this.byFor(gm.pair));
             c.a.remove();
             c.b.remove();
          }
@@ -1914,18 +1961,103 @@ export class MorphStage {
       this.update(this.lastT);
    }
 
+   /**
+    * Slot one-slide objects and code/grid line layers into the live layer by stacking
+    * order (the incoming slide's, with outgoing objects placed just above the morphing
+    * object that sat under them on their slide).
+    */
+   private restack(): void {
+      const pairs = this.elementPairs.filter((p) => p.a.element && p.b.element);
+      if (!pairs.length) return;
+      const zB = new Map<string, number>();
+      for (const p of pairs) {
+         zB.set(p.a.id, p.b.element!.zIndex);
+         zB.set(p.b.id, p.b.element!.zIndex);
+      }
+      const byA = pairs.map((p) => ({ a: p.a.element!.zIndex, b: p.b.element!.zIndex })).sort((x, y) => x.a - y.a);
+      const toB = (z: number): number => {
+         let out = -Infinity;
+         for (const q of byA) if (q.a < z) out = q.b + 0.25;
+         return out;
+      };
+      const extra: Array<{ node: SVGGElement; z: number }> = [];
+      for (const [node, st] of this.stackZ) extra.push({ node, z: st.side === 'b' ? st.z : toB(st.z) });
+      for (const c of [...this.codes, ...this.grids]) {
+         extra.push({ node: c.layer, z: c.pair.b.element!.zIndex + 0.5 });
+      }
+      if (!extra.length) return;
+      const slots = Array.from(this.live.children).flatMap((ch) => {
+         const id = ch.getAttribute('data-eid');
+         const z = id ? zB.get(id) : undefined;
+         return z === undefined ? [] : [{ ch, z }];
+      });
+      if (!slots.length) return;
+      extra.sort((x, y) => x.z - y.z);
+      for (const e of extra) {
+         const next = slots.find((sl) => sl.z > e.z);
+         if (next) next.ch.before(e.node);
+         else slots[slots.length - 1].ch.after(e.node);
+         // Later extras with the same z go above this one.
+         slots.push({ ch: e.node, z: e.z });
+         slots.sort((x, y) => x.z - y.z);
+      }
+   }
+
+   /** Per-object "animate by" (set on the later slide), else the transition's. */
+   private byFor(p: Pair): MorphBy {
+      return this.tr.morphByItems?.[this.reversed ? p.a.id : p.b.id] ?? this.by;
+   }
+
+   /**
+    * The slide around the morphing objects (background, objects on one slide only, the
+    * rest) changes the way the transition type says: fade, slide, zoom, or a cut.
+    */
+   private animateRest(t: number): void {
+      const W = this.to.width;
+      const H = this.to.height;
+      const forward = !this.reversed;
+      const sideA: SVGGElement[] = [this.bgA as SVGGElement, this.restA, ...this.outgoing];
+      const sideB: SVGGElement[] = [this.bgB as SVGGElement, this.restB, ...this.incoming];
+      const set = (els: SVGGElement[], opacity: (g: SVGGElement) => number, transform: string | null): void => {
+         for (const g of els) {
+            g.setAttribute('opacity', String(opacity(g)));
+            if (transform) g.setAttribute('transform', transform);
+            else g.removeAttribute('transform');
+         }
+      };
+      if (this.restType === 'slide') {
+         const base = TRAVEL[this.tr.direction ?? 'left'] ?? TRAVEL['left'];
+         const [dx, dy] = forward ? base : [-base[0], -base[1]];
+         set(sideA, () => 1, `translate(${dx * W * t} ${dy * H * t})`);
+         set(sideB, () => 1, `translate(${-dx * W * (1 - t)} ${-dy * H * (1 - t)})`);
+         return;
+      }
+      if (this.restType === 'zoom') {
+         const about = (k: number): string => `translate(${W / 2} ${H / 2}) scale(${k}) translate(${-W / 2} ${-H / 2})`;
+         const out = forward ? 1.4 : 0.6;
+         const inn = forward ? 0.6 : 1.4;
+         set(sideA, (g) => (g === this.bgA ? 1 : 1 - t), about(1 + (out - 1) * t));
+         set(sideB, () => t, about(inn + (1 - inn) * t));
+         return;
+      }
+      if (this.restType === 'none') {
+         set(sideA, (g) => (g === this.bgA ? 1 : t > 0 ? 0 : 1), null);
+         set(sideB, () => (t > 0 ? 1 : 0), null);
+         return;
+      }
+      // fade (and morph)
+      set([this.bgA as SVGGElement], () => 1, null);
+      set([this.bgB as SVGGElement], () => fadeIn(t), null);
+      set([this.restA], () => fadeOut(t), null);
+      set([this.restB], () => fadeIn(t), null);
+      set(this.outgoing, (g) => (this.cutOut.has(g) ? (t > 0 ? 0 : 1) : 1 - t), null);
+      set(this.incoming, (g) => (this.cutIn.has(g) ? (t > 0 ? 1 : 0) : t), null);
+   }
+
    /** Render the morph at progress `t` (0 = first slide, 1 = second), already eased. */
    update(t: number): void {
       this.lastT = t;
-      this.bgB.setAttribute('opacity', String(fadeIn(t)));
-      this.restA.setAttribute('opacity', String(fadeOut(t)));
-      this.restB.setAttribute('opacity', String(fadeIn(t)));
-      for (const g of this.outgoing) {
-         g.setAttribute('opacity', String(this.cutOut.has(g) ? (t > 0 ? 0 : 1) : 1 - t));
-      }
-      for (const g of this.incoming) {
-         g.setAttribute('opacity', String(this.cutIn.has(g) ? (t > 0 ? 1 : 0) : t));
-      }
+      this.animateRest(t);
 
       // Matched objects are re-rendered at their in-between state, in slide-local space.
       const elements: CanvasElementModel[] = [];
@@ -2008,6 +2140,7 @@ export class MorphStage {
       } else {
          this.live.replaceChildren();
       }
+      this.restack();
 
       for (const c of [...this.codes, ...this.grids]) {
          for (const m of c.moves) {
@@ -2227,6 +2360,35 @@ export class MorphStage {
       this.charLayer?.remove();
       this.svg.remove();
    }
+}
+
+/**
+ * Character pairs of two code lines matched by whole tokens (identifiers / numbers,
+ * runs of whitespace, single punctuation): each matched token's characters pair in
+ * order, so a token moves as one piece and an edited token is replaced, not respelled.
+ */
+function tokenPairs(ca: ReadonlyArray<{ ch: string }>, cb: ReadonlyArray<{ ch: string }>): Array<[number, number]> {
+   const tokens = (cs: ReadonlyArray<{ ch: string }>): Array<{ text: string; start: number }> => {
+      const out: Array<{ text: string; start: number }> = [];
+      const kind = (ch: string): number => (/\w/.test(ch) ? 0 : /\s/.test(ch) ? 1 : 2);
+      cs.forEach((c, i) => {
+         const last = out[out.length - 1];
+         const k = kind(c.ch);
+         if (last && k !== 2 && kind(last.text[0]) === k) last.text += c.ch;
+         else out.push({ text: c.ch, start: i });
+      });
+      return out;
+   };
+   const ta = tokens(ca);
+   const tb = tokens(cb);
+   const out: Array<[number, number]> = [];
+   for (const [x, y] of lcsPairs(
+      ta.map((t) => t.text),
+      tb.map((t) => t.text)
+   )) {
+      for (let k = 0; k < ta[x].text.length; k++) out.push([ta[x].start + k, tb[y].start + k]);
+   }
+   return out;
 }
 
 /** What a code block shows: its code plus, when a diff is on, the diff view and other side. */

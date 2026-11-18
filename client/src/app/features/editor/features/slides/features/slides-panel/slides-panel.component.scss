@@ -1462,3 +1462,18 @@ textarea {
 .loose-row:hover {
    background: var(--dd-surface-2);
 }
+
+/* "Morph matching objects" for fade / slide / zoom / none transitions. */
+.check {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   margin: 4px 0 8px;
+   font-size: 12.5px;
+   color: var(--dd-text);
+   cursor: pointer;
+
+   input {
+      accent-color: var(--dd-primary);
+   }
+}

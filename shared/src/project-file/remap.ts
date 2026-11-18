@@ -15,6 +15,7 @@ import type {
   TableModel,
 } from '../models';
 import { DEFAULT_PRESENTATION } from '../slides';
+import { remapMorphByItems } from '../slides/animations';
 import { randomId } from './ids';
 
 /** The content of a schema (no viewport / home / themes), as models. */
@@ -168,6 +169,12 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
             order: e.slide.order + slideShift,
             // A slide's layout is another frame of the file; drop it if that is missing.
             layoutId: e.slide.layoutId ? elementIds.get(e.slide.layoutId) : undefined,
+            transition: e.slide.transition
+              ? {
+                  ...e.slide.transition,
+                  morphByItems: remapMorphByItems(e.slide.transition.morphByItems, elementIds),
+                }
+              : undefined,
             // Animations follow their objects to the new ids; ones whose object is gone drop.
             animations: e.slide.animations
               ?.map((a) => {

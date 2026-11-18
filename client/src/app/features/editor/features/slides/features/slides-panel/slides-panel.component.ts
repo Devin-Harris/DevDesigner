@@ -64,6 +64,7 @@ import {
    type ThemeColorToken,
    type ThemeFilePart,
    type ThemeFontToken,
+   transitionMorphs,
 } from '@devdesigner/shared';
 import { ThemeService } from '../../../../../../core/theme/theme.service';
 import { UserThemesService } from '../../../../../../core/theme/user-themes.service';
@@ -731,7 +732,7 @@ export class SlidesPanelComponent {
          return false;
       }
       const isMorph = (f: CanvasElementModel | undefined): boolean =>
-         !!f && effectiveTransition(f.slide).type === 'morph';
+         !!f && transitionMorphs(effectiveTransition(f.slide));
       return (i > 0 && isMorph(frames[i])) || (i > 1 && isMorph(frames[i - 1]));
    });
    /** Selected non-frame elements (what a morph tag or pairing applies to). */
@@ -1090,6 +1091,34 @@ export class SlidesPanelComponent {
             };
             await this.store.updateElement(f.id, { slide });
          }
+      });
+   }
+
+   /** The transition morphs shared objects (morph type, or morph switched on for another type). */
+   protected readonly morphs = computed(() => transitionMorphs(this.transition()));
+
+   protected readonly itemMorphByOptions: SelectOption<string>[] = [
+      { value: 'default', label: 'Slide default' },
+      ...MORPH_BY_SELECT,
+   ];
+
+   /** One selected object on the active slide: its own "animate by" (or the slide default). */
+   protected readonly itemMorphTarget = computed<{ id: string; by: string } | null>(() => {
+      const objs = this.selectedObjects();
+      const f = this.active();
+      if (objs.length !== 1 || !f?.slide || objs[0].slideId !== f.id || !this.morphs()) return null;
+      return { id: objs[0].id, by: effectiveTransition(f.slide).morphByItems?.[objs[0].id] ?? 'default' };
+   });
+
+   /** Set (or with 'default', clear) one object's "animate by" on the active slide. */
+   protected setItemMorphBy(id: string, by: string): void {
+      const f = this.active();
+      if (!f?.slide) return;
+      const t = effectiveTransition(f.slide);
+      const { [id]: _old, ...rest } = t.morphByItems ?? {};
+      const items = by === 'default' ? rest : { ...rest, [id]: by as MorphBy };
+      void this.store.updateElement(f.id, {
+         slide: { ...f.slide, transition: { ...t, morphByItems: Object.keys(items).length ? items : undefined } },
       });
    }
 

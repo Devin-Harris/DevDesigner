@@ -274,6 +274,8 @@ function slide(value: unknown, path: string, opts: ParseProjectExportOptions): S
           duration: Math.min(10_000, Math.max(0, num(t, 'duration', `${path}.transition`, 600))),
           easing: oneOf(t, 'easing', `${path}.transition`, SLIDE_EASINGS, 'ease-in-out'),
           morphBy: optOneOf(t, 'morphBy', `${path}.transition`, MORPH_BY_OPTIONS),
+          morph: t['morph'] === undefined || t['morph'] === null ? undefined : bool(t, 'morph', `${path}.transition`, false),
+          morphByItems: morphByItems(t['morphByItems']),
         }
       : undefined,
     animations: slideAnimations(s['animations'], `${path}.animations`),
@@ -638,4 +640,16 @@ export function parseProjectExport(raw: unknown, opts: ParseProjectExportOptions
       themes: list(s['themes'], 'schema.themes').map((t, i) => slideTheme(t, `schema.themes[${i}]`, opts)!),
     },
   };
+}
+
+/** A transition's per-object "animate by" map; unknown values and odd keys are dropped. */
+function morphByItems(v: unknown): Record<string, (typeof MORPH_BY_OPTIONS)[number]> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, (typeof MORPH_BY_OPTIONS)[number]> = {};
+  for (const [k, by] of Object.entries(v as Record<string, unknown>).slice(0, 500)) {
+    if (k.length <= 64 && MORPH_BY_OPTIONS.includes(by as (typeof MORPH_BY_OPTIONS)[number])) {
+      out[k] = by as (typeof MORPH_BY_OPTIONS)[number];
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }

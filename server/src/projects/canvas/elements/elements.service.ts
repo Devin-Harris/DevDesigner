@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { CanvasElementModel } from '@devdesigner/shared';
-import { isEmbedUrl } from '@devdesigner/shared';
+import type { CanvasElementModel, MorphBy } from '@devdesigner/shared';
+import { MORPH_BY_OPTIONS, isEmbedUrl } from '@devdesigner/shared';
 import { Project } from '../../projects/project.entity';
 import { AccessService, bindingRefs, mergeRefs, type ProjectRefs } from '../../../collaboration/access/access.service';
 import { applyDefined } from '../../common/apply-patch';
@@ -123,7 +123,7 @@ export class ElementsService {
       diffSplit: dto.type === 'code' ? (dto.diffSplit ?? null) : null,
       diffShowWhitespace: dto.type === 'code' ? (dto.diffShowWhitespace ?? null) : null,
       expandedHeight: dto.type === 'code' ? (dto.expandedHeight ?? null) : null,
-      slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(dto.slide) : null,
+      slideJson: dto.type === 'frame' && dto.slide ? JSON.stringify(cleanSlide(dto.slide)) : null,
       morphId: dto.morphId ?? null,
       morphIn: dto.morphIn ?? null,
       morphOut: dto.morphOut ?? null,
@@ -327,7 +327,7 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;
   }
   if (dto.slide !== undefined && element.type === 'frame') {
-    element.slideJson = dto.slide ? JSON.stringify(dto.slide) : null;
+    element.slideJson = dto.slide ? JSON.stringify(cleanSlide(dto.slide)) : null;
   }
   if (dto.media !== undefined && element.type === 'image') {
     element.mediaJson = dto.media ? JSON.stringify(dto.media) : null;
@@ -345,4 +345,18 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     element.endBindingId = dto.endBinding?.targetId ?? null;
     element.endBindingFocus = focusColumn(dto.endBinding);
   }
+}
+
+/** Drop malformed per-object "animate by" entries (the DTO only checks it is an object). */
+function cleanSlide<T extends { transition?: { morphByItems?: Record<string, unknown> } }>(slide: T): T {
+  const items = slide.transition?.morphByItems;
+  if (!items) return slide;
+  const clean: Record<string, MorphBy> = {};
+  for (const [k, v] of Object.entries(items).slice(0, 500)) {
+    if (k.length <= 64 && MORPH_BY_OPTIONS.includes(v as MorphBy)) clean[k] = v as MorphBy;
+  }
+  return {
+    ...slide,
+    transition: { ...slide.transition, morphByItems: Object.keys(clean).length ? clean : undefined },
+  };
 }

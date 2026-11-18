@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import {
    nextCopyName,
    remapAnimations,
+   remapMorphByItems,
    type CanvasElementModel,
    type CloneItemsDto,
    type LifelineModel,
@@ -183,6 +184,14 @@ export function withProjectCloneMethods() {
                           ...(presentation !== undefined ? { presentation } : { order: src.slide.order + 0.01 }),
                           ...(src.slide.animations?.length
                              ? { animations: remapAnimations(src.slide.animations, copyOf) }
+                             : {}),
+                          ...(src.slide.transition?.morphByItems
+                             ? {
+                                  transition: {
+                                     ...src.slide.transition,
+                                     morphByItems: remapMorphByItems(src.slide.transition.morphByItems, copyOf),
+                                  },
+                               }
                              : {}),
                        }
                      : undefined;

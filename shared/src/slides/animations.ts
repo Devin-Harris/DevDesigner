@@ -198,3 +198,22 @@ export function normalizeAnimations(list: readonly SlideAnimation[]): SlideAnima
     return { ...a, effect: effectFor(a.kind, a.effect), duration, delay, direction };
   });
 }
+
+/** Whether a slide's entrance morphs the objects it shares with the slide before it. */
+export function transitionMorphs(t: { type: string; morph?: boolean } | undefined | null): boolean {
+  return !!t && (t.type === 'morph' || !!t.morph);
+}
+
+/** Per-object "animate by" settings re-keyed to copied ids (entries whose object is gone drop). */
+export function remapMorphByItems<T>(
+  items: Readonly<Record<string, T>> | undefined,
+  idMap: { get(id: string): string | undefined },
+): Record<string, T> | undefined {
+  if (!items) return undefined;
+  const out: Record<string, T> = {};
+  for (const [id, v] of Object.entries(items)) {
+    const to = idMap.get(id);
+    if (to) out[to] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}

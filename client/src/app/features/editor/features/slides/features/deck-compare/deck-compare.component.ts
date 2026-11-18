@@ -1157,7 +1157,11 @@ export class DeckCompareComponent {
          this.show(0);
       });
    });
-   protected readonly isMorph = computed(() => this.slide().slide?.transition?.type === 'morph');
+   /**
+    * The preview plays the real transition on a live stage for every type (fade, slide,
+    * zoom, a cut, with or without morph), not just a cross-fade of two pictures.
+    */
+   protected readonly isMorph = computed(() => !!this.previous());
    protected readonly ratio = computed(() => `${this.slide().width} / ${this.slide().height}`);
    protected readonly duration = computed(() => this.slide().slide?.transition?.duration ?? 300);
    protected readonly nowMs = computed(() => Math.round(this.progress() * this.duration()));
