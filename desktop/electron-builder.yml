@@ -34,7 +34,8 @@ publish:
   provider: github
   owner: Devin-Harris
   repo: DevDesigner
-  releaseType: release
+  # Uploads go to the draft the release workflow creates; it publishes once every platform is in.
+  releaseType: draft
 # Stable file names (no version) so the web home page can link releases/latest/download/<file>;
 # electron-updater finds the files through latest*.yml.
 win:

@@ -9,7 +9,7 @@
 // into the install folder. No installer, no compression: about a minute instead of several.
 // The full installer runs for a first install, or with --installer.
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,8 +56,19 @@ if (fullInstaller) {
   }
 } else {
   console.log(`\n[${elapsed()}] Packaging the app (no installer) …`);
-  run('npx electron-builder --win --dir --publish never', desktop);
-  const unpacked = join(desktop, 'release', 'win-unpacked');
+  // A fresh output folder each time: Windows (antivirus, indexer) can keep files of an
+  // earlier build locked for a while, which makes electron-builder fail to clear it.
+  const outName = `local-${Date.now()}`;
+  for (const entry of existsSync(join(desktop, 'release')) ? readdirSync(join(desktop, 'release')) : []) {
+    if (!/^local-\d+$/.test(entry)) continue;
+    try {
+      rmSync(join(desktop, 'release', entry), { recursive: true, force: true });
+    } catch {
+      // Still locked: removed on a later run.
+    }
+  }
+  run(`npx electron-builder --win --dir --publish never -c.directories.output=release/${outName}`, desktop);
+  const unpacked = join(desktop, 'release', outName, 'win-unpacked');
   console.log(`\n[${elapsed()}] Updating ${installDir} …`);
   // /MIR makes the folder match the new build; the uninstaller written by the first
   // install is kept. robocopy exit codes below 8 mean success.
