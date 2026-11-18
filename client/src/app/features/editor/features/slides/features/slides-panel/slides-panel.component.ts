@@ -114,7 +114,8 @@ const TYPE_OPTIONS: SelectOption<SlideTransitionType>[] = [
    { value: 'fade', label: 'Fade' },
    { value: 'slide', label: 'Slide' },
    { value: 'zoom', label: 'Zoom' },
-   { value: 'morph', label: 'Morph' },
+   // Stored as 'morph': objects on both slides morph, the rest cross-fades.
+   { value: 'morph', label: 'Auto' },
 ];
 const DIRECTION_OPTIONS: SelectOption<SlideDirection>[] = [
    { value: 'left', label: 'To the left' },
@@ -915,10 +916,10 @@ export class SlidesPanelComponent {
    }
    protected readonly transitionLabel = computed(() => {
       const t = this.active()?.slide?.transition?.type ?? 'none';
-      return t === 'none' ? 'None' : t.charAt(0).toUpperCase() + t.slice(1);
+      return t === 'none' ? 'None' : t === 'morph' ? 'Auto' : t.charAt(0).toUpperCase() + t.slice(1);
    });
    protected readonly focusTypes: { value: SlideTransitionType; label: string }[] = [
-      { value: 'morph', label: 'Morph' },
+      { value: 'morph', label: 'Auto' },
       { value: 'fade', label: 'Fade' },
       { value: 'slide', label: 'Slide' },
       { value: 'zoom', label: 'Zoom' },

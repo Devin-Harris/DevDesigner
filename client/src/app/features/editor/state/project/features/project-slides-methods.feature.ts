@@ -77,8 +77,9 @@ export function withProjectSlidesMethods() {
          },
 
          /** Zoom a presentation's slide view inside its block (view state, not saved). */
-         setSlideZoom(name: string, scale: number): void {
-            const s = Math.min(1, Math.max(MIN_SLIDE_ZOOM, scale));
+         /** `floor`: how far this slide may zoom out (see slideZoomFloor; default MIN_SLIDE_ZOOM). */
+         setSlideZoom(name: string, scale: number, floor = MIN_SLIDE_ZOOM): void {
+            const s = Math.min(1, Math.max(floor, scale));
             const { [name]: _old, ...rest } = store.slideZoom();
             patchState(store, { slideZoom: s >= 0.999 ? rest : { ...rest, [name]: s } });
          },

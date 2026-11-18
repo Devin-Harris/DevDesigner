@@ -596,6 +596,25 @@ export class GridTableService {
       void this.store.commitElementGeometry(id, before, after);
    }
 
+   /** Double-click on the table's outer edge: every column and row fits its content. */
+   autoFitAll(id: string): void {
+      if (this.editingCell()) this.endEdit();
+      const el = this.grid(id);
+      if (!el || !this.store.canEdit()) return;
+      const g = gridInPixels(el);
+      g.cols = g.cols.map((_, c) => Math.max(GRID_MIN_CELL, gridColNeed(el, g, c)));
+      g.rows = gridRowNeeds(el, g, g.cols).map((h) => Math.max(GRID_MIN_CELL, h));
+      const before = { text: el.text ?? '', width: el.width, height: el.height };
+      const after = {
+         text: serializeGrid(g),
+         width: g.cols.reduce((a, b) => a + b, 0),
+         height: g.rows.reduce((a, b) => a + b, 0),
+      };
+      if (after.text === before.text && after.width === before.width && after.height === before.height) return;
+      this.store.patchElementLocal(id, after);
+      void this.store.commitElementGeometry(id, before, after);
+   }
+
    /** Column/row pixel sizes of a grid element (for overlay placement). */
    sizes(id: string): { cols: number[]; rows: number[] } | null {
       const el = this.grid(id);

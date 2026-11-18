@@ -12,7 +12,7 @@ import {
    presentationLayouts,
    DEFAULT_SLIDE_TRANSITION,
 } from '@devdesigner/shared';
-import { boxToOuter, MIN_SLIDE_ZOOM, slideViewRegion, toInner, toOuter } from '../../../helpers/slide-zoom.helper';
+import { boxToOuter, MIN_SLIDE_ZOOM_FLOOR, slideViewRegion, toInner, toOuter } from '../../../helpers/slide-zoom.helper';
 import { ProjectStore } from '../../../state/project/project.store';
 import { fillFromLayout } from '../../../helpers/layout-placeholders';
 import { frameContents, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
@@ -228,7 +228,8 @@ export class SlidePlacementService {
       // moved far away, e.g. by another client) belongs to the normal canvas. Items just
       // outside the frame stay: they are staged for morph entrances/exits. Dragging an
       // item out of the block releases it on drop (`releaseDroppedOutOfSlides`).
-      const reach = slideViewRegion(active, MIN_SLIDE_ZOOM);
+      // The furthest any slide may ever zoom out: content past that is not staged, it moved away.
+      const reach = slideViewRegion(active, MIN_SLIDE_ZOOM_FLOOR);
       const apart = (b: Box): boolean => b.x1 < reach.x0 || b.x0 > reach.x1 || b.y1 < reach.y0 || b.y0 > reach.y1;
       const free = {
          elements: this.store

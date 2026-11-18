@@ -333,6 +333,17 @@
                            ></rect>
                         }
                      }
+                     <!-- Double-click the table's outer edge: fit every column and row to its content. -->
+                     @for (e of ['t', 'r', 'b', 'l']; track e) {
+                        <rect
+                           class="grid-bounds"
+                           [attr.x]="e === 'r' ? g.rect.x + g.rect.width : e === 'l' ? g.rect.x - 6 : g.rect.x"
+                           [attr.y]="e === 'b' ? g.rect.y + g.rect.height : e === 't' ? g.rect.y - 6 : g.rect.y"
+                           [attr.width]="e === 't' || e === 'b' ? g.rect.width : 6"
+                           [attr.height]="e === 'l' || e === 'r' ? g.rect.height : 6"
+                           (dblclick)="onGridFitAll(s.id, $event)"
+                        ></rect>
+                     }
                      @for (y of g.rowEdges; track $index; let i = $index) {
                         @if (i > 0) {
                            <rect

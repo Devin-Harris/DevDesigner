@@ -1,6 +1,6 @@
 import { DestroyRef, type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
 import { presentationOf, type CanvasElementModel, type SequenceDiagramModel } from '@devdesigner/shared';
-import { clampSlidePan, inBlock, type SlideView, toInner } from '../helpers/slide-zoom.helper';
+import { clampSlidePan, inBlock, slideZoomFloor, type SlideView, toInner } from '../helpers/slide-zoom.helper';
 import { notifySignal } from '../../../shared/helpers/signals';
 import { ProjectStore } from '../state/project/project.store';
 import { MAX_ZOOM, MIN_ZOOM } from '../shared/constants/canvas.constants';
@@ -141,7 +141,7 @@ export class EditorViewportService {
             const name = presentationOf(frame);
             // Pinch / precision touchpads send small deltas: follow them smoothly.
             const step = Math.exp(-Math.max(-50, Math.min(50, event.deltaY)) * 0.004);
-            this.store.setSlideZoom(name, (this.store.slideZoom()[name] ?? 1) * step);
+            this.store.setSlideZoom(name, (this.store.slideZoom()[name] ?? 1) * step, this.zoomFloor(frame));
             return;
          }
       }
@@ -168,7 +168,16 @@ export class EditorViewportService {
       const name = presentationOf(frame);
       const scale = this.store.slideZoom()[name] ?? 1;
       const pan = this.store.slidePan()[name] ?? { x: 0, y: 0 };
-      this.store.setSlidePan(name, clampSlidePan(frame, scale, { x: pan.x + dx, y: pan.y + dy }));
+      this.store.setSlidePan(name, clampSlidePan(frame, scale, { x: pan.x + dx, y: pan.y + dy }, this.zoomFloor(frame)));
+   }
+
+   /** How far a slide may zoom out: further when its own content reaches past the usual limit. */
+   private zoomFloor(frame: CanvasElementModel): number {
+      const boxes = [
+         ...this.store.elements().filter((e) => e.slideId === frame.id && e.type !== 'frame').map(elementBox),
+         ...this.store.tables().filter((t) => t.slideId === frame.id).map(tableBox),
+      ];
+      return slideZoomFloor(frame, boxes);
    }
 
    zoomIn(): void {

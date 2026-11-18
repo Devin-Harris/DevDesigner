@@ -47,7 +47,7 @@ function embedHost(url: string | null | undefined): string {
          @for (k of [nonce() + retries()]; track k) {
             <iframe
                [class.ready]="loaded() && !failed()"
-               (load)="loaded.set(true)"
+               (load)="onLoad($event)"
                title="Live frame"
                referrerpolicy="no-referrer"
                allow="clipboard-read; clipboard-write; fullscreen; autoplay"
@@ -312,6 +312,22 @@ export class EmbedFrameComponent {
             clearTimeout(timer);
          });
       });
+   }
+
+   /**
+    * The iframe's first load event is often its initial about:blank document, which
+    * would hide the spinner before the page arrives. A page we can't read (another
+    * origin) or any real URL counts as loaded.
+    */
+   protected onLoad(event: Event): void {
+      const frame = event.target as HTMLIFrameElement;
+      try {
+         const href = frame.contentWindow?.location.href;
+         if (!href || href === 'about:blank') return;
+      } catch {
+         // Cross-origin: the real page is there.
+      }
+      this.loaded.set(true);
    }
 
    protected retry(): void {

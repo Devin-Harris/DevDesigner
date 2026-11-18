@@ -155,6 +155,12 @@
 }
 
 // Spreadsheet-style grid: draggable column/row borders and the active cell.
+.grid-bounds {
+   fill: transparent;
+   pointer-events: all;
+   cursor: cell;
+}
+
 .grid-border {
    fill: transparent;
    pointer-events: all;

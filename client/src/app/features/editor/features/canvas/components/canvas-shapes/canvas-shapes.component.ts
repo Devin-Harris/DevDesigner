@@ -219,6 +219,12 @@ export class CanvasShapesComponent {
       this.grids.autoFit(id, axis, index);
    }
 
+   protected onGridFitAll(id: string, event: MouseEvent): void {
+      event.stopPropagation();
+      event.preventDefault();
+      this.grids.autoFitAll(id);
+   }
+
    protected onBody(id: string, event: PointerEvent): void {
       if (event.button !== 0) {
          return;

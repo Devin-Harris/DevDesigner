@@ -104,7 +104,7 @@
                                  ? h.label + ' · drag to an object on the other slide to morph into it'
                                  : h.label + ' (tables pair by name)'
                            "
-                           (pointerenter)="lit.set(h.key)"
+                           (pointerenter)="drag() || lit.set(h.key)"
                            (pointerleave)="onHitLeave(h)"
                            (pointermove)="onHitMove($event, $any(side), h)"
                            (pointerdown)="startDrag($event, $any(side), h)"

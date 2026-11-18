@@ -268,17 +268,6 @@
                                  />
                               </label>
                            }
-                           @if (transition().type !== 'morph') {
-                              <label class="check">
-                                 <input
-                                    type="checkbox"
-                                    [checked]="!!transition().morph"
-                                    [disabled]="!canEdit()"
-                                    (change)="setTransition({ morph: $any($event.target).checked })"
-                                 />
-                                 Morph matching objects
-                              </label>
-                           }
                            @if (transition().type !== 'none' || morphs()) {
                               <div class="two">
                                  <label class="field">
@@ -1284,15 +1273,6 @@
             </button>
          }
       </div>
-      @if (transition().type !== 'morph') {
-         <div class="f-row">
-            Morph objects
-            <span class="f-seg">
-               <button type="button" [class.on]="!transition().morph" [disabled]="!canEdit()" (click)="setTransition({ morph: false })">Off</button>
-               <button type="button" [class.on]="!!transition().morph" [disabled]="!canEdit()" (click)="setTransition({ morph: true })">On</button>
-            </span>
-         </div>
-      }
       @if (transition().type !== 'none' || morphs()) {
          <div class="f-row">
             Duration

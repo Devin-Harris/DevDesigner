@@ -18,6 +18,7 @@ import {
    gridMorphPairs,
    gridPartTag,
    matchMorphItems,
+   transitionMorphs,
    parseGrid,
    serializeGrid,
    setGridPartTag,
@@ -258,7 +259,7 @@ export class DeckCompareComponent {
    /** Matcher result as index pairs, plus the sides it ran on. */
    private readonly matching = computed(() => {
       const { A, B } = this.sides();
-      const morph = this.slide().slide?.transition?.type === 'morph';
+      const morph = transitionMorphs(this.slide().slide?.transition);
       const matches = morph
          ? matchMorphItems(
               A.map((x) => x.item),
@@ -340,7 +341,7 @@ export class DeckCompareComponent {
       side: 'from' | 'to'
    ): Map<string, string> {
       const out = new Map<string, string>();
-      if (!from || !to || to.slide?.transition?.type !== 'morph') return out;
+      if (!from || !to || !transitionMorphs(to.slide?.transition)) return out;
       const A = this.itemsOf(from);
       const B = this.itemsOf(to);
       for (const [i, j] of matchMorphItems(
@@ -510,6 +511,9 @@ export class DeckCompareComponent {
       this.hoverZone.set({ side, key: h.key, part });
    }
    protected onHitLeave(h: Hit): void {
+      // Mid-drag the highlight stays put: changing it toggles the focus view, which clips
+      // objects off the slide's edge out from under the pointer (they flashed on and off).
+      if (this.drag()) return;
       this.lit.set(null);
       if (this.hoverZone()?.key === h.key) this.hoverZone.set(null);
    }
@@ -693,8 +697,11 @@ export class DeckCompareComponent {
    /** The object on the OTHER slide under the pointer, if it can be paired. */
    private targetAt(clientX: number, clientY: number, from: DragEnd): DragEnd | null {
       const fromSide = from.side;
-      // The smallest object under the pointer (the innermost one).
-      const el = document
+      // Geometry first: the smallest object box on the other slide that holds the pointer
+      // (the innermost one, like clicking nested objects on the canvas). It works the same
+      // for objects past the slide's edges, whose outlines may be clipped on screen.
+      const geo = this.innermostAt(fromSide === 'a' ? 'b' : 'a', clientX, clientY);
+      const el = geo ? this.hitEl(fromSide === 'a' ? 'b' : 'a', geo.key) ?? undefined : document
          .elementsFromPoint(clientX, clientY)
          // Only this view's object outlines: the canvas underneath has "hit" boxes too.
          .filter(
@@ -721,6 +728,21 @@ export class DeckCompareComponent {
          return { side, key, part: this.zoneAt(side, h, clientX, clientY, {}) };
       }
       return { side, key };
+   }
+
+   /** The smallest (non-line) object on `side` whose box holds the pointer. */
+   private innermostAt(side: 'a' | 'b', clientX: number, clientY: number): Hit | null {
+      const u = this.toUnits(clientX, clientY);
+      if (!u) return null;
+      const x = ((u.x - (side === 'b' ? COL + this.gap() : 0)) / COL) * 100;
+      const y = (u.y / this.viewH()) * 100;
+      let best: Hit | null = null;
+      for (const h of side === 'a' ? this.hitsA() : this.hitsB()) {
+         if (h.line || !h.id) continue;
+         if (x < h.left || x > h.left + h.width || y < h.top || y > h.top + h.height) continue;
+         if (!best || h.width * h.height < best.width * best.height) best = h;
+      }
+      return best;
    }
 
    /** Select an object to see what it does and change it. Pairs are only made by dragging. */

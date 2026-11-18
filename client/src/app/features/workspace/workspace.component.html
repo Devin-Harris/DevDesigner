@@ -1,6 +1,10 @@
 <div class="ws">
    @if (selectedProject(); as project) {
       <dd-editor [projectId]="project.id"></dd-editor>
+   } @else if (resolving()) {
+      <!-- A project is being opened (refresh / deep link): nothing until it is known,
+           so the home page and its showcase deck never flash first. -->
+      <div class="ws-loading" aria-busy="true"></div>
    } @else {
       <dd-home></dd-home>
    }

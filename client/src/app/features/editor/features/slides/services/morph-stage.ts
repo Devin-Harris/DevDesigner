@@ -183,6 +183,32 @@ function walkBinding(w: Walk | null, t: number): ElementBinding | undefined {
    return { ...w.binding, focus: { x: 0.5 + 0.25 * Math.cos(th), y: 0.5 + 0.25 * Math.sin(th) } };
 }
 
+/** A shape's visible fill color, or null when it draws no fill. */
+function fillOf(e: CanvasElementModel): string | null {
+   const c = e.backgroundColor;
+   return e.fillStyle !== 'none' && c && c !== 'transparent' && parseColor(c) ? c : null;
+}
+
+/**
+ * Fill at progress `t`: two fills mix; a fill against no fill fades in or out through
+ * transparency (instead of snapping empty at the halfway point), keeping the filled
+ * side's fill style the whole way.
+ */
+function blendFill(
+   a: CanvasElementModel,
+   b: CanvasElementModel,
+   t: number
+): Pick<CanvasElementModel, 'backgroundColor' | 'fillStyle'> {
+   const fa = fillOf(a);
+   const fb = fillOf(b);
+   if (fa && fb) return { backgroundColor: mixColor(fa, fb, t), fillStyle: t < 0.5 ? a.fillStyle : b.fillStyle };
+   if (!fa && !fb) return { backgroundColor: mixOptionalColor(a.backgroundColor, b.backgroundColor, t), fillStyle: (t < 0.5 ? a : b).fillStyle };
+   const c = parseColor((fa ?? fb)!)!;
+   const alpha = Math.round(255 * (fa ? 1 - t : t));
+   const hex = [...c, alpha].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+   return { backgroundColor: `#${hex}`, fillStyle: (fa ? a : b).fillStyle };
+}
+
 /** The element at progress `t` between its two slide versions (slide-local coordinates). */
 function blendElement(
    a: CanvasElementModel,
@@ -212,7 +238,7 @@ function blendElement(
       height: lerp(a.height, b.height, t),
       angle: lerpAngle(a.angle ?? 0, b.angle ?? 0, t),
       strokeColor: mixColor(a.strokeColor, b.strokeColor, t),
-      backgroundColor: mixOptionalColor(a.backgroundColor, b.backgroundColor, t),
+      ...blendFill(a, b, t),
       strokeWidth: lerp(a.strokeWidth, b.strokeWidth, t),
       opacity: lerp(a.opacity, b.opacity, t),
       cornerRadius: num(a.cornerRadius, b.cornerRadius),

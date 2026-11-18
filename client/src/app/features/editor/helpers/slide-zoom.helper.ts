@@ -39,10 +39,30 @@ export interface SlidePan {
  * Keep a pan within what the slide can ever show (the reach at MIN_SLIDE_ZOOM), so
  * the view never leaves the staging room that items stay owned in.
  */
-export function clampSlidePan(frame: FrameBox, scale: number, pan: SlidePan): SlidePan {
-   const mx = Math.max(0, frame.width / 2 / MIN_SLIDE_ZOOM - frame.width / 2 / scale);
-   const my = Math.max(0, frame.height / 2 / MIN_SLIDE_ZOOM - frame.height / 2 / scale);
+export function clampSlidePan(frame: FrameBox, scale: number, pan: SlidePan, floor = MIN_SLIDE_ZOOM): SlidePan {
+   const mx = Math.max(0, frame.width / 2 / floor - frame.width / 2 / scale);
+   const my = Math.max(0, frame.height / 2 / floor - frame.height / 2 / scale);
    return { x: Math.max(-mx, Math.min(mx, pan.x)), y: Math.max(-my, Math.min(my, pan.y)) };
+}
+
+/** Never zoom a slide out past this, however far its content reaches. */
+export const MIN_SLIDE_ZOOM_FLOOR = 0.03;
+
+/**
+ * How far a slide may zoom out: at least MIN_SLIDE_ZOOM, and further when its own
+ * content (staged items) reaches past what that shows, so all of it fits in view.
+ */
+export function slideZoomFloor(frame: FrameBox, content: readonly Box[]): number {
+   const cx = frame.x + frame.width / 2;
+   const cy = frame.y + frame.height / 2;
+   const pad = 40;
+   let floor = MIN_SLIDE_ZOOM;
+   for (const b of content) {
+      const dx = Math.max(Math.abs(b.x0 - cx), Math.abs(b.x1 - cx)) + pad;
+      const dy = Math.max(Math.abs(b.y0 - cy), Math.abs(b.y1 - cy)) + pad;
+      floor = Math.min(floor, frame.width / 2 / dx, frame.height / 2 / dy);
+   }
+   return Math.max(MIN_SLIDE_ZOOM_FLOOR, floor);
 }
 
 /** The view shows the slide as-is (no zoom, no pan): items map 1:1. */
@@ -70,11 +90,12 @@ export function slideView(
    frame: FrameBox & { id: string },
    presentation: string,
    scale: number,
-   pan?: SlidePan
+   pan?: SlidePan,
+   floor = MIN_SLIDE_ZOOM
 ): SlideView {
    const cx = frame.x + frame.width / 2;
    const cy = frame.y + frame.height / 2;
-   const p = pan ? clampSlidePan(frame, scale, pan) : { x: 0, y: 0 };
+   const p = pan ? clampSlidePan(frame, scale, pan, floor) : { x: 0, y: 0 };
    return {
       frameId: frame.id,
       presentation,

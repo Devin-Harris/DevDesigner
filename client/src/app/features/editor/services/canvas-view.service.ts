@@ -21,6 +21,7 @@ import {
    toInner,
    toOuter,
    isPlainView,
+   slideZoomFloor,
 } from '../helpers/slide-zoom.helper';
 import { FontMetricsService } from './font-metrics.service';
 import type { ShapeView } from '../models/shape-view.model';
@@ -125,9 +126,18 @@ export class CanvasViewService {
       const frames = this.store.slideFrames();
       return [...this.store.shownByPresentation()].flatMap(([name, id]) => {
          const frame = frames.find((f) => f.id === id);
-         return frame ? [slideView(frame, name, zoom[name] ?? 1, pan[name])] : [];
+         return frame ? [slideView(frame, name, zoom[name] ?? 1, pan[name], this.slideFloor(frame))] : [];
       });
    });
+
+   /** How far a slide may zoom out: further when its own content reaches past the usual limit. */
+   slideFloor(frame: CanvasElementModel): number {
+      const boxes = [
+         ...this.store.elements().filter((e) => e.slideId === frame.id && e.type !== 'frame').map(elementBox),
+         ...this.store.tables().filter((t) => t.slideId === frame.id).map(tableBox),
+      ];
+      return slideZoomFloor(frame, boxes);
+   }
 
    /** Which zoomed slide view draws each item (frame + what the slide owns), by kind. */
    readonly zoomedItems = computed(() => {

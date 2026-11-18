@@ -1391,7 +1391,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
 
   tool(
     'preview_morph',
-    "Show how each transition between consecutive slides will pair objects for morph: which elements glide into which (and why), which just fade out/in, and for sequence diagrams which participants and messages pair (by tag, name or wording) and which text morphs. Use it after building a deck, then fix poor pairings with set_morph_tag. Tip: a slide only morphs if its transition type is 'morph'.",
+    "Show how each transition between consecutive slides will pair objects for morph: which elements glide into which (and why), which just fade out/in, and for sequence diagrams which participants and messages pair (by tag, name or wording) and which text morphs. Use it after building a deck, then fix poor pairings with set_morph_tag. Every transition type except 'none' morphs shared objects ('morph' = Auto: the rest cross-fades).",
     { projectId, presentation: z.string().optional() },
     { readOnly: true },
     async ({ projectId: id, presentation }) => {
@@ -1534,7 +1534,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
           from: i,
           to: i + 1,
           transition: kind,
-          ...(kind !== 'morph' ? { note: "Transition type is not 'morph'; set it with update_slide to use these pairings." } : {}),
+          ...(kind === 'none' ? { note: "Transition type is 'none' (a cut, no morph); set another type with update_slide to use these pairings." } : {}),
           paired: pairs.map(([p, q]) => {
             const tag = morphTagOf(a[p].item.key);
             const shared = a[p].item.runTags?.find((t) => b[q].item.runTags?.includes(t));
@@ -1551,7 +1551,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
           }),
           fadingOut: a.filter((_, p) => !usedA.has(p)).map((x) => x.label),
           fadingIn: b.filter((_, q) => !usedB.has(q)).map((x) => x.label),
-          ...(kind === 'morph'
+          ...(kind !== 'none'
             ? { textAnimatedBy: slides[i].slide.transition?.morphBy ?? 'character' }
             : {}),
           ...sequencePairings(schema, slides[i - 1], slides[i]),

@@ -195,6 +195,15 @@ export class EditorComponent {
    private readonly penPrefs = inject(PenPrefsService);
    private readonly focusUi = inject(FocusUiState);
    protected readonly compareUi = inject(CompareUiState);
+   /** The shown slide's transition is None: a cut, nothing morphs (Map pairs is off). */
+   protected readonly cutTransition = computed(() => {
+      const id = this.store.activeSlideId();
+      const f = id ? this.store.slideFrames().find((x) => x.id === id) : undefined;
+      return (f?.slide?.transition?.type ?? 'none') === 'none';
+   });
+   private readonly cutShowsPreview = effect(() => {
+      if (this.cutTransition() && untracked(this.compareUi.view) === 'map') this.compareUi.view.set('preview');
+   });
    /** The tool dock sits along the top edge (bars that would sit there move down). */
    protected readonly toolbarPosTop = computed(() => this.toolbarPrefs.position() === 'top');
    private readonly dialog = inject(MatDialog);

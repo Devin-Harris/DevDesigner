@@ -164,7 +164,7 @@ export interface SlideTransition {
   morphBy?: MorphBy;
   /**
    * Morph objects that are on both slides while the rest of the slide uses `type`
-   * (none / fade / slide / zoom). Always on for `type: 'morph'`.
+   * (none / fade / slide / zoom). Unused now: every type but 'none' morphs ('morph' shows as "Auto").
    */
   morph?: boolean;
   /** Per object (this slide's element id): how its changed text animates, overriding `morphBy`. */

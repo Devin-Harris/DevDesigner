@@ -52,6 +52,12 @@ export class WorkspaceComponent {
       () => this.store.projects().find((p) => p.id === this.store.selectedId()) ?? null
    );
 
+   /** A project is selected but the project list has not loaded yet. */
+   protected readonly resolving = computed(
+      // loadProjects (called below) flips `loading` on synchronously, so this holds from the first render.
+      () => !!this.store.selectedId() && this.store.loading()
+   );
+
    constructor() {
       // A bare "/" reopens the project the user was last viewing.
       const initial = this.route.snapshot.paramMap.get('projectId') ?? readLastProject();

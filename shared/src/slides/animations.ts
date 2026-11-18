@@ -201,7 +201,8 @@ export function normalizeAnimations(list: readonly SlideAnimation[]): SlideAnima
 
 /** Whether a slide's entrance morphs the objects it shares with the slide before it. */
 export function transitionMorphs(t: { type: string; morph?: boolean } | undefined | null): boolean {
-  return !!t && (t.type === 'morph' || !!t.morph);
+  // Every transition morphs the objects two slides share, except None (a plain cut).
+  return !!t && t.type !== 'none';
 }
 
 /** Per-object "animate by" settings re-keyed to copied ids (entries whose object is gone drop). */
