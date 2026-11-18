@@ -522,6 +522,7 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     lifelineSpacing: num(d, 'lifelineSpacing', path, 160),
     rowSpacing: num(d, 'rowSpacing', path, 48),
     headerHeight: num(d, 'headerHeight', path, 42),
+    scale: d['scale'] === undefined || d['scale'] === null ? undefined : Math.min(20, Math.max(0.05, num(d, 'scale', path, 1))),
     originY: num(d, 'originY', path, 0),
     zIndex: num(d, 'zIndex', path, -1),
     groupId: optStr(d, 'groupId', path, 100),

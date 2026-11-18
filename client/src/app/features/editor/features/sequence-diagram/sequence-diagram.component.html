@@ -190,8 +190,8 @@
             [class.dashed]="m.dashed"
             [class.selected]="m.selected"
             [style.--msg-color]="css(m.color)"
-            [style.left.px]="m.headX - (m.dirRight ? 9 : 1)"
-            [style.top.px]="m.y - 5"
+            [style.left.px]="m.headX - (m.dirRight ? 9 : 1) * k()"
+            [style.top.px]="m.y - 5 * k()"
          >
             @if (m.dirRight) {
                <path d="M1 1 L9 5 L1 9" />

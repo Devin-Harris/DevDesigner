@@ -485,6 +485,8 @@ export interface SequenceDiagramModel {
   rowSpacing: number;
   /** Height of each lifeline header box (px). */
   headerHeight: number;
+  /** Text / arrowhead / label-box size multiple (Ctrl + resize scales it); absent = 1. */
+  scale?: number;
   /** World-space Y where this diagram's lifeline spines begin. */
   originY: number;
   /**

@@ -318,11 +318,13 @@ export class DeckCompareComponent {
             top: ((it.cy - it.h / 2) / frame.height) * 100,
             width: (it.w / frame.width) * 100,
             height: (it.h / frame.height) * 100,
+            // Any part past the slide's edges (not only wholly off it): the slide's dashed
+            // reach then takes it in and the view never clips it.
             outside:
-               it.cx + it.w / 2 <= 0 ||
-               it.cy + it.h / 2 <= 0 ||
-               it.cx - it.w / 2 >= frame.width ||
-               it.cy - it.h / 2 >= frame.height,
+               it.cx - it.w / 2 < -0.5 ||
+               it.cy - it.h / 2 < -0.5 ||
+               it.cx + it.w / 2 > frame.width + 0.5 ||
+               it.cy + it.h / 2 > frame.height + 0.5,
             num: p ? p.n + 1 : null,
             color: p ? PAIR_COLORS[p.n % PAIR_COLORS.length] : null,
             forced,

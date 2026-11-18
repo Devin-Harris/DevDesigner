@@ -230,6 +230,11 @@ export function withProjectElementsMethods() {
                return created;
             },
 
+            /** Persist a change that is not the user's own edit (no undo step), e.g. an automatic snapshot. */
+            async updateElementSilently(elementId: string, patch: UpdateElementDto): Promise<void> {
+               await updateElementRaw(elementId, patch);
+            },
+
             async updateElement(elementId: string, patch: UpdateElementDto): Promise<void> {
                const current = store.schema()?.elements.find((e) => e.id === elementId);
                const before = current ? captureBefore(current, patch) : null;

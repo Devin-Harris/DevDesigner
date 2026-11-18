@@ -220,7 +220,12 @@ export function withProjectSequenceMethods() {
             },
 
             /** Update one diagram's layout config (spacing / origin), persisted. */
-            async updateSequenceConfig(diagramId: string, patch: UpdateSequenceDiagramDto): Promise<void> {
+            async updateSequenceConfig(
+               diagramId: string,
+               patch: UpdateSequenceDiagramDto,
+               /** false: persist without an undo step (a gesture records its own). */
+               record = true
+            ): Promise<void> {
                const projectId = store.projectId();
                if (!projectId) {
                   return;
@@ -228,6 +233,7 @@ export function withProjectSequenceMethods() {
                // Move/resize gestures record their own layout step; only the appearance
                // settings are recorded here.
                const keys = Object.keys(patch).filter((k) =>
+                  record &&
                   ['backgroundColor', 'borderColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(k)
                );
                const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
@@ -255,10 +261,24 @@ export function withProjectSequenceMethods() {
                   for (const [id, y] of snap.messageYs) {
                      store.moveMessage(id, y);
                   }
-                  void this.updateSequenceConfig(diagramId, {
-                     rowSpacing: snap.rowSpacing,
-                     originY: snap.originY,
-                  });
+                  void this.updateSequenceConfig(
+                     diagramId,
+                     {
+                        rowSpacing: snap.rowSpacing,
+                        originY: snap.originY,
+                        ...(snap.headerHeight !== undefined ? { headerHeight: snap.headerHeight } : {}),
+                        ...(snap.scale !== undefined ? { scale: snap.scale } : {}),
+                     },
+                     false
+                  );
+                  for (const [id, width] of snap.lifelineWidths ?? []) {
+                     const l = store.lifelines().find((x) => x.id === id);
+                     // withProjectSequenceRowsMethods is composed before this feature (project.store).
+                     const rows = store as unknown as {
+                        updateLifeline(id: string, p: { width: number }, prev: undefined, record: boolean): Promise<void>;
+                     };
+                     if (l && l.width !== width) void rows.updateLifeline(id, { width }, undefined, false);
+                  }
                };
                pushHistory({ undo: () => apply(before), redo: () => apply(after) });
             },
@@ -277,6 +297,27 @@ export function withProjectSequenceMethods() {
                startRows: ReadonlyMap<string, number>
             ): void {
                setSchema((s) => shiftSequenceIn(s, { diagramId, startXs, dx, startOriginY, dy, startRows }));
+            },
+
+            /**
+             * Live (local-only) content scale of one diagram (Ctrl + resize): header height,
+             * text scale and participant widths. Persist on end.
+             */
+            scaleSequenceLocal(
+               diagramId: string,
+               headerHeight: number,
+               scale: number,
+               widths: ReadonlyMap<string, number>
+            ): void {
+               setSchema((s) => ({
+                  ...s,
+                  lifelines: s.lifelines.map((l) =>
+                     l.diagramId === diagramId && widths.has(l.id) ? { ...l, width: widths.get(l.id)! } : l
+                  ),
+                  sequenceDiagrams: s.sequenceDiagrams.map((x) =>
+                     x.id === diagramId ? { ...x, headerHeight, scale } : x
+                  ),
+               }));
             },
 
             /**

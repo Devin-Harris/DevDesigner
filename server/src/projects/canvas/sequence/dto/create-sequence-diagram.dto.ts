@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsNumber, Max, Min, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { CreateSequenceDiagramDto as ICreateSequenceDiagramDto } from '@devdesigner/shared';
 import { IsColor } from '../../../common/validators';
 
@@ -23,6 +23,13 @@ export class CreateSequenceDiagramDto implements ICreateSequenceDiagramDto {
   @IsOptional()
   @IsNumber()
   headerHeight?: number;
+
+  /** Text size multiple (Ctrl + resize). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0.05)
+  @Max(20)
+  scale?: number;
 
   @IsOptional()
   @IsNumber()

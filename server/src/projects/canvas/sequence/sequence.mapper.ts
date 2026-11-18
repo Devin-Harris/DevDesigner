@@ -13,6 +13,7 @@ export function toSequenceDiagramModel(e: SequenceDiagramEntity): SequenceDiagra
     lifelineSpacing: e.lifelineSpacing,
     rowSpacing: e.rowSpacing,
     headerHeight: e.headerHeight,
+    ...(e.scale != null && e.scale !== 1 ? { scale: e.scale } : {}),
     originY: e.originY,
     zIndex: e.zIndex,
     groupId: e.groupId ?? undefined,

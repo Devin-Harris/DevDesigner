@@ -29,6 +29,10 @@ export class SequenceDiagramEntity {
   @Column({ type: 'float', default: 42 })
   headerHeight!: number;
 
+  /** Text size multiple (Ctrl + resize); null = 1. */
+  @Column({ type: 'float', nullable: true })
+  scale!: number | null;
+
   @Column({ type: 'float', default: 0 })
   originY!: number;
 

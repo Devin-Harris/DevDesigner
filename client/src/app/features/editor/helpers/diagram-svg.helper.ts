@@ -645,12 +645,13 @@ const SEQ_BOX_PAD = 26;
 const SEQ_LINE_H = 15;
 
 /** Multi-line, horizontally centered text block whose vertical middle sits on `cy`. */
-function seqText(cx: number, cy: number, lines: readonly string[], attrs: string): string {
-   const first = cy - ((lines.length - 1) * SEQ_LINE_H) / 2 + 4;
+function seqText(cx: number, cy: number, lines: readonly string[], attrs: string, k = 1): string {
+   const lh = SEQ_LINE_H * k;
+   const first = cy - ((lines.length - 1) * lh) / 2 + 4 * k;
    const spans = lines
-      .map((s, i) => `<tspan x="${attr(cx)}" y="${attr(first + i * SEQ_LINE_H)}">${esc(s)}</tspan>`)
+      .map((s, i) => `<tspan x="${attr(cx)}" y="${attr(first + i * lh)}">${esc(s)}</tspan>`)
       .join('');
-   return `<text text-anchor="middle" font-family="${attr(FONT)}" font-size="11" ${attrs}>${spans}</text>`;
+   return `<text text-anchor="middle" font-family="${attr(FONT)}" font-size="${attr(11 * k)}" ${attrs}>${spans}</text>`;
 }
 const CW_12 = 7.2;
 
@@ -702,6 +703,8 @@ function renderSequence(
    const byId = new Map(lls.map((l) => [l.id, l] as const));
 
    const bg = diagram.backgroundColor || theme.surface;
+   /** Text / label box / arrowhead scale (Ctrl + resize), matching the canvas's --seq-k. */
+   const k = diagram.scale ?? 1;
    const fg = readableTextSet(diagram.backgroundColor);
    const labelText = fg?.text ?? theme.text;
    const labelMuted = fg?.muted ?? theme.textMuted;
@@ -718,8 +721,8 @@ function renderSequence(
    );
    if (diagram.title && !data.hideText?.titles?.has(diagram.id)) {
       out.push(
-         `<text data-seq-title="${esc(diagram.id)}" x="${attr(x0 + 14)}" y="${attr(y0 + 19)}" font-family="${attr(FONT)}" font-size="12" font-weight="700" fill="${attr(labelText)}">` +
-            `${esc(truncate(diagram.title, Math.floor((x1 - x0 - 28) / CW_12)))}</text>`
+         `<text data-seq-title="${esc(diagram.id)}" x="${attr(x0 + 14)}" y="${attr(y0 + 19)}" font-family="${attr(FONT)}" font-size="${attr(12 * k)}" font-weight="700" fill="${attr(labelText)}">` +
+            `${esc(truncate(diagram.title, Math.floor((x1 - x0 - 28) / (CW_12 * k))))}</text>`
       );
    }
    /** Wrap `parts` in a group with the given opacity (no wrapper at full opacity). */
@@ -752,9 +755,9 @@ function renderSequence(
                `stroke-width="1.4" stroke-dasharray="5 4" />`
          );
          if (label) {
-            const lines = messageLabelLines(label.toUpperCase(), maxX - minX, true, m.wrap !== false);
-            const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 30;
-            const h = lines.length * SEQ_LINE_H + 14;
+            const lines = messageLabelLines(label.toUpperCase(), (maxX - minX) / k, true, m.wrap !== false);
+            const w = (Math.ceil(Math.max(...lines.map((s) => s.length)) * (CW_11 + 0.44)) + 30) * k;
+            const h = (lines.length * SEQ_LINE_H + 14) * k;
             const mid = (minX + maxX) / 2;
             out.push(
                `<rect x="${attr(mid - w / 2)}" y="${attr(y - h / 2)}" width="${attr(w)}" height="${attr(h)}" rx="${attr(Math.min(11, h / 2))}" ry="${attr(Math.min(11, h / 2))}" ` +
@@ -766,7 +769,8 @@ function renderSequence(
                           mid,
                           y,
                           lines,
-                          `data-mid="${esc(m.id)}" font-weight="600" letter-spacing="0.44" fill="${attr(labelMuted)}"`
+                          `data-mid="${esc(m.id)}" font-weight="600" letter-spacing="${attr(0.44 * k)}" fill="${attr(labelMuted)}"`,
+                          k
                        ),
                     ])
             );
@@ -782,25 +786,25 @@ function renderSequence(
       const tx = slid?.to ?? t.x;
       const headX = m.direction === 'forward' ? tx : fx;
       const otherX = headX === fx ? tx : fx;
-      const dir = headX >= otherX ? -8 : 8;
+      const dir = (headX >= otherX ? -8 : 8) * k;
       const left = Math.min(fx, tx);
       const dash = m.style === 'dashed' ? ' stroke-dasharray="6 4"' : '';
       out.push(
          `<line x1="${attr(left)}" y1="${attr(y)}" x2="${attr(Math.max(fx, tx, left + 1))}" y2="${attr(y)}" ` +
             `stroke="${attr(stroke)}" stroke-width="1.6"${dash} />`,
-         `<path d="M${attr(headX + dir)} ${attr(y - 4)} L${attr(headX)} ${attr(y)} L${attr(headX + dir)} ${attr(y + 4)}" fill="none" ` +
+         `<path d="M${attr(headX + dir)} ${attr(y - 4 * k)} L${attr(headX)} ${attr(y)} L${attr(headX + dir)} ${attr(y + 4 * k)}" fill="none" ` +
             `stroke="${attr(stroke)}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`
       );
       if (label) {
-         const lines = messageLabelLines(label, Math.abs(tx - fx), false, m.wrap !== false);
+         const lines = messageLabelLines(label, Math.abs(tx - fx) / k, false, m.wrap !== false);
          const mid = (fx + tx) / 2;
-         const w = Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20;
-         const h = lines.length * SEQ_LINE_H + 8;
+         const w = (Math.ceil(Math.max(...lines.map((s) => s.length)) * CW_11) + 20) * k;
+         const h = (lines.length * SEQ_LINE_H + 8) * k;
          out.push(
             `<rect x="${attr(mid - w / 2)}" y="${attr(y - h / 2)}" width="${attr(w)}" height="${attr(h)}" rx="4" ry="4" fill="${attr(bg)}" />`,
             ...(data.hideText?.messages?.has(m.id)
                ? []
-               : [seqText(mid, y, lines, `data-mid="${esc(m.id)}" fill="${attr(labelText)}"`)])
+               : [seqText(mid, y, lines, `data-mid="${esc(m.id)}" fill="${attr(labelText)}"`, k)])
          );
       }
       wrapFrom(at, fade?.messages?.get(m.id));
@@ -808,7 +812,7 @@ function renderSequence(
 
    for (const l of lls) {
       const colored = !!l.color;
-      const maxChars = Math.floor((l.width - 16) / CW_12);
+      const maxChars = Math.floor((l.width - 16 * k) / (CW_12 * k));
       out.push(
          faded(
             fade?.lifelines?.get(l.id),
@@ -816,8 +820,8 @@ function renderSequence(
                `rx="9" ry="9" fill="${attr(l.color || theme.nodeHeader)}" stroke="${attr(l.strokeColor || (colored ? 'none' : theme.nodeBorder))}" stroke-width="1" />`,
             data.hideText?.lifelines?.has(l.id)
                ? ''
-               : `<text data-lid="${esc(l.id)}" x="${attr(l.x)}" y="${attr(diagram.originY + diagram.headerHeight / 2 + 4)}" text-anchor="middle" font-family="${attr(FONT)}" ` +
-                    `font-size="12" font-weight="600" fill="${attr(l.textColor ? l.textColor : colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text)}">${esc(truncate(l.label, maxChars))}</text>`
+               : `<text data-lid="${esc(l.id)}" x="${attr(l.x)}" y="${attr(diagram.originY + diagram.headerHeight / 2 + 4 * k)}" text-anchor="middle" font-family="${attr(FONT)}" ` +
+                    `font-size="${attr(12 * k)}" font-weight="600" fill="${attr(l.textColor ? l.textColor : colored && !isSwatchColor(l.color) && !data.themeHeaderText?.has(l.id) ? readableTextOn(l.color!) : theme.text)}">${esc(truncate(l.label, maxChars))}</text>`
          )
       );
    }

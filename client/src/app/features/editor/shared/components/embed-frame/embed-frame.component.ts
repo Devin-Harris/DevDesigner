@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, effect, untracked } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
+import { EmbedSnapshotsService } from '../../../services/embed-snapshots.service';
 
 const LOAD_TIMEOUT_MS = 20000;
 
@@ -263,6 +264,7 @@ function embedHost(url: string | null | undefined): string {
 })
 export class EmbedFrameComponent {
    private readonly sanitizer = inject(DomSanitizer);
+   private readonly snapshots = inject(EmbedSnapshotsService);
    private static seq = 0;
 
    readonly url = input<string | null | undefined>(null);
@@ -328,6 +330,7 @@ export class EmbedFrameComponent {
          // Cross-origin: the real page is there.
       }
       this.loaded.set(true);
+      this.snapshots.frameLoaded();
    }
 
    protected retry(): void {

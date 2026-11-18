@@ -125,6 +125,10 @@ export interface SequenceLayoutSnapshot {
    messageYs: ReadonlyMap<string, number>;
    originY: number;
    rowSpacing: number;
+   /** Content scale (Ctrl + resize): header height, text scale and participant widths. */
+   headerHeight?: number;
+   scale?: number;
+   lifelineWidths?: ReadonlyMap<string, number>;
 }
 
 /** What a group is made of. Only groups with two or more members are tracked. */

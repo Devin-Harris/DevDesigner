@@ -113,7 +113,9 @@ export function withProjectSequenceRowsMethods() {
                lifelineId: string,
                patch: UpdateLifelineDto,
                /** Values to restore on undo when the local model was already changed live (drag). */
-               prev?: UpdateLifelineDto
+               prev?: UpdateLifelineDto,
+               /** false: persist without an undo step (a gesture records its own). */
+               record = true
             ): Promise<void> {
                const projectId = store.projectId();
                if (!projectId) {
@@ -125,7 +127,7 @@ export function withProjectSequenceRowsMethods() {
                stage('lifelines', lifelineId, patch);
                mapLifeline(lifelineId, (l) => ({ ...l, ...(patch as Partial<LifelineModel>) }));
                const after = pickKeys({ ...current, ...patch }, keys);
-               if (before && !sameValues(before, after)) {
+               if (record && before && !sameValues(before, after)) {
                   pushHistory({
                      undo: () => this.updateLifeline(rid(lifelineId), before as UpdateLifelineDto),
                      redo: () => this.updateLifeline(rid(lifelineId), after as UpdateLifelineDto),

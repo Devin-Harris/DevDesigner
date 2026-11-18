@@ -448,6 +448,8 @@ export interface CreateSequenceDiagramDto {
   lifelineSpacing?: number;
   rowSpacing?: number;
   headerHeight?: number;
+  /** Text size multiple; absent = 1. */
+  scale?: number;
   backgroundColor?: string;
   /** Diagram box border color; empty string = theme border. */
   borderColor?: string;
@@ -463,6 +465,8 @@ export interface UpdateSequenceDiagramDto {
   lifelineSpacing?: number;
   rowSpacing?: number;
   headerHeight?: number;
+  /** Text size multiple (Ctrl + resize). */
+  scale?: number;
   originY?: number;
   /** Stacking order against elements; a diagram sits above elements ranked below it. */
   zIndex?: number;

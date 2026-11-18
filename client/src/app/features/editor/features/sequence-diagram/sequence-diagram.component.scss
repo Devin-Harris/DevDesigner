@@ -17,9 +17,9 @@
 .seq-title-edit {
    position: absolute;
    font-family: var(--dd-display, inherit);
-   font-size: 12px;
+   font-size: calc(12px * var(--seq-k, 1));
    font-weight: 700;
-   line-height: 16px;
+   line-height: calc(16px * var(--seq-k, 1));
    color: var(--seq-fg, var(--dd-text));
 }
 
@@ -101,7 +101,7 @@
    background: var(--dd-node-header);
    color: var(--dd-text);
    font-family: var(--dd-mono);
-   font-size: 12px;
+   font-size: calc(12px * var(--seq-k, 1));
    font-weight: 600;
    box-shadow: var(--dd-shadow-1);
    cursor: move;
@@ -160,7 +160,7 @@
    border: 1px solid var(--dd-border-strong);
    background: var(--dd-surface);
    color: var(--dd-text-muted);
-   font-size: 16px;
+   font-size: calc(16px * var(--seq-k, 1));
    line-height: 1;
    display: flex;
    align-items: center;
@@ -230,8 +230,8 @@
 
 .msg-head {
    position: absolute;
-   width: 10px;
-   height: 10px;
+   width: calc(10px * var(--seq-k, 1));
+   height: calc(10px * var(--seq-k, 1));
    overflow: visible;
    pointer-events: none;
    fill: none;
@@ -313,10 +313,10 @@
    pointer-events: auto;
    cursor: text;
    font-family: var(--dd-mono);
-   font-size: 11px;
+   font-size: calc(11px * var(--seq-k, 1));
    color: var(--seq-fg, var(--dd-text));
    background: var(--seq-bg, var(--dd-surface));
-   padding: 4px 10px;
+   padding: calc(4px * var(--seq-k, 1)) calc(10px * var(--seq-k, 1));
    border-radius: 4px;
    white-space: pre; // honors Shift+Enter line breaks
    text-align: center;
@@ -338,13 +338,13 @@
    // shift or resize when editing starts; the focus ring is an outline, not a border.
    font: inherit;
    font-family: var(--dd-mono);
-   font-size: 11px;
+   font-size: calc(11px * var(--seq-k, 1));
    color: var(--seq-fg, var(--dd-text));
    background: var(--seq-bg, var(--dd-surface));
    border: 0;
    border-radius: 4px;
    outline: 1.5px solid var(--dd-primary);
-   padding: 4px 10px;
+   padding: calc(4px * var(--seq-k, 1)) calc(10px * var(--seq-k, 1));
    margin: 0;
    box-sizing: content-box;
    field-sizing: content; // grow/shrink to fit the text as you type
@@ -412,7 +412,7 @@
    pointer-events: auto;
    cursor: text;
    font-family: var(--dd-mono);
-   font-size: 11px;
+   font-size: calc(11px * var(--seq-k, 1));
    font-weight: 600;
    letter-spacing: 0.04em;
    text-transform: uppercase;

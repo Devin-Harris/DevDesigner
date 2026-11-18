@@ -55,14 +55,15 @@ export function messageLabelBoxes(
       const hb = d.originY + d.headerHeight;
       const cy = hb + d.rowSpacing * Math.max(1, Math.round((m.y - hb) / d.rowSpacing));
       const xs = xsByDiagram.get(d.id) ?? [0];
+      const k = d.scale ?? 1;
       const lines = messageLabelLines(
          m.label,
-         isBreak ? Math.max(...xs) - Math.min(...xs) : Math.abs((t?.x ?? 0) - (f?.x ?? 0)),
+         (isBreak ? Math.max(...xs) - Math.min(...xs) : Math.abs((t?.x ?? 0) - (f?.x ?? 0))) / k,
          isBreak,
          m.wrap !== false
       );
-      const w = Math.max(...lines.map((s) => s.length)) * CHAR_W + PAD_X * 2;
-      const h = lines.length * LINE_H + PAD_Y * 2;
+      const w = (Math.max(...lines.map((s) => s.length)) * CHAR_W + PAD_X * 2) * k;
+      const h = (lines.length * LINE_H + PAD_Y * 2) * k;
       out.set(m.id, { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 });
    }
    return out;

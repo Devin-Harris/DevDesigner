@@ -18,6 +18,7 @@ export async function writeSequence(
       lifelineSpacing: d.lifelineSpacing,
       rowSpacing: d.rowSpacing,
       headerHeight: d.headerHeight,
+      scale: d.scale ?? null,
       originY: d.originY,
       zIndex: d.zIndex,
       groupId: d.groupId ?? null,

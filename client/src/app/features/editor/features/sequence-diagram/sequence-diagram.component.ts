@@ -122,6 +122,11 @@ type Drag =
         headerH: number;
         nRows: number;
         startRowSpacing: number;
+        /** For Ctrl + resize (scale with content): the starting text scale and widths. */
+        startScale: number;
+        startWidths: Map<string, number>;
+        /** The last Ctrl-scale applied (1 = none), so release knows to persist it. */
+        scaled: number;
      }
    | { kind: 'marquee'; start: { x: number; y: number }; moved: boolean }
    | { kind: 'connect'; fromId: string; startY: number }
@@ -153,6 +158,8 @@ const MIN_HEADER_W = 60;
       '(pointerover)': 'addHover(true)',
       '(pointerout)': 'addHover(false)',
       // Message labels sit on the diagram's own background so they blend with it.
+      // Text, label boxes and arrowheads are drawn at the diagram's scale (Ctrl + resize).
+      '[style.--seq-k]': 'diagram().scale ?? 1',
       '[style.--seq-bg]': 'css(diagram().backgroundColor)',
       '[style.--seq-border]': 'css(diagram().borderColor)',
       '[style.--seq-fg]': 'fg()?.text || null',
@@ -191,6 +198,9 @@ export class SequenceDiagramComponent {
     * so a config change — including one made from a window-listener drag — re-renders
     * this component the same way a lifeline change does.
     */
+   /** The diagram's text / arrowhead scale (Ctrl + resize). */
+   protected readonly k = computed(() => this.diagram().scale ?? 1);
+
    protected readonly diagram = computed<SequenceDiagramModel>(
       () =>
          this.store.sequenceDiagrams().find((d) => d.id === this.diagramId()) ?? {
@@ -282,10 +292,11 @@ export class SequenceDiagramComponent {
             dirRight: headX >= otherX,
             mid: isBreak ? (minX + maxX) / 2 : (fromX + toX) / 2,
             label: m.label ?? '',
-            editMaxPx: this.editMaxPx(m.wrap !== false, isBreak, isBreak ? maxX - minX : Math.abs(toX - fromX)),
+            editMaxPx: this.editMaxPx(m.wrap !== false, isBreak, (isBreak ? maxX - minX : Math.abs(toX - fromX)) / this.k()),
             displayLabel: messageLabelLines(
                m.label ?? '',
-               isBreak ? maxX - minX : Math.abs(toX - fromX),
+               // Wider glyphs at a larger scale: wrap as if the span were that much narrower.
+               (isBreak ? maxX - minX : Math.abs(toX - fromX)) / this.k(),
                isBreak,
                m.wrap !== false
             ).join('\n'),
@@ -303,9 +314,11 @@ export class SequenceDiagramComponent {
    /** Width the inline editor wraps at, mirroring how the finished label wraps. */
    private editMaxPx(wrap: boolean, isBreak: boolean, span: number): number | null {
       if (!wrap) return null;
-      return isBreak
-         ? breakLabelMaxChars(span) * (SEQ_LABEL_CHAR_W + 0.44)
-         : messageLabelMaxChars(span) * SEQ_LABEL_CHAR_W;
+      return (
+         (isBreak
+            ? breakLabelMaxChars(span) * (SEQ_LABEL_CHAR_W + 0.44)
+            : messageLabelMaxChars(span) * SEQ_LABEL_CHAR_W) * this.k()
+      );
    }
 
    /** Highest occupied row, for sizing the spines and box. */
@@ -509,6 +522,14 @@ export class SequenceDiagramComponent {
          ),
          originY: cfg?.originY ?? 0,
          rowSpacing: cfg?.rowSpacing ?? 48,
+         headerHeight: cfg?.headerHeight,
+         scale: cfg?.scale ?? 1,
+         lifelineWidths: new Map(
+            this.store
+               .lifelines()
+               .filter((l) => l.diagramId === diagramId)
+               .map((l) => [l.id, l.width])
+         ),
       };
    }
 
@@ -577,6 +598,9 @@ export class SequenceDiagramComponent {
          startX: event.clientX,
          startY: event.clientY,
          startXs: new Map(l.map((x) => [x.id, x.x])),
+         startWidths: new Map(l.map((x) => [x.id, x.width])),
+         startScale: this.diagram().scale ?? 1,
+         scaled: 1,
          startRows: this.startRowsMap(),
          left,
          right,
@@ -861,6 +885,34 @@ export class SequenceDiagramComponent {
             ? Math.max(d.headerH + MIN_ROW * d.nRows, d.contentH + (isTop ? -dy : dy) * factor)
             : d.contentH;
 
+      // Ctrl (Cmd): scale the diagram with its content — spacing, header boxes and text
+      // all grow or shrink together, proportions kept (like Ctrl + resize on shapes).
+      if ((event.ctrlKey || event.metaKey) && d.contentH > 0) {
+         const kx = horiz ? newW / spanX : 0;
+         const ky = isTop || isBottom ? newH / d.contentH : 0;
+         let k = Math.max(kx, ky) || 1;
+         // Never below a readable size or the minimum row height.
+         k = Math.max(k, 0.3 / d.startScale, MIN_ROW / Math.max(1, d.startRowSpacing));
+         k = Math.min(k, 8 / d.startScale);
+         const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
+         const newContent = d.contentH * k;
+         const originY = event.altKey ? d.centerY - newContent / 2 : isTop ? d.top + d.contentH - newContent : d.top;
+         d.scaled = k;
+         this.store.scaleSequenceLocal(
+            this.diagram().id,
+            d.headerH * k,
+            d.startScale * k,
+            new Map([...d.startWidths].map(([id, w]) => [id, Math.round(w * k)]))
+         );
+         this.store.resizeSequenceTo(this.diagram().id, d.startXs, anchorX, spanX > 1 ? k : 1, d.startRowSpacing * k, originY, d.startRows);
+         return;
+      }
+      if (d.scaled !== 1) {
+         // Ctrl let go mid-drag: back to the starting content size.
+         d.scaled = 1;
+         this.store.scaleSequenceLocal(this.diagram().id, d.headerH, d.startScale, d.startWidths);
+      }
+
       // Shift on a corner locks proportions.
       if (event.shiftKey && horiz && (isTop || isBottom) && d.contentH > 0) {
          const scale = Math.max(newW / spanX, newH / d.contentH);
@@ -995,7 +1047,18 @@ export class SequenceDiagramComponent {
                void this.store.updateSequenceConfig(id, {
                   rowSpacing: cfg.rowSpacing,
                   originY: cfg.originY,
-               });
+                  ...(d.kind === 'resize' && d.scaled !== 1
+                     ? { headerHeight: cfg.headerHeight, scale: cfg.scale ?? 1 }
+                     : {}),
+               }, false);
+            }
+            if (d.kind === 'resize' && d.scaled !== 1) {
+               for (const l of this.store.lifelines().filter((x) => x.diagramId === id)) {
+                  const was = d.startWidths.get(l.id);
+                  if (was !== undefined && was !== l.width) {
+                     void this.store.updateLifeline(l.id, { width: l.width }, undefined, false);
+                  }
+               }
             }
          }
          if (d.kind === 'diagram' && !this.dragCopied) {
@@ -1025,6 +1088,8 @@ export class SequenceDiagramComponent {
 
    private layoutChanged(a: SequenceLayoutSnapshot, b: SequenceLayoutSnapshot): boolean {
       if (a.originY !== b.originY || a.rowSpacing !== b.rowSpacing) return true;
+      if (a.headerHeight !== b.headerHeight || a.scale !== b.scale) return true;
+      for (const [id, w] of a.lifelineWidths ?? []) if (b.lifelineWidths?.get(id) !== w) return true;
       for (const [id, x] of a.lifelineXs) if (b.lifelineXs.get(id) !== x) return true;
       for (const [id, y] of a.messageYs) if (b.messageYs.get(id) !== y) return true;
       return false;

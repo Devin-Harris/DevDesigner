@@ -2261,6 +2261,7 @@ export class MorphStage {
             originY,
             headerHeight,
             rowSpacing,
+            scale: lerp(da.scale ?? 1, db.scale ?? 1, t),
             lifelineSpacing: lerp(da.lifelineSpacing, db.lifelineSpacing, t),
             backgroundColor: mixOptionalColor(da.backgroundColor, db.backgroundColor, t),
             title: t < 0.5 ? da.title : db.title,
