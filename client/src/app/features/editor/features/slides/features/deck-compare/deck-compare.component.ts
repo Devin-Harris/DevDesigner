@@ -19,6 +19,8 @@ import {
    gridPartTag,
    matchMorphItems,
    transitionMorphs,
+   morphMode,
+   onlyYourPairs,
    effectiveTransition,
    type MorphBy,
    parseGrid,
@@ -203,18 +205,18 @@ export class DeckCompareComponent {
    }
 
    /** × on a line: a pairing you made is removed (back to automatic); an automatic one stops morphing. */
+   /**
+    * The X on a pair line: no transition for that object (it switches instantly at the
+    * start). Fading instead of morphing, or removing a pairing, is in the side panel.
+    */
    protected removeLine(l: { a: string; b: string; aId: string | null; bId: string | null }): void {
       const b = this.hitsB().find((h) => h.key === l.b);
-      if (b?.forced) {
-         // Gone in one go: dropping only the tags would let the automatic matching pair
-         // the two straight back (a second line to delete).
-         void this.store.batchHistory(async () => {
-            if (l.aId) await this.store.updateElement(l.aId, { morphOut: null });
-            if (l.bId) await this.store.updateElement(l.bId, { morphIn: `tag:solo-in-${l.bId.slice(0, 8)}` });
-         });
-      } else if (l.bId) {
-         void this.store.updateElement(l.bId, { morphIn: `tag:solo-in-${l.bId.slice(0, 8)}` });
-      }
+      if (!l.bId) return;
+      const tag = `tag:cut-in-${l.bId.slice(0, 8)}`;
+      void this.store.batchHistory(async () => {
+         if (b?.forced && l.aId) await this.store.updateElement(l.aId, { morphOut: null });
+         await this.store.updateElement(l.bId!, { morphIn: tag });
+      });
       this.lit.set(null);
    }
 
@@ -261,16 +263,13 @@ export class DeckCompareComponent {
    /** Matcher result as index pairs, plus the sides it ran on. */
    private readonly matching = computed(() => {
       const { A, B } = this.sides();
-      const morph = transitionMorphs(this.slide().slide?.transition);
-      const matches = morph
-         ? matchMorphItems(
-              A.map((x) => x.item),
-              B.map((x) => x.item),
-              undefined,
-              false,
-              { width: this.slide().width, height: this.slide().height }
-           )
+      const tr = this.slide().slide?.transition;
+      const items = { a: A.map((x) => x.item), b: B.map((x) => x.item) };
+      const all = transitionMorphs(tr)
+         ? matchMorphItems(items.a, items.b, undefined, false, { width: this.slide().width, height: this.slide().height })
          : [];
+      // Fade / slide / zoom: only the pairs you made (Auto also pairs look-alikes).
+      const matches = morphMode(tr) === 'mine' ? onlyYourPairs(items.a, items.b, all) : all;
       return { A, B, matches };
    });
 
@@ -348,10 +347,12 @@ export class DeckCompareComponent {
       if (!from || !to || !transitionMorphs(to.slide?.transition)) return out;
       const A = this.itemsOf(from);
       const B = this.itemsOf(to);
-      for (const [i, j] of matchMorphItems(
+      const all = matchMorphItems(
          A.map((x) => x.item),
          B.map((x) => x.item)
-      )) {
+      );
+      const mode = morphMode(to.slide?.transition);
+      for (const [i, j] of mode === 'mine' ? onlyYourPairs(A.map((x) => x.item), B.map((x) => x.item), all) : all) {
          const mine = side === 'from' ? A[i] : B[j];
          const other = side === 'from' ? B[j] : A[i];
          if (mine.id) out.set(mine.id, other.label);
@@ -423,6 +424,48 @@ export class DeckCompareComponent {
       const items = by === 'default' ? rest : { ...rest, [id]: by as MorphBy };
       void this.store.updateElement(f.id, {
          slide: { ...f.slide, transition: { ...t, morphByItems: Object.keys(items).length ? items : undefined } },
+      });
+   }
+
+   /** Publish the selection and its actions for the side panel. */
+   private readonly publishSelection = effect(() => {
+      const h = this.armedHit();
+      const ab = this.armedAnimateBy();
+      const partner = this.partnerLabel();
+      untracked(() =>
+         this.ui.selection.set(
+            h
+               ? {
+                    label: h.label,
+                    partnerLabel: partner,
+                    paired: !!h.partner,
+                    forced: h.forced,
+                    cut: h.cut,
+                    solo: h.solo,
+                    animateBy: ab?.by ?? null,
+                    setAnimateBy: (by) => ab && this.setArmedAnimateBy(ab.id, by),
+                    fade: () => this.fadeArmed(),
+                    unpair: () => this.unpairArmed(),
+                    cut_: () => this.cutArmed(),
+                    reset: () => this.resetArmed(),
+                    done: () => this.armed.set(null),
+                 }
+               : null
+         )
+      );
+   });
+
+   /** Don't morph this pair: the later slide's object fades in (and the earlier one out). */
+   protected fadeArmed(): void {
+      const h = this.armedHit();
+      const side = this.armed()?.side;
+      if (!h) return;
+      const bId = side === 'b' ? h.id : this.idOfKey(h.partner);
+      const aId = side === 'a' ? h.id : this.idOfKey(h.partner);
+      if (!bId) return;
+      void this.store.batchHistory(async () => {
+         if (h.forced && aId) await this.store.updateElement(aId, { morphOut: null });
+         await this.store.updateElement(bId, { morphIn: `tag:solo-in-${bId.slice(0, 8)}` });
       });
    }
 

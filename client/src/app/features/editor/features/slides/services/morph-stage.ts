@@ -6,6 +6,8 @@ import {
    matchMessages,
    matchMorphItems,
    transitionMorphs,
+   morphMode,
+   onlyYourPairs,
    type SlideTransitionType,
    parseGrid,
    gridMorphPairs,
@@ -1086,12 +1088,14 @@ export class MorphStage {
       const toItems = to.items.filter((i) => b.items.has(i.id));
       const matchedA = new Set<string>();
       const matchedB = new Set<string>();
-      for (const [i, j] of this.morphOn
+      const auto = this.morphOn
          ? matchMorphItems(fromItems, toItems, undefined, this.reversed, {
               width: this.to.width,
               height: this.to.height,
            })
-         : []) {
+         : [];
+      // Fade / slide / zoom morph only the pairs you made; Auto pairs look-alikes too.
+      for (const [i, j] of morphMode(tr) === 'mine' ? onlyYourPairs(fromItems, toItems, auto, this.reversed) : auto) {
          const pair: Pair = { a: fromItems[i], b: toItems[j] };
          if (pair.a.element && pair.b.element) {
             this.elementPairs.push(pair);
@@ -1249,13 +1253,19 @@ export class MorphStage {
          morphId: d.morphId,
          lifelines: seq.lifelines.filter((l) => l.diagramId === d.id),
       });
-      for (const [i, j] of this.morphOn
+      for (const [i, j] of (this.morphOn
          ? matchDiagrams(
               diagramsA.map((d) => like(from.sequences, d)),
               diagramsB.map((d) => like(to.sequences, d)),
               this.reversed
            )
-         : []) {
+         : []
+      ).filter(
+         // Outside Auto, a diagram morphs only when you tagged both ends alike.
+         ([i, j]) =>
+            morphMode(this.tr) === 'auto' ||
+            (!!diagramsA[i].morphId?.startsWith('tag:') && diagramsA[i].morphId === diagramsB[j].morphId)
+      )) {
          usedSeqA.add(diagramsA[i].id);
          usedSeqB.add(diagramsB[j].id);
          this.seqPairs.push(this.pairSequence(diagramsA[i], diagramsB[j]));

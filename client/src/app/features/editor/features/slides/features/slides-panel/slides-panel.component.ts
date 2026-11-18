@@ -1,3 +1,4 @@
+import { CompareUiState } from '../deck-compare/services/compare-ui-state.service';
 import { NgTemplateOutlet } from '@angular/common';
 import { AutofocusDirective } from '../../../../../../shared/ui/directives/autofocus.directive';
 import {
@@ -1097,6 +1098,14 @@ export class SlidesPanelComponent {
 
    /** The transition morphs shared objects (morph type, or morph switched on for another type). */
    protected readonly morphs = computed(() => transitionMorphs(this.transition()));
+   /** Map pairs' selection, shown in the Transition tab. */
+   protected readonly compareUi = inject(CompareUiState);
+   protected readonly pairAnimateBy = [
+      { value: 'default', label: 'Default' },
+      { value: 'character', label: 'Char' },
+      { value: 'word', label: 'Word' },
+      { value: 'object', label: 'Object' },
+   ];
 
    protected readonly itemMorphByOptions: SelectOption<string>[] = [
       { value: 'default', label: 'Slide default' },

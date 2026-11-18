@@ -194,19 +194,19 @@ export const BUILT_IN_THEMES: readonly SlideTheme[] = [
   {
     id: 'default',
     name: 'Default',
-    // Follows the app: no slide background, and surface/text track light/dark mode.
+    // One calm hue on a dark slide: every accent is a shade of the same indigo.
     colors: {
-      background: 'transparent',
-      surface: THEME_FILL,
-      heading: THEME_STROKE,
-      text: THEME_STROKE,
-      muted: '#94a3b8',
-      accent1: '#4f46e5',
-      accent2: '#0ea5a4',
-      accent3: '#6366f1',
-      accent4: '#f59e0b',
+      background: '#14161f',
+      surface: '#1e2230',
+      heading: '#f4f2ee',
+      text: '#d4d2cc',
+      muted: '#8b90a0',
+      accent1: '#8c9cf8',
+      accent2: '#6b7cec',
+      accent3: '#b3bdfb',
+      accent4: '#5163d4',
     },
-    fonts: { heading: 'inter', body: 'inter' },
+    fonts: { heading: 'serif', body: 'normal' },
   },
   {
     id: 'midnight',

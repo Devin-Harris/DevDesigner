@@ -200,9 +200,33 @@ export function normalizeAnimations(list: readonly SlideAnimation[]): SlideAnima
 }
 
 /** Whether a slide's entrance morphs the objects it shares with the slide before it. */
-export function transitionMorphs(t: { type: string; morph?: boolean } | undefined | null): boolean {
-  // Every transition morphs the objects two slides share, except None (a plain cut).
-  return !!t && t.type !== 'none';
+export function transitionMorphs(t: { type: string; morph?: boolean; pairs?: boolean } | undefined | null): boolean {
+  return morphMode(t) !== 'none';
+}
+
+/**
+ * What a transition pairs for its morph: Auto ('morph') pairs automatically (look-alikes,
+ * copies, tags); Fade / Slide / Zoom morph only the pairs you made (tags, pair links),
+ * unless that is switched off; None never morphs.
+ */
+export function morphMode(t: { type: string; pairs?: boolean } | undefined | null): 'auto' | 'mine' | 'none' {
+  if (!t || t.type === 'none') return 'none';
+  if (t.type === 'morph') return 'auto';
+  return t.pairs === false ? 'none' : 'mine';
+}
+
+/** Keep only pairs made by hand: both ends carry the same user tag (not a solo/cut tag). */
+export function onlyYourPairs<T extends { key: string; keyIn?: string; keyOut?: string }>(
+  from: readonly T[],
+  to: readonly T[],
+  pairs: ReadonlyArray<[number, number]>,
+  reversed = false,
+): Array<[number, number]> {
+  return pairs.filter(([i, j]) => {
+    const a = (reversed ? from[i].keyIn : from[i].keyOut) ?? from[i].key;
+    const b = (reversed ? to[j].keyOut : to[j].keyIn) ?? to[j].key;
+    return a === b && a.startsWith('tag:') && !/^tag:(solo|cut)-/.test(a);
+  });
 }
 
 /** Per-object "animate by" settings re-keyed to copied ids (entries whose object is gone drop). */

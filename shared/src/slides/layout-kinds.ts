@@ -117,11 +117,6 @@ const outline = (x: number, y: number, w: number, h: number, color: string, widt
     cornerRadius: 0,
   } as LayoutElementProps,
 });
-/** A short rule in two accent colors (main, then a small second segment). */
-const duo = (x: number, y: number, w: number, h: number): LayoutSpecItem[] => [
-  { kind: 'bar', x, y, w: w * 0.7, h, color: '$accent1' },
-  { kind: 'bar', x: x + w * 0.76, y, w: w * 0.24, h, color: '$accent2' },
-];
 /** A large faint opening quote mark. */
 const quoteMark = (x: number, y: number, align: 'left' | 'center' = 'left'): LayoutSpecItem => ({
   kind: 'element',
@@ -182,9 +177,8 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'title',
     items: [
-      // A big soft orb bleeding off the top right, a solid accent block bottom left.
-      deco('rectangle', 0, 0.86, 0.38, 0.14, '$accent1'),
-      deco('rectangle', 0.38, 0.86, 0.1, 0.14, '$accent2'),
+      // One quiet accent rule above the title; no blocks.
+      { kind: 'bar', x: M, y: 0.27, w: 0.06, h: 4, color: '$accent1' },
       { ...(title(0.3) as Extract<LayoutSpecItem, { kind: 'text' }>), size: 66, w: W * 0.8 },
       {
         kind: 'text',
@@ -202,7 +196,7 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'section',
     items: [
-      ...duo(M, 0.35, 0.09, 8),
+      { kind: 'bar' as const, x: M, y: 0.35, w: 0.09, h: 8, color: '$accent1' },
       { ...(title(0.4) as Extract<LayoutSpecItem, { kind: 'text' }>), size: 54 },
       {
         kind: 'text',
@@ -217,12 +211,12 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
       },
     ],
   },
-  { kind: 'content', items: [title(), ...duo(M, 0.19, 0.06, 5), body(M, W, 0.27)] },
+  { kind: 'content', items: [title(), { kind: 'bar' as const, x: M, y: 0.19, w: 0.06, h: 5, color: '$accent1' }, body(M, W, 0.27)] },
   {
     kind: 'two-column',
     items: [
       title(),
-      ...duo(M, 0.19, 0.06, 5),
+      { kind: 'bar' as const, x: M, y: 0.19, w: 0.06, h: 5, color: '$accent1' },
       ...columns(2, 0.31).flatMap((c, i) => [{ kind: 'bar' as const, x: c.x, y: 0.27, w: 0.035, h: 4, color: ACCENTS[i] }, c]),
     ],
   },
@@ -230,7 +224,7 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
     kind: 'three-column',
     items: [
       title(),
-      ...duo(M, 0.19, 0.06, 5),
+      { kind: 'bar' as const, x: M, y: 0.19, w: 0.06, h: 5, color: '$accent1' },
       ...columns(3, 0.31).flatMap((c, i) => [{ kind: 'bar' as const, x: c.x, y: 0.27, w: 0.035, h: 4, color: ACCENTS[i] }, c]),
     ],
   },
@@ -238,7 +232,7 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
     kind: 'comparison',
     items: [
       title(),
-      ...duo(M, 0.19, 0.06, 5),
+      { kind: 'bar' as const, x: M, y: 0.19, w: 0.06, h: 5, color: '$accent1' },
       // A faint divider between the two sides.
       deco('rectangle', 0.4985, 0.27, 0.003, 0.6, '$muted', { opacity: 35 }),
       ...columns(2, 0.27).map((c, i) => ({
@@ -256,7 +250,7 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'statement',
     items: [
-      ...duo(0.45, 0.3, 0.1, 6),
+      { kind: 'bar' as const, x: 0.45, y: 0.3, w: 0.1, h: 6, color: '$accent1' },
       {
         kind: 'text',
         role: 'emphasis',

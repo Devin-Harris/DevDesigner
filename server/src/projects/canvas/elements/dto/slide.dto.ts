@@ -74,6 +74,10 @@ export class SlideTransitionDto implements SlideTransition {
   @IsBoolean()
   morph?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  pairs?: boolean;
+
   /** Per-object "animate by" (element id -> object | word | character); checked in the service. */
   @IsOptional()
   @IsObject()

@@ -110,11 +110,13 @@ function embedHost(url: string | null | undefined): string {
          flex-direction: column;
          align-items: center;
          justify-content: center;
+         gap: 2px;
          padding: 16px;
          text-align: center;
-         background: var(--dd-surface, #fff);
-         color: var(--dd-text, #111);
-         font: 13px/1.4 var(--dd-font, system-ui, sans-serif);
+         /* Quiet, like the frame's placeholder card: muted text on a soft surface. */
+         background: color-mix(in srgb, var(--dd-surface, #1e2230) 94%, transparent);
+         color: var(--dd-text-muted, #8b90a0);
+         font: 12px/1.4 var(--dd-font, system-ui, sans-serif);
       }
       .state.loading {
          z-index: 2;
@@ -143,13 +145,13 @@ function embedHost(url: string | null | undefined): string {
          font-size: 12px;
       }
       .spinner {
-         width: 28px;
-         height: 28px;
-         margin-bottom: 10px;
+         width: 22px;
+         height: 22px;
+         margin-bottom: 8px;
          border-radius: 50%;
-         border: 3px solid color-mix(in srgb, var(--dd-primary) 20%, transparent);
-         border-top-color: var(--dd-primary);
-         animation: spin 0.8s linear infinite;
+         border: 2px solid color-mix(in srgb, var(--dd-text-muted, #8b90a0) 25%, transparent);
+         border-top-color: var(--dd-text-muted, #8b90a0);
+         animation: spin 0.9s linear infinite;
       }
       @keyframes spin {
          to { transform: rotate(360deg); }

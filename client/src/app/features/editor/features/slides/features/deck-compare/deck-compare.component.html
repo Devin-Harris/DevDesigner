@@ -277,46 +277,6 @@
          </div>
       </div>
    }
-   @if (view() === 'map' && armedHit(); as h) {
-      <div class="actions">
-         @if (armedAnimateBy(); as ab) {
-            <!-- How this object's text / content animates when it morphs (this pair only). -->
-            <span class="ab">
-               Animate by
-               @for (o of animateByOptions; track o.value) {
-                  <button
-                     type="button"
-                     class="seg"
-                     [class.on]="ab.by === o.value"
-                     [disabled]="!canEdit()"
-                     (click)="setArmedAnimateBy(ab.id, o.value)"
-                  >
-                     {{ o.label }}
-                  </button>
-               }
-            </span>
-         }
-         @if (h.partner) {
-            <button class="btn" type="button" (click)="unpairArmed()">
-               {{ h.forced ? 'Remove pairing' : "Don't morph: fade instead" }}
-            </button>
-         }
-         @if (!h.cut) {
-            <button
-               class="btn"
-               type="button"
-               title="No fade, no morph: it just switches at the start of the transition"
-               (click)="cutArmed()"
-            >
-               No transition
-            </button>
-         }
-         @if (h.forced || h.cut || h.solo) {
-            <button class="btn" type="button" (click)="resetArmed()">Reset to automatic</button>
-         }
-         <button class="btn ghost" type="button" (click)="armed.set(null)">Done <span class="k">Esc</span></button>
-      </div>
-   }
 
    @if (view() === 'map' && isCut()) {
       <p class="cut-note">

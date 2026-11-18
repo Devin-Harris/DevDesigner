@@ -167,6 +167,11 @@ export interface SlideTransition {
    * (none / fade / slide / zoom). Unused now: every type but 'none' morphs ('morph' shows as "Auto").
    */
   morph?: boolean;
+  /**
+   * Fade / slide / zoom only: morph the pairs made by hand (morph tags, "pair" links).
+   * Automatic look-alike pairing is Auto's alone. Absent = on.
+   */
+  pairs?: boolean;
   /** Per object (this slide's element id): how its changed text animates, overriding `morphBy`. */
   morphByItems?: Record<string, MorphBy>;
 }

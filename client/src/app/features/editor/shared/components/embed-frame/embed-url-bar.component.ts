@@ -30,7 +30,9 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
                Snapshot
             </label>
             @if (snapshot()) {
-               <button type="button" title="Retake the snapshot" aria-label="Retake snapshot" (click)="retake.emit()">📷</button>
+               <button type="button" title="Retake the snapshot" aria-label="Retake snapshot" (click)="retake.emit()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.2" /></svg>
+               </button>
             }
          }
          <button type="button" title="Reload" aria-label="Reload page" (click)="reload.emit()">⟳</button>
@@ -105,6 +107,14 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
          font-size: 14px;
          text-decoration: none;
          cursor: pointer;
+      }
+      button svg {
+         width: 15px;
+         height: 15px;
+         fill: none;
+         stroke: currentColor;
+         stroke-width: 1.7;
+         stroke-linejoin: round;
       }
       button:hover,
       a:hover {

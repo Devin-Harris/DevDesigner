@@ -274,6 +274,7 @@ function slide(value: unknown, path: string, opts: ParseProjectExportOptions): S
           duration: Math.min(10_000, Math.max(0, num(t, 'duration', `${path}.transition`, 600))),
           easing: oneOf(t, 'easing', `${path}.transition`, SLIDE_EASINGS, 'ease-in-out'),
           morphBy: optOneOf(t, 'morphBy', `${path}.transition`, MORPH_BY_OPTIONS),
+          pairs: t['pairs'] === undefined || t['pairs'] === null ? undefined : bool(t, 'pairs', `${path}.transition`, true),
           morph: t['morph'] === undefined || t['morph'] === null ? undefined : bool(t, 'morph', `${path}.transition`, false),
           morphByItems: morphByItems(t['morphByItems']),
         }

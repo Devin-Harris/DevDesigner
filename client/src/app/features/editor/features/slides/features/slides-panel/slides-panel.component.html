@@ -268,7 +268,27 @@
                                  />
                               </label>
                            }
-                           @if (transition().type !== 'none' || morphs()) {
+                           @if (transition().type === 'fade' || transition().type === 'slide' || transition().type === 'zoom') {
+                              <label class="check" title="Auto pairs look-alikes by itself; other transitions morph only the pairs you made">
+                                 <input
+                                    type="checkbox"
+                                    [checked]="transition().pairs !== false"
+                                    [disabled]="!canEdit()"
+                                    (change)="setTransition({ pairs: $any($event.target).checked })"
+                                 />
+                                 Morph my pairings
+                              </label>
+                           }
+                           @if (transition().type === 'fade' || transition().type === 'slide' || transition().type === 'zoom') {
+         <div class="f-row" title="Auto pairs look-alikes by itself; other transitions morph only the pairs you made">
+            My pairings
+            <span class="f-seg">
+               <button type="button" [class.on]="transition().pairs !== false" [disabled]="!canEdit()" (click)="setTransition({ pairs: true })">Morph</button>
+               <button type="button" [class.on]="transition().pairs === false" [disabled]="!canEdit()" (click)="setTransition({ pairs: false })">Off</button>
+            </span>
+         </div>
+      }
+      @if (transition().type !== 'none' || morphs()) {
                               <div class="two">
                                  <label class="field">
                                     <span>Duration (ms)</span>
@@ -1356,6 +1376,52 @@
       }
       @if (canEdit()) {
          <button class="f-tb outline" type="button" (click)="applyToAll()">Apply to all slides</button>
+      }
+      @if (compareUi.selection(); as sel) {
+         <!-- The object / pair selected in Map pairs. -->
+         <div class="f-sect pair-sect">
+            <div class="f-between">
+               <span class="f-lab">Selected · {{ sel.label }}</span>
+               <button class="f-link" type="button" (click)="sel.done()">Done</button>
+            </div>
+            <p class="hint">
+               @if (sel.cut) {
+                  No transition: it switches instantly.
+               } @else if (sel.paired) {
+                  Morphs {{ sel.partnerLabel ? 'with ' + sel.partnerLabel : '' }}{{ sel.forced ? ' (paired by you)' : '' }}.
+               } @else {
+                  Fades {{ sel.solo ? '(set by you)' : '' }}.
+               }
+            </p>
+            @if (sel.animateBy !== null) {
+               <div class="f-row">
+                  Animate by
+                  <span class="f-seg">
+                     @for (o of pairAnimateBy; track o.value) {
+                        <button type="button" [class.on]="sel.animateBy === o.value" [disabled]="!canEdit()" (click)="sel.setAnimateBy(o.value)">
+                           {{ o.label }}
+                        </button>
+                     }
+                  </span>
+               </div>
+            }
+            @if (canEdit()) {
+               <div class="pair-btns">
+                  @if (sel.paired && !sel.forced) {
+                     <button class="f-tb outline" type="button" (click)="sel.fade()">Fade instead</button>
+                  }
+                  @if (sel.forced) {
+                     <button class="f-tb outline" type="button" (click)="sel.unpair()">Remove pairing</button>
+                  }
+                  @if (!sel.cut) {
+                     <button class="f-tb outline" type="button" (click)="sel.cut_()">No transition</button>
+                  }
+                  @if (sel.forced || sel.cut || sel.solo) {
+                     <button class="f-tb outline" type="button" (click)="sel.reset()">Reset to automatic</button>
+                  }
+               </div>
+            }
+         </div>
       }
    } @else {
       <p class="hint">The first slide has no transition into it.</p>

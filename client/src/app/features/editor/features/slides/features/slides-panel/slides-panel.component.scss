@@ -1477,3 +1477,10 @@ textarea {
       accent-color: var(--dd-primary);
    }
 }
+
+.pair-btns {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px;
+   margin-top: 8px;
+}
