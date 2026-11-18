@@ -497,16 +497,25 @@ export class ProjectsOverlayComponent {
    }
 
    private confirmThenDelete(projects: ProjectSummary[], skipConfirm: boolean): void {
-      if (skipConfirm) {
+      // Synced projects always ask (Shift+Delete included): the delete only removes
+      // this computer's copy, which is easy to mistake for deleting the project.
+      const synced = projects.filter((p) => this.sync.links().has(p.id));
+      if (skipConfirm && synced.length === 0) {
          void this.doRemove(projects);
          return;
       }
       const single = projects.length === 1;
+      const serverNote = synced.length
+         ? single
+            ? ' Only the copy on this computer is deleted; the server keeps its copy and you can download it again under Sync.'
+            : ` ${synced.length} of them are synced: only the copies on this computer are deleted, the server keeps its copies.`
+         : '';
       const data: ConfirmDialogData = {
          title: single ? 'Delete project' : `Delete ${projects.length} projects`,
-         message: single
-            ? `Delete "${projects[0].name}"? This cannot be undone.`
-            : `Delete ${projects.length} projects? This cannot be undone.`,
+         message:
+            (single
+               ? `Delete "${projects[0].name}"? This cannot be undone.`
+               : `Delete ${projects.length} projects? This cannot be undone.`) + serverNote,
          confirmLabel: 'Delete',
       };
       this.dialog

@@ -1,6 +1,11 @@
 <div class="shell" [class.desktop]="desktop">
    @if (desktop) {
-      <dd-title-bar />
+      <!-- Desktop-only chrome: its own chunk, so the web bundle never loads it. -->
+      @defer {
+         <dd-title-bar />
+      } @placeholder {
+         <div class="title-bar-placeholder"></div>
+      }
    }
    <div class="body">
       <router-outlet />

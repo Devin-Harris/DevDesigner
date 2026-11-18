@@ -43,3 +43,29 @@ describe('AdminBootstrapService', () => {
     expect(users.update).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('AdminBootstrapService on a self-hosted server', () => {
+  function selfHosted(admins: number, adminEmails = '') {
+    const users = { count: jest.fn(async () => admins), find: jest.fn(async () => []), update: jest.fn() };
+    const env: Record<string, string> = { ADMIN_EMAILS: adminEmails, SELF_HOSTED: 'true' };
+    const config = { get: (k: string) => env[k] } as unknown as ConfigService;
+    return new AdminBootstrapService(users as unknown as Repository<User>, config);
+  }
+
+  it('makes the first account the admin when there is none', async () => {
+    const service = selfHosted(0);
+    await service.onApplicationBootstrap();
+    expect(await service.roleForNewAccount('a@example.com')).toBe('admin');
+    expect(await service.roleForNewAccount('b@example.com')).toBe('user');
+  });
+
+  it('leaves roles alone once an admin exists or ADMIN_EMAILS is set', async () => {
+    const withAdmin = selfHosted(1);
+    await withAdmin.onApplicationBootstrap();
+    expect(await withAdmin.roleForNewAccount('a@example.com')).toBe('user');
+    const listed = selfHosted(0, 'boss@example.com');
+    await listed.onApplicationBootstrap();
+    expect(await listed.roleForNewAccount('a@example.com')).toBe('user');
+    expect(await listed.roleForNewAccount('boss@example.com')).toBe('admin');
+  });
+});

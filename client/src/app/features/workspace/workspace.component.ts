@@ -6,7 +6,7 @@ import { EditorComponent } from '../editor';
 import { HomeComponent } from './features/home/home.component';
 import { SyncBannerComponent } from './components/sync-banner/sync-banner.component';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
-import { CompareDialogComponent, type CompareDialogData } from './features/compare/compare-dialog.component';
+import type { CompareDialogData } from './features/compare/compare-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
 import { SyncService } from '../../core/sync/sync.service';
 import { runtimeConfig } from '../../core/config/runtime-config';
@@ -106,9 +106,11 @@ export class WorkspaceComponent {
    }
 
    /** Conflict: compare this computer's version with the server's (visual diff). */
-   protected compareWithServer(projectId: string): void {
+   protected async compareWithServer(projectId: string): Promise<void> {
       const link = this.sync.links().get(projectId);
-      this.dialog.open<CompareDialogComponent, CompareDialogData>(CompareDialogComponent, {
+      // Desktop-only (diff + canvas renderer): loaded on first use.
+      const { CompareDialogComponent } = await import('./features/compare/compare-dialog.component');
+      this.dialog.open<InstanceType<typeof CompareDialogComponent>, CompareDialogData>(CompareDialogComponent, {
          data: { projectId, serverName: link ? this.sync.remoteName(link.remoteId) : 'the server' },
          width: '96vw',
          maxWidth: '96vw',

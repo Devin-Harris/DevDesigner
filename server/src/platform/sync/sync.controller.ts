@@ -14,10 +14,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IsBoolean, IsIn, IsString, IsUrl, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsObject, IsOptional, IsString, IsUrl, IsUUID, MaxLength, MinLength } from 'class-validator';
 import type {
   ProjectSummary,
   ProjectExportFile,
+  MergeConflict,
   SyncLinkResult,
   SyncDefaultRemoteResponse,
   SyncLinkResponse,
@@ -42,6 +43,23 @@ class AddRemoteDto {
   token!: string;
 }
 
+class UpdateRemoteDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  name?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @MaxLength(2000)
+  url?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  token?: string;
+}
+
 class PublishDto {
   @IsUUID()
   projectId!: string;
@@ -56,8 +74,13 @@ class AutoSyncDto {
 }
 
 class ResolveDto {
-  @IsIn(['server', 'mine'])
-  keep!: 'server' | 'mine';
+  @IsIn(['server', 'mine', 'merge'])
+  keep!: 'server' | 'mine' | 'merge';
+
+  /** For `merge`: which side wins each item changed on both (key -> 'mine' | 'server'). */
+  @IsOptional()
+  @IsObject()
+  choices?: Record<string, 'mine' | 'server'>;
 }
 
 class CloneDto {
@@ -99,6 +122,15 @@ export class SyncController {
   @Post('remotes')
   addRemote(@Caller() caller: Caller, @Body() dto: AddRemoteDto): Promise<SyncRemoteResponse> {
     return this.sync.addRemote(owner(caller), dto);
+  }
+
+  @Patch('remotes/:remoteId')
+  updateRemote(
+    @Caller() caller: Caller,
+    @Param('remoteId') remoteId: string,
+    @Body() dto: UpdateRemoteDto,
+  ): Promise<SyncRemoteResponse> {
+    return this.sync.updateRemote(owner(caller), remoteId, dto);
   }
 
   @Delete('remotes/:remoteId')
@@ -157,6 +189,15 @@ export class SyncController {
     return this.sync.serverVersion(owner(caller), projectId);
   }
 
+  /** What a merge would ask about: items changed both here and on the server. */
+  @Get('links/:projectId/merge-preview')
+  mergePreview(
+    @Caller() caller: Caller,
+    @Param('projectId') projectId: string,
+  ): Promise<{ canMerge: boolean; conflicts: MergeConflict[] }> {
+    return this.sync.mergePreview(owner(caller), projectId);
+  }
+
   /** Settle a conflict: keep the server's version or overwrite it with this computer's. */
   @Post('links/:projectId/resolve')
   resolve(
@@ -164,7 +205,10 @@ export class SyncController {
     @Param('projectId') projectId: string,
     @Body() dto: ResolveDto,
   ): Promise<SyncLinkResult> {
-    return this.sync.resolve(owner(caller), projectId, dto.keep);
+    const choices = Object.fromEntries(
+      Object.entries(dto.choices ?? {}).filter(([, v]) => v === 'mine' || v === 'server'),
+    );
+    return this.sync.resolve(owner(caller), projectId, dto.keep, choices);
   }
 
   @Delete('links/:projectId')

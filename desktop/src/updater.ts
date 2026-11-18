@@ -1,5 +1,6 @@
 import { app, dialog, type BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import type { UpdateMode } from './settings';
 
 /**
  * Updates from GitHub Releases (electron-builder.yml `publish`). On launch the app
@@ -12,7 +13,11 @@ export class Updater {
   private manualCheck = false;
   private prompted = false;
 
-  constructor(private readonly window: () => BrowserWindow | null) {
+  constructor(
+    private readonly window: () => BrowserWindow | null,
+    /** Settings > Updates, read each time so a change applies at once. */
+    private readonly mode: () => UpdateMode = () => 'ask',
+  ) {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = null;
@@ -34,7 +39,10 @@ export class Updater {
       }
     });
     autoUpdater.on('update-downloaded', (info) => {
+      const manual = this.manualCheck;
       this.manualCheck = false;
+      // "Install on quit": no prompt for background updates (a manual check still asks).
+      if (!manual && this.mode() !== 'ask') return;
       if (this.prompted) return;
       this.prompted = true;
       void this.promptRestart(info.version);
@@ -43,7 +51,7 @@ export class Updater {
 
   /** Background check on launch; packaged builds only (dev has no update feed). */
   checkQuietly(): void {
-    if (!app.isPackaged) return;
+    if (!app.isPackaged || this.mode() === 'off') return;
     autoUpdater.checkForUpdates().catch(() => undefined);
   }
 

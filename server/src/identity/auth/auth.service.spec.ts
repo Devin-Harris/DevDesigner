@@ -50,7 +50,7 @@ describe('AuthService sessions', () => {
           }),
       },
     };
-    const admin = { isAllowlisted: () => false, promoteIfAllowlisted: async () => undefined };
+    const admin = { isAllowlisted: () => false, roleForNewAccount: async () => 'user', promoteIfAllowlisted: async () => undefined };
     events = new EventEmitter2();
     service = new AuthService(users as unknown as Repository<User>, jwt, admin as unknown as AdminBootstrapService, events);
     await service.onModuleInit();

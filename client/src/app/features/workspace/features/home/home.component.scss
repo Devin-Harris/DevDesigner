@@ -2193,3 +2193,51 @@ $loop: 16s;
       box-shadow: 0 0 0 10px transparent;
    }
 }
+
+// --- Desktop app downloads ---
+.download {
+   padding: 64px 0;
+
+   h2 {
+      margin: 10px 0 0;
+      font-size: clamp(24px, 3vw, 32px);
+   }
+
+   p {
+      max-width: 640px;
+      color: var(--dd-text-muted);
+      line-height: 1.6;
+   }
+}
+
+.dl-options {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+   gap: 12px;
+   margin-top: 20px;
+}
+
+.dl {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: 14px 16px;
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
+   color: var(--dd-text);
+   text-decoration: none;
+
+   &:hover,
+   &.mine {
+      border-color: var(--dd-primary);
+   }
+}
+
+.dl-text {
+   display: grid;
+}
+
+.dl-sub {
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}

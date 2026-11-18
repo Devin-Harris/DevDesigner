@@ -46,7 +46,7 @@ run('node scripts/stage.mjs', desktop);
 if (fullInstaller) {
   console.log(`\n[${elapsed()}] Building the installer (first install) …`);
   run('npx electron-builder --win --publish never', desktop);
-  const installer = join(desktop, 'release', `DevDesigner-Setup-${version}.exe`);
+  const installer = join(desktop, 'release', 'DevDesigner-Setup.exe');
   console.log(`\n[${elapsed()}] Installing ${installer} …`);
   // /S = silent; per-user install, so no admin prompt.
   const result = spawnSync(installer, ['/S'], { stdio: 'inherit' });

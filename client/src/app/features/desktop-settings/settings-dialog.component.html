@@ -1,0 +1,116 @@
+<div class="settings">
+   <nav class="side" aria-label="Settings sections">
+      <h2 class="title">Settings</h2>
+      @for (t of tabs; track t.id) {
+         <button class="side-item" type="button" [class.on]="tab() === t.id" (click)="tab.set(t.id)">
+            <dd-icon [name]="t.icon" />{{ t.label }}
+         </button>
+      }
+   </nav>
+
+   <section class="main">
+      <button class="icon-btn close" type="button" aria-label="Close" (click)="close()">
+         <dd-icon name="close" />
+      </button>
+
+      @switch (tab()) {
+         @case ('general') {
+            <h3 class="h">Updates</h3>
+            <p class="lead">
+               New versions download in the background. Your data is backed up before a new version opens it.
+            </p>
+            <dd-segmented [formControl]="updates" [options]="updateOptions" />
+            <p class="hint">
+               @switch (updatesValue()) {
+                  @case ('ask') {
+                     When an update is ready you choose to restart now or later.
+                  }
+                  @case ('install-on-quit') {
+                     Updates install quietly the next time you quit.
+                  }
+                  @case ('off') {
+                     No automatic checks. Use Check now when you want to update.
+                  }
+               }
+            </p>
+            <div class="row">
+               <button class="btn" type="button" [disabled]="busy()" (click)="run('check-updates')">
+                  <dd-icon name="sync" />Check now
+               </button>
+            </div>
+
+            <h3 class="h">AI assistants (MCP)</h3>
+            <p class="lead">Let Claude and other MCP clients edit your diagrams on this computer.</p>
+            <div class="row">
+               <button class="btn" type="button" (click)="openApiTokens()">API tokens</button>
+            </div>
+         }
+         @case ('sync') {
+            <dd-sync-panel (opened)="openSynced($event)" />
+         }
+         @case ('data') {
+            <h3 class="h">Data folder</h3>
+            <p class="lead">Everything you make is stored here, on this computer.</p>
+            <code class="path">{{ state()?.dataDir }}</code>
+            <div class="row">
+               <button class="btn" type="button" (click)="run('open-data-folder')">
+                  <dd-icon name="folder_open" />Open folder
+               </button>
+               <button class="btn" type="button" [disabled]="busy()" (click)="run('backup-now')">
+                  <dd-icon name="download" />Back up to a file…
+               </button>
+            </div>
+
+            <h3 class="h">Automatic backups</h3>
+            <p class="lead">
+               Taken before every update. Restoring restarts DevDesigner; your current data is backed up first.
+            </p>
+            <label class="keep">
+               Keep the newest
+               <input
+                  class="num"
+                  type="number"
+                  min="1"
+                  max="50"
+                  [formControl]="backupsToKeep"
+                  (change)="saveBackupsToKeep()"
+               />
+               backups
+            </label>
+            <div class="backups">
+               @for (b of state()?.backups ?? []; track b.id) {
+                  <div class="backup">
+                     <span class="backup-text">
+                        <span class="backup-label">{{ labelOf(b.label) }}</span>
+                        <span class="backup-date">{{ b.createdAt | date: 'medium' }}</span>
+                     </span>
+                     <button class="btn ghost" type="button" [disabled]="busy()" (click)="run('restore', b.id)">
+                        Restore…
+                     </button>
+                  </div>
+               } @empty {
+                  <p class="hint">No automatic backups yet.</p>
+               }
+            </div>
+            <div class="row">
+               <button class="btn ghost" type="button" (click)="run('open-backups-folder')">
+                  <dd-icon name="folder_open" />Open backups folder
+               </button>
+            </div>
+         }
+         @case ('about') {
+            <h3 class="h">DevDesigner {{ state()?.version }}</h3>
+            <p class="lead">
+               A local-first diagram and presentation editor. Nothing leaves this computer unless you sync a project to
+               a server. Crash reports stay on this computer.
+            </p>
+            <div class="row">
+               <button class="btn" type="button" (click)="run('open-server-log')">Server log</button>
+               <button class="btn" type="button" (click)="run('open-crash-folder')">
+                  <dd-icon name="folder_open" />Crash reports
+               </button>
+            </div>
+         }
+      }
+   </section>
+</div>

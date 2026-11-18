@@ -2,6 +2,9 @@ import { computed, DestroyRef, Injectable, inject, signal } from '@angular/core'
 import { firstValueFrom } from 'rxjs';
 import type {
    AddSyncRemoteDto,
+   MergeChoice,
+   MergeConflict,
+   UpdateSyncRemoteDto,
    ProjectExportFile,
    ProjectSummary,
    SyncDefaultRemoteResponse,
@@ -53,12 +56,25 @@ export class SyncService {
       this.linkList.set(links);
    }
 
+   /** The project's page in the server's web app (API base minus /api). */
+   webUrlOf(projectId: string): string | null {
+      const link = this.links().get(projectId);
+      const remote = link && this.remotes().find((r) => r.id === link.remoteId);
+      if (!remote) return null;
+      return `${remote.url.replace(/\/api\/?$/, '')}/projects/${encodeURIComponent(projectId)}`;
+   }
+
    remoteName(remoteId: string): string {
       return this.remotes().find((r) => r.id === remoteId)?.name ?? 'the server';
    }
 
    async addRemote(dto: AddSyncRemoteDto): Promise<void> {
       await firstValueFrom(this.api.post<SyncRemoteResponse>('/sync/remotes', dto));
+      await this.refresh();
+   }
+
+   async updateRemote(remoteId: string, dto: UpdateSyncRemoteDto): Promise<void> {
+      await firstValueFrom(this.api.patch<SyncRemoteResponse>(`/sync/remotes/${remoteId}`, dto));
       await this.refresh();
    }
 
@@ -96,9 +112,20 @@ export class SyncService {
       return firstValueFrom(this.api.get<ProjectExportFile>(`/sync/links/${projectId}/server-version`));
    }
 
-   async resolve(projectId: string, keep: 'server' | 'mine'): Promise<SyncLinkResponse> {
+   /** Items changed both here and on the server (what a merge has to ask about). */
+   mergePreview(projectId: string): Promise<{ canMerge: boolean; conflicts: MergeConflict[] }> {
+      return firstValueFrom(
+         this.api.get<{ canMerge: boolean; conflicts: MergeConflict[] }>(`/sync/links/${projectId}/merge-preview`)
+      );
+   }
+
+   async resolve(
+      projectId: string,
+      keep: 'server' | 'mine' | 'merge',
+      choices: Record<string, MergeChoice> = {}
+   ): Promise<SyncLinkResponse> {
       const { link } = await firstValueFrom(
-         this.api.post<SyncLinkResult>(`/sync/links/${projectId}/resolve`, { keep })
+         this.api.post<SyncLinkResult>(`/sync/links/${projectId}/resolve`, { keep, choices })
       );
       await this.refresh();
       return link;

@@ -24,7 +24,7 @@
                </div>
             </div>
             <div class="cloud-row">
-               <dd-input class="cloud-token" type="password" placeholder="dd_â€¦" formControlName="token" />
+               <dd-input class="cloud-token" type="password" placeholder="dd_..." formControlName="token" />
                <button class="btn primary" type="submit" [disabled]="cloudForm.invalid || busy()">
                   {{ busy() ? 'Connectingâ€¦' : 'Connect' }}
                </button>
@@ -48,6 +48,16 @@
                <button
                   class="icon-btn"
                   type="button"
+                  title="Edit name, URL or token"
+                  aria-label="Edit server"
+                  [disabled]="busy()"
+                  (click)="editingId() === remote.id ? editingId.set(null) : startEdit(remote)"
+               >
+                  <dd-icon name="edit" />
+               </button>
+               <button
+                  class="icon-btn"
+                  type="button"
                   title="Remove this server (synced projects stay, they just stop syncing)"
                   aria-label="Remove server"
                   [disabled]="busy()"
@@ -56,6 +66,28 @@
                   <dd-icon name="delete" />
                </button>
             </div>
+            @if (editingId() === remote.id) {
+               <form class="form" [formGroup]="editForm" (ngSubmit)="saveEdit(remote)">
+                  <div class="field">
+                     <label class="field-label">Name</label>
+                     <dd-input formControlName="name" />
+                  </div>
+                  <div class="field">
+                     <label class="field-label">Server URL</label>
+                     <dd-input formControlName="url" />
+                  </div>
+                  <div class="field">
+                     <label class="field-label">New API token (leave blank to keep the current one)</label>
+                     <dd-input type="password" formControlName="token" placeholder="dd_…" />
+                  </div>
+                  <div class="form-actions">
+                     <button class="btn ghost" type="button" (click)="editingId.set(null)">Cancel</button>
+                     <button class="btn primary" type="submit" [disabled]="editForm.invalid || busy()">
+                        {{ busy() ? 'Checking…' : 'Save' }}
+                     </button>
+                  </div>
+               </form>
+            }
             @if (browsing() === remote.id) {
                <div class="remote-projects">
                   @if (remoteProjects(); as projects) {
@@ -101,7 +133,7 @@
          </div>
          <div class="field">
             <label class="field-label">API token</label>
-            <dd-input type="password" formControlName="token" placeholder="dd_â€¦" />
+            <dd-input type="password" formControlName="token" placeholder="dd_..." />
          </div>
          <div class="form-actions">
             <button class="btn ghost" type="button" (click)="adding.set(false)">Cancel</button>

@@ -44,3 +44,4 @@ coverage/
 desktop/dist
 desktop/stage
 desktop/release
+desktop/release-*

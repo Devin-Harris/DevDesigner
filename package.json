@@ -36,7 +36,9 @@
     "build:desktop": "npm run build && npm run build -w mcp && npm run build -w desktop",
     "start:desktop": "npm run start -w desktop",
     "dist:desktop": "npm run build:desktop && npm run dist -w desktop",
-    "install:desktop": "node desktop/scripts/install-local.mjs"
+    "install:desktop": "node desktop/scripts/install-local.mjs",
+    "build:selfhost": "node server/scripts/build-selfhost.mjs",
+    "start:selfhost": "node server/scripts/devdesigner-server.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

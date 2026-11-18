@@ -67,6 +67,37 @@ export function loadOrCreateSecret(dataDir: string): string {
   return secret;
 }
 
+/** Encrypts/decrypts small secrets with the OS keychain (Electron safeStorage). */
+export interface SecretBox {
+  isEncryptionAvailable(): boolean;
+  encryptString(plain: string): Buffer;
+  decryptString(encrypted: Buffer): string;
+}
+
+/**
+ * Key the local server uses to encrypt stored sync API tokens. The key itself is kept
+ * encrypted by the OS keychain (DPAPI / Keychain / libsecret) in `token-key.enc`, so a
+ * copied database file alone does not reveal the tokens. Without a keychain (some Linux
+ * setups) it falls back to a plain key file next to the database.
+ */
+export function loadOrCreateTokenKey(dataDir: string, box: SecretBox): string {
+  mkdirSync(dataDir, { recursive: true });
+  const secure = box.isEncryptionAvailable();
+  const file = join(dataDir, secure ? 'token-key.enc' : 'token-key');
+  if (existsSync(file)) {
+    try {
+      const raw = readFileSync(file);
+      const key = secure ? box.decryptString(raw) : raw.toString('utf8').trim();
+      if (key.length >= 32) return key;
+    } catch {
+      // Unreadable (keychain reset): make a new key; stored tokens must be re-entered.
+    }
+  }
+  const key = randomBytes(32).toString('base64');
+  writeFileSync(file, secure ? box.encryptString(key) : key, { mode: 0o600 });
+  return key;
+}
+
 /**
  * The hosted DevDesigner server offered as the built-in sync remote. A build setting:
  * `DEVDESIGNER_HOSTED_URL` at package time is written into the app's package.json

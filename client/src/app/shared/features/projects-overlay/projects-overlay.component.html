@@ -185,6 +185,18 @@
                                  <button class="dd-menu-item" type="button" (click)="syncNow(project); close()">
                                     <dd-icon name="sync" />Sync now
                                  </button>
+                                 @if (sync.webUrlOf(project.id); as webUrl) {
+                                    <a
+                                       class="dd-menu-item"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="Open it in the browser to share it or invite people"
+                                       [href]="webUrl"
+                                       (click)="close()"
+                                    >
+                                       <dd-icon name="share" />Open on {{ sync.remoteName(link.remoteId) }}
+                                    </a>
+                                 }
                                  <button
                                     class="dd-menu-item"
                                     type="button"

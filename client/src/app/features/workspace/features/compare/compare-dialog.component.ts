@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { DomSanitizer, type SafeUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
-import type { ProjectExportFile, SchemaModel } from '@devdesigner/shared';
+import type { MergeChoice, MergeConflict, ProjectExportFile, SchemaModel } from '@devdesigner/shared';
 import { buildDiagramSvg } from '../../../editor';
 import type { Box } from '../../../editor';
 import { ApiClientService } from '../../../../core/http/api-client.service';
@@ -37,7 +37,7 @@ interface Pane {
 })
 export class CompareDialogComponent {
    protected readonly data = inject<CompareDialogData>(MAT_DIALOG_DATA);
-   private readonly ref = inject(MatDialogRef<CompareDialogComponent, 'server' | 'mine' | undefined>);
+   private readonly ref = inject(MatDialogRef<CompareDialogComponent, 'server' | 'mine' | 'merge' | undefined>);
    private readonly api = inject(ApiClientService);
    private readonly sync = inject(SyncService);
    private readonly sanitizer = inject(DomSanitizer);
@@ -49,6 +49,18 @@ export class CompareDialogComponent {
    protected readonly panes = signal<Pane[]>([]);
    /** The whole drawing's box; both panes share it so they line up. */
    private readonly frame = signal<Box>({ x0: 0, y0: 0, x1: 800, y1: 600 });
+   /** Merging is possible (a common earlier version is known). */
+   protected readonly canMerge = signal(false);
+   /** Items changed on both sides; each needs a pick before merging. */
+   protected readonly conflicts = signal<MergeConflict[]>([]);
+   /** The pick per conflicting item (default: the server's). */
+   protected readonly choices = signal<Record<string, MergeChoice>>({});
+   protected readonly conflictKeys = computed(() => new Set(this.conflicts().map((c) => c.key)));
+   /** Conflicts that are not drawn on the canvas (home view, themes). */
+   protected readonly otherConflicts = computed(() => {
+      const drawn = new Set(this.entries().map((e) => e.key));
+      return this.conflicts().filter((c) => !drawn.has(c.key));
+   });
    /** The entry zoomed to (null = whole drawing). */
    protected readonly focus = signal<string | null>(null);
 
@@ -79,10 +91,13 @@ export class CompareDialogComponent {
 
    private async load(): Promise<void> {
       try {
-         const [mine, server] = await Promise.all([
+         const [mine, server, preview] = await Promise.all([
             firstValueFrom(this.api.get<ProjectExportFile>(`/projects/${this.data.projectId}/export-file`)),
             this.sync.serverVersion(this.data.projectId),
+            this.sync.mergePreview(this.data.projectId).catch(() => ({ canMerge: false, conflicts: [] })),
          ]);
+         this.canMerge.set(preview.canMerge);
+         this.conflicts.set(preview.conflicts);
          const entries = diffSchemas(mine.schema, server.schema);
          const frame = compareBounds(entries, [...contentBoxes(mine.schema), ...contentBoxes(server.schema)]);
          this.frame.set(frame);
@@ -127,11 +142,20 @@ export class CompareDialogComponent {
       return { x: box.x0 - f.x0 - 6, y: box.y0 - f.y0 - 6, width: box.x1 - box.x0 + 12, height: box.y1 - box.y0 + 12 };
    }
 
-   protected async choose(keep: 'server' | 'mine'): Promise<void> {
+   protected choiceOf(key: string): MergeChoice {
+      return this.choices()[key] ?? 'server';
+   }
+
+   protected setChoice(key: string, side: MergeChoice, event?: Event): void {
+      event?.stopPropagation();
+      this.choices.update((c) => ({ ...c, [key]: side }));
+   }
+
+   protected async choose(keep: 'server' | 'mine' | 'merge'): Promise<void> {
       this.busy.set(true);
       this.error.set(null);
       try {
-         await this.sync.resolve(this.data.projectId, keep);
+         await this.sync.resolve(this.data.projectId, keep, keep === 'merge' ? this.choices() : {});
          this.ref.close(keep);
       } catch (err) {
          this.error.set(describe(err));

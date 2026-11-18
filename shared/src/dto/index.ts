@@ -46,6 +46,14 @@ export interface LoginDto {
 export interface AuthTokenResponse {
   token: string;
 }
+
+/** Change a sync remote. Omitted fields stay; a new URL or token is checked against the server. */
+export interface UpdateSyncRemoteDto {
+  name?: string;
+  url?: string;
+  /** Empty or omitted: keep the stored token. */
+  token?: string;
+}
 export interface CurrentUserResponse {
   id: string;
   email: string | null;

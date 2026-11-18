@@ -14,6 +14,13 @@ import { parseAdminEmails } from '../../platform/config/env.validation';
 export class AdminBootstrapService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AdminBootstrapService.name);
   private readonly allowlist: ReadonlySet<string>;
+  private readonly selfHosted: boolean;
+  private readonly appUrl: string;
+  /**
+   * Self-hosted server with no admin yet and no ADMIN_EMAILS: the first account made
+   * becomes the admin (printed as a setup step on start).
+   */
+  private firstAccountIsAdmin = false;
 
   constructor(
     @InjectRepository(User)
@@ -21,9 +28,30 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
     config: ConfigService,
   ) {
     this.allowlist = new Set(parseAdminEmails(config.get<string>('ADMIN_EMAILS')));
+    this.selfHosted = config.get<string>('SELF_HOSTED') === 'true';
+    this.appUrl = String(config.get<string>('PUBLIC_APP_URL') ?? '');
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    if (this.selfHosted && this.allowlist.size === 0) {
+      const admins = await this.users.count({ where: { role: 'admin' } });
+      if (admins === 0) {
+        this.firstAccountIsAdmin = true;
+        this.logger.log(
+          [
+            '',
+            '======================================================================',
+            ' DevDesigner is running. First-time setup:',
+            `   1. Open ${this.appUrl || 'this server in a browser'} and create an account.`,
+            '      The first account made on this server becomes its admin.',
+            '   2. Under Account > API tokens, create a token for each desktop app',
+            '      (desktop: Settings > Sync servers > Add server).',
+            ' (Set ADMIN_EMAILS to choose admins by email instead.)',
+            '======================================================================',
+          ].join('\n'),
+        );
+      }
+    }
     if (this.allowlist.size === 0) {
       return;
     }
@@ -40,6 +68,17 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
 
   isAllowlisted(email: string | null): boolean {
     return email !== null && this.allowlist.has(email.trim().toLowerCase());
+  }
+
+  /** Role for a new account: admin when allowlisted, or the first account on a fresh self-hosted server. */
+  async roleForNewAccount(email: string | null): Promise<'admin' | 'user'> {
+    if (this.isAllowlisted(email)) return 'admin';
+    if (this.firstAccountIsAdmin && (await this.users.count({ where: { role: 'admin' } })) === 0) {
+      this.firstAccountIsAdmin = false;
+      this.logger.log('First account created: it is this server\'s admin.');
+      return 'admin';
+    }
+    return 'user';
   }
 
   /** Promote `user` in place (and in the DB) when allowlisted and not already admin. */

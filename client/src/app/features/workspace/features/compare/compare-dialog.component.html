@@ -59,9 +59,62 @@
                   <span class="entry-text">
                      <span class="entry-label">{{ e.label }}</span>
                      <span class="entry-details">{{ e.details.join(' · ') }}</span>
+                     @if (conflictKeys().has(e.key)) {
+                        <span class="pick" role="group" aria-label="Which version to keep">
+                           <span class="pick-label">Changed on both, keep:</span>
+                           <span
+                              class="pick-btn"
+                              role="button"
+                              tabindex="0"
+                              [class.on]="choiceOf(e.key) === 'mine'"
+                              (click)="setChoice(e.key, 'mine', $event)"
+                              (keydown.enter)="setChoice(e.key, 'mine', $event)"
+                              >Mine</span
+                           >
+                           <span
+                              class="pick-btn"
+                              role="button"
+                              tabindex="0"
+                              [class.on]="choiceOf(e.key) === 'server'"
+                              (click)="setChoice(e.key, 'server', $event)"
+                              (keydown.enter)="setChoice(e.key, 'server', $event)"
+                              >Server</span
+                           >
+                        </span>
+                     } @else if (canMerge()) {
+                        <span class="auto">Merged automatically</span>
+                     }
                   </span>
                </button>
-            } @empty {
+            }
+            @for (c of otherConflicts(); track c.key) {
+               <div class="entry static">
+                  <span class="dot changed"></span>
+                  <span class="entry-text">
+                     <span class="entry-label">{{ c.label }}</span>
+                     <span class="pick">
+                        <span class="pick-label">Changed on both, keep:</span>
+                        <button
+                           class="pick-btn"
+                           type="button"
+                           [class.on]="choiceOf(c.key) === 'mine'"
+                           (click)="setChoice(c.key, 'mine')"
+                        >
+                           Mine
+                        </button>
+                        <button
+                           class="pick-btn"
+                           type="button"
+                           [class.on]="choiceOf(c.key) === 'server'"
+                           (click)="setChoice(c.key, 'server')"
+                        >
+                           Server
+                        </button>
+                     </span>
+                  </span>
+               </div>
+            }
+            @if (!entries().length && !otherConflicts().length) {
                <p class="muted">
                   The drawings match. Only details that are not drawn differ (for example the project name or theme).
                </p>
@@ -78,8 +131,25 @@
       <button class="btn" type="button" [disabled]="busy() || loading()" (click)="choose('server')">
          Use server version
       </button>
-      <button class="btn primary" type="button" [disabled]="busy() || loading()" (click)="choose('mine')">
+      <button
+         class="btn"
+         type="button"
+         [class.primary]="!canMerge()"
+         [disabled]="busy() || loading()"
+         (click)="choose('mine')"
+      >
          Keep mine
       </button>
+      @if (canMerge()) {
+         <button
+            class="btn primary"
+            type="button"
+            title="Keep both sides' changes; for items changed on both, use the picks in the list"
+            [disabled]="busy() || loading()"
+            (click)="choose('merge')"
+         >
+            Merge
+         </button>
+      }
    </footer>
 </div>
