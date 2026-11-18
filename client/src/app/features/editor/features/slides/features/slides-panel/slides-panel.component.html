@@ -307,7 +307,9 @@
                                  Characters: letters and words glide. Words: whole words glide. Objects: text moves as
                                  one piece and cross-fades. Applies to text, code blocks, tables and diagrams.
                               </p>
-                              @if (itemMorphTarget(); as it) {
+                              @if (itemMorphTarget(); as cur) {
+                              <!-- Keyed by object: switching the selection rebuilds the control with its own value. -->
+                              @for (it of [cur]; track it.id) {
                                  <label class="field">
                                     <span>Selected object · animate by</span>
                                     <dd-select
@@ -317,6 +319,7 @@
                                        (ngModelChange)="setItemMorphBy(it.id, $event)"
                                     />
                                  </label>
+                              }
                               }
 
                            }

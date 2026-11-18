@@ -249,6 +249,8 @@ export class DeckFocusService {
          else if (cmd.screen === 'main' && this.focusScreen() !== 'main') this.stayInFocus();
          else {
             this.focusScreen.set(cmd.screen);
+            // Refine always opens on Map pairs (Preview is one click away).
+            if (cmd.screen === 'morph') this.compareUi.view.set('map');
             if (cmd.screen === 'morph' && this.focusSlide()?.index === 1) this.goToTransition(2);
          }
          return;

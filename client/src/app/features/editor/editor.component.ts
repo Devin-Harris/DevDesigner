@@ -201,9 +201,7 @@ export class EditorComponent {
       const f = id ? this.store.slideFrames().find((x) => x.id === id) : undefined;
       return (f?.slide?.transition?.type ?? 'none') === 'none';
    });
-   private readonly cutShowsPreview = effect(() => {
-      if (this.cutTransition() && untracked(this.compareUi.view) === 'map') this.compareUi.view.set('preview');
-   });
+
    /** The tool dock sits along the top edge (bars that would sit there move down). */
    protected readonly toolbarPosTop = computed(() => this.toolbarPrefs.position() === 'top');
    private readonly dialog = inject(MatDialog);

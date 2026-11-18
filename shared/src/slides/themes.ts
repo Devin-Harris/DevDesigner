@@ -201,10 +201,10 @@ export const BUILT_IN_THEMES: readonly SlideTheme[] = [
       heading: THEME_STROKE,
       text: THEME_STROKE,
       muted: '#94a3b8',
-      accent1: '#2f6bff',
-      accent2: '#7c5cff',
-      accent3: '#12b76a',
-      accent4: '#f5a623',
+      accent1: '#4f46e5',
+      accent2: '#0ea5a4',
+      accent3: '#6366f1',
+      accent4: '#f59e0b',
     },
     fonts: { heading: 'inter', body: 'inter' },
   },
@@ -272,6 +272,55 @@ export const BUILT_IN_THEMES: readonly SlideTheme[] = [
     },
     fonts: { heading: 'condensed', body: 'inter' },
   },
+  // Themes the classic designs ship with (Sidebar, Centered, Banner).
+  {
+    id: 'harbor',
+    name: 'Harbor',
+    colors: {
+      background: '#f7f9fc',
+      surface: '#e6edf6',
+      heading: '#0f2a43',
+      text: '#33475b',
+      muted: '#7b8ea3',
+      accent1: '#1d6fa3',
+      accent2: '#2bb3a3',
+      accent3: '#f2a541',
+      accent4: '#e0607e',
+    },
+    fonts: { heading: 'poppins', body: 'inter' },
+  },
+  {
+    id: 'blossom',
+    name: 'Blossom',
+    colors: {
+      background: '#fffaf7',
+      surface: '#f8e9e4',
+      heading: '#3d2230',
+      text: '#5b4250',
+      muted: '#b29aa5',
+      accent1: '#d4547a',
+      accent2: '#8a6fd1',
+      accent3: '#e8a35a',
+      accent4: '#4fa39a',
+    },
+    fonts: { heading: 'display', body: 'normal' },
+  },
+  {
+    id: 'citrus',
+    name: 'Citrus',
+    colors: {
+      background: '#ffffff',
+      surface: '#fff4e5',
+      heading: '#1f1a14',
+      text: '#3f372e',
+      muted: '#a0948a',
+      accent1: '#f26b1d',
+      accent2: '#ffc233',
+      accent3: '#2a9d8f',
+      accent4: '#264653',
+    },
+    fonts: { heading: 'condensed', body: 'inter' },
+  },
 ];
 
 export const DEFAULT_THEME: SlideTheme = BUILT_IN_THEMES[0];
@@ -302,18 +351,25 @@ export const BUILT_IN_DESIGNS: readonly SlideTheme[] = [
     colors: DEFAULT_THEME.colors,
     fonts: DEFAULT_THEME.fonts,
   },
-  // These use the Default theme; they differ only in their layouts.
-  ...(['Sidebar', 'Centered', 'Banner'] as const).map(
-    (name): SlideTheme => ({
+  // The classic layouts, each with a theme of its own.
+  ...(
+    [
+      ['Sidebar', 'harbor'],
+      ['Centered', 'blossom'],
+      ['Banner', 'citrus'],
+    ] as const
+  ).map(([name, themeId]): SlideTheme => {
+    const theme = BUILT_IN_THEMES.find((t) => t.id === themeId)!;
+    return {
       kind: 'design',
       id: `${name.toLowerCase()}-design`,
       name,
-      themeId: DEFAULT_THEME.id,
+      themeId,
       layoutsId: `${name.toLowerCase()}-layouts`,
-      colors: DEFAULT_THEME.colors,
-      fonts: DEFAULT_THEME.fonts,
-    }),
-  ),
+      colors: theme.colors,
+      fonts: theme.fonts,
+    };
+  }),
   // Designs that differ in both look and theme (like a presentation app's built-in designs).
   ...(
     [

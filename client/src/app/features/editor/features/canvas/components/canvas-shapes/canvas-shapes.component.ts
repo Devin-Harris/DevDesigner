@@ -100,12 +100,10 @@ export class CanvasShapesComponent {
    protected readonly croppingId = inject(MediaActionsService).croppingId;
 
    /** A live frame's address was typed in: save it (the page loads from the new value). */
-   private readonly snapshots = inject(EmbedSnapshotsService);
+   protected readonly snapshots = inject(EmbedSnapshotsService);
 
    protected commitEmbedUrl(id: string, url: string): void {
       void this.store.updateElement(id, { text: url });
-      // Still inside the click / Enter: the one prompt to share this tab for snapshots.
-      void this.snapshots.ensureSharing();
    }
 
    protected readonly frameTitleW = FRAME_TITLE_W;

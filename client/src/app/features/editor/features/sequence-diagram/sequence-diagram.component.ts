@@ -133,6 +133,8 @@ type Drag =
    | { kind: 'endpoint'; id: string; which: 'from' | 'to' };
 
 const BOX_PAD = 26;
+/** Extra room above the participants so the title (or "Add title") never crowds them; mirrored in diagram-svg + frame-contents. */
+const TITLE_ROOM = 10;
 const MIN_ROW = 20;
 const MIN_HEADER_W = 60;
 
@@ -338,7 +340,7 @@ export class SequenceDiagramComponent {
       if (!l.length) return null;
       const left = Math.min(...l.map((x) => x.x - x.width / 2)) - BOX_PAD;
       const right = Math.max(...l.map((x) => x.x + x.width / 2)) + BOX_PAD;
-      const top = this.originY() - BOX_PAD;
+      const top = this.originY() - BOX_PAD - TITLE_ROOM;
       const bottom = this.spineEnd() + BOX_PAD;
       return {
          left,

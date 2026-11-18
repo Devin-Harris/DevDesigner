@@ -151,6 +151,15 @@
 }
 
 // Circular add-participant buttons on the left/right bounds.
+.add-ll-btn svg {
+   width: 12px;
+   height: 12px;
+   fill: none;
+   stroke: currentColor;
+   stroke-width: 1.6;
+   stroke-linecap: round;
+}
+
 .add-ll-btn {
    position: absolute;
    transform: translate(-50%, -50%);
@@ -160,8 +169,8 @@
    border: 1px solid var(--dd-border-strong);
    background: var(--dd-surface);
    color: var(--dd-text-muted);
-   font-size: calc(16px * var(--seq-k, 1));
-   line-height: 1;
+   padding: 0;
+   line-height: 0;
    display: flex;
    align-items: center;
    justify-content: center;

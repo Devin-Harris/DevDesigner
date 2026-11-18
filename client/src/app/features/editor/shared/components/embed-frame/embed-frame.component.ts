@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, effect, untracked } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
-import { EmbedSnapshotsService } from '../../../services/embed-snapshots.service';
 
 const LOAD_TIMEOUT_MS = 20000;
 
@@ -38,8 +37,9 @@ function embedHost(url: string | null | undefined): string {
                <p class="sub">Check that it's running and reachable from this browser.</p>
                <button type="button" class="retry" (pointerdown)="$event.stopPropagation()" (click)="retry()">Try again</button>
             </div>
-         } @else if (!loaded()) {
-            <div class="state" aria-live="polite">
+         } @else {
+            <!-- Stays mounted and fades away once the page is in, revealing it underneath. -->
+            <div class="state loading" [class.done]="loaded()" aria-live="polite">
                <div class="spinner" aria-hidden="true"></div>
                <p class="sub">Loading</p>
                <p class="sub url">{{ host() }}</p>
@@ -56,6 +56,8 @@ function embedHost(url: string | null | undefined): string {
                [src]="s"
             ></iframe>
          }
+         <!-- The frame's own border, drawn over the page so its corners never look cut off. -->
+         <div class="edge" aria-hidden="true"></div>
       } @else if (editable() && !url()) {
          <!-- Only the field and button take the pointer: the rest drags the frame. -->
          <form class="ask" (submit)="submit($event, field.value)">
@@ -114,6 +116,24 @@ function embedHost(url: string | null | undefined): string {
          color: var(--dd-text, #111);
          font: 13px/1.4 var(--dd-font, system-ui, sans-serif);
       }
+      .state.loading {
+         z-index: 2;
+         transition:
+            opacity 360ms ease 120ms,
+            visibility 0s linear 480ms;
+      }
+      .state.loading.done {
+         opacity: 0;
+         visibility: hidden;
+      }
+      .edge {
+         position: absolute;
+         inset: 0;
+         z-index: 3;
+         pointer-events: none;
+         border-radius: var(--embed-radius, 0px);
+         box-shadow: inset 0 0 0 var(--embed-stroke-w, 0px) var(--embed-stroke, transparent);
+      }
       .state .url {
          max-width: 100%;
          overflow: hidden;
@@ -145,11 +165,6 @@ function embedHost(url: string | null | undefined): string {
       }
       iframe {
          position: relative;
-         opacity: 0;
-         transition: opacity 280ms ease;
-      }
-      iframe.ready {
-         opacity: 1;
       }
       iframe {
          display: block;
@@ -264,7 +279,6 @@ function embedHost(url: string | null | undefined): string {
 })
 export class EmbedFrameComponent {
    private readonly sanitizer = inject(DomSanitizer);
-   private readonly snapshots = inject(EmbedSnapshotsService);
    private static seq = 0;
 
    readonly url = input<string | null | undefined>(null);
@@ -330,7 +344,6 @@ export class EmbedFrameComponent {
          // Cross-origin: the real page is there.
       }
       this.loaded.set(true);
-      this.snapshots.frameLoaded();
    }
 
    protected retry(): void {

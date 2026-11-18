@@ -11,6 +11,8 @@ import { elementBox, tableBox } from './element-geometry.helper';
 
 /** Padding the sequence diagram's outer box adds around its participants. */
 const SEQ_BOX_PAD = 26;
+/** Extra room above the participants so the title (or "Add title") never crowds them. */
+const SEQ_TITLE_ROOM = 10;
 
 /** Everything on the canvas that sits fully inside one or more frames. */
 export interface FrameContents {
@@ -38,7 +40,7 @@ export function sequenceDiagramBox(
    return {
       x0: Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD,
       x1: Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD,
-      y0: diagram.originY - SEQ_BOX_PAD,
+      y0: diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM,
       y1: hb + gap * (maxRow + 1) + SEQ_BOX_PAD,
    };
 }

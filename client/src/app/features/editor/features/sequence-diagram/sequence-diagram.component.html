@@ -269,7 +269,8 @@
             (pointerdown)="$event.stopPropagation()"
             (click)="addParticipant($event, s.at)"
          >
-            +
+            <!-- An SVG cross, not a "+" glyph: font metrics left the glyph off-centre. -->
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7" /></svg>
          </button>
       }
    }

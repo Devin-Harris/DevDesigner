@@ -649,6 +649,8 @@
                         <dd-embed-frame
                            [attr.data-embed-id]="s.id"
                            [style.--embed-radius]="em.rx + 'px'"
+                           [style.--embed-stroke]="s.stroke"
+                           [style.--embed-stroke-w]="s.strokeWidth + 'px'"
                            [url]="em.url"
                            [editable]="interactive() && store.canEdit()"
                            [interacting]="embeds.interactingId() === s.id"
@@ -657,7 +659,7 @@
                         ></dd-embed-frame>
                      </foreignObject>
                   }
-                  @if (em.url && s.selected && interactive()) {
+                  @if (em.url && s.selected && interactive() && snapshots.capturingId() !== s.id) {
                      <!-- Address bar floating inside the selected frame's bottom edge (inside, so a slide's
                           clip never cuts it off): edit the URL, reload, open. -->
                      <foreignObject
@@ -671,6 +673,9 @@
                            [editable]="store.canEdit()"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
                            (reload)="embeds.reload(s.id)"
+                           [snapshot]="snapshots.hasSnapshot(s.id)"
+                           (snapshotToggle)="snapshots.setEnabled(s.id, $event)"
+                           (retake)="snapshots.capture(s.id)"
                         ></dd-embed-url-bar>
                      </foreignObject>
                   }
@@ -678,7 +683,7 @@
             </g>
          </g>
 
-         @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {
+         @if (s.selected && s.id !== editingId() && s.id !== croppingId() && s.id !== snapshots.capturingId()) {
             <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {
                   <!-- Line/arrow: draggable endpoint handles. -->

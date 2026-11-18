@@ -636,12 +636,14 @@ export function sequenceBounds(
    return {
       x0: Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD,
       x1: Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD,
-      y0: diagram.originY - SEQ_BOX_PAD,
+      y0: diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM,
       y1: headerBottom + gap * (maxRow + 1) + SEQ_BOX_PAD,
    };
 }
 
 const SEQ_BOX_PAD = 26;
+/** Extra room above the participants so the title (or "Add title") never crowds them. */
+const SEQ_TITLE_ROOM = 10;
 const SEQ_LINE_H = 15;
 
 /** Multi-line, horizontally centered text block whose vertical middle sits on `cy`. */
@@ -696,7 +698,7 @@ function renderSequence(
 
    const x0 = override ? override.x0 : Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD;
    const x1 = override ? override.x1 : Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD;
-   const y0 = override ? override.y0 : diagram.originY - SEQ_BOX_PAD;
+   const y0 = override ? override.y0 : diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM;
    const y1 = spineEnd + SEQ_BOX_PAD;
    const minX = Math.min(...lls.map((l) => l.x));
    const maxX = Math.max(...lls.map((l) => l.x));

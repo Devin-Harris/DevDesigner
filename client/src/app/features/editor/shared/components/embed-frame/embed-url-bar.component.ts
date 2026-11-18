@@ -23,6 +23,16 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
             (input)="invalid.set(false)"
             (blur)="save(null, field)"
          />
+         @if (editable()) {
+            <!-- Opt in to a snapshot of this frame for thumbnails, transitions and PDF export. -->
+            <label class="snap" title="Use a snapshot of this page in thumbnails, slide transitions and PDF exports (asks to share this tab for a moment)">
+               <input type="checkbox" [checked]="snapshot()" (change)="snapshotToggle.emit($any($event.target).checked)" />
+               Snapshot
+            </label>
+            @if (snapshot()) {
+               <button type="button" title="Retake the snapshot" aria-label="Retake snapshot" (click)="retake.emit()">📷</button>
+            }
+         }
          <button type="button" title="Reload" aria-label="Reload page" (click)="reload.emit()">⟳</button>
          <a title="Open in a new tab" aria-label="Open in a new tab" target="_blank" rel="noopener noreferrer" [href]="url()">↗</a>
       </form>
@@ -66,6 +76,21 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
       input:focus {
          background: var(--dd-chip-bg);
       }
+      .snap {
+         flex: none;
+         display: flex;
+         align-items: center;
+         gap: 4px;
+         padding: 0 6px;
+         color: var(--dd-text-muted, #555);
+         font-size: 11.5px;
+         white-space: nowrap;
+         cursor: pointer;
+      }
+      .snap input {
+         margin: 0;
+         accent-color: var(--dd-primary);
+      }
       button,
       a {
          flex: none;
@@ -93,6 +118,10 @@ export class EmbedUrlBarComponent {
    readonly editable = input(true);
    readonly urlCommit = output<string>();
    readonly reload = output<void>();
+   /** This frame has a snapshot (it shows in thumbnails and exports). */
+   readonly snapshot = input(false);
+   readonly snapshotToggle = output<boolean>();
+   readonly retake = output<void>();
    protected readonly invalid = signal(false);
 
    protected onKey(event: KeyboardEvent, field: HTMLInputElement): void {

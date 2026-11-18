@@ -670,3 +670,42 @@
    margin: -4.5px 0 0 -4.5px;
    border-width: 2px;
 }
+
+.cut-note {
+   position: absolute;
+   top: 12px;
+   left: 50%;
+   transform: translateX(-50%);
+   z-index: 30;
+   margin: 0;
+   padding: 8px 14px;
+   border: 1px solid var(--dd-border);
+   border-radius: 8px;
+   background: var(--dd-surface);
+   box-shadow: var(--dd-shadow-2);
+   color: var(--dd-text);
+   font-size: 12.5px;
+}
+
+.actions .ab {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   margin-right: 8px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
+}
+.actions .seg {
+   padding: 4px 8px;
+   border: 1px solid var(--dd-border);
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   cursor: pointer;
+}
+.actions .seg.on {
+   border-color: var(--dd-primary);
+   background: color-mix(in srgb, var(--dd-primary) 16%, transparent);
+   color: var(--dd-primary);
+}

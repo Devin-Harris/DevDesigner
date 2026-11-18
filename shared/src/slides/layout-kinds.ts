@@ -117,9 +117,6 @@ const outline = (x: number, y: number, w: number, h: number, color: string, widt
     cornerRadius: 0,
   } as LayoutElementProps,
 });
-/** A soft tinted circle, for depth behind titles. `d` is its diameter as a fraction of the slide height. */
-const orb = (x: number, y: number, d: number, color: string, opacity = 10): LayoutSpecItem =>
-  deco('ellipse', x, y, (d * 9) / 16, d, color, { opacity });
 /** A short rule in two accent colors (main, then a small second segment). */
 const duo = (x: number, y: number, w: number, h: number): LayoutSpecItem[] => [
   { kind: 'bar', x, y, w: w * 0.7, h, color: '$accent1' },
@@ -186,8 +183,6 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
     kind: 'title',
     items: [
       // A big soft orb bleeding off the top right, a solid accent block bottom left.
-      orb(0.62, -0.3, 1.1, '$accent1', 14),
-      orb(0.84, 0.5, 0.5, '$accent2', 12),
       deco('rectangle', 0, 0.86, 0.38, 0.14, '$accent1'),
       deco('rectangle', 0.38, 0.86, 0.1, 0.14, '$accent2'),
       { ...(title(0.3) as Extract<LayoutSpecItem, { kind: 'text' }>), size: 66, w: W * 0.8 },
@@ -207,7 +202,6 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'section',
     items: [
-      orb(0.66, 0.08, 1.05, '$accent1', 9),
       ...duo(M, 0.35, 0.09, 8),
       { ...(title(0.4) as Extract<LayoutSpecItem, { kind: 'text' }>), size: 54 },
       {
@@ -262,7 +256,6 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'statement',
     items: [
-      orb(0.3, 0.1, 0.8, '$accent1', 7),
       ...duo(0.45, 0.3, 0.1, 6),
       {
         kind: 'text',
@@ -374,7 +367,6 @@ export const SIDEBAR_LAYOUTS: LayoutVariant = (() => {
   return {
     title: [
       deco('rectangle', 0, 0, COLW, 1, '$accent1'),
-      orb(0.04, 0.6, 0.55, '$accent2', 40),
       txt('title', 'Click to add title', SL, 0.32, SW, 62, 'heading', '$heading', { bold: true }),
       txt('subtitle', 'Click to add subtitle', SL, 0.56, SW * 0.85, 26, 'body', '$muted'),
     ],
@@ -414,24 +406,6 @@ export const SIDEBAR_LAYOUTS: LayoutVariant = (() => {
  */
 export const CENTERED_LAYOUTS: LayoutVariant = (() => {
   const c = { align: 'center' as const };
-  const ring = (x: number, y: number, d: number, color: string, opacity = 45): LayoutSpecItem => ({
-    kind: 'element',
-    x,
-    y,
-    w: (d * 9) / 16,
-    h: d,
-    el: {
-      type: 'ellipse',
-      strokeColor: color,
-      backgroundColor: 'transparent',
-      fillStyle: 'none',
-      strokeWidth: 3,
-      strokeStyle: 'solid',
-      opacity,
-      angle: 0,
-      cornerRadius: 0,
-    } as LayoutElementProps,
-  });
   const dots = (y: number): LayoutSpecItem[] =>
     [0, 1, 2].map((i) => deco('ellipse', 0.487 + i * 0.011, y, 0.007, 0.0125, ACCENTS[i]));
   const head = (): TextItem => txt('title', 'Click to add title', M, 0.1, W, 40, 'heading', '$heading', { bold: true, ...c });
@@ -444,14 +418,11 @@ export const CENTERED_LAYOUTS: LayoutVariant = (() => {
     ]);
   return {
     title: [
-      ring(0.22, 0.05, 0.9, '$accent1'),
-      ring(0.42, 0.18, 0.75, '$accent2', 35),
       ...dots(0.3),
       txt('title', 'Click to add title', M, 0.36, W, 64, 'heading', '$heading', { bold: true, ...c }),
       txt('subtitle', 'Click to add subtitle', M, 0.58, W, 26, 'body', '$muted', c),
     ],
     section: [
-      ring(0.33, 0.1, 0.8, '$accent1', 30),
       ...dots(0.34),
       txt('title', 'Click to add title', M, 0.4, W, 54, 'heading', '$heading', { bold: true, ...c }),
       txt('subtitle', 'Click to add subtitle', M, 0.58, W, 24, 'body', '$muted', c),
@@ -469,7 +440,6 @@ export const CENTERED_LAYOUTS: LayoutVariant = (() => {
       ...cols(2, M, W, (x, w) => bodyAt(x + 0.02, w - 0.04, 0.4)),
     ],
     statement: [
-      ring(0.3, 0.08, 0.84, '$accent1', 30),
       txt('emphasis', 'Click to add a statement', 0.12, 0.38, 0.76, 52, 'heading', '$heading', { bold: true, ...c }),
       ...dots(0.66),
     ],

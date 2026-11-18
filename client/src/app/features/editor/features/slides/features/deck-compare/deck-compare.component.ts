@@ -19,6 +19,8 @@ import {
    gridPartTag,
    matchMorphItems,
    transitionMorphs,
+   effectiveTransition,
+   type MorphBy,
    parseGrid,
    serializeGrid,
    setGridPartTag,
@@ -391,6 +393,37 @@ export class DeckCompareComponent {
       const x1 = Math.max(100, ...hits.map((h) => h.left + h.width)) + pad;
       const y1 = Math.max(100, ...hits.map((h) => h.top + h.height)) + pad;
       return { left: x0, top: y0, width: x1 - x0, height: y1 - y0 };
+   }
+
+   protected readonly animateByOptions = [
+      { value: 'default', label: 'Slide default' },
+      { value: 'character', label: 'Character' },
+      { value: 'word', label: 'Word' },
+      { value: 'object', label: 'Object' },
+   ] as const;
+
+   /**
+    * The selected pair's "animate by": stored on this (the later) slide against its own
+    * object, so the after-slide end of the pair is the key whichever end is selected.
+    */
+   protected readonly armedAnimateBy = computed<{ id: string; by: string } | null>(() => {
+      const a = this.armed();
+      const h = this.armedHit();
+      if (!a || !h?.partner) return null;
+      const bHit = a.side === 'b' ? h : this.hitsB().find((x) => x.key === h.partner);
+      if (!bHit?.id) return null;
+      return { id: bHit.id, by: this.slide().slide?.transition?.morphByItems?.[bHit.id] ?? 'default' };
+   });
+
+   protected setArmedAnimateBy(id: string, by: string): void {
+      const f = this.slide();
+      if (!f.slide || !this.canEdit()) return;
+      const t = effectiveTransition(f.slide);
+      const { [id]: _old, ...rest } = t.morphByItems ?? {};
+      const items = by === 'default' ? rest : { ...rest, [id]: by as MorphBy };
+      void this.store.updateElement(f.id, {
+         slide: { ...f.slide, transition: { ...t, morphByItems: Object.keys(items).length ? items : undefined } },
+      });
    }
 
    protected readonly armedHit = computed(() => {
@@ -1186,6 +1219,8 @@ export class DeckCompareComponent {
     * zoom, a cut, with or without morph), not just a cross-fade of two pictures.
     */
    protected readonly isMorph = computed(() => !!this.previous());
+   /** The transition into this slide is None: a cut, nothing morphs, so no pairs. */
+   protected readonly isCut = computed(() => !transitionMorphs(this.slide().slide?.transition));
    protected readonly ratio = computed(() => `${this.slide().width} / ${this.slide().height}`);
    protected readonly duration = computed(() => this.slide().slide?.transition?.duration ?? 300);
    protected readonly nowMs = computed(() => Math.round(this.progress() * this.duration()));
