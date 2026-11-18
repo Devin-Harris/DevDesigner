@@ -364,4 +364,34 @@
    } @empty {
       <div class="none">Nothing on these slides yet.</div>
    }
+   @if (ui.selection(); as sel) {
+      <!-- The selected pair / object: how it animates, and what else it can do. -->
+      <div class="sel-ctl">
+         @if (sel.animateBy !== null) {
+            <div class="ab-row">
+               <span class="ab-lab">Animate by</span>
+               <span class="ab-seg">
+                  @for (o of animateByOptions; track o.value) {
+                     <button type="button" [class.on]="sel.animateBy === o.value" [disabled]="!canEdit()" (click)="sel.setAnimateBy(o.value)">
+                        {{ o.label }}
+                     </button>
+                  }
+               </span>
+            </div>
+         }
+         @if (canEdit()) {
+            <div class="sel-btns">
+               @if (sel.paired && !sel.cut) {
+                  <button class="btn" type="button" (click)="sel.fade()">Fade instead</button>
+               }
+               @if (!sel.cut) {
+                  <button class="btn" type="button" (click)="sel.cut_()">No transition</button>
+               }
+               @if (sel.forced || sel.cut || sel.solo) {
+                  <button class="btn" type="button" title="Back to automatic look-alike pairing" (click)="sel.reset()">Reset to automatic</button>
+               }
+            </div>
+         }
+      </div>
+   }
 }

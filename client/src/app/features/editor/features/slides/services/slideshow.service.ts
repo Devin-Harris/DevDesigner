@@ -75,7 +75,7 @@ export class SlideshowService {
          0,
          slides.findIndex((f) => f.id === p?.presenting?.frameId)
       );
-      const rendered = await this.slideRender.render(slides);
+      const rendered = await this.slideRender.render(slides, { fonts: true, liveEmbeds: true });
       this.presentation.set({ slides: rendered, start, preview: false, follow: participantId });
    }
 
@@ -182,7 +182,7 @@ export class SlideshowService {
          );
       }
       try {
-         const rendered = await this.slideRender.render(slides);
+         const rendered = await this.slideRender.render(slides, { fonts: true, liveEmbeds: true });
          this.presentation.set({ slides: rendered, start, preview: false, follow: null });
          this.presentStartedAt = Date.now();
          this.telemetry.track('client.present', {

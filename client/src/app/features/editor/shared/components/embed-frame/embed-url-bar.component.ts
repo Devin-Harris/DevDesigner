@@ -96,6 +96,7 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
       button,
       a {
          flex: none;
+         padding: 0;
          display: grid;
          place-items: center;
          width: 24px;
@@ -109,6 +110,7 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
          cursor: pointer;
       }
       button svg {
+         display: block;
          width: 15px;
          height: 15px;
          fill: none;

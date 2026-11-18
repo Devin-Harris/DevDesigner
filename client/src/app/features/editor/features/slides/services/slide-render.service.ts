@@ -143,9 +143,13 @@ export class SlideRenderService {
     */
    async render(
       frames: readonly CanvasElementModel[],
-      options: { fonts: boolean; ghosts?: boolean } = { fonts: true }
+      /** `liveEmbeds`: presenting — live frames draw their plain card (the page loads over
+       *  it), never a snapshot, which may not line up with what the page shows now. */
+      options: { fonts: boolean; ghosts?: boolean; liveEmbeds?: boolean } = { fonts: true }
    ): Promise<RenderedSlide[]> {
-      const allElements = this.store.elements();
+      const allElements = options.liveEmbeds
+         ? this.store.elements().map((e) => (e.type === 'embed' && e.fileId ? { ...e, fileId: undefined } : e))
+         : this.store.elements();
       const allTables = this.store.tables();
       const relationships = this.store.relationships();
       const contents = frames.map((frame) =>

@@ -709,3 +709,45 @@
    background: color-mix(in srgb, var(--dd-primary) 16%, transparent);
    color: var(--dd-primary);
 }
+
+.sel-ctl {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+   margin-top: 10px;
+   padding-top: 10px;
+   border-top: 1px solid var(--dd-border);
+}
+.ab-row {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 8px;
+   font-size: 12px;
+   color: var(--dd-text-muted);
+}
+.ab-seg {
+   display: inline-flex;
+   padding: 2px;
+   border-radius: 8px;
+   background: var(--dd-chip-bg);
+}
+.ab-seg button {
+   padding: 3px 8px;
+   border: 0;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   cursor: pointer;
+}
+.ab-seg button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.sel-btns {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 6px;
+}

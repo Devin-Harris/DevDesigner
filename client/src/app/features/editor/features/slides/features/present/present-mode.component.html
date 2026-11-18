@@ -16,10 +16,10 @@
          }
       }
       <div #overlay class="overlay"></div>
-      <!-- Live frames of every slide stay loaded (hidden off their slide), so arriving at a
-           slide shows the page at once instead of reloading it. -->
+      <!-- Live frames load when their slide is reached: the frame shows its loading
+           spinner, then fades to the live page (no stale snapshot in between). -->
       @for (sl of slides(); track $index; let si = $index) {
-         @if (embedsOf(sl).length) {
+         @if (embedsOf(sl).length && si === index()) {
             <dd-slide-media-layer
                class="embed-layer"
                [class.off]="si !== index()"

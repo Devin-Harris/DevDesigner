@@ -177,15 +177,15 @@ export const STANDARD_LAYOUT_SPECS: readonly LayoutSpec[] = [
   {
     kind: 'title',
     items: [
-      // One quiet accent rule above the title; no blocks.
-      { kind: 'bar', x: M, y: 0.27, w: 0.06, h: 4, color: '$accent1' },
       { ...(title(0.3) as Extract<LayoutSpecItem, { kind: 'text' }>), size: 66, w: W * 0.8 },
+      // A single accent line under the title (like the section header's), no blocks.
+      { kind: 'bar', x: M, y: 0.47, w: 0.12, h: 5, color: '$accent1' },
       {
         kind: 'text',
         role: 'subtitle',
         prompt: 'Click to add subtitle',
         x: M,
-        y: 0.56,
+        y: 0.52,
         w: W * 0.7,
         size: 26,
         font: 'body',

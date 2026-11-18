@@ -173,7 +173,7 @@ export class DeckCompareComponent {
 
    // ---- mapping ----
    /** The object picked first (waiting for its partner on the other slide). */
-   private readonly ui = inject(CompareUiState);
+   protected readonly ui = inject(CompareUiState);
    protected readonly armed = this.ui.armed;
    /** The object under the pointer (its partner and line light up too). */
    protected readonly lit = this.ui.lit;
@@ -397,8 +397,8 @@ export class DeckCompareComponent {
    }
 
    protected readonly animateByOptions = [
-      { value: 'default', label: 'Slide default' },
-      { value: 'character', label: 'Character' },
+      { value: 'default', label: 'Default' },
+      { value: 'character', label: 'Char' },
       { value: 'word', label: 'Word' },
       { value: 'object', label: 'Object' },
    ] as const;
