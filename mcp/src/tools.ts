@@ -1138,8 +1138,8 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
     },
   );
 
-  registerPresentationTools(tool, api);
-  registerDesignTools(tool, api);
+  const designs = registerDesignTools(tool, api);
+  registerPresentationTools(tool, api, designs);
   registerLayoutTools(tool, api);
   registerTableTools(tool, api);
   registerAgentTools(tool, api, journal);

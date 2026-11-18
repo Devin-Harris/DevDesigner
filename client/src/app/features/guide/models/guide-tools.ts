@@ -620,7 +620,7 @@ export const GUIDE_TOOLS: GuideTool[] = [
       options: [
          {
             title: 'Designs',
-            body: 'Default, Sidebar, Centered and Banner arrange the same layout kinds differently, so switching keeps every slide.',
+            body: 'Default, Sidebar, Centered and Banner arrange the same layout kinds differently; Spotlight, Editorial, Split and Frame each bring their own look and theme. Every design has the same layout kinds, so switching keeps every slide.',
          },
          {
             title: 'Theme tokens',

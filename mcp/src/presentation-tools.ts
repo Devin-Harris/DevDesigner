@@ -65,6 +65,7 @@ import { Batch } from './batch';
 import { loadImage } from './images';
 import { collectItems, keyOf, placement, type FramePlacement } from './layout';
 import { planLayoutMorphTags } from './layout-morph';
+import type { DesignHelpers } from './design-tools';
 import { UserError } from './model';
 
 export type ToolFn = <S extends z.ZodRawShape>(
@@ -303,13 +304,13 @@ const slideSpec = z.object({
     .string()
     .optional()
     .describe(
-      'add_slides only: a layout of the presentation (name or id, see list_layouts). Its repeated items show under the slide and its placeholders become text boxes on it, filled from `fill`.',
+      'A layout of the presentation (name or id, see list_layouts; a new presentation has its design\'s layouts, e.g. "Title", "Title and content", "Two content", "Section header"). Its repeated items show under the slide and its placeholders become text boxes on it, filled from `fill` (the slide `title` fills the title placeholder). Prefer a layout for every slide: it keeps the deck consistent with its design.',
     ),
   fill: z
     .record(z.string(), z.union([z.string(), z.array(z.string())]))
     .optional()
     .describe(
-      'add_slides only, with `layout`: text per placeholder role from list_layouts (untyped placeholders are "text"), e.g. {"title": "Q3", "body": "..."}; an array fills several placeholders of one role in reading order. Unfilled placeholders stay empty (hidden when presenting).',
+      'With `layout`: text per placeholder role from list_layouts (untyped placeholders are "text"), e.g. {"title": "Q3", "body": "..."}; an array fills several placeholders of one role in reading order. Unfilled placeholders stay empty (hidden when presenting).',
     ),
   background: z
     .string()
@@ -533,7 +534,7 @@ export async function applyLayoutDiff(
   return batch.send(api, projectId);
 }
 
-export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): void {
+export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, designs: DesignHelpers): void {
   const graph = (id: string): Promise<ProjectGraphResponse> =>
     api.get<ProjectGraphResponse>(`/projects/${id}`);
 
@@ -666,11 +667,12 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): vo
 
   tool(
     'create_presentation',
-    'Create a NEW presentation (16:9 slides, stacked in one spot on the canvas) from a declarative description, in one atomic call. Each slide has a title, notes, an optional transition, and content items (heading/text/bullets/shape/code/image - incl. inline SVG you draw, plus `schema` and `sequence` blocks that draw real ER / sequence diagrams on the slide) laid out in flow. Colors take palette names (list_colors). Morph granularity: set `transition.morphBy` to object, word or character (default) and tag individual words with `runs[].morph`. Every slide enters with a 300ms morph by default. Objects get unique morph ids, so nothing animates between slides unless you give the same `morph` tag to the few items that should (e.g. one box that moves or grows). Use add_slides to extend it later.',
+    'Create a NEW presentation (16:9 slides, stacked in one spot on the canvas) from a declarative description. It gets a design (default: Default; see list_designs): the design\'s theme styles every slide and its layouts are available - give each slide a `layout` and fill its placeholders. Each slide has a title, notes, an optional transition, and content items (heading/text/bullets/shape/code/image - incl. inline SVG you draw, plus `schema` and `sequence` blocks that draw real ER / sequence diagrams on the slide) laid out in flow. Colors on slides: use theme tokens only ($heading, $text, $muted, $surface, $background, $accent1-4) - items without a color already use them; palette names / hex ignore the theme. Morph granularity: set `transition.morphBy` to object, word or character (default) and tag individual words with `runs[].morph`. Every slide enters with a 300ms morph by default. Objects get unique morph ids, so nothing animates between slides unless you give the same `morph` tag to the few items that should (e.g. one box that moves or grows). Use add_slides to extend it later.',
     {
       projectId,
       name: z.string().optional().describe('Default: first free "Presentation N".'),
       slides: z.array(slideSpec).min(1),
+      design: z.string().optional().describe('Design name or id (list_designs). Default: the Default design.'),
       defaultTransition: transitionSchema
         .optional()
         .describe('Used for every slide without its own transition. Default: morph, 300ms - leave it unset.'),
@@ -678,7 +680,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): vo
       y: z.number().optional(),
     },
     {},
-    async ({ projectId: id, name, slides, defaultTransition, x, y }) => {
+    async ({ projectId: id, name, slides, design, defaultTransition, x, y }) => {
       const { schema } = await graph(id);
       const taken = new Set(presentationNames(slideFrames(schema)).map((n) => n.toLowerCase()));
       let presentation = name?.trim();
@@ -695,7 +697,9 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): vo
         typeof x === 'number' && typeof y === 'number'
           ? { x, y }
           : findFreeSpot(schemaRects(schema), SLIDE_WIDTH, SLIDE_HEIGHT, { gap: 160 });
-      const built = buildPresentationFile((await resolveImages(slides)) as SlideSpec[], {
+      // Slides on a layout put their title in its title placeholder, not a flow heading.
+      const specs = slides.map(({ template: _t, layout, fill: _f, ...sl }) => (layout ? { ...sl, title: undefined } : sl));
+      const built = buildPresentationFile((await resolveImages(specs)) as SlideSpec[], {
         presentation,
         frame: { x: Math.round(spot.x), y: Math.round(spot.y), width: SLIDE_WIDTH, height: SLIDE_HEIGHT },
         defaultTransition: defaultTransition as never,
@@ -704,11 +708,36 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi): vo
       const frames = mutations
         .flatMap((m) => (m.kind === 'element.created' && m.element.type === 'frame' ? [m.element] : []))
         .sort((a, b) => (a.slide?.order ?? 0) - (b.slide?.order ?? 0));
+      // The design's theme on every slide and its layouts in the deck.
+      const applied = await designs.applyDesign(id, presentation, design);
+      const warnings = [...built.warnings];
+      if (slides.some((sl) => sl.layout)) {
+        const fresh = (await graph(id)).schema;
+        const frameList = slideFrames(fresh);
+        const all = presentationLayouts(frameList, presentation);
+        for (const [i, f] of frames.entries()) {
+          const ref = slides[i]?.layout;
+          if (!ref) continue;
+          const hit = all.find((l) => l.id === ref || layoutNameOf(l, frameList).toLowerCase() === ref.toLowerCase());
+          if (!hit) {
+            warnings.push(
+              `Slide ${i + 1}: no layout "${ref}". Layouts: ${all.map((l) => layoutNameOf(l, frameList)).join(', ') || 'none'}.`,
+            );
+            continue;
+          }
+          const fill = { ...(slides[i].fill ?? {}) } as Record<string, string | string[]>;
+          if (slides[i].title && fill['title'] === undefined) fill['title'] = slides[i].title as string;
+          const now = (await graph(id)).schema;
+          await applyLayout(api, id, now, now.elements.find((e) => e.id === f.id) ?? f, hit, fill);
+        }
+      }
       return {
         presentation,
+        design: applied.design,
+        theme: applied.theme,
         slides: frames.map((f, i) => ({ id: f.id, number: i + 1, title: slides[i]?.title ?? null })),
         placedAt: { x: Math.round(spot.x), y: Math.round(spot.y) },
-        warnings: built.warnings,
+        warnings,
       };
     },
   );

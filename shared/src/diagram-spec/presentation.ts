@@ -17,7 +17,7 @@ import type {
 } from '../enums';
 import { fitWithin, imageSize, base64ToBytes } from '../images';
 import { LIGHT_TEXT, paletteNames, readableTextOn } from '../palette';
-import { resolveColorOrToken } from '../slides/themes';
+import { resolveColorOrToken, themeToken, tokenOf } from '../slides/themes';
 import type {
   CanvasElementModel,
   LifelineModel,
@@ -320,6 +320,8 @@ export function buildSlideContent(
     warnings: [],
   };
   const where = options.label ? `${options.label}: ` : '';
+  /** Colors given as palette names / hex instead of theme tokens (they ignore the theme). */
+  const offTheme = new Set<string>();
   const inner = frame.width - PAD * 2;
   let n = 0;
   let z = options.zStart ?? 1;
@@ -347,7 +349,12 @@ export function buildSlideContent(
   const color = (input: string | undefined, what: string): string | undefined => {
     if (!input?.trim()) return undefined;
     const hex = resolveColorOrToken(input);
-    if (hex) return hex;
+    if (hex) {
+      if (tokenOf(hex) === null) {
+        offTheme.add(`${input.trim()} (${what})`);
+      }
+      return hex;
+    }
     out.warnings.push(
       `${where}unknown color "${input}" for ${what}; ignored. Use a theme token ($accent1, ...), hex or one of: ${paletteNames()}.`,
     );
@@ -378,7 +385,8 @@ export function buildSlideContent(
         }))
       : undefined;
     if (runs) text = runs.map((r) => r.text).join('');
-    const strokeColor = color(item.color, 'text') ?? options.defaultInk;
+    // No color given: the theme's heading / text color, so the slide follows its theme.
+    const strokeColor = color(item.color, 'text') ?? options.defaultInk ?? themeToken(bold ? 'heading' : 'text');
     const width = Math.min(item.width ?? inner, inner);
     const height = wrappedTextHeight(text, fontSize, width);
     const p = place(item, width, height);
@@ -390,7 +398,7 @@ export function buildSlideContent(
       height,
       text,
       fontSize,
-      fontFamily: 'normal',
+      fontFamily: themeToken(bold ? 'heading' : 'body'),
       textAlign: 'left',
       wrap: true,
       ...(bold ? { bold: true } : {}),
@@ -423,20 +431,14 @@ export function buildSlideContent(
           width: w,
           height: h,
           ...taggedLineage(item.morph),
-          ...(color(item.strokeColor, 'a shape outline') ?? options.defaultInk
-            ? { strokeColor: color(item.strokeColor, 'a shape outline') ?? options.defaultInk }
-            : {}),
-          ...(color(item.backgroundColor, 'a shape fill')
-            ? {
-                backgroundColor: color(item.backgroundColor, 'a shape fill'),
-                fillStyle: 'solid' as const,
-              }
-            : {}),
+          strokeColor: color(item.strokeColor, 'a shape outline') ?? options.defaultInk ?? themeToken('accent1'),
+          backgroundColor: color(item.backgroundColor, 'a shape fill') ?? themeToken('surface'),
+          fillStyle: 'solid' as const,
           ...(item.text
             ? {
                 text: item.text,
                 fontSize: 24,
-                fontFamily: 'normal',
+                fontFamily: themeToken('body'),
                 textAlign: 'center' as const,
                 verticalAlign: 'middle' as const,
               }
@@ -508,7 +510,8 @@ export function buildSlideContent(
           language: item.language ?? 'typescript',
           ...(fileName ? { fileName } : {}),
           fontSize: size,
-          backgroundColor: color(item.backgroundColor, 'a code block background') ?? '#f6f8fa',
+          // The theme's surface: code cards pick light/dark highlighting from it.
+          backgroundColor: color(item.backgroundColor, 'a code block background') ?? themeToken('surface'),
           fillStyle: 'solid',
           ...taggedLineage(item.morph),
           ...(options.slideId ? { slideId: options.slideId } : {}),
@@ -558,6 +561,11 @@ export function buildSlideContent(
         break;
       }
     }
+  }
+  if (offTheme.size) {
+    out.warnings.push(
+      `${where}these colors ignore the presentation theme: ${[...offTheme].join(', ')}. Use theme tokens ($heading, $text, $muted, $surface, $background, $accent1-4) so the slide follows its theme.`,
+    );
   }
   return out;
 }

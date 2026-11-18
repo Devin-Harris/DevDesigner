@@ -79,7 +79,7 @@ const deco = (
   w: number,
   h: number,
   color: string,
-  opts: { opacity?: number; radius?: number } = {},
+  opts: { opacity?: number; radius?: number; angle?: number } = {},
 ): LayoutSpecItem => ({
   kind: 'element',
   x,
@@ -94,8 +94,27 @@ const deco = (
     strokeWidth: 0,
     strokeStyle: 'solid',
     opacity: opts.opacity ?? 100,
-    angle: 0,
+    angle: opts.angle ?? 0,
     cornerRadius: opts.radius ?? 0,
+  } as LayoutElementProps,
+});
+/** An unfilled outline rectangle (fractions of the slide), e.g. an inset frame. */
+const outline = (x: number, y: number, w: number, h: number, color: string, width = 2, opacity = 100): LayoutSpecItem => ({
+  kind: 'element',
+  x,
+  y,
+  w,
+  h,
+  el: {
+    type: 'rectangle',
+    strokeColor: color,
+    backgroundColor: 'transparent',
+    fillStyle: 'none',
+    strokeWidth: width,
+    strokeStyle: 'solid',
+    opacity,
+    angle: 0,
+    cornerRadius: 0,
   } as LayoutElementProps,
 });
 /** A soft tinted circle, for depth behind titles. `d` is its diameter as a fraction of the slide height. */
@@ -482,6 +501,238 @@ export const BANNER_LAYOUTS: LayoutVariant = (() => {
       txt('emphasis', 'Click to add a quote', 0.12, 0.3, 0.76, 40, 'heading', '$heading', { italic: true }),
       bar(0.12, 0.6, 0.06, 4, '$accent1'),
       txt('caption', 'Attribution', 0.12, 0.64, 0.76, 22, 'body', '$muted'),
+    ],
+  };
+})();
+
+// ---- Designs with their own look (each pairs with its own theme in themes.ts) ----
+
+/**
+ * Spotlight: bold diagonal light bands sweep across dark slides; titles sit low and
+ * large, content slides keep two thin bands in the corner.
+ */
+export const SPOTLIGHT_LAYOUTS: LayoutVariant = (() => {
+  const band = (x: number, y: number, w: number, color: string, opacity: number): LayoutSpecItem =>
+    deco('rectangle', x, y, w, 0.12, color, { opacity, angle: -0.42 });
+  const corner = (): LayoutSpecItem[] => [band(0.72, -0.02, 0.4, '$accent1', 22), band(0.8, 0.07, 0.3, '$accent2', 18)];
+  const head = (): TextItem => txt('title', 'Click to add title', M, 0.08, W * 0.72, 42, 'heading', '$heading', { bold: true });
+  const kicker = (): LayoutSpecItem => bar(M, 0.205, 0.04, 5, '$accent1');
+  const bodyAt = (x: number, w: number, y = 0.28): TextItem => txt('body', 'Click to add text', x, y, w, 22, 'body', '$text');
+  const tiles = (n: number): LayoutSpecItem[] =>
+    cols(n, M, W, (x, w) => bodyAt(x + 0.02, w - 0.04, 0.34)).flatMap((t, i) => [
+      deco('rectangle', t.x - 0.02, 0.29, t.w + 0.04, 0.58, '$surface', { radius: 14 }),
+      bar(t.x, 0.31, 0.05, 4, ACCENTS[i]),
+      t,
+    ]);
+  return {
+    title: [
+      band(-0.1, 0.02, 0.75, '$accent1', 30),
+      band(0.05, 0.12, 0.6, '$accent2', 22),
+      band(0.55, 0.78, 0.7, '$accent3', 16),
+      txt('title', 'Click to add title', M, 0.5, W * 0.85, 68, 'heading', '$heading', { bold: true }),
+      txt('subtitle', 'Click to add subtitle', M, 0.71, W * 0.7, 26, 'body', '$accent1'),
+    ],
+    section: [
+      band(0.35, 0.3, 1, '$accent1', 26),
+      txt('subtitle', 'Click to add subtitle', M, 0.3, W, 20, 'body', '$muted', { bold: true }),
+      txt('title', 'Click to add title', M, 0.38, W * 0.7, 58, 'heading', '$heading', { bold: true }),
+    ],
+    content: [...corner(), head(), kicker(), bodyAt(M, W * 0.85)],
+    'two-column': [...corner(), head(), kicker(), ...tiles(2)],
+    'three-column': [...corner(), head(), kicker(), ...tiles(3)],
+    comparison: [
+      ...corner(),
+      head(),
+      kicker(),
+      ...cols(2, M, W, (x, w) => bodyAt(x, w)).map((t, i) =>
+        deco('rectangle', t.x, 0.27, t.w, 0.62, i === 0 ? '$surface' : '$accent1', { radius: 14, opacity: i === 0 ? 100 : 14 }),
+      ),
+      ...cols(2, M, W, (x, w) =>
+        txt('subtitle', 'Click to add heading', x + 0.025, 0.31, w - 0.05, 26, 'heading', '$heading', { bold: true }),
+      ),
+      ...cols(2, M, W, (x, w) => bodyAt(x + 0.025, w - 0.05, 0.42)),
+    ],
+    statement: [
+      band(-0.2, 0.62, 1.4, '$accent1', 20),
+      txt('emphasis', 'Click to add a statement', M, 0.3, W * 0.85, 56, 'heading', '$heading', { bold: true }),
+    ],
+    quote: [
+      band(0.6, 0.0, 0.6, '$accent2', 18),
+      quoteMark(M - 0.01, 0.12),
+      txt('emphasis', 'Click to add a quote', M, 0.32, W * 0.8, 40, 'heading', '$heading', { italic: true }),
+      txt('caption', 'Attribution', M, 0.64, W, 22, 'body', '$accent1', { bold: true }),
+    ],
+  };
+})();
+
+/**
+ * Editorial: a magazine page. Hairline rules frame a running header; titles are big
+ * display type set flush left; columns are numbered and divided by thin vertical rules.
+ */
+export const EDITORIAL_MASTER: LayoutSpecItem[] = [
+  deco('rectangle', M, 0.06, W, 0.0028, '$heading', { opacity: 80 }),
+  deco('rectangle', M, 0.93, W, 0.0014, '$muted', { opacity: 80 }),
+];
+export const EDITORIAL_LAYOUTS: LayoutVariant = (() => {
+  const head = (): TextItem => txt('title', 'Click to add title', M, 0.1, W * 0.75, 46, 'heading', '$heading');
+  const rule = (y: number): LayoutSpecItem => deco('rectangle', M, y, W, 0.0014, '$muted', { opacity: 70 });
+  const bodyAt = (x: number, w: number, y = 0.3): TextItem => txt('body', 'Click to add text', x, y, w, 21, 'body', '$text');
+  const ruled = (n: number): LayoutSpecItem[] =>
+    cols(n, M, W, (x, w) => bodyAt(x, w, 0.34)).flatMap((t, i) => [
+      txt('caption', `0${i + 1}`, t.x, 0.27, t.w, 18, 'heading', '$accent1', { bold: true }),
+      ...(i > 0 ? [deco('rectangle', t.x - 0.02, 0.27, 0.0012, 0.6, '$muted', { opacity: 60 })] : []),
+      t,
+    ]);
+  return {
+    title: [
+      deco('rectangle', 0, 0, 0.36, 1, '$surface'),
+      txt('caption', 'Issue · Date', 0.04, 0.1, 0.28, 18, 'body', '$accent1', { bold: true }),
+      txt('title', 'Click to add title', 0.42, 0.3, 0.52, 66, 'heading', '$heading'),
+      deco('rectangle', 0.42, 0.62, 0.52, 0.0028, '$heading'),
+      txt('subtitle', 'Click to add subtitle', 0.42, 0.66, 0.52, 24, 'body', '$muted', { italic: true }),
+    ],
+    section: [
+      txt('caption', 'Chapter', M, 0.22, 0.3, 120, 'heading', '$accent1'),
+      rule(0.52),
+      txt('title', 'Click to add title', M, 0.56, W * 0.8, 50, 'heading', '$heading'),
+      txt('subtitle', 'Click to add subtitle', M, 0.74, W * 0.7, 22, 'body', '$muted', { italic: true }),
+    ],
+    content: [head(), rule(0.24), bodyAt(M, W * 0.62), deco('rectangle', 0.72, 0.3, 0.215, 0.5, '$surface')],
+    'two-column': [head(), rule(0.24), ...ruled(2)],
+    'three-column': [head(), rule(0.24), ...ruled(3)],
+    comparison: [
+      head(),
+      rule(0.24),
+      deco('rectangle', 0.4993, 0.28, 0.0014, 0.6, '$heading', { opacity: 70 }),
+      ...cols(2, M, W, (x, w) =>
+        txt('subtitle', 'Click to add heading', x, 0.29, w, 28, 'heading', '$heading', { italic: true }),
+      ),
+      ...cols(2, M, W, (x, w) => bodyAt(x, w, 0.4)),
+    ],
+    statement: [
+      rule(0.26),
+      txt('emphasis', 'Click to add a statement', M, 0.32, W * 0.9, 54, 'heading', '$heading'),
+      rule(0.72),
+    ],
+    quote: [
+      deco('rectangle', M, 0.2, 0.006, 0.42, '$accent1'),
+      txt('emphasis', 'Click to add a quote', M + 0.04, 0.22, W * 0.8, 44, 'heading', '$heading', { italic: true }),
+      txt('caption', 'Attribution', M + 0.04, 0.66, W, 20, 'body', '$muted', { bold: true }),
+    ],
+  };
+})();
+
+/**
+ * Split: a solid accent panel takes one side of the slide; titles sit on it in the
+ * background color, content on the other side. Columns are tinted blocks.
+ */
+export const SPLIT_LAYOUTS: LayoutVariant = (() => {
+  const panel = (w: number, color = '$accent1'): LayoutSpecItem => deco('rectangle', 0, 0, w, 1, color);
+  const onPanel = (x: number, w: number): TextItem =>
+    txt('title', 'Click to add title', x, 0.12, w, 40, 'heading', '$background', { bold: true });
+  const bodyAt = (x: number, w: number, y = 0.12): TextItem => txt('body', 'Click to add text', x, y, w, 22, 'body', '$text');
+  const blocks = (n: number): LayoutSpecItem[] =>
+    cols(n, M, W, (x, w) => bodyAt(x + 0.02, w - 0.04, 0.42)).flatMap((t, i) => [
+      deco('rectangle', t.x - 0.02, 0.36, t.w + 0.04, 0.54, ACCENTS[i], { opacity: 14, radius: 6 }),
+      deco('rectangle', t.x - 0.02, 0.36, t.w + 0.04, 0.012, ACCENTS[i]),
+      t,
+    ]);
+  const topBand = (): LayoutSpecItem[] => [
+    deco('rectangle', 0, 0, 1, 0.27, '$accent1'),
+    txt('title', 'Click to add title', M, 0.08, W, 40, 'heading', '$background', { bold: true }),
+  ];
+  return {
+    title: [
+      panel(0.5),
+      deco('ellipse', 0.36, 0.62, 0.22, 0.4, '$accent2', { opacity: 60 }),
+      txt('title', 'Click to add title', 0.06, 0.32, 0.38, 60, 'heading', '$background', { bold: true }),
+      txt('subtitle', 'Click to add subtitle', 0.56, 0.44, 0.38, 26, 'body', '$text'),
+    ],
+    section: [
+      panel(1, '$accent2'),
+      txt('subtitle', 'Click to add subtitle', M, 0.34, W, 22, 'body', '$background', { bold: true }),
+      txt('title', 'Click to add title', M, 0.42, W * 0.8, 58, 'heading', '$background', { bold: true }),
+    ],
+    content: [panel(0.32), onPanel(0.04, 0.24), bodyAt(0.38, 0.56)],
+    'two-column': [...topBand(), ...blocks(2)],
+    'three-column': [...topBand(), ...blocks(3)],
+    comparison: [
+      ...topBand(),
+      ...cols(2, M, W, (x, w) =>
+        txt('subtitle', 'Click to add heading', x, 0.33, w, 28, 'heading', '$accent1', { bold: true }),
+      ).map((t, i) => ({ ...t, color: ACCENTS[i] })),
+      ...cols(2, M, W, (x, w) => bodyAt(x, w, 0.44)),
+    ],
+    statement: [
+      panel(1),
+      txt('emphasis', 'Click to add a statement', 0.1, 0.36, 0.8, 54, 'heading', '$background', { bold: true, align: 'center' }),
+    ],
+    quote: [
+      panel(0.32, '$accent2'),
+      quoteMark(0.1, 0.32),
+      txt('emphasis', 'Click to add a quote', 0.38, 0.28, 0.56, 40, 'heading', '$heading', { italic: true }),
+      txt('caption', 'Attribution', 0.38, 0.62, 0.56, 22, 'body', '$accent2', { bold: true }),
+    ],
+  };
+})();
+
+/**
+ * Frame: an inset outline border with accent corner brackets on every slide (the
+ * master); big condensed titles, numbered outlined boxes for columns.
+ */
+const FI = 0.035; // frame inset as a fraction of the width
+const FIY = (FI * 16) / 9; // the same inset in px, as a fraction of the height
+export const FRAME_MASTER: LayoutSpecItem[] = [
+  outline(FI, FIY, 1 - 2 * FI, 1 - 2 * FIY, '$muted', 1.5, 60),
+  deco('rectangle', FI, FIY, 0.07, 0.012, '$accent1'),
+  deco('rectangle', FI, FIY, 0.0068, 0.12, '$accent1'),
+  deco('rectangle', 1 - FI - 0.07, 1 - FIY - 0.012, 0.07, 0.012, '$accent1'),
+  deco('rectangle', 1 - FI - 0.0068, 1 - FIY - 0.12, 0.0068, 0.12, '$accent1'),
+];
+export const FRAME_LAYOUTS: LayoutVariant = (() => {
+  const X = 0.09;
+  const FW = 1 - 2 * X;
+  const head = (): TextItem => txt('title', 'Click to add title', X, 0.13, FW, 44, 'heading', '$heading', { bold: true });
+  const tag = (): LayoutSpecItem => bar(X, 0.255, 0.1, 4, '$accent1');
+  const bodyAt = (x: number, w: number, y = 0.31): TextItem => txt('body', 'Click to add text', x, y, w, 22, 'body', '$text');
+  const boxed = (n: number): LayoutSpecItem[] =>
+    cols(n, X, FW, (x, w) => bodyAt(x + 0.02, w - 0.04, 0.42)).flatMap((t, i) => [
+      outline(t.x - 0.02, 0.33, t.w + 0.04, 0.54, ACCENTS[i], 2),
+      txt('caption', `${i + 1}`, t.x, 0.35, 0.05, 30, 'heading', ACCENTS[i], { bold: true }),
+      t,
+    ]);
+  return {
+    title: [
+      deco('rectangle', X, 0.3, 0.012, 0.4, '$accent1'),
+      txt('title', 'Click to add title', X + 0.04, 0.3, FW * 0.85, 72, 'heading', '$heading', { bold: true }),
+      txt('subtitle', 'Click to add subtitle', X + 0.04, 0.6, FW * 0.7, 26, 'body', '$accent1'),
+    ],
+    section: [
+      deco('rectangle', 0.5, FIY, 0.5 - FI, 1 - 2 * FIY, '$surface'),
+      txt('caption', '01', 0.56, 0.2, 0.3, 140, 'heading', '$accent1', { bold: true }),
+      txt('title', 'Click to add title', X, 0.4, 0.38, 52, 'heading', '$heading', { bold: true }),
+      txt('subtitle', 'Click to add subtitle', X, 0.62, 0.38, 22, 'body', '$muted'),
+    ],
+    content: [head(), tag(), bodyAt(X, FW)],
+    'two-column': [head(), tag(), ...boxed(2)],
+    'three-column': [head(), tag(), ...boxed(3)],
+    comparison: [
+      head(),
+      tag(),
+      ...cols(2, X, FW, (x, w) => bodyAt(x, w)).map((t, i) => outline(t.x, 0.31, t.w, 0.58, ACCENTS[i], 2)),
+      ...cols(2, X, FW, (x, w) =>
+        txt('subtitle', 'Click to add heading', x + 0.025, 0.34, w - 0.05, 26, 'heading', '$heading', { bold: true }),
+      ),
+      ...cols(2, X, FW, (x, w) => bodyAt(x + 0.025, w - 0.05, 0.45)),
+    ],
+    statement: [
+      txt('emphasis', 'Click to add a statement', X, 0.34, FW, 58, 'heading', '$heading', { bold: true, align: 'center' }),
+      bar(0.45, 0.66, 0.1, 6, '$accent1'),
+    ],
+    quote: [
+      quoteMark(X, 0.14),
+      txt('emphasis', 'Click to add a quote', X + 0.04, 0.32, FW * 0.85, 40, 'heading', '$heading', { italic: true }),
+      txt('caption', 'Attribution', X + 0.04, 0.64, FW, 22, 'body', '$accent1', { bold: true }),
     ],
   };
 })();

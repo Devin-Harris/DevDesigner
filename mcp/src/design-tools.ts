@@ -65,7 +65,13 @@ const STARTER_KINDS = LAYOUT_KINDS.filter((k) => k !== 'blank');
 
 type Lib = { project: SlideTheme[]; mine: UserThemeResponse[] };
 
-export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): void {
+/** What other tool groups use from the design tools. */
+export interface DesignHelpers {
+  /** Give a presentation a design (name or id; default: the Default design): its theme on every slide and its layouts. */
+  applyDesign(projectId: string, presentation: string, design?: string): Promise<{ design: string; theme: string }>;
+}
+
+export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): DesignHelpers {
   const graph = (id: string): Promise<ProjectGraphResponse> => api.get<ProjectGraphResponse>(`/projects/${id}`);
 
   // ---- Library ------------------------------------------------------------------
@@ -432,7 +438,7 @@ export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): void {
 
   tool(
     'list_designs',
-    'List the presentation designs (built-in and custom) and themes, and which design, theme and layouts a presentation uses. A design is a set of slide layouts plus a theme; built-in designs (Default, Sidebar, Centered, Banner) all use the Default theme and offer the same layout kinds, so switching between them keeps every slide.',
+    'List the presentation designs (built-in and custom) and themes, and which design, theme and layouts a presentation uses. A design is a set of slide layouts plus a theme; built-in designs (Default, Sidebar, Centered, Banner on the Default theme; Spotlight, Editorial, Split, Frame with their own themes) all offer the same layout kinds, so switching between them keeps every slide.',
     { projectId, presentation },
     { readOnly: true },
     async ({ projectId: pid, presentation: p }) => {
@@ -845,4 +851,16 @@ export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): void {
       return { slide: frame.id, layout: layoutNameOf(target, frames) };
     },
   );
+
+  return {
+    applyDesign: async (pid, name, design) => {
+      const lib = await loadLib((await graph(pid)).schema);
+      const target = design ? find(lib, 'design', design) : DEFAULT_DESIGN;
+      const set = byId(lib, target.layoutsId) ?? DEFAULT_LAYOUT_SET;
+      const theme = byId(lib, target.themeId) ?? DEFAULT_THEME;
+      await switchTo(pid, name, lib, target, set, theme);
+      return { design: target.name ?? 'Default', theme: theme.name ?? 'Default' };
+    },
+  };
+
 }

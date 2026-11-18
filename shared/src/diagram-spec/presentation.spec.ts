@@ -103,7 +103,8 @@ describe('slide background', () => {
     expect(built.warnings.some((w) => /unknown background "nope"/.test(w))).toBe(true);
     const text = built.file.schema.elements.filter((e) => e.type === 'text');
     expect(text[0].strokeColor).toBe('#ffffff');
-    expect(text[1].strokeColor).toBe('#1e1e1e');
+    // A light slide gives no ink: the text follows the theme.
+    expect(text[1].strokeColor).toBe('$heading');
     const code = built.file.schema.elements.find((e) => e.type === 'code');
     expect(code?.backgroundColor).toBe('#334155');
   });

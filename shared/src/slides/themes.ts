@@ -11,6 +11,12 @@ import { parseGrid, serializeGrid } from '../grid';
 import {
   BANNER_LAYOUTS,
   CENTERED_LAYOUTS,
+  EDITORIAL_LAYOUTS,
+  EDITORIAL_MASTER,
+  FRAME_LAYOUTS,
+  FRAME_MASTER,
+  SPLIT_LAYOUTS,
+  SPOTLIGHT_LAYOUTS,
   SIDEBAR_LAYOUTS,
   SIDEBAR_MASTER,
   layoutSpec,
@@ -277,6 +283,11 @@ export const BUILT_IN_LAYOUT_SETS: readonly SlideTheme[] = [
   { kind: 'layouts', id: 'sidebar-layouts', name: 'Sidebar layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: SIDEBAR_LAYOUTS, master: SIDEBAR_MASTER },
   { kind: 'layouts', id: 'centered-layouts', name: 'Centered layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: CENTERED_LAYOUTS },
   { kind: 'layouts', id: 'banner-layouts', name: 'Banner layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: BANNER_LAYOUTS },
+  // Layout sets with a look of their own, each paired with a theme in its design below.
+  { kind: 'layouts', id: 'spotlight-layouts', name: 'Spotlight layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: SPOTLIGHT_LAYOUTS },
+  { kind: 'layouts', id: 'editorial-layouts', name: 'Editorial layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: EDITORIAL_LAYOUTS, master: EDITORIAL_MASTER },
+  { kind: 'layouts', id: 'split-layouts', name: 'Split layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: SPLIT_LAYOUTS },
+  { kind: 'layouts', id: 'frame-layouts', name: 'Frame layouts', colors: DEFAULT_THEME.colors, fonts: DEFAULT_THEME.fonts, layouts: FRAME_LAYOUTS, master: FRAME_MASTER },
 ];
 export const DEFAULT_LAYOUT_SET: SlideTheme = BUILT_IN_LAYOUT_SETS[0];
 
@@ -291,7 +302,7 @@ export const BUILT_IN_DESIGNS: readonly SlideTheme[] = [
     colors: DEFAULT_THEME.colors,
     fonts: DEFAULT_THEME.fonts,
   },
-  // Every built-in design uses the Default theme; they differ only in their layouts.
+  // These use the Default theme; they differ only in their layouts.
   ...(['Sidebar', 'Centered', 'Banner'] as const).map(
     (name): SlideTheme => ({
       kind: 'design',
@@ -303,6 +314,26 @@ export const BUILT_IN_DESIGNS: readonly SlideTheme[] = [
       fonts: DEFAULT_THEME.fonts,
     }),
   ),
+  // Designs that differ in both look and theme (like a presentation app's built-in designs).
+  ...(
+    [
+      ['Spotlight', 'midnight'],
+      ['Editorial', 'paper'],
+      ['Split', 'ocean'],
+      ['Frame', 'bold'],
+    ] as const
+  ).map(([name, themeId]): SlideTheme => {
+    const theme = BUILT_IN_THEMES.find((t) => t.id === themeId)!;
+    return {
+      kind: 'design',
+      id: `${name.toLowerCase()}-design`,
+      name,
+      themeId,
+      layoutsId: `${name.toLowerCase()}-layouts`,
+      colors: theme.colors,
+      fonts: theme.fonts,
+    };
+  }),
 ];
 export const DEFAULT_DESIGN: SlideTheme = BUILT_IN_DESIGNS[0];
 
