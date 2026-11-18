@@ -62,6 +62,7 @@ import {
 import { RichTextSessionService } from './rich-text-session.service';
 import { TAB_SIZE } from '../../../helpers/code-highlight.helper';
 import { formatCode } from '../../../helpers/code-format.helper';
+import { CodeMultiCursor } from '../helpers/code-multi-cursor';
 import type { Box } from '../../../models/geometry.model';
 import { LIST_LINE, parseLines } from '../helpers/rich-list.helper';
 import { hoistUniformColor } from '../../../helpers/rich-text.helper';
@@ -379,11 +380,40 @@ export class TextEditingService {
 
    /** Leaving one pane of a diff card's editor: moving to the other pane keeps editing. */
    onCodePaneBlur(event: FocusEvent): void {
+      const from = event.target as HTMLTextAreaElement;
+      this.cursors.get(from)?.dispose();
+      this.cursors.delete(from);
       const to = event.relatedTarget as HTMLElement | null;
       if (to?.classList.contains('code-pane')) {
          return;
       }
       this.commitTextEdit();
+   }
+
+   /** VS Code-style multi-cursor state per code textarea (dropped on blur). */
+   private readonly cursors = new Map<HTMLTextAreaElement, CodeMultiCursor>();
+
+   private multiCursor(area: HTMLTextAreaElement): CodeMultiCursor {
+      let mc = this.cursors.get(area);
+      if (!mc) {
+         mc = new CodeMultiCursor(area, ' '.repeat(TAB_SIZE));
+         this.cursors.set(area, mc);
+      }
+      return mc;
+   }
+
+   /** Code panes: Ctrl+click adds a cursor, Alt+Shift drag selects a column. */
+   onCodePointerDown(event: PointerEvent): void {
+      event.stopPropagation();
+      const area = event.target as HTMLTextAreaElement;
+      if (area.classList.contains('code-pane')) {
+         this.multiCursor(area).handlePointerDown(event);
+      }
+   }
+
+   /** Copy / cut / paste with several cursors (one line per cursor). */
+   onCodeClipboard(event: ClipboardEvent): void {
+      this.cursors.get(event.target as HTMLTextAreaElement)?.handleClipboard(event);
    }
 
    /** The box a text element takes for `value`: always hugging its content, never wrapped. */
@@ -406,6 +436,10 @@ export class TextEditingService {
       const id = this.editingTextId();
       const el = id ? this.store.elements().find((e) => e.id === id) : null;
       if (el?.type !== 'code' || event.isComposing) {
+         return;
+      }
+      if (this.multiCursor(area).handleKey(event)) {
+         event.preventDefault();
          return;
       }
       const insert = (text: string): void => {
