@@ -205,34 +205,16 @@ export class DeckCompareComponent {
    }
 
    /** × on a line: a pairing you made is removed (back to automatic); an automatic one stops morphing. */
-   /**
-    * The X on a pair line: no transition for that object (it switches instantly at the
-    * start). Fading instead of morphing, or removing a pairing, is in the side panel.
-    */
+   /** The X on a pair line: no transition for both objects (each just switches). */
    protected removeLine(l: { a: string; b: string; aId: string | null; bId: string | null }): void {
-      const b = this.hitsB().find((h) => h.key === l.b);
-      if (!l.bId) return;
-      const tag = `tag:cut-in-${l.bId.slice(0, 8)}`;
-      void this.store.batchHistory(async () => {
-         if (b?.forced && l.aId) await this.store.updateElement(l.aId, { morphOut: null });
-         await this.store.updateElement(l.bId!, { morphIn: tag });
-      });
+      this.setPairTags(l.aId, l.bId, 'cut');
       this.lit.set(null);
    }
 
-   /** No transition for the picked object on this side: it switches instantly. */
+   /** No transition for the selected object and its partner: both just switch. */
    protected cutArmed(): void {
-      const h = this.armedHit();
-      const side = this.armed()?.side;
-      if (!h?.id || !side) return;
-      const tag = `tag:cut-${side === 'a' ? 'out' : 'in'}-${h.id.slice(0, 8)}`;
-      void this.store.batchHistory(async () => {
-         await this.store.updateElement(h.id!, side === 'a' ? { morphOut: tag } : { morphIn: tag });
-         // A pair made by hand loses its other half too.
-         const partner = this.idOfKey(h.partner);
-         if (h.forced && partner)
-            await this.store.updateElement(partner, side === 'a' ? { morphIn: null } : { morphOut: null });
-      });
+      const { aId, bId } = this.armedIds();
+      this.setPairTags(aId, bId, 'cut');
    }
 
    /** Click a row in the pairs list: select that pair's object on the slides (again to clear). */
@@ -455,18 +437,10 @@ export class DeckCompareComponent {
       );
    });
 
-   /** Don't morph this pair: the later slide's object fades in (and the earlier one out). */
+   /** Don't morph: the earlier slide's object fades out, the later one's fades in. */
    protected fadeArmed(): void {
-      const h = this.armedHit();
-      const side = this.armed()?.side;
-      if (!h) return;
-      const bId = side === 'b' ? h.id : this.idOfKey(h.partner);
-      const aId = side === 'a' ? h.id : this.idOfKey(h.partner);
-      if (!bId) return;
-      void this.store.batchHistory(async () => {
-         if (h.forced && aId) await this.store.updateElement(aId, { morphOut: null });
-         await this.store.updateElement(bId, { morphIn: `tag:solo-in-${bId.slice(0, 8)}` });
-      });
+      const { aId, bId } = this.armedIds();
+      this.setPairTags(aId, bId, 'solo');
    }
 
    protected readonly armedHit = computed(() => {
@@ -871,15 +845,50 @@ export class DeckCompareComponent {
       if (bId) void this.store.updateElement(bId, { morphIn: `tag:solo-in-${bId.slice(0, 8)}` });
    }
 
+   /**
+    * Back to automatic for both objects: they pair with their look-alikes again (or,
+    * when those are claimed by pairs you set, they fade out / in).
+    */
    protected resetArmed(): void {
+      const { aId, bId } = this.armedIds();
+      // A pair turned into fade / no transition is no longer paired: find the other end
+      // by the shared id the tags carry, and clear it too.
+      const ids = [aId, bId].filter((x): x is string => !!x).map((x) => x.slice(0, 8));
+      const linked = (k: string | null | undefined): boolean =>
+         !!k && /^tag:(solo|cut)-(in|out)-/.test(k) && ids.some((id) => k.includes(id));
+      void this.store.batchHistory(async () => {
+         for (const e of this.store.elements()) {
+            const patch: { morphIn?: null; morphOut?: null } = {};
+            if (e.id === bId || linked(e.morphIn)) patch.morphIn = null;
+            if (e.id === aId || linked(e.morphOut)) patch.morphOut = null;
+            if ((patch.morphIn === null && e.morphIn) || (patch.morphOut === null && e.morphOut)) {
+               await this.store.updateElement(e.id, patch);
+            }
+         }
+      });
+   }
+
+   /** The selected object (and its partner, if paired): earlier-slide and later-slide ids. */
+   private armedIds(): { aId: string | null; bId: string | null } {
       const h = this.armedHit();
       const side = this.armed()?.side;
-      if (!h) return;
-      const aId = side === 'a' ? h.id : h.forced ? this.idOfKey(h.partner) : null;
-      const bId = side === 'b' ? h.id : h.forced ? this.idOfKey(h.partner) : null;
+      if (!h || !side) return { aId: null, bId: null };
+      const other = this.idOfKey(h.partner);
+      return side === 'a' ? { aId: h.id ?? null, bId: other } : { aId: other, bId: h.id ?? null };
+   }
+
+   /**
+    * One undo step for both ends: 'solo' = fade out / fade in, 'cut' = no transition,
+    * null = automatic. The earlier slide's object speaks with its "out" key, the later
+    * slide's with its "in" key.
+    */
+   private setPairTags(aId: string | null, bId: string | null, kind: 'solo' | 'cut' | null): void {
+      if (!aId && !bId) return;
+      // Both ends carry both short ids, so Reset on either end can find the other.
+      const pair = [aId, bId].map((x) => x?.slice(0, 8) ?? '').join('_');
       void this.store.batchHistory(async () => {
-         if (aId) await this.store.updateElement(aId, { morphOut: null });
-         if (bId) await this.store.updateElement(bId, { morphIn: null });
+         if (aId) await this.store.updateElement(aId, { morphOut: kind ? `tag:${kind}-out-${pair}` : null });
+         if (bId) await this.store.updateElement(bId, { morphIn: kind ? `tag:${kind}-in-${pair}` : null });
       });
    }
 

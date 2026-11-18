@@ -2,22 +2,51 @@
 
 ## Bugs
 
-...
+- morphing issues
+  - morphing from code block to code block doesnt respect words, characters, objects well
+    - we may need an overall audit on morphing with the "animate text by" to make sure it works correctly for various objects. May want to rename to "animate by" instead as well.
+  - preview for non morph transitions doesnt work or make sense
+    - in fact i kindve want to be able to morph elements with individual "animate by" while making the slide transition overall none, fade, slide, or zoom. a.k.a morph is built in and can be opted out of separately per element
+  - when i have a code block on one slide, morph to a code block on next slide, but also have a code block on top of that codeblock on slide two, the zindex is incorrect while the transition runs, then snaps to the right spot.
+
+- slide issue
+  - i want to be able to pan around the empty area around a slide to edit things that go off screen of the main slide
+  - some way to snap back to the slide after panning in this way would be nice
+
+- grid tables
+  - i want to be able to double click the row line or column line to snap the column to the left or row above to snap size to fit the content.
+  - we also cant resize the last row or last column currently so it would be nice to be able to do this without detracting from the table resizing
+
+- holding ctrl and resizing things like code blocks, sequence diagrams etc... should scale it up instead of just adding more whitespace. This way we can resize to scale and resize to add more space to the object without scaling.
+
+- smart guidelines do not trigger for the outer bounds of presentation panel
+
+- live frames
+  - when typing in the input for entering a url, it is hard to see (color is light on a light input background)
+  - i hate the screenshot thing. If we cant do this automatically and at a better scale lets get rid of it
+  - i would like a better loading animation while we are loading the iframe. maybe a spinner with the url we are loading and a custom error screen if it fails
+
+- mcp
+  - the mcp keeps making code blocks and presentation slides without referencing the design theme colors and layouts. We should exclusively use theme color and layouts for presentations made through mcp
+
+- the standard slide designs are still ugly. I want more variation not just random shapes. Powerpoint for example has a bunch of nice designs by default that are all significantly different.
 
 ## Features
 
-- Improved code editing
+- Improved code editing. I want to mimic some of my vscode shortcuts
   - holding alt and arrow down/up to duplicate line(s)
   - shift and arrow down/up to move line(s)
-  - easier ways to scale text up when resizing
-  - renaming file extension should auto change language
+  - shift end to highlight from cursor to end of line. same for shift home
+  - shift ctrl end to highlight to end of code. same for shift ctrl home
+  - highlighting text, then ctrl + d to highlight next instance of that text
+  - multiple cursors with ctrl clicks, alt shift drag over multiple lines, or above ctrl + d
 
-- Live Frames
+<!-- - Live Frames
   - it would be cool if i could put an iframe into a presentation of the canvas by supplying the url i want to embed. This way i could have a project running locally and demo without having to leave the site (would need to think about cors for this but supporting localhost urls shouldnt be that hard)
   - Might also need to consider how this works when sharing a project
   - maybe localhost urls just dont work for people that were shared the link
   - maybe we need a message when viewing a project that was shared with you denoting there are live frames that may not work, or the option to opt out and render a fallback block in place for the person viewing
-  - it would be nice to integrate this into the frame tool that exists, when exporting to pdf or images a screenshot of the frame at the point in time would suffice
+  - it would be nice to integrate this into the frame tool that exists, when exporting to pdf or images a screenshot of the frame at the point in time would suffice -->
 
 - Smart guidelines, minmap minimized, snap to grid, all should be persisted to the db so its not lost on local storage clearing
 
