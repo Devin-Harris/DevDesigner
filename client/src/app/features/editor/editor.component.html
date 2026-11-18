@@ -686,7 +686,7 @@
                            type="button"
                            [class.on]="compareUi.view() === 'map' && !cutTransition()"
                            [disabled]="cutTransition()"
-                           [title]="cutTransition() ? 'This slide's transition is None (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade, Slide or Zoom.' : 'See what morphs into what, and change it'"
+                           [title]="cutTransition() ? 'The transition into this slide is None (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade, Slide or Zoom.' : 'See what morphs into what, and change it'"
                            (click)="compareUi.view.set('map')"
                         >
                            Map pairs
