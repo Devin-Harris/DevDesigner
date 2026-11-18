@@ -1100,8 +1100,8 @@ const latest = (file: string): string => `${DESKTOP_RELEASES_URL}/latest/downloa
 /** Stable file names (no version) set by electron-builder.yml `artifactName`. */
 const DESKTOP_DOWNLOADS = [
    { id: 'windows', label: 'Windows', file: 'DevDesigner-Setup.exe', url: latest('DevDesigner-Setup.exe') },
+   // Built on Apple-silicon CI runners only (native modules match the build machine).
    { id: 'mac-arm', label: 'macOS (Apple silicon)', file: 'DevDesigner-arm64.dmg', url: latest('DevDesigner-arm64.dmg') },
-   { id: 'mac-intel', label: 'macOS (Intel)', file: 'DevDesigner-x64.dmg', url: latest('DevDesigner-x64.dmg') },
    { id: 'linux', label: 'Linux', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
 ] as const;
 

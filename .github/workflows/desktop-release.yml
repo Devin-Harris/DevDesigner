@@ -1,63 +1,121 @@
-# Desktop release: push a tag `vX.Y.Z` matching the root package.json version (web and
-# desktop share it). Builds Windows/macOS/Linux installers and publishes them to the
-# GitHub Release for that tag, which is also the feed the installed apps auto-update from.
+# Desktop release. Installed apps update themselves from the newest published GitHub
+# Release (electron-updater), so every release here reaches existing users.
+#
+# When it runs:
+#   - automatically after CI passes on main (each push to main ships an update);
+#     put "[skip release]" in the head commit message to skip one
+#   - on a pushed tag vX.Y.Z (a hand-picked version)
+#   - by hand (Actions > Desktop release > Run workflow)
+#
+# Versions: automatic releases are <major>.<minor>.<run number>, with major.minor from the
+# root package.json (bump that to start a new minor/major line). Nothing is committed
+# back to main: the version is stamped into the build only.
+#
+# Steps: create a DRAFT release for the commit -> build Windows/macOS/Linux and upload
+# to it -> publish it (only then do installed apps see it) -> self-host image.
 # Builds are unsigned for now (code signing is deferred; see docs/desktop-app-plan.md).
 name: Desktop release
 
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   push:
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
-  group: desktop-release-${{ github.ref }}
+  group: desktop-release
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    # After CI: only for a green push to main, not for PRs or failures.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       !contains(github.event.workflow_run.head_commit.message, '[skip release]'))
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      sha: ${{ steps.v.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - id: v
+        name: Pick the version
+        shell: bash
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(echo "$base" | cut -d. -f1-2).${{ github.run_number }}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version"
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=${{ steps.v.outputs.version }}
+          gh release view "v$v" >/dev/null 2>&1 || \
+            gh release create "v$v" --draft --target "${{ steps.v.outputs.sha }}" \
+              --title "DevDesigner $v" --generate-notes
+
   build:
+    needs: prepare
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Check tag matches package version
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: |
-          version=$(node -p "require('./package.json').version")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match package.json version $version" >&2
-            exit 1
-          fi
       - run: npm ci
+      - name: Stamp the version
+        shell: bash
+        run: npm version "${{ needs.prepare.outputs.version }}" --no-git-tag-version --allow-same-version --workspaces --include-workspace-root
       - run: npm run build:desktop
-      - name: Package and publish
+      - name: Package and upload to the draft release
         working-directory: desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Built-in sync remote (Sync > DevDesigner Cloud): the hosted API, e.g. https://api.example.com.
-          # Set as a repository variable (Settings > Secrets and variables > Actions > Variables); unset = none.
+          # Built-in sync remote (Sync > DevDesigner Cloud): the hosted server URL.
+          # Repository variable (Settings > Secrets and variables > Actions > Variables); unset = none.
           DEVDESIGNER_HOSTED_URL: ${{ vars.DEVDESIGNER_HOSTED_URL }}
           # No signing identity yet: build unsigned instead of failing the mac job.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npm run ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'dist' }}
-      - name: Upload build (manual runs)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-${{ matrix.os }}
-          path: |
-            desktop/release/*.exe
-            desktop/release/*.dmg
-            desktop/release/*.AppImage
-          if-no-files-found: ignore
+        run: npm run release
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release (installed apps pick it up from here)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "v${{ needs.prepare.outputs.version }}" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+  selfhost-image:
+    needs: [prepare, publish]
+    uses: ./.github/workflows/selfhost-image.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      ref: ${{ needs.prepare.outputs.sha }}
+    secrets: inherit
