@@ -92,6 +92,10 @@ export class Updater {
 
 function offlineHint(err: Error): string {
   const text = err?.message ?? String(err);
+  if (/app-update\.yml/.test(text))
+    return 'This copy of DevDesigner was installed without update settings. Reinstall it from the installer to get automatic updates.';
+  if (/404|No published versions|Unable to find latest version|latest\.yml/i.test(text))
+    return 'No update has been published yet. You have the newest version available.';
   return /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|net::/.test(text)
     ? 'You appear to be offline. DevDesigner works fully offline; try again when you are connected.'
     : text.split('\n')[0];

@@ -9,7 +9,7 @@
 // into the install folder. No installer, no compression: about a minute instead of several.
 // The full installer runs for a first install, or with --installer.
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -82,5 +82,13 @@ if (fullInstaller) {
     console.error(`Copying the new build failed (robocopy exit ${copy.status}).`);
     process.exit(1);
   }
+  // electron-builder writes the updater's config (resources/app-update.yml) only for
+  // installer builds, not --dir ones: write it so Help > Check for Updates works.
+  const builderYml = readFileSync(join(desktop, 'electron-builder.yml'), 'utf8');
+  const field = (name) => new RegExp(`^\\s+${name}:\\s*(\\S+)`, 'm').exec(builderYml)?.[1];
+  writeFileSync(
+    join(installDir, 'resources', 'app-update.yml'),
+    `owner: ${field('owner')}\nrepo: ${field('repo')}\nprovider: github\nupdaterCacheDirName: devdesigner-updater\n`,
+  );
 }
 console.log(`\n[${elapsed()}] Installed DevDesigner ${version}: ${installedExe}`);
