@@ -81,6 +81,8 @@ export interface CodeBlockView {
       text: string;
       x: number;
       y: number;
+      /** Title font size; scales with the code font. */
+      fontSize: number;
       color: string;
       tint: string;
       /** Window-style control dots down the left; `action` marks the clickable ones. */

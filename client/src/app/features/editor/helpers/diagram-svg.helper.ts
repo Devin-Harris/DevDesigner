@@ -469,7 +469,7 @@ function renderCodeBlock(c: CodeBlockView, stroke: string): string {
             `fill="${attr(h.tint)}" fill-opacity="0.14" />`,
          `<line x1="${attr(rect.x)}" y1="${attr(rect.y + h.height)}" x2="${attr(rect.x + rect.width)}" ` +
             `y2="${attr(rect.y + h.height)}" stroke="${attr(h.tint)}" stroke-opacity="0.35" />`,
-         `<text x="${attr(h.x)}" y="${attr(h.y)}" text-anchor="middle" font-size="12" ` +
+         `<text x="${attr(h.x)}" y="${attr(h.y)}" text-anchor="middle" font-size="${attr(h.fontSize)}" ` +
             `font-family="${esc(c.fontFamily)}" fill="${attr(h.color)}">${esc(h.text)}</text>`
       );
       for (const d of h.dots) {

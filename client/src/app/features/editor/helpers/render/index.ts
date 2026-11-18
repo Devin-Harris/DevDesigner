@@ -4,7 +4,8 @@ export { FONT_OPTIONS, FONT_STACKS, fontStack, fontWeightFor } from './fonts';
 export { SURFACE_FILL, contrastSafe, type ThemeColors } from './theme-colors';
 export { baselineInLine, clearShapeRenderCaches } from './text-layout';
 export {
-   CODE_DOTS_WIDTH,
+   codeDotsWidth,
+   codeTitleSize,
    CODE_FONT_SIZE,
    CODE_PADDING,
    codeColumns,

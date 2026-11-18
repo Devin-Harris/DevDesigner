@@ -32,12 +32,24 @@ const TRAFFIC_LIGHTS: { color: string; action: CodeDotAction }[] = [
    { color: '#febc2e', action: 'collapse' },
    { color: '#28c840', action: 'fit' },
 ];
-/** Width of the dot cluster from the card's left edge (used to keep the title clear of it). */
-export const CODE_DOTS_WIDTH = CODE_PADDING + 2 + TRAFFIC_LIGHT_GAP * 3;
+/** How much a card's title bar chrome (dots, title, bar) scales with its code font size. */
+function codeChromeScale(fontSize: number): number {
+   return fontSize / CODE_FONT_SIZE;
+}
 
-/** Height of a code card's title bar. */
+/** Width of the dot cluster from the card's left edge (used to keep the title clear of it). */
+export function codeDotsWidth(fontSize: number): number {
+   return (CODE_PADDING + 2 + TRAFFIC_LIGHT_GAP * 3) * codeChromeScale(fontSize);
+}
+
+/** Font size of the file name in a code card's title bar. */
+export function codeTitleSize(fontSize: number): number {
+   return 12 * codeChromeScale(fontSize);
+}
+
+/** Height of a code card's title bar (35 at the default size, scaling with the font). */
 export function codeHeaderHeight(fontSize: number): number {
-   return Math.round(fontSize * 1.5 + 14);
+   return Math.round(fontSize * 2.5);
 }
 
 /**
@@ -473,7 +485,7 @@ export function codeElementContentSize(el: CanvasElementModel): { width: number;
    const pane = (n: number): number => gut.split + n * cw + CODE_PADDING / 2 + 1;
    const r = codeDiffSplit(el);
    const header = codeHeaderHeight(fontSize);
-   const nameWidth = 2 * CODE_DOTS_WIDTH + title.length * 12 * 0.62 + 8;
+   const nameWidth = 2 * codeDotsWidth(fontSize) + title.length * codeTitleSize(fontSize) * 0.62 + 8;
    const inline = el.diffView === 'inline';
    const width = inline
       ? gut.inline + longest * cw + CODE_PADDING
@@ -492,7 +504,7 @@ export function codeContentSize(text: string, fontSize: number, title = ''): { w
    const header = codeHeaderHeight(fontSize);
    // The title bar needs room for the centered title between its dot cluster and an
    // equal margin on the right, as well as the code.
-   const nameWidth = 2 * CODE_DOTS_WIDTH + title.length * 12 * 0.62 + 8;
+   const nameWidth = 2 * codeDotsWidth(fontSize) + title.length * codeTitleSize(fontSize) * 0.62 + 8;
    return {
       width: Math.ceil(Math.max(metrics.textOffset + longest * metrics.charWidth + CODE_PADDING, nameWidth)),
       height: Math.ceil(header + rows.length * metrics.lineHeight + CODE_PADDING * 2),
@@ -530,6 +542,7 @@ export function codeBlockView(
    const { rows, metrics: m, digits } = layoutCodeRows(element.text ?? '', language, fontSize);
    const baseline = codeBaseline(fontSize);
    const header = codeHeaderHeight(fontSize);
+   const k = codeChromeScale(fontSize);
    const collapsed = element.expandedHeight != null;
    const top = element.y + header + CODE_PADDING;
    const diff =
@@ -566,13 +579,14 @@ export function codeBlockView(
          height: header,
          text: codeTitle({ fileName: element.fileName, language }),
          x: element.x + element.width / 2,
-         y: element.y + header / 2 + 4.5,
+         y: element.y + header / 2 + 4.5 * k,
+         fontSize: codeTitleSize(fontSize),
          color: palette.plain,
          tint: palette.muted,
          dots: TRAFFIC_LIGHTS.map((d, i) => ({
-            x: element.x + CODE_PADDING + 2 + i * TRAFFIC_LIGHT_GAP,
+            x: element.x + (CODE_PADDING + 2 + i * TRAFFIC_LIGHT_GAP) * k,
             y: element.y + header / 2,
-            r: 5.5,
+            r: 5.5 * k,
             color: d.color,
             action: d.action,
          })),

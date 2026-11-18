@@ -4,7 +4,7 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { GridTableService } from '../../../services/grid-table.service';
 import { GRID_CELL_PAD, edges as gridEdges, gridSizes, mergeAt, parseGrid } from '../../../helpers/grid-table.helper';
-import { CODE_FONT_SIZE, CODE_DOTS_WIDTH, codeHeaderHeight, gridFont, SURFACE_FILL } from '../../../helpers/render';
+import { CODE_FONT_SIZE, codeDotsWidth, codeHeaderHeight, codeTitleSize, gridFont, SURFACE_FILL } from '../../../helpers/render';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What the cell editors read from the editor entry; the entry wires it with `connect`. */
 export interface CellEditorsHost {
@@ -157,17 +157,18 @@ export class CellEditorsService {
       const fontSize = el.fontSize ?? CODE_FONT_SIZE;
       // With no name yet there is no bar; the input shows where it will appear.
       const height = codeHeaderHeight(fontSize);
+      const dots = codeDotsWidth(fontSize);
       const view = this.canvasView.shapeViews().find((s) => s.id === el.id)?.code;
       return {
          id: el.id,
          value: el.fileName ?? '',
          // Inset from both sides by the dot cluster's width: the dots stay visible and
          // the centered title keeps its place.
-         left: (el.x + CODE_DOTS_WIDTH) * z + v.x,
+         left: (el.x + dots) * z + v.x,
          top: el.y * z + v.y,
-         width: Math.max(40, el.width - CODE_DOTS_WIDTH * 2) * z,
+         width: Math.max(40, el.width - dots * 2) * z,
          height: height * z,
-         fontSize: 12 * z,
+         fontSize: codeTitleSize(fontSize) * z,
          // The card's own surface, so the title beneath doesn't show through the input.
          background: view?.background ?? null,
          color: view?.header.color ?? null,

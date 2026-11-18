@@ -21,7 +21,7 @@ import {
    CODE_FONT_SIZE,
    codeDiffActive,
    codeDiffSplit,
-   CODE_DOTS_WIDTH,
+   codeDotsWidth,
    codeHeaderHeight,
 } from '../../../helpers/render';
 /**
@@ -153,7 +153,7 @@ export class CanvasDblClickService {
          const header = codeHeaderHeight(hit.fontSize ?? CODE_FONT_SIZE);
          if (world.y < hit.y + header) {
             // Double-clicks on the window dots are not an edit gesture.
-            if (world.x >= hit.x + CODE_DOTS_WIDTH) {
+            if (world.x >= hit.x + codeDotsWidth(hit.fontSize ?? CODE_FONT_SIZE)) {
                this.codeActions.editFileName(hit.id);
             }
             return;
