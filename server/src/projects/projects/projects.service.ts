@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  Optional,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -32,7 +38,12 @@ import {
   type ImportedImage,
 } from '../project-file/project-import.writer';
 import { ImagesService } from '../canvas/images/images.service';
-import { bumpProjectRevision } from '../../platform/http/project-revision';
+import { bumpProjectRevision, projectRevision } from '../../platform/http/project-revision';
+import { SequenceMessageEntity } from '../canvas/sequence/sequence-message.entity';
+import { LifelineEntity } from '../canvas/sequence/lifeline.entity';
+import { SequenceDiagramEntity } from '../canvas/sequence/sequence-diagram.entity';
+import { RelationshipEntity } from '../schema/relationships/relationship.entity';
+import { ProjectImageEntity } from '../canvas/images/project-image.entity';
 import { applyDefined } from '../common/apply-patch';
 import { QuotaService, type ImportFootprint } from '../../platform/quotas/quota.service';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
@@ -164,7 +175,8 @@ export class ProjectsService {
     // Name/description/type/archived ride in the graph's project summary.
     bumpProjectRevision(id);
     this.realtime.accessChanged(id);
-    if (saved.archived !== wasArchived) track(this.events, 'project.archived', { archived: saved.archived }, { projectId: id });
+    if (saved.archived !== wasArchived)
+      track(this.events, 'project.archived', { archived: saved.archived }, { projectId: id });
     return toProjectSummary(saved);
   }
 
@@ -227,7 +239,12 @@ export class ProjectsService {
     const saved = await this.dataSource.transaction((manager) =>
       writeImportedProject(manager, parsed, ownerId, images),
     );
-    track(this.events, 'project.imported', { ...importCounts(parsed.schema, images.length), into: false }, { projectId: saved.id });
+    track(
+      this.events,
+      'project.imported',
+      { ...importCounts(parsed.schema, images.length), into: false },
+      { projectId: saved.id },
+    );
     return toProjectSummary(saved);
   }
 
@@ -261,10 +278,14 @@ export class ProjectsService {
         linkExisting === true
           ? {
               elementIds: new Set(
-                (await manager.find(ElementEntity, { where: { projectId }, select: { id: true } })).map((e) => e.id),
+                (
+                  await manager.find(ElementEntity, { where: { projectId }, select: { id: true } })
+                ).map((e) => e.id),
               ),
               tableIds: new Set(
-                (await manager.find(TableEntity, { where: { projectId }, select: { id: true } })).map((t) => t.id),
+                (
+                  await manager.find(TableEntity, { where: { projectId }, select: { id: true } })
+                ).map((t) => t.id),
               ),
             }
           : undefined;
@@ -280,21 +301,106 @@ export class ProjectsService {
     // Parents before children so peers never see a dangling reference.
     const mutations: SchemaMutation[] = [
       ...added.tables.map((table): SchemaMutation => ({ kind: 'table.created', table })),
-      ...added.relationships.map(
-        (relationship): SchemaMutation => ({ kind: 'relationship.created', relationship }),
-      ),
+      ...added.relationships.map((relationship): SchemaMutation => ({
+        kind: 'relationship.created',
+        relationship,
+      })),
       ...added.elements.map((element): SchemaMutation => ({ kind: 'element.created', element })),
-      ...added.sequenceDiagrams.map(
-        (diagram): SchemaMutation => ({ kind: 'sequenceDiagram.created', diagram }),
-      ),
-      ...added.lifelines.map((lifeline): SchemaMutation => ({ kind: 'lifeline.created', lifeline })),
-      ...added.sequenceMessages.map(
-        (message): SchemaMutation => ({ kind: 'message.created', message }),
-      ),
+      ...added.sequenceDiagrams.map((diagram): SchemaMutation => ({
+        kind: 'sequenceDiagram.created',
+        diagram,
+      })),
+      ...added.lifelines.map((lifeline): SchemaMutation => ({
+        kind: 'lifeline.created',
+        lifeline,
+      })),
+      ...added.sequenceMessages.map((message): SchemaMutation => ({
+        kind: 'message.created',
+        message,
+      })),
     ];
     this.realtime.emitMany(projectId, mutations);
-    track(this.events, 'project.imported', { ...importCounts(parsed.schema, images.length), into: true }, { projectId });
+    track(
+      this.events,
+      'project.imported',
+      { ...importCounts(parsed.schema, images.length), into: true },
+      { projectId },
+    );
     return { mutations };
+  }
+
+  /**
+   * Make this project an exact mirror of an exported file (desktop sync): ALL of its
+   * content is replaced and every id is kept as written, so the same project on two
+   * servers shares ids. The project keeps its own id, owner and share links.
+   * Collaborators receive one `project.replaced` carrying the new schema. Returns the
+   * project's revision after the write. Ids already used by another project on this
+   * server are refused (409).
+   */
+  async mirrorProjectContent(
+    projectId: string,
+    raw: unknown,
+    opts: { silent?: boolean } = {},
+  ): Promise<{ revision: number }> {
+    const parsed = parseProjectExport(raw);
+    const decoded = this.decodeImages(parsed.images);
+    const footprint = importFootprint(parsed.schema, decoded);
+    this.quota.assertImportFits(footprint);
+    const images = await this.images.storeImported(decoded);
+    const { schema } = parsed;
+    await this.dataSource
+      .transaction(async (manager) => {
+        // Children before parents (arrows bind to tables; messages hang off lifelines).
+        for (const entity of [
+          ElementEntity,
+          SequenceMessageEntity,
+          LifelineEntity,
+          SequenceDiagramEntity,
+          RelationshipEntity,
+          TableEntity,
+          ProjectImageEntity,
+        ]) {
+          await manager.delete(entity, { projectId });
+        }
+        await manager.update(
+          Project,
+          { id: projectId },
+          {
+            name: parsed.name,
+            description: parsed.description,
+            type: parsed.type,
+            homeX: schema.home?.x ?? null,
+            homeY: schema.home?.y ?? null,
+            homeZoom: schema.home?.zoom ?? null,
+            themesJson: schema.themes?.length ? JSON.stringify(schema.themes) : null,
+          },
+        );
+        await writeSchemaInto(manager, projectId, schema, { images, keepIds: true });
+      })
+      .catch((err: unknown) => {
+        if (/UNIQUE constraint failed|PRIMARY/i.test(String((err as Error)?.message))) {
+          throw new ConflictException(
+            'Some items in this file already exist in another project on this server, so it cannot be mirrored here.',
+          );
+        }
+        throw err;
+      });
+    this.graphCache.invalidateProject(projectId);
+    if (opts.silent) {
+      // Desktop mirror refresh: the open editor already has these changes (relayed live).
+      bumpProjectRevision(projectId);
+      return { revision: projectRevision(projectId) };
+    }
+    const graph = await this.graphs.graph(projectId, 'OWNER');
+    // Emitting bumps the revision, so read it afterwards.
+    this.realtime.emit(projectId, { kind: 'project.replaced', schema: graph.schema });
+    track(
+      this.events,
+      'project.imported',
+      { ...importCounts(schema, images.length), into: true },
+      { projectId },
+    );
+    return { revision: projectRevision(projectId) };
   }
 
   /** Account deletion: every project the account owns goes with it (cascades take the content). */
@@ -338,7 +444,10 @@ export class ProjectsService {
 }
 
 /** What an import file adds, for the quotas (media bytes before any dedup). */
-function importFootprint(schema: { tables: unknown[]; elements: unknown[] }, images: ImportedImage[]): ImportFootprint {
+function importFootprint(
+  schema: { tables: unknown[]; elements: unknown[] },
+  images: ImportedImage[],
+): ImportFootprint {
   return {
     tables: schema.tables.length,
     elements: schema.elements.length,

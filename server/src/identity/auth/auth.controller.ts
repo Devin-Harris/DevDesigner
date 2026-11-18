@@ -5,14 +5,16 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
+  Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import type { CookieOptions, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import type {
   ApiTokenResponse,
   CreatedApiTokenResponse,
@@ -30,6 +32,7 @@ import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
 import { baseCookieOptions, durationMs } from './cookies';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { track } from '../../platform/analytics/track';
+import { isLoopback } from '../../platform/http/loopback';
 
 /**
  * Auth routes (BUILD_INSTRUCTIONS.md section 5). Register and login issue a JWT
@@ -69,11 +72,31 @@ export class AuthController {
     try {
       session = await this.auth.login(dto);
     } catch (err) {
-      const retryAfter = (err as { getResponse?: () => unknown }).getResponse?.() as { retryAfter?: number } | undefined;
-      if (typeof retryAfter?.retryAfter === 'number') res.setHeader('Retry-After', String(retryAfter.retryAfter));
+      const retryAfter = (err as { getResponse?: () => unknown }).getResponse?.() as
+        { retryAfter?: number } | undefined;
+      if (typeof retryAfter?.retryAfter === 'number')
+        res.setHeader('Retry-After', String(retryAfter.retryAfter));
       throw err;
     }
     const { user, token } = session;
+    res.cookie(AUTH_COOKIE, token, this.cookieOptions());
+    return user;
+  }
+
+  /**
+   * Desktop app sign-in: the single local account, no credentials. Exists only on a
+   * DESKTOP server (bound to 127.0.0.1) and only answers loopback callers.
+   */
+  @Post('desktop')
+  @Public()
+  async desktop(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<CurrentUserResponse> {
+    if (this.config.get<string>('DESKTOP') !== 'true' || !isLoopback(req.socket.remoteAddress)) {
+      throw new NotFoundException();
+    }
+    const { user, token } = await this.auth.desktopSession();
     res.cookie(AUTH_COOKIE, token, this.cookieOptions());
     return user;
   }
@@ -90,7 +113,10 @@ export class AuthController {
   @Post('logout-all')
   @CallerScoped()
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logoutAll(@CurrentUser() user: AuthUser | null, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async logoutAll(
+    @CurrentUser() user: AuthUser | null,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     await this.auth.revokeSessions(this.requireSessionUser(user));
     track(this.events, 'auth.logout_all');
     res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
@@ -153,6 +179,9 @@ export class AuthController {
 
   /** httpOnly session cookie attributes; maxAge follows JWT_EXPIRES_IN (security L-3). */
   private cookieOptions(): CookieOptions {
-    return baseCookieOptions(this.config, durationMs(this.config.get<string>('JWT_EXPIRES_IN', '7d'), SESSION_MAX_AGE_MS));
+    return baseCookieOptions(
+      this.config,
+      durationMs(this.config.get<string>('JWT_EXPIRES_IN', '7d'), SESSION_MAX_AGE_MS),
+    );
   }
 }

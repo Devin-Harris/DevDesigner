@@ -1,0 +1,54 @@
+@use '../../../../shared/features/projects-overlay/overlay-buttons';
+
+:host {
+   position: absolute;
+   top: 68px;
+   left: 50%;
+   z-index: 30;
+   width: min(760px, calc(100% - 32px));
+   transform: translateX(-50%);
+   pointer-events: none;
+}
+
+.banner {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: 10px 12px;
+   border: 1px solid var(--dd-border-strong);
+   border-radius: var(--dd-radius);
+   background: var(--dd-surface);
+   box-shadow: 0 6px 24px rgb(0 0 0 / 25%);
+   color: var(--dd-text);
+   font-size: 13px;
+   pointer-events: auto;
+
+   > dd-icon {
+      flex: 0 0 auto;
+      color: var(--dd-text-muted);
+   }
+
+   &.warn {
+      border-color: color-mix(in srgb, var(--dd-danger) 55%, var(--dd-border));
+
+      > dd-icon {
+         color: var(--dd-danger);
+      }
+   }
+}
+
+.text {
+   flex: 1 1 auto;
+   line-height: 1.45;
+}
+
+.err {
+   display: block;
+   color: var(--dd-danger);
+}
+
+.actions {
+   display: flex;
+   flex: 0 0 auto;
+   gap: 6px;
+}

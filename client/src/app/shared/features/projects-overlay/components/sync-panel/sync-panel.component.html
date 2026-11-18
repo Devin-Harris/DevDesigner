@@ -1,0 +1,116 @@
+<div class="sync">
+   <p class="intro">
+      Keep projects on a DevDesigner server (the hosted app or your own) and use them from here. A project you move to
+      or download from a server lives there: your edits go straight to it and other people's changes show up live.
+      Offline, you keep editing on this computer and the changes are sent when the server is back; if it changed in the
+      meantime, you choose which version to keep.
+   </p>
+
+   @if (error()) {
+      <p class="err">{{ error() }}</p>
+   }
+
+   @if (sync.defaultRemote(); as cloud) {
+      @if (!cloud.connected) {
+         <form class="cloud" [formGroup]="cloudForm" (ngSubmit)="connectCloud()">
+            <div class="cloud-head">
+               <dd-icon name="cloud" />
+               <div>
+                  <div class="remote-name">{{ cloud.name }}</div>
+                  <div class="remote-sub">
+                     Sync with your account on the hosted DevDesigner. Sign in on the web app, create a token under
+                     Account → API tokens, and paste it here.
+                  </div>
+               </div>
+            </div>
+            <div class="cloud-row">
+               <dd-input class="cloud-token" type="password" placeholder="dd_…" formControlName="token" />
+               <button class="btn primary" type="submit" [disabled]="cloudForm.invalid || busy()">
+                  {{ busy() ? 'Connecting…' : 'Connect' }}
+               </button>
+            </div>
+         </form>
+      }
+   }
+
+   <div class="remotes">
+      @for (remote of sync.remotes(); track remote.id) {
+         <div class="remote">
+            <div class="remote-row">
+               <dd-icon name="cloud" />
+               <div class="remote-meta">
+                  <span class="remote-name">{{ remote.name }}</span>
+                  <span class="remote-sub">{{ remote.url }}{{ remote.account ? ' · ' + remote.account : '' }}</span>
+               </div>
+               <button class="btn ghost" type="button" [disabled]="busy()" (click)="browse(remote)">
+                  {{ browsing() === remote.id ? 'Hide projects' : 'Projects' }}
+               </button>
+               <button
+                  class="icon-btn"
+                  type="button"
+                  title="Remove this server (synced projects stay, they just stop syncing)"
+                  aria-label="Remove server"
+                  [disabled]="busy()"
+                  (click)="removeRemote(remote)"
+               >
+                  <dd-icon name="delete" />
+               </button>
+            </div>
+            @if (browsing() === remote.id) {
+               <div class="remote-projects">
+                  @if (remoteProjects(); as projects) {
+                     @for (p of projects; track p.id) {
+                        <div class="rp">
+                           <span class="rp-name">{{ p.name }}</span>
+                           @if (isLinked(remote.id, p.id)) {
+                              <span class="badge">Synced</span>
+                           } @else {
+                              <button
+                                 class="btn ghost"
+                                 type="button"
+                                 [disabled]="busy()"
+                                 (click)="download(remote.id, p)"
+                              >
+                                 <dd-icon name="download" />Download
+                              </button>
+                           }
+                        </div>
+                     } @empty {
+                        <p class="muted">No projects on this server yet.</p>
+                     }
+                  } @else {
+                     <p class="muted">Loading…</p>
+                  }
+               </div>
+            }
+         </div>
+      } @empty {
+         <p class="muted">No servers yet.</p>
+      }
+   </div>
+
+   @if (adding()) {
+      <form class="form" [formGroup]="form" (ngSubmit)="addRemote()">
+         <div class="field">
+            <label class="field-label">Name (optional)</label>
+            <dd-input formControlName="name" placeholder="Work server" />
+         </div>
+         <div class="field">
+            <label class="field-label">Server URL</label>
+            <dd-input formControlName="url" placeholder="https://devdesigner.example.com" />
+         </div>
+         <div class="field">
+            <label class="field-label">API token</label>
+            <dd-input type="password" formControlName="token" placeholder="dd_…" />
+         </div>
+         <div class="form-actions">
+            <button class="btn ghost" type="button" (click)="adding.set(false)">Cancel</button>
+            <button class="btn primary" type="submit" [disabled]="form.invalid || busy()">
+               {{ busy() ? 'Checking…' : 'Add server' }}
+            </button>
+         </div>
+      </form>
+   } @else {
+      <button class="btn" type="button" (click)="adding.set(true)"><dd-icon name="add" />Add server</button>
+   }
+</div>

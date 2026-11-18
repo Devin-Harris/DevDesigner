@@ -1,8 +1,8 @@
 /**
  * Embed the app's web fonts into an exported SVG. An SVG rasterized through an
  * <img> (PNG/PDF) or opened standalone cannot see the page's fonts, so text would
- * fall back to a system font. We read the Google Fonts stylesheets the page
- * already loads (see index.html), inline the latin @font-face files as data URIs,
+ * fall back to a system font. We read the font stylesheet the page already
+ * loads (self-hosted copy of Google Fonts, see index.html), inline the latin @font-face files as data URIs,
  * and prepend only the faces whose family the SVG actually uses.
  */
 
@@ -25,13 +25,15 @@ function toDataUri(blob: Blob): Promise<string> {
 
 async function loadSheet(href: string): Promise<FontFace[]> {
    const css = await (await fetch(href)).text();
-   // Google splits each family by unicode-range, labelled with a "/* latin */" comment.
+   // Each family is split by unicode-range, labelled with a "/* latin */" comment.
    const blocks = [...css.matchAll(/\/\*\s*([\w-]+)\s*\*\/\s*(@font-face\s*\{[^}]*\})/g)];
    const wanted = blocks.filter((b) => b[1] === 'latin');
    const faces = await Promise.all(
       wanted.map(async ([, , rule]): Promise<FontFace | null> => {
          const family = /font-family:\s*['"]?([^;'"]+)['"]?/.exec(rule)?.[1]?.trim();
-         const url = /url\(([^)]+)\)/.exec(rule)?.[1]?.replace(/['"]/g, '');
+         const raw = /url\(([^)]+)\)/.exec(rule)?.[1]?.replace(/['"]/g, '');
+         // Relative to the stylesheet, not the page.
+         const url = raw ? new URL(raw, href).href : undefined;
          if (!family || !url) {
             return null;
          }
@@ -46,7 +48,7 @@ function loadFaces(): Promise<FontFace[]> {
    if (!facesPromise) {
       const hrefs = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')]
          .map((l) => l.href)
-         .filter((h) => h.startsWith('https://fonts.googleapis.com/'));
+         .filter((h) => h.startsWith('https://fonts.googleapis.com/') || h.endsWith('/assets/fonts/fonts.css'));
       facesPromise = Promise.all(hrefs.map((h) => loadSheet(h).catch(() => [] as FontFace[]))).then((all) =>
          all.flat()
       );

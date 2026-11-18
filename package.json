@@ -7,7 +7,8 @@
     "shared",
     "server",
     "client",
-    "mcp"
+    "mcp",
+    "desktop"
   ],
   "scripts": {
     "build:shared": "npm run build -w shared",
@@ -19,7 +20,7 @@
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
     "build:server": "npm run build -w shared && npm run build -w server",
     "build:client": "npm run build -w shared && npm run build -w client",
-    "test": "npm run test -w shared && npm run test -w server && npm run test -w mcp && npm run test -w client",
+    "test": "npm run test -w shared && npm run test -w server && npm run test -w mcp && npm run test -w desktop && npm run test -w client",
     "lint": "eslint .",
     "lint:client": "npm run lint -w client && npm run lint:styles -w client",
     "check:cycles": "concurrently -g --kill-others-on-fail=false \"npm:check:cycles:*\"",
@@ -31,7 +32,11 @@
     "verify": "npm run build:shared && npm run lint && npm run lint:client && npm run check:cycles && npm test && npm run build",
     "build:mcp": "npm run build -w shared && npm run build -w mcp",
     "start:mcp": "node mcp/dist/index.js",
-    "start:mcp:http": "npm run start:http -w mcp"
+    "start:mcp:http": "npm run start:http -w mcp",
+    "build:desktop": "npm run build && npm run build -w mcp && npm run build -w desktop",
+    "start:desktop": "npm run start -w desktop",
+    "dist:desktop": "npm run build:desktop && npm run dist -w desktop",
+    "install:desktop": "node desktop/scripts/install-local.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

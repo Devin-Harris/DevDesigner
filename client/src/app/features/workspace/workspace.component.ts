@@ -4,6 +4,12 @@ import { ActivatedRoute } from '@angular/router';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { EditorComponent } from '../editor';
 import { HomeComponent } from './features/home/home.component';
+import { SyncBannerComponent } from './components/sync-banner/sync-banner.component';
+import { IconComponent } from '../../shared/ui/components/icon/icon.component';
+import { CompareDialogComponent, type CompareDialogData } from './features/compare/compare-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
+import { SyncService } from '../../core/sync/sync.service';
+import { runtimeConfig } from '../../core/config/runtime-config';
 import { ProjectsOverlayService } from '../../shared/features/projects-overlay/projects-overlay.service';
 
 /**
@@ -38,7 +44,7 @@ function writeLastProject(id: string | null): void {
 @Component({
    selector: 'dd-workspace',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [EditorComponent, HomeComponent],
+   imports: [EditorComponent, HomeComponent, SyncBannerComponent, IconComponent],
    templateUrl: './workspace.component.html',
    styleUrl: './workspace.component.scss',
 })
@@ -47,6 +53,10 @@ export class WorkspaceComponent {
    private readonly route = inject(ActivatedRoute);
    private readonly location = inject(Location);
    protected readonly overlay = inject(ProjectsOverlayService);
+   private readonly dialog = inject(MatDialog);
+   private readonly sync = inject(SyncService);
+   /** Desktop app: no home page; the projects browser is the start screen. */
+   protected readonly desktop = runtimeConfig.desktop;
 
    protected readonly selectedProject = computed(
       () => this.store.projects().find((p) => p.id === this.store.selectedId()) ?? null
@@ -72,6 +82,10 @@ export class WorkspaceComponent {
          writeLastProject(id);
       });
 
+      if (this.desktop) {
+         this.openProjectsWhenIdle();
+      }
+
       // A remembered project that no longer exists (deleted, access revoked) falls back home.
       effect(() => {
          const id = this.store.selectedId();
@@ -80,6 +94,27 @@ export class WorkspaceComponent {
                this.store.select(null);
             }
          }
+      });
+   }
+
+   private openProjectsWhenIdle(): void {
+      effect(() => {
+         if (!this.store.selectedId() && !this.store.loading()) {
+            this.overlay.open();
+         }
+      });
+   }
+
+   /** Conflict: compare this computer's version with the server's (visual diff). */
+   protected compareWithServer(projectId: string): void {
+      const link = this.sync.links().get(projectId);
+      this.dialog.open<CompareDialogComponent, CompareDialogData>(CompareDialogComponent, {
+         data: { projectId, serverName: link ? this.sync.remoteName(link.remoteId) : 'the server' },
+         width: '96vw',
+         maxWidth: '96vw',
+         height: '92vh',
+         panelClass: 'dd-compare-dialog',
+         autoFocus: false,
       });
    }
 

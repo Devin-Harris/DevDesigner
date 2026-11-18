@@ -1,0 +1,55 @@
+// Buttons of the projects browser, shared by its sub-panels (sync panel).
+.btn {
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 34px;
+   padding: 0 14px;
+   border-radius: var(--dd-radius);
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 13px;
+   font-weight: 600;
+   cursor: pointer;
+
+   --dd-icon-size: 17px;
+
+   &:hover {
+      background: var(--dd-surface-2);
+   }
+
+   &.primary {
+      background: var(--dd-primary);
+      border-color: var(--dd-primary);
+      color: var(--dd-on-accent);
+   }
+   &.primary:hover {
+      background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-shade));
+   }
+
+   &.ghost {
+      border-color: var(--dd-border);
+      background: transparent;
+   }
+}
+
+.icon-btn {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 32px;
+   height: 32px;
+   border-radius: var(--dd-radius-sm);
+   border: 1px solid transparent;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 18px;
+
+   &:hover {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
+}

@@ -22,6 +22,25 @@ const READ_ONLY_ADMIN_POSTS = ['POST /admin/hygiene/preview'];
 const EXPECTED: Record<string, string> = {
   // auth
   'POST /auth/register': 'public',
+  // Desktop-only (404 unless DESKTOP=true and the caller is loopback).
+  'POST /auth/desktop': 'public',
+  // Desktop-only control route (404 unless DESKTOP=true, loopback and the control token).
+  'POST /desktop/backup': 'public',
+  'GET /desktop/recent-projects': 'public',
+  // Desktop sync (404 unless DESKTOP=true; the caller's own remotes and projects).
+  'GET /sync/default-remote': 'caller',
+  'GET /sync/remotes': 'caller',
+  'POST /sync/remotes': 'caller',
+  'DELETE /sync/remotes/:remoteId': 'caller',
+  'GET /sync/remotes/:remoteId/projects': 'caller',
+  'GET /sync/links': 'caller',
+  'POST /sync/links': 'caller',
+  'POST /sync/clone': 'caller',
+  'POST /sync/links/:projectId/sync': 'caller',
+  'GET /sync/links/:projectId/server-version': 'caller',
+  'POST /sync/links/:projectId/resolve': 'caller',
+  'PATCH /sync/links/:projectId': 'caller',
+  'DELETE /sync/links/:projectId': 'caller',
   'POST /auth/login': 'public',
   'POST /auth/logout': 'public',
   'GET /auth/me': 'public',
@@ -54,6 +73,7 @@ const EXPECTED: Record<string, string> = {
   'POST /projects/claim-guest': 'caller',
   'POST /projects/import': 'caller',
   'POST /projects/:projectId/import-content': 'write:project(projectId)',
+  'POST /projects/:projectId/mirror-content': 'write:project(projectId)',
   'GET /projects/:projectId/export-file': 'read:project(projectId)',
   'GET /projects/:projectId': 'read:project(projectId)',
   'PATCH /projects/:projectId': 'owner:project(projectId)',

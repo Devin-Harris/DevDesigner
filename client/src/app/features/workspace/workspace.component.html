@@ -1,10 +1,28 @@
 <div class="ws">
    @if (selectedProject(); as project) {
       <dd-editor [projectId]="project.id"></dd-editor>
+      @if (desktop) {
+         <dd-sync-banner [projectId]="project.id" (compare)="compareWithServer(project.id)" />
+      }
    } @else if (resolving()) {
       <!-- A project is being opened (refresh / deep link): nothing until it is known,
            so the home page and its showcase deck never flash first. -->
       <div class="ws-loading" aria-busy="true"></div>
+   } @else if (desktop) {
+      <!-- Desktop has no landing page: an empty canvas with the projects browser on top. -->
+      <div class="ws-loading ws-desktop-empty">
+         <div class="empty">
+            <span class="empty-mark"><dd-icon name="schema" /></span>
+            <h2 class="empty-title">No project open</h2>
+            <p class="empty-text">Pick up where you left off, start something new, or open a project file.</p>
+            <button type="button" class="btn primary" (click)="openProjects()">
+               <dd-icon name="table_chart" />Browse projects
+            </button>
+            <p class="empty-keys">
+               <kbd>Ctrl</kbd> <kbd>K</kbd> projects &amp; commands · <kbd>Ctrl</kbd> <kbd>O</kbd> open a file
+            </p>
+         </div>
+      </div>
    } @else {
       <dd-home></dd-home>
    }

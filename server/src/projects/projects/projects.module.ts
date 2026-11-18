@@ -14,11 +14,7 @@ import { ProjectsService } from './projects.service';
  * TypeORM repository (data access). Entity and granular DTOs live in this folder.
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Project]),
-    GraphLoaderModule,
-    ImagesModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Project]), GraphLoaderModule, ImagesModule],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

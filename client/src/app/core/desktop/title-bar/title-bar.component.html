@@ -1,0 +1,14 @@
+<button class="menu-btn" type="button" aria-label="Application menu" title="Menu" (click)="openMenu($event)">
+   <span class="mark"><dd-icon name="schema" /></span>
+   <dd-icon name="expand_more" class="chev" />
+</button>
+<div class="title">
+   <span class="app">DevDesigner</span>
+   @if (project(); as p) {
+      <span class="sep">/</span>
+      <span class="project">{{ p.name }}</span>
+      @if (where(); as server) {
+         <span class="where"><dd-icon name="cloud" />{{ server }}</span>
+      }
+   }
+</div>

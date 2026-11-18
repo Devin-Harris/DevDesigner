@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { ProjectSummary } from '@devdesigner/shared';
+import type { ProjectSummary, SyncLinkResponse } from '@devdesigner/shared';
 import { ProjectFileService } from '../../services/project-file.service';
 import { AutofocusDirective } from '../../ui/directives/autofocus.directive';
 import { IconComponent } from '../../ui/components/icon/icon.component';
@@ -19,8 +19,10 @@ import {
 import { ProjectThumbnailService } from './services/project-thumbnail.service';
 import { PROJECT_TEMPLATES, type ProjectTemplate } from './models/project-templates';
 import { TemplatesService } from './services/templates.service';
+import { SyncService } from '../../../core/sync/sync.service';
+import { SyncPanelComponent } from './components/sync-panel/sync-panel.component';
 
-type OverlayView = 'projects' | 'templates';
+type OverlayView = 'projects' | 'templates' | 'sync';
 
 /**
  * The full-screen projects browser, opened from the breadcrumb (or the empty
@@ -39,6 +41,7 @@ type OverlayView = 'projects' | 'templates';
       InputComponent,
       ToggleComponent,
       PopoverTriggerDirective,
+      SyncPanelComponent,
    ],
    templateUrl: './projects-overlay.component.html',
    styleUrl: './projects-overlay.component.scss',
@@ -51,6 +54,8 @@ export class ProjectsOverlayComponent {
    private readonly dialogRef = inject(MatDialogRef<ProjectsOverlayComponent>);
    private readonly snackBar = inject(MatSnackBar);
    private readonly projectFile = inject(ProjectFileService);
+   /** Desktop sync (inert on the web). */
+   protected readonly sync = inject(SyncService);
 
    protected readonly view = signal<OverlayView>('projects');
    protected readonly editingId = signal<string | null>(null);
@@ -72,6 +77,7 @@ export class ProjectsOverlayComponent {
       // Project content can change while the dialog is closed; rebuild previews
       // (the cached pictures keep showing until the fresh ones arrive).
       this.thumbs.invalidate();
+      void this.sync.refresh().catch(() => undefined);
       // Arrow keys start from the project that's open in the editor.
       this.cursorId.set(this.store.selectedId());
       this.resetAnchor(this.store.selectedId());
@@ -202,6 +208,105 @@ export class ProjectsOverlayComponent {
       } finally {
          this.busy.set(false);
       }
+   }
+
+   // ---- desktop sync ----------------------------------------------------
+
+   /** The badge: which server the project lives on, plus its state when it is not live. */
+   protected syncLabel(link: SyncLinkResponse): string {
+      const server = this.sync.remoteName(link.remoteId);
+      switch (link.status) {
+         case 'live':
+            return server;
+         case 'offline':
+            return `${server} · offline`;
+         case 'paused':
+            return `${server} · auto-sync off`;
+         case 'conflict':
+            return `${server} · needs review`;
+         default:
+            return `${server} · sync error`;
+      }
+   }
+
+   protected syncIcon(link: SyncLinkResponse): string {
+      if (link.status === 'offline' || link.status === 'paused') return 'cloud_off';
+      if (link.status === 'conflict' || link.status === 'error') return 'warning';
+      return 'cloud';
+   }
+
+   protected syncTitle(link: SyncLinkResponse): string {
+      const server = this.sync.remoteName(link.remoteId);
+      switch (link.status) {
+         case 'live':
+            return `Lives on ${server}: edits go straight to it`;
+         case 'offline':
+            return `${server} can't be reached: edits are saved here${link.localChanges ? ' (unsent changes)' : ''} and sent when it's back`;
+         case 'paused':
+            return `Lives on ${server}, auto-sync off: edits stay on this computer${link.localChanges ? ' (unsent changes)' : ''} until you sync`;
+         case 'conflict':
+            return `Changed on ${server} while you edited offline: open it to choose a version`;
+         default:
+            return `${server}: ${link.lastError ?? 'sync failed'}`;
+      }
+   }
+
+   protected async toggleAutoSync(project: ProjectSummary, link: SyncLinkResponse): Promise<void> {
+      try {
+         const next = await this.sync.setAutoSync(project.id, !link.autoSync);
+         this.notify(
+            next.autoSync
+               ? `Auto-sync on: "${project.name}" is live with ${this.sync.remoteName(link.remoteId)}`
+               : `Auto-sync off: edits to "${project.name}" stay on this computer until you sync`
+         );
+      } catch (err) {
+         this.notifyError(`Could not change auto-sync${errorDetail(err)}`, err);
+      }
+   }
+
+   protected async publish(project: ProjectSummary, remoteId: string): Promise<void> {
+      try {
+         const wasOpen = this.store.selectedId() === project.id;
+         const newId = await this.sync.publish(project.id, remoteId);
+         await this.store.loadProjects();
+         if (wasOpen) this.store.select(newId);
+         this.notify(`"${project.name}" now lives on ${this.sync.remoteName(remoteId)}`);
+      } catch (err) {
+         this.notifyError(`Could not upload project${errorDetail(err)}`, err);
+      }
+   }
+
+   protected async syncNow(project: ProjectSummary): Promise<void> {
+      try {
+         const link = await this.sync.syncNow(project.id);
+         this.notify(
+            link.status === 'live' || link.status === 'paused'
+               ? 'Up to date with the server'
+               : link.status === 'conflict'
+                 ? 'Changed in both places: open the project to choose a version'
+                 : link.status === 'offline'
+                   ? "The server can't be reached right now"
+                   : `Sync failed: ${link.lastError ?? 'unknown error'}`
+         );
+      } catch (err) {
+         this.notifyError(`Sync failed${errorDetail(err)}`, err);
+      }
+   }
+
+   protected async unlink(project: ProjectSummary): Promise<void> {
+      try {
+         await this.sync.unlink(project.id);
+         this.notify('Stopped syncing (both copies are kept)');
+      } catch (err) {
+         this.notifyError('Could not stop syncing', err);
+      }
+   }
+
+   /** A remote project was downloaded from the sync panel: show and open it. */
+   protected async openSynced(projectId: string): Promise<void> {
+      await this.store.loadProjects();
+      this.store.select(projectId);
+      this.dialogRef.close();
    }
 
    protected startRename(project: ProjectSummary): void {
@@ -447,4 +552,9 @@ export class ProjectsOverlayComponent {
       console.error(message, err);
       this.snackBar.open(message, 'Dismiss', { duration: 5000 });
    }
+}
+
+function errorDetail(err: unknown): string {
+   const detail = err instanceof HttpErrorResponse ? err.error?.message : (err as Error)?.message;
+   return detail ? `: ${detail}` : '';
 }

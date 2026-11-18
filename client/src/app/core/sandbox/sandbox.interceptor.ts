@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { defer, of, throwError } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { runtimeConfig } from '../config/runtime-config';
 import { SandboxBackendService, SandboxError } from './sandbox-backend.service';
 
 /**
@@ -10,7 +10,7 @@ import { SandboxBackendService, SandboxError } from './sandbox-backend.service';
  * else passes through untouched.
  */
 export const sandboxInterceptor: HttpInterceptorFn = (req, next) => {
-   const base = environment.apiBaseUrl;
+   const base = runtimeConfig.apiBaseUrl;
    if (!req.url.startsWith(base)) return next(req);
    const path = req.url.slice(base.length);
    const backend = inject(SandboxBackendService);

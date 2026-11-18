@@ -2,6 +2,7 @@ import { computed, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { CurrentUserResponse, LoginDto, RegisterDto } from '@devdesigner/shared';
 import { ApiClientService } from '../http/api-client.service';
+import { runtimeConfig } from '../config/runtime-config';
 
 /**
  * Client-side auth state and actions. The session lives in an httpOnly cookie the
@@ -49,7 +50,10 @@ export class AuthService {
 
    private async fetchMe(): Promise<void> {
       try {
-         const user = await firstValueFrom(this.api.get<CurrentUserResponse | null>('/auth/me'));
+         // Desktop: always the one local account; the loopback server signs it in without credentials.
+         const user = runtimeConfig.desktop
+            ? await firstValueFrom(this.api.post<CurrentUserResponse>('/auth/desktop', {}))
+            : await firstValueFrom(this.api.get<CurrentUserResponse | null>('/auth/me'));
          this._currentUser.set(user);
       } catch {
          this._currentUser.set(null);

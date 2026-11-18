@@ -49,6 +49,7 @@ export async function writeSchemaInto(
     ...stacking,
     fileOf,
     linkExisting: options.linkExisting,
+    keepIds: options.keepIds,
   });
   // Parents before children: elements and arrows may point at tables and messages.
   await writeTables(ctx, plan.tables);

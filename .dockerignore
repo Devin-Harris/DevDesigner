@@ -5,3 +5,5 @@
 server/media
 .git
 *.log
+desktop/stage
+desktop/release

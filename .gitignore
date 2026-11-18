@@ -40,3 +40,7 @@ coverage/
 .mcp.json
 *.sqlite-wal
 *.sqlite-shm
+
+desktop/dist
+desktop/stage
+desktop/release

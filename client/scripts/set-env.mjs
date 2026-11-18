@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 const raw = process.env.API_URL?.trim();
 if (raw) {
-  const origin = raw.replace(/\/+$/, '').replace(/\/api$/, '');
+  // `same-origin`: the server hosts this build (self-hosted image), so URLs are relative.
+  const origin = raw === 'same-origin' ? '' : raw.replace(/\/+$/, '').replace(/\/api$/, '');
   const target = fileURLToPath(new URL('../src/environments/environment.ts', import.meta.url));
   writeFileSync(
     target,
@@ -24,5 +25,5 @@ export const environment = {
 };
 `,
   );
-  console.log(`environment.ts generated for API ${origin}`);
+  console.log(`environment.ts generated for API ${origin || '(same origin)'}`);
 }

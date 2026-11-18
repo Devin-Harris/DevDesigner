@@ -8,6 +8,18 @@
    height: 100%;
 }
 
+// Desktop app: the window's title bar is drawn by dd-title-bar across the top.
+.shell.desktop {
+   --dd-titlebar-h: 36px;
+
+   padding-top: var(--dd-titlebar-h);
+   box-sizing: border-box;
+
+   .island {
+      top: calc(var(--dd-titlebar-h) + 14px);
+   }
+}
+
 // Floating chrome over the editor canvas (replaces the old top bar).
 .island {
    position: absolute;

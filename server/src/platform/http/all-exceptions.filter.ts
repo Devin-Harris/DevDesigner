@@ -17,7 +17,10 @@ export function constraintError(exception: unknown): { status: number; message: 
     return { status: HttpStatus.CONFLICT, message: 'That item already exists.' };
   }
   if (code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-    return { status: HttpStatus.BAD_REQUEST, message: 'That refers to an item that does not exist.' };
+    return {
+      status: HttpStatus.BAD_REQUEST,
+      message: 'That refers to an item that does not exist.',
+    };
   }
   return null;
 }

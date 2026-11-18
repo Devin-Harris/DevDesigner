@@ -16,6 +16,19 @@ export interface EnvConfig {
   PUBLIC_APP_URL: string;
   DATABASE_PATH: string;
   DATABASE_SYNCHRONIZE: 'true' | 'false';
+  /** Run src/platform/database/migrations on boot instead of synchronize (forced on in desktop mode). */
+  DATABASE_MIGRATIONS_RUN: 'true' | 'false';
+  /**
+   * Single-user local install (Electron app): migrations instead of synchronize, no
+   * Sentry / analytics / rate limits / quotas, loopback-only auto sign-in.
+   */
+  DESKTOP: 'true' | 'false';
+  /** Built client folder (client/dist/client/browser) served at / (desktop and self-hosted images). */
+  CLIENT_DIR: string;
+  /** Desktop only: secret the Electron main process sends to /api/desktop control routes. */
+  DESKTOP_CONTROL_TOKEN: string;
+  /** Desktop only: the hosted server offered as the built-in sync remote (empty = none). */
+  SYNC_DEFAULT_REMOTE_URL: string;
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
   COOKIE_SECURE: 'true' | 'false';
@@ -132,9 +145,13 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
   const adminEmails = parseAdminEmails(str('ADMIN_EMAILS', ''));
   const badAdmin = adminEmails.filter((email) => !/^[^@\s]+@[^@\s]+$/.test(email));
   if (badAdmin.length > 0) {
-    errors.push(`ADMIN_EMAILS must be comma-separated email addresses (got "${badAdmin.join('", "')}")`);
+    errors.push(
+      `ADMIN_EMAILS must be comma-separated email addresses (got "${badAdmin.join('", "')}")`,
+    );
   }
 
+  const desktop = bool('DESKTOP', false) === 'true';
+  const offInDesktop = (value: 'true' | 'false'): 'true' | 'false' => (desktop ? 'false' : value);
   const config: EnvConfig = {
     ...raw,
     PORT: int('PORT', 3000, 1, 65535),
@@ -143,7 +160,12 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     DATABASE_PATH: str('DATABASE_PATH', 'devdesigner.sqlite'),
     // Production still relies on synchronize to create/alter tables (there is no
     // baseline migration and no migrationsRun), so the default stays on everywhere.
-    DATABASE_SYNCHRONIZE: bool('DATABASE_SYNCHRONIZE', true),
+    DATABASE_SYNCHRONIZE: offInDesktop(bool('DATABASE_SYNCHRONIZE', true)),
+    DATABASE_MIGRATIONS_RUN: desktop ? 'true' : bool('DATABASE_MIGRATIONS_RUN', false),
+    DESKTOP: desktop ? 'true' : 'false',
+    CLIENT_DIR: str('CLIENT_DIR', ''),
+    DESKTOP_CONTROL_TOKEN: desktop ? str('DESKTOP_CONTROL_TOKEN', '') : '',
+    SYNC_DEFAULT_REMOTE_URL: desktop ? str('SYNC_DEFAULT_REMOTE_URL', '') : '',
     JWT_SECRET: jwtSecret === '' ? DEFAULT_JWT_SECRET : jwtSecret,
     JWT_EXPIRES_IN: str('JWT_EXPIRES_IN', '7d'),
     COOKIE_SECURE: bool('COOKIE_SECURE', false),
@@ -151,25 +173,31 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     API_TOKEN_RATE_LIMIT: int('API_TOKEN_RATE_LIMIT', 600, 1, 1_000_000),
     LOG_LEVEL: oneOf('LOG_LEVEL', LOG_LEVELS, prod ? 'info' : 'debug'),
     SLOW_QUERY_MS: int('SLOW_QUERY_MS', 200, 0, 600_000),
-    SENTRY_DSN: str('SENTRY_DSN', ''),
+    SENTRY_DSN: desktop ? '' : str('SENTRY_DSN', ''),
     SENTRY_TRACES_SAMPLE_RATE: sampleRate,
     ADMIN_EMAILS: adminEmails.join(','),
     TRUST_PROXY_HOPS: int('TRUST_PROXY_HOPS', 1, 0, 10),
-    RATE_LIMIT_ENABLED: bool('RATE_LIMIT_ENABLED', true),
+    RATE_LIMIT_ENABLED: offInDesktop(bool('RATE_LIMIT_ENABLED', true)),
     RATE_LIMIT_PER_MIN: int('RATE_LIMIT_PER_MIN', 1200, 1, 1_000_000),
     RATE_LIMIT_IP_PER_MIN: int('RATE_LIMIT_IP_PER_MIN', 3000, 1, 1_000_000),
-    QUOTA_PROJECTS_PER_OWNER: int('QUOTA_PROJECTS_PER_OWNER', 500, 0, 10_000_000),
-    QUOTA_TABLES_PER_PROJECT: int('QUOTA_TABLES_PER_PROJECT', 5_000, 0, 10_000_000),
-    QUOTA_ELEMENTS_PER_PROJECT: int('QUOTA_ELEMENTS_PER_PROJECT', 20_000, 0, 10_000_000),
-    QUOTA_IMAGE_BYTES_PER_OWNER: int('QUOTA_IMAGE_BYTES_PER_OWNER', 1024 ** 3, 0, 2 ** 50),
-    QUOTA_IMAGE_BYTES_PER_PROJECT: int('QUOTA_IMAGE_BYTES_PER_PROJECT', 512 * 1024 ** 2, 0, 2 ** 50),
-    QUOTA_IMPORT_MAX_IMAGES: int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
+    QUOTA_PROJECTS_PER_OWNER: desktop ? 0 : int('QUOTA_PROJECTS_PER_OWNER', 500, 0, 10_000_000),
+    QUOTA_TABLES_PER_PROJECT: desktop ? 0 : int('QUOTA_TABLES_PER_PROJECT', 5_000, 0, 10_000_000),
+    QUOTA_ELEMENTS_PER_PROJECT: desktop
+      ? 0
+      : int('QUOTA_ELEMENTS_PER_PROJECT', 20_000, 0, 10_000_000),
+    QUOTA_IMAGE_BYTES_PER_OWNER: desktop
+      ? 0
+      : int('QUOTA_IMAGE_BYTES_PER_OWNER', 1024 ** 3, 0, 2 ** 50),
+    QUOTA_IMAGE_BYTES_PER_PROJECT: desktop
+      ? 0
+      : int('QUOTA_IMAGE_BYTES_PER_PROJECT', 512 * 1024 ** 2, 0, 2 ** 50),
+    QUOTA_IMPORT_MAX_IMAGES: desktop ? 0 : int('QUOTA_IMPORT_MAX_IMAGES', 1_000, 0, 10_000_000),
     ACCESS_CACHE_TTL_MS: int('ACCESS_CACHE_TTL_MS', 30_000, 0, 600_000),
     GRAPH_CACHE_MAX_BYTES: int('GRAPH_CACHE_MAX_BYTES', 64 * 1024 * 1024, 0, 2 ** 40),
     REALTIME_PATCH_MUTATIONS: bool('REALTIME_PATCH_MUTATIONS', true),
     MEDIA_DRIVER: oneOf('MEDIA_DRIVER', ['fs'] as const, 'fs'),
     MEDIA_DIR: str('MEDIA_DIR', ''),
-    ANALYTICS_ENABLED: bool('ANALYTICS_ENABLED', true),
+    ANALYTICS_ENABLED: offInDesktop(bool('ANALYTICS_ENABLED', true)),
     ANALYTICS_DATABASE_PATH: str('ANALYTICS_DATABASE_PATH', ''),
     ANALYTICS_SALT_SECRET: str('ANALYTICS_SALT_SECRET', ''),
     ANALYTICS_GET_SAMPLE: fraction('ANALYTICS_GET_SAMPLE', 0.05),

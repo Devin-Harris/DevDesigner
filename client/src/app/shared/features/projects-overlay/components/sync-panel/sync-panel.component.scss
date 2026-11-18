@@ -1,0 +1,151 @@
+@use '../../overlay-buttons';
+
+:host {
+   display: block;
+}
+
+.sync {
+   display: flex;
+   flex-direction: column;
+   gap: 14px;
+   padding: 4px 2px 12px;
+}
+
+.intro,
+.muted {
+   margin: 0;
+   color: var(--dd-text-muted);
+   font-size: 13px;
+   line-height: 1.5;
+}
+
+.err {
+   margin: 0;
+   color: var(--dd-danger);
+   font-size: 13px;
+}
+
+.remotes {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+}
+
+.remote {
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   background: var(--dd-surface-2);
+}
+
+.remote-row {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 10px 12px;
+}
+
+.remote-meta {
+   display: flex;
+   flex: 1 1 auto;
+   flex-direction: column;
+   min-width: 0;
+}
+
+.remote-name {
+   font-weight: 600;
+}
+
+.remote-sub {
+   overflow: hidden;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+
+.remote-projects {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   padding: 4px 12px 12px;
+   border-top: 1px solid var(--dd-border);
+}
+
+.rp {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 8px;
+   min-height: 34px;
+}
+
+.rp-name {
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+
+.badge {
+   padding: 1px 6px;
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   color: var(--dd-text-muted);
+   font-size: 10px;
+   font-weight: 600;
+}
+
+.form {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+}
+
+.field {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+}
+
+.field-label {
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.form-actions {
+   display: flex;
+   justify-content: flex-end;
+   gap: 8px;
+}
+
+.sync > .btn {
+   align-self: flex-start;
+}
+
+.cloud {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   padding: 12px;
+   border: 1px solid color-mix(in srgb, var(--dd-primary) 45%, var(--dd-border));
+   border-radius: var(--dd-radius);
+   background: color-mix(in srgb, var(--dd-primary) 8%, var(--dd-surface-2));
+}
+
+.cloud-head {
+   display: flex;
+   align-items: flex-start;
+   gap: 10px;
+
+   .remote-sub {
+      white-space: normal;
+   }
+}
+
+.cloud-row {
+   display: flex;
+   gap: 8px;
+}
+
+.cloud-token {
+   flex: 1 1 auto;
+}

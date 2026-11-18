@@ -21,7 +21,12 @@ import type {
 } from '@devdesigner/shared';
 import type { Request, Response } from 'express';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
-import { CallerScoped, ProjectAccess, RequiresAccess, type ResolvedProjectAccess } from '../../collaboration/access/access-policy';
+import {
+  CallerScoped,
+  ProjectAccess,
+  RequiresAccess,
+  type ResolvedProjectAccess,
+} from '../../collaboration/access/access-policy';
 import { Caller } from '../../platform/http/caller';
 import { RateLimit } from '../../platform/throttle/rate-limit';
 import { ProjectsService } from './projects.service';
@@ -77,7 +82,9 @@ export class ProjectsController {
       throw new UnauthorizedException('Sign in to claim guest projects.');
     }
     return {
-      count: caller.guestId ? await this.projects.transferOwnership(caller.guestId, caller.userId) : 0,
+      count: caller.guestId
+        ? await this.projects.transferOwnership(caller.guestId, caller.userId)
+        : 0,
     };
   }
 
@@ -100,10 +107,23 @@ export class ProjectsController {
     return this.projects.importIntoProject(projectId, body);
   }
 
+  /** Make this project an exact, id-preserving mirror of an exported file (desktop sync). */
+  @Post(':projectId/mirror-content')
+  @RequiresAccess('write')
+  @RateLimit('projectImport')
+  mirrorContent(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
+    @Body() body: unknown,
+  ): Promise<{ revision: number }> {
+    return this.projects.mirrorProjectContent(projectId, body);
+  }
+
   @Get(':projectId/export-file')
   @RequiresAccess('read')
   @RateLimit('exportFile')
-  export(@ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess): Promise<ProjectExportFile> {
+  export(
+    @ProjectAccess() { projectId, accessLevel }: ResolvedProjectAccess,
+  ): Promise<ProjectExportFile> {
     return this.projects.exportProject(projectId, accessLevel);
   }
 
@@ -115,7 +135,9 @@ export class ProjectsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile | undefined> {
     // 304 while the caller's copy is current; else the cached (pre-gzipped) body.
-    return this.graphs.respond(projectId, accessLevel, req, res, () => this.projects.getGraph(projectId, accessLevel));
+    return this.graphs.respond(projectId, accessLevel, req, res, () =>
+      this.projects.getGraph(projectId, accessLevel),
+    );
   }
 
   @Patch(':projectId')
@@ -140,7 +162,10 @@ export class ProjectsController {
   @Patch(':projectId/home')
   @RequiresAccess('write')
   @HttpCode(HttpStatus.NO_CONTENT)
-  updateHome(@ProjectAccess() { projectId }: ResolvedProjectAccess, @Body() dto: UpdateHomeDto): Promise<void> {
+  updateHome(
+    @ProjectAccess() { projectId }: ResolvedProjectAccess,
+    @Body() dto: UpdateHomeDto,
+  ): Promise<void> {
     return this.projects.updateHome(projectId, dto);
   }
 

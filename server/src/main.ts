@@ -11,6 +11,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { guestCookieMiddleware } from './identity/auth/guest-id';
 import { REQUEST_ID_HEADER } from './platform/http/request-context';
+import { desktopClientMiddleware } from './platform/http/desktop-client';
 import { DB_ADMIN_PATH, dbAdminProxy } from './platform/http/db-admin-proxy';
 import { TELEMETRY_MAX_BODY_BYTES } from '@devdesigner/shared';
 
@@ -24,6 +25,7 @@ const LARGE_BODY_ROUTES: Array<{ path: string; limit: string }> = [
   // Export files embed every image/video as base64 (round-trips the old 200 MB cap).
   { path: '/api/projects/import', limit: '200mb' },
   { path: '/api/projects/:projectId/import-content', limit: '200mb' },
+  { path: '/api/projects/:projectId/mirror-content', limit: '200mb' },
   // 40 MB video is ~54 MB of base64 (UploadImageDto caps data at 56M chars).
   { path: '/api/projects/:projectId/images', limit: '60mb' },
   // Up to 2000 batch entries / 5000 clone rows, each element up to ~50k chars of text.
@@ -35,7 +37,10 @@ const LARGE_BODY_ROUTES: Array<{ path: string; limit: string }> = [
 ];
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+    bufferLogs: true,
+  });
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
   const config = app.get(ConfigService);
@@ -47,6 +52,11 @@ async function bootstrap(): Promise<void> {
   // the body parsers so requests stream through with the GUI's own headers.
   if (process.env.DB_ADMIN_PASSWORD) {
     app.use(DB_ADMIN_PATH, dbAdminProxy(Number(process.env.DB_ADMIN_PORT ?? 8081)));
+  }
+  // Desktop app / self-hosted image: serve the client from this origin (before helmet's API-only CSP).
+  const clientDir = config.get<string>('CLIENT_DIR', '');
+  if (clientDir) {
+    app.use(desktopClientMiddleware(clientDir));
   }
   // Security headers (security S4.1). The API only serves JSON and media, so its CSP
   // denies everything and forbids framing. Media is embedded by the client from
@@ -68,9 +78,19 @@ async function bootstrap(): Promise<void> {
 
   // Route-scoped parsers first: once one has parsed a body, the global one skips it.
   // Raw media upload: the body is the file itself (40 MB video max, checked again in the service).
-  app.use('/api/projects/:projectId/images/raw', raw({ type: () => true, limit: '41mb', inflate: false }));
+  app.use(
+    '/api/projects/:projectId/images/raw',
+    raw({ type: () => true, limit: '41mb', inflate: false }),
+  );
   // Analytics beacon: tiny bodies only. sendBeacon posts text/plain to avoid a CORS preflight.
-  app.use('/api/telemetry', json({ limit: TELEMETRY_MAX_BODY_BYTES, type: ['application/json', 'text/plain'], inflate: false }));
+  app.use(
+    '/api/telemetry',
+    json({
+      limit: TELEMETRY_MAX_BODY_BYTES,
+      type: ['application/json', 'text/plain'],
+      inflate: false,
+    }),
+  );
   for (const { path, limit } of LARGE_BODY_ROUTES) {
     app.use(path, json({ limit, inflate: false }));
   }
@@ -82,7 +102,8 @@ async function bootstrap(): Promise<void> {
     compression({
       threshold: 1024,
       filter: (req, res) =>
-        !/^image\/(?!svg)/.test(String(res.getHeader('Content-Type') ?? '')) && compression.filter(req, res),
+        !/^image\/(?!svg)/.test(String(res.getHeader('Content-Type') ?? '')) &&
+        compression.filter(req, res),
     }),
   );
 
@@ -118,7 +139,9 @@ async function bootstrap(): Promise<void> {
   });
 
   const port = config.get<number>('PORT', 3000);
-  await app.listen(port);
+  // Desktop: the server is private to this machine (the Electron shell talks to it over loopback).
+  const desktop = config.get<string>('DESKTOP') === 'true';
+  await (desktop ? app.listen(port, '127.0.0.1') : app.listen(port));
 
   app.get(Logger).log(`DevDesigner API listening on http://localhost:${port}/api`, 'Bootstrap');
 }

@@ -49,6 +49,17 @@ export const PROJECT_ENTITY_KINDS = Object.keys(REGISTRY) as ProjectEntityKind[]
 
 const isViaTable = (entry: Direct | ViaTable): entry is ViaTable => 'viaTable' in entry;
 
+/**
+ * Desktop sync: the project an item belongs to when this computer has not mirrored
+ * the item yet (it was just created on the server). Returns the server-backed project
+ * open here, or null. Set by SyncService; null on web servers.
+ */
+let remoteEntityFallback: (() => string | null) | null = null;
+
+export function setRemoteEntityFallback(fallback: (() => string | null) | null): void {
+  remoteEntityFallback = fallback;
+}
+
 @Injectable()
 export class EntityProjectResolver {
   constructor(
@@ -69,11 +80,17 @@ export class EntityProjectResolver {
     }
     const projectId = isViaTable(entry)
       ? await this.viaTable(entry, id)
-      : ((await this.dataSource
-          .getRepository(entry.entity)
-          .findOne({ where: { id }, select: { id: true, projectId: true } as never })) as { projectId?: string } | null)
-          ?.projectId;
+      : (
+          (await this.dataSource
+            .getRepository(entry.entity)
+            .findOne({ where: { id }, select: { id: true, projectId: true } as never })) as {
+            projectId?: string;
+          } | null
+        )?.projectId;
     if (!projectId) {
+      // Not cached: the mirror will hold the row (under the same project) shortly.
+      const fallback = remoteEntityFallback?.();
+      if (fallback) return fallback;
       throw new NotFoundException(`${entry.label} ${id} not found.`);
     }
     // Rows never move to another project; deletes evict (AccessCache).
@@ -85,7 +102,11 @@ export class EntityProjectResolver {
    * The subset of `ids` (of `kind`) that does NOT belong to `projectId`, either
    * because the row is missing or because it lives in another project. One query.
    */
-  async idsOutsideProject(kind: ProjectEntityKind, ids: string[], projectId: string): Promise<string[]> {
+  async idsOutsideProject(
+    kind: ProjectEntityKind,
+    ids: string[],
+    projectId: string,
+  ): Promise<string[]> {
     const unique = [...new Set(ids)];
     if (unique.length === 0) return [];
     const entry: Direct | ViaTable = REGISTRY[kind];

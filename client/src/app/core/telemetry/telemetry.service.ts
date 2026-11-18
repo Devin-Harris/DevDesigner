@@ -13,7 +13,7 @@ import {
    type TelemetryBatch,
    type TelemetryEventInput,
 } from '@devdesigner/shared';
-import { environment } from '../../../environments/environment';
+import { runtimeConfig } from '../config/runtime-config';
 import { clientRouteOf, routeTemplateOf } from './route-template.helper';
 import { classifyError } from './error-kind.helper';
 
@@ -25,14 +25,14 @@ export const TELEMETRY_FLUSH_MS = 15_000;
  * props against the shared catalog (only `client.*` events, only declared enum,
  * number and boolean props), buffers them, and sends `{ events }` as text/plain JSON
  * with `navigator.sendBeacon` every 15 s, at 20 events, and when the tab is hidden.
- * No cookies or storage of its own. Off unless `environment.telemetry` is true.
+ * No cookies or storage of its own. Off unless `runtimeConfig.telemetry` is true.
  */
 @Injectable({ providedIn: 'root' })
 export class TelemetryService {
    private readonly document = inject(DOCUMENT);
    private readonly router = inject(Router);
    private readonly destroyRef = inject(DestroyRef);
-   private readonly url = `${environment.apiBaseUrl}/telemetry`;
+   private readonly url = `${runtimeConfig.apiBaseUrl}/telemetry`;
    private buffer: TelemetryEventInput[] = [];
    private timer: ReturnType<typeof setInterval> | null = null;
    private started = false;
@@ -40,7 +40,7 @@ export class TelemetryService {
    /** Telemetry is configured on and the browser can send beacons. */
    get enabled(): boolean {
       const nav = this.document.defaultView?.navigator;
-      return environment.telemetry === true && typeof nav?.sendBeacon === 'function';
+      return runtimeConfig.telemetry === true && typeof nav?.sendBeacon === 'function';
    }
 
    /** Begin page views (route templates) and the flush triggers. Safe to call more than once. */
