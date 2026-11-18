@@ -782,17 +782,37 @@ export class DeckCompareComponent {
       return { side, key };
    }
 
-   /** The smallest (non-line) object on `side` whose box holds the pointer. */
+   /**
+    * The object on `side` a click there would pick on the canvas: from the topmost object
+    * under the pointer down, see-through (unfilled) shapes let the pointer through to
+    * smaller things inside them, and the first solid object stops the search. So a code
+    * block inside a rectangle is picked even when it overflows the rectangle.
+    */
    private innermostAt(side: 'a' | 'b', clientX: number, clientY: number): Hit | null {
       const u = this.toUnits(clientX, clientY);
       if (!u) return null;
       const x = ((u.x - (side === 'b' ? COL + this.gap() : 0)) / COL) * 100;
       const y = (u.y / this.viewH()) * 100;
+      const byId = new Map(this.store.elements().map((e) => [e.id, e] as const));
+      const under = (side === 'a' ? this.hitsA() : this.hitsB())
+         .filter((h) => !h.line && !!h.id && x >= h.left && x <= h.left + h.width && y >= h.top && y <= h.top + h.height)
+         .sort((p, q) => (byId.get(q.id!)?.zIndex ?? 0) - (byId.get(p.id!)?.zIndex ?? 0));
+      const seeThrough = (h: Hit): boolean => {
+         const e = byId.get(h.id!);
+         return (
+            !!e &&
+            (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
+            (e.fillStyle === 'none' || !e.backgroundColor || e.backgroundColor === 'transparent')
+         );
+      };
       let best: Hit | null = null;
-      for (const h of side === 'a' ? this.hitsA() : this.hitsB()) {
-         if (h.line || !h.id) continue;
-         if (x < h.left || x > h.left + h.width || y < h.top || y > h.top + h.height) continue;
+      for (const h of under) {
          if (!best || h.width * h.height < best.width * best.height) best = h;
+         if (!seeThrough(h)) {
+            // A solid object on top wins over anything bigger beneath it.
+            if (best !== h && !seeThrough(best)) best = h;
+            break;
+         }
       }
       return best;
    }
