@@ -4,6 +4,7 @@ import {
   RT_EVENTS,
   type MutationBatchEvent,
   type MutationEvent,
+  type Participant,
   type RealtimeSession,
 } from '@devdesigner/shared';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -25,20 +26,27 @@ export class SyncRelay {
   /** Set by SyncService: the socket dropped (the server went away). */
   onDisconnect: (projectId: string) => void = () => undefined;
 
-  constructor(private readonly gateway: RealtimeGateway) {}
+  constructor(private readonly gateway: RealtimeGateway) {
+    // This computer's cursor, selection and laser go to the server too, so the people
+    // there see the desktop user like any other collaborator.
+    gateway.localPresence = (projectId, event, body) => {
+      const entry = this.sockets.get(projectId);
+      if (entry?.socket.connected) entry.socket.volatile.emit(event, body);
+    };
+  }
 
   clientIdOf(projectId: string): string | null {
     return this.sockets.get(projectId)?.clientId ?? null;
   }
 
-  ensure(projectId: string, remote: SyncRemoteEntity): void {
+  ensure(projectId: string, remote: SyncRemoteEntity, token: string): void {
     if (this.sockets.has(projectId)) return;
     const { origin, path } = remoteOrigin(remote.url);
     const socket = io(`${origin}/realtime`, {
       path,
       transports: ['websocket'],
       auth: { projectId },
-      extraHeaders: { Authorization: `Bearer ${remote.token}` },
+      extraHeaders: { Authorization: `Bearer ${token}` },
       reconnection: false,
       forceNew: true,
     });
@@ -49,6 +57,21 @@ export class SyncRelay {
       this.gateway.relayRemote(projectId, RT_EVENTS.mutation, event);
       this.onRemoteChange(projectId);
     });
+    // Presence of the people on the server (minus this relay's own participant).
+    socket.on(RT_EVENTS.roster, (list: Participant[]) => {
+      if (!Array.isArray(list)) return;
+      this.gateway.setRemoteRoster(
+        projectId,
+        list.filter((p) => p && p.id !== socket.id),
+      );
+    });
+    for (const event of [RT_EVENTS.cursor, RT_EVENTS.selection, RT_EVENTS.laser]) {
+      socket.on(event, (payload: { participantId?: unknown }) => {
+        if (payload && payload.participantId !== socket.id) {
+          this.gateway.relayRemotePresence(projectId, event, payload);
+        }
+      });
+    }
     socket.on(RT_EVENTS.mutations, (event: MutationBatchEvent) => {
       this.gateway.relayRemote(projectId, RT_EVENTS.mutations, event);
       this.onRemoteChange(projectId);
@@ -56,6 +79,7 @@ export class SyncRelay {
     const drop = (why: string): void => {
       if (this.sockets.get(projectId)?.socket !== socket) return;
       this.sockets.delete(projectId);
+      this.gateway.setRemoteRoster(projectId, null);
       this.log.warn(`relay for ${projectId} closed (${why})`);
       this.onDisconnect(projectId);
     };
@@ -70,6 +94,7 @@ export class SyncRelay {
     if (!entry) return;
     this.sockets.delete(projectId);
     entry.socket.disconnect();
+    this.gateway.setRemoteRoster(projectId, null);
   }
 
   closeAll(): void {

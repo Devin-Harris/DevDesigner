@@ -29,6 +29,10 @@ export interface EnvConfig {
   DESKTOP_CONTROL_TOKEN: string;
   /** Desktop only: the hosted server offered as the built-in sync remote (empty = none). */
   SYNC_DEFAULT_REMOTE_URL: string;
+  /** Desktop only: key (from the OS keychain) that encrypts stored sync API tokens. */
+  SYNC_TOKEN_KEY: string;
+  /** Set by the self-hosted image / devdesigner-server: first account becomes admin when none exists. */
+  SELF_HOSTED: 'true' | 'false';
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
   COOKIE_SECURE: 'true' | 'false';
@@ -166,6 +170,8 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     CLIENT_DIR: str('CLIENT_DIR', ''),
     DESKTOP_CONTROL_TOKEN: desktop ? str('DESKTOP_CONTROL_TOKEN', '') : '',
     SYNC_DEFAULT_REMOTE_URL: desktop ? str('SYNC_DEFAULT_REMOTE_URL', '') : '',
+    SYNC_TOKEN_KEY: desktop ? str('SYNC_TOKEN_KEY', '') : '',
+    SELF_HOSTED: desktop ? 'false' : bool('SELF_HOSTED', false),
     JWT_SECRET: jwtSecret === '' ? DEFAULT_JWT_SECRET : jwtSecret,
     JWT_EXPIRES_IN: str('JWT_EXPIRES_IN', '7d'),
     COOKIE_SECURE: bool('COOKIE_SECURE', false),

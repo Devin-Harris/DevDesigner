@@ -11,8 +11,8 @@ import {
 import { Project } from '../../projects/projects/project.entity';
 
 /**
- * A DevDesigner server this desktop install syncs with. The API token lives in the
- * local database file, which only this machine's user can read (desktop data dir).
+ * A DevDesigner server this desktop install syncs with. The API token is stored
+ * encrypted (TokenCipher) with a key the desktop app keeps in the OS keychain.
  */
 @Entity('sync_remotes')
 export class SyncRemoteEntity {
@@ -68,6 +68,13 @@ export class SyncLinkEntity {
   /** The local revision right after the mirror was last written: moved since = offline edits. */
   @Column({ type: 'integer', default: 0 })
   localRevisionAtMirror!: number;
+
+  /**
+   * The project's content (SchemaModel JSON) as both sides last agreed on it: the base
+   * of the three-way merge when it changed on both. Null for links made before merging.
+   */
+  @Column({ type: 'text', nullable: true })
+  baseSchema!: string | null;
 
   /** Off: the project is edited locally and only synced on request ("Sync now"). */
   @Column({ type: 'boolean', default: true })

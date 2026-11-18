@@ -251,3 +251,40 @@
    color: var(--dd-danger);
    font-size: 13px;
 }
+
+.pick {
+   display: flex;
+   align-items: center;
+   gap: 4px;
+   margin-top: 6px;
+   font-size: 12px;
+}
+
+.pick-label {
+   color: var(--dd-text-muted);
+}
+
+.pick-btn {
+   padding: 2px 8px;
+   border: 1px solid var(--dd-border);
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   cursor: pointer;
+
+   &.on {
+      border-color: var(--dd-primary);
+      background: color-mix(in srgb, var(--dd-primary) 15%, transparent);
+   }
+}
+
+.auto {
+   margin-top: 4px;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.entry.static {
+   cursor: default;
+}

@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld('devdesigner', {
     setTitleBarColors: (background: string, text: string) =>
       ipcRenderer.send('dd:title-bar-colors', { background, text }),
   },
+  /** The Settings page: preferences, backups and folders (desktop/src/settings.ts). */
+  settings: {
+    get: () => ipcRenderer.invoke('dd:settings:get'),
+    set: (patch: unknown) => ipcRenderer.invoke('dd:settings:set', patch),
+    action: (action: { type: string; id?: string }) =>
+      ipcRenderer.invoke('dd:settings:action', action),
+  },
   /** Menu commands, opened files and devdesigner:// links from the main process. */
   events: {
     onMessage: (listener: (message: unknown) => void) => {

@@ -8,6 +8,7 @@
          <a routerLink="/guide">Canvas guide</a>
          <a href="#features">Features</a>
          <a href="#ai">AI &amp; MCP</a>
+         <a href="#download">Desktop app</a>
       </nav>
       <div class="top-actions">
          <button
@@ -417,6 +418,33 @@
          <div><span class="ok">✓</span> create_sequence_diagram · 4 participants</div>
          <div><span class="ok">✓</span> create_presentation · “Checkout v2 review”</div>
       </div>
+   </section>
+
+   <section #reveal id="download" class="wrap download reveal">
+      <div class="dl-intro">
+         <span class="lab">Desktop app</span>
+         <h2 class="disp">Work offline, keep everything on your computer</h2>
+         <p>
+            The desktop app is the same editor with your projects stored locally. It works without an internet
+            connection, and any project can be synced with your account here when you want to share it.
+         </p>
+      </div>
+      <div class="dl-options">
+         @for (d of downloads; track d.id) {
+            <a class="dl" rel="noopener" [class.mine]="d.id === platform" [href]="d.url">
+               <dd-icon name="download" />
+               <span class="dl-text">
+                  <strong>{{ d.label }}</strong>
+                  <span class="dl-sub">{{ d.id === platform ? 'Your system · ' : '' }}{{ d.file }}</span>
+               </span>
+            </a>
+         }
+      </div>
+      <p class="dl-note">
+         Builds are not code-signed yet: Windows may show “Windows protected your PC” (choose More info → Run anyway),
+         and on macOS right-click the app and choose Open the first time. Updates install automatically.
+         <a rel="noopener" [href]="releasesUrl">All releases →</a>
+      </p>
    </section>
 
    <footer class="wrap foot">

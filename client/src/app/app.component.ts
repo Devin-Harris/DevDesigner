@@ -1,6 +1,7 @@
 import { runtimeConfig } from './core/config/runtime-config';
 import { TitleBarComponent } from './core/desktop/title-bar/title-bar.component';
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, signal, untracked } from '@angular/core';
+import { DesktopShellService } from './core/desktop/desktop-shell.service';
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
 import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
 import { ShortcutsSheetComponent } from './features/shortcuts/shortcuts-sheet.component';
@@ -106,10 +107,43 @@ export class AppComponent {
 
    constructor() {
       void this.auth.loadMe();
+      // Desktop File > Settings (Ctrl+,).
+      const shell = inject(DesktopShellService);
+      effect(() => {
+         if (shell.settingsRequests() > 0) untracked(() => void this.openDesktopSettings());
+      });
+   }
+
+   private settingsOpen = false;
+
+   /** Desktop-only, so loaded on first use. Ctrl+, can arrive from both the menu and the page: open once. */
+   private async openDesktopSettings(): Promise<void> {
+      if (this.settingsOpen) return;
+      this.settingsOpen = true;
+      const { SettingsDialogComponent } = await import(
+         './features/desktop-settings/settings-dialog.component'
+      ).catch((err: unknown) => {
+         this.settingsOpen = false;
+         throw err;
+      });
+      const ref = this.dialog.open(SettingsDialogComponent, {
+         width: '820px',
+         maxWidth: '96vw',
+         height: '640px',
+         maxHeight: '92vh',
+         autoFocus: false,
+         panelClass: 'dd-settings-dialog',
+      });
+      ref.afterClosed().subscribe(() => (this.settingsOpen = false));
    }
 
    @HostListener('window:keydown', ['$event'])
    protected onKeydown(event: KeyboardEvent): void {
+      if (this.desktop && (event.ctrlKey || event.metaKey) && event.key === ',') {
+         event.preventDefault();
+         void this.openDesktopSettings();
+         return;
+      }
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
          // Presenting owns the keyboard.
          if (document.querySelector('dd-present-mode')) return;

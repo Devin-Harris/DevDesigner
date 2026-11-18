@@ -295,6 +295,7 @@ export class RealtimeGateway
       return;
     }
     const payload: PresenceCursor = { participantId: data.participant.id, ...cursor };
+    this.localPresence?.(data.projectId, RT_EVENTS.cursor, cursor);
     data.limiter.relay(
       'cursor',
       () => client.to(roomOf(data.projectId)).emit(RT_EVENTS.cursor, payload),
@@ -310,6 +311,7 @@ export class RealtimeGateway
     if (!data || !sample) {
       return;
     }
+    this.localPresence?.(data.projectId, RT_EVENTS.laser, sample);
     const payload: PresenceLaser = {
       participantId: data.participant.id,
       x: sample.x,
@@ -336,6 +338,7 @@ export class RealtimeGateway
       return;
     }
     this.trackPresent(data, !!present.frameId);
+    this.localPresence?.(data.projectId, RT_EVENTS.present, present);
     // The roster carries the latest state, so an over-budget update is coalesced.
     data.limiter.relay(
       'present',
@@ -357,6 +360,7 @@ export class RealtimeGateway
       return;
     }
     const payload: PresenceSelection = { participantId: data.participant.id, ...selection };
+    this.localPresence?.(data.projectId, RT_EVENTS.selection, selection);
     // Peers must end on the latest selection, so an over-budget update is coalesced.
     data.limiter.relay(
       'selection',
@@ -438,6 +442,28 @@ export class RealtimeGateway
     event: typeof RT_EVENTS.mutation | typeof RT_EVENTS.mutations,
     payload: unknown,
   ): void {
+    this.server.to(roomOf(projectId)).emit(event, payload);
+  }
+
+  // --- Desktop sync: presence of the people on the server a project lives on ---
+
+  /** Participants on the remote server of a server-backed project (desktop sync relay). */
+  private readonly remoteRosters = new Map<string, Participant[]>();
+  /**
+   * Set by the desktop sync relay: this computer's user moved their cursor, selection,
+   * laser or presenting state in a server-backed project; pass it to the server.
+   */
+  localPresence: ((projectId: string, event: string, body: unknown) => void) | null = null;
+
+  /** The server's roster for a project changed (null = the relay closed). */
+  setRemoteRoster(projectId: string, participants: Participant[] | null): void {
+    if (participants?.length) this.remoteRosters.set(projectId, participants);
+    else if (!this.remoteRosters.delete(projectId)) return;
+    if (this.rooms.has(projectId)) this.broadcastRoster(projectId);
+  }
+
+  /** A server collaborator's cursor / selection / laser sample. */
+  relayRemotePresence(projectId: string, event: string, payload: unknown): void {
     this.server.to(roomOf(projectId)).emit(event, payload);
   }
 
@@ -556,7 +582,10 @@ export class RealtimeGateway
 
   private broadcastRoster(projectId: string): void {
     // Read without creating: the last socket leaving must not leave an empty room behind.
-    const participants = [...(this.rooms.get(projectId)?.values() ?? [])];
+    const participants = [
+      ...(this.rooms.get(projectId)?.values() ?? []),
+      ...(this.remoteRosters.get(projectId) ?? []),
+    ];
     this.server.to(roomOf(projectId)).emit(RT_EVENTS.roster, participants);
   }
 

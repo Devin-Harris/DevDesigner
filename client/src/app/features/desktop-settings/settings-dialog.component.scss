@@ -1,0 +1,151 @@
+@use '../../shared/features/projects-overlay/overlay-buttons';
+
+:host {
+   display: block;
+   height: 100%;
+}
+
+.settings {
+   display: flex;
+   height: 100%;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+}
+
+.side {
+   display: flex;
+   flex: 0 0 200px;
+   flex-direction: column;
+   gap: 2px;
+   padding: 18px 10px;
+   border-right: 1px solid var(--dd-border);
+}
+
+.title {
+   margin: 0 8px 12px;
+   font-family: var(--dd-display);
+   font-size: 18px;
+}
+
+.side-item {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 7px 10px;
+   border: 0;
+   border-radius: var(--dd-radius-sm);
+   background: none;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 13px;
+   text-align: left;
+   cursor: pointer;
+
+   &:hover {
+      color: var(--dd-text);
+   }
+
+   &.on {
+      background: color-mix(in srgb, var(--dd-primary) 14%, transparent);
+      color: var(--dd-text);
+   }
+}
+
+.main {
+   position: relative;
+   flex: 1 1 auto;
+   overflow-y: auto;
+   padding: 18px 28px 28px;
+}
+
+.close {
+   position: absolute;
+   top: 12px;
+   right: 12px;
+}
+
+.h {
+   margin: 22px 0 4px;
+   font-size: 14px;
+
+   &:first-of-type {
+      margin-top: 4px;
+   }
+}
+
+.lead,
+.hint {
+   margin: 0 0 10px;
+   color: var(--dd-text-muted);
+   font-size: 13px;
+   line-height: 1.5;
+}
+
+.hint {
+   margin-top: 8px;
+   font-size: 12px;
+}
+
+.row {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 8px;
+   margin-top: 8px;
+}
+
+.path {
+   display: block;
+   padding: 6px 8px;
+   border-radius: var(--dd-radius-sm);
+   background: color-mix(in srgb, var(--dd-text) 6%, transparent);
+   font-size: 12px;
+   word-break: break-all;
+}
+
+.keep {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   font-size: 13px;
+}
+
+.num {
+   width: 56px;
+   padding: 4px 6px;
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   background: transparent;
+   color: inherit;
+   font: inherit;
+}
+
+.backups {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   margin-top: 10px;
+}
+
+.backup {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 12px;
+   padding: 6px 8px;
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+}
+
+.backup-text {
+   display: flex;
+   flex-direction: column;
+}
+
+.backup-label {
+   font-size: 13px;
+}
+
+.backup-date {
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isAppUrl, loadOrCreateSecret, pickPort, resolvePaths, serverEnv } from './config';
+import { isAppUrl, loadOrCreateSecret, loadOrCreateTokenKey, pickPort, resolvePaths, serverEnv } from './config';
 
 describe('desktop config', () => {
   it('keeps app links in the window and sends everything else out', () => {
@@ -83,5 +83,18 @@ describe('hostedServerUrl', () => {
     );
     expect(hostedServerUrl({}, {})).toBe('');
     expect(hostedServerUrl(null, {})).toBe('');
+  });
+
+  it('keeps the token key encrypted by the keychain and stable across launches', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dd-key-'));
+    const box = {
+      isEncryptionAvailable: () => true,
+      encryptString: (p: string) => Buffer.from(`X${p}`),
+      decryptString: (b: Buffer) => b.toString().slice(1),
+    };
+    const key = loadOrCreateTokenKey(dir, box);
+    expect(key.length).toBeGreaterThanOrEqual(32);
+    expect(readFileSync(join(dir, 'token-key.enc'), 'utf8')).toBe(`X${key}`);
+    expect(loadOrCreateTokenKey(dir, box)).toBe(key);
   });
 });

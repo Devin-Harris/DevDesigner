@@ -14,4 +14,5 @@ if [ -z "$JWT_SECRET" ]; then
 fi
 # Same-origin by default; set PUBLIC_APP_URL / CORS_ORIGIN when serving on a public domain.
 export CORS_ORIGIN="${CORS_ORIGIN:-${PUBLIC_APP_URL:-http://localhost:${PORT:-3000}}}"
+export SELF_HOSTED="${SELF_HOSTED:-true}"
 exec node dist/src/main.js

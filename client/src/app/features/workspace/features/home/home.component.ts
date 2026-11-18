@@ -86,6 +86,10 @@ export class HomeComponent {
    protected readonly showcase = HOME_SHOWCASE;
    protected readonly mcpConfig = MCP_CONFIG;
    protected readonly mcpCommand = MCP_COMMAND;
+   protected readonly downloads = DESKTOP_DOWNLOADS;
+   protected readonly releasesUrl = DESKTOP_RELEASES_URL;
+   /** The visitor's OS, to highlight its download. */
+   protected readonly platform = detectPlatform(globalThis.navigator?.userAgent ?? '');
    protected readonly mcpCopied = signal<'config' | 'command' | null>(null);
 
    protected async copyMcp(which: 'config' | 'command'): Promise<void> {
@@ -1087,4 +1091,24 @@ export class HomeComponent {
       this.projects.select(null);
       this.projects.loadProjects();
    }
+}
+
+/** GitHub Releases of the desktop app (desktop/electron-builder.yml `publish`). */
+const DESKTOP_RELEASES_URL = 'https://github.com/Devin-Harris/DevDesigner/releases';
+const latest = (file: string): string => `${DESKTOP_RELEASES_URL}/latest/download/${file}`;
+
+/** Stable file names (no version) set by electron-builder.yml `artifactName`. */
+const DESKTOP_DOWNLOADS = [
+   { id: 'windows', label: 'Windows', file: 'DevDesigner-Setup.exe', url: latest('DevDesigner-Setup.exe') },
+   { id: 'mac-arm', label: 'macOS (Apple silicon)', file: 'DevDesigner-arm64.dmg', url: latest('DevDesigner-arm64.dmg') },
+   { id: 'mac-intel', label: 'macOS (Intel)', file: 'DevDesigner-x64.dmg', url: latest('DevDesigner-x64.dmg') },
+   { id: 'linux', label: 'Linux', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
+] as const;
+
+function detectPlatform(ua: string): string | null {
+   if (/Windows/i.test(ua)) return 'windows';
+   // Browsers report Intel on Apple silicon too; Apple silicon is the common case now.
+   if (/Mac OS X|Macintosh/i.test(ua)) return 'mac-arm';
+   if (/Linux/i.test(ua) && !/Android/i.test(ua)) return 'linux';
+   return null;
 }

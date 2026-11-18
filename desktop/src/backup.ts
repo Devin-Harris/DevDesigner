@@ -38,6 +38,7 @@ export function backupClosedDatabase(
   dataDir: string,
   label: string,
   now = new Date(),
+  keep = KEEP_BACKUPS,
 ): string | null {
   if (!existsSync(databasePath)) return null;
   const dir = join(backupsDir(dataDir), `${label}-${stamp(now)}`);
@@ -47,7 +48,7 @@ export function backupClosedDatabase(
     if (existsSync(from)) copyFileSync(from, join(dir, basename(databasePath) + suffix));
   }
   writeFileSync(join(dir, 'backup.json'), JSON.stringify({ label, createdAt: now.getTime() }));
-  pruneBackups(dataDir);
+  pruneBackups(dataDir, keep);
   return dir;
 }
 

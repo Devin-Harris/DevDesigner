@@ -99,7 +99,7 @@ export class AuthService implements OnModuleInit {
       displayName: dto.displayName?.trim() || null,
       provider: null,
       providerId: null,
-      role: this.adminBootstrap.isAllowlisted(email) ? 'admin' : 'user',
+      role: await this.adminBootstrap.roleForNewAccount(email),
       lastLoginAt: new Date(),
     });
     const saved = await this.users.save(user);

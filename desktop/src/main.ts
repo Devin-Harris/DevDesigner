@@ -8,6 +8,7 @@ import {
   dialog,
   ipcMain,
   Menu,
+  safeStorage,
   shell,
   type MenuItemConstructorOptions,
 } from 'electron';
@@ -15,6 +16,7 @@ import {
   hostedServerUrl,
   isAppUrl,
   loadOrCreateSecret,
+  loadOrCreateTokenKey,
   parseLaunchArg,
   pickPort,
   PROTOCOL,
@@ -24,6 +26,7 @@ import {
 } from './config';
 import { ServerHost } from './server-host';
 import { Updater } from './updater';
+import { loadSettings, saveSettings } from './settings';
 import {
   backupClosedDatabase,
   backupsDir,
@@ -49,14 +52,19 @@ let quitting = false;
 let ready = false;
 /** Per-launch secret for the server's /api/desktop control routes. */
 const controlToken = randomBytes(32).toString('base64url');
-const updater = new Updater(() => mainWindow);
+const updater = new Updater(
+  () => mainWindow,
+  () => loadSettings(paths.dataDir).updates,
+);
 
 // --- Messages to the page (DesktopShellService), queued until it says it is ready ---
 
 type DesktopMessage =
   | { type: 'open-file'; name: string; text: string }
   | { type: 'open-project'; projectId: string }
-  | { type: 'export-project' };
+  | { type: 'export-project' }
+  | { type: 'open-settings' }
+  | { type: 'navigate'; path: string };
 
 const MAX_PROJECT_FILE_BYTES = 250 * 1024 * 1024;
 let rendererReady = false;
@@ -89,6 +97,88 @@ ipcMain.on('dd:title-bar-colors', (event, colors: { background: string; text: st
     height: TITLE_BAR_HEIGHT,
   });
 });
+
+// --- Settings page (client core/desktop/settings) ---
+
+function fromPage(event: Electron.IpcMainInvokeEvent): boolean {
+  return !!mainWindow && event.sender === mainWindow.webContents;
+}
+
+function settingsState() {
+  return {
+    settings: loadSettings(paths.dataDir),
+    version: app.getVersion(),
+    dataDir: paths.dataDir,
+    backups: listBackups(paths.dataDir).map((b) => ({
+      id: basename(b.dir),
+      label: b.label,
+      createdAt: b.createdAt,
+    })),
+  };
+}
+
+ipcMain.handle('dd:settings:get', (event) => (fromPage(event) ? settingsState() : null));
+
+ipcMain.handle('dd:settings:set', (event, patch: unknown) => {
+  if (!fromPage(event)) return null;
+  saveSettings(paths.dataDir, patch);
+  return settingsState();
+});
+
+ipcMain.handle('dd:settings:action', async (event, action: { type?: string; id?: string }) => {
+  if (!fromPage(event)) return null;
+  switch (action?.type) {
+    case 'open-data-folder':
+      await shell.openPath(paths.dataDir);
+      break;
+    case 'open-backups-folder':
+      mkdirSync(backupsDir(paths.dataDir), { recursive: true });
+      await shell.openPath(backupsDir(paths.dataDir));
+      break;
+    case 'open-crash-folder':
+      await shell.openPath(app.getPath('crashDumps'));
+      break;
+    case 'open-server-log':
+      if (server) await shell.openPath(server.logFile);
+      break;
+    case 'backup-now':
+      await backupNow();
+      break;
+    case 'check-updates':
+      await updater.checkManually();
+      break;
+    case 'restore':
+      await restoreFromSettings(String(action.id ?? ''));
+      break;
+  }
+  return settingsState();
+});
+
+/** Settings > Backups > Restore: confirm, then swap the database and restart. */
+async function restoreFromSettings(id: string): Promise<void> {
+  const backup = listBackups(paths.dataDir).find((b) => basename(b.dir) === id);
+  if (!backup || !mainWindow) return;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Restore backup',
+    message: `Restore the backup from ${new Date(backup.createdAt).toLocaleString()}?`,
+    detail:
+      'DevDesigner restarts with the data as it was then. Your current data is backed up first, so this can be undone from the same list.',
+    buttons: ['Restore and restart', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  if (response !== 0) return;
+  quitting = true;
+  server?.stop();
+  // Give the server a moment to release the database file.
+  await new Promise((r) => setTimeout(r, 1000));
+  const keep = loadSettings(paths.dataDir).backupsToKeep;
+  backupClosedDatabase(paths.databasePath, paths.dataDir, 'before-restore', new Date(), keep + 1);
+  restoreBackup(backup, paths.databasePath);
+  app.relaunch();
+  app.exit(0);
+}
 
 ipcMain.on('dd:renderer-ready', (event) => {
   if (event.sender !== mainWindow?.webContents) return;
@@ -184,7 +274,13 @@ async function start(): Promise<void> {
   const version = app.getVersion();
   const previous = previousVersionIfChanged(paths.dataDir, version);
   const upgradeBackup = previous
-    ? backupClosedDatabase(paths.databasePath, paths.dataDir, `before-${version}-from-${previous}`)
+    ? backupClosedDatabase(
+        paths.databasePath,
+        paths.dataDir,
+        `before-${version}-from-${previous}`,
+        new Date(),
+        loadSettings(paths.dataDir).backupsToKeep,
+      )
     : null;
 
   try {
@@ -224,6 +320,7 @@ async function startServer(): Promise<void> {
     {
       ...serverEnv(paths, port, loadOrCreateSecret(paths.dataDir), hostedUrl()),
       DESKTOP_CONTROL_TOKEN: controlToken,
+      SYNC_TOKEN_KEY: loadOrCreateTokenKey(paths.dataDir, safeStorage),
     },
     paths.logDir,
     app.isPackaged,
@@ -472,6 +569,11 @@ function buildMenu(recent: RecentProject[]): Menu {
         },
         { type: 'separator' },
         { label: 'Back Up Database…', click: () => void backupNow() },
+        {
+          label: 'Settings…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => sendToPage({ type: 'open-settings' }),
+        },
         { label: 'Open Data Folder', click: () => void shell.openPath(paths.dataDir) },
         {
           label: 'Open Backups Folder',
@@ -503,6 +605,8 @@ function buildMenu(recent: RecentProject[]): Menu {
     {
       role: 'help',
       submenu: [
+        { label: 'Guides', click: () => sendToPage({ type: 'navigate', path: '/guide' }) },
+        { type: 'separator' },
         { label: 'Check for Updates…', click: () => void updater.checkManually() },
         { type: 'separator' },
         { label: 'Show Server Log', click: () => server && void shell.openPath(server.logFile) },

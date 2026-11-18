@@ -1,4 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { ProjectFileService } from '../../shared/services/project-file.service';
@@ -8,7 +10,9 @@ import { runtimeConfig } from '../config/runtime-config';
 export type DesktopMessage =
    | { type: 'open-file'; name: string; text: string }
    | { type: 'open-project'; projectId: string }
-   | { type: 'export-project' };
+   | { type: 'export-project' }
+   | { type: 'open-settings' }
+   | { type: 'navigate'; path: string };
 
 interface DesktopEvents {
    onMessage(listener: (message: DesktopMessage) => void): void;
@@ -25,6 +29,10 @@ export class DesktopShellService {
    private readonly store = inject(ProjectsStore);
    private readonly projectFile = inject(ProjectFileService);
    private readonly snackBar = inject(MatSnackBar);
+   private readonly dialog = inject(MatDialog);
+   private readonly router = inject(Router);
+   /** Bumped by File > Settings; the app shell opens the (shared) Settings dialog. */
+   readonly settingsRequests = signal(0);
 
    start(): void {
       const events = (globalThis as { devdesigner?: { events?: DesktopEvents } }).devdesigner?.events;
@@ -46,6 +54,15 @@ export class DesktopShellService {
                this.snackBar.open('That project is not on this computer.', 'Dismiss', { duration: 5000 });
             }
             return;
+         case 'navigate':
+            // In-app paths only (Help > Guides).
+            if (message.path.startsWith('/') && !message.path.startsWith('//')) {
+               this.dialog.closeAll();
+               await this.router.navigateByUrl(message.path);
+            }
+            return;
+         case 'open-settings':
+            return this.openSettings();
          case 'export-project': {
             const project = this.store.selected();
             if (!project) {
@@ -55,6 +72,11 @@ export class DesktopShellService {
             return this.projectFile.download(project.id, project.name);
          }
       }
+   }
+
+   /** File > Settings (Ctrl+,): AppComponent opens the dialog. */
+   private openSettings(): void {
+      this.settingsRequests.update((n) => n + 1);
    }
 
    private async openFile(name: string, text: string): Promise<void> {

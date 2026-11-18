@@ -12,7 +12,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type {
   AddSyncRemoteDto,
+  UpdateSyncRemoteDto,
   ProjectExportFile,
+  MergeChoice,
+  MergeConflict,
+  SchemaModel,
   ProjectSummary,
   SyncDefaultRemoteResponse,
   SyncLinkResponse,
@@ -20,6 +24,7 @@ import type {
   SyncRemoteResponse,
   SyncStatus,
 } from '@devdesigner/shared';
+import { mergeSchemas } from '@devdesigner/shared';
 import { Project } from '../../projects/projects/project.entity';
 import { ProjectsService } from '../../projects/projects/projects.service';
 import { setRemoteEntityFallback } from '../../collaboration/access/entity-project-resolver';
@@ -33,6 +38,7 @@ import {
 import { SyncRelay } from './sync-relay';
 import { decideReconnect } from './sync-decision';
 import { SyncLinkEntity, SyncRemoteEntity } from './sync.entity';
+import { TokenCipher } from './token-cipher';
 
 /** Name of the built-in hosted remote in the Sync panel. */
 export const DEFAULT_REMOTE_NAME = 'DevDesigner Cloud';
@@ -66,6 +72,7 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly remoteCache = new Map<string, SyncRemoteEntity>();
   private readonly mirrorTimers = new Map<string, NodeJS.Timeout>();
   private readonly mirrorPendingSince = new Map<string, number>();
+  private cipher = new TokenCipher('');
 
   constructor(
     @InjectRepository(SyncRemoteEntity) private readonly remotes: Repository<SyncRemoteEntity>,
@@ -82,6 +89,8 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
 
   async onApplicationBootstrap(): Promise<void> {
     if (!this.enabled) return;
+    this.cipher = new TokenCipher(this.config.get<string>('SYNC_TOKEN_KEY', ''));
+    await this.encryptStoredTokens();
     await this.reloadCache();
     this.relay.onRemoteChange = (projectId) => this.scheduleMirror(projectId);
     this.relay.onDisconnect = (projectId) => void this.serial(() => this.markOffline(projectId));
@@ -161,7 +170,7 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
         ownerId,
         name: dto.name.trim() || new URL(url).host,
         url,
-        token,
+        token: this.cipher.encrypt(token),
         account: me.displayName?.trim() || me.email || null,
       }),
     );
@@ -169,6 +178,52 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
     return toRemoteResponse(saved);
   }
 
+  /**
+   * Rename a server, or point it at a new URL / token. A new URL or token is checked
+   * (the server must accept the token) before anything is saved; its synced projects
+   * then reconnect with the new details.
+   */
+  async updateRemote(
+    ownerId: string,
+    remoteId: string,
+    dto: UpdateSyncRemoteDto,
+  ): Promise<SyncRemoteResponse> {
+    const remote = await this.ownRemote(ownerId, remoteId);
+    let url = remote.url;
+    if (dto.url !== undefined && dto.url.trim()) {
+      try {
+        url = normalizeRemoteUrl(dto.url);
+      } catch {
+        throw new BadRequestException(
+          'Enter the remote server URL, like https://devdesigner.example.com.',
+        );
+      }
+    }
+    const newToken = dto.token?.trim() || null;
+    const connectionChanged = url !== remote.url || newToken !== null;
+    if (connectionChanged) {
+      const token = newToken ?? this.tokenOf(remote);
+      const me = await this.call(
+        () => new RemoteClient(url, token).me(),
+        'Could not reach the server',
+      );
+      if (!me) throw new BadRequestException('That server did not accept the API token.');
+      remote.url = url;
+      if (newToken) remote.token = this.cipher.encrypt(newToken);
+      remote.account = me.displayName?.trim() || me.email || null;
+    }
+    if (dto.name !== undefined) remote.name = dto.name.trim() || new URL(remote.url).host;
+    const saved = await this.remotes.save(remote);
+    this.remoteCache.set(saved.id, saved);
+    if (connectionChanged) {
+      const links = await this.links.find({ where: { remoteId } });
+      for (const link of links) this.relay.close(link.projectId);
+      void this.serial(() => this.checkLinks(links.filter((l) => l.autoSync)));
+    }
+    return toRemoteResponse(saved);
+  }
+
+  /** Remove a server. Its synced projects stay on this computer as ordinary local projects. */
   async removeRemote(ownerId: string, remoteId: string): Promise<void> {
     const gone = await this.links.find({ where: { remoteId } });
     const result = await this.remotes.delete({ id: remoteId, ownerId });
@@ -265,7 +320,8 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
   async resolve(
     ownerId: string,
     projectId: string,
-    keep: 'server' | 'mine',
+    keep: 'server' | 'mine' | 'merge',
+    choices: Record<string, MergeChoice> = {},
   ): Promise<SyncLinkResult> {
     await this.ownProject(ownerId, projectId);
     return this.serial(async () => {
@@ -276,7 +332,19 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
         () => this.remoteRevision(client, projectId),
         'The server is not reachable',
       );
-      if (keep === 'server') {
+      if (keep === 'merge') {
+        const [server, local] = await Promise.all([
+          this.call(() => client.exportProject(projectId), 'Could not load the server version'),
+          this.projectsService.exportProject(projectId, 'OWNER'),
+        ]);
+        const base = this.baseOf(link);
+        if (!base) throw new BadRequestException('There is no common version to merge from.');
+        const merged = mergeSchemas(base, local.schema, server.schema, choices);
+        await this.call(
+          () => this.pushMerged(link, client, local, server, merged.schema),
+          'Could not update the server',
+        );
+      } else if (keep === 'server') {
         const file = await this.call(
           () => client.exportProject(projectId),
           'Could not load the server version',
@@ -290,6 +358,7 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
         );
         link.mirroredRevision = pushed.revision;
         link.localRevisionAtMirror = projectRevision(projectId);
+        link.baseSchema = JSON.stringify(file.schema);
       }
       await this.goLive(link, remote);
       return { link: toLinkResponse(link), projectId };
@@ -356,7 +425,10 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
       const pushed = await client.mirrorContent(link.projectId, file);
       link.mirroredRevision = pushed.revision;
       link.localRevisionAtMirror = projectRevision(link.projectId);
+      link.baseSchema = JSON.stringify(file.schema);
       this.log.log(`sent offline edits of ${link.projectId} to ${remote.name}`);
+    } else if (step === 'conflict' && (await this.tryAutoMerge(link, client))) {
+      this.log.log(`merged edits of ${link.projectId} with ${remote.name} (no overlapping changes)`);
     } else if (step === 'conflict') {
       link.status = 'conflict';
       link.lastError = null;
@@ -376,7 +448,7 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
     link.lastError = null;
     link.lastSyncedAt = new Date();
     await this.save(link);
-    if (link.autoSync) this.relay.ensure(link.projectId, remote);
+    if (link.autoSync) this.relay.ensure(link.projectId, remote, this.tokenOf(remote));
     else this.relay.close(link.projectId);
   }
 
@@ -457,6 +529,68 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
+  /** Items changed on both sides, if the project were merged now (for the compare view). */
+  async mergePreview(
+    ownerId: string,
+    projectId: string,
+  ): Promise<{ canMerge: boolean; conflicts: MergeConflict[] }> {
+    await this.ownProject(ownerId, projectId);
+    const link = await this.requireLink(projectId);
+    const base = this.baseOf(link);
+    if (!base) return { canMerge: false, conflicts: [] };
+    const remote = await this.remotes.findOneOrFail({ where: { id: link.remoteId } });
+    const [server, local] = await Promise.all([
+      this.call(
+        () => this.client(remote).exportProject(projectId),
+        'Could not load the server version',
+      ),
+      this.projectsService.exportProject(projectId, 'OWNER'),
+    ]);
+    return { canMerge: true, conflicts: mergeSchemas(base, local.schema, server.schema).conflicts };
+  }
+
+  /**
+   * Both sides changed: merge them when no item changed on both. Covers edits that
+   * reached the server just before the connection dropped (not yet mirrored here).
+   */
+  private async tryAutoMerge(link: SyncLinkEntity, client: RemoteClient): Promise<boolean> {
+    const base = this.baseOf(link);
+    if (!base) return false;
+    const [server, local] = await Promise.all([
+      client.exportProject(link.projectId),
+      this.projectsService.exportProject(link.projectId, 'OWNER'),
+    ]);
+    const merged = mergeSchemas(base, local.schema, server.schema);
+    if (merged.conflicts.length) return false;
+    await this.pushMerged(link, client, local, server, merged.schema);
+    return true;
+  }
+
+  /** Send a merged version to the server, then mirror the server's result here. */
+  private async pushMerged(
+    link: SyncLinkEntity,
+    client: RemoteClient,
+    local: ProjectExportFile,
+    server: ProjectExportFile,
+    schema: SchemaModel,
+  ): Promise<void> {
+    const images = new Map<string, NonNullable<ProjectExportFile['images']>[number]>();
+    for (const img of [...(server.images ?? []), ...(local.images ?? [])]) images.set(img.id, img);
+    const file: ProjectExportFile = { ...local, schema, images: [...images.values()] };
+    const pushed = await client.mirrorContent(link.projectId, file);
+    const after = await client.exportProject(link.projectId);
+    await this.writeMirror(link, after, pushed.revision, { silent: false });
+  }
+
+  private baseOf(link: SyncLinkEntity): SchemaModel | null {
+    if (!link.baseSchema) return null;
+    try {
+      return JSON.parse(link.baseSchema) as SchemaModel;
+    } catch {
+      return null;
+    }
+  }
+
   /** Make the local project an id-preserving copy of the server's version. */
   private async writeMirror(
     link: SyncLinkEntity,
@@ -467,6 +601,7 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.projectsService.mirrorProjectContent(link.projectId, file, opts);
     link.mirroredRevision = remoteRevision;
     link.localRevisionAtMirror = projectRevision(link.projectId);
+    link.baseSchema = JSON.stringify(file.schema);
   }
 
   /** A local project under the server's project id, mirroring `file`, linked and live. */
@@ -544,7 +679,20 @@ export class SyncService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private client(remote: SyncRemoteEntity): RemoteClient {
-    return new RemoteClient(remote.url, remote.token);
+    return new RemoteClient(remote.url, this.tokenOf(remote));
+  }
+
+  private tokenOf(remote: SyncRemoteEntity): string {
+    return this.cipher.decrypt(remote.token);
+  }
+
+  /** Tokens saved before they were encrypted (or before a keychain existed) get encrypted now. */
+  private async encryptStoredTokens(): Promise<void> {
+    if (!this.cipher.active) return;
+    for (const remote of await this.remotes.find()) {
+      if (TokenCipher.isEncrypted(remote.token)) continue;
+      await this.remotes.update({ id: remote.id }, { token: this.cipher.encrypt(remote.token) });
+    }
   }
 
   /** Run a remote call for a user-facing request: failures become a 400 with a readable reason. */

@@ -24,6 +24,14 @@ export class SyncPanelComponent {
    readonly opened = output<string>();
 
    protected readonly adding = signal(false);
+   /** Remote being edited in place (its row shows the form). */
+   protected readonly editingId = signal<string | null>(null);
+   protected readonly editForm = new FormGroup({
+      name: new FormControl('', { nonNullable: true }),
+      url: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+      /** Blank keeps the saved token. */
+      token: new FormControl('', { nonNullable: true }),
+   });
    protected readonly busy = signal(false);
    protected readonly error = signal<string | null>(null);
    protected readonly form = new FormGroup({
@@ -59,6 +67,26 @@ export class SyncPanelComponent {
       await this.run(async () => {
          await this.sync.addRemote({ name: cloud.name, url: cloud.url, token: this.cloudForm.getRawValue().token });
          this.cloudForm.reset();
+      });
+   }
+
+   protected startEdit(remote: SyncRemoteResponse): void {
+      this.error.set(null);
+      this.adding.set(false);
+      this.editForm.reset({ name: remote.name, url: remote.url, token: '' });
+      this.editingId.set(remote.id);
+   }
+
+   protected async saveEdit(remote: SyncRemoteResponse): Promise<void> {
+      if (this.editForm.invalid || this.busy()) return;
+      const { name, url, token } = this.editForm.getRawValue();
+      await this.run(async () => {
+         await this.sync.updateRemote(remote.id, {
+            name,
+            ...(url.trim() !== remote.url ? { url: url.trim() } : {}),
+            ...(token.trim() ? { token: token.trim() } : {}),
+         });
+         this.editingId.set(null);
       });
    }
 

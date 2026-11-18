@@ -35,9 +35,11 @@ publish:
   owner: Devin-Harris
   repo: DevDesigner
   releaseType: release
+# Stable file names (no version) so the web home page can link releases/latest/download/<file>;
+# electron-updater finds the files through latest*.yml.
 win:
   target: nsis
-  artifactName: DevDesigner-Setup-${version}.${ext}
+  artifactName: DevDesigner-Setup.${ext}
 nsis:
   oneClick: false
   perMachine: false
@@ -46,8 +48,8 @@ nsis:
 mac:
   target: [dmg, zip]
   category: public.app-category.developer-tools
-  artifactName: DevDesigner-${version}-${arch}.${ext}
+  artifactName: DevDesigner-${arch}.${ext}
 linux:
   target: AppImage
   category: Development
-  artifactName: DevDesigner-${version}.${ext}
+  artifactName: DevDesigner.${ext}
