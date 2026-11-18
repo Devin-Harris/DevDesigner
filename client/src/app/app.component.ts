@@ -1,3 +1,5 @@
+import { runtimeConfig } from './core/config/runtime-config';
+import { TitleBarComponent } from './core/desktop/title-bar/title-bar.component';
 import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommandPaletteComponent } from './features/command-palette/command-palette.component';
 import { AutofocusDirective } from './shared/ui/directives/autofocus.directive';
@@ -39,6 +41,7 @@ import type { ExportImageFormat } from './core/editor-bridge/editor-actions.serv
    selector: 'dd-root',
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
+      TitleBarComponent,
       CommandPaletteComponent,
       ShortcutsSheetComponent,
       AutofocusDirective,
@@ -76,6 +79,8 @@ export class AppComponent {
    protected readonly onGuide = computed(() => {
       const path = this.routeUrl().split(/[?#]/)[0];
       if (path.startsWith('/guide')) return true;
+      // Desktop has no home page: the empty workspace keeps its islands.
+      if (runtimeConfig.desktop) return false;
       const onWorkspace = path === '/' || path === '' || path.startsWith('/projects/');
       // Home shows whenever the selected project is not one of the loaded ones (signed out,
       // no access, still loading), the same rule the workspace uses to pick home.
@@ -89,6 +94,8 @@ export class AppComponent {
    private readonly projectsApi = inject(ProjectsApiService);
 
    protected readonly toolbarPrefs = inject(ToolbarPrefsService);
+   /** Desktop app: no link sharing, home page or sign-in/out (single local account). */
+   protected readonly desktop = runtimeConfig.desktop;
 
    /** Ctrl/Cmd+K command palette. */
    protected readonly paletteOpen = signal(false);

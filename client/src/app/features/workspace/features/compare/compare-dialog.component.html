@@ -1,0 +1,85 @@
+<div class="compare">
+   <header class="head">
+      <div>
+         <h2 class="title">Compare versions</h2>
+         <p class="sub">
+            Changed on {{ data.serverName }} while you edited offline. Outlined items differ:
+            <span class="key mine">only here</span> <span class="key server">only on the server</span>
+            <span class="key changed">changed</span>
+         </p>
+      </div>
+      <button class="icon-btn" type="button" aria-label="Close" (click)="close()"><dd-icon name="close" /></button>
+   </header>
+
+   @if (loading()) {
+      <div class="state">Loading both versions…</div>
+   } @else if (!panes().length) {
+      <div class="state">Could not load both versions to compare. You can still choose one below.</div>
+   } @else {
+      <div class="body">
+         <div class="panes">
+            @for (pane of panes(); track pane.title) {
+               <section class="pane">
+                  <h3 class="pane-title">{{ pane.title }}</h3>
+                  <div class="stage">
+                     <svg class="drawing" preserveAspectRatio="xMidYMid meet" [attr.viewBox]="viewBox()">
+                        <foreignObject x="0" y="0" [attr.width]="frameSize().width" [attr.height]="frameSize().height">
+                           <img class="drawing-img" alt="" [src]="pane.image" />
+                        </foreignObject>
+                        @for (m of pane.marks; track m.key) {
+                           <rect
+                              class="mark"
+                              rx="8"
+                              [class.mine]="m.side === 'mine'"
+                              [class.server]="m.side === 'server'"
+                              [class.changed]="m.side === 'changed'"
+                              [class.focus]="focus() === m.key"
+                              [attr.height]="rect(m.box).height"
+                              [attr.width]="rect(m.box).width"
+                              [attr.x]="rect(m.box).x"
+                              [attr.y]="rect(m.box).y"
+                           />
+                        }
+                     </svg>
+                  </div>
+               </section>
+            }
+         </div>
+
+         <aside class="list">
+            <div class="list-head">
+               {{ entries().length }} {{ entries().length === 1 ? 'difference' : 'differences' }}
+               @if (focus()) {
+                  <button class="link" type="button" (click)="focus.set(null)">Show all</button>
+               }
+            </div>
+            @for (e of entries(); track e.key) {
+               <button class="entry" type="button" [class.on]="focus() === e.key" (click)="toggleFocus(e.key)">
+                  <span class="dot" [class]="e.side"></span>
+                  <span class="entry-text">
+                     <span class="entry-label">{{ e.label }}</span>
+                     <span class="entry-details">{{ e.details.join(' · ') }}</span>
+                  </span>
+               </button>
+            } @empty {
+               <p class="muted">
+                  The drawings match. Only details that are not drawn differ (for example the project name or theme).
+               </p>
+            }
+         </aside>
+      </div>
+   }
+
+   <footer class="foot">
+      @if (error()) {
+         <span class="err">{{ error() }}</span>
+      }
+      <span class="spacer"></span>
+      <button class="btn" type="button" [disabled]="busy() || loading()" (click)="choose('server')">
+         Use server version
+      </button>
+      <button class="btn primary" type="button" [disabled]="busy() || loading()" (click)="choose('mine')">
+         Keep mine
+      </button>
+   </footer>
+</div>

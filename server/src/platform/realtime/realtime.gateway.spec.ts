@@ -16,6 +16,7 @@ import type { AddressInfo } from 'node:net';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { AccessService } from '../../collaboration/access/access.service';
 import { AuthService } from '../../identity/auth/auth.service';
+import { ApiTokenService } from '../../identity/auth/api-token.service';
 import { originClientIdOf } from '../http/caller';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimePublisher } from './realtime.publisher';
@@ -34,6 +35,11 @@ describe('RealtimeGateway', () => {
     verifySession: jest.fn((_cookie?: string): { id: string; email: null } | null => null),
     me: jest.fn(),
   };
+  const apiTokens = {
+    verify: jest.fn(async (raw: string) =>
+      raw === 'dd_good' ? { id: 'token-user', email: null } : null,
+    ),
+  };
   /** The server-assigned client id each connected socket received. */
   const sessionIds = new Map<ClientSocket, string>();
   const open: ClientSocket[] = [];
@@ -46,6 +52,7 @@ describe('RealtimeGateway', () => {
         RealtimePublisher,
         { provide: AccessService, useValue: access },
         { provide: AuthService, useValue: auth },
+        { provide: ApiTokenService, useValue: apiTokens },
         { provide: ConfigService, useValue: new ConfigService({}) },
       ],
     }).compile();
@@ -223,8 +230,17 @@ describe('RealtimeGateway', () => {
     await connect({ projectId: 'snap', token: 'view-link' });
     presenter.emit(RT_EVENTS.present, { frameId: 'frame-1', step: 0 });
     await settle();
-    const room = app.get(RealtimeGateway).snapshot().find((r) => r.projectId === 'snap');
-    expect(room).toEqual({ projectId: 'snap', participants: 2, editors: 1, viewers: 1, presenters: 1 });
+    const room = app
+      .get(RealtimeGateway)
+      .snapshot()
+      .find((r) => r.projectId === 'snap');
+    expect(room).toEqual({
+      projectId: 'snap',
+      participants: 2,
+      editors: 1,
+      viewers: 1,
+      presenters: 1,
+    });
   });
 
   it('refuses a socket without access', async () => {
@@ -333,6 +349,40 @@ describe('RealtimeGateway', () => {
       sender.emit(RT_EVENTS.selection, { tableIds: ['x'.repeat(70_000)], relationshipIds: [] });
       await gone;
       expect(sender.connected).toBe(false);
+    });
+  });
+
+  describe('API-token sockets (desktop sync relay)', () => {
+    function connectRaw(headers: Record<string, string>): Promise<ClientSocket> {
+      const socket = io(url, {
+        transports: ['websocket'],
+        auth: { projectId: 'p-token' },
+        forceNew: true,
+        reconnection: false,
+        extraHeaders: headers,
+      });
+      open.push(socket);
+      return new Promise((resolve, reject) => {
+        socket.once(RT_EVENTS.roster, () => resolve(socket));
+        socket.once('connect_error', reject);
+        socket.once('disconnect', () => reject(new Error('disconnected')));
+      });
+    }
+
+    it('accepts a non-browser socket with a valid API token, as that user', async () => {
+      await connectRaw({ authorization: 'Bearer dd_good' });
+      expect(access.resolveProjectAccess).toHaveBeenCalledWith('p-token', 'token-user', null);
+    });
+
+    it('does not treat a bad token as its user (access is resolved anonymously)', async () => {
+      access.resolveProjectAccess.mockRejectedValue(new Error('no access'));
+      await expect(connectRaw({ authorization: 'Bearer dd_bad' })).rejects.toThrow();
+      expect(access.resolveProjectAccess).not.toHaveBeenCalledWith('p-token', 'token-user', null);
+    });
+
+    it('refuses a non-browser socket with neither Origin nor a token at the handshake', async () => {
+      await expect(connectRaw({})).rejects.toThrow();
+      expect(access.resolveProjectAccess).not.toHaveBeenCalled();
     });
   });
 });

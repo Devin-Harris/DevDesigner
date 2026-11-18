@@ -37,6 +37,8 @@ import type { Namespace, Socket } from 'socket.io';
 import { AccessService } from '../../collaboration/access/access.service';
 import { guestOwnerId, presentedGuestId } from '../../identity/auth/guest-id';
 import { AuthService } from '../../identity/auth/auth.service';
+import { ApiTokenService } from '../../identity/auth/api-token.service';
+import type { AuthUser } from '../../identity/auth/auth.types';
 import { ACCESS_REVOKED_EVENT, type AccessRevokedEvent } from './access-events';
 import { track } from '../analytics/track';
 import {
@@ -47,6 +49,7 @@ import {
   REAUTHORIZE_INTERVAL_MS,
   RelayLimiter,
   allowRealtimeRequest,
+  bearerToken,
   allowedOrigins,
   configureAllowedOrigins,
   clientIp,
@@ -154,6 +157,7 @@ export class RealtimeGateway
     private readonly access: AccessService,
     private readonly auth: AuthService,
     config: ConfigService,
+    @Optional() private readonly apiTokens?: ApiTokenService,
     @Optional() private readonly events?: EventEmitter2,
   ) {
     configureAllowedOrigins(config.get<string>('CORS_ORIGIN'));
@@ -193,7 +197,7 @@ export class RealtimeGateway
       return;
     }
 
-    const user = this.auth.verifySession(client.handshake.headers.cookie);
+    const user = await this.socketUser(client);
     let accessLevel: AccessLevel;
     try {
       accessLevel = await this.access.resolveProjectAccess(projectId, user?.id ?? guestId, token);
@@ -233,11 +237,16 @@ export class RealtimeGateway
     room.set(client.id, participant);
     this.broadcastRoster(projectId);
     // Internal bus only: no DB work and nothing sent to peers.
-    track(this.events, 'realtime.joined', { access: accessLevel, roomSize: room.size }, {
-      projectId,
-      principal: principalOf(user?.id, guestId, token),
-      source: 'web',
-    });
+    track(
+      this.events,
+      'realtime.joined',
+      { access: accessLevel, roomSize: room.size },
+      {
+        projectId,
+        principal: principalOf(user?.id, guestId, token),
+        source: 'web',
+      },
+    );
   }
 
   handleDisconnect(client: Socket): void {
@@ -267,8 +276,14 @@ export class RealtimeGateway
         principal: principalOf(data.userId, data.guestId ?? null, data.token ?? null),
         source: 'web' as const,
       };
-      if (data.presentingSince) track(this.events, 'present.ended', { durationMs: now - data.presentingSince }, extra);
-      track(this.events, 'realtime.left', { sessionMs: now - data.joinedAt, roomSize: room?.size ?? 0 }, extra);
+      if (data.presentingSince)
+        track(this.events, 'present.ended', { durationMs: now - data.presentingSince }, extra);
+      track(
+        this.events,
+        'realtime.left',
+        { sessionMs: now - data.joinedAt, roomSize: room?.size ?? 0 },
+        extra,
+      );
     }
   }
 
@@ -397,18 +412,53 @@ export class RealtimeGateway
     return { to, event: { ...event, originClientId: null } };
   }
 
+  /**
+   * Who a socket is: the browser session cookie, or for a non-browser client (the
+   * desktop sync relay) an API token in its `Authorization: Bearer` handshake header.
+   */
+  private async socketUser(socket: Socket): Promise<AuthUser | null> {
+    const session = this.auth.verifySession(socket.handshake.headers.cookie);
+    if (session) return session;
+    const token = bearerToken(socket.handshake.headers.authorization);
+    if (!token || !this.apiTokens) return null;
+    try {
+      return await this.apiTokens.verify(token);
+    } catch {
+      return null; // over the token's rate limit
+    }
+  }
+
+  /**
+   * Desktop sync: pass a server-backed project's change (received from the server's own
+   * realtime socket) to this computer's editors. Nothing is persisted or re-counted here:
+   * the server already stored it, and the local mirror catches up separately.
+   */
+  relayRemote(
+    projectId: string,
+    event: typeof RT_EVENTS.mutation | typeof RT_EVENTS.mutations,
+    payload: unknown,
+  ): void {
+    this.server.to(roomOf(projectId)).emit(event, payload);
+  }
+
   /** Re-resolve one socket's access: drop it if gone, update its roster level if changed. */
   private async reauthorize(socket: Socket): Promise<void> {
     const data = socket.data as SocketData | undefined;
     if (!data?.participant) return;
-    // The handshake cookie is verified again, so an expired session no longer counts.
-    const user = this.auth.verifySession(socket.handshake.headers.cookie);
+    // The handshake cookie (or API token) is verified again, so an expired session or
+    // a revoked token no longer counts.
+    const user = await this.socketUser(socket);
     let level: AccessLevel;
     try {
       // Fresh: a re-check after a revocation must never see a cached grant.
-      level = await this.access.resolveProjectAccess(data.projectId, user?.id ?? data.guestId, data.token, {
-        fresh: true,
-      });
+      level = await this.access.resolveProjectAccess(
+        data.projectId,
+        user?.id ?? data.guestId,
+        data.token,
+        {
+          fresh: true,
+        },
+      );
     } catch (err) {
       if (err instanceof ForbiddenException || err instanceof NotFoundException) {
         socket.disconnect(true);
@@ -446,9 +496,16 @@ export class RealtimeGateway
       let viewers = 0;
       for (const participant of room.values()) if (participant.accessLevel === 'VIEW') viewers++;
       const presenters = this.server
-        ? this.socketsIn(projectId).filter((s) => (s.data as SocketData).presentingSince != null).length
+        ? this.socketsIn(projectId).filter((s) => (s.data as SocketData).presentingSince != null)
+            .length
         : 0;
-      return { projectId, participants: room.size, editors: room.size - viewers, viewers, presenters };
+      return {
+        projectId,
+        participants: room.size,
+        editors: room.size - viewers,
+        viewers,
+        presenters,
+      };
     });
   }
 

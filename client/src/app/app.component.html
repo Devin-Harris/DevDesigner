@@ -1,4 +1,7 @@
-<div class="shell">
+<div class="shell" [class.desktop]="desktop">
+   @if (desktop) {
+      <dd-title-bar />
+   }
    <div class="body">
       <router-outlet />
    </div>
@@ -128,13 +131,15 @@
                <span class="count">{{ editorActions.decks().length }}</span>
             }
          </button>
-         @if (editorActions.accessMode() === 'OWNER') {
+         @if (editorActions.accessMode() === 'OWNER' && !desktop) {
             <button class="nav-btn primary" type="button" (click)="share()">
                <dd-icon name="share" />
                Share
             </button>
          }
-         @if (auth.currentUser(); as user) {
+         @if (desktop) {
+            <!-- Desktop: one local account, nothing to sign in or out of. -->
+         } @else if (auth.currentUser(); as user) {
             <button
                class="nav-icon"
                type="button"
@@ -159,9 +164,11 @@
          <div class="menu-brand">
             <span class="brand-tile sm"><dd-icon name="schema" /></span>DevDesigner
          </div>
-         <button class="dd-menu-item" type="button" (click)="goHome(); close()">
-            <dd-icon name="home" />Home page
-         </button>
+         @if (!desktop) {
+            <button class="dd-menu-item" type="button" (click)="goHome(); close()">
+               <dd-icon name="home" />Home page
+            </button>
+         }
          <button class="dd-menu-item" type="button" (click)="paletteOpen.set(true); close()">
             <dd-icon name="search" />Projects &amp; commands<span class="kbd">Ctrl K</span>
          </button>
@@ -190,7 +197,7 @@
             <button class="dd-menu-item" type="button" placement="right-start" [ddPopoverTrigger]="exportMenu">
                <dd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span>
             </button>
-            @if (editorActions.accessMode() === 'OWNER') {
+            @if (editorActions.accessMode() === 'OWNER' && !desktop) {
                <button class="dd-menu-item" type="button" (click)="share(); close()">
                   <dd-icon name="share" />Share &amp; link access
                </button>
@@ -227,9 +234,11 @@
             <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
                <dd-icon name="key" />API tokens for MCP
             </button>
-            <button class="dd-menu-item" type="button" (click)="signOut(); close()">
-               <dd-icon name="logout" />Sign out
-            </button>
+            @if (!desktop) {
+               <button class="dd-menu-item" type="button" (click)="signOut(); close()">
+                  <dd-icon name="logout" />Sign out
+               </button>
+            }
          }
       </div>
    </ng-template>
@@ -360,16 +369,28 @@
    </ng-template>
 
    @if (paletteOpen()) {
-      <dd-command-palette (closed)="paletteOpen.set(false)" />
+      @defer {
+         <dd-command-palette (closed)="paletteOpen.set(false)" />
+      }
    }
 
-   <input #importInput type="file" accept=".json,application/json" hidden (change)="importProjectFile($event)" />
+   <input
+      #importInput
+      type="file"
+      accept=".json,.devdesigner,application/json"
+      hidden
+      (change)="importProjectFile($event)"
+   />
 </div>
 
 @if (shortcutsOpen()) {
-   <dd-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
+   @defer {
+      <dd-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
+   }
 }
 
 @if (toolbarPrefs.panelOpen()) {
-   <dd-toolbar-customize-panel />
+   @defer {
+      <dd-toolbar-customize-panel />
+   }
 }

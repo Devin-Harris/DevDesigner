@@ -1,0 +1,42 @@
+# Self-hosted DevDesigner: web app + API in one container, all data in /data.
+# Desktop apps can sync with it (Sync > Add server). See docs/self-hosting.md.
+#
+#   docker build -f Dockerfile.selfhost -t devdesigner .
+#   docker run -d -p 3000:3000 -v devdesigner-data:/data --name devdesigner devdesigner
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.base.json .npmrc ./
+COPY shared/package.json shared/
+COPY server/package.json server/
+COPY client/package.json client/
+COPY mcp/package.json mcp/
+COPY desktop/package.json desktop/
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+RUN npm ci -w shared -w server -w client --include-workspace-root
+COPY shared shared
+COPY server server
+COPY client client
+# The client is served by the server itself, so it talks to the API on its own origin.
+RUN npm run build:shared && npm run build -w server && API_URL=same-origin npm run build -w client
+RUN npm prune --omit=dev -w shared -w server --include-workspace-root
+
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=3000 \
+    DATABASE_PATH=/data/devdesigner.sqlite \
+    CLIENT_DIR=/app/client \
+    TRUST_PROXY_HOPS=0
+COPY --from=build /app/node_modules node_modules
+COPY --from=build /app/shared/package.json shared/package.json
+COPY --from=build /app/shared/dist shared/dist
+COPY --from=build /app/server/package.json server/package.json
+COPY --from=build /app/server/node_modules server/node_modules
+COPY --from=build /app/server/dist server/dist
+COPY --from=build /app/client/dist/client/browser client
+COPY server/scripts/selfhost-start.sh /usr/local/bin/devdesigner-start
+RUN chmod +x /usr/local/bin/devdesigner-start && mkdir -p /data
+VOLUME /data
+EXPOSE 3000
+WORKDIR /app/server
+CMD ["devdesigner-start"]

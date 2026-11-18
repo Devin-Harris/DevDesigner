@@ -245,6 +245,24 @@ describe('remapProjectIds', () => {
     expect(msg.diagramId).toBe(out.sequenceDiagrams[0].id);
   });
 
+  it('keeps every id with keepIds, still dropping dangling references', () => {
+    const source = parseProjectExport(sampleFile()).schema;
+    const out = plan({ keepIds: true });
+    const ids = (s: typeof source) => [
+      ...s.tables.flatMap((t) => [t.id, ...t.columns.map((c) => c.id), ...(t.indexes ?? []).map((i) => i.id)]),
+      ...s.relationships.map((r) => r.id),
+      ...s.elements.map((e) => e.id),
+      ...s.sequenceDiagrams.map((d) => d.id),
+      ...s.lifelines.map((l) => l.id),
+      ...s.sequenceMessages.map((m) => m.id),
+    ];
+    expect(ids(out).every((id) => ids(source).includes(id))).toBe(true);
+    expect(out.tables.find((t) => t.name === 'users')!.id).toBe('t-users');
+    expect(out.tables[0].groupId).toBe(source.tables[0].groupId);
+    // Same pruning as a normal import: the dangling relationship is still dropped.
+    expect(out.relationships).toHaveLength(1);
+  });
+
   it('shifts every coordinate', () => {
     const out = plan({ dx: 100, dy: 50 });
     expect(out.tables.find((t) => t.name === 'users')!.x).toBe(110);

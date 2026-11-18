@@ -8,7 +8,7 @@ import {
    type UploadImageDto,
    type UploadImageResponse,
 } from '@devdesigner/shared';
-import { environment } from '../../../../environments/environment';
+import { runtimeConfig } from '../../../core/config/runtime-config';
 import { ApiClientService } from '../../../core/http/api-client.service';
 import { isSandboxId } from '../../../core/sandbox/sandbox.helpers';
 
@@ -163,7 +163,9 @@ export class ElementImagesService {
    private blob(fileId: string): Promise<Blob | null> {
       let pending = this.blobs.get(fileId);
       if (!pending) {
-         pending = firstValueFrom(this.http.get(`${environment.apiBaseUrl}/images/${fileId}`, { responseType: 'blob' }))
+         pending = firstValueFrom(
+            this.http.get(`${runtimeConfig.apiBaseUrl}/images/${fileId}`, { responseType: 'blob' })
+         )
             .then((blob) => {
                this.publish(fileId, blob);
                return blob;

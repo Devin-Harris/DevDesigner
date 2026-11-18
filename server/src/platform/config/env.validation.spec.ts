@@ -21,10 +21,12 @@ describe('validateEnv', () => {
   });
 
   it('normalizes ADMIN_EMAILS and rejects non-emails', () => {
-    expect(validateEnv({ ADMIN_EMAILS: ' Ada@Example.com, ,bob@x.io,ada@example.com ' }).ADMIN_EMAILS).toBe(
-      'ada@example.com,bob@x.io',
+    expect(
+      validateEnv({ ADMIN_EMAILS: ' Ada@Example.com, ,bob@x.io,ada@example.com ' }).ADMIN_EMAILS,
+    ).toBe('ada@example.com,bob@x.io');
+    expect(() => validateEnv({ ADMIN_EMAILS: 'ada@example.com,not-an-email' })).toThrow(
+      /ADMIN_EMAILS/,
     );
-    expect(() => validateEnv({ ADMIN_EMAILS: 'ada@example.com,not-an-email' })).toThrow(/ADMIN_EMAILS/);
     expect(parseAdminEmails(undefined)).toEqual([]);
   });
 
@@ -46,7 +48,9 @@ describe('validateEnv', () => {
   it('rejects malformed values', () => {
     expect(() => validateEnv({ PORT: 'abc' })).toThrow(/PORT/);
     expect(() => validateEnv({ COOKIE_SAMESITE: 'sideways' })).toThrow(/COOKIE_SAMESITE/);
-    expect(() => validateEnv({ SENTRY_TRACES_SAMPLE_RATE: '2' })).toThrow(/SENTRY_TRACES_SAMPLE_RATE/);
+    expect(() => validateEnv({ SENTRY_TRACES_SAMPLE_RATE: '2' })).toThrow(
+      /SENTRY_TRACES_SAMPLE_RATE/,
+    );
     expect(() => validateEnv({ DATABASE_SYNCHRONIZE: 'maybe' })).toThrow(/DATABASE_SYNCHRONIZE/);
   });
 
@@ -97,6 +101,32 @@ describe('validateEnv', () => {
       const env = validateEnv({ NODE_ENV: 'production', JWT_SECRET: STRONG_SECRET });
       expect(env.JWT_SECRET).toBe(STRONG_SECRET);
       expect(env.LOG_LEVEL).toBe('info');
+    });
+  });
+
+  describe('desktop mode', () => {
+    it('switches to migrations and turns off telemetry, rate limits and quotas', () => {
+      const env = validateEnv({
+        DESKTOP: 'true',
+        DATABASE_SYNCHRONIZE: 'true',
+        SENTRY_DSN: 'https://x@sentry.example/1',
+        ANALYTICS_ENABLED: 'true',
+        QUOTA_PROJECTS_PER_OWNER: '5',
+      });
+      expect(env.DESKTOP).toBe('true');
+      expect(env.DATABASE_SYNCHRONIZE).toBe('false');
+      expect(env.DATABASE_MIGRATIONS_RUN).toBe('true');
+      expect(env.SENTRY_DSN).toBe('');
+      expect(env.ANALYTICS_ENABLED).toBe('false');
+      expect(env.RATE_LIMIT_ENABLED).toBe('false');
+      expect(env.QUOTA_PROJECTS_PER_OWNER).toBe(0);
+    });
+
+    it('leaves the web defaults alone when off', () => {
+      const env = validateEnv({});
+      expect(env.DESKTOP).toBe('false');
+      expect(env.DATABASE_SYNCHRONIZE).toBe('true');
+      expect(env.DATABASE_MIGRATIONS_RUN).toBe('false');
     });
   });
 });

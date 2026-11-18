@@ -19,7 +19,9 @@ function sentryEnv(key: string): string | undefined {
 
 const SCRUBBED_HEADERS = ['authorization', 'cookie', 'set-cookie', 'x-share-token', 'x-guest-id'];
 
-const dsn = sentryEnv('SENTRY_DSN');
+// Desktop installs never report errors anywhere (telemetry is off in desktop mode).
+const desktop = ['true', '1', 'yes'].includes((sentryEnv('DESKTOP') ?? '').toLowerCase());
+const dsn = desktop ? undefined : sentryEnv('SENTRY_DSN');
 if (dsn) {
   const rate = Number(sentryEnv('SENTRY_TRACES_SAMPLE_RATE') ?? 0);
   Sentry.init({

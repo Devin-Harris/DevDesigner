@@ -1,0 +1,53 @@
+# Packages desktop/stage (see scripts/stage.mjs). Unsigned for now: code signing is deferred
+# (Windows shows SmartScreen on first run; macOS needs right-click > Open and won't auto-update).
+appId: dev.devdesigner.desktop
+productName: DevDesigner
+copyright: Copyright © DevDesigner
+directories:
+  app: stage
+  output: release
+  buildResources: build
+# Native modules are installed for Electron by scripts/stage.mjs (not rebuilt here).
+electronVersion: 42.11.18
+npmRebuild: false
+# One archive instead of ~11k loose files: much faster first launch (and antivirus scans)
+# and a faster installer. Native modules must stay real files on disk.
+asar: true
+asarUnpack:
+  - '**/*.node'
+files:
+  - '**/*'
+  - '!**/*.map'
+  - '!**/*.d.ts'
+  - '!**/{test,tests,__tests__,docs,example,examples}/**'
+# Double-clicking a .devdesigner file opens it; devdesigner://open?project=<id> links open a project.
+fileAssociations:
+  - ext: devdesigner
+    name: DevDesigner project
+    description: DevDesigner project file
+    mimeType: application/x-devdesigner+json
+    role: Editor
+protocols:
+  - name: DevDesigner
+    schemes: [devdesigner]
+publish:
+  provider: github
+  owner: Devin-Harris
+  repo: DevDesigner
+  releaseType: release
+win:
+  target: nsis
+  artifactName: DevDesigner-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+mac:
+  target: [dmg, zip]
+  category: public.app-category.developer-tools
+  artifactName: DevDesigner-${version}-${arch}.${ext}
+linux:
+  target: AppImage
+  category: Development
+  artifactName: DevDesigner-${version}.${ext}

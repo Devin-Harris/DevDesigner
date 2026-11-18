@@ -60,8 +60,8 @@ export function allowedOrigins(): string[] {
 
 /**
  * Whether a handshake may proceed. Browsers always send Origin on a websocket
- * upgrade, so a missing one is a non-browser client: nothing outside the browser
- * (the MCP included) uses the socket today, so it is refused. Same-origin
+ * upgrade, so a missing one is a non-browser client: those are refused unless they
+ * authenticate with an API token (see {@link allowRealtimeRequest}). Same-origin
  * deployments (client served by the API host) are allowed even if CORS_ORIGIN
  * does not list that host.
  */
@@ -80,8 +80,21 @@ export function allowRealtimeRequest(
   req: IncomingMessage,
   callback: (err: string | null | undefined, success: boolean) => void,
 ): void {
-  const ok = isAllowedOrigin(req.headers.origin, req.headers.host);
+  const ok =
+    isAllowedOrigin(req.headers.origin, req.headers.host) ||
+    (!req.headers.origin && bearerToken(req.headers.authorization) !== null);
   callback(ok ? null : 'origin not allowed', ok);
+}
+
+/**
+ * The API token of a non-browser socket (the desktop app's sync relay), from its
+ * `Authorization: Bearer` handshake header. Browsers cannot set headers on a
+ * websocket, so this never comes from a page.
+ */
+export function bearerToken(header: string | string[] | undefined): string | null {
+  const value = Array.isArray(header) ? header[0] : header;
+  const match = value ? /^Bearer\s+(\S+)$/i.exec(value.trim()) : null;
+  return match ? match[1] : null;
 }
 
 /**

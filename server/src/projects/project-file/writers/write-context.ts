@@ -58,6 +58,11 @@ export interface WriteOptions {
    * renamed "(copy)" clone. Used when slides are added to a deck (MCP add_slides).
    */
   joinPresentations?: boolean;
+  /**
+   * Keep every id as written instead of minting fresh ones (desktop sync mirrors: the
+   * same project on two servers shares ids). Ids taken by another project fail the insert.
+   */
+  keepIds?: boolean;
 }
 
 /** What the per-entity writers of one import share: the target and the options. */

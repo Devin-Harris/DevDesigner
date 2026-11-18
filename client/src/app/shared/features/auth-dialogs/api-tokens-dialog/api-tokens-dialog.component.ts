@@ -6,7 +6,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
 import { ApiClientService } from '../../../../core/http/api-client.service';
-import { environment } from '../../../../../environments/environment';
+import { runtimeConfig } from '../../../../core/config/runtime-config';
 import { IconComponent } from '../../../ui/components/icon/icon.component';
 import { InputComponent } from '../../../ui/components/input/input.component';
 import { SegmentedComponent } from '../../../ui/components/segmented/segmented.component';
@@ -39,7 +39,7 @@ export class ApiTokensDialogComponent {
    protected readonly created = signal<CreatedApiTokenResponse | null>(null);
    protected readonly copied = signal<'token' | 'config' | null>(null);
    /** The hosted MCP endpoint of this deployment ('' when running locally). */
-   protected readonly remoteMcpUrl = environment.mcpUrl;
+   protected readonly remoteMcpUrl = runtimeConfig.mcpUrl;
 
    protected readonly scopeOptions = [
       { value: 'write', label: 'Read & write' },
@@ -63,6 +63,23 @@ export class ApiTokensDialogComponent {
                      type: 'http',
                      url: this.remoteMcpUrl,
                      headers: { Authorization: `Bearer ${created.token}` },
+                  },
+               },
+            },
+            null,
+            2
+         );
+      }
+      const desktopMcp = runtimeConfig.desktopMcp;
+      if (desktopMcp) {
+         // Desktop app: its bundled MCP server, launched by the app's own executable.
+         return JSON.stringify(
+            {
+               mcpServers: {
+                  devdesigner: {
+                     command: desktopMcp.command,
+                     args: desktopMcp.args,
+                     env: { ...desktopMcp.env, DEVDESIGNER_API_TOKEN: created.token },
                   },
                },
             },
@@ -153,7 +170,7 @@ export class ApiTokensDialogComponent {
    }
 
    private absoluteApiUrl(): string {
-      const base = environment.apiBaseUrl;
+      const base = runtimeConfig.apiBaseUrl;
       return /^https?:\/\//.test(base) ? base : `${window.location.origin}${base}`;
    }
 

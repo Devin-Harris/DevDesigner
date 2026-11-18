@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, type ActivatedRouteSnapshot } from '@angular/router';
-import { environment } from '../../../environments/environment';
+import { runtimeConfig } from '../config/runtime-config';
 import { clientRouteOf, routeTemplateOf } from './route-template.helper';
 import { TELEMETRY_FLUSH_MS, TelemetryService } from './telemetry.service';
 
@@ -32,10 +32,10 @@ describe('route templates', () => {
 
 describe('TelemetryService', () => {
    const sendBeacon = jest.fn(() => true);
-   const original = environment.telemetry;
+   const original = runtimeConfig.telemetry;
 
    function setup(enabled = true) {
-      environment.telemetry = enabled;
+      runtimeConfig.telemetry = enabled;
       Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: sendBeacon });
       TestBed.configureTestingModule({
          providers: [
@@ -63,7 +63,7 @@ describe('TelemetryService', () => {
    afterEach(() => {
       TestBed.inject(TelemetryService).stop();
       jest.useRealTimers();
-      environment.telemetry = original;
+      runtimeConfig.telemetry = original;
    });
 
    it('drops undeclared props and unknown names, then beacons text/plain JSON', async () => {
@@ -73,7 +73,7 @@ describe('TelemetryService', () => {
       telemetry.flush();
       expect(sendBeacon).toHaveBeenCalledTimes(1);
       const [url, blob] = sendBeacon.mock.calls[0] as unknown as [string, Blob];
-      expect(url).toBe(`${environment.apiBaseUrl}/telemetry`);
+      expect(url).toBe(`${runtimeConfig.apiBaseUrl}/telemetry`);
       expect(blob.type).toBe('text/plain');
       expect(await sent()).toEqual({
          events: [{ name: 'client.export_image', props: { format: 'png', scope: 'slide' } }],

@@ -1,9 +1,12 @@
+@use '../../shared/features/projects-overlay/overlay-buttons';
+
 :host {
    display: block;
    height: 100%;
 }
 
 .ws {
+   position: relative;
    height: 100%;
    background: var(--dd-canvas-bg);
 }
@@ -22,4 +25,59 @@ dd-home {
    width: 100%;
    height: 100%;
    background: var(--dd-canvas-bg);
+}
+
+.ws-desktop-empty {
+   display: grid;
+   place-items: center;
+}
+
+.empty {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   max-width: 360px;
+   text-align: center;
+}
+
+.empty-mark {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 56px;
+   height: 56px;
+   margin-bottom: 16px;
+   border-radius: 14px;
+   background: linear-gradient(135deg, #6f8bff, #3b5bdb);
+   color: #fff;
+
+   --dd-icon-size: 30px;
+}
+
+.empty-title {
+   margin: 0 0 6px;
+   color: var(--dd-text);
+   font-size: 18px;
+}
+
+.empty-text {
+   margin: 0 0 18px;
+   color: var(--dd-text-muted);
+   font-size: 13px;
+   line-height: 1.5;
+}
+
+.empty-keys {
+   margin: 16px 0 0;
+   color: var(--dd-text-muted);
+   font-size: 12px;
+
+   kbd {
+      padding: 1px 5px;
+      border: 1px solid var(--dd-border);
+      border-radius: 4px;
+      background: var(--dd-surface-2);
+      font: inherit;
+      font-size: 11px;
+   }
 }

@@ -3,7 +3,19 @@
       <header class="panel-head">
          <h2 class="title">Projects</h2>
          <div class="head-actions">
-            <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+            <input
+               #importInput
+               type="file"
+               accept=".json,.devdesigner,application/json"
+               hidden
+               (change)="importFile($event)"
+            />
+            @if (sync.enabled) {
+               <button class="btn" type="button" title="Sync with a DevDesigner server" (click)="view.set('sync')">
+                  <dd-icon name="cloud" />
+                  Sync
+               </button>
+            }
             <button class="btn" type="button" [disabled]="busy()" (click)="importInput.click()">
                <dd-icon name="upload" />
                Import
@@ -33,13 +45,25 @@
                <button class="btn" type="button" (click)="store.loadProjects()">Retry</button>
             </div>
          } @else if (store.visibleProjects().length === 0) {
-            <div class="state">
-               {{
-                  store.showArchived()
-                     ? 'No archived projects.'
-                     : 'No projects yet — create one or start from a template.'
-               }}
-            </div>
+            @if (sync.enabled && !store.showArchived() && !store.search()) {
+               <!-- Desktop first run. -->
+               <div class="state welcome">
+                  <h3>Welcome to DevDesigner</h3>
+                  <p>
+                     Everything you make here is stored on this computer and works offline. Create a project with
+                     <strong>New</strong>, pick a <strong>Template</strong>, open a <code>.devdesigner</code> file
+                     (Ctrl+O), or connect a server under <strong>Sync</strong> to pick up projects from another device.
+                  </p>
+               </div>
+            } @else {
+               <div class="state">
+                  {{
+                     store.showArchived()
+                        ? 'No archived projects.'
+                        : 'No projects yet — create one or start from a template.'
+                  }}
+               </div>
+            }
          } @else {
             <div class="cards">
                @for (project of store.visibleProjects(); track project.id) {
@@ -112,6 +136,16 @@
                            @if (project.archived) {
                               <span class="badge">Archived</span>
                            }
+                           @if (sync.links().get(project.id); as link) {
+                              <span
+                                 class="badge sync"
+                                 [class.warn]="link.status === 'error' || link.status === 'conflict'"
+                                 [title]="syncTitle(link)"
+                              >
+                                 <dd-icon [name]="syncIcon(link)" />
+                                 {{ syncLabel(link) }}
+                              </span>
+                           }
                         </div>
                         <div class="sub">{{ edited(project.updatedAt) }}</div>
                      </div>
@@ -146,6 +180,34 @@
                            <button class="dd-menu-item" type="button" (click)="exportProject(project); close()">
                               <dd-icon name="download" />Export
                            </button>
+                           @if (sync.enabled) {
+                              @if (sync.links().get(project.id); as link) {
+                                 <button class="dd-menu-item" type="button" (click)="syncNow(project); close()">
+                                    <dd-icon name="sync" />Sync now
+                                 </button>
+                                 <button
+                                    class="dd-menu-item"
+                                    type="button"
+                                    (click)="toggleAutoSync(project, link); close()"
+                                 >
+                                    <dd-icon [name]="link.autoSync ? 'cloud_off' : 'cloud'" />
+                                    {{ link.autoSync ? 'Turn auto-sync off' : 'Turn auto-sync on' }}
+                                 </button>
+                                 <button class="dd-menu-item" type="button" (click)="unlink(project); close()">
+                                    <dd-icon name="cloud_off" />Stop syncing (keep a local copy)
+                                 </button>
+                              } @else {
+                                 @for (remote of sync.remotes(); track remote.id) {
+                                    <button
+                                       class="dd-menu-item"
+                                       type="button"
+                                       (click)="publish(project, remote.id); close()"
+                                    >
+                                       <dd-icon name="cloud" />Move to {{ remote.name }}
+                                    </button>
+                                 }
+                              }
+                           }
                            <button class="dd-menu-item" type="button" (click)="toggleArchive(project); close()">
                               <dd-icon [name]="project.archived ? 'unarchive' : 'archive'" />
                               {{ project.archived ? 'Unarchive' : 'Archive' }}
@@ -181,6 +243,21 @@
             Templates
          </button>
       </footer>
+   } @else if (view() === 'sync') {
+      <header class="panel-head">
+         <button class="icon-btn" type="button" aria-label="Back" (click)="view.set('projects')">
+            <dd-icon name="chevron_left" />
+         </button>
+         <h2 class="title">Sync</h2>
+         <div class="head-actions">
+            <button class="icon-btn" type="button" aria-label="Close" (click)="close()">
+               <dd-icon name="close" />
+            </button>
+         </div>
+      </header>
+      <div class="cards-scroll">
+         <dd-sync-panel (opened)="openSynced($event)" />
+      </div>
    } @else {
       <header class="panel-head">
          <button class="icon-btn" type="button" aria-label="Back" (click)="view.set('projects')">

@@ -1,152 +1,152 @@
 {
- "format": "devdesigner-project",
- "version": 1,
- "exportedAt": "2026-11-09T01:32:25.321Z",
- "project": {
-  "name": "Home · Sequence",
-  "description": null,
-  "type": "FLOW"
- },
- "schema": {
-  "tables": [],
-  "relationships": [],
-  "notes": [],
-  "elements": [],
-  "sequenceDiagrams": [
-   {
-    "id": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "lifelineSpacing": 160,
-    "rowSpacing": 48,
-    "headerHeight": 42,
-    "originY": 0,
-    "zIndex": -1,
-    "title": "Checkout request"
-   }
-  ],
-  "lifelines": [
-   {
-    "id": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "label": "Browser",
-    "color": "#2f6bff",
-    "x": 60,
-    "width": 120,
-    "order": 0
+   "format": "devdesigner-project",
+   "version": 1,
+   "exportedAt": "2026-11-09T01:32:25.321Z",
+   "project": {
+      "name": "Home · Sequence",
+      "description": null,
+      "type": "FLOW"
    },
-   {
-    "id": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "label": "API",
-    "color": "#12b76a",
-    "x": 220,
-    "width": 120,
-    "order": 1
+   "schema": {
+      "tables": [],
+      "relationships": [],
+      "notes": [],
+      "elements": [],
+      "sequenceDiagrams": [
+         {
+            "id": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "lifelineSpacing": 160,
+            "rowSpacing": 48,
+            "headerHeight": 42,
+            "originY": 0,
+            "zIndex": -1,
+            "title": "Checkout request"
+         }
+      ],
+      "lifelines": [
+         {
+            "id": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "label": "Browser",
+            "color": "#2f6bff",
+            "x": 60,
+            "width": 120,
+            "order": 0
+         },
+         {
+            "id": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "label": "API",
+            "color": "#12b76a",
+            "x": 220,
+            "width": 120,
+            "order": 1
+         },
+         {
+            "id": "4658e742-a332-49df-bb3b-92369cd31b55",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "label": "Orders",
+            "color": "#7c5cff",
+            "x": 380,
+            "width": 120,
+            "order": 2
+         },
+         {
+            "id": "0750948c-b297-4357-8d43-657138ba1eb3",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "label": "Payments",
+            "color": "#f5a623",
+            "x": 540,
+            "width": 120,
+            "order": 3
+         }
+      ],
+      "sequenceMessages": [
+         {
+            "id": "c4e3428e-2900-4906-8c77-d7df53d0ba05",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
+            "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "label": "POST /checkout",
+            "y": 90,
+            "style": "solid",
+            "direction": "forward",
+            "arrowhead": "arrow"
+         },
+         {
+            "id": "fe789ac4-2a83-4680-ae5e-6948255bb0b0",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "toLifelineId": "4658e742-a332-49df-bb3b-92369cd31b55",
+            "label": "createOrder()",
+            "y": 138,
+            "style": "solid",
+            "direction": "forward",
+            "arrowhead": "arrow"
+         },
+         {
+            "id": "eb374191-6e7e-4f61-a6d2-fafcc2e00210",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "4658e742-a332-49df-bb3b-92369cd31b55",
+            "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "label": "order #4821",
+            "y": 186,
+            "style": "dashed",
+            "direction": "forward",
+            "arrowhead": "open"
+         },
+         {
+            "id": "25bfcf79-f5e3-45df-af0d-3ba431b0056b",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "toLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
+            "label": "async · queued",
+            "y": 234,
+            "style": "break",
+            "direction": "forward",
+            "arrowhead": "arrow"
+         },
+         {
+            "id": "4d511361-bf4d-4210-816a-34691d2fa7a3",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "toLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
+            "label": "charge(card)",
+            "y": 282,
+            "style": "solid",
+            "direction": "forward",
+            "arrowhead": "arrow"
+         },
+         {
+            "id": "0a4dfaf4-b883-4215-90b0-94fee7d24c6c",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
+            "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "label": "approved",
+            "y": 330,
+            "style": "dashed",
+            "direction": "forward",
+            "arrowhead": "open"
+         },
+         {
+            "id": "51f7bf7e-99a9-4e8e-9b4e-ab25d0826ab3",
+            "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
+            "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
+            "toLifelineId": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
+            "label": "201 Created",
+            "y": 378,
+            "style": "dashed",
+            "direction": "forward",
+            "arrowhead": "open"
+         }
+      ],
+      "viewport": {
+         "x": 0,
+         "y": 0,
+         "zoom": 1
+      },
+      "home": null,
+      "themes": []
    },
-   {
-    "id": "4658e742-a332-49df-bb3b-92369cd31b55",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "label": "Orders",
-    "color": "#7c5cff",
-    "x": 380,
-    "width": 120,
-    "order": 2
-   },
-   {
-    "id": "0750948c-b297-4357-8d43-657138ba1eb3",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "label": "Payments",
-    "color": "#f5a623",
-    "x": 540,
-    "width": 120,
-    "order": 3
-   }
-  ],
-  "sequenceMessages": [
-   {
-    "id": "c4e3428e-2900-4906-8c77-d7df53d0ba05",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
-    "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "label": "POST /checkout",
-    "y": 90,
-    "style": "solid",
-    "direction": "forward",
-    "arrowhead": "arrow"
-   },
-   {
-    "id": "fe789ac4-2a83-4680-ae5e-6948255bb0b0",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "toLifelineId": "4658e742-a332-49df-bb3b-92369cd31b55",
-    "label": "createOrder()",
-    "y": 138,
-    "style": "solid",
-    "direction": "forward",
-    "arrowhead": "arrow"
-   },
-   {
-    "id": "eb374191-6e7e-4f61-a6d2-fafcc2e00210",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "4658e742-a332-49df-bb3b-92369cd31b55",
-    "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "label": "order #4821",
-    "y": 186,
-    "style": "dashed",
-    "direction": "forward",
-    "arrowhead": "open"
-   },
-   {
-    "id": "25bfcf79-f5e3-45df-af0d-3ba431b0056b",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "toLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
-    "label": "async · queued",
-    "y": 234,
-    "style": "break",
-    "direction": "forward",
-    "arrowhead": "arrow"
-   },
-   {
-    "id": "4d511361-bf4d-4210-816a-34691d2fa7a3",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "toLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
-    "label": "charge(card)",
-    "y": 282,
-    "style": "solid",
-    "direction": "forward",
-    "arrowhead": "arrow"
-   },
-   {
-    "id": "0a4dfaf4-b883-4215-90b0-94fee7d24c6c",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "0750948c-b297-4357-8d43-657138ba1eb3",
-    "toLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "label": "approved",
-    "y": 330,
-    "style": "dashed",
-    "direction": "forward",
-    "arrowhead": "open"
-   },
-   {
-    "id": "51f7bf7e-99a9-4e8e-9b4e-ab25d0826ab3",
-    "diagramId": "9771a8a6-9987-408b-82b3-e652741cbc8d",
-    "fromLifelineId": "c9213b60-71cc-43a6-a293-35e219684b7a",
-    "toLifelineId": "d0b3d84f-3269-4cd5-8c74-e83710b3740d",
-    "label": "201 Created",
-    "y": 378,
-    "style": "dashed",
-    "direction": "forward",
-    "arrowhead": "open"
-   }
-  ],
-  "viewport": {
-   "x": 0,
-   "y": 0,
-   "zoom": 1
-  },
-  "home": null,
-  "themes": []
- },
- "images": []
+   "images": []
 }

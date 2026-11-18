@@ -585,7 +585,9 @@ export interface BatchUpdateDto {
   diagrams?: Array<{ id: string } & UpdateSequenceDiagramDto>;
   lifelines?: Array<{ id: string; x?: number } & UpdateLifelineDto>;
   messages?: Array<{ id: string; y?: number } & UpdateSequenceMessageDto>;
-  relationships?: Array<{ id: string } & Omit<UpdateRelationshipDto, 'sourceColumnId' | 'targetColumnId'>>;
+  relationships?: Array<
+    { id: string } & Omit<UpdateRelationshipDto, 'sourceColumnId' | 'targetColumnId'>
+  >;
   /** Ids to delete (children of a deleted parent go with it). */
   deletes?: {
     tables?: string[];
@@ -663,4 +665,68 @@ export interface UserThemeResponse {
 /** Body for POST /me/themes. */
 export interface SaveUserThemeDto {
   theme: SlideTheme;
+}
+
+// --- Desktop sync (desktop app only: /api/sync on the local server) ---
+
+/** A DevDesigner server the desktop app syncs with (the token is never sent back). */
+export interface SyncRemoteResponse {
+  id: string;
+  name: string;
+  /** API base, e.g. https://devdesigner.example.com/api */
+  url: string;
+  /** Who the token belongs to on the remote (display name or email). */
+  account: string | null;
+  createdAt: string;
+}
+
+export interface AddSyncRemoteDto {
+  name: string;
+  url: string;
+  /** An API token created on the remote (Account > API tokens). */
+  token: string;
+}
+
+/** The built-in remote (the hosted DevDesigner) a desktop build offers; null when it has none. */
+export interface SyncDefaultRemoteResponse {
+  name: string;
+  /** API base, e.g. https://api.example.com/api */
+  url: string;
+  /** Already added as a remote. */
+  connected: boolean;
+}
+
+/**
+ * A server-backed project's state on this computer:
+ * - `live`: online; edits go straight to the server.
+ * - `offline`: the server can't be reached; edits are saved locally and sent when it is back.
+ * - `conflict`: edited here while offline AND changed on the server; the user picks a version.
+ * - `error`: the server refused (e.g. project deleted there, token revoked); see lastError.
+ * - `paused`: auto-sync is off; edits stay on this computer until "Sync now" or auto-sync is back on.
+ */
+export type SyncStatus = 'live' | 'offline' | 'conflict' | 'error' | 'paused';
+
+/** A desktop project whose real copy lives on a server (same project id and item ids on both). */
+export interface SyncLinkResponse {
+  projectId: string;
+  remoteId: string;
+  status: SyncStatus;
+  /** Edits made here while offline that the server doesn't have yet. */
+  localChanges: boolean;
+  /** Off: no live editing or background syncing; the user syncs by hand. */
+  autoSync: boolean;
+  lastSyncedAt: string | null;
+  lastError: string | null;
+}
+
+/** Answer to "sync now" / resolve: the link afterwards. */
+export interface SyncLinkResult {
+  link: SyncLinkResponse;
+  /** The local project id (uploading gives the project the server's id). */
+  projectId: string;
+}
+
+/** POST /sync/links/:projectId/resolve: which version wins a conflict. */
+export interface ResolveSyncConflictDto {
+  keep: 'server' | 'mine';
 }

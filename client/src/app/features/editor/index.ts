@@ -16,3 +16,10 @@ export { DeckCompareComponent } from './features/slides/features/deck-compare/de
 export { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
 export { codePalette, tokenColor, tokenizeCode } from './helpers/code-highlight.helper';
 export { columnAnchor } from './helpers/node-metrics.helper';
+
+// Desktop sync's compare view (workspace/features/compare): draws two versions of a project with
+// the export renderer and outlines the items that differ.
+export { buildDiagramSvg, sequenceBounds } from './helpers/diagram-svg.helper';
+export { elementBox } from './helpers/element-geometry.helper';
+export { tableBox } from './helpers/node-metrics.helper';
+export type { Box } from './models/geometry.model';

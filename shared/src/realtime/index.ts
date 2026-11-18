@@ -13,6 +13,7 @@ import type {
   LifelineModel,
   PointModel,
   RelationshipModel,
+  SchemaModel,
   SequenceDiagramModel,
   SequenceMessageModel,
   TableModel,
@@ -119,6 +120,8 @@ export type SchemaMutation =
   | { kind: 'message.deleted'; messageId: string }
   | { kind: 'home.updated'; home: ViewportModel | null }
   | { kind: 'themes.updated'; themes: SlideTheme[] }
+  /** The whole project content was replaced (desktop sync pull/push): swap in `schema`. */
+  | { kind: 'project.replaced'; schema: SchemaModel }
   | SchemaPatchMutation;
 
 /**
@@ -136,12 +139,22 @@ export interface ModelPatch<T> {
 }
 
 export type SchemaPatchMutation =
-  | ({ kind: 'table.patched'; tableId: string } & ModelPatch<Omit<TableModel, 'id' | 'columns' | 'indexes'>>)
-  | ({ kind: 'column.patched'; tableId: string; columnId: string } & ModelPatch<Omit<ColumnModel, 'id'>>)
-  | ({ kind: 'index.patched'; tableId: string; indexId: string } & ModelPatch<Omit<IndexModel, 'id'>>)
-  | ({ kind: 'relationship.patched'; relationshipId: string } & ModelPatch<Omit<RelationshipModel, 'id'>>)
+  | ({ kind: 'table.patched'; tableId: string } & ModelPatch<
+      Omit<TableModel, 'id' | 'columns' | 'indexes'>
+    >)
+  | ({ kind: 'column.patched'; tableId: string; columnId: string } & ModelPatch<
+      Omit<ColumnModel, 'id'>
+    >)
+  | ({ kind: 'index.patched'; tableId: string; indexId: string } & ModelPatch<
+      Omit<IndexModel, 'id'>
+    >)
+  | ({ kind: 'relationship.patched'; relationshipId: string } & ModelPatch<
+      Omit<RelationshipModel, 'id'>
+    >)
   | ({ kind: 'element.patched'; elementId: string } & ModelPatch<Omit<CanvasElementModel, 'id'>>)
-  | ({ kind: 'sequenceDiagram.patched'; diagramId: string } & ModelPatch<Omit<SequenceDiagramModel, 'id'>>)
+  | ({ kind: 'sequenceDiagram.patched'; diagramId: string } & ModelPatch<
+      Omit<SequenceDiagramModel, 'id'>
+    >)
   | ({ kind: 'lifeline.patched'; lifelineId: string } & ModelPatch<Omit<LifelineModel, 'id'>>)
   | ({ kind: 'message.patched'; messageId: string } & ModelPatch<Omit<SequenceMessageModel, 'id'>>);
 
@@ -164,7 +177,9 @@ export function diffModel<T extends object>(before: T, after: T): ModelPatch<Omi
     }
   }
   if (!unset.length && !Object.keys(patch).length) return null;
-  const change = (unset.length ? { patch, unset } : { patch }) as unknown as ModelPatch<Omit<T, 'id'>>;
+  const change = (unset.length ? { patch, unset } : { patch }) as unknown as ModelPatch<
+    Omit<T, 'id'>
+  >;
   return change;
 }
 

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
+import { runtimeConfig } from './core/config/runtime-config';
 
 /**
  * Top-level routes (BUILD_INSTRUCTIONS.md section 8). The workspace shell hosts
@@ -16,15 +17,20 @@ export const routes: Routes = [
       path: 'projects/:projectId',
       loadComponent: () => import('./features/workspace/workspace.component').then((m) => m.WorkspaceComponent),
    },
-   {
-      path: 'guide',
-      redirectTo: 'guide/select',
-      pathMatch: 'full',
-   },
-   {
-      path: 'guide/:tool',
-      loadComponent: () => import('./features/guide/guide.component').then((m) => m.GuideComponent),
-   },
+   // The canvas guide is web-only: the desktop app leaves it out (/guide falls through to **).
+   ...(runtimeConfig.desktop
+      ? []
+      : [
+           {
+              path: 'guide',
+              redirectTo: 'guide/select',
+              pathMatch: 'full' as const,
+           },
+           {
+              path: 'guide/:tool',
+              loadComponent: () => import('./features/guide/guide.component').then((m) => m.GuideComponent),
+           },
+        ]),
    {
       path: 'shared/:token',
       loadComponent: () => import('./features/share/share.component').then((m) => m.ShareComponent),

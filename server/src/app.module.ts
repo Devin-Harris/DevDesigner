@@ -6,6 +6,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './platform/database/database.module';
 import { HealthModule } from './platform/health/health.module';
+import { DesktopModule } from './platform/desktop/desktop.module';
+import { SyncModule } from './platform/sync/sync.module';
 import { AccessModule } from './collaboration/access/access.module';
 import { AuthModule } from './identity/auth/auth.module';
 import { ProjectsModule } from './projects/projects/projects.module';
@@ -50,6 +52,8 @@ import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
     AnalyticsModule.forRoot(),
     AccessModule,
     HealthModule,
+    DesktopModule,
+    SyncModule,
     AuthModule,
     ThrottleModule,
     QuotasModule,

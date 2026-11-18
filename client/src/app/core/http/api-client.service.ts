@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { runtimeConfig } from '../config/runtime-config';
 
 /**
  * Thin wrapper over HttpClient that prefixes the configured API base URL. Feature
@@ -10,7 +10,7 @@ import { environment } from '../../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class ApiClientService {
    private readonly http = inject(HttpClient);
-   private readonly baseUrl = environment.apiBaseUrl;
+   private readonly baseUrl = runtimeConfig.apiBaseUrl;
 
    get<T>(path: string) {
       return this.http.get<T>(`${this.baseUrl}${path}`);

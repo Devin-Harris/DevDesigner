@@ -186,7 +186,13 @@ export class ProjectThumbnailService {
    }
 
    private async imageData(elements: readonly CanvasElementModel[]): Promise<Map<string, string>> {
-      const ids = [...new Set(elements.filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId).map((e) => e.fileId as string))];
+      const ids = [
+         ...new Set(
+            elements
+               .filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId)
+               .map((e) => e.fileId as string)
+         ),
+      ];
       const data = new Map<string, string>();
       await Promise.all(
          ids.map(async (fileId) => {

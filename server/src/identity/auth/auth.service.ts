@@ -46,6 +46,9 @@ const DELETED = -1;
  * hashed with bcrypt; the raw password is never stored or returned. The signed
  * JWT is what the controller places in the httpOnly session cookie.
  */
+export const DESKTOP_PROVIDER = 'desktop';
+export const DESKTOP_PROVIDER_ID = 'local';
+
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -68,7 +71,10 @@ export class AuthService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      const rows = await this.users.find({ where: { tokenVersion: MoreThan(0) }, select: { id: true, tokenVersion: true } });
+      const rows = await this.users.find({
+        where: { tokenVersion: MoreThan(0) },
+        select: { id: true, tokenVersion: true },
+      });
       for (const row of rows) this.versions.set(row.id, row.tokenVersion);
     } catch (err) {
       // Never block boot on this (e.g. the column is still being added); old sessions just stay valid.
@@ -82,7 +88,9 @@ export class AuthService implements OnModuleInit {
     const existing = await this.users.findOne({ where: { email } });
     if (existing) {
       // Same wording as any other refusal; the email itself is not echoed (security L-4).
-      throw new ConflictException('Could not create an account with these details. Try signing in instead.');
+      throw new ConflictException(
+        'Could not create an account with these details. Try signing in instead.',
+      );
     }
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = this.users.create({
@@ -110,7 +118,11 @@ export class AuthService implements OnModuleInit {
       const seconds = Math.ceil(waitMs / 1000);
       track(this.events, 'auth.login_failed', { reason: 'locked' });
       throw new HttpException(
-        { statusCode: 429, message: `Too many failed sign-in attempts. Try again in ${seconds} seconds.`, retryAfter: seconds },
+        {
+          statusCode: 429,
+          message: `Too many failed sign-in attempts. Try again in ${seconds} seconds.`,
+          retryAfter: seconds,
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -129,6 +141,33 @@ export class AuthService implements OnModuleInit {
     user.lastLoginAt = new Date();
     await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });
     track(this.events, 'auth.login', { method: 'password' }, { principal: { userId: user.id } });
+    return { user: toResponse(user), token: this.sign(user) };
+  }
+
+  /**
+   * Desktop mode: the one local account (provider 'desktop'), created on first launch.
+   * No password; the controller only offers this on a DESKTOP server over loopback.
+   */
+  async desktopSession(): Promise<{ user: CurrentUserResponse; token: string }> {
+    let user = await this.users.findOne({
+      where: { provider: DESKTOP_PROVIDER, providerId: DESKTOP_PROVIDER_ID },
+    });
+    if (!user) {
+      user = await this.users.save(
+        this.users.create({
+          email: null,
+          passwordHash: null,
+          displayName: 'Local user',
+          provider: DESKTOP_PROVIDER,
+          providerId: DESKTOP_PROVIDER_ID,
+          role: 'user',
+          lastLoginAt: new Date(),
+        }),
+      );
+    } else {
+      user.lastLoginAt = new Date();
+      await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });
+    }
     return { user: toResponse(user), token: this.sign(user) };
   }
 
@@ -168,7 +207,10 @@ export class AuthService implements OnModuleInit {
    */
   async revokeSessions(userId: string): Promise<void> {
     await this.users.increment({ id: userId }, 'tokenVersion', 1);
-    const row = await this.users.findOne({ where: { id: userId }, select: { id: true, tokenVersion: true } });
+    const row = await this.users.findOne({
+      where: { id: userId },
+      select: { id: true, tokenVersion: true },
+    });
     if (row) this.versions.set(userId, row.tokenVersion);
   }
 
@@ -207,9 +249,12 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-
 function toResponse(user: User): CurrentUserResponse {
-  const response: CurrentUserResponse = { id: user.id, email: user.email, displayName: user.displayName };
+  const response: CurrentUserResponse = {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+  };
   if (user.role === 'admin') {
     response.isAdmin = true;
   }

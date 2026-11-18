@@ -1,0 +1,63 @@
+# Desktop release: push a tag `vX.Y.Z` matching the root package.json version (web and
+# desktop share it). Builds Windows/macOS/Linux installers and publishes them to the
+# GitHub Release for that tag, which is also the feed the installed apps auto-update from.
+# Builds are unsigned for now (code signing is deferred; see docs/desktop-app-plan.md).
+name: Desktop release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run build:desktop
+      - name: Package and publish
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Built-in sync remote (Sync > DevDesigner Cloud): the hosted API, e.g. https://api.example.com.
+          # Set as a repository variable (Settings > Secrets and variables > Actions > Variables); unset = none.
+          DEVDESIGNER_HOSTED_URL: ${{ vars.DEVDESIGNER_HOSTED_URL }}
+          # No signing identity yet: build unsigned instead of failing the mac job.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'dist' }}
+      - name: Upload build (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+          if-no-files-found: ignore

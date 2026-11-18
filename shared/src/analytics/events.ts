@@ -34,7 +34,7 @@ export const MUTATION_KINDS = [
   'sequenceDiagram.created', 'sequenceDiagram.updated', 'sequenceDiagram.deleted', 'sequenceDiagram.patched',
   'lifeline.created', 'lifeline.updated', 'lifeline.moved', 'lifeline.deleted', 'lifeline.patched',
   'message.created', 'message.updated', 'message.moved', 'message.deleted', 'message.patched',
-  'home.updated', 'themes.updated',
+  'home.updated', 'themes.updated', 'project.replaced',
 ] as const;
 
 /** Canvas element types (mirrors ELEMENT_TYPES; kept literal so the catalog stays self-contained). */

@@ -51,4 +51,3 @@ describe('project revisions', () => {
     expect(projectRevision('other')).toBe(0);
   });
 });
-

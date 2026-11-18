@@ -1,4 +1,4 @@
-import { environment } from '../../../../../../environments/environment';
+import { runtimeConfig } from '../../../../../core/config/runtime-config';
 
 // Static copy and seed loaders of the home page (C3.8): data only, no Angular.
 
@@ -130,8 +130,8 @@ export const HOME_SHOWCASE = [
 // MCP endpoint from the build env (scripts/set-env.mjs `mcpUrl`). Unset: deployed builds
 // fall back to the production server, local dev to the local HTTP MCP (npm run start:mcp:http).
 export const MCP_URL =
-   environment.mcpUrl ||
-   (environment.production ? 'https://devdesignermcp-production.up.railway.app/mcp' : 'http://localhost:3001/mcp');
+   runtimeConfig.mcpUrl ||
+   (runtimeConfig.production ? 'https://devdesignermcp-production.up.railway.app/mcp' : 'http://localhost:3001/mcp');
 
 /** `.mcp.json` snippet for the hosted MCP server. */
 export const MCP_CONFIG = JSON.stringify(

@@ -282,6 +282,8 @@ export function applySchemaMutation(s: SchemaModel, mutation: SchemaMutation): S
       case 'home.updated':
       case 'themes.updated':
          return s;
+      case 'project.replaced':
+         return mutation.schema;
    }
 }
 
@@ -303,6 +305,11 @@ export function applyRemoteMutations(slots: RemoteSlots, mutations: readonly Sch
    for (const m of mutations) {
       if (m.kind === 'home.updated') patch.home = m.home ?? null;
       else if (m.kind === 'themes.updated') patch.customThemes = m.themes;
+      else if (m.kind === 'project.replaced') {
+         patch.home = m.schema.home ?? null;
+         patch.customThemes = m.schema.themes ?? [];
+         schema = m.schema;
+      }
       else if (schema) schema = applySchemaMutation(schema, m);
    }
    if (schema !== slots.schema) patch.schema = schema;

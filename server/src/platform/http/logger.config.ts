@@ -24,7 +24,9 @@ export function loggerParams(config: ConfigService): Params {
         userId: (req as IncomingMessage & { user?: { id?: string } | null }).user?.id,
         share: typeof req.headers['x-share-token'] === 'string' || undefined,
       }),
-      autoLogging: { ignore: (req: IncomingMessage) => req.url?.startsWith('/api/health') ?? false },
+      autoLogging: {
+        ignore: (req: IncomingMessage) => req.url?.startsWith('/api/health') ?? false,
+      },
       serializers: {
         req: (req: { id: unknown; method: string; url: string; remoteAddress?: string }) => ({
           id: req.id,
@@ -50,7 +52,10 @@ export function loggerParams(config: ConfigService): Params {
       },
       transport: prod
         ? undefined
-        : { target: 'pino-pretty', options: { singleLine: true, translateTime: 'SYS:HH:MM:ss.l', ignore: 'pid,hostname' } },
+        : {
+            target: 'pino-pretty',
+            options: { singleLine: true, translateTime: 'SYS:HH:MM:ss.l', ignore: 'pid,hostname' },
+          },
     },
   };
 }

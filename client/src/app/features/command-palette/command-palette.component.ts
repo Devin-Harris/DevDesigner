@@ -1,3 +1,4 @@
+import { runtimeConfig } from '../../core/config/runtime-config';
 import {
    ChangeDetectionStrategy,
    Component,
@@ -139,7 +140,8 @@ export class CommandPaletteComponent {
          cmd('photo', 'Export image (PNG)', () => this.actions.exportImage('png'));
          cmd('image', 'Export image (SVG)', () => this.actions.exportImage('svg'));
          cmd('picture_as_pdf', 'Export image (PDF)', () => this.actions.exportImage('pdf'));
-         if (this.actions.accessMode() === 'OWNER') cmd('share', 'Share…', () => this.actions.share());
+         if (this.actions.accessMode() === 'OWNER' && !runtimeConfig.desktop)
+            cmd('share', 'Share…', () => this.actions.share());
          cmd('home', 'Back to the home page', () => this.projects.select(null));
       }
       return out;

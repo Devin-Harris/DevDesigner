@@ -30,6 +30,11 @@ export interface ImportAnchor {
 export interface RemapOptions {
   /** Mints a fresh id (default crypto.randomUUID). */
   newId?: () => string;
+  /**
+   * Keep every id as written (references are still checked and dangling ones dropped).
+   * For mirrors of the same project on two servers (desktop sync), which must share ids.
+   */
+  keepIds?: boolean;
   /** Translation applied to every world coordinate (default none). */
   dx?: number;
   dy?: number;
@@ -54,9 +59,12 @@ export interface RemapOptions {
 /** Old id -> freshly minted id. Lookups of unknown ids return undefined. */
 class IdMap {
   private readonly ids = new Map<string, string>();
-  constructor(private readonly newId: () => string) {}
+  constructor(
+    private readonly newId: () => string,
+    private readonly keep = false,
+  ) {}
   mint(oldId: string): string {
-    const id = this.newId();
+    const id = this.keep ? oldId : this.newId();
     this.ids.set(oldId, id);
     return id;
   }
@@ -78,10 +86,12 @@ export function importsElement(e: CanvasElementModel, fileOf?: RemapOptions['fil
  * (re-minted as a set; named "tag:" morphs are kept as written).
  */
 export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {}): ProjectContent {
-  const newId = opts.newId ?? randomId;
+  const mintId = opts.newId ?? randomId;
+  /** A fresh id, or the original one when keeping ids. */
+  const newId = (old?: string): string => (opts.keepIds && old ? old : mintId());
   const dx = opts.dx ?? 0;
   const dy = opts.dy ?? 0;
-  const map = (): IdMap => new IdMap(newId);
+  const map = (): IdMap => new IdMap(mintId, opts.keepIds === true);
   const tableIds = map();
   const columnIds = map();
   const elementIds = map();
@@ -111,7 +121,7 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
     for (const ix of t.indexes ?? []) {
       const covered = ix.columnIds.filter((id) => own.has(id)).map((id) => columnIds.get(id)!);
       if (covered.length === 0) continue;
-      indexes.push({ id: newId(), name: ix.name, columnIds: covered, isUnique: ix.isUnique });
+      indexes.push({ id: newId(ix.id), name: ix.name, columnIds: covered, isUnique: ix.isUnique });
     }
     return {
       ...t,
@@ -131,7 +141,7 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
     const targetColumnId = columnIds.get(r.targetColumnId);
     if (!sourceColumnId || !targetColumnId) continue;
     const waypoints = r.waypoints?.map((p) => ({ x: p.x + dx, y: p.y + dy }));
-    relationships.push({ ...r, id: newId(), sourceColumnId, targetColumnId, waypoints });
+    relationships.push({ ...r, id: newId(r.id), sourceColumnId, targetColumnId, waypoints });
   }
 
   const resolveBinding = (b: ElementBinding | undefined): ElementBinding | undefined => {

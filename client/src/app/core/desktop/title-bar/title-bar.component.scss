@@ -1,0 +1,97 @@
+// Height must match TITLE_BAR_HEIGHT in desktop/src/main.ts (the OS window buttons).
+:host {
+   position: absolute;
+   top: 0;
+   right: 0;
+   left: 0;
+   z-index: 50;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   height: var(--dd-titlebar-h, 36px);
+   // Room for the OS minimize / maximize / close buttons.
+   padding: 0 150px 0 6px;
+   box-sizing: border-box;
+   border-bottom: 1px solid var(--dd-border);
+   background: var(--dd-surface);
+   color: var(--dd-text-muted);
+   font-size: 12px;
+   user-select: none;
+   app-region: drag;
+}
+
+// macOS: traffic lights on the left.
+:host(.mac) {
+   padding: 0 12px 0 78px;
+}
+
+.menu-btn {
+   display: inline-flex;
+   align-items: center;
+   gap: 2px;
+   height: 28px;
+   padding: 0 4px;
+   border: 0;
+   border-radius: 6px;
+   background: none;
+   color: inherit;
+   cursor: pointer;
+   app-region: no-drag;
+
+   &:hover {
+      background: var(--dd-surface-2);
+      color: var(--dd-text);
+   }
+}
+
+.mark {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 20px;
+   height: 20px;
+   border-radius: 5px;
+   background: linear-gradient(135deg, #6f8bff, #3b5bdb);
+   color: #fff;
+
+   --dd-icon-size: 14px;
+}
+
+.chev {
+   --dd-icon-size: 14px;
+}
+
+.title {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   min-width: 0;
+   white-space: nowrap;
+}
+
+.app {
+   color: var(--dd-text);
+   font-weight: 600;
+}
+
+.sep {
+   opacity: 0.5;
+}
+
+.project {
+   overflow: hidden;
+   color: var(--dd-text);
+   text-overflow: ellipsis;
+}
+
+.where {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   padding: 1px 6px;
+   border: 1px solid var(--dd-border);
+   border-radius: 999px;
+   font-size: 11px;
+
+   --dd-icon-size: 12px;
+}

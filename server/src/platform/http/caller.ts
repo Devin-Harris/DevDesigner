@@ -66,6 +66,6 @@ export function callerOf(request: CallerRequest): Caller {
 }
 
 /** Param decorator: inject the resolved {@link Caller} (`@Caller() caller: Caller`). */
-export const Caller = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): Caller => callerOf(ctx.switchToHttp().getRequest<CallerRequest>()),
+export const Caller = createParamDecorator((_data: unknown, ctx: ExecutionContext): Caller =>
+  callerOf(ctx.switchToHttp().getRequest<CallerRequest>()),
 );

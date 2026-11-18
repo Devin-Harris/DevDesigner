@@ -13,7 +13,7 @@ import {
    type RealtimeSession,
    type SchemaMutation,
 } from '@devdesigner/shared';
-import { environment } from '../../../environments/environment';
+import { runtimeConfig } from '../config/runtime-config';
 import { LaserService } from './laser.service';
 import { ShareSessionService } from '../auth/share-session.service';
 
@@ -103,7 +103,7 @@ export class RealtimeService {
          token: this.session.token() ?? undefined,
          guestId: this.session.guestId,
       };
-      const socket = io(`${environment.wsBaseUrl}${REALTIME_NAMESPACE}`, {
+      const socket = io(`${runtimeConfig.wsBaseUrl}${REALTIME_NAMESPACE}`, {
          withCredentials: true,
          transports: ['websocket'],
          auth: auth as unknown as Record<string, unknown>,

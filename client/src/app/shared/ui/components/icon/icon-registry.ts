@@ -53,6 +53,9 @@ export const ICON_PATHS: Record<string, string> = {
    ios_share: '<path d="M12 15V4M8.5 7.5L12 4l3.5 3.5M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6"/>',
    download: '<path d="M12 4v11M8 11l4 4 4-4M5 19h14"/>',
    upload: '<path d="M12 15V4M8 8l4-4 4 4M5 19h14"/>',
+   cloud: '<path d="M7 18h10a4 4 0 0 0 .7-7.94A6 6 0 0 0 6.2 9.1 4.5 4.5 0 0 0 7 18z"/>',
+   cloud_off: '<path d="M9.5 6.5A6 6 0 0 1 17.7 10.06 4 4 0 0 1 19.6 17M17 18H7a4.5 4.5 0 0 1-.8-8.9M4 4l16 16"/>',
+   sync: '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.6M20 4v4.6h-4.6M20 12a8 8 0 0 1-13.7 5.7L4 15.4M4 20v-4.6h4.6"/>',
    data_object:
       '<path d="M8 4a3 3 0 0 0-3 3v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a3 3 0 0 0 3 3M16 4a3 3 0 0 1 3 3v2a2 2 0 0 0 2 2 2 2 0 0 0-2 2v2a3 3 0 0 1-3 3"/>',
    photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>',

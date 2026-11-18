@@ -3,6 +3,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import type { ProjectExportFile } from '@devdesigner/shared';
 import { downloadText } from '../../features/editor/features/export/helpers/image-export.helper';
 import { ProjectsStore } from '../state/projects/projects.store';
+import { runtimeConfig } from '../../core/config/runtime-config';
+
+/** Desktop saves `.devdesigner` (a registered file type; same JSON), the web `.devdesigner.json`. */
+export const PROJECT_FILE_EXTENSION = runtimeConfig.desktop ? '.devdesigner' : '.devdesigner.json';
 
 /**
  * Saves a project to a portable `.devdesigner.json` file (re-importable on any
@@ -17,7 +21,7 @@ export class ProjectFileService {
    /** Save an already-built export file (e.g. a selection) under `<name>.devdesigner.json`. */
    save(file: ProjectExportFile, name: string): void {
       const safe = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'project';
-      downloadText(JSON.stringify(file, null, 2), `${safe}.devdesigner.json`, 'application/json');
+      downloadText(JSON.stringify(file, null, 2), `${safe}${PROJECT_FILE_EXTENSION}`, 'application/json');
    }
 
    async download(projectId: string, projectName: string): Promise<void> {
