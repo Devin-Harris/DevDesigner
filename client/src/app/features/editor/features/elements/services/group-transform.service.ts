@@ -19,6 +19,13 @@ import {
 import { LIST_LINE } from '../helpers/rich-list.helper';
 import type { SequenceLayoutSnapshot } from '../../../state/project/models/project-state.model';
 import type { SequenceStart } from '../../../models/sequence-start.model';
+/** One item of an evenly spaced selection: an element, or a sequence diagram (no `el`). */
+interface SpacingItem {
+   id: string;
+   el?: CanvasElementModel;
+   box: { x0: number; y0: number; x1: number; y1: number };
+}
+
 /** A resize of several selected items at once: everything scales about one shared box. */
 interface GroupResize {
    /** Handle being dragged (nw/ne/sw/se/n/s/e/w), mapped onto the group's box. */
@@ -207,24 +214,32 @@ export class GroupTransformService {
    private readonly evenSpacing = computed<{
       axis: 'x' | 'y';
       gap: number;
-      items: { el: CanvasElementModel; box: { x0: number; y0: number; x1: number; y1: number } }[];
+      items: SpacingItem[];
    } | null>(() => {
       if (!this.store.canEdit()) return null;
       const ids = new Set(this.store.selectedElementIds());
-      if (ids.size < 2 || this.store.selectedTableIds().length || this.store.selectedDiagramIds().length) return null;
-      const items = this.store
+      const diagIds = new Set(this.store.selectedDiagramIds());
+      if (ids.size + diagIds.size < 2 || this.store.selectedTableIds().length) return null;
+      const items: SpacingItem[] = this.store
          .elements()
          .filter((e) => ids.has(e.id) && e.type !== 'frame')
-         .map((el) => ({ el, box: elementBox(el) }));
-      if (items.length < 2 || items.length !== ids.size) return null;
+         .map((el) => ({ id: el.id, el, box: elementBox(el) }));
+      if (items.length !== ids.size) return null;
+      for (const d of this.store.sequenceDiagrams()) {
+         if (!diagIds.has(d.id)) continue;
+         const db = this.canvasView.diagramBox(d);
+         if (!db) return null;
+         items.push({ id: d.id, box: { x0: db.minX, y0: db.minY, x1: db.maxX, y1: db.maxY } });
+      }
+      if (items.length < 2) return null;
       for (const axis of ['x', 'y'] as const) {
          const lo = axis === 'x' ? 'x0' : 'y0';
          const hi = axis === 'x' ? 'x1' : 'y1';
-         const sorted = [...items].sort((a, b) => a.box[lo] - b.box[lo]);
+         const sorted = [...items].sort((p, q) => p.box[lo] - q.box[lo]);
          const gaps = sorted.slice(1).map((it, i) => it.box[lo] - sorted[i].box[hi]);
          if (gaps.some((g) => g < 0)) continue;
          if (Math.max(...gaps) - Math.min(...gaps) > 1.5) continue;
-         return { axis, gap: gaps.reduce((s, g) => s + g, 0) / gaps.length, items: sorted };
+         return { axis, gap: gaps.reduce((sum, g) => sum + g, 0) / gaps.length, items: sorted };
       }
       return null;
    });
@@ -350,7 +365,9 @@ export class GroupTransformService {
    private spacingDrag: {
       axis: 'x' | 'y';
       gap: number;
-      items: { el: CanvasElementModel; box: { x0: number; y0: number; x1: number; y1: number } }[];
+      items: SpacingItem[];
+      /** Diagrams' layouts at drag start (shiftSequence works from these). */
+      seqStarts: Map<string, { start: SequenceStart; before: SequenceLayoutSnapshot }>;
    } | null = null;
 
    startSpacingDrag(event: PointerEvent): void {
@@ -359,7 +376,13 @@ export class GroupTransformService {
       if ((!s && !list) || event.button !== 0) return;
       event.stopPropagation();
       event.preventDefault();
-      this.spacingDrag = s;
+      const seqStarts = new Map<string, { start: SequenceStart; before: SequenceLayoutSnapshot }>();
+      for (const it of s?.items ?? []) {
+         if (it.el) continue;
+         const start = this.canvasView.sequenceStart(it.id);
+         if (start) seqStarts.set(it.id, { start, before: this.canvasView.layoutSnapshot(it.id) });
+      }
+      this.spacingDrag = s ? { ...s, seqStarts } : null;
       this.listSpacingDrag = list ? { el: list.el, pitch: list.pitch } : null;
       this.gesture.mode = 'spacing';
       this.spacingActive.set(true);
@@ -386,8 +409,16 @@ export class GroupTransformService {
       const zoom = this.store.viewport().zoom;
       const delta =
          (g.axis === 'x' ? ev.clientX - this.gesture.startClientX : ev.clientY - this.gesture.startClientY) / zoom;
-      let gap = Math.max(0, g.gap + delta);
-      if (!ev.altKey) gap = Math.round(gap);
+      // Smart guides: nudge the step so one of the moving items lands on a guide.
+      const step = this.snap.smartSpacing(
+         g.items.filter((it) => it.el).map((it) => it.id),
+         g.items.filter((it) => !it.el).map((it) => it.id),
+         g.items.map((it) => it.box),
+         g.axis,
+         Math.max(-g.gap, delta)
+      );
+      let gap = Math.max(0, g.gap + step);
+      if (!ev.altKey && Math.abs(step - delta) < 1e-6) gap = Math.round(gap);
       let cursor = g.items[0].box[g.axis === 'x' ? 'x1' : 'y1'];
       g.items.forEach((it, i) => {
          if (i === 0) return;
@@ -395,7 +426,15 @@ export class GroupTransformService {
          const target = cursor + gap;
          const shift = target - start;
          cursor = target + (g.axis === 'x' ? it.box.x1 - it.box.x0 : it.box.y1 - it.box.y0);
-         this.store.patchElementLocal(it.el.id, g.axis === 'x' ? { x: it.el.x + shift } : { y: it.el.y + shift });
+         if (it.el) {
+            this.store.patchElementLocal(it.id, g.axis === 'x' ? { x: it.el.x + shift } : { y: it.el.y + shift });
+            return;
+         }
+         const seq = g.seqStarts.get(it.id);
+         if (!seq) return;
+         const r = Math.round(shift);
+         const { xs, originY, rows } = seq.start;
+         this.store.shiftSequence(it.id, xs, g.axis === 'x' ? r : 0, originY, g.axis === 'y' ? r : 0, rows);
       });
    }
 
@@ -416,16 +455,24 @@ export class GroupTransformService {
          }
          return;
       }
+      this.snap.smartDragEnd();
       if (!g) return;
       const now = new Map(this.store.elements().map((e) => [e.id, e] as const));
       void this.store.batchHistory(async () => {
          await Promise.all(
             g.items.slice(1).map(({ el }) => {
-               const cur = now.get(el.id);
-               if (!cur || (cur.x === el.x && cur.y === el.y)) return null;
+               const cur = el && now.get(el.id);
+               if (!el || !cur || (cur.x === el.x && cur.y === el.y)) return null;
                return this.store.commitElementGeometry(el.id, { x: el.x, y: el.y }, { x: cur.x, y: cur.y });
             })
          );
+         for (const [id, { before }] of g.seqStarts) {
+            const after = this.canvasView.layoutSnapshot(id);
+            for (const [lid, x] of after.lifelineXs) this.store.moveLifeline(lid, x);
+            for (const [mid, y] of after.messageYs) this.store.moveMessage(mid, y);
+            void this.store.updateSequenceConfig(id, { rowSpacing: after.rowSpacing, originY: after.originY });
+            this.store.recordSequenceLayout(id, before, after);
+         }
       });
    }
 

@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeLanguage, TextRun } from '@devdesigner/shared';
-import { themeColorCss, resolveThemeElement, resolveThemeColor, themeSwatchCss } from '@devdesigner/shared';
+import { isColorValue, themeColorCss, resolveThemeElement, resolveThemeColor, themeSwatchCss } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { elementBox, FRAME_TITLE_H, FRAME_TITLE_W } from '../../../helpers/element-geometry.helper';
@@ -663,8 +663,9 @@ export class TextEditingService {
          if (deco.includes('underline') || el.tagName === 'U') {
             s.underline = true;
          }
+         // Browser-inserted markup can carry CSS like `var(--dd-text)`: keep only real colors.
          const color = el.dataset['color'] ?? el.style.color;
-         if (color) {
+         if (color && isColorValue(color)) {
             s.color = color;
          }
          if (el.dataset['morph']) {

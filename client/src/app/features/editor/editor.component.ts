@@ -1,4 +1,6 @@
 import { LiveFramesNoticeComponent } from './shared/components/embed-frame/live-frames-notice.component';
+import { readSavedViewport } from './state/project/viewport-storage';
+import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
 import { provideEditor } from './editor.providers';
 import { EditorBridgeService } from './editor-bridge.service';
 import { FloatingToolbarsService } from './features/elements/services/floating-toolbars.service';
@@ -376,12 +378,14 @@ export class EditorComponent {
             if (!this.destroyRef.destroyed && this.store.projectId() === id) this.viewport.fitContent();
          });
       });
-      // Opening (or refreshing) a project starts at its home view, or origin/100%.
+      // Opening (or refreshing) a project returns to this browser's last view of it, else its
+      // home view, else origin/100%.
       effect(() => {
          const id = this.store.projectId();
          if (this.fitOnLoad() || !id || this.store.loading() || !this.store.schema()) return;
          if (this.homeAppliedFor === id) return;
          this.homeAppliedFor = id;
+         if (!isSandboxId(id) && readSavedViewport(id)) return; // the store already restored it
          untracked(() => {
             const home = this.store.home() ?? { x: 0, y: 0, zoom: 1 };
             this.store.setViewport(home.x, home.y, home.zoom);

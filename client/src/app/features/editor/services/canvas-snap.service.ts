@@ -219,6 +219,47 @@ export class CanvasSnapService {
       return snap;
    }
 
+   /**
+    * Smart guides for an even-spacing drag: item `i` of `boxes` (start boxes, the first
+    * fixed) moves by `i * d` along `axis`. Returns `d` nudged so the moving item that is
+    * closest to a guide lands on it.
+    */
+   smartSpacing(elementIds: string[], diagramIds: string[], boxes: Box[], axis: 'x' | 'y', d: number): number {
+      if (!this.smartGuides() || boxes.length < 2) {
+         this.smartSnapState.set(null);
+         return d;
+      }
+      const grabbed = elementIds[0] ?? diagramIds[0];
+      const base = this.ensureSmartBase(grabbed, elementIds, [], diagramIds);
+      if (!base) return d;
+      const zoom = this.store.viewport().zoom * this.canvasView.itemScale(grabbed);
+      let best: { corr: number; snap: SmartSnap } | null = null;
+      for (let i = 1; i < boxes.length; i++) {
+         const b = boxes[i];
+         const t = i * d;
+         const moved = axis === 'x' ? { ...b, x0: b.x0 + t, x1: b.x1 + t } : { ...b, y0: b.y0 + t, y1: b.y1 + t };
+         const snap = smartSnap(moved, base.targets, zoom);
+         if (!(axis === 'x' ? snap.snappedX : snap.snappedY)) continue;
+         const corr = (axis === 'x' ? snap.ox : snap.oy) / i;
+         if (!best || Math.abs(corr) < Math.abs(best.corr)) best = { corr, snap };
+      }
+      if (!best) {
+         this.smartSnapState.set(null);
+         return d;
+      }
+      const snap: SmartSnap = {
+         ...best.snap,
+         ox: axis === 'x' ? best.snap.ox : 0,
+         oy: axis === 'y' ? best.snap.oy : 0,
+         snappedX: axis === 'x',
+         snappedY: axis === 'y',
+         guides: best.snap.guides.filter((g) => g.axis === axis),
+         gaps: best.snap.gaps.filter((g) => g.axis === axis),
+      };
+      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+      return d + best.corr;
+   }
+
    /** Snap targets for a gesture on the given items, built once per gesture. */
    private ensureSmartBase(
       grabbedId: string,

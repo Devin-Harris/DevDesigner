@@ -191,7 +191,11 @@ export class SandboxBackendService {
    handle(method: string, path: string, body: unknown): { body: unknown } | undefined {
       const b = (body ?? {}) as Dict;
       const seg = path.split('?')[0].split('/').filter(Boolean);
-      if (method !== 'GET') assertColors(b);
+      // Imports are checked by the shared file parser (as on the server), which drops
+      // stray run colors instead of refusing the file.
+      if (method !== 'GET' && seg[seg.length - 1] !== 'import-content' && seg[seg.length - 1] !== 'import') {
+         assertColors(b);
+      }
 
       // GET /images/:id is handled by the interceptor (blob response).
       if (seg[0] === 'projects' && isSandboxId(seg[1])) {

@@ -2027,8 +2027,18 @@ export class MorphStage {
          const z = id ? zB.get(id) : undefined;
          return z === undefined ? [] : [{ ch, z }];
       });
-      if (!slots.length) return;
       extra.sort((x, y) => x.z - y.z);
+      if (!slots.length) {
+         // Nothing live to slot between (e.g. every pair is glyph-morphed text): the extras
+         // were detached when the live layer was rebuilt, so put them back above it in
+         // stacking order, or they'd vanish mid-morph and pop in at the end.
+         let prev: Element = this.live;
+         for (const e of extra) {
+            prev.after(e.node);
+            prev = e.node;
+         }
+         return;
+      }
       for (const e of extra) {
          const next = slots.find((sl) => sl.z > e.z);
          if (next) next.ch.before(e.node);

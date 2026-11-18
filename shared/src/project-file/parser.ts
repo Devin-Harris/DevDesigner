@@ -215,7 +215,8 @@ function textRuns(value: unknown, path: string): TextRun[] | undefined {
       bold: flag('bold'),
       italic: flag('italic'),
       underline: flag('underline'),
-      color: optColor(r, 'color', `${path}[${i}]`),
+      // A stray non-color (old editor builds saved CSS like `var(--x)`) is dropped, not fatal.
+      color: isColorValue(r['color']) ? r['color'] : undefined,
       morph: optStr(r, 'morph', `${path}[${i}]`, 80),
     };
   });
