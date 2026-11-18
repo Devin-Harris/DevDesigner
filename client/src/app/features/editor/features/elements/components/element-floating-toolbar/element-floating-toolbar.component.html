@@ -27,7 +27,7 @@
                (pick)="setStroke($event); close()"
             />
             @if (strokeOpacityShown()) {
-               <div class="opacity-row channel" [attr.aria-label]="'Stroke opacity'" matTooltip="Stroke opacity">
+               <div class="opacity-row channel" matTooltip="Stroke opacity" [attr.aria-label]="'Stroke opacity'">
                   <dd-icon name="opacity" />
                   <input
                      type="range"
@@ -72,7 +72,7 @@
                (pick)="setFill($event); close()"
             />
             @if (!fillShown().none) {
-               <div class="opacity-row channel" [attr.aria-label]="'Fill opacity'" matTooltip="Fill opacity">
+               <div class="opacity-row channel" matTooltip="Fill opacity" [attr.aria-label]="'Fill opacity'">
                   <dd-icon name="opacity" />
                   <input
                      type="range"

@@ -663,17 +663,17 @@
                      <!-- Address bar floating inside the selected frame's bottom edge (inside, so a slide's
                           clip never cuts it off): edit the URL, reload, open. -->
                      <foreignObject
+                        height="34"
                         [attr.x]="em.x + 8"
                         [attr.y]="em.y + em.height - 42"
                         [attr.width]="em.width - 16"
-                        height="34"
                      >
                         <dd-embed-url-bar
                            [url]="em.url"
                            [editable]="store.canEdit()"
+                           [snapshot]="snapshots.hasSnapshot(s.id)"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
                            (reload)="embeds.reload(s.id)"
-                           [snapshot]="snapshots.hasSnapshot(s.id)"
                            (snapshotToggle)="snapshots.setEnabled(s.id, $event)"
                            (retake)="snapshots.capture(s.id)"
                         ></dd-embed-url-bar>

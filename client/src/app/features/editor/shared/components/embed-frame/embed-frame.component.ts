@@ -39,7 +39,7 @@ function embedHost(url: string | null | undefined): string {
             </div>
          } @else {
             <!-- Stays mounted and fades away once the page is in, revealing it underneath. -->
-            <div class="state loading" [class.done]="loaded()" aria-live="polite">
+            <div class="state loading" aria-live="polite" [class.done]="loaded()">
                <div class="spinner" aria-hidden="true"></div>
                <p class="sub">Loading</p>
                <p class="sub url">{{ host() }}</p>
@@ -47,13 +47,13 @@ function embedHost(url: string | null | undefined): string {
          }
          @for (k of [nonce() + retries()]; track k) {
             <iframe
-               [class.ready]="loaded() && !failed()"
-               (load)="onLoad($event)"
                title="Live frame"
                referrerpolicy="no-referrer"
                allow="clipboard-read; clipboard-write; fullscreen; autoplay"
                sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-same-origin"
+               [class.ready]="loaded() && !failed()"
                [src]="s"
+               (load)="onLoad($event)"
             ></iframe>
          }
          <!-- The frame's own border, drawn over the page so its corners never look cut off. -->
