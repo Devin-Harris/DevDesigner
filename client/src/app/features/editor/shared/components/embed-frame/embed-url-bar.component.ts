@@ -23,11 +23,6 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
             (input)="invalid.set(false)"
             (blur)="save(null, field)"
          />
-         @if (editable()) {
-            <button type="button" class="snap" title="Capture a snapshot for thumbnails and exports" aria-label="Capture snapshot" (click)="capture.emit()">
-               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.2" /></svg>
-            </button>
-         }
          <button type="button" title="Reload" aria-label="Reload page" (click)="reload.emit()">⟳</button>
          <a title="Open in a new tab" aria-label="Open in a new tab" target="_blank" rel="noopener noreferrer" [href]="url()">↗</a>
       </form>
@@ -50,7 +45,7 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
          border-radius: 8px;
          background: var(--dd-surface, #fff);
          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-         font: 12px/1 var(--dd-font-ui, system-ui, sans-serif);
+         font: 12px/1 var(--dd-font, system-ui, sans-serif);
          color: var(--dd-text, #111);
       }
       .bar.bad {
@@ -69,7 +64,7 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
          outline: none;
       }
       input:focus {
-         background: var(--dd-bg, rgba(0, 0, 0, 0.05));
+         background: var(--dd-chip-bg);
       }
       button,
       a {
@@ -86,17 +81,9 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
          text-decoration: none;
          cursor: pointer;
       }
-      .snap svg {
-         width: 15px;
-         height: 15px;
-         fill: none;
-         stroke: currentColor;
-         stroke-width: 1.7;
-         stroke-linejoin: round;
-      }
       button:hover,
       a:hover {
-         background: var(--dd-bg, rgba(0, 0, 0, 0.06));
+         background: var(--dd-chip-bg);
          color: inherit;
       }
    `,
@@ -106,7 +93,6 @@ export class EmbedUrlBarComponent {
    readonly editable = input(true);
    readonly urlCommit = output<string>();
    readonly reload = output<void>();
-   readonly capture = output<void>();
    protected readonly invalid = signal(false);
 
    protected onKey(event: KeyboardEvent, field: HTMLInputElement): void {

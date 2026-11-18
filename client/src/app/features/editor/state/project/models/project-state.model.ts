@@ -91,6 +91,8 @@ export interface ProjectSlidesState {
     * the staging room around it shows. Never saved.
     */
    slideZoom: Record<string, number>;
+   /** View-only pan of each presentation's shown slide inside its block (name -> inner offset). Never saved. */
+   slidePan: Record<string, { x: number; y: number }>;
 }
 
 /** The whole ProjectStore state. */

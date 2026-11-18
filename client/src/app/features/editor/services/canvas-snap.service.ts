@@ -1,7 +1,7 @@
 import { CanvasViewService } from './canvas-view.service';
 import { PointerGestureService } from './pointer-gesture.service';
 import { computed, inject, signal, Injectable, effect } from '@angular/core';
-import { type SlideView, toOuter } from '../helpers/slide-zoom.helper';
+import { type SlideView, isPlainView, toInner, toOuter } from '../helpers/slide-zoom.helper';
 import { ProjectStore } from '../state/project/project.store';
 import { sequenceDiagramBox } from '../helpers/frame-contents.helper';
 import { elementBox, isPathElement, tableBox } from '../helpers/element-geometry.helper';
@@ -265,17 +265,26 @@ export class CanvasSnapService {
             const b = diagramBoxes.get(d.id);
             if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
          }
-         // A presentation's dashed outline (around its panels and frame) is a snap target too.
-         for (const p of this.host.presentationOutlineBoxes()) {
-            if (ctx === null || p.frameId === ctx) all.push(p.box);
-         }
+         const own = draft ? undefined : this.canvasView.viewOf(grabbedId);
          const view = draft
-            ? draft.view && draft.view.scale !== 1
+            ? draft.view && !isPlainView(draft.view)
                ? draft.view
                : undefined
-            : this.canvasView.itemScale(grabbedId) !== 1
-              ? this.canvasView.viewOf(grabbedId)
+            : own && own.frameId !== grabbedId && !isPlainView(own)
+              ? own
               : undefined;
+         // A presentation's dashed outline (around its panels and frame) is a snap target too.
+         // It lives in world space; a zoomed slide's items are in the slide's inner space.
+         for (const p of this.host.presentationOutlineBoxes()) {
+            if (ctx !== null && p.frameId !== ctx) continue;
+            if (!view) {
+               all.push(p.box);
+               continue;
+            }
+            const a = toInner(view, { x: p.box.x0, y: p.box.y0 });
+            const b = toInner(view, { x: p.box.x1, y: p.box.y1 });
+            all.push({ x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+         }
          this.smartBase = {
             box,
             parts: boxes,

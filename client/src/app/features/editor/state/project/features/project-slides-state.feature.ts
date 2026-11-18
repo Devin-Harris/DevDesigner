@@ -6,6 +6,7 @@ const initialSlidesState: ProjectSlidesState = {
    selectedPresentationKey: null,
    shownByPresentationKey: {},
    slideZoom: {},
+   slidePan: {},
 };
 
 /** Which slide/presentation the canvas shows and each presentation's view zoom (never saved). */

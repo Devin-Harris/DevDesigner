@@ -318,16 +318,18 @@
                      (pointerdown)="onBody(s.id, $event)"
                   ></rect>
                   @if (s.selected && interactive() && s.id !== editingId()) {
-                     <!-- Drag a border to resize its column/row; the last ones grow the table. -->
+                     <!-- Drag a border to resize its column/row (the last ones, inset so the table's own
+                          resize handles stay reachable, grow the table); double-click fits it to its content. -->
                      @for (x of g.colEdges; track $index; let i = $index) {
                         @if (i > 0) {
                            <rect
                               class="grid-border col"
                               width="8"
-                              [attr.x]="x - 4"
+                              [attr.x]="i === g.colEdges.length - 1 ? x - 9 : x - 4"
                               [attr.y]="g.rect.y"
                               [attr.height]="g.rect.height"
                               (pointerdown)="onGridBorder(s.id, 'col', i - 1, $event)"
+                              (dblclick)="onGridBorderFit(s.id, 'col', i - 1, $event)"
                            ></rect>
                         }
                      }
@@ -337,9 +339,10 @@
                               class="grid-border row"
                               height="8"
                               [attr.x]="g.rect.x"
-                              [attr.y]="y - 4"
+                              [attr.y]="i === g.rowEdges.length - 1 ? y - 9 : y - 4"
                               [attr.width]="g.rect.width"
                               (pointerdown)="onGridBorder(s.id, 'row', i - 1, $event)"
+                              (dblclick)="onGridBorderFit(s.id, 'row', i - 1, $event)"
                            ></rect>
                         }
                      }
@@ -643,7 +646,7 @@
                         ></dd-embed-frame>
                      </foreignObject>
                   }
-                  @if (em.url && s.selected && interactive() && embeds.capturingId() !== s.id) {
+                  @if (em.url && s.selected && interactive()) {
                      <!-- Address bar floating inside the selected frame's bottom edge (inside, so a slide's
                           clip never cuts it off): edit the URL, reload, open. -->
                      <foreignObject
@@ -657,7 +660,6 @@
                            [editable]="store.canEdit()"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
                            (reload)="embeds.reload(s.id)"
-                           (capture)="embeds.captureSnapshot(s.id)"
                         ></dd-embed-url-bar>
                      </foreignObject>
                   }
@@ -665,7 +667,7 @@
             </g>
          </g>
 
-         @if (s.selected && s.id !== editingId() && s.id !== croppingId() && s.id !== embeds.capturingId()) {
+         @if (s.selected && s.id !== editingId() && s.id !== croppingId()) {
             <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {
                   <!-- Line/arrow: draggable endpoint handles. -->

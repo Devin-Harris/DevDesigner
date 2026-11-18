@@ -4,6 +4,11 @@ import { CanvasViewService } from '../../../services/canvas-view.service';
 import { EditorToolService } from '../../../services/editor-tool.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
 import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
+import { CODE_FONT_SIZE } from '../../../helpers/render/code-block.render';
+import type { ElementType } from '@devdesigner/shared';
+
+/** Elements that Ctrl + resize scales with their content (font size included). */
+const CONTENT_SCALE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['code', 'rectangle', 'ellipse', 'diamond']);
 import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
 import { inject, signal, Injectable, type WritableSignal } from '@angular/core';
@@ -622,6 +627,32 @@ export class ElementGestureService {
       if (onlyY && resized?.type === 'text') {
          return;
       }
+      // Ctrl (Cmd) + resize scales the object with its content (font included) instead
+      // of adding room around it: proportions are kept, a side drag scales evenly too.
+      if ((ev.ctrlKey || ev.metaKey) && resized && CONTENT_SCALE_TYPES.has(resized.type) && s.width > 0 && s.height > 0) {
+         const grow = onlyY ? 0 : (left ? -dx : dx) * factor;
+         const growY = onlyX ? 0 : (top ? -dy : dy) * factor;
+         const raw = onlyX
+            ? 1 + grow / s.width
+            : onlyY
+              ? 1 + growY / s.height
+              : 1 + (grow * s.width + growY * s.height) / (s.width * s.width + s.height * s.height);
+         const startFont = g.snapshot.fontSize ?? (resized.type === 'code' ? CODE_FONT_SIZE : DEFAULT_FONT_SIZE);
+         let fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, startFont * Math.max(0.05, raw)));
+         fontSize = Math.round(fontSize * 2) / 2;
+         // The font steps in half points; the box follows it so content and box stay in step.
+         const k = fontSize / startFont;
+         const width = Math.max(8, s.width * k);
+         const height = Math.max(8, s.height * k);
+         this.store.patchElementLocal(g.id, {
+            x: ev.altKey ? cx - width / 2 : left ? s.x + s.width - width : onlyY ? cx - width / 2 : s.x,
+            y: ev.altKey ? cy - height / 2 : top ? s.y + s.height - height : onlyX ? cy - height / 2 : s.y,
+            width,
+            height,
+            fontSize,
+         });
+         return;
+      }
       // Pictures keep their proportions by default; Shift frees them (inverse of shapes).
       // A side drag stretches on its one axis, pictures too.
       const keepProportions = onlyX || onlyY ? false : resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
@@ -941,7 +972,7 @@ export class ElementGestureService {
       }
       const snap = g.snapshot;
       if (this.gesture.mode === 'element-resize') {
-         const scaled = el.type === 'text';
+         const scaled = el.type === 'text' || (el.fontSize ?? null) !== (snap.fontSize ?? null);
          void this.store.commitElementGeometry(
             g.id,
             {

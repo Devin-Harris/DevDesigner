@@ -43,6 +43,7 @@ import {
    untracked,
    viewChild,
 } from '@angular/core';
+import { isPlainView } from './helpers/slide-zoom.helper';
 import { ToolbarPrefsService } from './services/toolbar-prefs.service';
 import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
 import { PenPrefsService } from './services/pen-prefs.service';
@@ -547,6 +548,15 @@ export class EditorComponent {
    readonly handlePointerMove = (event: PointerEvent): void => this.pointer.handlePointerMove(event);
    readonly selectedSlideSets = this.deckPanels.selectedSlideSets;
    readonly selectSlideSet = (name: string): void => this.deckPanels.selectSlideSet(name);
+   /** Shown slides zoomed or panned inside their block: a "Back to slide" chip (screen px) for each. */
+   protected readonly stagedSlides = computed(() => {
+      const v = this.store.viewport();
+      return this.canvasView
+         .slideViews()
+         .filter((sv) => !isPlainView(sv))
+         .map((sv) => ({ name: sv.presentation, left: sv.block.x1 * v.zoom + v.x, top: sv.block.y0 * v.zoom + v.y }));
+   });
+
    readonly presentationOutlineBoxes = (): { frameId: string; box: Box }[] =>
       this.deckPanels.presentationOutlineBoxes();
    readonly updateDraw = (clientX: number, clientY: number, shift: boolean, alt: boolean): void =>

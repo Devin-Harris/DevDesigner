@@ -565,6 +565,30 @@
 }
 
 // ---- Deck header above each presentation on the canvas ----
+.slide-recenter {
+   position: absolute;
+   z-index: 4;
+   transform: translate(calc(-100% - 8px), 8px);
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 28px;
+   padding: 0 10px;
+   border: 1px solid var(--dd-border);
+   border-radius: 8px;
+   background: var(--dd-surface);
+   box-shadow: var(--dd-shadow-2);
+   color: var(--dd-text);
+   font: 600 12px var(--dd-font);
+   cursor: pointer;
+   --dd-icon-size: 16px;
+
+   &:hover {
+      border-color: var(--dd-primary);
+      color: var(--dd-primary);
+   }
+}
+
 .deck-header {
    position: absolute;
    /* Scales with the canvas zoom, like the presentation block below it. */

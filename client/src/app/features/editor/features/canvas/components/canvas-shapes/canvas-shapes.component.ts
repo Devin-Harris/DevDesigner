@@ -213,6 +213,12 @@ export class CanvasShapesComponent {
       this.grids.beginBorderDrag(id, axis, index, event);
    }
 
+   protected onGridBorderFit(id: string, axis: 'col' | 'row', index: number, event: MouseEvent): void {
+      event.stopPropagation();
+      event.preventDefault();
+      this.grids.autoFit(id, axis, index);
+   }
+
    protected onBody(id: string, event: PointerEvent): void {
       if (event.button !== 0) {
          return;

@@ -1,8 +1,6 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { isEmbedUrl, isLocalEmbedUrl } from '@devdesigner/shared';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProjectStore } from '../state/project/project.store';
-import { ElementImagesService } from './element-images.service';
 
 const OPT_OUT_KEY = 'devdesigner.liveFrames.off';
 
@@ -14,11 +12,6 @@ const OPT_OUT_KEY = 'devdesigner.liveFrames.off';
 @Injectable({ providedIn: 'root' })
 export class EmbedFramesService {
    private readonly store = inject(ProjectStore);
-   private readonly images = inject(ElementImagesService);
-   private readonly snackBar = inject(MatSnackBar);
-
-   /** The live frame being captured: its address bar and selection handles hide meanwhile. */
-   readonly capturingId = signal<string | null>(null);
 
    /** The live frame whose page currently takes the pointer (double-click to enter). */
    readonly interactingId = signal<string | null>(null);
@@ -73,72 +66,6 @@ export class EmbedFramesService {
    dismissNotice(): void {
       const id = this.store.projectId();
       if (id) this.dismissed.set(new Set([...this.dismissed(), id]));
-   }
-
-   /**
-    * Take a picture of a live frame for thumbnails, slide transitions and exports.
-    * A page from another site cannot be read directly, so this asks to share this
-    * tab, grabs one video frame and crops it to the frame's box on screen.
-    */
-   async captureSnapshot(id: string): Promise<void> {
-      const projectId = this.store.projectId();
-      const host = document.querySelector<HTMLElement>(`[data-embed-id="${CSS.escape(id)}"]`);
-      const frame = host?.querySelector('iframe');
-      if (!projectId || !frame) {
-         this.toast('Load the page in the frame first, then capture it.');
-         return;
-      }
-      if (!navigator.mediaDevices?.getDisplayMedia) {
-         this.toast('This browser cannot capture the screen.');
-         return;
-      }
-      let stream: MediaStream | null = null;
-      this.capturingId.set(id);
-      try {
-         stream = await navigator.mediaDevices.getDisplayMedia({
-            video: { displaySurface: 'browser' },
-            audio: false,
-            preferCurrentTab: true,
-            selfBrowserSurface: 'include',
-         } as DisplayMediaStreamOptions);
-         const video = document.createElement('video');
-         video.muted = true;
-         video.srcObject = stream;
-         await video.play();
-         // Let the share prompt close and the bar/handles hide before grabbing a frame.
-         await new Promise((r) => setTimeout(r, 400));
-         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-         const box = frame.getBoundingClientRect();
-         const sx = video.videoWidth / window.innerWidth;
-         const sy = video.videoHeight / window.innerHeight;
-         const x = Math.max(0, box.left);
-         const y = Math.max(0, box.top);
-         const w = Math.min(window.innerWidth, box.right) - x;
-         const h = Math.min(window.innerHeight, box.bottom) - y;
-         if (w < 8 || h < 8) throw new Error('Scroll the frame into view, then capture it.');
-         const canvas = document.createElement('canvas');
-         canvas.width = Math.round(w * sx);
-         canvas.height = Math.round(h * sy);
-         canvas.getContext('2d')!.drawImage(video, x * sx, y * sy, w * sx, h * sy, 0, 0, canvas.width, canvas.height);
-         stream.getTracks().forEach((t) => t.stop());
-         stream = null;
-         this.capturingId.set(null);
-         const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', 0.9));
-         if (!blob) throw new Error('The snapshot could not be encoded.');
-         const uploaded = await this.images.upload(projectId, blob);
-         await this.store.updateElement(id, { fileId: uploaded.fileId });
-         this.toast('Snapshot saved: thumbnails and exports now show it.');
-      } catch (err) {
-         const denied = err instanceof DOMException && err.name === 'NotAllowedError';
-         if (!denied) this.toast(err instanceof Error ? err.message : 'The snapshot failed.');
-      } finally {
-         stream?.getTracks().forEach((t) => t.stop());
-         this.capturingId.set(null);
-      }
-   }
-
-   private toast(message: string): void {
-      this.snackBar.open(message, undefined, { duration: 4000 });
    }
 
    reload(id: string): void {

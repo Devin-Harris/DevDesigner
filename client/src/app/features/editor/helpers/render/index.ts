@@ -19,7 +19,7 @@ export {
    codePrintWidth,
    codeTitle,
 } from './code-block.render';
-export { gridFont, gridRowNeeds } from './grid-table.render';
+export { gridColNeed, gridFont, gridRowNeeds } from './grid-table.render';
 export {
    imageView,
    lineEnds,

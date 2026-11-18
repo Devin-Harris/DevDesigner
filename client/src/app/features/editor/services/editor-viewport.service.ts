@@ -1,6 +1,6 @@
 import { DestroyRef, type ElementRef, computed, inject, signal, Injectable, type Signal } from '@angular/core';
-import { presentationOf, type SequenceDiagramModel } from '@devdesigner/shared';
-import { inBlock, type SlideView, toInner } from '../helpers/slide-zoom.helper';
+import { presentationOf, type CanvasElementModel, type SequenceDiagramModel } from '@devdesigner/shared';
+import { clampSlidePan, inBlock, type SlideView, toInner } from '../helpers/slide-zoom.helper';
 import { notifySignal } from '../../../shared/helpers/signals';
 import { ProjectStore } from '../state/project/project.store';
 import { MAX_ZOOM, MIN_ZOOM } from '../shared/constants/canvas.constants';
@@ -110,6 +110,18 @@ export class EditorViewportService {
       if (this.host.focusedDeck() && !event.ctrlKey) return;
       const rect = this.canvasRect();
       const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      // Alt + scroll over a shown slide pans it inside its block (Shift swaps the axes),
+      // to reach items staged off the slide. "Back to slide" undoes it.
+      if (event.altKey && !event.ctrlKey && !this.host.presentation()) {
+         const frame = this.shownSlideUnder(this.toWorldRaw(event.clientX, event.clientY));
+         if (frame) {
+            const zoom = this.store.viewport().zoom * (this.store.slideZoom()[presentationOf(frame)] ?? 1);
+            const ddx = event.shiftKey ? event.deltaY : event.deltaX;
+            const ddy = event.shiftKey ? event.deltaX : event.deltaY;
+            this.panSlideBy(frame, ddx / zoom, ddy / zoom);
+            return;
+         }
+      }
       // Ctrl + scroll over a shown slide zooms that slide inside its block (the block keeps
       // its size), revealing the staging room around the frame. View state only.
       if (event.ctrlKey && !this.host.presentation()) {
@@ -134,6 +146,29 @@ export class EditorViewportService {
          }
       }
       this.applyZoom(factor, event.clientX - rect.left, event.clientY - rect.top);
+   }
+
+   /** The shown slide whose block covers canvas point `p`. */
+   shownSlideUnder(p: { x: number; y: number }): CanvasElementModel | undefined {
+      const shown = this.store.shownByPresentation();
+      return this.store
+         .slideFrames()
+         .find(
+            (f) =>
+               shown.get(presentationOf(f)) === f.id &&
+               p.x >= f.x &&
+               p.x <= f.x + f.width &&
+               p.y >= f.y &&
+               p.y <= f.y + f.height
+         );
+   }
+
+   /** Pan a shown slide's view by an inner offset, kept within its staging reach. */
+   panSlideBy(frame: CanvasElementModel, dx: number, dy: number): void {
+      const name = presentationOf(frame);
+      const scale = this.store.slideZoom()[name] ?? 1;
+      const pan = this.store.slidePan()[name] ?? { x: 0, y: 0 };
+      this.store.setSlidePan(name, clampSlidePan(frame, scale, { x: pan.x + dx, y: pan.y + dy }));
    }
 
    zoomIn(): void {

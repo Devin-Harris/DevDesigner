@@ -20,9 +20,34 @@ export interface SlideView {
    presentation: string;
    /** The block: the frame's own box on the canvas (outer space, fixed). */
    block: Box;
+   /** The block's centre (outer space). */
    cx: number;
    cy: number;
+   /** The inner point drawn at the block's centre: the frame's centre unless panned. */
+   fx: number;
+   fy: number;
    scale: number;
+}
+
+/** An inner offset the slide is panned by (from its frame's centre). */
+export interface SlidePan {
+   x: number;
+   y: number;
+}
+
+/**
+ * Keep a pan within what the slide can ever show (the reach at MIN_SLIDE_ZOOM), so
+ * the view never leaves the staging room that items stay owned in.
+ */
+export function clampSlidePan(frame: FrameBox, scale: number, pan: SlidePan): SlidePan {
+   const mx = Math.max(0, frame.width / 2 / MIN_SLIDE_ZOOM - frame.width / 2 / scale);
+   const my = Math.max(0, frame.height / 2 / MIN_SLIDE_ZOOM - frame.height / 2 / scale);
+   return { x: Math.max(-mx, Math.min(mx, pan.x)), y: Math.max(-my, Math.min(my, pan.y)) };
+}
+
+/** The view shows the slide as-is (no zoom, no pan): items map 1:1. */
+export function isPlainView(v: SlideView): boolean {
+   return v.scale === 1 && v.fx === v.cx && v.fy === v.cy;
 }
 
 interface FrameBox {
@@ -32,34 +57,44 @@ interface FrameBox {
    height: number;
 }
 
-/** What a slide shows at `scale`, in inner coordinates (the frame's box at scale 1). */
-export function slideViewRegion(frame: FrameBox, scale: number): Box {
-   const cx = frame.x + frame.width / 2;
-   const cy = frame.y + frame.height / 2;
+/** What a slide shows at `scale` (and `pan`), in inner coordinates (the frame's box at scale 1). */
+export function slideViewRegion(frame: FrameBox, scale: number, pan?: SlidePan): Box {
+   const cx = frame.x + frame.width / 2 + (pan?.x ?? 0);
+   const cy = frame.y + frame.height / 2 + (pan?.y ?? 0);
    const hw = frame.width / 2 / scale;
    const hh = frame.height / 2 / scale;
    return { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
 }
 
-export function slideView(frame: FrameBox & { id: string }, presentation: string, scale: number): SlideView {
+export function slideView(
+   frame: FrameBox & { id: string },
+   presentation: string,
+   scale: number,
+   pan?: SlidePan
+): SlideView {
+   const cx = frame.x + frame.width / 2;
+   const cy = frame.y + frame.height / 2;
+   const p = pan ? clampSlidePan(frame, scale, pan) : { x: 0, y: 0 };
    return {
       frameId: frame.id,
       presentation,
       block: { x0: frame.x, y0: frame.y, x1: frame.x + frame.width, y1: frame.y + frame.height },
-      cx: frame.x + frame.width / 2,
-      cy: frame.y + frame.height / 2,
+      cx,
+      cy,
+      fx: cx + p.x,
+      fy: cy + p.y,
       scale,
    };
 }
 
 /** Where an inner point (stored coordinates) appears on the canvas. */
 export function toOuter(v: SlideView, p: { x: number; y: number }): { x: number; y: number } {
-   return { x: v.cx + (p.x - v.cx) * v.scale, y: v.cy + (p.y - v.cy) * v.scale };
+   return { x: v.cx + (p.x - v.fx) * v.scale, y: v.cy + (p.y - v.fy) * v.scale };
 }
 
 /** The inner point (stored coordinates) drawn at canvas point `p`. */
 export function toInner(v: SlideView, p: { x: number; y: number }): { x: number; y: number } {
-   return { x: v.cx + (p.x - v.cx) / v.scale, y: v.cy + (p.y - v.cy) / v.scale };
+   return { x: v.fx + (p.x - v.cx) / v.scale, y: v.fy + (p.y - v.cy) / v.scale };
 }
 
 /** A box in inner coordinates as it appears on the canvas. */
@@ -80,5 +115,5 @@ export function inBlock(v: SlideView, p: { x: number; y: number }): boolean {
 export function slideViewTransform(v: SlideView): string {
    const tx = v.cx - v.block.x0;
    const ty = v.cy - v.block.y0;
-   return `translate(${tx}px, ${ty}px) scale(${v.scale}) translate(${-v.cx}px, ${-v.cy}px)`;
+   return `translate(${tx}px, ${ty}px) scale(${v.scale}) translate(${-v.fx}px, ${-v.fy}px)`;
 }

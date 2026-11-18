@@ -43,9 +43,20 @@ const intersects = (p: Box, q: Box) => overlaps(p, q, 'x') && overlaps(p, q, 'y'
 
 /** Pick the targets that matter: on screen, nearest the moving box first. */
 export function snapTargets(moving: Box, targets: readonly Box[], view: Box | null): Box[] {
-   const cx = (moving.x0 + moving.x1) / 2;
-   const cy = (moving.y0 + moving.y1) / 2;
-   const dist = (b: Box) => Math.hypot((b.x0 + b.x1) / 2 - cx, (b.y0 + b.y1) / 2 - cy);
+   // Distance between the boxes' nearest edges, not their centres: a big container
+   // (a slide frame, a presentation's outline) has its centre far away even when its
+   // edge is right next to the moving item, and would lose its place among small items.
+   const gapAlong = (b: Box, a: Axis) => Math.max(0, lo(b, a) - hi(moving, a), lo(moving, a) - hi(b, a));
+   const edgeNear = (b: Box) =>
+      Math.min(
+         ...(['x', 'y'] as const).flatMap((a) => [
+            Math.abs(lo(b, a) - lo(moving, a)),
+            Math.abs(hi(b, a) - hi(moving, a)),
+            Math.abs(lo(b, a) - hi(moving, a)),
+            Math.abs(hi(b, a) - lo(moving, a)),
+         ])
+      );
+   const dist = (b: Box) => Math.hypot(gapAlong(b, 'x'), gapAlong(b, 'y')) + edgeNear(b) * 0.001;
    return targets
       .filter((b) => !view || intersects(b, view))
       .map((b) => ({ b, d: dist(b) }))

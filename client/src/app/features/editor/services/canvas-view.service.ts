@@ -20,6 +20,7 @@ import {
    type SlideView,
    toInner,
    toOuter,
+   isPlainView,
 } from '../helpers/slide-zoom.helper';
 import { FontMetricsService } from './font-metrics.service';
 import type { ShapeView } from '../models/shape-view.model';
@@ -120,10 +121,11 @@ export class CanvasViewService {
       // Every shown slide is drawn through its block, also at scale 1: the block is a
       // window onto the slide, so items staged outside the frame only show zoomed out.
       const zoom = this.store.slideZoom();
+      const pan = this.store.slidePan();
       const frames = this.store.slideFrames();
       return [...this.store.shownByPresentation()].flatMap(([name, id]) => {
          const frame = frames.find((f) => f.id === id);
-         return frame ? [slideView(frame, name, zoom[name] ?? 1)] : [];
+         return frame ? [slideView(frame, name, zoom[name] ?? 1, pan[name])] : [];
       });
    });
 
@@ -154,7 +156,7 @@ export class CanvasViewService {
             // handles sit on or past the block's edge, where the layer clips.
             const own = views.get(e.id);
             const v =
-               own && own.scale < 1
+               own && !isPlainView(own)
                   ? own
                   : e.slideId
                     ? (views.get(e.slideId) ?? (locked.has(e.id) ? layoutViews.get(e.slideId) : undefined))
@@ -198,8 +200,8 @@ export class CanvasViewService {
       const view = this.viewOf(id);
       if (!view) return v;
       return {
-         x: v.x + view.cx * (1 - view.scale) * v.zoom,
-         y: v.y + view.cy * (1 - view.scale) * v.zoom,
+         x: v.x + (view.cx - view.fx * view.scale) * v.zoom,
+         y: v.y + (view.cy - view.fy * view.scale) * v.zoom,
          zoom: v.zoom * view.scale,
       };
    }

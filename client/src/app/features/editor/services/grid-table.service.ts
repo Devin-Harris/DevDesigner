@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ProjectStore } from '../state/project/project.store';
 import {
+   GRID_MIN_CELL,
    type CellStyle,
    type GridData,
    type GridEdit,
@@ -21,7 +22,7 @@ import {
    serializeGrid,
 } from '../helpers/grid-table.helper';
 import type { GridBorders } from '@devdesigner/shared';
-import { gridRowNeeds } from '../helpers/render';
+import { gridColNeed, gridRowNeeds } from '../helpers/render';
 
 export interface GridCellRef {
    id: string;
@@ -565,6 +566,34 @@ export class GridTableService {
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+   }
+
+   /**
+    * Double-click on a border: fit the column to its left (or the row above) to its
+    * content, shrinking or growing it. The table's size changes by the difference.
+    */
+   autoFit(id: string, axis: 'col' | 'row', index: number): void {
+      if (this.editingCell()) this.endEdit();
+      const el = this.grid(id);
+      if (!el || !this.store.canEdit()) return;
+      const g = gridInPixels(el);
+      const sizes = axis === 'col' ? g.cols : g.rows;
+      if (index < 0 || index >= sizes.length) return;
+      const need =
+         axis === 'col' ? gridColNeed(el, g, index) : gridRowNeeds(el, g, g.cols)[index];
+      const next = Math.max(GRID_MIN_CELL, need);
+      if (Math.abs(next - sizes[index]) < 0.5) return;
+      sizes[index] = next;
+      // A narrower column can wrap its text: grow the rows that now need it.
+      if (axis === 'col') gridRowNeeds(el, g, g.cols).forEach((h, r) => (g.rows[r] = Math.max(g.rows[r], h)));
+      const before = { text: el.text ?? '', width: el.width, height: el.height };
+      const after = {
+         text: serializeGrid(g),
+         width: g.cols.reduce((a, b) => a + b, 0),
+         height: g.rows.reduce((a, b) => a + b, 0),
+      };
+      this.store.patchElementLocal(id, after);
+      void this.store.commitElementGeometry(id, before, after);
    }
 
    /** Column/row pixel sizes of a grid element (for overlay placement). */

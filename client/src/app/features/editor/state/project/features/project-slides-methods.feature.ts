@@ -6,6 +6,7 @@ import type { ProjectInternals } from './project-internals';
 
 type PlacementHost = Pick<ProjectInternals['props'], 'shownSlideIds' | 'slideFrames'> & {
    slideZoom: Signal<Record<string, number>>;
+   slidePan: Signal<Record<string, { x: number; y: number }>>;
 };
 
 /** Where new content lands: the shown slide under a canvas point (`_placement.shownSlideAt`). */
@@ -28,11 +29,11 @@ function createPlacement(store: PlacementHost) {
       const frames = store.slideFrames().filter((f) => shown.has(f.id));
       if (pointerSlide) {
          const f = frames.find((x) => x.id === pointerSlide);
-         const b = f && slideViewRegion(f, zoom[presentationOf(f)] ?? 1);
+         const b = f && slideViewRegion(f, zoom[presentationOf(f)] ?? 1, store.slidePan()[presentationOf(f)]);
          return b && x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 ? f.id : undefined;
       }
       return frames.find(
-         (f) => !zoom[presentationOf(f)] && x >= f.x && x <= f.x + f.width && y >= f.y && y <= f.y + f.height
+         (f) => !zoom[presentationOf(f)] && !store.slidePan()[presentationOf(f)] && x >= f.x && x <= f.x + f.width && y >= f.y && y <= f.y + f.height
       )?.id;
    }
 
@@ -80,6 +81,20 @@ export function withProjectSlidesMethods() {
             const s = Math.min(1, Math.max(MIN_SLIDE_ZOOM, scale));
             const { [name]: _old, ...rest } = store.slideZoom();
             patchState(store, { slideZoom: s >= 0.999 ? rest : { ...rest, [name]: s } });
+         },
+
+         /** Pan a presentation's slide view inside its block (inner offset from the frame centre; view state). */
+         setSlidePan(name: string, pan: { x: number; y: number } | null): void {
+            const { [name]: _old, ...rest } = store.slidePan();
+            const none = !pan || (Math.abs(pan.x) < 0.5 && Math.abs(pan.y) < 0.5);
+            patchState(store, { slidePan: none ? rest : { ...rest, [name]: pan } });
+         },
+
+         /** Show a presentation's slide as-is again: no zoom, no pan. */
+         resetSlideView(name: string): void {
+            const { [name]: _z, ...zoom } = store.slideZoom();
+            const { [name]: _p, ...pan } = store.slidePan();
+            patchState(store, { slideZoom: zoom, slidePan: pan });
          },
 
          /** Make a presentation the selected one (F5, export); it keeps the slide it shows. */

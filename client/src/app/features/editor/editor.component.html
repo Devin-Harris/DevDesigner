@@ -329,6 +329,21 @@
          />
       }
 
+      @for (st of stagedSlides(); track st.name) {
+         <!-- The slide is zoomed or panned inside its block: one click shows it as-is again. -->
+         <button
+            class="slide-recenter"
+            type="button"
+            title="Back to the slide (no zoom, no pan)"
+            [style.left.px]="st.left"
+            [style.top.px]="st.top"
+            (pointerdown)="$event.stopPropagation()"
+            (click)="store.resetSlideView(st.name)"
+         >
+            <dd-icon name="center_focus_strong" />Back to slide
+         </button>
+      }
+
       @for (set of deckPanels.slideSets(); track set.name) {
          @if (set.layoutEdit; as le) {
             <div

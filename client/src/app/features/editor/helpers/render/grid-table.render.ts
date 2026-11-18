@@ -4,7 +4,7 @@ import { GRID_CELL_PAD, cellKey, edges, gridSizes, mergeAt, parseGrid, type Grid
 import { LruCache } from '../../../../shared/helpers/lru';
 import { fontStack } from './fonts';
 import { SURFACE_FILL, contrastSafe, type ThemeColors } from './theme-colors';
-import { LINE_HEIGHT, layoutTextBlock, wrapParagraph } from './text-layout';
+import { LINE_HEIGHT, layoutTextBlock, measureWidth, wrapParagraph } from './text-layout';
 import { clipKey } from './shape-primitives';
 
 /** Grid text -> parsed grid, for drawing only (never mutate the result). */
@@ -61,6 +61,25 @@ export function gridRowNeeds(element: CanvasElementModel, g: GridData, colPx: nu
       needs[last] = Math.max(needs[last], textHeight(m.r, m.c, width) - others);
    }
    return needs;
+}
+
+/**
+ * Width column `col` needs so none of its cells wraps (world px): the widest line of
+ * any cell that sits in that column alone. Merged blocks spanning it don't count.
+ */
+export function gridColNeed(element: CanvasElementModel, g: GridData, col: number): number {
+   const f = gridFont(element);
+   let need = 0;
+   g.cells.forEach((row, r) => {
+      const m = mergeAt(g, r, col);
+      if (m && (m.cs > 1 || m.r !== r || m.c !== col)) return;
+      const st = g.styles?.[cellKey(r, col)] ?? {};
+      const bold = st.bold ?? (g.header && r === 0 ? true : !!element.bold);
+      const italic = st.italic ?? !!element.italic;
+      const css = `${italic ? 'italic ' : ''}${bold ? 700 : 400} ${f.fontSize}px ${f.family}`;
+      for (const line of (row[col] ?? '').split('\n')) need = Math.max(need, measureWidth(line, css));
+   });
+   return Math.ceil(need) + GRID_CELL_PAD * 2 + 2;
 }
 
 export function gridTableView(

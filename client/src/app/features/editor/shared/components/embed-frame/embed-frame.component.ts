@@ -1,6 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, effect, untracked } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
+
+const LOAD_TIMEOUT_MS = 20000;
+
+function embedHost(url: string | null | undefined): string {
+   try {
+      const u = new URL(url ?? '');
+      return u.host + (u.pathname === '/' ? '' : u.pathname);
+   } catch {
+      return url ?? '';
+   }
+}
 
 /**
  * A live frame's page: a sandboxed iframe of a http(s) URL. Click-through unless
@@ -16,12 +27,26 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
       @if (src(); as s) {
          <!-- allow-same-origin keeps the page on its real origin: without it the origin is
               'null' and module scripts (Vite dev servers, most SPAs) fail CORS. -->
-         @if (!loaded()) {
-            <div class="loading" aria-hidden="true"><span></span><span></span><span></span></div>
+         @if (failed()) {
+            <div class="state error" role="alert">
+               <div class="badge bad" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5.5M12 16.2v.3" /></svg>
+               </div>
+               <p class="title">Couldn't load this page</p>
+               <p class="sub url">{{ host() }}</p>
+               <p class="sub">Check that it's running and reachable from this browser.</p>
+               <button type="button" class="retry" (pointerdown)="$event.stopPropagation()" (click)="retry()">Try again</button>
+            </div>
+         } @else if (!loaded()) {
+            <div class="state" aria-live="polite">
+               <div class="spinner" aria-hidden="true"></div>
+               <p class="sub">Loading</p>
+               <p class="sub url">{{ host() }}</p>
+            </div>
          }
-         @for (k of [nonce()]; track k) {
+         @for (k of [nonce() + retries()]; track k) {
             <iframe
-               [class.ready]="loaded()"
+               [class.ready]="loaded() && !failed()"
                (load)="loaded.set(true)"
                title="Live frame"
                referrerpolicy="no-referrer"
@@ -74,30 +99,48 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
       :host {
          position: relative;
       }
-      .loading {
+      .state {
          position: absolute;
          inset: 0;
+         z-index: 1;
          display: flex;
+         flex-direction: column;
          align-items: center;
          justify-content: center;
-         gap: 6px;
+         padding: 16px;
+         text-align: center;
+         background: var(--dd-surface, #fff);
+         color: var(--dd-text, #111);
+         font: 13px/1.4 var(--dd-font, system-ui, sans-serif);
       }
-      .loading span {
-         width: 7px;
-         height: 7px;
+      .state .url {
+         max-width: 100%;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
+         font-family: var(--dd-mono, ui-monospace, monospace);
+         font-size: 12px;
+      }
+      .spinner {
+         width: 28px;
+         height: 28px;
+         margin-bottom: 10px;
          border-radius: 50%;
-         background: var(--dd-text-muted, #888);
-         animation: dot 1s ease-in-out infinite;
+         border: 3px solid color-mix(in srgb, var(--dd-primary) 20%, transparent);
+         border-top-color: var(--dd-primary);
+         animation: spin 0.8s linear infinite;
       }
-      .loading span:nth-child(2) {
-         animation-delay: 0.15s;
+      @keyframes spin {
+         to { transform: rotate(360deg); }
       }
-      .loading span:nth-child(3) {
-         animation-delay: 0.3s;
+      .badge.bad {
+         background: color-mix(in srgb, var(--dd-danger, #dc2626) 14%, transparent);
+         color: var(--dd-danger, #dc2626);
       }
-      @keyframes dot {
-         0%, 100% { opacity: 0.25; transform: scale(0.8); }
-         50% { opacity: 1; transform: scale(1); }
+      .retry {
+         pointer-events: auto;
+         margin-top: 12px;
+         padding: 7px 14px;
       }
       iframe {
          position: relative;
@@ -126,7 +169,7 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
          place-items: center;
          padding: 16px;
          background: var(--dd-surface, #fff);
-         font: 13px/1.4 var(--dd-font-ui, system-ui, sans-serif);
+         font: 13px/1.4 var(--dd-font, system-ui, sans-serif);
          color: var(--dd-text, #111);
          cursor: move;
       }
@@ -144,8 +187,8 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
          height: 40px;
          margin-bottom: 10px;
          border-radius: 12px;
-         background: color-mix(in srgb, var(--dd-accent, #2563eb) 14%, transparent);
-         color: var(--dd-accent, #2563eb);
+         background: color-mix(in srgb, var(--dd-primary) 14%, transparent);
+         color: var(--dd-primary);
       }
       .badge svg {
          width: 22px;
@@ -170,12 +213,12 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
          padding: 3px;
          border: 1px solid var(--dd-border-strong, #bbb);
          border-radius: 10px;
-         background: var(--dd-bg, #fff);
+         background: var(--dd-chip-bg);
          transition: border-color 120ms, box-shadow 120ms;
       }
       .field:focus-within {
-         border-color: var(--dd-accent, #2563eb);
-         box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent, #2563eb) 22%, transparent);
+         border-color: var(--dd-primary);
+         box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-primary) 22%, transparent);
       }
       .field.bad {
          border-color: var(--dd-danger, #dc2626);
@@ -189,7 +232,7 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
          background: transparent;
          color: inherit;
          font: inherit;
-         font-family: var(--dd-font-mono, ui-monospace, monospace);
+         font-family: var(--dd-mono, ui-monospace, monospace);
          font-size: 12.5px;
          outline: none;
       }
@@ -198,7 +241,7 @@ import { isEmbedUrl, normalizeEmbedUrl } from '@devdesigner/shared';
          padding: 0 14px;
          border: 0;
          border-radius: 7px;
-         background: var(--dd-accent, #2563eb);
+         background: var(--dd-primary);
          color: var(--dd-on-accent, #fff);
          font: inherit;
          font-weight: 600;
@@ -233,16 +276,46 @@ export class EmbedFrameComponent {
 
    protected readonly fieldId = `embed-url-${(EmbedFrameComponent.seq += 1)}`;
    protected readonly invalid = signal(false);
-   /** The page finished loading (fades in over the loading dots). */
+   /** The page finished loading (fades in over the spinner). */
    protected readonly loaded = signal(false);
+   /** The address could not be reached (or took too long). */
+   protected readonly failed = signal(false);
+   protected readonly retries = signal(0);
+   protected readonly host = computed(() => embedHost(this.url()));
 
    constructor() {
       // A new address or a reload starts hidden again until the page loads.
-      effect(() => {
-         this.url();
+      effect((onCleanup) => {
+         const url = this.url()?.trim();
          this.nonce();
+         this.retries();
+         const live = this.live();
          this.loaded.set(false);
+         this.failed.set(false);
+         if (!live || !url || !isEmbedUrl(url)) return;
+         // A cross-origin iframe never reports errors, so probe the address: a
+         // no-cors fetch rejects when the server is down or the name won't resolve.
+         let done = false;
+         const fail = (): void => {
+            if (!done) this.failed.set(true);
+         };
+         const ctrl = new AbortController();
+         fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal }).catch(() => {
+            if (!ctrl.signal.aborted) fail();
+         });
+         const timer = setTimeout(() => {
+            if (!untracked(this.loaded)) fail();
+         }, LOAD_TIMEOUT_MS);
+         onCleanup(() => {
+            done = true;
+            ctrl.abort();
+            clearTimeout(timer);
+         });
       });
+   }
+
+   protected retry(): void {
+      this.retries.update((n) => n + 1);
    }
 
    protected readonly src = computed<SafeResourceUrl | null>(() => {
@@ -250,8 +323,6 @@ export class EmbedFrameComponent {
       if (!this.live() || !url || !isEmbedUrl(url)) return null;
       return this.sanitizer.bypassSecurityTrustResourceUrl(url);
    });
-
-   /** A framed copy of this app never shares its origin (it could act as the viewer). */
 
    protected submit(event: Event, value: string): void {
       event.preventDefault();

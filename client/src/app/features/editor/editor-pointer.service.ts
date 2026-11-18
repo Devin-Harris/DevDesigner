@@ -14,7 +14,8 @@ import { DeckFocusService } from './features/slides/services/deck-focus.service'
 import { EditorViewportService } from './services/editor-viewport.service';
 import { computed, inject, signal, Injectable, DestroyRef } from '@angular/core';
 import { PenPrefsService } from './services/pen-prefs.service';
-import type { TableModel } from '@devdesigner/shared';
+import type { CanvasElementModel, TableModel } from '@devdesigner/shared';
+import { presentationOf } from '@devdesigner/shared';
 import { ProjectStore } from './state/project/project.store';
 import { GridTableService } from './services/grid-table.service';
 import { elementBox, elementIntersectsRect } from './helpers/element-geometry.helper';
@@ -95,6 +96,9 @@ export class EditorPointerService {
    });
 
    private marqueeAdditive = false;
+   /** The slide a Ctrl + pan gesture pans (inside its block), else null for a canvas pan. */
+   private slidePanFrame: CanvasElementModel | null = null;
+   private lastPanClient = { x: 0, y: 0 };
 
    // --- canvas pointer (pan / marquee) ---
 
@@ -103,10 +107,14 @@ export class EditorPointerService {
       if (this.grids.editingCell()) {
          this.grids.endEdit();
       }
-      if (
-         !this.deckFocus.focusedDeck() &&
-         (event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.tools.activeTool() === 'hand')))
-      ) {
+      const panButton =
+         event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.tools.activeTool() === 'hand'));
+      // Focus mode locks the canvas, but a slide can still be panned inside its block.
+      const slideUnder =
+         panButton && (event.ctrlKey || event.metaKey)
+            ? this.viewport.shownSlideUnder(this.viewport.toWorldRaw(event.clientX, event.clientY))
+            : undefined;
+      if (panButton && (!this.deckFocus.focusedDeck() || slideUnder)) {
          event.preventDefault();
          this.gesture.mode = 'pan';
          this.tools.panning.set(true);
@@ -115,6 +123,9 @@ export class EditorPointerService {
          const v = this.store.viewport();
          this.gesture.startViewportX = v.x;
          this.gesture.startViewportY = v.y;
+         // Ctrl held over a shown slide pans the slide inside its block instead of the canvas.
+         this.slidePanFrame = slideUnder ?? null;
+         this.lastPanClient = { x: event.clientX, y: event.clientY };
          return;
       }
       if (event.button !== 0) {
@@ -245,7 +256,17 @@ export class EditorPointerService {
          this.elementGestures.moveBend(event.clientX, event.clientY);
          return;
       }
-      if (this.gesture.mode === 'pan') {
+      if (this.gesture.mode === 'pan' && this.slidePanFrame) {
+         const name = presentationOf(this.slidePanFrame);
+         const zoom = this.store.viewport().zoom * (this.store.slideZoom()[name] ?? 1);
+         // Dragging moves the content with the pointer, so the view's focus moves the other way.
+         this.viewport.panSlideBy(
+            this.slidePanFrame,
+            -(event.clientX - this.lastPanClient.x) / zoom,
+            -(event.clientY - this.lastPanClient.y) / zoom
+         );
+         this.lastPanClient = { x: event.clientX, y: event.clientY };
+      } else if (this.gesture.mode === 'pan') {
          const dx = event.clientX - this.gesture.startClientX;
          const dy = event.clientY - this.gesture.startClientY;
          const v = this.store.viewport();
