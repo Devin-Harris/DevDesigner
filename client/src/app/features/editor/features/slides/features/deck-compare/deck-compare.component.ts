@@ -809,7 +809,8 @@ export class DeckCompareComponent {
    protected onOutside(event: Event): void {
       if (this.mode() !== 'stage' || !this.armed()) return;
       const t = event.target as HTMLElement | null;
-      if (t?.closest('.hit, .end, .cut-line, .actions, .pr')) return;
+      // The pair controls under the pairs list act on the selection: clicking them keeps it.
+      if (t?.closest('.hit, .end, .cut-line, .actions, .pr, .sel-ctl')) return;
       this.armed.set(null);
    }
 
