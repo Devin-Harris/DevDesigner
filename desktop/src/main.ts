@@ -55,7 +55,14 @@ const controlToken = randomBytes(32).toString('base64url');
 const updater = new Updater(
   () => mainWindow,
   () => loadSettings(paths.dataDir).updates,
+  (status) => mainWindow?.webContents.send('dd:update-status', status),
 );
+
+// The title bar's update button and the Settings spinner (client core/desktop).
+ipcMain.handle('dd:update:get', (event) => (fromPage(event) ? updater.status() : null));
+ipcMain.on('dd:update:install', (event) => {
+  if (event.sender === mainWindow?.webContents) updater.installNow();
+});
 
 // --- Messages to the page (DesktopShellService), queued until it says it is ready ---
 

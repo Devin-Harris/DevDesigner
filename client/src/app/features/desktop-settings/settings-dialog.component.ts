@@ -5,6 +5,7 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { ProjectsStore } from '../../shared/state/projects/projects.store';
 import { AccountDialogsService } from '../../shared/features/auth-dialogs/account-dialogs.service';
 import { SyncPanelComponent } from '../../shared/features/projects-overlay/components/sync-panel/sync-panel.component';
+import { UpdateService } from '../../core/desktop/update.service';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { SegmentedComponent } from '../../shared/ui/components/segmented/segmented.component';
 
@@ -40,6 +41,7 @@ export class SettingsDialogComponent {
    private readonly ref = inject(MatDialogRef<SettingsDialogComponent>);
    private readonly store = inject(ProjectsStore);
    private readonly accountDialogs = inject(AccountDialogsService);
+   protected readonly updater = inject(UpdateService);
    private readonly bridge = (globalThis as { devdesigner?: { settings?: SettingsBridge } }).devdesigner?.settings;
 
    protected readonly tab = signal<Tab>('general');

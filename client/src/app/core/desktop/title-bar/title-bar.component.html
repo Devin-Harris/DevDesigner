@@ -1,14 +1,26 @@
 <button class="menu-btn" type="button" aria-label="Application menu" title="Menu" (click)="openMenu($event)">
-   <span class="mark"><dd-icon name="schema" /></span>
-   <dd-icon name="expand_more" class="chev" />
+   <dd-icon name="menu" />
 </button>
 <div class="title">
    <span class="app">DevDesigner</span>
-   @if (project(); as p) {
-      <span class="sep">/</span>
-      <span class="project">{{ p.name }}</span>
-      @if (where(); as server) {
-         <span class="where"><dd-icon name="cloud" />{{ server }}</span>
-      }
+   @if (project() && where(); as server) {
+      <span class="where"><dd-icon name="cloud" />{{ server }}</span>
    }
 </div>
+@switch (update().state) {
+   @case ('downloading') {
+      <span class="update pending" [title]="'Downloading DevDesigner ' + version()">
+         <dd-icon name="sync" class="spin" />Downloading update… {{ percent() }}%
+      </span>
+   }
+   @case ('ready') {
+      <button
+         class="update ready"
+         type="button"
+         [title]="'DevDesigner ' + version() + ' is ready. Restart to install it.'"
+         (click)="updates.install()"
+      >
+         <dd-icon name="sync" />Restart to update
+      </button>
+   }
+}

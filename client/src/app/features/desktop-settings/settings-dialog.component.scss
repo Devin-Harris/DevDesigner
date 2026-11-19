@@ -149,3 +149,18 @@
    color: var(--dd-text-muted);
    font-size: 12px;
 }
+
+.update-note {
+   color: var(--dd-text-muted);
+   font-size: 12px;
+}
+
+.spin {
+   animation: dd-spin 1s linear infinite;
+}
+
+@keyframes dd-spin {
+   to {
+      transform: rotate(360deg);
+   }
+}

@@ -44,22 +44,6 @@
    }
 }
 
-.mark {
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   width: 20px;
-   height: 20px;
-   border-radius: 5px;
-   background: linear-gradient(135deg, #6f8bff, #3b5bdb);
-   color: #fff;
-
-   --dd-icon-size: 14px;
-}
-
-.chev {
-   --dd-icon-size: 14px;
-}
 
 .title {
    display: flex;
@@ -74,15 +58,6 @@
    font-weight: 600;
 }
 
-.sep {
-   opacity: 0.5;
-}
-
-.project {
-   overflow: hidden;
-   color: var(--dd-text);
-   text-overflow: ellipsis;
-}
 
 .where {
    display: inline-flex;
@@ -94,4 +69,45 @@
    font-size: 11px;
 
    --dd-icon-size: 12px;
+}
+
+.update {
+   display: inline-flex;
+   align-items: center;
+   gap: 5px;
+   height: 24px;
+   margin-left: auto;
+   padding: 0 10px;
+   border-radius: 999px;
+   font-size: 11px;
+   white-space: nowrap;
+   app-region: no-drag;
+
+   --dd-icon-size: 13px;
+}
+
+.update.pending {
+   color: var(--dd-text-muted);
+}
+
+.update.ready {
+   border: 0;
+   background: var(--dd-primary);
+   color: #fff;
+   font-weight: 600;
+   cursor: pointer;
+
+   &:hover {
+      filter: brightness(1.1);
+   }
+}
+
+.spin {
+   animation: dd-spin 1s linear infinite;
+}
+
+@keyframes dd-spin {
+   to {
+      transform: rotate(360deg);
+   }
 }

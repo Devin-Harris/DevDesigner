@@ -31,6 +31,14 @@ contextBridge.exposeInMainWorld('devdesigner', {
     action: (action: { type: string; id?: string }) =>
       ipcRenderer.invoke('dd:settings:action', action),
   },
+  /** Update status (desktop/src/updater.ts): title bar button + Settings spinner. */
+  updates: {
+    get: () => ipcRenderer.invoke('dd:update:get'),
+    onStatus: (listener: (status: unknown) => void) => {
+      ipcRenderer.on('dd:update-status', (_event, status: unknown) => listener(status));
+    },
+    install: () => ipcRenderer.send('dd:update:install'),
+  },
   /** Menu commands, opened files and devdesigner:// links from the main process. */
   events: {
     onMessage: (listener: (message: unknown) => void) => {

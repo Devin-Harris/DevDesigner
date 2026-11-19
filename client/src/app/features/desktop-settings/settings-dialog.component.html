@@ -34,9 +34,26 @@
                }
             </p>
             <div class="row">
-               <button class="btn" type="button" [disabled]="busy()" (click)="run('check-updates')">
-                  <dd-icon name="sync" />Check now
+               <button
+                  class="btn"
+                  type="button"
+                  [disabled]="busy() || updater.checking()"
+                  (click)="run('check-updates')"
+               >
+                  @if (updater.checking()) {
+                     <dd-icon name="sync" class="spin" />Checking…
+                  } @else {
+                     <dd-icon name="sync" />Check now
+                  }
                </button>
+               @switch (updater.status().state) {
+                  @case ('downloading') {
+                     <span class="update-note">Downloading update… {{ $any(updater.status()).percent }}%</span>
+                  }
+                  @case ('ready') {
+                     <button class="btn" type="button" (click)="updater.install()">Restart to update</button>
+                  }
+               }
             </div>
 
             <h3 class="h">AI assistants (MCP)</h3>

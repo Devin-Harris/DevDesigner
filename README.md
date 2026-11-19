@@ -1,98 +1,95 @@
 # DevDesigner
 
-DevDesigner is a fullstack web application for visually designing, documenting, and exporting database schemas. It provides an interactive, canvas-based workspace, similar to [dbdiagram.io](https://dbdiagram.io/) or [Miro](https://miro.com/), where you can lay out entity-relationship diagrams (ERDs), define relationships between tables, annotate your designs, and generate ready-to-run SQL.
+DevDesigner is an infinite-canvas workspace for developers: design database schemas, sketch architecture, draw sequence diagrams, and build presentations, all in one live, shareable project. Under the canvas it keeps a structured model, so a schema you draw can be validated and exported as ready-to-run SQL, and an AI assistant can build or edit any of it through the bundled MCP server.
 
-## Overview
+It runs as a web app, as a self-hosted server, or as a desktop app (Electron) that works offline and syncs with a server.
 
-Modern schema design often happens in disconnected tools: a whiteboard for brainstorming, a SQL file for the real DDL, and a wiki for documentation that quickly goes stale. DevDesigner unifies these into one place. You draw your schema on an infinite canvas, and DevDesigner keeps a structured model of it underneath, so the same design can be visualized, documented, and exported as migration-ready SQL without manual re-typing.
+## Features
 
-## Key Features
+### Database schemas (ERD)
+- Tables with columns, types and constraints: primary/foreign keys, unique, not-null, defaults, auto-increment, unsigned, composite unique keys.
+- Relationships with cardinality notation, routed automatically or manually with pinned sides.
+- Validation (dangling references, type mismatches, duplicate keys) and SQL `CREATE TABLE` export.
+- Schema import and diffing from SQL DDL (Postgres, MySQL, SQLite, SQL Server).
 
-### Multi-Project Workspaces
+### Drawing and content
+- Shapes, rich text (per-run styling, fonts, scale-on-resize), freehand pen, and arrows that bind to elements.
+- Syntax-highlighted code blocks, spreadsheet-style grid tables, images and SVGs (paste or drop), and live frames that embed a URL.
+- Sequence diagrams with participants and messages.
+- Layer ordering, grouping, alignment, undo/redo, a laser pointer, a minimap and a shared per-project home view.
 
-Create and manage many independent projects, each with its own canvas, tables, relationships, and documentation. Projects are listed on a dashboard, can be renamed, duplicated, archived, and searched, and open into their own isolated design space.
+### Presentations
+- Frames become slides, with themes (color and font tokens), layouts with placeholders, and reusable designs.
+- Transitions including morph, which animates matching objects and text (by character, word or object) between slides.
+- A full-screen present mode.
 
-### Interactive Canvas
+### Collaboration and sharing
+- Accounts with multi-project dashboards.
+- Server-authoritative realtime editing with presence: everyone sees changes live.
+- Share links with view or edit access, no account needed for the recipient; revocable at any time.
+- Project export/import as a JSON file.
 
-An infinite, pannable, zoomable canvas for arranging your schema. Tables are draggable nodes that snap and align, relationships are drawn as connectors that route around obstacles, and the whole layout is saved automatically as you work.
+### AI assistants (MCP)
+- An MCP server (`mcp/`) exposes projects, schemas, drawings and presentations to Claude and other MCP clients, authenticated with per-user API tokens. See [MCP server](#mcp-server).
 
-### ERD Modeling
+### Desktop app and self-hosting
+- `desktop/` packages DevDesigner as an Electron app with local projects, auto-updates, and snapshot sync to a server.
+- A single-process self-hosted server (Docker image or Node), with all state in one data folder. See [docs/self-hosting.md](docs/self-hosting.md).
 
-Define tables with columns, data types, and constraints (primary keys, foreign keys, unique, not-null, defaults, auto-increment). Draw relationships between tables (one-to-one, one-to-many, and many-to-many) with clear cardinality notation rendered directly on the canvas.
+### Guides
+- In-app tool guides at `/guide/:tool`, each with a sandbox editor to try the tool.
 
-### Relationships & Referential Integrity
+## Tech stack
 
-Connect columns across tables to express foreign-key relationships. DevDesigner validates that relationship endpoints are type-compatible and flags issues such as dangling references or duplicate keys before you export.
+- **Frontend:** Angular (standalone components, signals) with a bespoke design system, SVG/HTML canvas rendering.
+- **Backend:** NestJS, REST plus a realtime websocket channel, layered as controller / policy / service / repository.
+- **Database:** SQLite via TypeORM (better-sqlite3).
+- **Shared:** `shared/` TypeScript package used by client, server, MCP and desktop: models, DTOs, enums, SQL generation and validation.
+- **MCP:** `@modelcontextprotocol` server over stdio or Streamable HTTP.
+- **Desktop:** Electron with electron-builder.
 
-### Documentation Layer
+## Repository layout
 
-Attach rich-text notes to the project, to individual tables, and to columns. Add free-floating sticky notes and text blocks anywhere on the canvas to explain design decisions, capture open questions, or group related tables visually.
+npm-workspaces monorepo:
 
-### Sharing & Collaboration
+| Package | What it is |
+| --- | --- |
+| `client/` | Angular web app |
+| `server/` | NestJS API, realtime gateway, migrations |
+| `shared/` | Code shared by every package |
+| `mcp/` | MCP server for AI assistants |
+| `desktop/` | Electron desktop app |
+| `docs/` | Plans, audits and the self-hosting guide |
 
-Share any diagram via a link so others can view or edit it. **No account required for the person you share with**. The owner generates a share link with a chosen access level (view-only or edit), can revoke it at any time, and anyone holding the link works on the diagram directly in their browser. Account-based OAuth sign-in (Google, GitHub) is planned so users can own and manage their projects.
+## Getting started
 
-### SQL Export
-
-Generate `CREATE TABLE` DDL from your diagram, with MySQL as the primary target dialect. Export the full schema or a selected subset, preview the generated SQL in-app, and download it as a `.sql` file. The architecture is designed so additional dialects (PostgreSQL, SQLite) can be added later.
-
-### Import (Planned)
-
-Parse an existing `.sql` schema file or a DBML definition and reconstruct it as a diagram on the canvas, so you can visualize and document databases you already have.
-
-## Tech Stack
-
-- **Frontend:** Angular + TypeScript, NgRx Signal Store for state, Angular Material + CDK for components and styling. No custom CSS; styling is driven through Angular Material theming and CDK primitives.
-- **Canvas:** A diagramming layer built on the Angular CDK (drag-drop, overlays) with SVG for tables, connectors, and cardinality markers.
-- **Backend:** NestJS (TypeScript) with a layered controller / policy / service / repository structure, REST API.
-- **Database:** SQLite (application data: projects, tables, relationships, share links), accessed via TypeORM.
-- **Shared:** A top-level `shared/` TypeScript package imported by both client and server for end-to-end type safety (models, DTOs, enums, and the SQL generator/validation as pure functions).
-- **Auth & Sharing:** Anonymous, link-based sharing with view/edit access levels (no account needed for invitees). OAuth sign-in (Google, GitHub) planned for account owners.
-- **SQL Generation:** A dedicated schema-model to DDL module, dialect-aware, starting with MySQL.
-
-## Core Concepts
-
-- **Project**: a top-level container owning its tables, relationships, notes, share links, and canvas viewport (pan position and zoom).
-- **Canvas**: the visual workspace. Each table and note tracks its own `x`/`y` position; the project tracks the viewport.
-- **Table (Node)**: an entity with an ordered list of columns and constraints.
-- **Column**: a field on a table with a name, data type, and constraints.
-- **Relationship (Edge)**: a typed connection between two columns expressing a foreign-key link and cardinality.
-
-## Project Structure
-
-DevDesigner is an npm-workspaces monorepo with four packages:
-
-- **`client/`** the Angular frontend (Material + CDK, NgRx Signal Store, CDK/SVG canvas).
-- **`server/`** the NestJS backend, layered as controller / policy / service / repository, using TypeORM over SQLite.
-- **`shared/`** environment-agnostic TypeScript imported by both: models, DTOs, enums, and the SQL generator and validation as pure functions, giving end-to-end type safety.
-
-Root-level scripts (`npm run dev`, `npm run dev:server`, `npm run dev:client`) and matching VS Code tasks let you start either part or the whole app from the repository root.
-
-## Getting Started
+Requires Node 22+.
 
 ```bash
-# Clone and install (npm workspaces install client, server, and shared together)
 git clone <repo-url> devdesigner
 cd devdesigner
 npm install
 
-# Configure environment
-cp server/.env.example server/.env      # set DATABASE_URL (sqlite file) and JWT/session secret
-cp client/src/environments/environment.example.ts client/src/environments/environment.ts   # set apiUrl
+cp server/.env.example server/.env
+cp client/src/environments/environment.example.ts client/src/environments/environment.ts
 
-# Run database migrations (TypeORM)
-npm run migration:run -w server
-
-# Start everything from the repo root
-npm run dev            # runs server + client together
-# or run them individually:
-# npm run dev:server
-# npm run dev:client
+npm run dev            # shared (watch) + server + client
+# Windows: npm run dev:windows
 ```
 
-VS Code users can instead launch the **Dev: All**, **Dev: Server**, or **Dev: Client** tasks from the task runner.
+The client runs at `http://localhost:4242` and the API at `http://localhost:3000/api`.
 
-Then open the app at `http://localhost:4242`.
+### Useful scripts
+
+| Command | Does |
+| --- | --- |
+| `npm run dev:server` / `npm run dev:client` | Run one side only |
+| `npm test` | Tests for every workspace |
+| `npm run verify` | Build shared, lint, check import cycles, test, build |
+| `npm run build:mcp` | Build the MCP server |
+| `npm run start:desktop` | Run the desktop app from source |
+| `npm run dist:desktop` | Build desktop installers |
+| `npm run build:selfhost` / `npm run start:selfhost` | Build and run the self-hosted server |
 
 ## MCP server
 
@@ -123,7 +120,7 @@ The server talks only to the REST API as the token's owner, so permissions, vali
 
 ### Connecting to the production DevDesigner MCP
 
-No build needed — the hosted server runs at `https://devdesignermcp-production.up.railway.app/mcp`.
+No build needed: the hosted server runs at `https://devdesignermcp-production.up.railway.app/mcp`.
 
 1. Sign in to the production app, open **Account → API tokens** and create a token (read & write, or read only).
 2. Add it to a `.mcp.json` at your project root (Claude Code picks this up automatically; approve the server when prompted):
@@ -146,22 +143,6 @@ No build needed — the hosted server runs at `https://devdesignermcp-production
 3. Restart the client (or run `/mcp` in Claude Code) and check that `devdesigner-prod` shows as connected; `list_projects` should return your projects.
 
 You can keep a local entry (stdio, as above) and the prod entry side by side under different names. `.mcp.json` holds your token, so keep it out of git (add it to `.gitignore`) or use an env var: `"Authorization": "Bearer ${DEVDESIGNER_API_TOKEN}"`.
-
-## Roadmap
-
-- [ ] Project dashboard & CRUD
-- [ ] Canvas with draggable table nodes
-- [ ] Column & constraint editing
-- [ ] Relationship drawing with cardinality
-- [ ] Schema validation
-- [ ] MySQL export
-- [ ] Documentation / notes layer
-- [ ] Link-based sharing (view/edit, no account required)
-- [ ] OAuth sign-in (Google, GitHub)
-- [ ] Real-time collaboration (multi-user editing)
-- [ ] SQL / DBML import
-- [ ] Additional export dialects (PostgreSQL, SQLite)
-- [ ] Version history & diagram snapshots
 
 ## License
 

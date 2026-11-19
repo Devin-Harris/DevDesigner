@@ -3,6 +3,7 @@ import { ProjectsStore } from '../../../shared/state/projects/projects.store';
 import { IconComponent } from '../../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../theme/theme.service';
 import { SyncService } from '../../sync/sync.service';
+import { UpdateService } from '../update.service';
 
 interface DesktopWindowBridge {
    platform: string;
@@ -35,6 +36,17 @@ export class TitleBarComponent {
    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
    private readonly bridge = desktopWindow();
    protected readonly mac = this.bridge?.platform === 'darwin';
+
+   protected readonly updates = inject(UpdateService);
+   protected readonly update = this.updates.status;
+   protected readonly version = computed(() => {
+      const s = this.update();
+      return s.state === 'downloading' || s.state === 'ready' ? s.version : '';
+   });
+   protected readonly percent = computed(() => {
+      const s = this.update();
+      return s.state === 'downloading' ? s.percent : 0;
+   });
 
    protected readonly project = computed(() => this.projects.selected());
    /** "on Team server" for a project that lives on a server. */
