@@ -38,14 +38,13 @@ import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
 import { sentryEnabled } from './instrument';
 
 /** Only pull in the Sentry Nest integration when the SDK was initialised (instrument.ts). */
-const sentryModules = sentryEnabled
-  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-    [
-      (
-        require('@sentry/nestjs/setup') as typeof import('@sentry/nestjs/setup')
-      ).SentryModule.forRoot(),
-    ]
-  : [];
+function loadSentryModules() {
+  if (!sentryEnabled) return [];
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const setup = require('@sentry/nestjs/setup') as typeof import('@sentry/nestjs/setup');
+  return [setup.SentryModule.forRoot()];
+}
+const sentryModules = loadSentryModules();
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
