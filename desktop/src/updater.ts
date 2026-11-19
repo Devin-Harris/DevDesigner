@@ -94,9 +94,13 @@ export class Updater {
     this.timer ??= setInterval(() => this.backgroundCheck(), CHECK_INTERVAL_MS);
   }
 
-  /** The title bar's "Restart to update" button. */
+  /**
+   * The title bar's "Restart to update" button. Installs like VS Code: silent NSIS run
+   * (/S, so no wizard pages even though the first-time installer is the assisted one),
+   * reusing the existing install dir, then relaunches the app.
+   */
   installNow(): void {
-    if (this.current.state === 'ready') autoUpdater.quitAndInstall();
+    if (this.current.state === 'ready') autoUpdater.quitAndInstall(true, true);
   }
 
   private backgroundCheck(): void {
@@ -141,7 +145,7 @@ export class Updater {
       detail:
         'Restart now to update, or it will be installed the next time you quit. Your data is backed up before the new version opens it.',
     });
-    if (response === 0) autoUpdater.quitAndInstall();
+    if (response === 0) autoUpdater.quitAndInstall(true, true);
   }
 
   private async message(type: 'info' | 'warning', message: string, detail: string): Promise<void> {

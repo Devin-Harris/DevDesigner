@@ -12,7 +12,10 @@
          images, Sentry). -->
       <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'self'" />
       <meta name="referrer" content="strict-origin-when-cross-origin" />
-      <link rel="icon" type="image/x-icon" href="favicon.ico" />
+      <!-- Logo: assets/brand/logo.svg (single source; logo.png is rendered from it). -->
+      <link rel="icon" type="image/svg+xml" href="assets/brand/logo.svg" />
+      <link rel="icon" type="image/png" href="assets/brand/logo.png" />
+      <link rel="apple-touch-icon" href="assets/brand/logo.png" />
       <!-- Fonts are self-hosted (scripts/fetch-fonts.mjs): no third-party host, works offline.
          UI type system: Space Grotesk (display/wordmark), IBM Plex Sans (UI), IBM Plex Mono
          (schema data); plus the canvas text-element families. Icons are inline SVG (dd-icon). -->

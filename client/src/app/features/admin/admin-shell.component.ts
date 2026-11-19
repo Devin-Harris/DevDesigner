@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
+import { LogoComponent } from '../../shared/ui/components/logo/logo.component';
 
 interface RailLink {
    path: string;
@@ -26,7 +27,7 @@ const LINKS: readonly RailLink[] = [
 @Component({
    selector: 'dd-admin-shell',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [IconComponent, RouterLink, RouterLinkActive, RouterOutlet],
+   imports: [IconComponent, LogoComponent, RouterLink, RouterLinkActive, RouterOutlet],
    templateUrl: './admin-shell.component.html',
    styleUrl: './admin-shell.component.scss',
 })

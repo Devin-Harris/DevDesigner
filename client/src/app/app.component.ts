@@ -30,6 +30,7 @@ import {
 } from './shared/ui/components/confirm-dialog/confirm-dialog.component';
 import { ProjectsOverlayService } from './shared/features/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
+import { LogoComponent } from './shared/ui/components/logo/logo.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
 import type { ExportImageFormat } from './core/editor-bridge/editor-actions.service';
 
@@ -51,6 +52,7 @@ import type { ExportImageFormat } from './core/editor-bridge/editor-actions.serv
       MatToolbarModule,
       MatTooltipModule,
       IconComponent,
+      LogoComponent,
       PopoverTriggerDirective,
       ToolbarCustomizePanelComponent,
    ],

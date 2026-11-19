@@ -14,6 +14,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { map } from 'rxjs';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
+import { LogoComponent } from '../../shared/ui/components/logo/logo.component';
 import { ThemeService } from '../../core/theme/theme.service';
 import { SandboxBackendService } from '../../core/sandbox/sandbox-backend.service';
 import { EditorActionsService } from '../../core/editor-bridge/editor-actions.service';
@@ -42,7 +43,7 @@ function readFlag(key: string): boolean {
 @Component({
    selector: 'dd-guide',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [IconComponent, RouterLink, EditorComponent],
+   imports: [IconComponent, LogoComponent, RouterLink, EditorComponent],
    templateUrl: './guide.component.html',
    styleUrl: './guide.component.scss',
 })

@@ -30,6 +30,7 @@ import { playBuild, type Box, type CursorFn } from './helpers/showcase-player';
 import { RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
+import { LogoComponent } from '../../../../shared/ui/components/logo/logo.component';
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ThemeService } from '../../../../core/theme/theme.service';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -58,6 +59,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
    changeDetection: ChangeDetectionStrategy.OnPush,
    imports: [
       IconComponent,
+      LogoComponent,
       PopoverTriggerDirective,
       DatePipe,
       RouterLink,

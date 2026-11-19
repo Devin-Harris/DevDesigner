@@ -23,7 +23,7 @@
             aria-label="Main menu"
             [ddPopoverTrigger]="mainMenu"
          >
-            <span class="brand-tile"><dd-icon name="schema" /></span>
+            <dd-logo [size]="28" />
             <dd-icon name="expand_more" class="brand-chev" />
          </button>
          @if (projects.selected(); as project) {
@@ -167,7 +167,7 @@
    <ng-template #mainMenu let-close>
       <div class="dd-menu main-menu">
          <div class="menu-brand">
-            <span class="brand-tile sm"><dd-icon name="schema" /></span>DevDesigner
+            <dd-logo [size]="24" />DevDesigner
          </div>
          @if (!desktop) {
             <button class="dd-menu-item" type="button" (click)="goHome(); close()">

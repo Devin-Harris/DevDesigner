@@ -465,7 +465,19 @@ function saveWindowState(win: BrowserWindow): void {
   }
 }
 
-/** Shown until the local server is ready (inline: nothing to load from disk or the network). */
+/** The shared product logo (client assets/brand; see desktop/scripts/render-icon.mjs). */
+const LOGO_DIR = join(paths.clientDir, 'assets', 'brand');
+/** Window/taskbar icon: needed when unpackaged (dev) and on Linux; packaged Windows/macOS use build/icon.png. */
+const WINDOW_ICON = join(LOGO_DIR, 'logo.png');
+const LOGO_DATA_URL = (() => {
+  try {
+    return 'data:image/svg+xml;base64,' + readFileSync(join(LOGO_DIR, 'logo.svg')).toString('base64');
+  } catch {
+    return '';
+  }
+})();
+
+/** Shown until the local server is ready (inline: nothing to load from the network). */
 const SPLASH_URL =
   'data:text/html;charset=utf-8,' +
   encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>DevDesigner</title>
@@ -473,12 +485,12 @@ const SPLASH_URL =
   html,body{height:100%;margin:0;background:#0d1117;color:#8b949e;font:13px system-ui,sans-serif;-webkit-app-region:drag}
   body{display:grid;place-items:center}
   .c{display:flex;flex-direction:column;align-items:center;gap:14px}
-  .m{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#6f8bff,#3b5bdb);display:grid;place-items:center}
+  .m{width:56px;height:56px}
   .bar{width:120px;height:3px;border-radius:2px;background:#21262d;overflow:hidden}
   .bar i{display:block;width:40%;height:100%;background:#6f8bff;border-radius:2px;animation:s 1.1s ease-in-out infinite}
   @keyframes s{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 </style></head><body><div class="c">
-  <div class="m"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M11 7.5h4a2 2 0 0 1 2 2V13"/></svg></div>
+  <img class="m" src="${LOGO_DATA_URL}" alt="">
   <div>Starting DevDesigner…</div><div class="bar"><i></i></div>
 </div></body></html>`);
 
@@ -505,6 +517,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     title: 'DevDesigner',
+    ...(existsSync(WINDOW_ICON) ? { icon: WINDOW_ICON } : {}),
     backgroundColor: '#0d1117',
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
