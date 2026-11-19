@@ -24,7 +24,7 @@ import { AutofocusDirective } from '../../../../../../shared/ui/directives/autof
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
-import { ProjectStore, type TableGeometry } from '../../../../state/project/project.store';
+import { ErdEdits, type TableGeometry } from '../../services/erd-edits.service';
 import { HEADER_H, MAX_TABLE_SCALE, MIN_TABLE_SCALE, ROW_H } from '../../../../shared/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableScale } from '../../../../helpers/node-metrics.helper';
 
@@ -82,7 +82,7 @@ function resolveTypeName(word: string): string | undefined {
    },
 })
 export class TableNodeComponent {
-   private readonly store = inject(ProjectStore);
+   private readonly edits = inject(ErdEdits);
 
    /** True for custom pale header colors, which take dark text instead of white. Stock swatches use the theme text. */
    protected readonly isLight = (c: string | undefined | null): boolean => !isSwatchColor(c) && isLightFill(c);
@@ -190,9 +190,9 @@ export class TableNodeComponent {
          ? ix.columnIds.filter((id) => id !== column.id)
          : [...ix.columnIds, column.id];
       if (columnIds.length === 0) {
-         void this.store.deleteIndex(tableId, ix.id);
+         void this.edits.deleteIndex(tableId, ix.id);
       } else {
-         void this.store.updateIndex(tableId, ix.id, { columnIds });
+         void this.edits.updateIndex(tableId, ix.id, { columnIds });
       }
    }
 
@@ -207,7 +207,7 @@ export class TableNodeComponent {
       for (let i = 2; taken.has(name); i += 1) {
          name = `uq_${table.name}_${column.name}_${i}`;
       }
-      void this.store.addIndex(table.id, { name, columnIds: [column.id], isUnique: true });
+      void this.edits.addIndex(table.id, { name, columnIds: [column.id], isUnique: true });
    }
    /** Saturated header colors, then pale tints (the shared palette the MCP server also uses). */
 
@@ -215,7 +215,7 @@ export class TableNodeComponent {
       if (!this.editable()) {
          return;
       }
-      void this.store.updateTable(this.table().id, { color });
+      void this.edits.updateTable(this.table().id, { color });
    }
 
    protected readonly editingName = signal(false);
@@ -247,7 +247,7 @@ export class TableNodeComponent {
       const len2 = vx * vx + vy * vy;
       const startClientX = event.clientX;
       const startClientY = event.clientY;
-      const zoom = this.store.viewport().zoom;
+      const zoom = this.edits.viewport().zoom;
       // Every selected table takes the same scale (so their text sizes match),
       // each keeping its own opposite corner fixed.
       const targets = this.scaleTargets().map((t) => {
@@ -268,8 +268,8 @@ export class TableNodeComponent {
          for (const t of targets) {
             const x = west ? t.fx - t.w * scale : t.fx;
             const y = north ? t.fy - t.h * scale : t.fy;
-            this.store.setTableScaleLocal(t.id, scale);
-            this.store.moveTable(t.id, Math.round(x), Math.round(y));
+            this.edits.setTableScaleLocal(t.id, scale);
+            this.edits.moveTable(t.id, Math.round(x), Math.round(y));
          }
       };
       const move = (e: PointerEvent): void => {
@@ -296,24 +296,24 @@ export class TableNodeComponent {
    /** This table plus, when it is part of a multi-selection, the other selected tables. */
    private scaleTargets(): TableModel[] {
       const table = this.table();
-      const ids = this.store.selectedTableIds();
+      const ids = this.edits.selectedTableIds();
       if (!ids.includes(table.id) || ids.length < 2) {
          return [table];
       }
-      const others = this.store.tables().filter((t) => t.id !== table.id && ids.includes(t.id));
+      const others = this.edits.tables().filter((t) => t.id !== table.id && ids.includes(t.id));
       return [table, ...others];
    }
 
    /** Persist the scale gesture's result and record it as one undo step. */
    private commitScale(targets: { id: string; before: TableGeometry }[]): void {
       const changes = targets.flatMap((t) => {
-         const now = this.store.tables().find((x) => x.id === t.id);
+         const now = this.edits.tables().find((x) => x.id === t.id);
          if (!now) return [];
          const after = { scale: tableScale(now), x: now.x, y: now.y };
-         void this.store.updateTable(t.id, { scale: after.scale });
+         this.edits.updateTableSilently(t.id, { scale: after.scale });
          return [{ id: t.id, before: t.before, after }];
       });
-      this.store.recordTableScale(changes);
+      this.edits.recordTableScale(changes);
    }
 
    /** Double-click a corner handle to return to natural size (all selected tables). */
@@ -328,7 +328,7 @@ export class TableNodeComponent {
          before: { scale: tableScale(t), x: t.x, y: t.y },
       }));
       for (const t of targets) {
-         this.store.setTableScaleLocal(t.id, 1);
+         this.edits.setTableScaleLocal(t.id, 1);
       }
       this.commitScale(before);
    }
@@ -352,11 +352,11 @@ export class TableNodeComponent {
     */
    private enterGroupInstead(event: Event): boolean {
       event.stopPropagation();
-      const gid = this.store.groupIdOf(this.table().id);
-      if (!gid || gid === this.store.enteredGroupId()) {
+      const gid = this.edits.groupIdOf(this.table().id);
+      if (!gid || gid === this.edits.enteredGroupId()) {
          return false;
       }
-      this.store.enterGroup('table', this.table().id);
+      this.edits.enterGroup('table', this.table().id);
       return true;
    }
 
@@ -379,7 +379,7 @@ export class TableNodeComponent {
       this.editingName.set(false);
       const name = (event.target as HTMLInputElement).value.trim();
       if (name && name !== this.table().name) {
-         void this.store.updateTable(this.table().id, { name });
+         void this.edits.updateTable(this.table().id, { name });
       }
    }
 
@@ -449,7 +449,7 @@ export class TableNodeComponent {
          }
       }
       if (Object.keys(patch).length) {
-         void this.store.updateColumn(this.table().id, column.id, patch);
+         void this.edits.updateColumn(this.table().id, column.id, patch);
       }
    }
 
@@ -483,7 +483,7 @@ export class TableNodeComponent {
          return;
       }
       const length = name === 'VARCHAR' ? (column.dataType.length ?? 255) : undefined;
-      void this.store.updateColumn(this.table().id, column.id, {
+      void this.edits.updateColumn(this.table().id, column.id, {
          dataType: { name, length },
          ...(column.isUnsigned && !isNumericType(name) ? { isUnsigned: false } : {}),
       });
@@ -495,7 +495,7 @@ export class TableNodeComponent {
       }
       const raw = Number((event.target as HTMLInputElement).value);
       const length = Number.isFinite(raw) && raw > 0 ? raw : undefined;
-      void this.store.updateColumn(this.table().id, column.id, {
+      void this.edits.updateColumn(this.table().id, column.id, {
          dataType: { name: column.dataType.name, length },
       });
    }
@@ -524,7 +524,7 @@ export class TableNodeComponent {
       if (!this.editable()) {
          return;
       }
-      void this.store.updateColumn(this.table().id, column.id, patch);
+      void this.edits.updateColumn(this.table().id, column.id, patch);
    }
 
    // --- add / delete ---
@@ -544,20 +544,20 @@ export class TableNodeComponent {
          i += 1;
          name = `column_${i}`;
       }
-      await this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+      await this.edits.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
    }
 
    protected deleteColumn(column: ColumnModel): void {
       if (!this.editable()) {
          return;
       }
-      void this.store.deleteColumn(this.table().id, column.id);
+      void this.edits.deleteColumn(this.table().id, column.id);
    }
 
    protected deleteTable(): void {
       if (!this.editable()) {
          return;
       }
-      void this.store.deleteTable(this.table().id);
+      void this.edits.deleteTable(this.table().id);
    }
 }

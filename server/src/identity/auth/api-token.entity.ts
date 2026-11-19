@@ -39,4 +39,12 @@ export class ApiToken {
 
   @Column({ type: 'datetime', nullable: true })
   revokedAt!: Date | null;
+
+  /** The token stops working after this (null = never). */
+  @Column({ type: 'datetime', nullable: true })
+  expiresAt!: Date | null;
+
+  /** The only project the token may touch (null = every project of its owner). */
+  @Column({ type: 'varchar', nullable: true })
+  projectId!: string | null;
 }

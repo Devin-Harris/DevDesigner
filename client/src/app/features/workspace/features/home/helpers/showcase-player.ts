@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions -- the scripted showcase builds partial rows and mutations by hand */
 import type {
    CanvasElementModel,
    SchemaModel,

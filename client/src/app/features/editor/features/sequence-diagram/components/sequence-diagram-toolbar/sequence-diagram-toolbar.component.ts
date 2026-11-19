@@ -28,6 +28,10 @@ export class SequenceDiagramToolbarComponent {
    readonly canEdit = input(false);
    /** A color was picked for the diagram; the host persists it. */
    readonly diagramPatch = output<{ id: string; patch: SequenceDiagramColors }>();
+   /** Spread the messages evenly down the current box. */
+   readonly spaceEvenly = output<string>();
+   /** Shrink the box back to its content. */
+   readonly fitToContent = output<string>();
 
    protected patch(patch: SequenceDiagramColors): void {
       const d = this.diagram();

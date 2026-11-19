@@ -49,6 +49,7 @@ function createElementOps(store: ElementOpsHost) {
       const zIndex =
          withSlide.zIndex ?? (store.schema()?.elements ?? []).reduce((m, e) => Math.max(m, e.zIndex + 1), 0);
       const body: CreateElementDto = { ...withSlide, id, zIndex };
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
       const local = { angle: 0, ...body, id, zIndex } as CanvasElementModel;
       setSchema((s) => ({ ...s, elements: [...s.elements, local] }));
       const key = `element:${id}`;

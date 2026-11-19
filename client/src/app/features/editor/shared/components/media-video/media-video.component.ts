@@ -9,6 +9,7 @@ import {
    viewChild,
 } from '@angular/core';
 import type { ImageView } from '../../../models/shape-view.model';
+import { StopClicksDirective } from '../../../../../shared/ui/directives/stop-clicks.directive';
 
 /**
  * A video element's player: the (cropped, clipped) video filling its box, with a
@@ -20,6 +21,7 @@ import type { ImageView } from '../../../models/shape-view.model';
 @Component({
    selector: 'dd-media-video',
    changeDetection: ChangeDetectionStrategy.OnPush,
+   imports: [StopClicksDirective],
    host: {
       class: 'media-video',
       '[class.show-bar]': 'barShown()',

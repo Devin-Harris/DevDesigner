@@ -14,127 +14,44 @@ import {
    viewChild,
 } from '@angular/core';
 import {
+   type CanvasElementModel,
+   type ElementBinding,
+   type GridData,
+   type GridPart,
+   type MorphBy,
    clearGridTag,
+   effectiveTransition,
    gridMorphPairs,
    gridPartTag,
    matchMorphItems,
-   transitionMorphs,
    morphMode,
    onlyYourPairs,
-   effectiveTransition,
-   type MorphBy,
    parseGrid,
    serializeGrid,
    setGridPartTag,
-   type GridData,
-   type GridPart,
    slideMorphKey,
-   type CanvasElementModel,
-   type ElementBinding,
-   type MorphItem,
+   transitionMorphs,
 } from '@devdesigner/shared';
 import { lineEnds } from '../../../../helpers/render';
-import { elementBox, type RotatedBox } from '../../../../helpers/element-geometry.helper';
+import { type RotatedBox, elementBox } from '../../../../helpers/element-geometry.helper';
 import { ProjectStore } from '../../../../state/project/project.store';
 import { tableBox } from '../../../../helpers/node-metrics.helper';
-import { SlideRenderService, type RenderedSlide } from '../../services/slide-render.service';
-import { MorphStage } from '../../services/morph-stage';
-import { ease } from '../../helpers/ease.helper';
+import { SlideRenderService } from '../../services/slide-render.service';
+import { ComparePreviewPlayer } from './helpers/compare-preview-player';
 import { CompareUiState } from './services/compare-ui-state.service';
 import { gridMirrorPart, gridPartBox, gridPartLabel, gridZoneAt, samePart } from './grid-zones.helper';
-
-/** One end of a drag: an object, or a row / column / cell of a grid table (`part`). */
-interface DragEnd {
-   side: 'a' | 'b';
-   key: string;
-   part?: GridPart | null;
-}
-
-type PctBox = { left: number; top: number; width: number; height: number };
-
-/** A row / column / cell pairing drawn between two paired tables. */
-interface PartLine {
-   key: string;
-   a: string;
-   b: string;
-   aId: string;
-   bId: string;
-   tag: string;
-   pa: GridPart;
-   pb: GridPart;
-   color: string;
-   label: string;
-   x1: number;
-   y1: number;
-   x2: number;
-   y2: number;
-   d: string;
-}
-
-interface Side {
-   item: MorphItem;
-   label: string;
-   /** Element id (pairs can be set by hand for elements only; tables pair by name). */
-   id: string | null;
-}
-
-export interface MorphPair {
-   from: string;
-   to: string;
-   why: 'text' | 'name' | 'tag' | 'look-alike' | 'fades in' | 'fades out';
-   /** Item centres relative to their frames. */
-   a?: { x: number; y: number };
-   b?: { x: number; y: number };
-   /** Element ids on the slide before / after (null = table or nothing). */
-   aId: string | null;
-   bId: string | null;
-   /** Set by hand (split in / out tags on these objects). */
-   forced: boolean;
-   /** Set to "no transition". */
-   cut?: boolean;
-   /** Stage keys of the two objects ("a3" / "b1"), for highlighting. */
-   aKey: string | null;
-   bKey: string | null;
-   color: string | null;
-}
-
-/** One object outline drawn over a slide picture (percent of the slide box). */
-interface Hit {
-   /** Sits wholly off the slide (it moves in / out): drawn with its label. */
-   outside: boolean;
-   key: string;
-   id: string | null;
-   label: string;
-   left: number;
-   top: number;
-   width: number;
-   height: number;
-   /** Pair number and colour; null = fades in / out. */
-   num: number | null;
-   color: string | null;
-   forced: boolean;
-   /** The partner's key on the other slide. */
-   partner: string | null;
-   /** Set to "no transition" on this side: switches instantly. */
-   cut: boolean;
-   /** Set to never morph here (fades). */
-   solo: boolean;
-   /** Also morphs from the slide before the before-slide (a side) / into the slide after (b side). */
-   chain: string | null;
-   /**
-    * A line/arrow: its hit is a band along the drawn line (a box around a diagonal line
-    * would cover the shapes it connects). Center and length in % of the slide width/height,
-    * angle in degrees.
-    */
-   line: { cx: number; cy: number; len: number; angle: number } | null;
-   /** A grid table: its row / column weights (its rows, columns and cells pair too). */
-   grid: { rows: number[]; cols: number[] } | null;
-}
-
-const PAIR_COLORS = ['#2bb3a8', '#6f8bff', '#e0a84a', '#ef6b6b', '#9b7bff', '#3fb950', '#e879c6', '#5ac8fa'];
-/** Slide width and gap as parts of the 100-unit pair view. */
-const COL = 46;
-const GAP = 8;
+import {
+   COL,
+   type DragEnd,
+   GAP,
+   type Hit,
+   MIN_ZOOM,
+   type MorphPair,
+   PAIR_COLORS,
+   type PartLine,
+   type PctBox,
+   type Side,
+} from './deck-compare.model';
 
 /**
  * DeckMorph screen. Mapping view: the slide before and after side by side, every
@@ -143,9 +60,6 @@ const GAP = 8;
  * transition: their own in / out tags). A strip below scrubs the real morph.
  * Mode "pairs" is the list for the right-hand dock.
  */
-/** How far the pair view zooms out. */
-const MIN_ZOOM = 0.3;
-
 @Component({
    selector: 'dd-deck-compare',
    changeDetection: ChangeDetectionStrategy.OnPush,
@@ -167,7 +81,6 @@ export class DeckCompareComponent {
    readonly preview = output<void>();
 
    private readonly store = inject(ProjectStore);
-   private readonly render = inject(SlideRenderService);
    private readonly destroyRef = inject(DestroyRef);
    protected readonly canEdit = this.store.canEdit;
 
@@ -248,7 +161,10 @@ export class DeckCompareComponent {
       const tr = this.slide().slide?.transition;
       const items = { a: A.map((x) => x.item), b: B.map((x) => x.item) };
       const all = transitionMorphs(tr)
-         ? matchMorphItems(items.a, items.b, undefined, false, { width: this.slide().width, height: this.slide().height })
+         ? matchMorphItems(items.a, items.b, undefined, false, {
+              width: this.slide().width,
+              height: this.slide().height,
+           })
          : [];
       // Fade / slide / zoom: only the pairs you made (Auto also pairs look-alikes).
       const matches = morphMode(tr) === 'mine' ? onlyYourPairs(items.a, items.b, all) : all;
@@ -334,7 +250,13 @@ export class DeckCompareComponent {
          B.map((x) => x.item)
       );
       const mode = morphMode(to.slide?.transition);
-      for (const [i, j] of mode === 'mine' ? onlyYourPairs(A.map((x) => x.item), B.map((x) => x.item), all) : all) {
+      for (const [i, j] of mode === 'mine'
+         ? onlyYourPairs(
+              A.map((x) => x.item),
+              B.map((x) => x.item),
+              all
+           )
+         : all) {
          const mine = side === 'from' ? A[i] : B[j];
          const other = side === 'from' ? B[j] : A[i];
          if (mine.id) out.set(mine.id, other.label);
@@ -353,7 +275,7 @@ export class DeckCompareComponent {
     */
    protected readonly overhang = computed(() => {
       const t = this.total();
-      const hx = (pct: number) => (Math.max(0, pct) / 100) * COL / t;
+      const hx = (pct: number) => ((Math.max(0, pct) / 100) * COL) / t;
       const hy = (pct: number) => ((Math.max(0, pct) / 100) * this.viewH()) / t;
       const all = [...this.hitsA(), ...this.hitsB()];
       const pad = 0.03;
@@ -595,7 +517,8 @@ export class DeckCompareComponent {
       const d = this.drag();
       if (d?.active) {
          if (d.from.part !== undefined) add(d.from.side, d.from.key, d.from.part, 'from', d.color);
-         if (d.over && (d.from.part !== undefined || d.overPart)) add(d.from.side === 'a' ? 'b' : 'a', d.over, d.overPart, 'over', d.color);
+         if (d.over && (d.from.part !== undefined || d.overPart))
+            add(d.from.side === 'a' ? 'b' : 'a', d.over, d.overPart, 'over', d.color);
       } else if (!d) {
          const z = this.hoverZone();
          if (z) add(z.side, z.key, z.part, 'hover', 'var(--dd-primary)');
@@ -634,12 +557,7 @@ export class DeckCompareComponent {
       this.beginDrag(event, { side: fixedSide, key: fixedKey, part: fixedPart }, line, true);
    }
 
-   private beginDrag(
-      event: PointerEvent,
-      from: DragEnd,
-      moving: string | null,
-      active: boolean
-   ): void {
+   private beginDrag(event: PointerEvent, from: DragEnd, moving: string | null, active: boolean): void {
       const fromHit = (from.side === 'a' ? this.hitsA() : this.hitsB()).find((x) => x.key === from.key);
       const color = this.lines().find((l) => l.key === moving)?.color ?? fromHit?.color ?? 'var(--dd-primary)';
       this.hoverZone.set(null);
@@ -753,16 +671,19 @@ export class DeckCompareComponent {
       // (the innermost one, like clicking nested objects on the canvas). It works the same
       // for objects past the slide's edges, whose outlines may be clipped on screen.
       const geo = this.innermostAt(fromSide === 'a' ? 'b' : 'a', clientX, clientY);
-      const el = geo ? this.hitEl(fromSide === 'a' ? 'b' : 'a', geo.key) ?? undefined : document
-         .elementsFromPoint(clientX, clientY)
-         // Only this view's object outlines: the canvas underneath has "hit" boxes too.
-         .filter(
-            (n) =>
-               (n as HTMLElement).classList?.contains('hit') &&
-               !!(n as HTMLElement).dataset['side'] &&
-               this.pairView()?.nativeElement.contains(n)
-         )
-         .sort((p, q) => p.clientWidth * p.clientHeight - q.clientWidth * q.clientHeight)[0] as HTMLElement | undefined;
+      const el = geo
+         ? (this.hitEl(fromSide === 'a' ? 'b' : 'a', geo.key) ?? undefined)
+         : (document
+              .elementsFromPoint(clientX, clientY)
+              // Only this view's object outlines: the canvas underneath has "hit" boxes too.
+              .filter(
+                 (n) =>
+                    (n as HTMLElement).classList?.contains('hit') &&
+                    !!(n as HTMLElement).dataset['side'] &&
+                    this.pairView()?.nativeElement.contains(n)
+              )
+              .sort((p, q) => p.clientWidth * p.clientHeight - q.clientWidth * q.clientHeight)[0] as
+              HTMLElement | undefined);
       const side = el?.dataset['side'] as 'a' | 'b' | undefined;
       const key = el?.dataset['key'];
       if (!side || !key || side === fromSide) return null;
@@ -795,7 +716,9 @@ export class DeckCompareComponent {
       const y = (u.y / this.viewH()) * 100;
       const byId = new Map(this.store.elements().map((e) => [e.id, e] as const));
       const under = (side === 'a' ? this.hitsA() : this.hitsB())
-         .filter((h) => !h.line && !!h.id && x >= h.left && x <= h.left + h.width && y >= h.top && y <= h.top + h.height)
+         .filter(
+            (h) => !h.line && !!h.id && x >= h.left && x <= h.left + h.width && y >= h.top && y <= h.top + h.height
+         )
          .sort((p, q) => (byId.get(q.id!)?.zIndex ?? 0) - (byId.get(p.id!)?.zIndex ?? 0));
       const seeThrough = (h: Hit): boolean => {
          const e = byId.get(h.id!);
@@ -1275,17 +1198,27 @@ export class DeckCompareComponent {
    }
 
    // ---- preview strip ----
-   protected readonly srcs = signal<(string | null)[]>([null, null]);
+   private readonly stageHost = viewChild<ElementRef<HTMLElement>>('stageHost');
+   private readonly bigHost = viewChild<ElementRef<HTMLElement>>('bigHost');
+   /** The visible player: the big one on the Preview tab, else the strip. */
+   private readonly playerHost = (): HTMLElement | undefined =>
+      (this.view() === 'preview' ? this.bigHost() : this.stageHost())?.nativeElement;
+   private readonly player = new ComparePreviewPlayer({
+      render: inject(SlideRenderService),
+      host: this.playerHost,
+      easing: () => this.slide().slide?.transition?.easing ?? 'ease-in-out',
+      duration: () => this.duration(),
+      morphs: () => this.isMorph(),
+      neighbours: () => [this.before(), this.after()],
+   });
+   protected readonly srcs = this.player.srcs;
    /** Scrubbed position, 0 = the slide before, 1 = this slide (linear time). */
-   protected readonly progress = signal(1);
-   protected readonly playing = signal(false);
+   protected readonly progress = this.player.progress;
+   protected readonly playing = this.player.playing;
    /** Opening the Preview tab starts the scrubber at the beginning. */
    private readonly previewStart = effect(() => {
       if (this.view() !== 'preview') return;
-      untracked(() => {
-         this.stop();
-         this.show(0);
-      });
+      untracked(() => this.player.scrub(0));
    });
    /**
     * The preview plays the real transition on a live stage for every type (fade, slide,
@@ -1297,80 +1230,34 @@ export class DeckCompareComponent {
    protected readonly ratio = computed(() => `${this.slide().width} / ${this.slide().height}`);
    protected readonly duration = computed(() => this.slide().slide?.transition?.duration ?? 300);
    protected readonly nowMs = computed(() => Math.round(this.progress() * this.duration()));
-   private readonly stageHost = viewChild<ElementRef<HTMLElement>>('stageHost');
-   private readonly bigHost = viewChild<ElementRef<HTMLElement>>('bigHost');
    /** Put the live morph scene (or the cross-fade pictures) in the visible player. */
    private readonly placeScene = effect(() => {
-      const big = this.bigHost()?.nativeElement;
-      const small = this.stageHost()?.nativeElement;
-      const host = this.view() === 'preview' ? big : small;
-      if (host && this.morph && this.morph.svg.parentElement !== host) host.appendChild(this.morph.svg);
+      this.view();
+      this.bigHost();
+      this.stageHost();
+      untracked(() => this.player.place(this.playerHost()));
    });
-   private morph: MorphStage | null = null;
-   private raf = 0;
+
+   /** Embedders read the play state and press play through CompareUiState. */
+   private readonly mirrorPlaying = effect(() => {
+      const playing = this.playing();
+      untracked(() => this.ui.previewPlaying.set(playing));
+   });
+   private playRequestsSeen = untracked(() => this.ui.previewPlayRequests());
+   private readonly playOnRequest = effect(() => {
+      const n = this.ui.previewPlayRequests();
+      if (n === this.playRequestsSeen || this.mode() !== 'stage') return;
+      this.playRequestsSeen = n;
+      untracked(() => this.player.togglePlay());
+   });
 
    protected scrub(p: number): void {
-      this.stop();
-      this.show(p);
-   }
-
-   private show(p: number): void {
-      this.progress.set(Math.min(1, Math.max(0, p)));
-      const easing = this.slide().slide?.transition?.easing ?? 'ease-in-out';
-      this.morph?.update(ease(easing, this.progress()));
+      this.player.scrub(p);
    }
 
    protected togglePlay(): void {
-      if (this.playing()) {
-         this.stop();
-         return;
-      }
-      // At the end, "Restart" just rewinds; pressing again plays.
-      if (this.progress() >= 1) {
-         this.show(0);
-         return;
-      }
-      const total = this.duration() || 300;
-      const from = this.progress();
-      const begin = performance.now() - from * total;
-      this.playing.set(true);
-      const tick = (now: number): void => {
-         if (!this.playing()) return;
-         const lin = Math.min(1, (now - begin) / total);
-         this.show(lin);
-         if (lin < 1) this.raf = requestAnimationFrame(tick);
-         else this.playing.set(false);
-      };
-      this.raf = requestAnimationFrame(tick);
+      this.player.togglePlay();
    }
-
-   private stop(): void {
-      cancelAnimationFrame(this.raf);
-      this.playing.set(false);
-   }
-
-   private async buildMorph(rendered: RenderedSlide[]): Promise<void> {
-      const host = (this.view() === 'preview' ? this.bigHost() : this.stageHost())?.nativeElement;
-      if (!host) return;
-      this.morph?.svg.remove();
-      this.morph = null;
-      if (rendered.length < 2 || !this.isMorph()) return;
-      const stage = new MorphStage(rendered[0], rendered[1]);
-      host.appendChild(stage.svg);
-      await stage.prepare();
-      this.morph = stage;
-      this.show(this.progress());
-   }
-
-   private token = 0;
-   /** Ids of the slide pair the current pictures belong to. */
-   private drawnKey = '';
-   /**
-    * Rendered slides by frame id, valid until the project data changes. Neighbouring
-    * slides are rendered ahead of time so stepping between pairs swaps pictures at once.
-    */
-   private cache = new Map<string, { r: RenderedSlide; url: string }>();
-   private cacheData: unknown[] = [];
 
    private readonly hostEl = inject(ElementRef<HTMLElement>);
    private readonly followRow = effect(() => {
@@ -1387,89 +1274,20 @@ export class DeckCompareComponent {
    });
 
    constructor() {
+      // Re-render the pair when it changes or the project data does (debounced while editing).
       effect((onCleanup) => {
          if (this.mode() !== 'stage') return;
          const frames = [this.previous(), this.slide()];
          const data = [this.store.elements(), this.store.tables(), this.store.relationships()];
-         const edited = data.some((d, i) => d !== this.cacheData[i]);
-         if (edited) {
-            this.cacheData = data;
-            this.clearCache();
-         }
-         const key = frames.map((f) => f?.id ?? '').join('|');
-         const switched = key !== this.drawnKey;
-         if (switched) {
-            this.drawnKey = key;
-            this.token += 1;
-            untracked(() => {
-               // Already rendered (the usual case when stepping): swap at once.
-               if (this.showCached(frames)) return;
-               // Not ready yet: never leave the previous pair's pictures up.
-               this.srcs.set([null, null]);
-               this.morph?.svg.remove();
-               this.morph = null;
-            });
-            if (!edited && untracked(() => frames.every((f) => !f || this.cache.has(f.id)))) {
-               untracked(() => this.prefetch());
-               return;
-            }
-         }
-         const timer = setTimeout(() => void untracked(() => this.draw(frames)), switched ? 0 : 200);
+         const delay = untracked(() => this.player.update(frames, data));
+         if (delay === null) return;
+         const timer = setTimeout(() => void untracked(() => this.player.draw(frames)), delay);
          onCleanup(() => clearTimeout(timer));
       });
       // Capture phase: the editor stops pointerdown from bubbling out of this screen.
       const outside = (e: Event): void => this.onOutside(e);
       document.addEventListener('pointerdown', outside, true);
       this.destroyRef.onDestroy(() => document.removeEventListener('pointerdown', outside, true));
-      this.destroyRef.onDestroy(() => {
-         this.stop();
-         this.token += 1;
-         this.clearCache();
-      });
-   }
-
-   private clearCache(): void {
-      this.cache.forEach((c) => URL.revokeObjectURL(c.url));
-      this.cache = new Map();
-   }
-
-   /** Show the pair from the cache; false when a slide is not rendered yet. */
-   private showCached(frames: (CanvasElementModel | null)[]): boolean {
-      if (!frames.every((f) => !f || this.cache.has(f.id))) return false;
-      const hits = frames.map((f) => (f ? this.cache.get(f.id)! : null));
-      void this.buildMorph(hits.filter((h) => !!h).map((h) => h!.r));
-      this.srcs.set(hits.map((h) => h?.url ?? null));
-      return true;
-   }
-
-   private async renderMissing(frames: (CanvasElementModel | null)[]): Promise<boolean> {
-      const missing = frames.filter((f): f is CanvasElementModel => !!f && !this.cache.has(f.id));
-      if (!missing.length) return true;
-      const cache = this.cache;
-      const rendered = await this.render.render(missing, { fonts: true });
-      if (cache !== this.cache) return false;
-      for (const r of rendered) {
-         if (cache.has(r.id)) continue;
-         cache.set(r.id, { r, url: URL.createObjectURL(new Blob([r.svg], { type: 'image/svg+xml;charset=utf-8' })) });
-      }
-      return true;
-   }
-
-   private async draw(frames: (CanvasElementModel | null)[]): Promise<void> {
-      const t = ++this.token;
-      const data = this.cacheData;
-      await this.renderMissing(frames);
-      if (t !== this.token || data !== this.cacheData) return;
-      this.showCached(frames);
-      this.prefetch();
-   }
-
-   /** Render the slides either side of this pair in the background. */
-   private prefetch(): void {
-      const data = this.cacheData;
-      setTimeout(() => {
-         if (data !== this.cacheData) return;
-         void this.renderMissing([this.before(), this.after()]);
-      }, 50);
+      this.destroyRef.onDestroy(() => this.player.dispose());
    }
 }

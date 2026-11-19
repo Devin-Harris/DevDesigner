@@ -19,6 +19,7 @@ import {
    codePalette,
    DeckCompareComponent,
    EditorComponent,
+   type EditorHostOptions,
    ProjectStore,
    tokenColor,
    tokenizeCode,
@@ -239,6 +240,11 @@ export class HomeComponent {
       return { slides, active: panel.active };
    });
    private readonly editor = viewChild(EditorComponent);
+   /** The showcase editor is a picture; the sequence tab's player reveals messages itself. */
+   protected readonly editorOptions = computed<EditorHostOptions>(() => {
+      const id = this.showcase[this.active()].id;
+      return { chrome: 'picture', hideSequenceMessages: !this.prepping() && (id === 'seq' || id === 'more') };
+   });
    private readonly showcaseSeen = signal(false);
    private run?: AbortController;
    private readonly demo = viewChild<ElementRef<HTMLElement>>('demo');
@@ -453,8 +459,6 @@ export class HomeComponent {
       pairs: [string, string][],
       abort: AbortSignal
    ): Promise<void> {
-      const go = () =>
-         this.demo()?.nativeElement.querySelector<HTMLButtonElement>('.sc-morph dd-deck-compare button.go');
       this.compareUi.view.set('map');
       this.transitionIds.set({ from, to });
       try {
@@ -490,7 +494,7 @@ export class HomeComponent {
          await sleep(600);
          await this.scrubPreview([0, 1, 0.3, 1], abort);
          await sleep(200);
-         go()?.click();
+         this.compareUi.previewPlayRequests.update((n) => n + 1);
          await sleep(1100);
       } finally {
          this.moCursor.set(null);
@@ -1028,22 +1032,21 @@ export class HomeComponent {
       this.morphing.set(true);
       try {
          // Map pairs: which object on slide 1 becomes which on slide 2.
-         editor.showTransitionScreen(deck, slides, 'map');
+         editor.embed.showTransitionScreen(deck, slides, 'map');
          await sleep(5000);
          if (abort.aborted) return;
          // Preview: play the real morph a few times with its own ▶ / ↻ button.
-         editor.showTransitionScreen(deck, slides, 'preview');
+         editor.embed.showTransitionScreen(deck, slides, 'preview');
          await sleep(900);
          for (let i = 0; i < 3 && !abort.aborted; i++) {
-            const go = () => this.demo()?.nativeElement.querySelector<HTMLButtonElement>('dd-deck-compare button.go');
-            for (let t = 0; t < 30 && /Pause/.test(go()?.textContent ?? ''); t++) await sleep(100);
+            for (let t = 0; t < 30 && editor.embed.previewPlaying(); t++) await sleep(100);
             await sleep(700);
-            go()?.click();
+            editor.embed.togglePreviewPlay();
             await sleep(1500);
          }
          await sleep(800);
       } finally {
-         editor.leaveDeckFocus();
+         editor.embed.leaveDeckFocus();
          this.morphing.set(false);
       }
    }
@@ -1052,7 +1055,7 @@ export class HomeComponent {
       if (i === this.active()) return;
       this.run?.abort();
       if (this.morphing()) {
-         this.editor()?.leaveDeckFocus();
+         this.editor()?.embed.leaveDeckFocus();
          this.morphing.set(false);
       }
       this.active.set(i);
@@ -1086,6 +1089,13 @@ export class HomeComponent {
          return;
       }
       void this.accountDialogs.openApiTokens();
+   }
+
+   protected async openAccount(): Promise<void> {
+      if (await this.accountDialogs.openAccount()) {
+         this.projects.select(null);
+         this.projects.loadProjects();
+      }
    }
 
    protected async signOut(): Promise<void> {

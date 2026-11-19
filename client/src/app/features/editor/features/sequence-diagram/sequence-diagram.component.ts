@@ -18,7 +18,8 @@ import {
 } from '@devdesigner/shared';
 import { AutofocusDirective } from '../../../../shared/ui/directives/autofocus.directive';
 import { ProjectStore, SequenceLayoutSnapshot } from '../../state/project/project.store';
-import { sequenceDiagramBox } from '../../helpers/frame-contents.helper';
+import type { SequenceBounds } from '../../state/project/models/project-state.model';
+import { applySequenceBounds, sequenceBoundsFor, sequenceContentBox } from '../../helpers/frame-contents.helper';
 
 interface MessageView {
    id: string;
@@ -135,8 +136,23 @@ type Drag =
         startWidths: Map<string, number>;
         /** The last Ctrl-scale applied (1 = none), so release knows to persist it. */
         scaled: number;
-        /** The drawn outer box at the start (Ctrl-resize lines it up with smart guides). */
+        /** The content box at the start (Ctrl-resize lines it up with smart guides). */
         startBox: { x0: number; y0: number; x1: number; y1: number } | null;
+        /** The drawn outer box at the start (content grown by the stored bounds). */
+        startOuter: { x0: number; y0: number; x1: number; y1: number } | null;
+        /** Stored bounds at the start (restored when switching resize modes mid-drag). */
+        startBounds: SequenceBounds;
+     }
+   | {
+        /** Drag the gap above a message row: changes the spacing of every row. */
+        kind: 'gap';
+        startY: number;
+        /** The row below the dragged gap (it follows the pointer). */
+        row: number;
+        startRowSpacing: number;
+        startXs: Map<string, number>;
+        startRows: Map<string, number>;
+        top: number;
      }
    | { kind: 'marquee'; start: { x: number; y: number }; moved: boolean }
    | { kind: 'connect'; fromId: string; startY: number }
@@ -147,6 +163,7 @@ const BOX_PAD = 26;
 const TITLE_ROOM = 10;
 const MIN_ROW = 20;
 const MIN_HEADER_W = 60;
+const ZERO_BOUNDS: SequenceBounds = { padLeft: 0, padTop: 0, boxWidth: 0, boxHeight: 0 };
 
 /**
  * One sequence diagram: a rounded bounding box wrapping its participant lifelines
@@ -342,17 +359,22 @@ export class SequenceDiagramComponent {
       return rows.length ? Math.max(...rows) : 0;
    });
 
-   /** Spine length: one row past the lowest message, leaving room below. */
-   protected readonly spineEnd = computed(() => this.headerBottom() + this.rowSpacing() * (this.maxRow() + 1));
+   /** Content spine end: one row past the lowest message, leaving room below. */
+   private readonly contentSpineEnd = computed(
+      () => this.headerBottom() + this.rowSpacing() * (this.maxRow() + 1)
+   );
 
-   /** Rounded bounding box around this diagram (for move/resize/select). */
+   /** Rounded bounding box around this diagram (for move/resize/select); may be bigger than its content. */
    protected readonly box = computed<BoundingBox | null>(() => {
       const l = this.lls();
       if (!l.length) return null;
-      const left = Math.min(...l.map((x) => x.x - x.width / 2)) - BOX_PAD;
-      const right = Math.max(...l.map((x) => x.x + x.width / 2)) + BOX_PAD;
-      const top = this.originY() - BOX_PAD - TITLE_ROOM;
-      const bottom = this.spineEnd() + BOX_PAD;
+      const b = applySequenceBounds(this.diagram(), {
+         x0: Math.min(...l.map((x) => x.x - x.width / 2)) - BOX_PAD,
+         x1: Math.max(...l.map((x) => x.x + x.width / 2)) + BOX_PAD,
+         y0: this.originY() - BOX_PAD - TITLE_ROOM,
+         y1: this.contentSpineEnd() + BOX_PAD,
+      });
+      const { x0: left, x1: right, y0: top, y1: bottom } = b;
       return {
          left,
          top,
@@ -363,6 +385,29 @@ export class SequenceDiagramComponent {
          cx: (left + right) / 2,
          cy: (top + bottom) / 2,
       };
+   });
+
+   /** Spines run to the bottom of the box (which a plain resize can make taller than the content). */
+   protected readonly spineEnd = computed(() => (this.box()?.bottom ?? this.contentSpineEnd() + BOX_PAD) - BOX_PAD);
+
+   /**
+    * Invisible bands across the gaps above each occupied message row (drag one to change
+    * the row spacing; the row below follows the pointer). Active when the diagram is selected.
+    */
+   protected readonly gaps = computed<{ row: number; y: number; x: number; w: number }[]>(() => {
+      const b = this.box();
+      if (!b) return [];
+      const hb = this.headerBottom();
+      const gap = this.rowSpacing();
+      const rows = [...new Set(this.msgs().map((m) => Math.max(1, Math.round((m.y - hb) / gap))))].sort(
+         (a, c) => a - c
+      );
+      return rows.map((row, i) => ({
+         row,
+         y: hb + (gap * ((i ? rows[i - 1] : 0) + row)) / 2,
+         x: b.left + BOX_PAD / 2,
+         w: b.width - BOX_PAD,
+      }));
    });
 
    protected readonly canEdit = computed(() => this.store.canEdit());
@@ -543,7 +588,22 @@ export class SequenceDiagramComponent {
                .filter((l) => l.diagramId === diagramId)
                .map((l) => [l.id, l.width])
          ),
+         bounds: this.boundsOf(cfg),
       };
+   }
+
+   private boundsOf(cfg: SequenceDiagramModel | undefined): SequenceBounds {
+      return {
+         padLeft: cfg?.padLeft ?? 0,
+         padTop: cfg?.padTop ?? 0,
+         boxWidth: cfg?.boxWidth ?? 0,
+         boxHeight: cfg?.boxHeight ?? 0,
+      };
+   }
+
+   /** The diagram's content box right now (no stored bounds). */
+   private contentBox(): { x0: number; y0: number; x1: number; y1: number } | null {
+      return sequenceContentBox(this.diagram(), this.store.lifelines(), this.store.sequenceMessages());
    }
 
    // ----- Bounding box: select + move this diagram -----
@@ -605,6 +665,7 @@ export class SequenceDiagramComponent {
       const nRows = this.msgs().length + 1;
       const headerH = this.headerH();
       const contentH = headerH + this.rowSpacing() * nRows;
+      const content = this.contentBox();
       this.drag = {
          kind: 'resize',
          handle,
@@ -614,7 +675,9 @@ export class SequenceDiagramComponent {
          startWidths: new Map(l.map((x) => [x.id, x.width])),
          startScale: this.diagram().scale ?? 1,
          scaled: 1,
-         startBox: sequenceDiagramBox(this.diagram(), this.store.lifelines(), this.store.sequenceMessages()),
+         startBox: content,
+         startOuter: content ? applySequenceBounds(this.diagram(), content) : null,
+         startBounds: this.boundsOf(this.diagram()),
          startRows: this.startRowsMap(),
          left,
          right,
@@ -626,6 +689,46 @@ export class SequenceDiagramComponent {
          nRows,
          startRowSpacing: this.rowSpacing(),
       };
+   }
+
+   /** Double-click a side/corner: shrink the box back to its content on that axis (like grid tables). */
+   protected onHandleDblClick(event: MouseEvent, handle: Handle): void {
+      event.stopPropagation();
+      if (!this.canEdit()) return;
+      this.store.fitSequenceToContent(this.diagram().id, {
+         x: /[ew]/.test(handle),
+         y: /[ns]/.test(handle),
+      });
+   }
+
+   // ----- Row gap: drag to change the spacing between messages (box grows only if needed) -----
+   protected onGapDown(event: PointerEvent, row: number): void {
+      event.stopPropagation();
+      if (!this.canEdit()) return;
+      this.layoutBefore = this.snapshotLayout(this.diagram().id);
+      this.startDrag();
+      this.drag = {
+         kind: 'gap',
+         startY: event.clientY,
+         row,
+         startRowSpacing: this.rowSpacing(),
+         startXs: new Map(this.lls().map((l) => [l.id, l.x])),
+         startRows: this.startRowsMap(),
+         top: this.originY(),
+      };
+   }
+
+   private applyGap(d: Extract<Drag, { kind: 'gap' }>, event: PointerEvent): void {
+      const dy = (event.clientY - d.startY) / this.zoom();
+      const row = Math.max(1, d.row);
+      let spacing = Math.max(MIN_ROW, d.startRowSpacing + dy / row);
+      const snap = this.snap();
+      if (snap) {
+         // Land the dragged row on the grid.
+         const hb = d.top + this.headerH();
+         spacing = Math.max(MIN_ROW, (snap(hb + spacing * row) - hb) / row);
+      }
+      this.store.resizeSequenceTo(this.diagram().id, d.startXs, 0, 1, spacing, d.top, d.startRows);
    }
 
    // ----- Participant header: select + horizontal drag -----
@@ -800,6 +903,8 @@ export class SequenceDiagramComponent {
          this.shiftDiagram(d, event);
       } else if (d.kind === 'resize') {
          this.applyResize(d, event);
+      } else if (d.kind === 'gap') {
+         this.applyGap(d, event);
       } else if (d.kind === 'connect' || d.kind === 'endpoint') {
          const fn = this.toWorld();
          if (fn) this.tempTo.set(fn(event.clientX, event.clientY));
@@ -925,15 +1030,85 @@ export class SequenceDiagramComponent {
       return null;
    }
 
-   /** Compute new spread + vertical size for a resize drag (Shift locks, Alt centers). */
+   /**
+    * A resize drag. Plain: the box grows/shrinks around the content (never below it)
+    * and the spacing is untouched. Alt: the content is respaced to fill the box (the
+    * participants spread and the rows stretch). Ctrl: everything scales together.
+    * Shift locks proportions.
+    */
    private applyResize(d: Extract<Drag, { kind: 'resize' }>, event: PointerEvent): void {
+      const ctrl = event.ctrlKey || event.metaKey;
+      if (!ctrl && !event.altKey) {
+         this.applyBoundsResize(d, event);
+         return;
+      }
+      // Respacing / scaling: the box hugs the content again (Ctrl scales the bounds along).
+      this.store.setSequenceBoundsLocal(this.diagram().id, ctrl ? d.startBounds : ZERO_BOUNDS);
+      this.applyRespaceResize(d, event);
+   }
+
+   /** Plain resize: move the dragged edges of the outer box, clamped to the content. */
+   private applyBoundsResize(d: Extract<Drag, { kind: 'resize' }>, event: PointerEvent): void {
+      const c = d.startBox;
+      const b0 = d.startOuter;
+      if (!c || !b0) return;
+      // Undo any Alt / Ctrl change made earlier in this drag.
+      if (d.scaled !== 1) {
+         d.scaled = 1;
+         this.store.scaleSequenceLocal(this.diagram().id, d.headerH, d.startScale, d.startWidths);
+      }
+      this.store.resizeSequenceTo(this.diagram().id, d.startXs, 0, 1, d.startRowSpacing, d.top, d.startRows);
       const dx = (event.clientX - d.startX) / this.zoom();
       const dy = (event.clientY - d.startY) / this.zoom();
       const isLeft = d.handle.includes('w');
       const isRight = d.handle.includes('e');
       const isTop = d.handle.includes('n');
       const isBottom = d.handle.includes('s');
-      const factor = event.altKey ? 2 : 1;
+      const b = { ...b0 };
+      if (isLeft) b.x0 += dx;
+      if (isRight) b.x1 += dx;
+      if (isTop) b.y0 += dy;
+      if (isBottom) b.y1 += dy;
+      if (event.shiftKey && (isLeft || isRight) && (isTop || isBottom)) {
+         const w0 = b0.x1 - b0.x0;
+         const h0 = b0.y1 - b0.y0;
+         const k = Math.max((b.x1 - b.x0) / w0, (b.y1 - b.y0) / h0);
+         if (isLeft) b.x0 = b0.x1 - w0 * k;
+         else b.x1 = b0.x0 + w0 * k;
+         if (isTop) b.y0 = b0.y1 - h0 * k;
+         else b.y1 = b0.y0 + h0 * k;
+      } else {
+         // Smart guides, then the grid, on the dragged edges.
+         const xs = isLeft ? [b.x0] : isRight ? [b.x1] : [];
+         const ys = isTop ? [b.y0] : isBottom ? [b.y1] : [];
+         const smart = this.smartEdges()?.(this.diagram().id, b, xs, ys);
+         const snap = this.snap();
+         const fix = (v: number, snapped: boolean | undefined, off: number) =>
+            snapped ? v + off : snap ? snap(v) : v;
+         if (isLeft) b.x0 = fix(b.x0, smart?.snappedX, smart?.ox ?? 0);
+         if (isRight) b.x1 = fix(b.x1, smart?.snappedX, smart?.ox ?? 0);
+         if (isTop) b.y0 = fix(b.y0, smart?.snappedY, smart?.oy ?? 0);
+         if (isBottom) b.y1 = fix(b.y1, smart?.snappedY, smart?.oy ?? 0);
+      }
+      // Never smaller than the content.
+      b.x0 = Math.min(b.x0, c.x0);
+      b.y0 = Math.min(b.y0, c.y0);
+      b.x1 = Math.max(b.x1, c.x1);
+      b.y1 = Math.max(b.y1, c.y1);
+      this.store.setSequenceBoundsLocal(this.diagram().id, sequenceBoundsFor(c, b));
+   }
+
+   /** Alt / Ctrl resize: new spread + vertical size for the content itself (Shift locks). */
+   private applyRespaceResize(d: Extract<Drag, { kind: 'resize' }>, event: PointerEvent): void {
+      const dx = (event.clientX - d.startX) / this.zoom();
+      const dy = (event.clientY - d.startY) / this.zoom();
+      const isLeft = d.handle.includes('w');
+      const isRight = d.handle.includes('e');
+      const isTop = d.handle.includes('n');
+      const isBottom = d.handle.includes('s');
+      // Alt now selects respacing, so it no longer resizes from the center.
+      const centred = false;
+      const factor = 1;
       const spanX = d.right - d.left;
       const horiz = (isLeft || isRight) && spanX > 1;
 
@@ -952,12 +1127,12 @@ export class SequenceDiagramComponent {
          // Never below a readable size or the minimum row height.
          k = Math.max(k, 0.3 / d.startScale, MIN_ROW / Math.max(1, d.startRowSpacing));
          k = Math.min(k, 8 / d.startScale);
-         k = this.smartScale(d, k, event.altKey, horiz, isLeft, isTop || isBottom, isTop) ?? k;
+         k = this.smartScale(d, k, centred, horiz, isLeft, isTop || isBottom, isTop) ?? k;
          k = Math.max(k, 0.3 / d.startScale, MIN_ROW / Math.max(1, d.startRowSpacing));
          k = Math.min(k, 8 / d.startScale);
-         const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
+         const anchorX = centred ? d.centerX : isLeft ? d.right : d.left;
          const newContent = d.contentH * k;
-         const originY = event.altKey ? d.centerY - newContent / 2 : isTop ? d.top + d.contentH - newContent : d.top;
+         const originY = centred ? d.centerY - newContent / 2 : isTop ? d.top + d.contentH - newContent : d.top;
          d.scaled = k;
          this.store.scaleSequenceLocal(
             this.diagram().id,
@@ -965,6 +1140,13 @@ export class SequenceDiagramComponent {
             d.startScale * k,
             new Map([...d.startWidths].map(([id, w]) => [id, Math.round(w * k)]))
          );
+         // Extra room around the content scales along with it.
+         this.store.setSequenceBoundsLocal(this.diagram().id, {
+            padLeft: Math.round(d.startBounds.padLeft * k),
+            padTop: Math.round(d.startBounds.padTop * k),
+            boxWidth: Math.round(d.startBounds.boxWidth * k),
+            boxHeight: Math.round(d.startBounds.boxHeight * k),
+         });
          this.store.resizeSequenceTo(this.diagram().id, d.startXs, anchorX, spanX > 1 ? k : 1, d.startRowSpacing * k, originY, d.startRows);
          return;
       }
@@ -988,7 +1170,7 @@ export class SequenceDiagramComponent {
       if (snap && !event.shiftKey) {
          const minH = d.headerH + MIN_ROW * d.nRows;
          if (horiz) {
-            if (event.altKey) {
+            if (centred) {
                newW = Math.max(20, 2 * Math.abs(snap(d.centerX + newW / 2) - d.centerX));
             } else if (isRight) {
                newW = Math.max(20, snap(d.left + newW) - d.left);
@@ -997,7 +1179,7 @@ export class SequenceDiagramComponent {
             }
          }
          if (isTop || isBottom) {
-            if (event.altKey) {
+            if (centred) {
                newH = Math.max(minH, 2 * Math.abs(snap(d.centerY + newH / 2) - d.centerY));
             } else if (isBottom) {
                newH = Math.max(minH, snap(d.top + newH) - d.top);
@@ -1009,12 +1191,12 @@ export class SequenceDiagramComponent {
       }
 
       const scaleX = horiz ? newW / spanX : 1;
-      const anchorX = event.altKey ? d.centerX : isLeft ? d.right : d.left;
+      const anchorX = centred ? d.centerX : isLeft ? d.right : d.left;
       const rowSpacing = d.nRows > 0 ? Math.max(MIN_ROW, (newH - d.headerH) / d.nRows) : d.startRowSpacing;
 
       let originY = d.top;
       if (isTop || isBottom) {
-         if (event.altKey) {
+         if (centred) {
             originY = d.centerY - newH / 2;
          } else if (isTop) {
             originY = d.top + d.contentH - newH; // keep the bottom edge fixed
@@ -1085,13 +1267,15 @@ export class SequenceDiagramComponent {
                this.store.recordLifelineMove(d.id, d.startVal, now.x);
             }
          }
-      } else if (d?.kind === 'diagram' || d?.kind === 'resize') {
+      } else if (d?.kind === 'diagram' || d?.kind === 'resize' || d?.kind === 'gap') {
          // Apply the final position once more from the release point (covers drags
          // where no intermediate pointermove fired), then persist everything.
          if (d.kind === 'diagram') {
             this.shiftDiagram(d, event);
             // Only now: the final shift above still snaps against the drag's start box.
             this.smartDragEnd()?.();
+         } else if (d.kind === 'gap') {
+            this.applyGap(d, event);
          } else {
             this.applyResize(d, event);
             this.smartDragEnd()?.();
@@ -1113,6 +1297,7 @@ export class SequenceDiagramComponent {
                   ...(d.kind === 'resize' && d.scaled !== 1
                      ? { headerHeight: cfg.headerHeight, scale: cfg.scale ?? 1 }
                      : {}),
+                  ...(d.kind === 'resize' ? this.boundsOf(cfg) : {}),
                }, false);
             }
             if (d.kind === 'resize' && d.scaled !== 1) {
@@ -1152,6 +1337,7 @@ export class SequenceDiagramComponent {
    private layoutChanged(a: SequenceLayoutSnapshot, b: SequenceLayoutSnapshot): boolean {
       if (a.originY !== b.originY || a.rowSpacing !== b.rowSpacing) return true;
       if (a.headerHeight !== b.headerHeight || a.scale !== b.scale) return true;
+      if (JSON.stringify(a.bounds) !== JSON.stringify(b.bounds)) return true;
       for (const [id, w] of a.lifelineWidths ?? []) if (b.lifelineWidths?.get(id) !== w) return true;
       for (const [id, x] of a.lifelineXs) if (b.lifelineXs.get(id) !== x) return true;
       for (const [id, y] of a.messageYs) if (b.messageYs.get(id) !== y) return true;

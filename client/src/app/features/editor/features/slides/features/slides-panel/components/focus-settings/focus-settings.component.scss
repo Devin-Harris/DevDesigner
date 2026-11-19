@@ -1,0 +1,315 @@
+:host {
+   display: contents;
+}
+
+.rec-row.on .rec-pick {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.f-lab {
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+}
+.f-k {
+   font-family: var(--dd-mono, monospace);
+   font-size: 11px;
+   color: var(--dd-text-muted);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   padding: 1px 5px;
+   border-radius: 4px;
+}
+.btnk {
+   cursor: pointer;
+}
+.fs.on {
+   background: var(--dd-primary-weak);
+}
+.fs.on .tn {
+   border: 2px solid var(--dd-primary);
+}
+.fs .tn img,
+.lt img {
+   display: block;
+   width: 100%;
+   height: 100%;
+   object-fit: contain;
+}
+.f-go:disabled,
+.f-tb:disabled {
+   opacity: 0.5;
+   cursor: default;
+}
+.f-tb {
+   height: 32px;
+   padding: 0 9px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-weight: 500;
+   cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 6px;
+   white-space: nowrap;
+}
+.f-tb:hover:not(:disabled) {
+   background: var(--dd-surface-2);
+}
+.f-tb.outline,
+.f-foot .f-tb {
+   border: 1px solid var(--dd-border);
+}
+.f-tb.sm {
+   height: 26px;
+   font-size: 12px;
+}
+.f-tabs {
+   display: flex;
+   gap: 2px;
+   padding: 4px 12px 0;
+   border-bottom: 1px solid var(--dd-border);
+}
+.f-tab {
+   height: 36px;
+   border: none;
+   border-bottom: 2px solid transparent;
+   background: transparent;
+   padding: 0 8px;
+   font: inherit;
+   font-weight: 500;
+   color: var(--dd-text-muted);
+   display: inline-flex;
+   align-items: center;
+   gap: 5px;
+   cursor: pointer;
+   white-space: nowrap;
+}
+.f-tab.on {
+   border-bottom-color: var(--dd-primary);
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.cnt {
+   font-size: 10px;
+   background: var(--dd-surface-2);
+   color: var(--dd-text-muted);
+   border-radius: 999px;
+   padding: 0 5px;
+}
+.f-body {
+   padding: 14px 16px;
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   overflow-y: auto;
+   min-height: 0;
+}
+.f-body.gap12 {
+   gap: 12px;
+}
+.f-body.gap14 {
+   gap: 14px;
+}
+.f-body.fill {
+   flex: 1 1 auto;
+}
+.f-between {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+}
+.f-link {
+   border: none;
+   background: transparent;
+   color: var(--dd-primary);
+   font: inherit;
+   font-size: 12px;
+   cursor: pointer;
+   padding: 4px 6px;
+   border-radius: 6px;
+}
+.f-link:hover {
+   background: var(--dd-surface-2);
+}
+.f-lays {
+   display: grid;
+   grid-template-columns: repeat(3, minmax(0, 1fr));
+   gap: 8px;
+}
+.lay {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   padding: 0;
+   border: none;
+   background: transparent;
+   font: inherit;
+   font-size: 11px;
+   color: var(--dd-text-secondary, var(--dd-text));
+   text-align: center;
+   cursor: pointer;
+}
+.lay .lt {
+   display: block;
+   border-radius: 4px;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-surface-2);
+   overflow: hidden;
+}
+.lay.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.f-row {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   gap: 8px;
+   font-size: 13px;
+   padding: 9px 0 0;
+   border-top: 1px solid var(--dd-border);
+}
+.f-body.gap12 .f-row {
+   border-top: none;
+   padding: 0;
+}
+.f-sws {
+   display: flex;
+   gap: 6px;
+}
+.sw {
+   width: 22px;
+   height: 22px;
+   padding: 0;
+   border: none;
+   border-radius: 5px;
+   box-shadow: inset 0 0 0 1px var(--dd-border-strong, rgba(127, 127, 127, 0.55));
+   cursor: pointer;
+}
+.sw.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 2px;
+}
+.tg {
+   position: relative;
+   width: 34px;
+   height: 20px;
+   padding: 0;
+   border: none;
+   border-radius: 999px;
+   background: var(--dd-border-strong, var(--dd-border));
+   cursor: pointer;
+}
+.tg::after {
+   content: '';
+   position: absolute;
+   left: 2px;
+   top: 2px;
+   width: 16px;
+   height: 16px;
+   border-radius: 50%;
+   background: var(--dd-surface);
+   transition: left 0.12s;
+}
+.tg.on {
+   background: var(--dd-primary);
+}
+.tg.on::after {
+   left: 16px;
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.f-notes {
+   width: 100%;
+   box-sizing: border-box;
+   resize: vertical;
+   padding: 8px 10px;
+   border: 1px solid var(--dd-border);
+   border-radius: 8px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+}
+.f-seg button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-weight: 600;
+   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ly.on {
+   background: var(--dd-primary-weak);
+}
+.ly .lt {
+   display: block;
+   border-radius: 5px;
+   border: 1px solid var(--dd-border);
+   overflow: hidden;
+   background: var(--dd-surface-2);
+}
+.ly.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.ly.on .meta .nm {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.th.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+.th.on .nm span:first-child {
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.tab.on {
+   background: var(--dd-primary-weak);
+   color: var(--dd-primary);
+}
+.empty,
+.hint {
+   margin: 6px 4px 10px;
+   color: var(--dd-text-muted);
+   line-height: 1.45;
+   font-size: 12px;
+}
+.card.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.btn.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+   color: var(--dd-primary);
+}
+.theme-card.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+input[type='number'],
+.text-input,
+textarea {
+   font: inherit;
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 6px 8px;
+   box-sizing: border-box;
+   width: 100%;
+}
+textarea {
+   resize: vertical;
+}

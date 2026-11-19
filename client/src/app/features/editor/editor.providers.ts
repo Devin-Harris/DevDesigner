@@ -21,6 +21,8 @@ import { GroupTransformService } from './features/elements/services/group-transf
 import { ElementGestureService } from './features/elements/services/element-gesture.service';
 import { DrawToolService } from './features/elements/services/draw-tool.service';
 import { DeckPanelsService } from './features/slides/services/deck-panels.service';
+import { DeckLayoutSyncService } from './features/slides/services/deck-layout-sync.service';
+import { SlideThumbnailsService } from './features/slides/services/slide-thumbnails.service';
 import { CanvasDblClickService } from './features/elements/services/canvas-dblclick.service';
 import { EditorPointerService } from './editor-pointer.service';
 import { AlignService } from './services/align.service';
@@ -58,6 +60,8 @@ export function provideEditor(): Provider[] {
       ElementGestureService,
       DrawToolService,
       DeckPanelsService,
+      DeckLayoutSyncService,
+      SlideThumbnailsService,
       CanvasDblClickService,
       EditorPointerService,
       AlignService,

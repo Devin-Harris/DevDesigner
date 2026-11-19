@@ -15,8 +15,8 @@
                }
                drag it to an object on the other slide to change that
             } @else if (canEdit()) {
-               Drag from an object (or a line's end) to the object on the other slide it should morph into · on a
-               table, start on its top / left edge for a column / row, inside for a cell · click one to see its options
+               Drag from an object (or a line's end) to the object on the other slide it should morph into · on a table,
+               start on its top / left edge for a column / row, inside for a cell · click one to see its options
             }
          </span>
          <span class="lab r">Slide {{ index() + 1 }} · after</span>
@@ -148,7 +148,12 @@
                      }
                   </div>
                }
-               <svg class="lines" preserveAspectRatio="none" aria-hidden="true" [attr.viewBox]="'0 0 ' + total() + ' ' + viewH()">
+               <svg
+                  class="lines"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                  [attr.viewBox]="'0 0 ' + total() + ' ' + viewH()"
+               >
                   @for (l of lines(); track l.key) {
                      <path
                         vector-effect="non-scaling-stroke"
@@ -195,7 +200,12 @@
                         (click)="removePartLine(l)"
                      >
                         <svg viewBox="0 0 10 10" width="6" height="6" aria-hidden="true">
-                           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                           <path
+                              d="M1.5 1.5l7 7M8.5 1.5l-7 7"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                           />
                         </svg>
                      </button>
                      <span
@@ -280,8 +290,8 @@
 
    @if (view() === 'map' && isCut()) {
       <p class="cut-note">
-         This transition is <b>None</b> (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade,
-         Slide or Zoom to map pairs.
+         This transition is <b>None</b> (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade, Slide or
+         Zoom to map pairs.
       </p>
    }
    @if (view() === 'preview') {
@@ -334,12 +344,16 @@
    @for (p of pairs(); track $index) {
       <div
          class="pr"
+         tabindex="0"
+         role="button"
          [class.on]="rowOn(p)"
          [class.armedrow]="rowArmed(p)"
          [style.--c]="p.color ?? 'var(--dd-text-muted)'"
          (pointerenter)="lit.set(p.bKey ?? p.aKey)"
          (pointerleave)="lit.set(null)"
          (click)="selectRow(p)"
+         (keydown.enter)="selectRow(p)"
+         (keydown.space)="$event.preventDefault(); selectRow(p)"
       >
          <span class="dot" [class.empty]="!p.color">{{ pairNum(p) }}</span>
          <span [class.none]="p.from === '—'">{{ p.from }}</span
@@ -372,7 +386,12 @@
                <span class="ab-lab">Animate by</span>
                <span class="ab-seg">
                   @for (o of animateByOptions; track o.value) {
-                     <button type="button" [class.on]="sel.animateBy === o.value" [disabled]="!canEdit()" (click)="sel.setAnimateBy(o.value)">
+                     <button
+                        type="button"
+                        [class.on]="sel.animateBy === o.value"
+                        [disabled]="!canEdit()"
+                        (click)="sel.setAnimateBy(o.value)"
+                     >
                         {{ o.label }}
                      </button>
                   }
@@ -388,7 +407,9 @@
                   <button class="btn" type="button" (click)="sel.cut_()">No transition</button>
                }
                @if (sel.forced || sel.cut || sel.solo) {
-                  <button class="btn" type="button" title="Back to automatic look-alike pairing" (click)="sel.reset()">Reset to automatic</button>
+                  <button class="btn" type="button" title="Back to automatic look-alike pairing" (click)="sel.reset()">
+                     Reset to automatic
+                  </button>
                }
             </div>
          }

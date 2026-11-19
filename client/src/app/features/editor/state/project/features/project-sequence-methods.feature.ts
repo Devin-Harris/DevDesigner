@@ -1,7 +1,8 @@
 import { patchState, signalStoreFeature, type, withMethods } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { type UpdateSequenceDiagramDto } from '@devdesigner/shared';
-import type { SequenceLayoutSnapshot } from '../models/project-state.model';
+import type { SequenceBounds, SequenceLayoutSnapshot } from '../models/project-state.model';
+import { sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
 import { shiftSequenceIn } from '../helpers/item-moves.helper';
 import { TABLE_PALETTE } from '../helpers/table-defaults.helper';
 import { pickKeys, sameValues } from '../helpers/patch-diff.helper';
@@ -14,6 +15,10 @@ export const SEQUENCE_PREVIEW_ID = 'seq-draft-preview';
 const PREVIEW_ID = SEQUENCE_PREVIEW_ID;
 const LIFELINE_W = 120;
 const HEADER = 42;
+/** Outer padding of a diagram box (mirrors sequence-diagram.component / frame-contents). */
+const SEQ_BOX_PAD = 26;
+/** Smallest row spacing a respace may produce. */
+const SEQ_MIN_ROW = 20;
 
 /**
  * Where a starter diagram's parts go. Without a size, (x, y) is the first participant's
@@ -54,6 +59,32 @@ export function withProjectSequenceMethods() {
          const { sequenceApi } = store._api;
          const { shownSlideAt } = store._placement;
          const { captureSeq, removeSeq, recordSeqCreate, recordSeqDelete } = store._sequenceOps;
+
+         /** A diagram's whole layout (positions, spacing, scale, bounds), for undo. */
+         const sequenceLayoutOf = (diagramId: string): SequenceLayoutSnapshot => {
+            const d = store.sequenceDiagrams().find((x) => x.id === diagramId);
+            const lls = store.lifelines().filter((l) => l.diagramId === diagramId);
+            return {
+               lifelineXs: new Map(lls.map((l) => [l.id, l.x])),
+               lifelineWidths: new Map(lls.map((l) => [l.id, l.width])),
+               messageYs: new Map(
+                  store
+                     .sequenceMessages()
+                     .filter((m) => m.diagramId === diagramId)
+                     .map((m) => [m.id, m.y])
+               ),
+               originY: d?.originY ?? 0,
+               rowSpacing: d?.rowSpacing ?? 48,
+               headerHeight: d?.headerHeight,
+               scale: d?.scale ?? 1,
+               bounds: {
+                  padLeft: d?.padLeft ?? 0,
+                  padTop: d?.padTop ?? 0,
+                  boxWidth: d?.boxWidth ?? 0,
+                  boxHeight: d?.boxHeight ?? 0,
+               },
+            };
+         };
 
             /**
              * Show (or with null, remove) a local-only starter diagram filling a box being
@@ -369,6 +400,7 @@ export function withProjectSequenceMethods() {
                         originY: snap.originY,
                         ...(snap.headerHeight !== undefined ? { headerHeight: snap.headerHeight } : {}),
                         ...(snap.scale !== undefined ? { scale: snap.scale } : {}),
+                        ...(snap.bounds ?? {}),
                      },
                      false
                   );
@@ -419,6 +451,54 @@ export function withProjectSequenceMethods() {
                      x.id === diagramId ? { ...x, headerHeight, scale } : x
                   ),
                }));
+            },
+
+            /** Live (local-only) box bounds of one diagram (plain resize). Persist on end. */
+            setSequenceBoundsLocal(diagramId: string, bounds: SequenceBounds): void {
+               setSchema((s) => ({
+                  ...s,
+                  sequenceDiagrams: s.sequenceDiagrams.map((x) => (x.id === diagramId ? { ...x, ...bounds } : x)),
+               }));
+            },
+
+            /**
+             * Spread the messages evenly down the diagram's current box: rows are renumbered
+             * 1..n (simultaneous messages keep sharing a row) and the row spacing fills the
+             * box's height, so the box itself does not change. One undo step.
+             */
+            spaceSequenceEvenly(diagramId: string): void {
+               const d = store.sequenceDiagrams().find((x) => x.id === diagramId);
+               if (!d) return;
+               const msgs = store.sequenceMessages().filter((m) => m.diagramId === diagramId);
+               const box = sequenceDiagramBox(d, store.lifelines(), store.sequenceMessages());
+               if (!box || !msgs.length) return;
+               const before = sequenceLayoutOf(diagramId);
+               const hb = d.originY + d.headerHeight;
+               const rowOf = (y: number) => Math.max(1, Math.round((y - hb) / d.rowSpacing));
+               const distinct = [...new Set(msgs.map((m) => rowOf(m.y)))].sort((a, b) => a - b);
+               const index = new Map(distinct.map((r, i) => [r, i + 1] as const));
+               // Spine end (box bottom minus padding) sits one row below the last message.
+               const avail = box.y1 - SEQ_BOX_PAD - hb;
+               const rowSpacing = Math.max(SEQ_MIN_ROW, Math.round((avail / (distinct.length + 1)) * 100) / 100);
+               for (const m of msgs) store.moveMessage(m.id, hb + rowSpacing * (index.get(rowOf(m.y)) ?? 1));
+               void this.updateSequenceConfig(diagramId, { rowSpacing }, false);
+               this.recordSequenceLayout(diagramId, before, sequenceLayoutOf(diagramId));
+            },
+
+            /** Shrink the box back to its content, on one or both axes. One undo step. */
+            fitSequenceToContent(diagramId: string, axes: { x: boolean; y: boolean } = { x: true, y: true }): void {
+               const d = store.sequenceDiagrams().find((x) => x.id === diagramId);
+               if (!d) return;
+               const before = sequenceLayoutOf(diagramId);
+               const patch = {
+                  ...(axes.x ? { padLeft: 0, boxWidth: 0 } : {}),
+                  ...(axes.y ? { padTop: 0, boxHeight: 0 } : {}),
+               };
+               void this.updateSequenceConfig(diagramId, patch, false);
+               const after = sequenceLayoutOf(diagramId);
+               if (JSON.stringify(before.bounds) !== JSON.stringify(after.bounds)) {
+                  this.recordSequenceLayout(diagramId, before, after);
+               }
             },
 
             /**

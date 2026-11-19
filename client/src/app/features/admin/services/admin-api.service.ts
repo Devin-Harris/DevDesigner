@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
-import type { AdminPingResponse } from '@devdesigner/shared';
+import type { AdminHygienePreviewResponse, AdminPingResponse } from '@devdesigner/shared';
 import { ApiClientService } from '../../../core/http/api-client.service';
 import { rangeDays } from '../helpers/admin-request.helpers';
 import {
@@ -19,6 +19,11 @@ export class AdminApiService {
 
    ping(): Observable<AdminPingResponse> {
       return this.api.get<AdminPingResponse>('/admin/ping');
+   }
+
+   /** Dry run of the optional app-data cleanups: counts only, nothing is deleted. */
+   hygienePreview(): Observable<AdminHygienePreviewResponse> {
+      return this.api.post<AdminHygienePreviewResponse>('/admin/hygiene/preview', {});
    }
 
    /** The GET for one resolved store request. */

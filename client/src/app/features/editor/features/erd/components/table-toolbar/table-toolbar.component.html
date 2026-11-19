@@ -1,5 +1,5 @@
 <div class="bar">
-   <button class="add" type="button" [disabled]="!store.canEdit()" (click)="addColumn()">
+   <button class="add" type="button" [disabled]="!edits.canEdit()" (click)="addColumn()">
       <dd-icon name="add" />Column
    </button>
 
@@ -11,7 +11,7 @@
       placement="below-start"
       matTooltip="Header color"
       [ddPopoverTrigger]="colorMenu"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
    >
       <span class="dot" [style.background]="table().color || 'var(--dd-handle)'"></span>
    </button>
@@ -28,7 +28,7 @@
       matTooltip="Note"
       aria-label="Note"
       [ddPopoverTrigger]="noteMenu"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
    >
       <dd-icon name="edit_note" />
    </button>
@@ -56,7 +56,7 @@
       type="button"
       matTooltip="Duplicate table"
       aria-label="Duplicate table"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (click)="duplicate()"
    >
       <dd-icon name="content_copy" />
@@ -79,7 +79,7 @@
       type="button"
       matTooltip="Delete table"
       aria-label="Delete table"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (click)="remove()"
    >
       <dd-icon name="delete" />

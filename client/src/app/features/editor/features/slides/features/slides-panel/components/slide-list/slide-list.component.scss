@@ -1,0 +1,473 @@
+:host {
+   display: contents;
+}
+
+.rec-row.on .rec-pick {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.rec-input.card {
+   margin: 4px;
+   width: calc(100% - 8px);
+   height: 26px;
+   font-size: 12px;
+}
+.f-design.top {
+   margin-top: 0;
+   border-top: none;
+   padding-top: 0;
+   padding-left: 0;
+   padding-right: 0;
+   border-bottom: 1px solid var(--dd-border);
+   padding-bottom: 12px;
+}
+.fs.on {
+   background: var(--dd-primary-weak);
+}
+.f-cards.reordering .fs:not(.dragging) {
+   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.fs.dragging {
+   z-index: 5;
+   cursor: grabbing;
+   background: var(--dd-surface-2);
+   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+   transition: box-shadow 120ms;
+}
+.fs.dragging.settling {
+   transition:
+      transform 170ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 120ms;
+}
+.fs.ghost {
+   position: absolute;
+   left: 8px;
+   right: 8px;
+   pointer-events: none;
+   box-sizing: border-box;
+}
+.fs.pending {
+   opacity: 0.6;
+}
+.f-cards.reordering .f-acts {
+   opacity: 0;
+}
+.fs.on .tn {
+   border: 2px solid var(--dd-primary);
+}
+.f-go {
+   flex: 1;
+   height: 32px;
+   border: none;
+   border-radius: 7px;
+   background: var(--dd-primary);
+   color: #fff;
+   font: inherit;
+   font-weight: 600;
+   cursor: pointer;
+   white-space: nowrap;
+}
+.f-go:hover:not(:disabled) {
+   background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+}
+.f-go:disabled,
+.f-tb:disabled {
+   opacity: 0.5;
+   cursor: default;
+}
+/* The shortcut hint inside "Present", as in the focus bar. */
+.f-go .f5 {
+   opacity: 0.75;
+   font-weight: 400;
+}
+.f-tb {
+   height: 32px;
+   padding: 0 9px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-weight: 500;
+   cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 6px;
+   white-space: nowrap;
+}
+.f-tb:hover:not(:disabled) {
+   background: var(--dd-surface-2);
+}
+.f-tb.outline,
+.f-foot .f-tb {
+   border: 1px solid var(--dd-border);
+}
+.f-tb.sm {
+   height: 26px;
+   font-size: 12px;
+}
+.f-tab.on {
+   border-bottom-color: var(--dd-primary);
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.lay.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.sw.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 2px;
+}
+.tg.on {
+   background: var(--dd-primary);
+}
+.tg.on::after {
+   left: 16px;
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.f-seg button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-weight: 600;
+   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ly.on {
+   background: var(--dd-primary-weak);
+}
+.ly.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.ly.on .meta .nm {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.th.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+.th.on .nm span:first-child {
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.head {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 12px 12px 6px 14px;
+}
+.head {
+   gap: 4px;
+}
+.rename {
+   flex: 1 1 0;
+   min-width: 0;
+   height: 30px;
+   font: inherit;
+   font-weight: 600;
+   color: var(--dd-text);
+   background: transparent;
+   border: 1px solid transparent;
+   border-radius: 8px;
+   padding: 0 8px;
+   box-sizing: border-box;
+   text-overflow: ellipsis;
+}
+.rename:hover:not(:disabled) {
+   background: var(--dd-surface-2);
+}
+.rename:focus {
+   outline: none;
+   background: var(--dd-surface-2);
+   border-color: var(--dd-primary);
+}
+.actions {
+   display: flex;
+   gap: 8px;
+   padding: 6px 12px 10px;
+   align-items: center;
+}
+.newfoot {
+   flex: none;
+   padding: 8px 10px 10px;
+   border-top: 1px solid var(--dd-border);
+}
+.newsplit {
+   position: relative;
+   display: flex;
+   gap: 6px;
+}
+/* At the bottom of the panel, the layout menu opens upward. */
+.newfoot .menu {
+   top: auto;
+   bottom: calc(100% + 4px);
+}
+.menu {
+   position: absolute;
+   top: calc(100% + 4px);
+   right: 0;
+   z-index: 5;
+   width: 200px;
+   max-height: 320px;
+   overflow-y: auto;
+   padding: 4px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
+   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+}
+.menu button {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   border: none;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12.5px;
+   text-align: left;
+   padding: 5px 6px;
+   border-radius: 6px;
+   cursor: pointer;
+}
+.menu button:hover {
+   background: var(--dd-surface-2);
+}
+.mthumb {
+   width: 48px;
+   flex: none;
+   aspect-ratio: 16 / 9;
+   border: 1px solid var(--dd-border);
+   border-radius: 3px;
+   overflow: hidden;
+   background: var(--dd-bg, transparent);
+}
+.mthumb img {
+   width: 100%;
+   height: 100%;
+   display: block;
+}
+.icon {
+   width: 26px;
+   height: 26px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+}
+.icon:hover {
+   background: var(--dd-surface-2);
+   color: var(--dd-text);
+}
+.top {
+   flex: none;
+   padding: 0 10px;
+}
+.lcard.current {
+   border-color: var(--dd-primary);
+}
+.cards {
+   flex: 1 1 0;
+   /* The panel is as tall as the frame on screen, so the cards scroll within it. */
+   min-height: 0;
+   overflow-y: auto;
+   padding: 0 10px 6px;
+}
+.tab.on {
+   background: var(--dd-primary-weak);
+   color: var(--dd-primary);
+}
+.empty,
+.hint {
+   margin: 6px 4px 10px;
+   color: var(--dd-text-muted);
+   line-height: 1.45;
+   font-size: 12px;
+}
+.cards:focus {
+   outline: none;
+}
+.list {
+   list-style: none;
+   margin: 0;
+   padding: 0;
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   position: relative;
+}
+.card {
+   position: relative;
+   display: grid;
+   grid-template-columns: 18px minmax(0, 1fr) auto;
+   align-items: center;
+   gap: 6px;
+   padding: 4px 6px;
+   border-radius: 10px;
+   border: 1px solid transparent;
+   cursor: pointer;
+}
+.card:hover {
+   background: var(--dd-surface-2);
+}
+.card.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+}
+.card.current .thumb {
+   border-color: var(--dd-primary);
+}
+.card.hidden .thumb {
+   opacity: 0.45;
+}
+.card {
+   touch-action: none;
+   user-select: none;
+}
+/* While reordering, the other cards slide out of the way with the drag. */
+.list.reordering .card:not(.dragging) {
+   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+/* The dragged card is the drag preview: lifted, and glued to the pointer. */
+.card.dragging {
+   z-index: 5;
+   cursor: grabbing;
+   background: var(--dd-surface-2);
+   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+   transition: box-shadow 120ms;
+}
+.card.ghost {
+   position: absolute;
+   left: 0;
+   right: 0;
+   pointer-events: none;
+   box-sizing: border-box;
+}
+.card.pending {
+   opacity: 0.6;
+}
+.card.dragging.settling {
+   transition:
+      transform 170ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 120ms;
+}
+.icons {
+   justify-self: end;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: center;
+   gap: 2px;
+}
+.icons .icon {
+   width: 26px;
+   height: 24px;
+   flex: none;
+   padding: 0;
+}
+.row.current .num {
+   color: var(--dd-primary);
+}
+.row.current .name {
+   color: var(--dd-primary);
+}
+.row.hidden .thumb,
+.row.hidden .meta {
+   opacity: 0.45;
+}
+.num {
+   color: var(--dd-text-muted);
+   font-size: 11px;
+   font-weight: 700;
+   text-align: center;
+}
+.card.current .num {
+   color: var(--dd-primary);
+}
+.thumb {
+   position: relative;
+   display: block;
+   width: 100%;
+   border-radius: 6px;
+   overflow: hidden;
+   border: 1px solid var(--dd-border);
+   background: var(--dd-canvas-bg);
+}
+.thumb .foreign {
+   position: absolute;
+   top: 3px;
+   right: 3px;
+   padding: 2px;
+   border-radius: 4px;
+   background: var(--dd-surface);
+   color: var(--dd-warning, #d97706);
+   font-size: 14px;
+}
+.thumb img {
+   display: block;
+   width: 100%;
+   height: 100%;
+   object-fit: contain;
+}
+.listbar {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 0 4px 6px;
+   font-size: 12px;
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.btn.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+   color: var(--dd-primary);
+}
+.detail .link {
+   margin-bottom: 8px;
+}
+.link {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   border: none;
+   background: transparent;
+   color: var(--dd-primary);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+   padding: 2px 0;
+   text-transform: none;
+   letter-spacing: 0;
+}
+.theme-card.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+input[type='number'],
+.text-input,
+textarea {
+   font: inherit;
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 6px 8px;
+   box-sizing: border-box;
+   width: 100%;
+}
+input[type='number'],
+.text-input {
+   height: 34px;
+}

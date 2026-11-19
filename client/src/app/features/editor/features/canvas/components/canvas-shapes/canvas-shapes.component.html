@@ -638,7 +638,7 @@
                }
                @if (s.embed; as em) {
                   <!-- Live frame: the page over its card (click-through until double-clicked). -->
-                  @if ((em.url && !embeds.blocked()) || (!em.url && interactive() && store.canEdit())) {
+                  @if ((em.url && !embeds.blocked()) || (!em.url && interactive() && content.canEdit())) {
                      <foreignObject
                         [attr.x]="em.x"
                         [attr.y]="em.y"
@@ -652,7 +652,7 @@
                            [style.--embed-stroke]="s.stroke"
                            [style.--embed-stroke-w]="s.strokeWidth + 'px'"
                            [url]="em.url"
-                           [editable]="interactive() && store.canEdit()"
+                           [editable]="interactive() && content.canEdit()"
                            [interacting]="embeds.interactingId() === s.id"
                            [nonce]="embeds.nonce(s.id)"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
@@ -670,7 +670,7 @@
                      >
                         <dd-embed-url-bar
                            [url]="em.url"
-                           [editable]="store.canEdit()"
+                           [editable]="content.canEdit()"
                            [snapshot]="snapshots.hasSnapshot(s.id)"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
                            (reload)="embeds.reload(s.id)"

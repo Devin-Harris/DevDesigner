@@ -1,0 +1,132 @@
+.dlg-title {
+   margin: 0 0 var(--dd-space-3);
+   padding: 0 !important;
+   color: var(--dd-text);
+   line-height: 1.3;
+   letter-spacing: normal;
+   font-family: var(--dd-display);
+   font-size: 18px;
+   font-weight: 700;
+
+   &::before {
+      display: none;
+   }
+}
+
+.dlg-body {
+   display: flex;
+   overflow-x: hidden;
+   flex-direction: column;
+   gap: var(--dd-space-4);
+   padding: 0 !important;
+}
+
+.lead {
+   margin: 0;
+   font-size: 13px;
+   color: var(--dd-text-muted);
+
+   strong {
+      color: var(--dd-text);
+   }
+}
+
+.block {
+   display: flex;
+   flex-direction: column;
+   gap: var(--dd-space-2);
+   padding: var(--dd-space-3);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+
+   h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dd-text);
+   }
+}
+
+.danger-zone {
+   border-color: color-mix(in srgb, var(--dd-danger) 45%, var(--dd-border));
+}
+
+.hint {
+   margin: 0;
+   font-size: 12px;
+   line-height: 1.5;
+   color: var(--dd-text-muted);
+}
+
+.field-label {
+   font-size: 9.5px;
+   font-weight: 600;
+   letter-spacing: 0.7px;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+}
+
+.row {
+   display: flex;
+   align-items: stretch;
+   gap: var(--dd-space-2);
+   flex-wrap: wrap;
+}
+
+.grow {
+   flex: 1 1 160px;
+   min-width: 0;
+}
+
+.err {
+   margin: 0;
+   font-size: 13px;
+   color: var(--dd-danger);
+}
+
+.dlg-actions {
+   display: flex;
+   justify-content: flex-end;
+   padding: var(--dd-space-4) 0 0 !important;
+   margin: 0;
+}
+
+.btn {
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   height: 36px;
+   padding: 0 14px;
+   border-radius: var(--dd-radius);
+   border: 1px solid var(--dd-border-strong);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 13px;
+   font-weight: 600;
+   cursor: pointer;
+
+   &:hover:not(:disabled) {
+      background: var(--dd-surface-2);
+   }
+   &:disabled {
+      opacity: 0.5;
+      cursor: default;
+   }
+   &.ghost {
+      border-color: transparent;
+      background: transparent;
+   }
+   &.danger-outline {
+      border-color: var(--dd-danger);
+      color: var(--dd-danger);
+   }
+   &.danger {
+      background: var(--dd-danger);
+      border-color: var(--dd-danger);
+      color: var(--dd-on-accent);
+   }
+   &.danger:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--dd-danger) 88%, var(--dd-shade));
+   }
+}

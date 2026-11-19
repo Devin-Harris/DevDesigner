@@ -2,7 +2,14 @@
 
 ## Bugs
 
-...
+- i want to keep spacing between messages on a sequence diagram consistent but i want to be able to scale the diagram bigger than the message inside like other objects (code blocks for example). Maybe we can tie into the drag on space between messages to get the spacing behaviors im looking for? It may also be nice to maintain the existing functionality on alt+ resize so the messages add/remove spacing on a resize while alt is hold like they do currently, but normally the diagram just grows its bounds without alt. Would also be nice to have a space evenly button to space the messages in the available space evenly and a fit to content button to shrink the bounds of the diagram to line up to the last message (possible double clicking the sides of the diagram could do this as well like grid tables)
+
+- it would be nice if when the update for desktop app fires it doesnt popup a window, just adds the button to the UI.
+
+- undo/redo does not work in a lot of situations. we need a full audit so that we can properly undo and redo sets and individual changes for all different types of objects with moving, resizing, editing, deleteing and etc...
+  - moving multiple sequence diagrams at once
+  - editing text stroke inside a shape
+  - many others
 
 ## Features
 
@@ -26,6 +33,8 @@
 - add triangle to shapes
 
 - ability to add icons to canvas (might need to curate lists of icons)
+
+- it would be nice to have some right click context menus, i know in the examples on the home page we show right clicking to format, fit to content etc... for code blocks. Things like that and more for other objects may be a nice touch for some of the harder to get to options from the quick overlays.
 
 ## Large Features
 

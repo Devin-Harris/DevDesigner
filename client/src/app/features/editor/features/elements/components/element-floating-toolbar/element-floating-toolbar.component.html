@@ -7,7 +7,7 @@
          placement="below-start"
          matTooltip="Stroke color"
          [ddPopoverTrigger]="strokeMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <span
             class="swatch ring"
@@ -53,7 +53,7 @@
          placement="below-start"
          matTooltip="Fill color"
          [ddPopoverTrigger]="fillMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <span
             class="swatch"
@@ -104,7 +104,7 @@
          matTooltip="Stroke width"
          aria-label="Stroke width"
          [ddPopoverTrigger]="widthMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="line_weight" />
       </button>
@@ -133,7 +133,7 @@
          matTooltip="Stroke style"
          aria-label="Stroke style"
          [ddPopoverTrigger]="styleMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="timeline" />
       </button>
@@ -162,7 +162,7 @@
          placement="below-start"
          matTooltip="Frame size"
          [ddPopoverTrigger]="ratioMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <span class="lang">{{ frameRatioLabel() }}</span
          ><dd-icon name="expand_more" />
@@ -191,7 +191,7 @@
          [attr.aria-label]="
             element().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
          "
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="toggleClipContent()"
       >
          <dd-icon name="crop" />
@@ -219,7 +219,7 @@
             </button>
          </div>
       </ng-template>
-      @if (store.canEdit()) {
+      @if (edits.canEdit()) {
          <button
             class="tb wide add-deck"
             type="button"
@@ -263,7 +263,7 @@
          matTooltip="Corner radius"
          aria-label="Corner radius"
          [ddPopoverTrigger]="radiusMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="rounded_corner" />
       </button>
@@ -313,7 +313,7 @@
          placement="below-start"
          matTooltip="Language"
          [ddPopoverTrigger]="languageMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="code" />
          <span class="lang">{{ languageLabel() }}</span>
@@ -338,7 +338,7 @@
          matTooltip="Format code (Shift+Alt+F)"
          aria-label="Format code (Shift+Alt+F)"
          type="button"
-         [disabled]="!store.canEdit() || !canFormat()"
+         [disabled]="!edits.canEdit() || !canFormat()"
          (click)="format()"
       >
          <dd-icon name="auto_fix" />
@@ -349,7 +349,7 @@
          matTooltip="File name"
          aria-label="File name"
          type="button"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="editFileName()"
       >
          <dd-icon name="description" />
@@ -370,7 +370,7 @@
          matTooltip="Fit to content (Shift+Alt+S)"
          aria-label="Fit to content (Shift+Alt+S)"
          type="button"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="fitToContent()"
       >
          <dd-icon name="fit_screen" />
@@ -384,7 +384,7 @@
          aria-label="Diff"
          [class.on]="diffOn()"
          [ddPopoverTrigger]="diffMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="difference" />
       </button>
@@ -424,7 +424,7 @@
          matTooltip="Text size"
          aria-label="Text size"
          [ddPopoverTrigger]="codeSizeMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="format_size" />
       </button>
@@ -453,7 +453,7 @@
          matTooltip="Rows & columns"
          aria-label="Rows & columns"
          [ddPopoverTrigger]="rowColMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="table_rows" /><dd-icon name="expand_more" />
       </button>
@@ -480,7 +480,7 @@
             matTooltip="Merge cells (Ctrl+M)"
             aria-label="Merge cells (Ctrl+M)"
             type="button"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="grids.mergeSelected()"
          >
             <dd-icon name="merge_cells" />
@@ -492,7 +492,7 @@
             matTooltip="Unmerge cells"
             aria-label="Unmerge cells"
             type="button"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="grids.unmergeSelected()"
          >
             <dd-icon name="split_cells" />
@@ -504,7 +504,7 @@
          matTooltip="Header row"
          aria-label="Header row"
          [class.on]="gridHeaderOn()"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="toggleGridHeader()"
       >
          <dd-icon name="table_chart" />
@@ -516,7 +516,7 @@
          matTooltip="Borders"
          aria-label="Borders"
          [ddPopoverTrigger]="bordersMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="grid_4x4" /><dd-icon name="expand_more" />
       </button>
@@ -546,7 +546,7 @@
             matTooltip="Insert field (slide number, date, ...)"
             aria-label="Insert field (slide number, date, ...)"
             [ddPopoverTrigger]="fieldMenu"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
          >
             <dd-icon name="data_object" />
          </button>
@@ -574,7 +574,7 @@
          placement="below-start"
          [ddPopoverTrigger]="fontMenu"
          [matTooltip]="multiText() ? 'Font (all selected text)' : 'Font'"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <span class="pick-label" [style.font-family]="fontLabelStack()">{{ fontLabel() }}</span>
          <dd-icon name="expand_more" />
@@ -617,7 +617,7 @@
             matTooltip="Smaller text"
             aria-label="Smaller text"
             type="button"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="stepFontSize(-1)"
          >
             <dd-icon name="remove" />
@@ -628,7 +628,7 @@
             placement="below-start"
             [ddPopoverTrigger]="sizeMenu"
             [matTooltip]="multiText() ? 'Font size (all selected text)' : 'Font size'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
          >
             {{ sharedSize() ?? 'Mixed' }}
          </button>
@@ -637,7 +637,7 @@
             matTooltip="Larger text"
             aria-label="Larger text"
             type="button"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="stepFontSize(1)"
          >
             <dd-icon name="add" />
@@ -675,7 +675,7 @@
          matTooltip="Line height"
          aria-label="Line height"
          [ddPopoverTrigger]="lineHeightMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="format_line_spacing" />
       </button>
@@ -700,7 +700,7 @@
          matTooltip="Bold (Ctrl+B)"
          aria-label="Bold (Ctrl+B)"
          [class.on]="boldOn()"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="toggleBold()"
       >
          <dd-icon name="format_bold" />
@@ -711,7 +711,7 @@
          matTooltip="Italic (Ctrl+I)"
          aria-label="Italic (Ctrl+I)"
          [class.on]="italicOn()"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="toggleItalic()"
       >
          <dd-icon name="format_italic" />
@@ -724,7 +724,7 @@
                matTooltip="Wrap text to a fixed width (drag a side handle)"
                aria-label="Wrap text to a fixed width (drag a side handle)"
                [class.on]="element().wrap"
-               [disabled]="!store.canEdit()"
+               [disabled]="!edits.canEdit()"
                (click)="toggleWrap()"
             >
                <dd-icon name="wrap_text" />
@@ -736,7 +736,7 @@
             matTooltip="Underline (Ctrl+U)"
             aria-label="Underline (Ctrl+U)"
             [class.on]="underlineOn()"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="toggleUnderline()"
          >
             <dd-icon name="format_underlined" />
@@ -747,7 +747,7 @@
             matTooltip="Bulleted list (Ctrl+Shift+8)"
             aria-label="Bulleted list (Ctrl+Shift+8)"
             [class.on]="listKind() === 'bullet'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="toggleList('bullet')"
          >
             <dd-icon name="format_list_bulleted" />
@@ -758,7 +758,7 @@
             matTooltip="Numbered list (Ctrl+Shift+7)"
             aria-label="Numbered list (Ctrl+Shift+7)"
             [class.on]="listKind() === 'number'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="toggleList('number')"
          >
             <dd-icon name="format_list_numbered" />
@@ -772,7 +772,7 @@
                aria-label="Morph tag for the selected words"
                [class.on]="!!runMorphTag()"
                [ddPopoverTrigger]="morphMenu"
-               [disabled]="!store.canEdit()"
+               [disabled]="!edits.canEdit()"
             >
                <dd-icon name="link" />
             </button>
@@ -802,7 +802,7 @@
          matTooltip="Text alignment"
          aria-label="Text alignment"
          [ddPopoverTrigger]="alignMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="format_align_center" />
       </button>
@@ -887,7 +887,7 @@
             matTooltip="Straight"
             aria-label="Straight"
             [class.on]="route() === 'straight'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="setRoute('straight')"
          >
             <dd-icon name="remove" />
@@ -898,7 +898,7 @@
             matTooltip="Curved"
             aria-label="Curved"
             [class.on]="route() === 'curved'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="setRoute('curved')"
          >
             <dd-icon name="curve" />
@@ -909,7 +909,7 @@
             matTooltip="Elbow"
             aria-label="Elbow"
             [class.on]="route() === 'elbow'"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="setRoute('elbow')"
          >
             <dd-icon name="elbow" />
@@ -922,7 +922,7 @@
          matTooltip="Arrowheads"
          aria-label="Arrowheads"
          [ddPopoverTrigger]="headMenu"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="swap_horiz" />
       </button>
@@ -981,7 +981,7 @@
          matTooltip="Clip image to shape"
          aria-label="Clip image to shape"
          type="button"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="media.clipToShape()"
       >
          <dd-icon name="clip_shape" />
@@ -996,7 +996,7 @@
          aria-label="Alt text"
          [ddPopoverTrigger]="altMenu"
          [class.on]="!!element().media?.alt"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
       >
          <dd-icon name="accessibility" />
       </button>
@@ -1020,7 +1020,7 @@
          matTooltip="Crop (double-click)"
          aria-label="Crop (double-click)"
          type="button"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="media.startCrop(element().id)"
       >
          <dd-icon name="crop" />
@@ -1031,7 +1031,7 @@
             matTooltip="Release clip"
             aria-label="Release clip"
             type="button"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (click)="media.releaseClip(element().id)"
          >
             <dd-icon name="clip_release" />
@@ -1045,7 +1045,7 @@
             matTooltip="Playback"
             aria-label="Playback"
             [ddPopoverTrigger]="playMenu"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
          >
             <dd-icon name="play_circle" />
          </button>
@@ -1112,7 +1112,7 @@
 
    <span class="sep"></span>
 
-   @if (store.canEdit() && revert().items.length) {
+   @if (edits.canEdit() && revert().items.length) {
       <button
          class="tb"
          type="button"
@@ -1132,7 +1132,7 @@
       matTooltip="More"
       aria-label="More"
       [ddPopoverTrigger]="moreMenu"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
    >
       <dd-icon name="more_vert" />
    </button>
@@ -1174,7 +1174,7 @@
       matTooltip="Delete"
       aria-label="Delete"
       type="button"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (click)="remove()"
    >
       <dd-icon name="delete" />

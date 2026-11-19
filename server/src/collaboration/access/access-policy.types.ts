@@ -11,6 +11,8 @@ export type AccessPolicy =
   | { kind: 'admin' };
 
 export const ACCESS_POLICY_KEY = 'devdesigner:access-policy';
+/** Marks a `@CallerScoped` route a project-scoped API token may still call (it narrows its own result). */
+export const PROJECT_TOKEN_OK_KEY = 'devdesigner:project-token-ok';
 
 /** What the guard resolved for this request. */
 export interface ResolvedProjectAccess {

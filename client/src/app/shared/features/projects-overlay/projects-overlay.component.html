@@ -36,6 +36,7 @@
          <dd-toggle class="archived-toggle" formControlName="showArchived"> Show archived </dd-toggle>
       </div>
 
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- background click clears the selection; Esc does it from the keyboard (onKey) -->
       <div class="cards-scroll" (click)="onListClick($event)">
          @if (store.loading()) {
             <div class="state">Loading…</div>
@@ -67,6 +68,7 @@
          } @else {
             <div class="cards">
                @for (project of store.visibleProjects(); track project.id) {
+                  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- the arrow keys move a cursor through the cards and Enter opens one (onKey) -->
                   <div
                      class="card"
                      [attr.data-id]="project.id"

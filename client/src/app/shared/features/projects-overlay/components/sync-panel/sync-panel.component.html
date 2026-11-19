@@ -68,22 +68,22 @@
             </div>
             @if (editingId() === remote.id) {
                <form class="form" [formGroup]="editForm" (ngSubmit)="saveEdit(remote)">
-                  <div class="field">
-                     <label class="field-label">Name</label>
+                  <label class="field">
+                     <span class="field-label">Name</span>
                      <dd-input formControlName="name" />
-                  </div>
-                  <div class="field">
-                     <label class="field-label">Server URL</label>
+                  </label>
+                  <label class="field">
+                     <span class="field-label">Server URL</span>
                      <dd-input formControlName="url" />
-                  </div>
-                  <div class="field">
-                     <label class="field-label">New API token (leave blank to keep the current one)</label>
-                     <dd-input type="password" formControlName="token" placeholder="dd_…" />
-                  </div>
+                  </label>
+                  <label class="field">
+                     <span class="field-label">New API token (leave blank to keep the current one)</span>
+                     <dd-input type="password" formControlName="token" placeholder="dd_â€¦" />
+                  </label>
                   <div class="form-actions">
                      <button class="btn ghost" type="button" (click)="editingId.set(null)">Cancel</button>
                      <button class="btn primary" type="submit" [disabled]="editForm.invalid || busy()">
-                        {{ busy() ? 'Checking…' : 'Save' }}
+                        {{ busy() ? 'Checkingâ€¦' : 'Save' }}
                      </button>
                   </div>
                </form>
@@ -123,18 +123,18 @@
 
    @if (adding()) {
       <form class="form" [formGroup]="form" (ngSubmit)="addRemote()">
-         <div class="field">
-            <label class="field-label">Name (optional)</label>
+         <label class="field">
+            <span class="field-label">Name (optional)</span>
             <dd-input formControlName="name" placeholder="Work server" />
-         </div>
-         <div class="field">
-            <label class="field-label">Server URL</label>
+         </label>
+         <label class="field">
+            <span class="field-label">Server URL</span>
             <dd-input formControlName="url" placeholder="https://devdesigner.example.com" />
-         </div>
-         <div class="field">
-            <label class="field-label">API token</label>
+         </label>
+         <label class="field">
+            <span class="field-label">API token</span>
             <dd-input type="password" formControlName="token" placeholder="dd_..." />
-         </div>
+         </label>
          <div class="form-actions">
             <button class="btn ghost" type="button" (click)="adding.set(false)">Cancel</button>
             <button class="btn primary" type="submit" [disabled]="form.invalid || busy()">

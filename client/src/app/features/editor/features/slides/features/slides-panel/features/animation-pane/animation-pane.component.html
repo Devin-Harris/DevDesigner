@@ -21,9 +21,13 @@
          }
          <li
             class="row"
+            tabindex="0"
+            role="button"
             [class.sel]="r.animation.id === selectedId()"
             [class.gone]="!r.target"
             (click)="pickRow(r.animation)"
+            (keydown.enter)="pickRow(r.animation)"
+            (keydown.space)="$event.preventDefault(); pickRow(r.animation)"
          >
             <span class="idx">{{ i + 1 }}</span>
             <span class="what">

@@ -20,9 +20,8 @@
 ></video>
 <div
    class="bar"
+   ddStopClicks
    (pointerdown)="$event.stopPropagation()"
-   (click)="$event.stopPropagation()"
-   (dblclick)="$event.stopPropagation()"
 >
    <button type="button" class="btn" [attr.aria-label]="playing() ? 'Pause' : 'Play'" (click)="toggle()">
       @if (playing()) {

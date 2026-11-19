@@ -8,7 +8,7 @@
          type="button"
          title="Delete relationship"
          aria-label="Delete relationship"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit()"
          (click)="remove()"
       >
          <dd-icon name="delete" />
@@ -19,7 +19,7 @@
    <dd-select
       [options]="columnOptions()"
       [ngModel]="relationship().sourceColumnId"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (ngModelChange)="setSource($event)"
    />
 
@@ -29,7 +29,7 @@
    <dd-select
       [options]="columnOptions()"
       [ngModel]="relationship().targetColumnId"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (ngModelChange)="setTarget($event)"
    />
 
@@ -37,7 +37,7 @@
    <dd-select
       [options]="typeOptions"
       [ngModel]="relationship().type"
-      [disabled]="!store.canEdit()"
+      [disabled]="!edits.canEdit()"
       (ngModelChange)="setType($event)"
    />
 
@@ -47,7 +47,7 @@
          <dd-select
             [options]="actionOptions"
             [ngModel]="relationship().onDelete ?? ''"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (ngModelChange)="setOnDelete($event)"
          />
       </div>
@@ -56,7 +56,7 @@
          <dd-select
             [options]="actionOptions"
             [ngModel]="relationship().onUpdate ?? ''"
-            [disabled]="!store.canEdit()"
+            [disabled]="!edits.canEdit()"
             (ngModelChange)="setOnUpdate($event)"
          />
       </div>

@@ -150,7 +150,7 @@ function itemDto(
          height: Math.max(1, Math.round(item.h * fh)),
          ...(el.fontSize ? { fontSize: Math.round(el.fontSize * k) } : {}),
          ...(el.points ? { points: el.points.map((pt) => ({ x: pt.x * k, y: pt.y * k })) } : {}),
-      } as CreateElementDto;
+      } satisfies CreateElementDto;
    }
    if (item.kind === 'bar') {
       return {
@@ -221,7 +221,7 @@ export function captureLayoutItems(
             ...rest,
             ...(e.fontSize ? { fontSize: e.fontSize / k } : {}),
             ...(e.points ? { points: e.points.map((pt) => ({ x: pt.x / k, y: pt.y / k })) } : {}),
-         } as LayoutElementProps;
+         } satisfies LayoutElementProps;
          return {
             kind: 'element',
             x: (x - frame.x) / frame.width,

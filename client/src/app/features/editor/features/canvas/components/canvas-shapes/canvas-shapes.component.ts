@@ -1,6 +1,6 @@
 import { EmbedSnapshotsService } from '../../../../services/embed-snapshots.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { CanvasContent } from '../../services/canvas-content.service';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import type { ArrowheadType } from '@devdesigner/shared';
@@ -91,7 +91,7 @@ export class CanvasShapesComponent {
    protected readonly images = inject(ElementImagesService);
    private readonly codeActions = inject(CodeActionsService);
    private readonly grids = inject(GridTableService);
-   protected readonly store = inject(ProjectStore);
+   protected readonly content = inject(CanvasContent);
    protected readonly embeds = inject(EmbedFramesService);
 
    /** The picture under the pointer (GIFs set to play on hover animate while hovered). */
@@ -103,7 +103,7 @@ export class CanvasShapesComponent {
    protected readonly snapshots = inject(EmbedSnapshotsService);
 
    protected commitEmbedUrl(id: string, url: string): void {
-      void this.store.updateElement(id, { text: url });
+      void this.content.updateElement(id, { text: url });
    }
 
    protected readonly frameTitleW = FRAME_TITLE_W;
@@ -142,9 +142,9 @@ export class CanvasShapesComponent {
       }
       event.stopPropagation();
       event.preventDefault();
-      const el = this.store.elements().find((e) => e.id === id);
+      const el = this.content.elements().find((e) => e.id === id);
       const ctm = (event.target as SVGGraphicsElement).getScreenCTM()?.inverse();
-      if (!el || !ctm || !this.store.canEdit()) {
+      if (!el || !ctm || !this.content.canEdit()) {
          return;
       }
       const start = el.diffSplit;
@@ -152,13 +152,13 @@ export class CanvasShapesComponent {
       const move = (e: PointerEvent): void => {
          const x = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm).x;
          split = Math.round(Math.min(0.85, Math.max(0.15, (x - el.x) / el.width)) * 1000) / 1000;
-         this.store.patchElementLocal(id, { diffSplit: split });
+         this.content.patchElementLocal(id, { diffSplit: split });
       };
       const up = (): void => {
          window.removeEventListener('pointermove', move);
          window.removeEventListener('pointerup', up);
          if (split !== start && split != null) {
-            void this.store.updateElement(id, { diffSplit: split });
+            void this.content.updateElement(id, { diffSplit: split });
          }
       };
       window.addEventListener('pointermove', move);
@@ -172,12 +172,12 @@ export class CanvasShapesComponent {
       }
       event.stopPropagation();
       event.preventDefault();
-      if (!this.store.canEdit()) {
+      if (!this.content.canEdit()) {
          return;
       }
       switch (action) {
          case 'delete':
-            void this.store.deleteElement(id);
+            void this.content.deleteElement(id);
             break;
          case 'collapse':
             void this.codeActions.toggleCollapsed(id);

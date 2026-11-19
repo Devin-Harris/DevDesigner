@@ -110,6 +110,39 @@
             [label]="'Media bytes by type'"
          ></dd-admin-bar-list>
       </section>
+      <section class="card card-wide" aria-live="polite">
+         <h2 class="card-title">Cleanup preview</h2>
+         <p class="card-note">Dry run of the optional cleanups: counts only, nothing is deleted.</p>
+         <button class="hygiene-run" type="button" [disabled]="hygieneLoading$()" (click)="runHygienePreview()">
+            {{ hygieneLoading$() ? 'Computing…' : hygiene$() ? 'Run again' : 'Run dry run' }}
+         </button>
+         @if (hygieneError$(); as error) {
+            <p class="page-notice is-error" role="alert">{{ error }}</p>
+         }
+         @if (hygiene$(); as h) {
+            <dl class="hygiene">
+               <dt>Dormant guest projects <span>(not opened in 180 days)</span></dt>
+               <dd>{{ h.dormantGuestProjects.count | adminFormat: 'count' }} · {{ h.dormantGuestProjects.bytes | adminFormat: 'bytes' }}</dd>
+               <dt>Orphaned images <span>(no element uses them)</span></dt>
+               <dd>{{ h.orphanImages.count | adminFormat: 'count' }} · {{ h.orphanImages.bytes | adminFormat: 'bytes' }}</dd>
+               <dt>Stale share links <span>(revoked or expired over 90 days ago)</span></dt>
+               <dd>{{ h.staleShareLinks.count | adminFormat: 'count' }}</dd>
+               <dt>Analytics rollup</dt>
+               <dd>
+                  @if (h.rollup.lastRunAt) {
+                     {{ h.rollup.lastRunAt | adminFormat: 'datetime' }} UTC · {{ h.rollup.lastDurationMs }} ms ·
+                     {{ h.rollup.snapshots }} snapshots, {{ h.rollup.purged }} purged
+                     @if (h.rollup.lastError) {
+                        <span class="hygiene-error">· {{ h.rollup.lastError }}</span>
+                     }
+                  } @else {
+                     Not run since boot
+                  }
+               </dd>
+            </dl>
+            <p class="facts">Computed {{ h.generatedAt | adminFormat: 'datetime' }} UTC</p>
+         }
+      </section>
       <section class="card card-wide">
          <h2 class="card-title">Largest projects</h2>
          <dd-admin-data-table

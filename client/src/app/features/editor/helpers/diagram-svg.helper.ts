@@ -633,11 +633,23 @@ export function sequenceBounds(
          smooth ? Math.max(1, (m.y - headerBottom) / gap) : Math.max(1, Math.round((m.y - headerBottom) / gap))
       );
    const maxRow = rows.length ? Math.max(...rows) : 0;
-   return {
+   return withSeqBounds(diagram, {
       x0: Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD,
       x1: Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD,
       y0: diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM,
       y1: headerBottom + gap * (maxRow + 1) + SEQ_BOX_PAD,
+   });
+}
+
+/** The content box grown by the diagram's stored bounds (mirrors frame-contents applySequenceBounds). */
+function withSeqBounds(diagram: SequenceDiagramModel, c: SequenceBox): SequenceBox {
+   const x0 = c.x0 - (diagram.padLeft ?? 0);
+   const y0 = c.y0 - (diagram.padTop ?? 0);
+   return {
+      x0,
+      y0,
+      x1: Math.max(c.x1, x0 + (diagram.boxWidth ?? 0)),
+      y1: Math.max(c.y1, y0 + (diagram.boxHeight ?? 0)),
    };
 }
 
@@ -693,12 +705,17 @@ function renderSequence(
    const rowIndex = (y: number): number =>
       smooth ? Math.max(1, (y - headerBottom) / gap) : Math.max(1, Math.round((y - headerBottom) / gap));
    const maxRow = msgs.length ? Math.max(...msgs.map((m) => rowIndex(m.y))) : 0;
-   const override = data.boxes?.get(diagram.id);
-   const spineEnd = override ? override.y1 - SEQ_BOX_PAD : headerBottom + gap * (maxRow + 1);
-
-   const x0 = override ? override.x0 : Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD;
-   const x1 = override ? override.x1 : Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD;
-   const y0 = override ? override.y0 : diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM;
+   const box =
+      data.boxes?.get(diagram.id) ??
+      withSeqBounds(diagram, {
+         x0: Math.min(...lls.map((l) => l.x - l.width / 2)) - SEQ_BOX_PAD,
+         x1: Math.max(...lls.map((l) => l.x + l.width / 2)) + SEQ_BOX_PAD,
+         y0: diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM,
+         y1: headerBottom + gap * (maxRow + 1) + SEQ_BOX_PAD,
+      });
+   // Spines run to the bottom of the box (which may be taller than the content).
+   const spineEnd = box.y1 - SEQ_BOX_PAD;
+   const { x0, x1, y0 } = box;
    const y1 = spineEnd + SEQ_BOX_PAD;
    const minX = Math.min(...lls.map((l) => l.x));
    const maxX = Math.max(...lls.map((l) => l.x));

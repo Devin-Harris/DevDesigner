@@ -1,0 +1,166 @@
+<input #themeFileInput type="file" accept=".json,application/json" hidden (change)="s.importDesign(themeFileInput)" />
+<div class="f-body gap14 fill">
+   <div class="f-design top">
+      <div class="f-lab">
+         Design = layouts + theme
+         <dd-icon
+            name="info"
+            class="info"
+            tabindex="0"
+            matTooltip="A design is one set of layouts plus the theme it uses."
+         />
+      </div>
+      <div class="f-acts">
+         <dd-select
+            class="f-select grow"
+            [options]="s.designOptions()"
+            [ngModel]="s.design().id"
+            [disabled]="!s.canEdit()"
+            [removable]="true"
+            (ngModelChange)="s.pickDesign($event)"
+            (rename)="s.renameRecord($event.value, $event.label)"
+            (remove)="s.deleteDesignById($event)"
+         />
+         @if (s.canEdit()) {
+            <button class="f-tb sm" type="button" (click)="s.newDesign()">Save as new</button>
+            <button class="f-tb sm" type="button" (click)="s.exportDesign('design')">Export</button>
+         }
+      </div>
+   </div>
+   <div class="f-between">
+      <span class="f-lab"
+         >Theme
+         <dd-icon
+            name="info"
+            class="info"
+            tabindex="0"
+            matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy."
+         />
+      </span>
+      @if (s.canEdit()) {
+         <span class="f-acts">
+            <button class="f-tb sm" type="button" (click)="s.importPart.set('theme'); themeFileInput.click()">
+               Import
+            </button>
+            <button class="f-tb sm" type="button" (click)="s.exportDesign('theme')">Export</button>
+         </span>
+      }
+   </div>
+   @for (g of s.themeGroups(); track g.name) {
+      <div class="f-sub">{{ g.name }}</div>
+      <div class="th-grid">
+         @for (t of g.items; track t.id) {
+            <div class="th" [class.on]="t.on">
+               <button
+                  class="pv"
+                  type="button"
+                  [disabled]="!s.canEdit()"
+                  [style.background]="s.css(t.theme!.colors.background)"
+                  [style.color]="s.css(t.theme!.colors.heading)"
+                  [style.font-family]="s.stackOf(t.theme!.fonts.heading)"
+                  (click)="s.pickTheme(t.id)"
+               >
+                  Aa
+                  <span class="bars">
+                     @for (k of ['accent1', 'accent2', 'accent3']; track k) {
+                        <span [style.background]="s.css($any(t.theme!.colors)[k])"></span>
+                     }
+                  </span>
+               </button>
+               @if (s.renaming() === t.id) {
+                  <input
+                     class="rec-input card"
+                     ddAutofocus
+                     ddAutofocusSelect="textarea"
+                     [value]="t.name"
+                     [attr.aria-label]="'Rename ' + t.name"
+                     (keydown.enter)="s.finishRename(t.id, $any($event.target).value)"
+                     (keydown.escape)="s.renaming.set(null)"
+                     (blur)="s.finishRename(t.id, $any($event.target).value)"
+                  />
+               } @else {
+                  <span class="nm">
+                     <span>{{ t.name }}</span>
+                     @if (t.custom && s.canEdit()) {
+                        <span class="nm-acts">
+                           <button
+                              class="rec-edit"
+                              type="button"
+                              title="Rename"
+                              [attr.aria-label]="'Rename ' + t.name"
+                              (click)="s.renaming.set(t.id)"
+                           >
+                              <dd-icon name="edit" />
+                           </button>
+                           <button
+                              class="rec-edit del"
+                              type="button"
+                              title="Delete"
+                              [attr.aria-label]="'Delete ' + t.name"
+                              (click)="s.deleteThemeById(t.id)"
+                           >
+                              <dd-icon name="delete" />
+                           </button>
+                        </span>
+                     }
+                  </span>
+               }
+            </div>
+         }
+      </div>
+   }
+   <div class="f-lab">Colors</div>
+   <div class="tok-grid">
+      @for (k of s.colorTokens; track k) {
+         <button
+            class="tok"
+            type="button"
+            placement="below-start"
+            [ddPopoverTrigger]="tokPick"
+            [disabled]="!s.canEdit()"
+         >
+            <span
+               class="sq"
+               [style.background]="
+                  s.isFollow(s.deckTheme().colors[k]) || s.deckTheme().colors[k] === 'transparent'
+                     ? null
+                     : s.css(s.deckTheme().colors[k])
+               "
+            ></span>
+            {{ s.colorLabels[k] }}
+         </button>
+         <ng-template #tokPick let-close>
+            <div class="picker">
+               <dd-color-swatches
+                  noneValue="transparent"
+                  noneLabel="None"
+                  [value]="s.deckTheme().colors[k]"
+                  [themeValue]="s.followValue(k)"
+                  (pick)="s.setThemeColor(k, $event); close()"
+               />
+            </div>
+         </ng-template>
+      }
+   </div>
+   <div class="f-lab">Fonts</div>
+   <div class="fnt">
+      <span class="muted">Heading</span>
+      <dd-select
+         class="f-select"
+         [options]="s.fontOptions"
+         [ngModel]="s.deckTheme().fonts.heading"
+         [disabled]="!s.canEdit()"
+         (ngModelChange)="s.setThemeFont('heading', $event)"
+      />
+   </div>
+   <div class="fnt">
+      <span class="muted">Body</span>
+      <dd-select
+         class="f-select"
+         [options]="s.fontOptions"
+         [ngModel]="s.deckTheme().fonts.body"
+         [disabled]="!s.canEdit()"
+         (ngModelChange)="s.setThemeFont('body', $event)"
+      />
+   </div>
+</div>

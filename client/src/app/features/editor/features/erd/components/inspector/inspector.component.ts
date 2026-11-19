@@ -9,7 +9,7 @@ import {
    type TableModel,
    type UpdateColumnDto,
 } from '@devdesigner/shared';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ErdEdits } from '../../services/erd-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { InputComponent } from '../../../../../../shared/ui/components/input/input.component';
@@ -39,7 +39,7 @@ type InspectorTab = 'columns' | 'indexes' | 'sql';
    styleUrl: './inspector.component.scss',
 })
 export class InspectorComponent {
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(ErdEdits);
    protected readonly typeOptions: SelectOption[] = DATA_TYPE_NAMES.map((n) => ({ value: n, label: n }));
    // Saturated category tints (shared look with the table node + floating toolbar).
 
@@ -50,7 +50,7 @@ export class InspectorComponent {
    /** Generated MySQL for this table alone (plus its internal relationships). */
    protected readonly tableSql = computed(() => {
       const table = this.table();
-      const relationships = this.store.relationships().filter((rel) => {
+      const relationships = this.edits.relationships().filter((rel) => {
          const ids = new Set(table.columns.map((c) => c.id));
          return ids.has(rel.sourceColumnId) && ids.has(rel.targetColumnId);
       });
@@ -64,7 +64,7 @@ export class InspectorComponent {
                sequenceDiagrams: [],
                lifelines: [],
                sequenceMessages: [],
-               viewport: this.store.viewport(),
+               viewport: this.edits.viewport(),
             },
             { dialect: 'mysql' }
          );
@@ -75,19 +75,19 @@ export class InspectorComponent {
 
    protected renameTable(name: string | number): void {
       const trimmed = String(name).trim();
-      if (trimmed) void this.store.updateTable(this.table().id, { name: trimmed });
+      if (trimmed) void this.edits.updateTable(this.table().id, { name: trimmed });
    }
 
    protected setColor(color: string): void {
-      void this.store.updateTable(this.table().id, { color });
+      void this.edits.updateTable(this.table().id, { color });
    }
 
    protected setNote(note: string): void {
-      void this.store.updateTable(this.table().id, { note });
+      void this.edits.updateTable(this.table().id, { note });
    }
 
    protected deleteTable(): void {
-      void this.store.deleteTable(this.table().id);
+      void this.edits.deleteTable(this.table().id);
    }
 
    protected addColumn(): void {
@@ -98,23 +98,23 @@ export class InspectorComponent {
          i += 1;
          name = `column_${i}`;
       }
-      void this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+      void this.edits.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
    }
 
    protected renameColumn(column: ColumnModel, name: string | number): void {
       const trimmed = String(name).trim();
-      if (trimmed) void this.store.updateColumn(this.table().id, column.id, { name: trimmed });
+      if (trimmed) void this.edits.updateColumn(this.table().id, column.id, { name: trimmed });
    }
 
    protected setType(column: ColumnModel, name: string): void {
       const length = name === 'VARCHAR' ? (column.dataType.length ?? 255) : undefined;
-      void this.store.updateColumn(this.table().id, column.id, { dataType: { name, length } });
+      void this.edits.updateColumn(this.table().id, column.id, { dataType: { name, length } });
    }
 
    protected setLength(column: ColumnModel, value: string | number): void {
       const raw = Number(value);
       const length = Number.isFinite(raw) && raw > 0 ? raw : undefined;
-      void this.store.updateColumn(this.table().id, column.id, {
+      void this.edits.updateColumn(this.table().id, column.id, {
          dataType: { name: column.dataType.name, length },
       });
    }
@@ -122,21 +122,21 @@ export class InspectorComponent {
    protected setFlag(column: ColumnModel, flag: 'isPrimaryKey' | 'isUnique' | 'isAutoIncrement', value: boolean): void {
       const patch: UpdateColumnDto = {};
       patch[flag] = value;
-      void this.store.updateColumn(this.table().id, column.id, patch);
+      void this.edits.updateColumn(this.table().id, column.id, patch);
    }
 
    protected setNotNull(column: ColumnModel, notNull: boolean): void {
-      void this.store.updateColumn(this.table().id, column.id, { isNullable: !notNull });
+      void this.edits.updateColumn(this.table().id, column.id, { isNullable: !notNull });
    }
 
    protected deleteColumn(column: ColumnModel): void {
-      void this.store.deleteColumn(this.table().id, column.id);
+      void this.edits.deleteColumn(this.table().id, column.id);
    }
 
    protected onReorder(event: CdkDragDrop<ColumnModel[]>): void {
       const ids = this.table().columns.map((c) => c.id);
       moveItemInArray(ids, event.previousIndex, event.currentIndex);
-      this.store.reorderColumns(this.table().id, ids);
+      this.edits.reorderColumns(this.table().id, ids);
    }
 
    // --- Indexes ---
@@ -150,7 +150,7 @@ export class InspectorComponent {
          name = `idx_${this.table().name}_${n}`;
       }
       const firstColumn = this.table().columns[0];
-      void this.store.addIndex(this.table().id, {
+      void this.edits.addIndex(this.table().id, {
          name,
          columnIds: firstColumn ? [firstColumn.id] : [],
          isUnique: false,
@@ -159,11 +159,11 @@ export class InspectorComponent {
 
    protected renameIndex(index: IndexModel, name: string | number): void {
       const trimmed = String(name).trim();
-      if (trimmed) void this.store.updateIndex(this.table().id, index.id, { name: trimmed });
+      if (trimmed) void this.edits.updateIndex(this.table().id, index.id, { name: trimmed });
    }
 
    protected setIndexUnique(index: IndexModel, isUnique: boolean): void {
-      void this.store.updateIndex(this.table().id, index.id, { isUnique });
+      void this.edits.updateIndex(this.table().id, index.id, { isUnique });
    }
 
    protected indexHasColumn(index: IndexModel, columnId: string): boolean {
@@ -172,10 +172,10 @@ export class InspectorComponent {
 
    protected toggleIndexColumn(index: IndexModel, columnId: string, on: boolean): void {
       const columnIds = on ? [...index.columnIds, columnId] : index.columnIds.filter((id) => id !== columnId);
-      void this.store.updateIndex(this.table().id, index.id, { columnIds });
+      void this.edits.updateIndex(this.table().id, index.id, { columnIds });
    }
 
    protected deleteIndex(index: IndexModel): void {
-      void this.store.deleteIndex(this.table().id, index.id);
+      void this.edits.deleteIndex(this.table().id, index.id);
    }
 }

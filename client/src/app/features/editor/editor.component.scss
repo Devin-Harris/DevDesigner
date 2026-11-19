@@ -3,6 +3,36 @@
    height: 100%;
 }
 
+// Embedded as a picture (EditorHostOptions.chrome 'picture'): no tool dock, minimap, laser
+// layer, deck panels or selection chrome. The deck panels return on the transition screen.
+:host(.chrome-picture) ::ng-deep {
+   dd-shape-toolbar,
+   dd-minimap,
+   dd-laser-layer,
+   dd-slides-panel,
+   .deck-header,
+   .slide-bounds,
+   .chips,
+   .icon-btn.tiny,
+   .type .chev,
+   .node-head .icon-btn,
+   .overlay.hint {
+      display: none !important;
+   }
+   // A picture's controls are disabled (view-only) but should look live.
+   dd-sequence-message-toolbar button:disabled {
+      opacity: 1 !important;
+      cursor: default;
+   }
+}
+:host(.chrome-picture.deck-focused) ::ng-deep dd-slides-panel {
+   display: revert !important;
+}
+// A showcase player reveals sequence messages one by one.
+:host(.hide-seq-msgs) ::ng-deep dd-sequence-diagram > :is(.msg-line, .msg-head, .msg-label-wrap) {
+   visibility: hidden;
+}
+
 .editor {
    display: flex;
    height: 100%;

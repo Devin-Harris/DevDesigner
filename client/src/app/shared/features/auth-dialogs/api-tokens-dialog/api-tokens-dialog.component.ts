@@ -4,12 +4,19 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { formSignal } from 'ngx-form-signal';
 import { MatDialogModule } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import type { ApiTokenResponse, ApiTokenScope, CreatedApiTokenResponse } from '@devdesigner/shared';
+import type {
+   ApiTokenResponse,
+   ApiTokenScope,
+   CreateApiTokenDto,
+   CreatedApiTokenResponse,
+   ProjectSummary,
+} from '@devdesigner/shared';
 import { ApiClientService } from '../../../../core/http/api-client.service';
 import { runtimeConfig } from '../../../../core/config/runtime-config';
 import { IconComponent } from '../../../ui/components/icon/icon.component';
 import { InputComponent } from '../../../ui/components/input/input.component';
 import { SegmentedComponent } from '../../../ui/components/segmented/segmented.component';
+import { SelectComponent, type SelectOption } from '../../../ui/components/select/select.component';
 
 /**
  * Account → API tokens. Tokens let the MCP server (and other scripts) act as the
@@ -19,7 +26,15 @@ import { SegmentedComponent } from '../../../ui/components/segmented/segmented.c
 @Component({
    selector: 'dd-api-tokens-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [DatePipe, ReactiveFormsModule, MatDialogModule, IconComponent, InputComponent, SegmentedComponent],
+   imports: [
+      DatePipe,
+      ReactiveFormsModule,
+      MatDialogModule,
+      IconComponent,
+      InputComponent,
+      SegmentedComponent,
+      SelectComponent,
+   ],
    templateUrl: './api-tokens-dialog.component.html',
    styleUrl: './api-tokens-dialog.component.scss',
 })
@@ -31,6 +46,10 @@ export class ApiTokensDialogComponent {
    protected readonly form = new FormGroup({
       name: new FormControl('', { nonNullable: true }),
       scope: new FormControl<ApiTokenScope>('write', { nonNullable: true }),
+      /** Days until it expires; '' = never. */
+      expires: new FormControl('', { nonNullable: true }),
+      /** The one project it may touch; '' = all of yours. */
+      project: new FormControl('', { nonNullable: true }),
    });
    private readonly form$ = formSignal(this.form);
    protected readonly busy = signal(false);
@@ -45,7 +64,31 @@ export class ApiTokensDialogComponent {
       { value: 'write', label: 'Read & write' },
       { value: 'read', label: 'Read only' },
    ];
+   protected readonly expiryOptions: SelectOption<string>[] = [
+      { value: '', label: 'Never expires' },
+      { value: '30', label: 'Expires in 30 days' },
+      { value: '90', label: 'Expires in 90 days' },
+      { value: '365', label: 'Expires in 1 year' },
+   ];
+   /** Your projects, for limiting a token to one of them. */
+   private readonly projects = signal<ProjectSummary[]>([]);
+   protected readonly projectOptions = computed<SelectOption<string>[]>(() => [
+      { value: '', label: 'All your projects' },
+      ...this.projects().map((p) => ({ value: p.id, label: `Only ${p.name}` })),
+   ]);
+   private readonly projectNames = computed(() => new Map(this.projects().map((p) => [p.id, p.name])));
    protected readonly active = computed(() => this.tokens().filter((t) => !t.revokedAt));
+
+   /** "only <project>" / "expires <date>" / "expired" for a listed token. */
+   protected limits(t: ApiTokenResponse): string {
+      const parts: string[] = [];
+      if (t.projectId) parts.push(`only ${this.projectNames().get(t.projectId) ?? 'one project'}`);
+      if (t.expiresAt) {
+         const at = new Date(t.expiresAt);
+         parts.push(at.getTime() <= Date.now() ? 'expired' : `expires ${at.toLocaleDateString()}`);
+      }
+      return parts.join(' · ');
+   }
    protected readonly canCreate = computed(() => (this.form$.value()?.name ?? '').trim().length > 0 && !this.busy());
 
    /** Claude Desktop / Claude Code style `mcpServers` entry for the new token. */
@@ -105,6 +148,7 @@ export class ApiTokensDialogComponent {
 
    constructor() {
       void this.load();
+      void this.loadProjects();
    }
 
    protected async create(): Promise<void> {
@@ -113,11 +157,12 @@ export class ApiTokensDialogComponent {
       }
       this.busy.set(true);
       this.error.set(null);
-      const { name, scope } = this.form.getRawValue();
+      const { name, scope, expires, project } = this.form.getRawValue();
+      const body: CreateApiTokenDto = { name: name.trim(), scope };
+      if (expires) body.expiresInDays = Number(expires);
+      if (project) body.projectId = project;
       try {
-         const created = await firstValueFrom(
-            this.api.post<CreatedApiTokenResponse>('/auth/api-tokens', { name: name.trim(), scope })
-         );
+         const created = await firstValueFrom(this.api.post<CreatedApiTokenResponse>('/auth/api-tokens', body));
          this.created.set(created);
          this.form.controls.name.reset();
          await this.load();
@@ -166,6 +211,14 @@ export class ApiTokensDialogComponent {
          this.error.set(this.describe(err, 'Could not load tokens.'));
       } finally {
          this.loading.set(false);
+      }
+   }
+
+   private async loadProjects(): Promise<void> {
+      try {
+         this.projects.set(await firstValueFrom(this.api.get<ProjectSummary[]>('/projects?archived=false')));
+      } catch {
+         // Limiting to a project is optional; without the list the menu offers "All".
       }
    }
 

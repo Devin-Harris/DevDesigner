@@ -129,6 +129,16 @@ export interface SequenceLayoutSnapshot {
    headerHeight?: number;
    scale?: number;
    lifelineWidths?: ReadonlyMap<string, number>;
+   /** Box bounds beyond the content (plain resize); absent = not tracked. */
+   bounds?: SequenceBounds;
+}
+
+/** A sequence diagram's stored box bounds (0 = hug the content). */
+export interface SequenceBounds {
+   padLeft: number;
+   padTop: number;
+   boxWidth: number;
+   boxHeight: number;
 }
 
 /** What a group is made of. Only groups with two or more members are tracked. */

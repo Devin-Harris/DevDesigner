@@ -71,7 +71,10 @@ export class DrawToolService {
    }
 
    /** The space a point is drawn in: a zoomed slide's own coordinates, else the canvas (on a shown slide, its items). */
-   private spaceAt(clientX: number, clientY: number): {
+   private spaceAt(
+      clientX: number,
+      clientY: number
+   ): {
       point: { x: number; y: number };
       ctx: string | null;
       view: ReturnType<CanvasViewService['slideViews']>[number] | undefined;
@@ -198,7 +201,11 @@ export class DrawToolService {
       const x = Math.round(draft.x);
       const y = Math.round(draft.y);
       void this.store
-         .addSequenceStarter(x, y, dragged ? { width: Math.round(draft.width), height: Math.round(draft.height) } : undefined)
+         .addSequenceStarter(
+            x,
+            y,
+            dragged ? { width: Math.round(draft.width), height: Math.round(draft.height) } : undefined
+         )
          .finally(() => this.store.previewSequenceLocal(null));
       this.tools.afterPlace();
    }
@@ -357,30 +364,30 @@ export class DrawToolService {
                    opacity: 100,
                    cornerRadius: 8,
                 }
-            : type === 'grid'
-              ? {
-                   // A table: opaque surface, hairline borders, readable body text.
-                   ...sticky,
-                   strokeColor: this.canvasView.defaultStroke(),
-                   backgroundColor: SURFACE_FILL,
-                   fillStyle: 'solid' as const,
-                   strokeWidth: 1,
-                   strokeStyle: 'solid' as const,
-                   opacity: 100,
-                   cornerRadius: 4,
-                }
-              : type === 'frame'
+              : type === 'grid'
                 ? {
+                     // A table: opaque surface, hairline borders, readable body text.
                      ...sticky,
-                     strokeColor: this.canvasView.themeVar('--dd-text-muted') ?? sticky.strokeColor,
-                     backgroundColor: undefined,
-                     fillStyle: 'none' as const,
-                     strokeWidth: 1.5,
+                     strokeColor: this.canvasView.defaultStroke(),
+                     backgroundColor: SURFACE_FILL,
+                     fillStyle: 'solid' as const,
+                     strokeWidth: 1,
                      strokeStyle: 'solid' as const,
                      opacity: 100,
-                     cornerRadius: 0,
+                     cornerRadius: 4,
                   }
-                : sticky;
+                : type === 'frame'
+                  ? {
+                       ...sticky,
+                       strokeColor: this.canvasView.themeVar('--dd-text-muted') ?? sticky.strokeColor,
+                       backgroundColor: undefined,
+                       fillStyle: 'none' as const,
+                       strokeWidth: 1.5,
+                       strokeStyle: 'solid' as const,
+                       opacity: 100,
+                       cornerRadius: 0,
+                    }
+                  : sticky;
       const draft: CanvasElementModel = {
          id: `draft-${Date.now()}`,
          type,
@@ -460,7 +467,9 @@ export class DrawToolService {
          const zoom = this.store.viewport().zoom;
          const dragged = !!d && (d.width * zoom > 8 || d.height * zoom > 8);
          this.store.previewSequenceLocal(
-            d && dragged ? { x: Math.round(d.x), y: Math.round(d.y), width: Math.round(d.width), height: Math.round(d.height) } : null
+            d && dragged
+               ? { x: Math.round(d.x), y: Math.round(d.y), width: Math.round(d.width), height: Math.round(d.height) }
+               : null
          );
       }
    }

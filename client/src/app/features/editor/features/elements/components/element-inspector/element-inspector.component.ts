@@ -20,7 +20,7 @@ import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { withTextFit } from '../../../../helpers/text-metrics';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ElementEdits } from '../../services/element-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 
@@ -38,7 +38,7 @@ import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/c
    styleUrl: './element-inspector.component.scss',
 })
 export class ElementInspectorComponent {
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(ElementEdits);
    private readonly codeActions = inject(CodeActionsService);
    readonly element = input.required<CanvasElementModel>();
 
@@ -53,9 +53,9 @@ export class ElementInspectorComponent {
    /** The deck theme of the slide (or layout) this element is on; null off slides. */
    protected readonly deckTheme = computed<SlideTheme | null>(() => {
       const el = this.element();
-      const frames = this.store.slideFrames();
+      const frames = this.edits.slideFrames();
       const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
-      return f ? (this.store.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
+      return f ? (this.edits.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
    });
    protected readonly themeFonts = computed(() => {
       const t = this.deckTheme();
@@ -110,27 +110,27 @@ export class ElementInspectorComponent {
    ] as const;
 
    private patchAll(patch: UpdateElementDto): void {
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       const targets = ids.length ? ids : [this.element().id];
       for (const id of targets) {
          // Text boxes hug their glyphs: a font/size/weight change refits the box.
-         const el = this.store.elements().find((e) => e.id === id);
-         void this.store.updateElement(id, el ? withTextFit(el, patch) : patch);
+         const el = this.edits.elements().find((e) => e.id === id);
+         void this.edits.updateElement(id, el ? withTextFit(el, patch) : patch);
       }
       const stylePatch: Record<string, unknown> = {};
       for (const key of ElementInspectorComponent.STYLE_KEYS) {
          if (key in patch) stylePatch[key] = (patch as Record<string, unknown>)[key];
       }
-      if (Object.keys(stylePatch).length) this.store.setElementStyle(stylePatch);
+      if (Object.keys(stylePatch).length) this.edits.setElementStyle(stylePatch);
    }
 
    /** Code-block edits go to every selected code block and skip the sticky text style. */
    private patchCode(patch: UpdateElementDto): void {
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       const targets = ids.length ? ids : [this.element().id];
       for (const id of targets) {
-         if (this.store.elements().find((e) => e.id === id)?.type === 'code') {
-            void this.store.updateElement(id, patch);
+         if (this.edits.elements().find((e) => e.id === id)?.type === 'code') {
+            void this.edits.updateElement(id, patch);
          }
       }
    }
@@ -138,7 +138,7 @@ export class ElementInspectorComponent {
    protected readonly canFormat = computed(() => canFormatCode(this.element().language));
 
    protected format(): void {
-      void this.codeActions.format(this.store.selectedElementIds());
+      void this.codeActions.format(this.edits.selectedElementIds());
    }
 
    protected readonly diffViews: { id: CodeDiffView; label: string; title: string }[] = [
@@ -148,7 +148,7 @@ export class ElementInspectorComponent {
    ];
 
    protected setDiffView(view: CodeDiffView): void {
-      void this.codeActions.setDiffView(this.store.selectedElementIds(), view);
+      void this.codeActions.setDiffView(this.edits.selectedElementIds(), view);
    }
 
    protected editDiff(side: 'original' | 'modified'): void {
@@ -156,7 +156,7 @@ export class ElementInspectorComponent {
    }
 
    protected toggleWhitespace(): void {
-      void this.codeActions.toggleDiffWhitespace(this.store.selectedElementIds());
+      void this.codeActions.toggleDiffWhitespace(this.edits.selectedElementIds());
    }
 
    protected swapDiff(): void {
@@ -168,11 +168,11 @@ export class ElementInspectorComponent {
    }
 
    protected fitToContent(): void {
-      void this.codeActions.fitToContent(this.store.selectedElementIds());
+      void this.codeActions.fitToContent(this.edits.selectedElementIds());
    }
 
    protected setFileName(value: string): void {
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       for (const id of ids.length ? ids : [this.element().id]) {
          void this.codeActions.setFileName(id, value);
       }
@@ -230,15 +230,15 @@ export class ElementInspectorComponent {
    }
 
    protected bringToFront(): void {
-      this.store.arrangeSelection('front');
+      this.edits.arrangeSelection('front');
    }
 
    protected sendToBack(): void {
-      this.store.arrangeSelection('back');
+      this.edits.arrangeSelection('back');
    }
    protected remove(): void {
-      for (const id of [...this.store.selectedElementIds()]) {
-         void this.store.deleteElement(id);
+      for (const id of [...this.edits.selectedElementIds()]) {
+         void this.edits.deleteElement(id);
       }
    }
 }

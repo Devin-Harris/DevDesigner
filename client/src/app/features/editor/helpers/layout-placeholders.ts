@@ -56,6 +56,7 @@ export function slotStyle(slot: CanvasElementModel): UpdateElementDto & Partial<
 /** A fresh, empty copy of a layout slot on a slide. */
 function emptyCopy(slot: CanvasElementModel, layout: CanvasElementModel, slide: CanvasElementModel): CreateElementDto {
    const base = elementToCreateDto(slot);
+   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
    return {
       ...base,
       ...moved(slot, layout, slide),
@@ -359,6 +360,7 @@ export async function standInFor(
    const from = frames.find((f) => f.id === source.slideId);
    const masterId = overriddenId(source) ?? source.id;
    if (!from || masterStandIns(store, frame.id).some((e) => overriddenId(e) === masterId)) return null;
+   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
    const dto = {
       ...elementToCreateDto(source),
       ...moved(source, from, frame),

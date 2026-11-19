@@ -280,9 +280,22 @@
       @for (h of handles(); track h.id) {
          <div
             class="seq-handle {{ h.id }}"
+            title="Drag to resize (Alt: respace messages, Ctrl: scale). Double-click: fit to content"
             [style.left.px]="h.x"
             [style.top.px]="h.y"
             (pointerdown)="onResizeDown($event, h.id)"
+            (dblclick)="onHandleDblClick($event, h.id)"
+         ></div>
+      }
+      <!-- Row-gap bands (invisible until hovered): drag to change the spacing between messages. -->
+      @for (g of gaps(); track g.row) {
+         <div
+            class="seq-gap"
+            title="Drag to change message spacing"
+            [style.left.px]="g.x"
+            [style.top.px]="g.y"
+            [style.width.px]="g.w"
+            (pointerdown)="onGapDown($event, g.row)"
          ></div>
       }
    }

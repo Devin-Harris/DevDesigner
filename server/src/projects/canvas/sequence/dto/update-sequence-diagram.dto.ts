@@ -23,6 +23,31 @@ export class UpdateSequenceDiagramDto implements IUpdateSequenceDiagramDto {
   @Max(20)
   scale?: number;
 
+  /** Box bounds beyond the content; 0 = hug the content. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  padLeft?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  padTop?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  boxWidth?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  boxHeight?: number;
+
   @IsOptional()
   @IsNumber()
   originY?: number;

@@ -1,0 +1,168 @@
+:host {
+   display: contents;
+}
+
+/* ---- Focus mode views (DeckFocus / DeckMorph / DeckDesign mocks) ---- */
+.rec-menu {
+   min-width: 240px;
+   max-height: 60vh;
+   overflow-y: auto;
+}
+.grp {
+   padding: 8px 10px 4px;
+}
+.rec-row {
+   display: flex;
+   align-items: center;
+}
+.rec-row.on .rec-pick {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.rec-pick {
+   flex: 1;
+   min-width: 0;
+}
+.rec-sw {
+   display: inline-flex;
+   margin-right: 8px;
+   border-radius: 4px;
+   overflow: hidden;
+   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.rec-sw span {
+   width: 8px;
+   height: 16px;
+}
+.rec-edit {
+   width: 26px;
+   height: 26px;
+   flex: none;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 14px;
+}
+.rec-edit:hover {
+   background: var(--dd-surface-2);
+   color: var(--dd-text);
+}
+.rec-edit.del:hover {
+   background: color-mix(in srgb, #ef6b6b 18%, transparent);
+   color: #ef6b6b;
+}
+.rec-input {
+   margin: 2px 6px;
+   width: calc(100% - 12px);
+   box-sizing: border-box;
+   height: 30px;
+   padding: 0 8px;
+   border: 1px solid var(--dd-primary);
+   border-radius: 6px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   outline: none;
+}
+.rec-input.card {
+   margin: 4px;
+   width: calc(100% - 8px);
+   height: 26px;
+   font-size: 12px;
+}
+.f-lab {
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+}
+.fs.on {
+   background: var(--dd-primary-weak);
+}
+.fs.on .tn {
+   border: 2px solid var(--dd-primary);
+}
+.f-tab.on {
+   border-bottom-color: var(--dd-primary);
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.lay.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.sw.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 2px;
+}
+.tg.on {
+   background: var(--dd-primary);
+}
+.tg.on::after {
+   left: 16px;
+}
+.f-seg button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-weight: 600;
+   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ly.on {
+   background: var(--dd-primary-weak);
+}
+.ly.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.ly.on .meta .nm {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.th.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+.th.on .nm span:first-child {
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.tab.on {
+   background: var(--dd-primary-weak);
+   color: var(--dd-primary);
+}
+.card.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+}
+.btn.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+   color: var(--dd-primary);
+}
+.theme-card.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+input[type='number'],
+.text-input,
+textarea {
+   font: inherit;
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 6px 8px;
+   box-sizing: border-box;
+   width: 100%;
+}
+input[type='number'],
+.text-input {
+   height: 34px;
+}

@@ -28,6 +28,8 @@ export interface Caller {
   clientId: string | null;
   /** True when the account authenticated with an API token rather than a cookie. */
   viaToken: boolean;
+  /** The one project a project-scoped API token may touch, else null. */
+  tokenProjectId: string | null;
 }
 
 const headerValue = (req: Request, name: string): string | null => {
@@ -62,6 +64,7 @@ export function callerOf(request: CallerRequest): Caller {
     shareToken: headerValue(request, 'x-share-token'),
     clientId: originClientIdOf(request),
     viaToken: !!request.user?.viaToken,
+    tokenProjectId: request.user?.viaToken?.projectId ?? null,
   };
 }
 

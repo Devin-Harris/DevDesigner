@@ -213,7 +213,7 @@ export function withProjectSlidesDerived() {
                         diagramIds.add(d.id);
                      }
                   }
-                  return { elementIds, tableIds, diagramIds } as SlideHidden;
+                  return { elementIds, tableIds, diagramIds } satisfies SlideHidden;
                },
                { equal: sameHidden }
             ),

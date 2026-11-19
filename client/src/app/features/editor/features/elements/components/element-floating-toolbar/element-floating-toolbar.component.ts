@@ -43,8 +43,7 @@ import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper'
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { DEFAULT_LINE_HEIGHT, ensureFontLoaded, LINE_HEIGHTS, withTextFit } from '../../../../helpers/text-metrics';
-import { ProjectStore } from '../../../../state/project/project.store';
-import { revertable, revertItems } from '../../../../helpers/layout-placeholders';
+import { ElementEdits } from '../../services/element-edits.service';
 
 const STROKE_WIDTHS: { value: number; label: string }[] = [
    { value: 1, label: 'Thin' },
@@ -84,7 +83,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
 })
 export class ElementFloatingToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(ElementEdits);
    private readonly editorActions = inject(EditorActionsService);
    private readonly codeActions = inject(CodeActionsService);
    protected readonly grids = inject(GridTableService);
@@ -182,7 +181,7 @@ export class ElementFloatingToolbarComponent {
    /** Reshape the frame to an aspect ratio, keeping its width and top-left corner. */
    protected setFrameRatio(ratio: number): void {
       const e = this.element();
-      void this.store.updateElement(e.id, { height: Math.round(e.width / ratio) });
+      void this.edits.updateElement(e.id, { height: Math.round(e.width / ratio) });
    }
    /** GIFs and videos: what the picture is (null for stills or while loading). */
    protected readonly mediaKind = computed(() => {
@@ -204,11 +203,11 @@ export class ElementFloatingToolbarComponent {
    ];
 
    protected setDiffView(view: CodeDiffView): void {
-      void this.codeActions.setDiffView(this.store.selectedElementIds(), view);
+      void this.codeActions.setDiffView(this.edits.selectedElementIds(), view);
    }
 
    protected toggleWhitespace(): void {
-      void this.codeActions.toggleDiffWhitespace(this.store.selectedElementIds());
+      void this.codeActions.toggleDiffWhitespace(this.edits.selectedElementIds());
    }
 
    protected swapDiff(): void {
@@ -242,8 +241,8 @@ export class ElementFloatingToolbarComponent {
 
    /** Every selected element that takes font styling (the shown element when nothing else is). */
    private readonly textTargets = computed(() => {
-      const ids = new Set(this.store.selectedElementIds());
-      const els = ids.size ? this.store.elements().filter((e) => ids.has(e.id)) : [this.element()];
+      const ids = new Set(this.edits.selectedElementIds());
+      const els = ids.size ? this.edits.elements().filter((e) => ids.has(e.id)) : [this.element()];
       return els.filter((e) => TEXT_TYPES.has(e.type));
    });
    /** The font shared by the text in the selection, or null when they differ. */
@@ -283,9 +282,9 @@ export class ElementFloatingToolbarComponent {
    /** The deck theme of the slide (or layout) this element is on; null off slides. */
    protected readonly deckTheme = computed<SlideTheme | null>(() => {
       const el = this.element();
-      const frames = this.store.slideFrames();
+      const frames = this.edits.slideFrames();
       const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
-      return f ? (this.store.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
+      return f ? (this.edits.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
    });
    /** On a slide, layout or master: fields can be inserted. */
    protected readonly onSlide = computed(() => this.deckTheme() !== null);
@@ -300,7 +299,7 @@ export class ElementFloatingToolbarComponent {
       const el = this.element();
       const sep = el.text && !/\s$/.test(el.text) ? ' ' : '';
       const runs = el.runs?.length ? [...el.runs, { text: sep + token }] : el.runs;
-      void this.store.updateElement(el.id, withTextFit(el, { text: (el.text ?? '') + sep + token, runs }));
+      void this.edits.updateElement(el.id, withTextFit(el, { text: (el.text ?? '') + sep + token, runs }));
    }
 
    /** Grid cell styles are stored inside the grid's JSON, which tokens do not reach. */
@@ -345,12 +344,12 @@ export class ElementFloatingToolbarComponent {
 
    /** Apply a patch to every selected element and remember its style for new draws. */
    private patchAll(patch: UpdateElementDto): void {
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       const targets = ids.length ? ids : [this.element().id];
       for (const id of targets) {
          // Text boxes hug their glyphs: a font/size/weight change refits the box.
-         const el = this.store.elements().find((e) => e.id === id);
-         void this.store.updateElement(id, el ? withTextFit(el, this.withRunReset(el, patch)) : patch);
+         const el = this.edits.elements().find((e) => e.id === id);
+         void this.edits.updateElement(id, el ? withTextFit(el, this.withRunReset(el, patch)) : patch);
       }
       const stylePatch: Record<string, unknown> = {};
       for (const key of ElementFloatingToolbarComponent.STYLE_KEYS) {
@@ -359,7 +358,7 @@ export class ElementFloatingToolbarComponent {
          }
       }
       if (Object.keys(stylePatch).length) {
-         this.store.setElementStyle(stylePatch);
+         this.edits.setElementStyle(stylePatch);
       }
    }
 
@@ -383,11 +382,11 @@ export class ElementFloatingToolbarComponent {
 
    /** Code-block edits apply to every selected code block and never touch the sticky text style. */
    private patchCode(patch: UpdateElementDto): void {
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       const targets = ids.length ? ids : [this.element().id];
       for (const id of targets) {
-         if (this.store.elements().find((e) => e.id === id)?.type === 'code') {
-            void this.store.updateElement(id, patch);
+         if (this.edits.elements().find((e) => e.id === id)?.type === 'code') {
+            void this.edits.updateElement(id, patch);
          }
       }
    }
@@ -395,7 +394,7 @@ export class ElementFloatingToolbarComponent {
    protected readonly canFormat = computed(() => canFormatCode(this.element().language));
 
    protected format(): void {
-      void this.codeActions.format(this.store.selectedElementIds());
+      void this.codeActions.format(this.edits.selectedElementIds());
    }
 
    protected editFileName(): void {
@@ -403,7 +402,7 @@ export class ElementFloatingToolbarComponent {
    }
 
    protected fitToContent(): void {
-      void this.codeActions.fitToContent(this.store.selectedElementIds());
+      void this.codeActions.fitToContent(this.edits.selectedElementIds());
    }
 
    protected readonly borderModes: { id: GridBorders; label: string }[] = [
@@ -415,11 +414,11 @@ export class ElementFloatingToolbarComponent {
    ];
    protected readonly gridBorders = computed<GridBorders>(() => parseGrid(this.element().text).borders ?? 'all');
    protected setGridBorders(mode: GridBorders): void {
-      void this.grids.setBorders(this.store.selectedElementIds(), mode);
+      void this.grids.setBorders(this.edits.selectedElementIds(), mode);
    }
 
    protected toggleGridHeader(): void {
-      void this.grids.toggleHeader(this.store.selectedElementIds());
+      void this.grids.toggleHeader(this.edits.selectedElementIds());
    }
 
    /** Selected cells of this table, when styling should target them instead of the whole table. */
@@ -483,9 +482,9 @@ export class ElementFloatingToolbarComponent {
    /** Font changes go to every selected element that has text, never to pictures, lines, etc. */
    private patchText(patch: UpdateElementDto): void {
       for (const el of this.textTargets()) {
-         void this.store.updateElement(el.id, withTextFit(el, this.withRunReset(el, patch)));
+         void this.edits.updateElement(el.id, withTextFit(el, this.withRunReset(el, patch)));
       }
-      this.store.setElementStyle(patch as Record<string, unknown>);
+      this.edits.setElementStyle(patch as Record<string, unknown>);
    }
 
    /** Step every selected text's size to the next preset up or down (each from its own size). */
@@ -496,7 +495,7 @@ export class ElementFloatingToolbarComponent {
             dir > 0
                ? (FONT_SIZES.find((s) => s > cur) ?? Math.round(cur * 1.25))
                : ([...FONT_SIZES].reverse().find((s) => s < cur) ?? Math.max(6, Math.round(cur * 0.8)));
-         void this.store.updateElement(el.id, withTextFit(el, { fontSize: next }));
+         void this.edits.updateElement(el.id, withTextFit(el, { fontSize: next }));
       }
    }
 
@@ -530,11 +529,11 @@ export class ElementFloatingToolbarComponent {
    /** Switch a text block between auto-size and fixed-width (wrapping) mode. */
    protected toggleWrap(): void {
       const on = !this.element().wrap;
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       for (const id of ids.length ? ids : [this.element().id]) {
-         const el = this.store.elements().find((e) => e.id === id);
+         const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type === 'text') {
-            void this.store.updateElement(id, withTextFit(el, { wrap: on }));
+            void this.edits.updateElement(id, withTextFit(el, { wrap: on }));
          }
       }
    }
@@ -545,15 +544,15 @@ export class ElementFloatingToolbarComponent {
       if (this.editingRich() && this.rich.apply({ underline: on })) {
          return;
       }
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       for (const id of ids.length ? ids : [this.element().id]) {
-         const el = this.store.elements().find((e) => e.id === id);
+         const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type !== 'text') {
             continue;
          }
          const text = el.text ?? '';
          const runs = patchRuns(runsOrPlain(text, el.runs), 0, text.length, { underline: on });
-         void this.store.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
+         void this.edits.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
       }
    }
 
@@ -571,15 +570,15 @@ export class ElementFloatingToolbarComponent {
       if (this.editingRich() && this.rich.toggleList(kind)) {
          return;
       }
-      const ids = this.store.selectedElementIds();
+      const ids = this.edits.selectedElementIds();
       for (const id of ids.length ? ids : [this.element().id]) {
-         const el = this.store.elements().find((e) => e.id === id);
+         const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type !== 'text') {
             continue;
          }
          const text = el.text ?? '';
          const { runs } = toggleListRuns(runsOrPlain(text, el.runs), 0, text.length, kind);
-         void this.store.updateElement(
+         void this.edits.updateElement(
             id,
             withTextFit(el, { text: plainOf(runs), runs: isPlainRuns(runs) ? null : runs })
          );
@@ -655,7 +654,7 @@ export class ElementFloatingToolbarComponent {
 
    protected toggleClipContent(): void {
       const e = this.element();
-      void this.store.updateElement(e.id, { clipContent: !e.clipContent });
+      void this.edits.updateElement(e.id, { clipContent: !e.clipContent });
    }
 
    protected toggleCurve(): void {
@@ -664,8 +663,8 @@ export class ElementFloatingToolbarComponent {
          this.patchAll({ curvature: 0 });
          return;
       }
-      for (const id of this.store.selectedElementIds()) {
-         const target = this.store.elements().find((e) => e.id === id);
+      for (const id of this.edits.selectedElementIds()) {
+         const target = this.edits.elements().find((e) => e.id === id);
          const pts = target?.points;
          if (!target || !pts || pts.length < 2) {
             continue;
@@ -673,7 +672,7 @@ export class ElementFloatingToolbarComponent {
          const a = pts[0];
          const b = pts[pts.length - 1];
          const bend = Math.max(24, Math.hypot(b.x - a.x, b.y - a.y) * 0.25);
-         void this.store.updateElement(id, { curvature: bend });
+         void this.edits.updateElement(id, { curvature: bend });
       }
    }
 
@@ -729,25 +728,24 @@ export class ElementFloatingToolbarComponent {
    }
 
    protected bringToFront(): void {
-      this.store.arrangeSelection('front');
+      this.edits.arrangeSelection('front');
    }
 
    protected sendToBack(): void {
-      this.store.arrangeSelection('back');
+      this.edits.arrangeSelection('back');
    }
 
    /** Selected items changed from their slide's layout (or master) that can go back. */
    protected readonly revert = computed(() => {
-      const ids = new Set(this.store.selectedElementIds());
-      return revertable(
-         this.store,
-         this.store.elements().filter((e) => ids.has(e.id))
+      const ids = new Set(this.edits.selectedElementIds());
+      return this.edits.revertable(
+         this.edits.elements().filter((e) => ids.has(e.id))
       );
    });
 
    protected revertToLayout(): void {
       const items = this.revert().items;
-      void this.store.batchHistory(() => revertItems(this.store, items));
+      void this.edits.batchHistory(() => this.edits.revertItems(items));
    }
 
    protected remove(): void {

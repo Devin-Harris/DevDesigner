@@ -1,6 +1,6 @@
 import type { ProjectExportFile } from '@devdesigner/shared';
 import type { SandboxBackendService } from './sandbox-backend.service';
-import { fontStack } from '../../features/editor/helpers/render';
+import { fontStack } from '../../shared/helpers/fonts/fonts.helper';
 
 /** Bump when the seeds change so a session picks up the new examples. */
 export const STORAGE_PREFIX = 'dd-guide-sandbox:v5:';

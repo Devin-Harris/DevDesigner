@@ -34,6 +34,9 @@
                   <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
                      <dd-icon name="key" />API tokens
                   </button>
+                  <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+                     <dd-icon name="account_circle" />Account settings
+                  </button>
                   <button class="dd-menu-item" type="button" (click)="signOut(); close()">
                      <dd-icon name="logout" />Sign out
                   </button>
@@ -161,7 +164,7 @@
          >
             @if (sandboxId(); as id) {
                @for (k of [mountKey()]; track k) {
-                  <dd-editor [projectId]="id" [fitOnLoad]="true"></dd-editor>
+                  <dd-editor [projectId]="id" [fitOnLoad]="true" [hostOptions]="editorOptions()"></dd-editor>
                }
             } @else {
                <div class="sc-loading">Loading example…</div>

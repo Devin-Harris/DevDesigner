@@ -79,4 +79,16 @@ export class AuthService {
          this._currentUser.set(null);
       }
    }
+
+   /** Sign out on every device (revokes all sessions server-side), including this one. */
+   async logoutAll(): Promise<void> {
+      await firstValueFrom(this.api.post<void>('/auth/logout-all', {}));
+      this._currentUser.set(null);
+   }
+
+   /** Permanently delete the signed-in account. Throws (and stays signed in) on a wrong password. */
+   async deleteAccount(password: string): Promise<void> {
+      await firstValueFrom(this.api.delete<void>('/auth/me', { body: { password } }));
+      this._currentUser.set(null);
+   }
 }

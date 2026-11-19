@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RELATIONSHIP_TYPES, type RelationshipModel, type RelationshipType } from '@devdesigner/shared';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ErdEdits } from '../../services/erd-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { SelectComponent, type SelectOption } from '../../../../../../shared/ui/components/select/select.component';
 
@@ -26,13 +26,13 @@ const TYPE_LABELS: Record<RelationshipType, string> = {
    styleUrl: './relationship-inspector.component.scss',
 })
 export class RelationshipInspectorComponent {
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(ErdEdits);
 
    readonly relationship = input.required<RelationshipModel>();
 
    /** All columns as "table.column" options for the endpoint selects. */
    protected readonly columnOptions = computed<SelectOption[]>(() =>
-      this.store.tables().flatMap((t) => t.columns.map((c) => ({ value: c.id, label: `${t.name}.${c.name}` })))
+      this.edits.tables().flatMap((t) => t.columns.map((c) => ({ value: c.id, label: `${t.name}.${c.name}` })))
    );
    protected readonly typeOptions: SelectOption[] = RELATIONSHIP_TYPES.map((t) => ({
       value: t,
@@ -47,29 +47,29 @@ export class RelationshipInspectorComponent {
       if (columnId === this.relationship().targetColumnId) {
          return;
       }
-      void this.store.updateRelationship(this.relationship().id, { sourceColumnId: columnId });
+      void this.edits.updateRelationship(this.relationship().id, { sourceColumnId: columnId });
    }
 
    protected setTarget(columnId: string): void {
       if (columnId === this.relationship().sourceColumnId) {
          return;
       }
-      void this.store.updateRelationship(this.relationship().id, { targetColumnId: columnId });
+      void this.edits.updateRelationship(this.relationship().id, { targetColumnId: columnId });
    }
 
    protected setType(type: string): void {
-      void this.store.updateRelationship(this.relationship().id, { type: type as RelationshipType });
+      void this.edits.updateRelationship(this.relationship().id, { type: type as RelationshipType });
    }
 
    protected setOnDelete(onDelete: string): void {
-      void this.store.updateRelationship(this.relationship().id, { onDelete });
+      void this.edits.updateRelationship(this.relationship().id, { onDelete });
    }
 
    protected setOnUpdate(onUpdate: string): void {
-      void this.store.updateRelationship(this.relationship().id, { onUpdate });
+      void this.edits.updateRelationship(this.relationship().id, { onUpdate });
    }
 
    protected remove(): void {
-      void this.store.deleteRelationship(this.relationship().id);
+      void this.edits.deleteRelationship(this.relationship().id);
    }
 }

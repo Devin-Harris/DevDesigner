@@ -8,6 +8,7 @@ import {
 import type { ProjectEntityKind } from './entity-project-resolver';
 import {
   ACCESS_POLICY_KEY,
+  PROJECT_TOKEN_OK_KEY,
   type AccessPolicy,
   type RequestWithProjectAccess,
   type RequiredAccess,
@@ -69,6 +70,12 @@ export const Public = (): MethodDecorator & ClassDecorator =>
 /** The route only reads or writes the caller's own data, scoped by their owner id. */
 export const CallerScoped = (): MethodDecorator & ClassDecorator =>
   SetMetadata(ACCESS_POLICY_KEY, { kind: 'caller' } satisfies AccessPolicy);
+
+/**
+ * A `@CallerScoped` route that a project-scoped API token may call, because the handler
+ * narrows what it returns to the token's project (e.g. the project list).
+ */
+export const ProjectTokenOk = (): MethodDecorator & ClassDecorator => SetMetadata(PROJECT_TOKEN_OK_KEY, true);
 
 /** The route sits behind AdminGuard (declare it next to `@UseGuards(AdminGuard)`). */
 export const AdminRoute = (): MethodDecorator & ClassDecorator =>

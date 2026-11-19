@@ -3,24 +3,24 @@
 <mat-dialog-content class="dlg-body">
    <form class="form" [formGroup]="form" (keydown.enter)="submit()">
       @if (isRegister()) {
-         <div class="field">
-            <label class="field-label">Display name (optional)</label>
+         <label class="field">
+            <span class="field-label">Display name (optional)</span>
             <dd-input type="text" formControlName="displayName" />
-         </div>
+         </label>
       }
 
-      <div class="field">
-         <label class="field-label">Email</label>
+      <label class="field">
+         <span class="field-label">Email</span>
          <dd-input type="email" formControlName="email" />
-      </div>
+      </label>
 
-      <div class="field">
-         <label class="field-label">Password</label>
+      <label class="field">
+         <span class="field-label">Password</span>
          <dd-input type="password" formControlName="password" />
          @if (isRegister()) {
             <span class="hint">At least 8 characters.</span>
          }
-      </div>
+      </label>
 
       @if (error()) {
          <p class="err">{{ error() }}</p>

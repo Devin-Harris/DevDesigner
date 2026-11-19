@@ -21,8 +21,8 @@ export interface FrameContents {
    diagramIds: Set<string>;
 }
 
-/** A sequence diagram's outer box, matching how it is drawn and exported. */
-export function sequenceDiagramBox(
+/** A sequence diagram's box hugging its content (participants + one row past the last message). */
+export function sequenceContentBox(
    diagram: SequenceDiagramModel,
    lifelines: readonly LifelineModel[],
    messages: readonly SequenceMessageModel[]
@@ -43,6 +43,50 @@ export function sequenceDiagramBox(
       y0: diagram.originY - SEQ_BOX_PAD - SEQ_TITLE_ROOM,
       y1: hb + gap * (maxRow + 1) + SEQ_BOX_PAD,
    };
+}
+
+/** Grow a content box by the diagram's stored bounds (a plain resize makes the box bigger than its content). */
+export function applySequenceBounds(
+   diagram: Pick<SequenceDiagramModel, 'padLeft' | 'padTop' | 'boxWidth' | 'boxHeight'>,
+   c: Box
+): Box {
+   const x0 = c.x0 - (diagram.padLeft ?? 0);
+   const y0 = c.y0 - (diagram.padTop ?? 0);
+   return {
+      x0,
+      y0,
+      x1: Math.max(c.x1, x0 + (diagram.boxWidth ?? 0)),
+      y1: Math.max(c.y1, y0 + (diagram.boxHeight ?? 0)),
+   };
+}
+
+/** Stored bounds that make the diagram's box exactly `box` around content box `c` (0 = hug). */
+export function sequenceBoundsFor(
+   c: Box,
+   box: Box
+): { padLeft: number; padTop: number; boxWidth: number; boxHeight: number } {
+   const r = (n: number) => Math.max(0, Math.round(n));
+   const padLeft = r(c.x0 - box.x0);
+   const padTop = r(c.y0 - box.y0);
+   const w = r(box.x1 - box.x0);
+   const h = r(box.y1 - box.y0);
+   return {
+      padLeft,
+      padTop,
+      // Only store a size when it actually reaches past the content.
+      boxWidth: w > c.x1 - c.x0 + padLeft + 0.5 ? w : 0,
+      boxHeight: h > c.y1 - c.y0 + padTop + 0.5 ? h : 0,
+   };
+}
+
+/** A sequence diagram's outer box, matching how it is drawn and exported. */
+export function sequenceDiagramBox(
+   diagram: SequenceDiagramModel,
+   lifelines: readonly LifelineModel[],
+   messages: readonly SequenceMessageModel[]
+): Box | null {
+   const c = sequenceContentBox(diagram, lifelines, messages);
+   return c ? applySequenceBounds(diagram, c) : null;
 }
 
 /**
@@ -161,7 +205,7 @@ export function contentForFrame<
    const withLayoutFill = (e: E): E => {
       const f = e as Fill;
       return under && f.id === frameId && f.fillStyle === 'none'
-         ? ({ ...e, fillStyle: under.fillStyle, backgroundColor: under.backgroundColor } as E)
+         ? ({ ...e, fillStyle: under.fillStyle, backgroundColor: under.backgroundColor } satisfies E)
          : e;
    };
    // Master items the slide or its layout stands in for; the slide's stand-in wins.

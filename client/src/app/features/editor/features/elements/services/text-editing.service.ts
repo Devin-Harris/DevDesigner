@@ -12,7 +12,13 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeLanguage, TextRun } from '@devdesigner/shared';
-import { isColorValue, themeColorCss, resolveThemeElement, resolveThemeColor, themeSwatchCss } from '@devdesigner/shared';
+import {
+   isColorValue,
+   themeColorCss,
+   resolveThemeElement,
+   resolveThemeColor,
+   themeSwatchCss,
+} from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { elementBox, FRAME_TITLE_H, FRAME_TITLE_W } from '../../../helpers/element-geometry.helper';
@@ -911,7 +917,11 @@ export class TextEditingService {
             }
          }
          const markerText = marker.lastChild?.lastChild ?? marker.lastChild;
-         const home = next ? { node: next, offset: 0 } : markerText ? { node: markerText, offset: markerText.nodeValue?.length ?? 0 } : null;
+         const home = next
+            ? { node: next, offset: 0 }
+            : markerText
+              ? { node: markerText, offset: markerText.nodeValue?.length ?? 0 }
+              : null;
          const prev = this.lastCaret;
          const wasHome = !!home && !!prev && prev.node === home.node && prev.offset === home.offset;
          const block = marker.closest('.li-line');

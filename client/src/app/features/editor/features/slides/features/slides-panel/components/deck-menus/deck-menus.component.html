@@ -1,0 +1,77 @@
+@if (s.part() === 'theme-menu' || s.part() === 'design-menu') {
+   @let isTheme = s.part() === 'theme-menu';
+   <div class="dd-menu rec-menu">
+      @for (g of isTheme ? s.themeGroups() : s.designGroups(); track g.name) {
+         <div class="f-lab grp">{{ g.name }}</div>
+         @for (o of g.items; track o.id) {
+            @if (s.renaming() === o.id) {
+               <input
+                  class="rec-input"
+                  ddAutofocus
+                  ddAutofocusSelect="textarea"
+                  [value]="o.name"
+                  [attr.aria-label]="'Rename ' + o.name"
+                  (keydown.enter)="s.finishRename(o.id, $any($event.target).value)"
+                  (keydown.escape)="s.renaming.set(null)"
+                  (blur)="s.finishRename(o.id, $any($event.target).value)"
+                  (pointerdown)="$event.stopPropagation()"
+               />
+            } @else {
+               <div class="rec-row" [class.on]="o.on">
+                  <button
+                     class="dd-menu-item rec-pick"
+                     type="button"
+                     [disabled]="!s.canEdit()"
+                     (click)="isTheme ? s.pickTheme(o.id) : s.pickDesign(o.id)"
+                  >
+                     @if (isTheme && o.theme) {
+                        <span class="rec-sw">
+                           @for (k of ['background', 'heading', 'accent1', 'accent2']; track k) {
+                              <span [style.background]="s.css($any(o.theme.colors)[k])"></span>
+                           }
+                        </span>
+                     }
+                     {{ o.name }}
+                  </button>
+                  @if (o.custom && s.canEdit()) {
+                     <button
+                        class="rec-edit"
+                        type="button"
+                        title="Rename"
+                        [attr.aria-label]="'Rename ' + o.name"
+                        (click)="s.renaming.set(o.id)"
+                     >
+                        <dd-icon name="edit" />
+                     </button>
+                     <button
+                        class="rec-edit del"
+                        type="button"
+                        title="Delete"
+                        [attr.aria-label]="'Delete ' + o.name"
+                        (click)="isTheme ? s.deleteThemeById(o.id) : s.deleteDesignById(o.id)"
+                     >
+                        <dd-icon name="delete" />
+                     </button>
+                  }
+               </div>
+            }
+         }
+      }
+   </div>
+}
+
+@if (s.part() === 'size-menu') {
+   <div class="dd-menu">
+      @for (o of s.sizeOptions(); track o.value) {
+         <button
+            class="dd-menu-item"
+            type="button"
+            [class.on]="o.value === s.sizeValue()"
+            [disabled]="!s.canEdit()"
+            (click)="s.setSize(o.value); s.command.emit({ kind: 'close' })"
+         >
+            {{ o.label }}
+         </button>
+      }
+   </div>
+}

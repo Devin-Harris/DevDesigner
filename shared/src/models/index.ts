@@ -492,6 +492,15 @@ export interface SequenceDiagramModel {
   headerHeight: number;
   /** Text / arrowhead / label-box size multiple (Ctrl + resize scales it); absent = 1. */
   scale?: number;
+  /**
+   * Bounds beyond the content (a plain resize grows the box without respacing):
+   * the box starts `padLeft`/`padTop` outside the content box and is at least
+   * `boxWidth` x `boxHeight`. Absent / 0 = hug the content.
+   */
+  padLeft?: number;
+  padTop?: number;
+  boxWidth?: number;
+  boxHeight?: number;
   /** World-space Y where this diagram's lifeline spines begin. */
   originY: number;
   /**

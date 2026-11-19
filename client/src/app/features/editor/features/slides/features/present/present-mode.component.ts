@@ -13,34 +13,16 @@ import {
    untracked,
    viewChild,
 } from '@angular/core';
-import type { SlideEasing } from '@devdesigner/shared';
 import { transitionMorphs } from '@devdesigner/shared';
-import { LOCAL_LASER, LaserService } from '../../../../../../core/realtime/laser.service';
 import { RealtimeService } from '../../../../../../core/realtime/realtime.service';
 import { notifySignal } from '../../../../../../shared/helpers/signals';
-import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
-import { MorphStage } from '../../services/morph-stage';
-import { parseSafeSvg } from '../../helpers/svg-sanitize.helper';
 import { slideAtStep, type RenderedSlide, type SlideMedia } from '../../services/slide-render.service';
 import { SlideMediaLayerComponent } from './components/slide-media-layer/slide-media-layer.component';
 import { playGroup, undoGroup } from './helpers/step-animator';
-import { ease } from '../../helpers/ease.helper';
-
-/** Unit vector (x, y) the slides travel along for a `slide` transition direction. */
-/** A transition layer sized and clipped to a `width` x `height` slide, centred on screen. */
-function framedLayer(width: number, height: number): HTMLElement {
-   const el = document.createElement('div');
-   el.className = 'layer framed';
-   el.style.setProperty('--slide-ar', String(width / Math.max(1, height)));
-   return el;
-}
-
-const TRAVEL: Record<string, [number, number]> = {
-   left: [-1, 0],
-   right: [1, 0],
-   up: [0, -1],
-   down: [0, 1],
-};
+import { TransitionRunner, transitionAnimates, transitionSetup } from './helpers/transition-runner';
+import { LaserOverlayComponent } from './components/laser-overlay/laser-overlay.component';
+import { PresenterControlsComponent } from './components/presenter-controls/presenter-controls.component';
+import { StopClicksDirective } from '../../../../../../shared/ui/directives/stop-clicks.directive';
 
 /**
  * Full-screen slide presenter. Each slide is a pre-rendered SVG (the same image
@@ -53,7 +35,7 @@ const TRAVEL: Record<string, [number, number]> = {
 @Component({
    selector: 'dd-present-mode',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [IconComponent, SlideMediaLayerComponent],
+   imports: [StopClicksDirective, LaserOverlayComponent, PresenterControlsComponent, SlideMediaLayerComponent],
    templateUrl: './present-mode.component.html',
    styleUrl: './present-mode.component.scss',
    host: {
@@ -74,15 +56,13 @@ export class PresentModeComponent {
 
    private readonly destroyRef = inject(DestroyRef);
    private readonly realtime = inject(RealtimeService);
-   private readonly laserState = inject(LaserService);
    private readonly rootRef = viewChild.required<ElementRef<HTMLElement>>('root');
    private readonly overlayRef = viewChild.required<ElementRef<HTMLElement>>('overlay');
-   private readonly stageRef = viewChild.required<ElementRef<HTMLElement>>('stage');
+   private readonly controls = viewChild(PresenterControlsComponent);
 
    protected readonly index = signal(0);
    /** Build step shown on the current slide (0 = nothing revealed yet). */
    protected readonly step = signal(0);
-   protected readonly busy = signal(false);
    protected readonly showNotes = signal(false);
    /** Overview of every slide (G); click one to jump there. */
    protected readonly showGrid = signal(false);
@@ -94,13 +74,6 @@ export class PresentModeComponent {
    private cursorTimer: ReturnType<typeof setTimeout> | null = null;
    protected readonly laserOn = signal(false);
    protected readonly resized$ = notifySignal();
-   /** How far the user has dragged the control bar from its bottom-centre home. */
-   protected readonly barOffset = signal({ x: 0, y: 0 });
-   protected readonly barTransform = computed(() => {
-      const o = this.barOffset();
-      return `translate(calc(-50% + ${o.x}px), ${o.y}px)`;
-   });
-   protected barDrag: { id: number; sx: number; sy: number; ox: number; oy: number } | null = null;
    private readonly seconds = signal(0);
 
    /** Object URLs per slide per build step (one entry for slides without steps), revoked on destroy. */
@@ -157,43 +130,12 @@ export class PresentModeComponent {
       return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
    });
 
-   /** Laser trails (ours and collaborators') mapped from canvas space onto the shown slide. */
-   protected readonly lasers = computed(() => {
-      this.resized$();
-      const slide = this.slides()[this.index()];
-      const views = this.laserState.views();
-      if (!slide || !views.length) {
-         return [];
-      }
-      const to = (p: { x: number; y: number }): { x: number; y: number } => this.toScreen(slide, p);
-      return views.map((view) => {
-         const pts = view.points.map((p) => ({ ...to(p), age: p.age, start: p.start }));
-         const segments = [];
-         for (let i = 1; i < pts.length; i += 1) {
-            if (pts[i].start) {
-               continue;
-            }
-            const life = 1 - (pts[i - 1].age + pts[i].age) / 2;
-            segments.push({
-               x1: pts[i - 1].x,
-               y1: pts[i - 1].y,
-               x2: pts[i].x,
-               y2: pts[i].y,
-               opacity: Math.max(0, life),
-               width: 2 + 4 * life,
-            });
-         }
-         return { id: view.id, segments, head: view.head ? to(view.head) : null };
-      });
-   });
-
-   private cancelRun: (() => void) | null = null;
-   private runSeq = 0;
+   /** Plays transitions on the overlay layers. */
+   private readonly runner = new TransitionRunner(() => this.overlayRef().nativeElement);
+   protected readonly busy = this.runner.busy;
    private idleTimer: ReturnType<typeof setTimeout> | null = null;
    private fullscreen = false;
    private closing = false;
-   private laserPointer: number | null = null;
-   private lastLaserSent = 0;
 
    constructor() {
       afterNextRender(() => {
@@ -259,13 +201,9 @@ export class PresentModeComponent {
          if (this.cursorTimer) {
             clearTimeout(this.cursorTimer);
          }
-         this.cancelRun?.();
+         this.runner.cancel();
          if (!this.follow() && !this.autoplay()) {
             this.realtime.sendPresenting(null);
-         }
-         if (this.laserPointer !== null) {
-            this.laserState.release(LOCAL_LASER);
-            this.realtime.sendLaser(0, 0, true);
          }
          for (const per of this.urlList()) {
             for (const u of per) {
@@ -312,7 +250,7 @@ export class PresentModeComponent {
    }
 
    private async forward(): Promise<void> {
-      this.cancelRun?.();
+      this.runner.cancel();
       const i = this.index();
       if (this.step() < this.maxStepOf(i)) {
          await this.goStep(this.step() + 1);
@@ -322,7 +260,7 @@ export class PresentModeComponent {
    }
 
    private async backward(): Promise<void> {
-      this.cancelRun?.();
+      this.runner.cancel();
       const i = this.index();
       if (this.step() > this.firstStep(i)) {
          await this.goStep(this.step() - 1);
@@ -340,7 +278,7 @@ export class PresentModeComponent {
    protected jumpTo(i: number): void {
       this.showGrid.set(false);
       if (this.follow() || i === this.index()) return;
-      this.cancelRun?.();
+      this.runner.cancel();
       void this.go(i, this.firstStep(i), true);
    }
 
@@ -369,7 +307,7 @@ export class PresentModeComponent {
       this.cursorTimer = setTimeout(() => {
          this.cursorTimer = null;
          // Keep the cursor while it rests on the visible bar or a drag is underway.
-         if (!this.barVisible() && !this.barDrag) {
+         if (!this.barVisible() && !this.controls()?.dragging()) {
             this.cursorVisible.set(false);
          }
       }, 2600);
@@ -384,7 +322,7 @@ export class PresentModeComponent {
       const r = bar?.getBoundingClientRect();
       const pad = 12;
       const overBar =
-         !!this.barDrag ||
+         !!this.controls()?.dragging() ||
          (!!r &&
             event.clientX >= r.left - pad &&
             event.clientX <= r.right + pad &&
@@ -401,37 +339,6 @@ export class PresentModeComponent {
             this.idleTimer = null;
             this.barVisible.set(false);
          }, 400);
-      }
-   }
-
-   protected onBarDown(event: PointerEvent): void {
-      event.preventDefault();
-      event.stopPropagation();
-      try {
-         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      } catch {
-         /* synthetic pointers can refuse capture */
-      }
-      const o = this.barOffset();
-      this.barDrag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, ox: o.x, oy: o.y };
-   }
-
-   protected onBarMove(event: PointerEvent): void {
-      const d = this.barDrag;
-      if (!d || d.id !== event.pointerId) {
-         return;
-      }
-      // Keep the bar on screen: centre stays within the viewport horizontally, and it can
-      // travel from its bottom spot up to the top edge.
-      const halfW = window.innerWidth / 2 - 40;
-      const x = Math.max(-halfW, Math.min(halfW, d.ox + event.clientX - d.sx));
-      const y = Math.max(-(window.innerHeight - 70), Math.min(0, d.oy + event.clientY - d.sy));
-      this.barOffset.set({ x, y });
-   }
-
-   protected onBarUp(event: PointerEvent): void {
-      if (this.barDrag?.id === event.pointerId) {
-         this.barDrag = null;
       }
    }
 
@@ -473,14 +380,14 @@ export class PresentModeComponent {
          case 'Home':
             handled();
             if (!this.follow()) {
-               this.cancelRun?.();
+               this.runner.cancel();
                void this.go(0, 0, true);
             }
             break;
          case 'End':
             handled();
             if (!this.follow()) {
-               this.cancelRun?.();
+               this.runner.cancel();
                const last = this.slides().length - 1;
                void this.go(last, this.maxStepOf(last), true);
             }
@@ -494,7 +401,7 @@ export class PresentModeComponent {
          case 'K':
             handled();
             this.toggleLaser();
-            if (!this.laserOn() && !this.barVisible() && !this.barDrag) {
+            if (!this.laserOn() && !this.barVisible() && !this.controls()?.dragging()) {
                // Turning the laser off from the keyboard drops the cursor with it.
                if (this.cursorTimer) {
                   clearTimeout(this.cursorTimer);
@@ -522,84 +429,11 @@ export class PresentModeComponent {
       }
    }
 
-   // ---- laser ----
-
-   /** Where a canvas-space point lands on screen, given how the slide is fitted to the stage. */
-   private toScreen(slide: RenderedSlide, p: { x: number; y: number }): { x: number; y: number } {
-      const r = this.stageRef().nativeElement.getBoundingClientRect();
-      const s = Math.min(r.width / slide.width, r.height / slide.height);
-      const ox = (r.width - slide.width * s) / 2;
-      const oy = (r.height - slide.height * s) / 2;
-      return { x: ox + (p.x - slide.originX) * s, y: oy + (p.y - slide.originY) * s };
-   }
-
-   private toCanvas(clientX: number, clientY: number): { x: number; y: number } | null {
-      const slide = this.slides()[this.index()];
-      if (!slide) {
-         return null;
-      }
-      const r = this.stageRef().nativeElement.getBoundingClientRect();
-      const s = Math.min(r.width / slide.width, r.height / slide.height);
-      const ox = (r.width - slide.width * s) / 2;
-      const oy = (r.height - slide.height * s) / 2;
-      return {
-         x: slide.originX + (clientX - r.left - ox) / s,
-         y: slide.originY + (clientY - r.top - oy) / s,
-      };
-   }
-
-   protected onLaserDown(event: PointerEvent): void {
-      event.preventDefault();
-      event.stopPropagation();
-      try {
-         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      } catch {
-         /* synthetic pointers can refuse capture */
-      }
-      this.laserPointer = event.pointerId;
-      this.laserSample(event, true);
-   }
-
-   protected onLaserMove(event: PointerEvent): void {
-      if (this.laserPointer === event.pointerId) {
-         this.laserSample(event, false);
-      }
-   }
-
-   protected onLaserUp(event: PointerEvent): void {
-      if (this.laserPointer !== event.pointerId) {
-         return;
-      }
-      event.stopPropagation();
-      const w = this.toCanvas(event.clientX, event.clientY);
-      this.laserPointer = null;
-      this.laserState.release(LOCAL_LASER);
-      if (w) {
-         this.realtime.sendLaser(w.x, w.y, true);
-      }
-   }
-
-   private laserSample(event: PointerEvent, force: boolean): void {
-      const w = this.toCanvas(event.clientX, event.clientY);
-      if (!w) {
-         return;
-      }
-      this.laserState.add(LOCAL_LASER, w.x, w.y);
-      const now = Date.now();
-      if (!force && now - this.lastLaserSent < 33) {
-         return;
-      }
-      this.lastLaserSent = now;
-      if (this.realtime.hasPeers()) {
-         this.realtime.sendLaser(w.x, w.y);
-      }
-   }
-
    // ---- transitions ----
 
    /** Go to a specific slide + step (used when following a presenter). */
    private async goTo(index: number, step: number): Promise<void> {
-      this.cancelRun?.();
+      this.runner.cancel();
       if (index === this.index()) {
          if (step !== this.step()) {
             await this.goStep(step);
@@ -626,33 +460,31 @@ export class PresentModeComponent {
          const group = slide.plan.groups[k - 1];
          const mix = slide.mixSvgs[k];
          if (group && mix) {
-            await this.runLayers(
-               '',
-               '',
-               0,
-               'linear',
-               () => undefined,
-               () => this.step.set(target),
-               undefined,
-               {
+            await this.runner.run({
+               fromUrl: '',
+               toUrl: '',
+               duration: 0,
+               easing: 'linear',
+               setup: () => undefined,
+               commit: () => this.step.set(target),
+               live: {
                   markup: mix,
                   width: slide.width,
                   height: slide.height,
                   play: (svg, add) => (forward ? playGroup : undoGroup)(svg, slide, group, add).duration,
-               }
-            );
+               },
+            });
             return;
          }
       }
-      const dur = 280;
-      await this.runLayers(
-         this.urlFor(i, from),
-         this.urlFor(i, target),
-         dur,
-         'ease',
-         (_out, inc, animate) => animate(inc, [{ opacity: 0 }, { opacity: 1 }]),
-         () => this.step.set(target)
-      );
+      await this.runner.run({
+         fromUrl: this.urlFor(i, from),
+         toUrl: this.urlFor(i, target),
+         duration: 280,
+         easing: 'ease',
+         setup: (_out, inc, animate) => animate(inc, [{ opacity: 0 }, { opacity: 1 }]),
+         commit: () => this.step.set(target),
+      });
    }
 
    /**
@@ -688,7 +520,7 @@ export class PresentModeComponent {
          this.index.set(target);
          this.step.set(toStep);
       };
-      if (instant || !adjacent || (t.type === 'none' && !transitionMorphs(t)) || t.duration <= 0) {
+      if (instant || !adjacent || !transitionAnimates(t)) {
          commit();
          return;
       }
@@ -701,180 +533,14 @@ export class PresentModeComponent {
       const isMorph = transitionMorphs(t) && sameSize;
       const fromView = slideAtStep(slides[from], this.step());
       const toView = slideAtStep(slides[target], toStep);
-      await this.runLayers(
-         this.urlFor(from, this.step()),
-         this.urlFor(target, toStep),
-         t.duration,
-         t.easing,
-         (out, inc, animate) => {
-            if (t.type === 'fade' || t.type === 'morph') {
-               animate(inc, [{ opacity: 0 }, { opacity: 1 }]);
-            } else if (t.type === 'slide') {
-               // The slides travel in `direction`; coming back, they travel the other way.
-               const base = TRAVEL[t.direction ?? 'left'] ?? TRAVEL['left'];
-               const [dx, dy] = forward ? base : [-base[0], -base[1]];
-               animate(out, [{ transform: 'translate(0, 0)' }, { transform: `translate(${dx * 100}%, ${dy * 100}%)` }]);
-               animate(inc, [
-                  { transform: `translate(${-dx * 100}%, ${-dy * 100}%)` },
-                  { transform: 'translate(0, 0)' },
-               ]);
-            } else {
-               // zoom: the new slide grows into place while the old one swells and fades.
-               animate(out, [
-                  { transform: 'scale(1)', opacity: 1 },
-                  { transform: `scale(${forward ? 1.4 : 0.6})`, opacity: 0 },
-               ]);
-               animate(inc, [
-                  { transform: `scale(${forward ? 0.6 : 1.4})`, opacity: 0 },
-                  { transform: 'scale(1)', opacity: 1 },
-               ]);
-            }
-         },
+      await this.runner.run({
+         fromUrl: this.urlFor(from, this.step()),
+         toUrl: this.urlFor(target, toStep),
+         duration: t.duration,
+         easing: t.easing,
+         setup: transitionSetup(t, forward),
          commit,
-         isMorph ? { from: fromView, to: toView, reversed: !forward } : undefined
-      );
-   }
-
-   /**
-    * Run one transition on temporary overlay layers. `setup` receives the
-    * outgoing/incoming layers and an animate helper; with `morph` the layers are
-    * replaced by a live morph stage. `commit` applies the final state.
-    */
-   private runLayers(
-      fromUrl: string,
-      toUrl: string,
-      duration: number,
-      easing: SlideEasing,
-      setup: (out: HTMLElement, inc: HTMLElement, animate: (el: HTMLElement, frames: Keyframe[]) => void) => void,
-      commit: () => void,
-      morph?: { from: RenderedSlide; to: RenderedSlide; reversed?: boolean },
-      /** Animate objects of a live slide picture; `play` returns the total length (ms). */
-      live?: {
-         markup: string;
-         width: number;
-         height: number;
-         play: (svg: SVGSVGElement, add: (a: Animation) => void) => number;
-      }
-   ): Promise<void> {
-      const overlay = this.overlayRef().nativeElement;
-      overlay.replaceChildren();
-      const seq = (this.runSeq += 1);
-      this.busy.set(true);
-
-      return new Promise<void>((resolve) => {
-         let raf = 0;
-         const animations: Animation[] = [];
-         let stage: MorphStage | null = null;
-         let done = false;
-         const finish = (): void => {
-            if (done) {
-               return;
-            }
-            done = true;
-            cancelAnimationFrame(raf);
-            // A live layer keeps its end state until it is removed, so an object that just left
-            // does not flash back for the frames before the committed picture shows.
-            for (const a of animations) {
-               if (live) {
-                  a.finish();
-               } else {
-                  a.cancel();
-               }
-            }
-            this.cancelRun = null;
-            // Show the result first, and only then take the transition layers away, so
-            // there is never a frame with neither on screen (the black flash).
-            commit();
-            this.busy.set(false);
-            let cleared = false;
-            const clear = (): void => {
-               if (cleared) {
-                  return;
-               }
-               cleared = true;
-               stage?.dispose();
-               if (this.runSeq === seq) {
-                  overlay.replaceChildren();
-               }
-            };
-            requestAnimationFrame(() => requestAnimationFrame(clear));
-            setTimeout(clear, 120);
-            resolve();
-         };
-         this.cancelRun = finish;
-
-         const layer = (url: string): HTMLElement => {
-            const el = document.createElement('div');
-            el.className = 'layer';
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = '';
-            img.draggable = false;
-            el.appendChild(img);
-            overlay.appendChild(el);
-            return el;
-         };
-
-         if (live) {
-            const host = framedLayer(live.width, live.height);
-            const parsed = parseSafeSvg(live.markup);
-            if (parsed) {
-               host.appendChild(document.importNode(parsed, true));
-            }
-            overlay.appendChild(host);
-            const svg = host.querySelector('svg');
-            if (!svg) {
-               finish();
-               return;
-            }
-            const total = live.play(svg, (a) => animations.push(a));
-            // Settle when every motion has finished (or after the plan's length, if none ran).
-            const settled = Promise.allSettled(animations.map((a) => a.finished));
-            const timer = setTimeout(finish, total + 400);
-            void settled.then(() => {
-               clearTimeout(timer);
-               finish();
-            });
-            return;
-         }
-
-         if (morph) {
-            const s = new MorphStage(morph.from, morph.to, morph.reversed);
-            stage = s;
-            const host = framedLayer(morph.to.width, morph.to.height);
-            host.appendChild(s.svg);
-            overlay.appendChild(host);
-            void s.prepare().then(() => {
-               if (done) {
-                  return;
-               }
-               const begin = performance.now();
-               const tick = (now: number): void => {
-                  const p = Math.min(1, (now - begin) / duration);
-                  s.update(ease(easing, p));
-                  if (p < 1 && !done) {
-                     raf = requestAnimationFrame(tick);
-                  } else {
-                     finish();
-                  }
-               };
-               raf = requestAnimationFrame(tick);
-            });
-            return;
-         }
-
-         const outgoing = layer(fromUrl);
-         const incoming = layer(toUrl);
-         const animate = (el: HTMLElement, frames: Keyframe[]): void => {
-            animations.push(el.animate(frames, { duration, easing, fill: 'both' }));
-         };
-         setup(outgoing, incoming, animate);
-         const last = animations[animations.length - 1];
-         if (last) {
-            void last.finished.then(finish, finish);
-         } else {
-            finish();
-         }
+         morph: isMorph ? { from: fromView, to: toView, reversed: !forward } : undefined,
       });
    }
 }

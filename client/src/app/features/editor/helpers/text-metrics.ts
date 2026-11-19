@@ -184,7 +184,7 @@ export function withTextFit<T extends object>(el: CanvasElementModel, patch: T):
    if (el.type !== 'text' || !LAYOUT_KEYS.some((k) => k in patch)) {
       return patch;
    }
-   const next = { ...el, ...patch } as CanvasElementModel;
+   const next = { ...el, ...patch } satisfies CanvasElementModel;
    const size = fitTextElement(next);
    return { ...patch, width: size.width, height: size.height };
 }

@@ -12,7 +12,13 @@ import {
    presentationLayouts,
    DEFAULT_SLIDE_TRANSITION,
 } from '@devdesigner/shared';
-import { boxToOuter, MIN_SLIDE_ZOOM_FLOOR, slideViewRegion, toInner, toOuter } from '../../../helpers/slide-zoom.helper';
+import {
+   boxToOuter,
+   MIN_SLIDE_ZOOM_FLOOR,
+   slideViewRegion,
+   toInner,
+   toOuter,
+} from '../../../helpers/slide-zoom.helper';
 import { ProjectStore } from '../../../state/project/project.store';
 import { fillFromLayout } from '../../../helpers/layout-placeholders';
 import { frameContents, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';

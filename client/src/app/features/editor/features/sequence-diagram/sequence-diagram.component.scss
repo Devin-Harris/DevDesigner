@@ -221,6 +221,33 @@
    }
 }
 
+// Row-gap band across the box between two message rows: invisible until hovered,
+// then a thin line + ns cursor. Sits under the spines so drag-to-connect still wins there.
+.seq-gap {
+   position: absolute;
+   transform: translateY(-50%);
+   height: 10px;
+   pointer-events: auto;
+   touch-action: none;
+   cursor: ns-resize;
+   z-index: 2;
+
+   &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1.5px dashed var(--dd-primary);
+      opacity: 0;
+      transition: opacity 0.12s;
+   }
+
+   &:hover::after {
+      opacity: 0.7;
+   }
+}
+
 .msg-line {
    position: absolute;
    height: 0;

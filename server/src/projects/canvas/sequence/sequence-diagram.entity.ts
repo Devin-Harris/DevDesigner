@@ -41,6 +41,19 @@ export class SequenceDiagramEntity {
   @Column({ type: 'float', nullable: true })
   scale!: number | null;
 
+  /** Box bounds beyond the content (plain resize); null = hug the content. */
+  @Column({ type: 'float', nullable: true })
+  padLeft!: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  padTop!: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  boxWidth!: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  boxHeight!: number | null;
+
   @Column({ type: 'float', default: 0 })
   originY!: number;
 

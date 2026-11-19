@@ -116,30 +116,14 @@ const boundaryPolicies = [
 // Known violations, kept visible as WARNINGS until the listed pass removes them. Do not add to this
 // list without a pass/step reference; shrink it as the work lands.
 const boundaryExceptions = [
-   // Pass 3 (C3.x): presentational editor components that still inject ProjectStore. Each gets
-   // inputs/outputs when its sub-feature is decomposed.
-   'src/app/features/editor/features/canvas/components/canvas-shapes/canvas-shapes.component.ts',
-   'src/app/features/editor/features/elements/components/element-floating-toolbar/element-floating-toolbar.component.ts',
-   'src/app/features/editor/features/elements/components/element-inspector/element-inspector.component.ts',
-   'src/app/features/editor/features/elements/components/image-crop-overlay/image-crop-overlay.component.ts',
-   'src/app/features/editor/features/erd/components/inspector/inspector.component.ts',
-   'src/app/features/editor/features/erd/components/relationship-inspector/relationship-inspector.component.ts',
-   'src/app/features/editor/features/erd/components/table-node/table-node.component.ts',
-   'src/app/features/editor/features/erd/components/table-toolbar/table-toolbar.component.ts',
-   'src/app/features/editor/features/sequence-diagram/components/sequence-inspector/sequence-inspector.component.ts',
-   'src/app/features/editor/features/sequence-diagram/components/sequence-message-toolbar/sequence-message-toolbar.component.ts',
-   'src/app/features/editor/features/sequence-diagram/components/sequence-participant-toolbar/sequence-participant-toolbar.component.ts',
    // canvas-sequence no longer reads the store (C3.7) but composes the sequence-diagram entry, a sibling
    // sub-feature: Pass 3 adds canvas.component, which composes sub-feature entries instead.
    'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
 
-   // C3.1: the sandbox measures code blocks/fonts with editor helpers until they move to @devdesigner/shared.
+   // C3.1: the sandbox measures code blocks with editor helpers until they move to @devdesigner/shared.
    'src/app/core/sandbox/sandbox-backend.service.ts',
-   'src/app/core/sandbox/sandbox-seeds.helper.ts',
    'src/app/core/sandbox/sandbox-schema.helpers.ts',
 
-   // Pass 3: downloadText comes from the editor's export helpers (move it down to shared/helpers).
-   'src/app/shared/services/project-file.service.ts',
    // Pass 3: thumbnails render with the editor's diagram SVG/frame helpers (move them to a shared renderer).
    'src/app/shared/features/projects-overlay/services/project-thumbnail.service.ts',
 ];
@@ -176,7 +160,8 @@ export default tseslint.config(
          '@angular-eslint/prefer-output-readonly': 'error',
          '@angular-eslint/use-lifecycle-interface': 'error',
          // Still warnings: 32 renamed inputs across 8 components (public binding names; needs template updates).
-         '@angular-eslint/no-input-rename': 'warn',
+         // Off: the signal convention names inputs `name$` and aliases them to `name` (frontend conventions).
+         '@angular-eslint/no-input-rename': 'off',
          'no-restricted-syntax': [
             'error',
             {
@@ -192,9 +177,9 @@ export default tseslint.config(
          'no-console': ['error', { allow: ['warn', 'error'] }],
          '@typescript-eslint/no-explicit-any': 'error',
          '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
-         // Still warnings: 61 object-literal `as` assertions in 16 files (each needs a typed const).
+         // Object literals use `satisfies` or a typed const; the few deliberate partial rows say why inline.
          '@typescript-eslint/consistent-type-assertions': [
-            'warn',
+            'error',
             { assertionStyle: 'as', objectLiteralTypeAssertions: 'allow-as-parameter' },
          ],
          // Still warnings: 14 files over 600 lines; they shrink with the C3.x component splits.
@@ -235,6 +220,8 @@ export default tseslint.config(
          'boundaries/dependencies': 'off',
          // Test hosts get generated, numbered selectors.
          '@angular-eslint/component-selector': 'off',
+         // Fixtures are deliberately partial rows.
+         '@typescript-eslint/consistent-type-assertions': 'off',
       },
    },
    {
@@ -252,9 +239,15 @@ export default tseslint.config(
          '@angular-eslint/template/banana-in-box': 'error',
          '@angular-eslint/template/no-negated-async': 'error',
          // Still warnings (17 each, keyboard/label a11y on clickable divs): need real markup changes.
-         '@angular-eslint/template/click-events-have-key-events': 'warn',
-         '@angular-eslint/template/interactive-supports-focus': 'warn',
-         '@angular-eslint/template/label-has-associated-control': 'warn',
+         '@angular-eslint/template/click-events-have-key-events': 'error',
+         '@angular-eslint/template/interactive-supports-focus': 'error',
+         '@angular-eslint/template/label-has-associated-control': [
+            'error',
+            {
+               // The design-system form controls render their own native input inside.
+               controlComponents: ['dd-input', 'dd-select', 'dd-checkbox', 'dd-segmented', 'dd-tag-input', 'dd-color-swatches'],
+            },
+         ],
          // A13: component tags are written with explicit closing tags. Do not enable.
          '@angular-eslint/template/prefer-self-closing-tags': 'off',
       },

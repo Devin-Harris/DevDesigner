@@ -100,6 +100,7 @@ import { FocusUiState } from './features/slides/features/slides-panel/services/f
 import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
 import { DeckCompareComponent } from './features/slides/features/deck-compare/deck-compare.component';
 import { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
+import type { EditorEmbedApi, EditorHostOptions } from './models/editor-embed.model';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
@@ -158,6 +159,11 @@ function readFlag(key: string, fallback: boolean): boolean {
       PresentModeComponent,
    ],
    providers: [provideEditor()],
+   host: {
+      '[class.chrome-picture]': "hostOptions().chrome === 'picture'",
+      '[class.deck-focused]': '!!deckFocus.focusedDeck()',
+      '[class.hide-seq-msgs]': '!!hostOptions().hideSequenceMessages',
+   },
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
 })
@@ -251,6 +257,8 @@ export class EditorComponent {
    readonly shareToken = input<string | null>(null);
    /** Embedded use (the canvas guide): frame the content once after it loads, at most 100%. */
    readonly fitOnLoad = input(false);
+   /** How the host embeds the editor (showcases render a chrome-less picture). */
+   readonly hostOptions = input<EditorHostOptions>({});
    private fittedProjectId: string | null = null;
    private homeAppliedFor: string | null = null;
    /** Embedded use: the tool to have active once the project loads (e.g. the guide's current tool). */
@@ -580,15 +588,15 @@ export class EditorComponent {
    }
    readonly duplicateAndDrag = (): Promise<void> => this.elementGestures.duplicateAndDrag();
 
-   // --- embed API (home showcase) ---
+   // --- embed API (home showcase, guide sandboxes) ---
 
-   showTransitionScreen(...args: Parameters<DeckFocusService['showTransitionScreen']>): void {
-      this.deckFocus.showTransitionScreen(...args);
-   }
-
-   leaveDeckFocus(): void {
-      this.deckFocus.leaveDeckFocus();
-   }
+   /** What an embedding host may drive on this editor (C3.8). */
+   readonly embed: EditorEmbedApi = {
+      showTransitionScreen: (deck, slide, view) => this.deckFocus.showTransitionScreen(deck, slide, view),
+      leaveDeckFocus: () => this.deckFocus.leaveDeckFocus(),
+      previewPlaying: this.compareUi.previewPlaying.asReadonly(),
+      togglePreviewPlay: () => this.compareUi.previewPlayRequests.update((n) => n + 1),
+   };
    readonly insertImages = (files: File[]): Promise<void> => this.mediaDrop.insertImages(files);
 
    protected addTableCentered(): void {

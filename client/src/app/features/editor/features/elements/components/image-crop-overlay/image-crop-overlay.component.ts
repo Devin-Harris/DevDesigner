@@ -12,7 +12,7 @@ import {
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import { MediaActionsService, cleanMedia } from '../../../../services/media-actions.service';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ElementEdits } from '../../services/element-edits.service';
 import { cropFor, mediaSourceRect, type Rect } from '../../../../helpers/media.helper';
 import { imageView } from '../../../../helpers/render';
 
@@ -39,7 +39,7 @@ const MIN_SIDE = 8;
 export class ImageCropOverlayComponent {
    readonly element = input.required<CanvasElementModel>();
 
-   private readonly store = inject(ProjectStore);
+   private readonly edits = inject(ElementEdits);
    private readonly images = inject(ElementImagesService);
    private readonly media = inject(MediaActionsService);
 
@@ -87,7 +87,7 @@ export class ImageCropOverlayComponent {
    }
 
    /** Handles stay ~10 screen px whatever the zoom. */
-   protected readonly handleSize = computed(() => 10 / this.store.viewport().zoom);
+   protected readonly handleSize = computed(() => 10 / this.edits.viewport().zoom);
    protected readonly origin = computed(() => {
       const e = this.element();
       return `${e.x + e.width / 2}px ${e.y + e.height / 2}px`;
@@ -142,7 +142,7 @@ export class ImageCropOverlayComponent {
       this.start = { box: { ...d.box }, src: { ...d.src } };
       const x0 = event.clientX;
       const y0 = event.clientY;
-      const zoom = this.store.viewport().zoom;
+      const zoom = this.edits.viewport().zoom;
       const angle = this.element().angle || 0;
       const move = (ev: PointerEvent): void => {
          // Screen delta -> the element's unrotated frame.
@@ -251,7 +251,7 @@ export class ImageCropOverlayComponent {
          src = { ...src, x: src.x + rx - ncx, y: src.y + ry - ncy };
       }
       const box = { x, y, width: d.box.width, height: d.box.height };
-      await this.store.updateElement(e.id, {
+      await this.edits.updateElement(e.id, {
          ...box,
          media: cleanMedia({ ...e.media, crop: cropFor(box, src) }),
       });

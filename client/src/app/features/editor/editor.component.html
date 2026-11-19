@@ -1064,6 +1064,8 @@
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
             (diagramPatch)="store.updateSequenceConfig($event.id, $event.patch)"
+            (spaceEvenly)="store.spaceSequenceEvenly($event)"
+            (fitToContent)="store.fitSequenceToContent($event)"
          ></dd-sequence-diagram-toolbar>
       }
 

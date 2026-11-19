@@ -517,6 +517,13 @@ function parseImage(raw: unknown, path: string): ProjectExportImage {
   };
 }
 
+/** A diagram box bound: a positive number, or absent (0 / null / missing = hug the content). */
+function optBound(o: Record<string, unknown>, key: string, path: string): number | undefined {
+  if (o[key] === undefined || o[key] === null) return undefined;
+  const v = Math.min(100_000, Math.max(0, num(o, key, path, 0)));
+  return v > 0 ? v : undefined;
+}
+
 function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
   const d = obj(raw, path);
   return {
@@ -525,6 +532,10 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     rowSpacing: num(d, 'rowSpacing', path, 48),
     headerHeight: num(d, 'headerHeight', path, 42),
     scale: d['scale'] === undefined || d['scale'] === null ? undefined : Math.min(20, Math.max(0.05, num(d, 'scale', path, 1))),
+    padLeft: optBound(d, 'padLeft', path),
+    padTop: optBound(d, 'padTop', path),
+    boxWidth: optBound(d, 'boxWidth', path),
+    boxHeight: optBound(d, 'boxHeight', path),
     originY: num(d, 'originY', path, 0),
     zIndex: num(d, 'zIndex', path, -1),
     groupId: optStr(d, 'groupId', path, 100),

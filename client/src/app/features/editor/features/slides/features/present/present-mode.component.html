@@ -1,9 +1,9 @@
+<!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -- keys are handled on the document (onKey) -->
 <div
    #root
    class="present"
    tabindex="-1"
    [class.idle]="!cursorVisible()"
-   [class.bar-hidden]="!barVisible()"
    (click)="next()"
    (pointermove)="onPresentMove($event)"
 >
@@ -41,46 +41,25 @@
       }
    </div>
 
-   @if (lasers().length) {
-      <svg class="laser-svg" aria-hidden="true">
-         @for (l of lasers(); track l.id) {
-            @for (s of l.segments; track $index) {
-               <line
-                  class="trail"
-                  [attr.x1]="s.x1"
-                  [attr.y1]="s.y1"
-                  [attr.x2]="s.x2"
-                  [attr.y2]="s.y2"
-                  [attr.stroke-width]="s.width"
-                  [attr.opacity]="s.opacity"
-               />
-            }
-            @if (l.head; as h) {
-               <circle class="glow" r="12" [attr.cx]="h.x" [attr.cy]="h.y" />
-               <circle class="dot" r="5" [attr.cx]="h.x" [attr.cy]="h.y" />
-            }
-         }
-      </svg>
-   }
-
-   @if (laserOn()) {
-      <div
-         class="laser-capture"
-         (click)="$event.stopPropagation()"
-         (pointerdown)="onLaserDown($event)"
-         (pointermove)="onLaserMove($event)"
-         (pointerup)="onLaserUp($event)"
-         (pointercancel)="onLaserUp($event)"
-      ></div>
-   }
+   <dd-laser-overlay
+      [slide]="slides()[index()]"
+      [stage]="stage"
+      [capturing]="laserOn()"
+      [layoutTick]="resized$()"
+   ></dd-laser-overlay>
 
    @if (following(); as who) {
-      <div class="follow" (click)="$event.stopPropagation()">Following {{ who }} · Esc to leave</div>
+      <div class="follow" ddStopClicks>Following {{ who }} · Esc to leave</div>
    }
 
    @if (showGrid()) {
-      <div class="slide-grid" (click)="$event.stopPropagation(); showGrid.set(false)">
-         <div class="sg-list" (click)="$event.stopPropagation()">
+      <div
+      class="slide-grid"
+      tabindex="-1"
+      (click)="$event.stopPropagation(); showGrid.set(false)"
+      (keydown.escape)="showGrid.set(false)"
+   >
+         <div class="sg-list" ddStopClicks>
             @for (u of gridThumbs(); track $index) {
                <button class="sg-item" type="button" [class.on]="$index === index()" (click)="jumpTo($index)">
                   <img alt="" draggable="false" [src]="u" />
@@ -92,7 +71,7 @@
    }
 
    @if (showNotes()) {
-      <aside class="notes" (click)="$event.stopPropagation()">
+      <aside class="notes" ddStopClicks>
          <h3>Speaker notes</h3>
          @if (current().notes) {
             <p>{{ current().notes }}</p>
@@ -102,82 +81,26 @@
       </aside>
    }
 
-   <div
-      class="bar"
-      [class.dragging]="barDrag !== null"
-      [style.transform]="barTransform()"
-      (click)="$event.stopPropagation()"
-   >
-      <span
-         class="grip"
-         title="Drag to move · double-click to reset"
-         (pointerdown)="onBarDown($event)"
-         (pointermove)="onBarMove($event)"
-         (pointerup)="onBarUp($event)"
-         (pointercancel)="onBarUp($event)"
-         (dblclick)="barOffset.set({ x: 0, y: 0 })"
-      ></span>
-      <button
-         class="btn"
-         type="button"
-         aria-label="Previous"
-         [disabled]="!!following() || (index() === 0 && step() <= firstStep(0))"
-         (click)="prev()"
-      >
-         <dd-icon name="chevron_left" />
-      </button>
-      <span class="count">
-         {{ index() + 1 }} / {{ slides().length }}
-         @if (clicks() > 0) {
-            <small>· {{ clickStep() }}/{{ clicks() }}</small>
-         }
-      </span>
-      <button
-         class="btn"
-         type="button"
-         aria-label="Next"
-         [disabled]="!!following() || (index() === slides().length - 1 && step() >= current().maxStep)"
-         (click)="next()"
-      >
-         <dd-icon name="chevron_right" />
-      </button>
-      <span class="sep"></span>
-      <span class="name">{{ current().name }}</span>
-      <span class="sep"></span>
-      <span class="timer">{{ clock() }}</span>
-      <button
-         class="btn"
-         type="button"
-         aria-label="Laser pointer (K)"
-         title="Laser pointer (K): drag on the slide"
-         [class.on]="laserOn()"
-         (click)="toggleLaser()"
-      >
-         <dd-icon name="near_me" />
-      </button>
-      <button
-         class="btn"
-         type="button"
-         aria-label="Speaker notes (N)"
-         title="Speaker notes (N)"
-         [class.on]="showNotes()"
-         (click)="toggleNotes()"
-      >
-         <dd-icon name="notes" />
-      </button>
-      <button
-         class="btn"
-         type="button"
-         aria-label="All slides (G)"
-         title="All slides (G)"
-         [class.on]="showGrid()"
-         [disabled]="!!following()"
-         (click)="toggleGrid()"
-      >
-         <dd-icon name="grid_view" />
-      </button>
-      <button class="btn" type="button" aria-label="Exit (Esc)" title="Exit (Esc)" (click)="exit()">
-         <dd-icon name="close" />
-      </button>
-   </div>
+   <dd-presenter-controls
+      #controls
+      [hidden]="!barVisible()"
+      [position]="index() + 1"
+      [count]="slides().length"
+      [clicks]="clicks()"
+      [clickStep]="clickStep()"
+      [name]="current().name"
+      [clock]="clock()"
+      [canPrev]="!(index() === 0 && step() <= firstStep(0))"
+      [canNext]="!(index() === slides().length - 1 && step() >= current().maxStep)"
+      [following]="!!following()"
+      [laserOn]="laserOn()"
+      [notesOn]="showNotes()"
+      [gridOn]="showGrid()"
+      (prev)="prev()"
+      (next)="next()"
+      (toggleLaser)="toggleLaser()"
+      (toggleNotes)="toggleNotes()"
+      (toggleGrid)="toggleGrid()"
+      (exit)="exit()"
+   ></dd-presenter-controls>
 </div>

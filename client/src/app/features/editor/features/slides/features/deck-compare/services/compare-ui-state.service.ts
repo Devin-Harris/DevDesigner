@@ -14,6 +14,10 @@ export class CompareUiState {
     * publishes it with the actions it supports; null when nothing is selected).
     */
    readonly selection = signal<PairSelection | null>(null);
+   /** The preview is playing (mirrored from the stage, for embedders). */
+   readonly previewPlaying = signal(false);
+   /** Bumped to press the preview's ▶ / ↻ button from outside (EditorEmbedApi). */
+   readonly previewPlayRequests = signal(0);
 }
 
 export interface PairSelection {

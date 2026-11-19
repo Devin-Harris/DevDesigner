@@ -13,7 +13,6 @@ import { filter, map } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from './core/theme/theme.service';
@@ -24,10 +23,6 @@ import { ProjectFileService } from './shared/services/project-file.service';
 import { RealtimeService } from './core/realtime/realtime.service';
 import { ProjectsStore } from './shared/state/projects/projects.store';
 import { AccountDialogsService } from './shared/features/auth-dialogs/account-dialogs.service';
-import {
-   ConfirmDialogComponent,
-   type ConfirmDialogData,
-} from './shared/ui/components/confirm-dialog/confirm-dialog.component';
 import { ProjectsOverlayService } from './shared/features/projects-overlay/projects-overlay.service';
 import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { LogoComponent } from './shared/ui/components/logo/logo.component';
@@ -294,47 +289,18 @@ export class AppComponent {
 
    protected async openAuth(): Promise<void> {
       if (await this.accountDialogs.openAuth()) {
-         await this.offerGuestProjectClaim();
          this.refreshForIdentity();
-      }
-   }
-
-   /** After sign-in, offer to move this browser's guest projects into the account. */
-   private async offerGuestProjectClaim(): Promise<void> {
-      try {
-         const { count } = await firstValueFrom(this.projectsApi.guestCount());
-         if (count === 0) {
-            return;
-         }
-         const plural = count === 1 ? 'project' : 'projects';
-         const data: ConfirmDialogData = {
-            title: 'Move guest projects?',
-            message:
-               `You have ${count} ${plural} made in this browser without an account. ` +
-               `Move ${count === 1 ? 'it' : 'them'} into your account? If you don't, ` +
-               `${count === 1 ? 'it stays' : 'they stay'} available here only while signed out.`,
-            confirmLabel: `Move ${plural}`,
-         };
-         const confirmed = await firstValueFrom(
-            this.dialog.open(ConfirmDialogComponent, { data, width: '420px' }).afterClosed()
-         );
-         if (!confirmed) {
-            return;
-         }
-         const moved = await firstValueFrom(this.projectsApi.claimGuest());
-         this.snackBar.open(
-            `Moved ${moved.count} ${moved.count === 1 ? 'project' : 'projects'} to your account`,
-            undefined,
-            { duration: 3000 }
-         );
-      } catch (err) {
-         console.error('Could not move guest projects', err);
-         this.snackBar.open('Could not move guest projects', 'Dismiss', { duration: 5000 });
       }
    }
 
    protected openApiTokens(): void {
       void this.accountDialogs.openApiTokens();
+   }
+
+   protected async openAccount(): Promise<void> {
+      if (await this.accountDialogs.openAccount()) {
+         this.refreshForIdentity();
+      }
    }
 
    protected async signOut(): Promise<void> {

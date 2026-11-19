@@ -41,14 +41,14 @@
                   (click)="run('check-updates')"
                >
                   @if (updater.checking()) {
-                     <dd-icon name="sync" class="spin" />Checking…
+                     <dd-icon name="sync" class="spin" />Checkingâ€¦
                   } @else {
                      <dd-icon name="sync" />Check now
                   }
                </button>
                @switch (updater.status().state) {
                   @case ('downloading') {
-                     <span class="update-note">Downloading update… {{ $any(updater.status()).percent }}%</span>
+                     <span class="update-note">Downloading updateâ€¦ {{ $any(updater.status()).percent }}%</span>
                   }
                   @case ('ready') {
                      <button class="btn" type="button" (click)="updater.install()">Restart to update</button>

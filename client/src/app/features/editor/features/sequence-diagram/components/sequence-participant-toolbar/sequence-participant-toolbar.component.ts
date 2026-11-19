@@ -1,7 +1,7 @@
 import { InspectorPanelService } from '../../../../services/inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { themeColorCss } from '@devdesigner/shared';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { SequenceEdits } from '../../services/sequence-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
@@ -20,29 +20,29 @@ import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/
 })
 export class SequenceParticipantToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
-   protected readonly store = inject(ProjectStore);
-   protected readonly lifeline = computed(() => this.store.selectedLifeline());
-   protected readonly canEdit = computed(() => this.store.canEdit());
+   protected readonly edits = inject(SequenceEdits);
+   protected readonly lifeline = computed(() => this.edits.selectedLifeline());
+   protected readonly canEdit = computed(() => this.edits.canEdit());
    protected readonly css = themeColorCss;
 
    protected setColor(color: string): void {
       const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { color });
+      if (l) void this.edits.updateLifeline(l.id, { color });
    }
    protected setStroke(strokeColor: string): void {
       const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { strokeColor });
+      if (l) void this.edits.updateLifeline(l.id, { strokeColor });
    }
    protected setText(textColor: string): void {
       const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { textColor });
+      if (l) void this.edits.updateLifeline(l.id, { textColor });
    }
    protected edit(): void {
       const l = this.lifeline();
-      if (l) this.store.requestLifelineEdit(l.id);
+      if (l) this.edits.requestLifelineEdit(l.id);
    }
    protected remove(): void {
       const l = this.lifeline();
-      if (l) void this.store.deleteLifeline(l.id);
+      if (l) void this.edits.deleteLifeline(l.id);
    }
 }

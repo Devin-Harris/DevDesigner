@@ -36,7 +36,7 @@
    }
 
    <div class="create" [formGroup]="form">
-      <label class="field-label">New token</label>
+      <span class="field-label">New token</span>
       <div class="row">
          <dd-input
             class="grow"
@@ -49,6 +49,10 @@
          <button class="btn primary" type="button" [disabled]="!canCreate()" (click)="create()">
             <dd-icon name="add" />Create
          </button>
+      </div>
+      <div class="row limits">
+         <dd-select class="grow" formControlName="project" [options]="projectOptions()" />
+         <dd-select class="grow" formControlName="expires" [options]="expiryOptions" />
       </div>
    </div>
 
@@ -70,6 +74,9 @@
                   <span class="hint">
                      {{ t.prefix }}... · {{ t.scope === 'read' ? 'read only' : 'read & write' }} ·
                      {{ t.lastUsedAt ? 'used ' + (t.lastUsedAt | date: 'mediumDate') : 'never used' }}
+                     @if (limits(t); as l) {
+                        · {{ l }}
+                     }
                   </span>
                </div>
                <button class="icon-btn" type="button" aria-label="Revoke token" title="Revoke" (click)="revoke(t)">

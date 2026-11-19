@@ -1,5 +1,5 @@
 import { defaultGrid, type GridData } from '@devdesigner/shared';
-import { blendGridAxis, blendGridRows, gridLineMap } from './morph-stage';
+import { blendGridAxis, blendGridRows, gridLineMap } from '../helpers/morph/morph-grid.helper';
 
 const grid = (cells: string[][]): GridData => ({
    ...defaultGrid(cells.length, cells[0].length),

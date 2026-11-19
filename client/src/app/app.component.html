@@ -240,6 +240,9 @@
                <dd-icon name="key" />API tokens for MCP
             </button>
             @if (!desktop) {
+               <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+                  <dd-icon name="account_circle" />Account settings
+               </button>
                <button class="dd-menu-item" type="button" (click)="signOut(); close()">
                   <dd-icon name="logout" />Sign out
                </button>
@@ -366,6 +369,9 @@
          }
          <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
             <dd-icon name="key" />API tokens
+         </button>
+         <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+            <dd-icon name="account_circle" />Account settings
          </button>
          <button class="dd-menu-item" type="button" (click)="signOut(); close()">
             <dd-icon name="logout" />Sign out

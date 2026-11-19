@@ -1695,30 +1695,9 @@ $loop: 16s;
       display: block;
       pointer-events: none;
    }
-
-   // A picture of the real editor: no tool dock, minimap, deck panels or selection chrome.
-   ::ng-deep {
-      dd-shape-toolbar,
-      dd-minimap,
-      dd-laser-layer,
-      dd-slides-panel,
-      .deck-header,
-      .slide-bounds,
-      .chips,
-      .icon-btn.tiny,
-      .type .chev,
-      .node-head .icon-btn,
-      .overlay.hint {
-         display: none !important;
-      }
-   }
 }
 .sc-demo.prepping dd-editor {
    opacity: 0;
-}
-// The slides tab ends on the editor's transition screen: let its panels show.
-.sc-demo.morphing ::ng-deep dd-slides-panel {
-   display: revert !important;
 }
 .sc-typebox {
    position: absolute;
@@ -1948,10 +1927,6 @@ $loop: 16s;
    }
 }
 
-// Sequence tab: a message stays hidden until the player has drawn it (it reveals each one).
-.sc-demo.seq-tab:not(.prepping) ::ng-deep dd-sequence-diagram > :is(.msg-line, .msg-head, .msg-label-wrap) {
-   visibility: hidden;
-}
 
 // Slides tab: the editor's real transition components in a trimmed-down frame.
 .sc-morph {
@@ -2149,11 +2124,6 @@ $loop: 16s;
 .sc-swatches {
    min-width: 0;
    padding: 8px;
-}
-// The message toolbar is the editor's own; in this read-only example its buttons are disabled but should look live.
-.sc-demo ::ng-deep dd-sequence-message-toolbar button:disabled {
-   opacity: 1 !important;
-   cursor: default;
 }
 
 // Dragging: the pointer follows exactly, no easing behind the object.

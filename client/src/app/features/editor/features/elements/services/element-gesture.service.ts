@@ -494,6 +494,30 @@ export class ElementGestureService {
 
    /** After a table-grabbed drag, record/persist the elements and diagrams that rode along. */
    settleNodeExtras(): void {
+      // The grabbed tables, the relationship bends that moved with them and the riders: one undo step.
+      void this.store.batchHistory(async () => {
+         this.recordTableDrag();
+         this.recordRiders();
+      });
+   }
+
+   /** Record where the dragged tables and their relationship bends went. */
+   private recordTableDrag(): void {
+      const tables = [...(this.gesture.multiDragStart ?? new Map<string, { x: number; y: number }>())].flatMap(
+         ([id, from]) => {
+            const t = this.store.tables().find((x) => x.id === id);
+            return t && (t.x !== from.x || t.y !== from.y) ? [{ id, from, to: { x: t.x, y: t.y } }] : [];
+         }
+      );
+      const waypoints = [...(this.gesture.waypointDragStart ?? new Map())].flatMap(([id, start]) => {
+         const rel = this.store.relationships().find((r) => r.id === id);
+         const to = rel?.waypoints ?? [];
+         return rel && JSON.stringify(to) !== JSON.stringify(start.wp) ? [{ id, from: start.wp, to: [...to] }] : [];
+      });
+      this.store.recordTableDrag(tables, waypoints);
+   }
+
+   private recordRiders(): void {
       const ex = this.gesture.nodeExtras;
       if (!ex) {
          return;
@@ -629,7 +653,13 @@ export class ElementGestureService {
       }
       // Ctrl (Cmd) + resize scales the object with its content (font included) instead
       // of adding room around it: proportions are kept, a side drag scales evenly too.
-      if ((ev.ctrlKey || ev.metaKey) && resized && CONTENT_SCALE_TYPES.has(resized.type) && s.width > 0 && s.height > 0) {
+      if (
+         (ev.ctrlKey || ev.metaKey) &&
+         resized &&
+         CONTENT_SCALE_TYPES.has(resized.type) &&
+         s.width > 0 &&
+         s.height > 0
+      ) {
          const grow = onlyY ? 0 : (left ? -dx : dx) * factor;
          const growY = onlyX ? 0 : (top ? -dy : dy) * factor;
          const raw = onlyX

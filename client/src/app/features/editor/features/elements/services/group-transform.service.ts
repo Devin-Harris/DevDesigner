@@ -314,7 +314,7 @@ export class GroupTransformService {
    readonly spacingHandles = computed(() => {
       const s = this.evenSpacing();
       if (!s) return this.listSpacingHandles();
-      if ( (this.gesture.gestureActive() && !this.spacingActive())) return null;
+      if (this.gesture.gestureActive() && !this.spacingActive()) return null;
       const v = this.store.viewport();
       const sx = (x: number): number => x * v.zoom + v.x;
       const sy = (y: number): number => y * v.zoom + v.y;

@@ -2,7 +2,7 @@ import { InspectorPanelService } from '../../../../services/inspector-panel.serv
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { TableModel } from '@devdesigner/shared';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { ErdEdits } from '../../services/erd-edits.service';
 import { EditorActionsService } from '../../../../../../core/editor-bridge/editor-actions.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
@@ -22,12 +22,12 @@ import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/
 })
 export class TableToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(ErdEdits);
    protected readonly actions = inject(EditorActionsService);
    readonly table = input.required<TableModel>();
 
    protected addColumn(): void {
-      if (!this.store.canEdit()) return;
+      if (!this.edits.canEdit()) return;
       const names = new Set(this.table().columns.map((c) => c.name));
       let i = this.table().columns.length + 1;
       let name = `column_${i}`;
@@ -35,22 +35,22 @@ export class TableToolbarComponent {
          i += 1;
          name = `column_${i}`;
       }
-      void this.store.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+      void this.edits.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
    }
 
    protected setColor(color: string): void {
-      void this.store.updateTable(this.table().id, { color });
+      void this.edits.updateTable(this.table().id, { color });
    }
 
    protected setNote(note: string): void {
-      void this.store.updateTable(this.table().id, { note });
+      void this.edits.updateTable(this.table().id, { note });
    }
 
    protected duplicate(): void {
-      void this.store.duplicateTable(this.table().id);
+      void this.edits.duplicateTable(this.table().id);
    }
 
    protected remove(): void {
-      void this.store.deleteTable(this.table().id);
+      void this.edits.deleteTable(this.table().id);
    }
 }

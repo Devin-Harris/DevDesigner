@@ -4,7 +4,14 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { GridTableService } from '../../../services/grid-table.service';
 import { GRID_CELL_PAD, edges as gridEdges, gridSizes, mergeAt, parseGrid } from '../../../helpers/grid-table.helper';
-import { CODE_FONT_SIZE, codeDotsWidth, codeHeaderHeight, codeTitleSize, gridFont, SURFACE_FILL } from '../../../helpers/render';
+import {
+   CODE_FONT_SIZE,
+   codeDotsWidth,
+   codeHeaderHeight,
+   codeTitleSize,
+   gridFont,
+   SURFACE_FILL,
+} from '../../../helpers/render';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What the cell editors read from the editor entry; the entry wires it with `connect`. */
 export interface CellEditorsHost {
