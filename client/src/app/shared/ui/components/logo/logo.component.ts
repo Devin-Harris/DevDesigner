@@ -6,7 +6,7 @@ export const LOGO_SRC = 'assets/brand/logo.svg';
 /** The DevDesigner logo mark. Swap assets/brand/logo.svg to rebrand everywhere. */
 @Component({
    selector: 'dd-logo',
-   template: `<img [src]="src" alt="" [width]="size()" [height]="size()" draggable="false" />`,
+   template: `<img alt="" draggable="false" [src]="src" [width]="size()" [height]="size()" />`,
    styles: `
       :host {
          display: inline-flex;
