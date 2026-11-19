@@ -1,4 +1,12 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
 import { Project } from '../../projects/project.entity';
 
 /**
@@ -18,7 +26,7 @@ export class SequenceDiagramEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   @Column({ type: 'float', default: 160 })
   lifelineSpacing!: number;
@@ -54,7 +62,7 @@ export class SequenceDiagramEntity {
   /** Box background color (hex); null = theme surface. */
   @Column({ type: 'varchar', nullable: true })
   backgroundColor!: string | null;
-  
+
   /** Diagram box border color; null = theme border. */
   @Column({ type: 'varchar', nullable: true })
   borderColor!: string | null;

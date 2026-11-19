@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import type { ConnectorSide, RelationshipType } from '@devdesigner/shared';
 import { Project } from '../../projects/project.entity';
@@ -26,7 +27,7 @@ export class RelationshipEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   @Index()
   @Column({ type: 'varchar' })
@@ -34,7 +35,7 @@ export class RelationshipEntity {
 
   @ManyToOne(() => ColumnEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sourceColumnId' })
-  sourceColumn!: ColumnEntity;
+  sourceColumn!: Relation<ColumnEntity>;
 
   @Index()
   @Column({ type: 'varchar' })
@@ -42,7 +43,7 @@ export class RelationshipEntity {
 
   @ManyToOne(() => ColumnEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'targetColumnId' })
-  targetColumn!: ColumnEntity;
+  targetColumn!: Relation<ColumnEntity>;
 
   // Stored as varchar, typed in code against the shared RelationshipType union.
   @Column({ type: 'varchar' })

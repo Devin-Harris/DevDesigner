@@ -9,6 +9,35 @@ import type { SequenceOps } from './project-sequence-ops';
 import type { SlidePlacement } from './project-slides-methods.feature';
 import type { ProjectInternalsWith } from './project-internals';
 
+/** Id of the local-only diagram shown while dragging out a new one with the sequence tool. */
+export const SEQUENCE_PREVIEW_ID = 'seq-draft-preview';
+const PREVIEW_ID = SEQUENCE_PREVIEW_ID;
+const LIFELINE_W = 120;
+const HEADER = 42;
+
+/**
+ * Where a starter diagram's parts go. Without a size, (x, y) is the first participant's
+ * center top (a click). With one, (x, y) is the dragged box's top-left: the participants
+ * span its width and the rows stretch the lifelines to its height.
+ */
+function starterLayout(
+   x: number,
+   y: number,
+   size?: { width: number; height: number }
+): { x: number; lifelineWidth: number; lifelineSpacing: number; rowSpacing: number; headerHeight: number } {
+   if (!size) return { x, lifelineWidth: LIFELINE_W, lifelineSpacing: 160, rowSpacing: 48, headerHeight: HEADER };
+   // Fill the box exactly (no minimum), so the diagram grows from the press point.
+   const lifelineWidth = Math.max(8, Math.min(LIFELINE_W, Math.round(size.width / 2)));
+   const headerHeight = Math.max(8, Math.min(HEADER, Math.round(size.height / 3)));
+   return {
+      x: x + lifelineWidth / 2,
+      lifelineWidth,
+      lifelineSpacing: Math.max(1, size.width - lifelineWidth),
+      rowSpacing: Math.max(1, Math.round((size.height - headerHeight) / 2)),
+      headerHeight,
+   };
+}
+
 /** Whole sequence diagrams: create, duplicate, delete, config, and live move/resize with undo. */
 export function withProjectSequenceMethods() {
    return signalStoreFeature(
@@ -25,6 +54,63 @@ export function withProjectSequenceMethods() {
          const { sequenceApi } = store._api;
          const { shownSlideAt } = store._placement;
          const { captureSeq, removeSeq, recordSeqCreate, recordSeqDelete } = store._sequenceOps;
+
+            /**
+             * Show (or with null, remove) a local-only starter diagram filling a box being
+             * dragged out with the sequence tool, so it renders as it will look. Never saved.
+             */
+         const previewSequenceLocal = (box: { x: number; y: number; width: number; height: number } | null): void => {
+               setSchema((s) => {
+                  const rest = {
+                     ...s,
+                     sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== PREVIEW_ID),
+                     lifelines: s.lifelines.filter((l) => l.diagramId !== PREVIEW_ID),
+                     sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== PREVIEW_ID),
+                  };
+                  if (!box) return rest;
+                  const l = starterLayout(box.x, box.y, box);
+                  const base = { diagramId: PREVIEW_ID, width: l.lifelineWidth };
+                  return {
+                     ...rest,
+                     sequenceDiagrams: [
+                        ...rest.sequenceDiagrams,
+                        {
+                           id: PREVIEW_ID,
+                           lifelineSpacing: l.lifelineSpacing,
+                           rowSpacing: l.rowSpacing,
+                           headerHeight: l.headerHeight,
+                           originY: box.y,
+                           zIndex: -1,
+                        },
+                     ],
+                     lifelines: [
+                        ...rest.lifelines,
+                        { ...base, id: `${PREVIEW_ID}-a`, label: 'Participant 1', x: l.x, order: 0, color: TABLE_PALETTE[0] },
+                        {
+                           ...base,
+                           id: `${PREVIEW_ID}-b`,
+                           label: 'Participant 2',
+                           x: l.x + l.lifelineSpacing,
+                           order: 1,
+                           color: TABLE_PALETTE[1],
+                        },
+                     ],
+                     sequenceMessages: [
+                        ...rest.sequenceMessages,
+                        {
+                           id: `${PREVIEW_ID}-m`,
+                           diagramId: PREVIEW_ID,
+                           fromLifelineId: `${PREVIEW_ID}-a`,
+                           toLifelineId: `${PREVIEW_ID}-b`,
+                           y: box.y + l.headerHeight + l.rowSpacing,
+                           style: 'solid',
+                           direction: 'forward',
+                           arrowhead: 'arrow',
+                        },
+                     ],
+                  };
+               });
+            };
 
          return {
             /** Positions of a diagram's lifelines/rows, captured at the start of a group move. */
@@ -51,14 +137,27 @@ export function withProjectSequenceMethods() {
             },
 
             /** Drop a NEW sequence diagram at (x, y): its own group + two participants + a message. */
-            async addSequenceStarter(x: number, y: number): Promise<void> {
+            previewSequenceLocal,
+
+            async addSequenceStarter(x: number, y: number, size?: { width: number; height: number }): Promise<void> {
                const projectId = store.projectId();
                if (!projectId) {
+                  previewSequenceLocal(null);
                   return;
                }
+               const layout = starterLayout(x, y, size);
+               const sized = size
+                  ? {
+                       lifelineSpacing: layout.lifelineSpacing,
+                       rowSpacing: layout.rowSpacing,
+                       headerHeight: layout.headerHeight,
+                    }
+                  : {};
+               x = layout.x;
                const diagram = await runSave(() =>
                   firstValueFrom(
                      sequenceApi.createDiagram(projectId, {
+                        ...sized,
                         originY: y,
                         slideId: shownSlideAt(x, y),
                      })
@@ -72,7 +171,7 @@ export function withProjectSequenceMethods() {
                         diagramId: diagram.id,
                         label: 'Participant 1',
                         x,
-                        width: 120,
+                        width: layout.lifelineWidth,
                         order: 0,
                         color: TABLE_PALETTE[0],
                      })
@@ -84,7 +183,7 @@ export function withProjectSequenceMethods() {
                         diagramId: diagram.id,
                         label: 'Participant 2',
                         x: x + spacing,
-                        width: 120,
+                        width: layout.lifelineWidth,
                         order: 1,
                         color: TABLE_PALETTE[1],
                      })
@@ -109,6 +208,8 @@ export function withProjectSequenceMethods() {
                   lifelines: [...s.lifelines, a, b],
                   sequenceMessages: [...s.sequenceMessages, m],
                }));
+               // The drag preview stays up until the real diagram is complete (no flicker).
+               previewSequenceLocal(null);
                patchState(store, {
                   selectedDiagramIds: [diagram.id],
                   selectedLifelineIds: [],

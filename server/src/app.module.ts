@@ -1,7 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { SentryModule } from '@sentry/nestjs/setup';
 import { LoggerModule } from 'nestjs-pino';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './platform/database/database.module';
@@ -29,10 +28,24 @@ import { QuotasModule } from './platform/quotas/quotas.module';
 import { GraphCacheModule } from './platform/graph-cache/graph-cache.module';
 import { validateEnv } from './platform/config/env.validation';
 import { AllExceptionsFilter } from './platform/http/all-exceptions.filter';
-import { RequestContextInterceptor, RequestContextMiddleware } from './platform/http/request-context';
+import {
+  RequestContextInterceptor,
+  RequestContextMiddleware,
+} from './platform/http/request-context';
 import { loggerParams } from './platform/http/logger.config';
 import { AnalyticsModule } from './platform/analytics/analytics.module';
 import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
+import { sentryEnabled } from './instrument';
+
+/** Only pull in the Sentry Nest integration when the SDK was initialised (instrument.ts). */
+const sentryModules = sentryEnabled
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    [
+      (
+        require('@sentry/nestjs/setup') as typeof import('@sentry/nestjs/setup')
+      ).SentryModule.forRoot(),
+    ]
+  : [];
 
 /**
  * Root module. Feature modules follow the layering in BUILD_INSTRUCTIONS.md
@@ -42,7 +55,7 @@ import { AnalyticsMiddleware } from './platform/analytics/analytics-request';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env', validate: validateEnv }),
-    SentryModule.forRoot(),
+    ...sentryModules,
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => loggerParams(config),

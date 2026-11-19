@@ -1,4 +1,12 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
 import type {
   ArrowheadType,
   CodeLanguage,
@@ -30,7 +38,7 @@ export class ElementEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   // Stored as varchar, typed in code against the shared ElementType union.
   @Column({ type: 'varchar' })

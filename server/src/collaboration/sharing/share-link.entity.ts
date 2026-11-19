@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
 import type { ShareAccessLevel } from '@devdesigner/shared';
 import { Project } from '../../projects/projects/project.entity';
 
@@ -22,7 +31,7 @@ export class ShareLink {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   /**
    * SHA-256 (hex) of the share token; the token itself is never stored in clear

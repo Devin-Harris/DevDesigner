@@ -1,6 +1,6 @@
 import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
-import * as Sentry from '@sentry/nestjs';
+import { sentry } from '../../instrument';
 import type { Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { requestContext } from './request-context';
@@ -56,7 +56,7 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
     if (status >= 500) {
       const err = exception instanceof Error ? exception : new Error(String(exception));
       this.logger.error({ err, requestId, status }, err.message);
-      Sentry.captureException(exception, (scope) => {
+      sentry?.captureException(exception, (scope) => {
         if (requestId) scope.setTag('request_id', requestId);
         return scope;
       });

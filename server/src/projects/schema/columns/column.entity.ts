@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import { TableEntity } from '../tables/table.entity';
 
@@ -25,7 +26,7 @@ export class ColumnEntity {
 
   @ManyToOne(() => TableEntity, (table) => table.columns, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tableId' })
-  table!: TableEntity;
+  table!: Relation<TableEntity>;
 
   @Column({ type: 'varchar' })
   name!: string;

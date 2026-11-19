@@ -14,7 +14,7 @@ import { DeckFocusService } from './features/slides/services/deck-focus.service'
 import { EditorViewportService } from './services/editor-viewport.service';
 import { computed, inject, signal, Injectable, DestroyRef } from '@angular/core';
 import { PenPrefsService } from './services/pen-prefs.service';
-import type { CanvasElementModel, TableModel } from '@devdesigner/shared';
+import type { CanvasElementModel, SequenceDiagramModel, TableModel } from '@devdesigner/shared';
 import { presentationOf } from '@devdesigner/shared';
 import { ProjectStore } from './state/project/project.store';
 import { GridTableService } from './services/grid-table.service';
@@ -56,7 +56,17 @@ export class EditorPointerService {
       // handled once per frame (the pen keeps every sample so strokes stay smooth).
       const onMove = (event: PointerEvent): void => this.onPointerMove(event);
       window.addEventListener('pointermove', onMove);
+      // Alt pressed or released mid-marquee flips whole-diagram vs part picking live.
+      const onAlt = (event: KeyboardEvent): void => {
+         if (event.key !== 'Alt' || this.gesture.mode !== 'marquee') return;
+         event.preventDefault(); // keep Alt from focusing the browser menu
+         this.marqueeAlt = event.type === 'keydown';
+      };
+      window.addEventListener('keydown', onAlt);
+      window.addEventListener('keyup', onAlt);
       this.destroyRef.onDestroy(() => {
+         window.removeEventListener('keydown', onAlt);
+         window.removeEventListener('keyup', onAlt);
          window.removeEventListener('pointermove', onMove);
          cancelAnimationFrame(this.moveFrame);
       });
@@ -96,6 +106,8 @@ export class EditorPointerService {
    });
 
    private marqueeAdditive = false;
+   /** Alt held during the marquee (checked at release): flips whole-diagram vs part picking. */
+   private marqueeAlt = false;
    /** The slide a Ctrl + pan gesture pans (inside its block), else null for a canvas pan. */
    private slidePanFrame: CanvasElementModel | null = null;
    private lastPanClient = { x: 0, y: 0 };
@@ -140,8 +152,8 @@ export class EditorPointerService {
             return;
          }
          if (tool === 'sequence') {
-            this.drawTool.addSequenceAt(event.clientX, event.clientY);
-            this.tools.afterPlace();
+            // A click drops the starter diagram; a drag sizes it (committed on release).
+            this.drawTool.beginSequenceDraw(event);
             return;
          }
          if (tool === 'slide') {
@@ -168,6 +180,7 @@ export class EditorPointerService {
          }
       }
       this.marqueeAdditive = PointerGestureService.additive(event);
+      this.marqueeAlt = event.altKey;
       if (!this.marqueeAdditive) {
          this.store.clearSelection();
       }
@@ -197,6 +210,7 @@ export class EditorPointerService {
       this.gesture.lastPointer = event;
       this.gesture.shiftHeld = event.shiftKey;
       this.gesture.noBindHeld = event.ctrlKey || event.metaKey;
+      if (this.gesture.mode === 'marquee') this.marqueeAlt = event.altKey;
       if (this.gesture.mode === 'draw') {
          this.pendingMoves.push(event);
       } else {
@@ -478,8 +492,19 @@ export class EditorPointerService {
          })
          .map((l) => l.id);
 
+      // Where the drag started decides how a diagram is picked: from outside, touching it
+      // selects the whole diagram; from inside its box, its messages/participants. Alt flips it.
+      const startPt: Rect = { minX: a.x, minY: a.y, maxX: a.x, maxY: a.y };
+      const partsOf = (d: SequenceDiagramModel): boolean => {
+         const view = viewedDiagrams.get(d.id);
+         const p = view ? this.canvasView.rectThrough(view, startPt) : startPt;
+         const b = this.canvasView.diagramBox(d);
+         const inside =
+            !!p && !!b && p.minX >= b.minX && p.minX <= b.maxX && p.minY >= b.minY && p.minY <= b.maxY;
+         return inside !== this.marqueeAlt;
+      };
       const diagramIds = sequenceHits(
-         (r) => this.diagramsInRect(r),
+         (r) => this.diagramsInRect(r, partsOf),
          (id) => id
       );
       // A diagram swept up whole is selected as a unit; its parts needn't be listed too.
@@ -592,16 +617,18 @@ export class EditorPointerService {
       return out;
    }
 
-   /** Sequence diagrams whose bounding box (as drawn) lies entirely inside the marquee rect. */
-   private diagramsInRect(rect: Rect): string[] {
+   /**
+    * Sequence diagrams picked as a unit: any the marquee fully encloses, plus those it
+    * touches unless `partsOf` says to pick that diagram's messages/participants instead.
+    */
+   private diagramsInRect(rect: Rect, partsOf: (d: SequenceDiagramModel) => boolean): string[] {
       const out: string[] = [];
       for (const d of this.store.sequenceDiagrams()) {
          const b = this.canvasView.diagramBox(d);
-         // Only a diagram the marquee fully encloses is picked as a unit; a partial sweep
-         // selects just the messages/participants it touches.
-         if (b && b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY) {
-            out.push(d.id);
-         }
+         if (!b) continue;
+         const enclosed = b.minX >= rect.minX && b.maxX <= rect.maxX && b.minY >= rect.minY && b.maxY <= rect.maxY;
+         const touches = b.minX <= rect.maxX && b.maxX >= rect.minX && b.minY <= rect.maxY && b.maxY >= rect.minY;
+         if (enclosed || (touches && !partsOf(d))) out.push(d.id);
       }
       return out;
    }

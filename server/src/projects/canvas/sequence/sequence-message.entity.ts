@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import type { SequenceMessageModel } from '@devdesigner/shared';
 import { Project } from '../../projects/project.entity';
@@ -27,7 +28,7 @@ export class SequenceMessageEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   // Nullable so the column can be added to pre-existing rows during dev schema
   // sync; every message the app creates always sets it.
@@ -37,7 +38,7 @@ export class SequenceMessageEntity {
 
   @ManyToOne(() => SequenceDiagramEntity, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'diagramId' })
-  diagram!: SequenceDiagramEntity | null;
+  diagram!: Relation<SequenceDiagramEntity | null>;
 
   @Column({ type: 'varchar' })
   fromLifelineId!: string;

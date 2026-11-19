@@ -291,6 +291,11 @@ export class CanvasSnapService {
             if (b && moving.has(d.id)) boxes.push(b);
          }
          if (!boxes.length) return null;
+         // Dragging a presentation (its shown frame) moves its whole outline: align that
+         // block, not just the bare frame, and don't snap it to its own start position.
+         const outlines = draft ? [] : this.host.presentationOutlineBoxes();
+         for (const p of outlines) if (moving.has(p.frameId)) boxes.push(p.box);
+         const shownFrames = new Set(this.store.shownByPresentation().values());
          const box = {
             x0: Math.min(...boxes.map((b) => b.x0)),
             y0: Math.min(...boxes.map((b) => b.y0)),
@@ -301,6 +306,8 @@ export class CanvasSnapService {
          for (const e of els) {
             // Lines/arrows count (their box edges are their ends); freehand strokes don't.
             if (moving.has(e.id) || (isPathElement(e.type) && e.type !== 'line' && e.type !== 'arrow')) continue;
+            // A deck's other slides are hidden behind its shown one; they're not visible targets.
+            if (e.type === 'frame' && e.id !== ctx && !shownFrames.has(e.id)) continue;
             if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(elementBox(e));
          }
          for (const t of tables) {
@@ -320,8 +327,9 @@ export class CanvasSnapService {
               : undefined;
          // A presentation's dashed outline (around its panels and frame) is a snap target too.
          // It lives in world space; a zoomed slide's items are in the slide's inner space.
-         for (const p of this.host.presentationOutlineBoxes()) {
+         for (const p of draft ? this.host.presentationOutlineBoxes() : outlines) {
             if (ctx !== null && p.frameId !== ctx) continue;
+            if (moving.has(p.frameId)) continue;
             if (!view) {
                all.push(p.box);
                continue;

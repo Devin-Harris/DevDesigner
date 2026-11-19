@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import { Project } from '../../projects/project.entity';
 
@@ -29,7 +30,7 @@ export class ProjectImageEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   @Column({ type: 'varchar' })
   mimeType!: string;

@@ -150,6 +150,59 @@ export class DrawToolService {
       void this.store.addSequenceStarter(x, y);
    }
 
+   /** The current draw is a sequence-diagram placement box, not an element. */
+   private sequenceDraw = false;
+
+   /** Start sizing a sequence diagram: a dashed box follows the drag; release creates the diagram. */
+   beginSequenceDraw(event: PointerEvent): void {
+      const world = this.viewport.toWorld(event.clientX, event.clientY);
+      const x = this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
+      const y = this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
+      this.drawCtx = this.spaceAt(event.clientX, event.clientY).ctx;
+      this.tools.drawSlideId.set(null);
+      this.tools.draft.set({
+         id: `draft-${Date.now()}`,
+         type: 'rectangle',
+         x,
+         y,
+         width: 0,
+         height: 0,
+         angle: 0,
+         strokeColor: this.canvasView.themeVar('--dd-primary') ?? this.canvasView.defaultStroke(),
+         fillStyle: 'none',
+         strokeWidth: 1,
+         strokeStyle: 'solid',
+         // The dragged bounds, drawn over the live diagram preview.
+         opacity: 100,
+         zIndex: this.store.elements().length,
+         cornerRadius: 0,
+      } as CanvasElementModel);
+      this.sequenceDraw = true;
+      this.drawAnchor = { x, y };
+      this.gesture.lastDrawPointer = { x: event.clientX, y: event.clientY };
+      this.gesture.startClientX = event.clientX;
+      this.gesture.startClientY = event.clientY;
+      this.gesture.mode = 'draw';
+      this.gesture.gestureActive.set(true);
+   }
+
+   private commitSequenceDraw(draft: CanvasElementModel | null): void {
+      this.sequenceDraw = false;
+      if (!draft) {
+         this.store.previewSequenceLocal(null);
+         return;
+      }
+      const zoom = this.store.viewport().zoom;
+      // A click (or a tiny drag) places the default-size starter at the press point.
+      const dragged = draft.width * zoom > 8 || draft.height * zoom > 8;
+      const x = Math.round(draft.x);
+      const y = Math.round(draft.y);
+      void this.store
+         .addSequenceStarter(x, y, dragged ? { width: Math.round(draft.width), height: Math.round(draft.height) } : undefined)
+         .finally(() => this.store.previewSequenceLocal(null));
+      this.tools.afterPlace();
+   }
+
    /** Pen strokes cut by the current eraser drag: their state before the drag. */
    private erased = new Map<string, CanvasElementModel>();
 
@@ -262,6 +315,7 @@ export class DrawToolService {
       tool: Exclude<EditorTool, 'select' | 'hand' | 'table' | 'sequence' | 'laser' | 'slide'>,
       event: PointerEvent
    ): void {
+      this.sequenceDraw = false;
       const world = this.viewport.toWorld(event.clientX, event.clientY);
       // Start where the hover guides showed: lined up with nearby items, else on the grid.
       const lined = this.presnaps(tool) ? this.snapPoint(event.clientX, event.clientY) : null;
@@ -400,6 +454,18 @@ export class DrawToolService {
    }
 
    updateDraw(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
+      this.updateDrawInner(clientX, clientY, shift, alt);
+      if (this.sequenceDraw) {
+         const d = this.tools.draft();
+         const zoom = this.store.viewport().zoom;
+         const dragged = !!d && (d.width * zoom > 8 || d.height * zoom > 8);
+         this.store.previewSequenceLocal(
+            d && dragged ? { x: Math.round(d.x), y: Math.round(d.y), width: Math.round(d.width), height: Math.round(d.height) } : null
+         );
+      }
+   }
+
+   private updateDrawInner(clientX: number, clientY: number, shift: boolean, alt: boolean): void {
       const draft = this.tools.draft();
       if (!draft) {
          return;
@@ -544,6 +610,10 @@ export class DrawToolService {
       this.tools.draft.set(null);
       const drawSlide = this.tools.drawSlideId();
       this.tools.drawSlideId.set(null);
+      if (this.sequenceDraw) {
+         this.commitSequenceDraw(draft);
+         return;
+      }
       if (!draft) {
          return;
       }

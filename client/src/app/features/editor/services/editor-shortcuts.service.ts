@@ -128,6 +128,9 @@ export class EditorShortcutsService {
             this.grids.clearCellSelection();
             return;
          }
+         if (this.tools.activeTool() === 'select' && this.escapeSequenceSelection()) {
+            return;
+         }
          if (this.host.followingId()) {
             this.host.followingId.set(null);
             return;
@@ -392,6 +395,40 @@ export class EditorShortcutsService {
     * Delete everything selected. Deleting a frame also deletes what sits inside it
     * (elements, tables and sequence diagrams), so a frame removes its whole page.
     */
+   /**
+    * Esc walks up from sequence parts: selected messages/participants → their whole
+    * diagram(s); diagram(s) alone → nothing. Returns whether it handled the key.
+    */
+   private escapeSequenceSelection(): boolean {
+      const msgs = this.store.selectedMessageIds();
+      const lls = this.store.selectedLifelineIds();
+      const diagrams = this.store.selectedDiagramIds();
+      if (msgs.length || lls.length) {
+         const parents = new Set(diagrams);
+         for (const m of this.store.sequenceMessages()) if (msgs.includes(m.id)) parents.add(m.diagramId);
+         for (const l of this.store.lifelines()) if (lls.includes(l.id)) parents.add(l.diagramId);
+         this.store.setSelection(
+            this.store.selectedTableIds(),
+            this.store.selectedRelationshipIds(),
+            this.store.selectedElementIds(),
+            [],
+            [],
+            [...parents]
+         );
+         return true;
+      }
+      const onlyDiagrams =
+         diagrams.length > 0 &&
+         !this.store.selectedTableIds().length &&
+         !this.store.selectedRelationshipIds().length &&
+         !this.store.selectedElementIds().length;
+      if (onlyDiagrams) {
+         this.store.clearSelection();
+         return true;
+      }
+      return false;
+   }
+
    deleteSelection(): void {
       if (!this.store.canEdit()) {
          return;

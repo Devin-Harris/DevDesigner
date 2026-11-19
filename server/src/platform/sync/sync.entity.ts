@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryColumn,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import { Project } from '../../projects/projects/project.entity';
 
@@ -51,7 +52,7 @@ export class SyncLinkEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project?: Project;
+  project?: Relation<Project>;
 
   @Index('idx_sync_links_remote')
   @Column({ type: 'varchar' })
@@ -59,7 +60,7 @@ export class SyncLinkEntity {
 
   @ManyToOne(() => SyncRemoteEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'remoteId' })
-  remote?: SyncRemoteEntity;
+  remote?: Relation<SyncRemoteEntity>;
 
   /** The server's revision of the project that the local mirror currently reflects. */
   @Column({ type: 'integer', default: 0 })

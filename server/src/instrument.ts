@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import * as Sentry from '@sentry/nestjs';
+import type * as SentryNs from '@sentry/nestjs';
 
 /**
  * Sentry bootstrap; imported first in main.ts so its instrumentation patches
  * modules before they load. Runs before ConfigModule, so SENTRY_* are also read
- * from a local .env here. A no-op unless SENTRY_DSN is set.
+ * from a local .env here. A no-op unless SENTRY_DSN is set: the SDK is only
+ * required then (loading it costs ~400 ms of startup and RAM for nothing otherwise).
  */
 function sentryEnv(key: string): string | undefined {
   if (process.env[key]) return process.env[key];
@@ -22,7 +23,18 @@ const SCRUBBED_HEADERS = ['authorization', 'cookie', 'set-cookie', 'x-share-toke
 // Desktop installs never report errors anywhere (telemetry is off in desktop mode).
 const desktop = ['true', '1', 'yes'].includes((sentryEnv('DESKTOP') ?? '').toLowerCase());
 const dsn = desktop ? undefined : sentryEnv('SENTRY_DSN');
-if (dsn) {
+
+/** True when the Sentry SDK is loaded and initialised (app.module wires SentryModule only then). */
+export const sentryEnabled = Boolean(dsn);
+
+/** The loaded SDK, or undefined when Sentry is off. */
+export const sentry: typeof SentryNs | undefined = dsn
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    (require('@sentry/nestjs') as typeof SentryNs)
+  : undefined;
+
+if (sentry) {
+  const Sentry = sentry;
   const rate = Number(sentryEnv('SENTRY_TRACES_SAMPLE_RATE') ?? 0);
   Sentry.init({
     dsn,

@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import { Project } from '../../projects/project.entity';
 import { ColumnEntity } from '../columns/column.entity';
@@ -27,7 +28,7 @@ export class TableEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   @Column({ type: 'varchar' })
   name!: string;
@@ -65,8 +66,8 @@ export class TableEntity {
   morphId!: string | null;
 
   @OneToMany(() => ColumnEntity, (column) => column.table)
-  columns!: ColumnEntity[];
+  columns!: Relation<ColumnEntity[]>;
 
   @OneToMany(() => IndexEntity, (index) => index.table)
-  indexes!: IndexEntity[];
+  indexes!: Relation<IndexEntity[]>;
 }

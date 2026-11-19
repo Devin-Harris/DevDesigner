@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Relation,
 } from 'typeorm';
 import { Project } from '../../projects/project.entity';
 import { SequenceDiagramEntity } from './sequence-diagram.entity';
@@ -25,7 +26,7 @@ export class LifelineEntity {
 
   @ManyToOne(() => Project, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'projectId' })
-  project!: Project;
+  project!: Relation<Project>;
 
   // Nullable so the column can be added to pre-existing rows during dev schema
   // sync; every lifeline the app creates always sets it.
@@ -35,7 +36,7 @@ export class LifelineEntity {
 
   @ManyToOne(() => SequenceDiagramEntity, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'diagramId' })
-  diagram!: SequenceDiagramEntity | null;
+  diagram!: Relation<SequenceDiagramEntity | null>;
 
   @Column({ type: 'varchar' })
   label!: string;
