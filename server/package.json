@@ -11,7 +11,8 @@
     "media:migrate": "node dist/src/projects/canvas/images/storage/migrate-media.cli.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint \"{src,test}/**/*.ts\""
+    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@devdesigner/shared": "*",

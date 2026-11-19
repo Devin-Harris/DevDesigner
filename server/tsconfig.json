@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "isolatedModules": true,
     "module": "CommonJS",
     "moduleResolution": "Node",
     // TS 6 deprecates the classic 'node' resolution, but NestJS + TypeORM are

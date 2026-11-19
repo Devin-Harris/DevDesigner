@@ -129,7 +129,7 @@
 
    &.wrap {
       white-space: pre-wrap;
-      word-break: break-word;
+      overflow-wrap: anywhere;
    }
 
    &.centered {
@@ -148,6 +148,7 @@
       overflow: visible;
       cursor: text;
       user-select: text;
+      // stylelint-disable-next-line property-no-deprecated -- WebKit caret fix for contenteditable
       -webkit-user-modify: read-write;
       // The transform on .centered is not used for text elements.
    }

@@ -22,7 +22,7 @@
     "build:server": "npm run build -w shared && npm run build -w server",
     "build:client": "npm run build -w shared && npm run build -w client",
     "test": "npm run test -w shared && npm run test -w server && npm run test -w mcp && npm run test -w desktop && npm run test -w client",
-    "lint": "eslint .",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "lint:client": "npm run lint -w client && npm run lint:styles -w client",
     "check:cycles": "concurrently -g --kill-others-on-fail=false \"npm:check:cycles:*\"",
     "check:cycles:client": "madge --circular --extensions ts --ts-config client/tsconfig.app.json client/src",
@@ -30,7 +30,7 @@
     "check:cycles:shared": "madge --circular --extensions ts --ts-config shared/tsconfig.json shared/src",
     "check:cycles:mcp": "madge --circular --extensions ts --ts-config mcp/tsconfig.json mcp/src",
     "format": "prettier --write .",
-    "verify": "npm run build:shared && npm run lint && npm run lint:client && npm run check:cycles && npm test && npm run build",
+    "verify": "npm run build:shared && npm run verify:checks && npm run verify:build",
     "build:mcp": "npm run build -w shared && npm run build -w mcp",
     "start:mcp": "node mcp/dist/index.js",
     "start:mcp:http": "npm run start:http -w mcp",
@@ -39,7 +39,9 @@
     "dist:desktop": "npm run build:desktop && npm run dist -w desktop",
     "install:desktop": "node desktop/scripts/install-local.mjs",
     "build:selfhost": "node server/scripts/build-selfhost.mjs",
-    "start:selfhost": "node server/scripts/devdesigner-server.mjs"
+    "start:selfhost": "node server/scripts/devdesigner-server.mjs",
+    "verify:checks": "concurrently -g --kill-others-on-fail=false -n lint,client,styles,cycles,types,test \"npm run lint\" \"npm run lint -w client\" \"npm run lint:styles -w client\" \"npm run check:cycles\" \"npm run typecheck -w server\" \"npm test\"",
+    "verify:build": "concurrently -g --kill-others-on-fail=false -n server,client \"npm run build -w server\" \"npm run build -w client\""
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
