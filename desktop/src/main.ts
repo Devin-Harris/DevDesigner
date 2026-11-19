@@ -101,7 +101,7 @@ ipcMain.on('dd:title-bar-colors', (event, colors: { background: string; text: st
   mainWindow.setTitleBarOverlay({
     color: colors.background,
     symbolColor: colors.text,
-    height: TITLE_BAR_HEIGHT,
+    height: TITLE_BAR_HEIGHT - 1, // leave the title bar's 1px bottom border visible
   });
 });
 
@@ -507,7 +507,7 @@ function createWindow(): void {
     ...(isMac
       ? { trafficLightPosition: { x: 12, y: 11 } }
       : {
-          titleBarOverlay: { color: '#161a20', symbolColor: '#c9d1d9', height: TITLE_BAR_HEIGHT },
+          titleBarOverlay: { color: '#161a20', symbolColor: '#c9d1d9', height: TITLE_BAR_HEIGHT - 1 },
         }),
     x: state.x,
     y: state.y,
