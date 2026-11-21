@@ -1,6 +1,7 @@
 import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
+import { applySplitDiffInput } from '../helpers/split-diff-input';
+import { DIFF_SPACER, diffEditValue, stripDiffSpacers } from '../../../helpers/code-diff-edit.helper';
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
    type CanvasElementModel,
    type CodeLanguage,
@@ -18,6 +19,8 @@ import {
    codeContentSize,
    codeDiffActive,
    codeDiffEditLayout,
+   codeDiffEditSize,
+   codeDiffPrintWidths,
    codeElementContentSize,
    codeHeaderHeight,
    codeLayoutMetrics,
@@ -30,7 +33,7 @@ import {
    shapeLabelOptions,
    shapeTextBox,
 } from '../../../helpers/render';
-import { DEFAULT_LINE_HEIGHT, fitTextElement } from '../../../helpers/text-metrics';
+import { DEFAULT_LINE_HEIGHT, fitTextElement, textBlockShift } from '../../../helpers/text-metrics';
 import { hoistUniformColor, usableRuns } from '../../../helpers/rich-text.helper';
 import { RichTextSessionService } from './rich-text-session.service';
 import { TAB_SIZE } from '../../../helpers/code-highlight.helper';
@@ -57,7 +60,6 @@ export class TextEditingService {
    private readonly destroyRef = inject(DestroyRef);
    readonly store = inject(ProjectStore);
    private readonly codeActions = inject(CodeActionsService);
-   private readonly snackBar = inject(MatSnackBar);
    readonly canvasView = inject(CanvasViewService);
    host!: TextEditingHost;
 
@@ -73,6 +75,17 @@ export class TextEditingService {
             if (this.editingTextId$()) this.commitTextEdit();
             this.codeActions.diffEditSide.set(req.side);
             this.editingTextId$.set(req.id);
+         });
+      });
+      // Remember each edited element as it was when its editor opened: live typing and
+      // per-run styling patch the store locally, so the commit records against this.
+      effect(() => {
+         const id = this.editingTextId$();
+         untracked(() => {
+            if (!id) return;
+            if (this.editStart?.id === id) return;
+            this.editStart = this.store.elements().find((e) => e.id === id) ?? null;
+            this.prepareDiffEdit(id);
          });
       });
       // A diff card's editor opens with the caret in the pane that was asked for.
@@ -136,7 +149,9 @@ export class TextEditingService {
          padding: CODE_PADDING * z,
          padLeft: d.textOffset * z,
          lineHeight: d.lineHeight * z,
-         value: el.diffText ?? '',
+         value: splitDiffEdit(el)
+            ? diffEditValue(el.text ?? '', el.diffText ?? '', 'modified', !el.diffShowWhitespace)
+            : (el.diffText ?? ''),
       };
    });
 
@@ -155,7 +170,7 @@ export class TextEditingService {
             el.type === 'frame' ||
             el.type === 'rectangle' ||
             el.type === 'ellipse' ||
-            el.type === 'diamond' ||
+            el.type === 'diamond' || el.type === 'triangle' ||
             el.type === 'arrow' ||
             el.type === 'line');
       if (!el || !editable) {
@@ -208,7 +223,9 @@ export class TextEditingService {
             fontFamily: fontStack('code'),
             fontWeight: 400,
             italic: false,
-            value: code,
+            value: splitDiffEdit(el)
+               ? diffEditValue(code, el.diffText ?? '', 'original', !el.diffShowWhitespace)
+               : code,
             color: 'transparent',
             align: 'left' as const,
             wrap: false,
@@ -221,7 +238,7 @@ export class TextEditingService {
             ink: null,
          };
       }
-      if (el.type === 'rectangle' || el.type === 'ellipse' || el.type === 'diamond') {
+      if (el.type === 'rectangle' || el.type === 'ellipse' || el.type === 'diamond' || el.type === 'triangle') {
          // A shape label edits like a wrapping text box: rich text inside the shape's inset
          // text box, laid out exactly as the renderer lays it out (wrap + alignment).
          const opts = shapeLabelOptions(el, this.canvasView.themeColors());
@@ -266,6 +283,12 @@ export class TextEditingService {
       // its shape); a text element's own box is already fit to its content.
       const lh = el.lineHeight ?? DEFAULT_LINE_HEIGHT;
       const contentHeight = Math.max(1, text.split('\n').length) * fontSize * lh;
+      // Middle/bottom-aligned text (slide placeholders) is drawn shifted in its box:
+      // the editor follows the drawn lines so clicks and the caret land on them.
+      const shift = el.type === 'text' ? textBlockShift(el) : 0;
+      const editBox = elementBox(el);
+      // Right after Enter the new (still empty) last line has no glyphs: keep it inside the outline.
+      if (/\n[^\S\n]*$/.test(text)) editBox.y1 = Math.max(editBox.y1, el.y + el.height);
       // The editor overlays the text exactly, sized and styled to match the
       // rendered glyphs so it reads as true WYSIWYG — no overlay surface and no
       // second copy of the text behind it. A shape label centers over its shape; a
@@ -273,11 +296,11 @@ export class TextEditingService {
       return {
          id,
          left: (isLabel ? el.x + el.width / 2 : el.x) * z + v.x,
-         top: (isLabel ? el.y + el.height / 2 : el.y) * z + v.y,
+         top: (isLabel ? el.y + el.height / 2 : el.y + shift) * z + v.y,
          // A free text box gets a comfortable typing area (about 8 characters wide and one
          // full line tall) even while it is empty or short; it still grows with the text.
          width: Math.max(el.width, isLabel || el.wrap ? 8 : fontSize * 8) * z,
-         height: (isLabel ? contentHeight : Math.max(el.height, fontSize * lh)) * z,
+         height: (isLabel ? contentHeight : Math.max(el.height - shift, fontSize * lh)) * z,
          fontSize: fontSize * z,
          fontFamily: fontStack(el.fontFamily),
          fontWeight: el.bold ? 800 : fontWeightFor(el.strokeWidth),
@@ -293,7 +316,7 @@ export class TextEditingService {
          lineHeight: fontSize * z * lh,
          padLeft: null as number | null,
          // The edit outline hugs the glyphs, like the selection box.
-         ink: el.type === 'text' && (el.text ?? '').trim() ? inkRect(elementBox(el)) : null,
+         ink: el.type === 'text' && (el.text ?? '').trim() ? inkRect(editBox) : null,
       };
       function inkRect(b: Box) {
          return { left: b.x0 * z + v.x, top: b.y0 * z + v.y, width: (b.x1 - b.x0) * z, height: (b.y1 - b.y0) * z };
@@ -313,10 +336,18 @@ export class TextEditingService {
 
    // --- inline text editing ---
 
-   onTextInput(value: string): void {
+   onTextInput(value: string, event?: Event): void {
       const id = this.editingTextId$();
       const el = id ? this.store.elements().find((e) => e.id === id) : null;
       if (!id || !el) {
+         return;
+      }
+      if (el.type === 'code' && splitDiffEdit(el) && event) {
+         this.onSplitDiffInput(el, 'original', event);
+         return;
+      }
+      if (el.type === 'code' && codeDiffActive(el)) {
+         this.growDiffWhileEditing(el, { text: value });
          return;
       }
       if (el.type === 'code') {
@@ -339,17 +370,68 @@ export class TextEditingService {
       this.store.patchElementLocal(id, { text: value, width: size.width, height: size.height });
    }
 
-   /** Typing in a diff card's right (changed) pane; the card grows taller to fit. */
-   onDiffPaneInput(value: string): void {
+   /** Typing in a diff card's right (changed) pane; the card grows to fit both panes. */
+   onDiffPaneInput(value: string, event?: Event): void {
       const id = this.editingTextId$();
       const el = id ? this.store.elements().find((e) => e.id === id) : null;
       if (!id || el?.type !== 'code') {
          return;
       }
-      const next = { ...el, diffText: value };
-      const d = codeDiffEditLayout(next);
-      const height = codeHeaderHeight(el.fontSize ?? CODE_FONT_SIZE) + d.rows * d.lineHeight + CODE_PADDING * 2;
-      this.store.patchElementLocal(id, { diffText: value, height: Math.max(el.height, Math.ceil(height)) });
+      if (splitDiffEdit(el) && event) {
+         this.onSplitDiffInput(el, 'modified', event);
+         return;
+      }
+      this.growDiffWhileEditing(el, { diffText: value });
+   }
+
+   /** Typing in a split diff pane: store the real code; the card only grows taller. */
+   private onSplitDiffInput(el: CanvasElementModel, side: 'original' | 'modified', event: Event): void {
+      const code = { text: el.text ?? '', diffText: el.diffText ?? '' };
+      const real = applySplitDiffInput(event, side, code, !el.diffShowWhitespace);
+      const patch = side === 'original' ? { text: real } : { diffText: real };
+      const size = codeElementContentSize({ ...el, ...patch });
+      this.store.patchElementLocal(el.id, { ...patch, height: Math.max(el.height, size.height) });
+   }
+
+   /** The size a diff card had before editing widened it, so commit can put it back. */
+   private diffEditOrigin: { id: string; width: number; height: number } | null = null;
+
+   /**
+    * While a diff card is edited its two panes are plain code side by side: grow the card
+    * so neither textarea ever scrolls (a scrolled textarea's caret no longer lines up with
+    * the code drawn beneath it, so keys like End/arrows appear to land on the wrong text).
+    */
+   private growDiffWhileEditing(el: CanvasElementModel, patch: { text?: string; diffText?: string }): void {
+      if (this.diffEditOrigin?.id !== el.id) {
+         this.diffEditOrigin = { id: el.id, width: el.width, height: el.height };
+      }
+      const size = codeDiffEditSize({ ...el, ...patch });
+      this.store.patchElementLocal(el.id, {
+         ...patch,
+         width: Math.max(el.width, size.width),
+         height: Math.max(el.height, size.height),
+      });
+   }
+
+   /** Begin a diff edit: make room for both panes up front so nothing scrolls from the first key. */
+   prepareDiffEdit(id: string): void {
+      const el = this.store.elements().find((e) => e.id === id);
+      // A split diff edits in place and keeps its bounds; only inline needs two panes' room.
+      if (el?.type === 'code' && codeDiffActive(el) && !splitDiffEdit(el)) {
+         this.growDiffWhileEditing(el, {});
+      }
+   }
+
+   /**
+    * Code textareas must never scroll: their glyphs are transparent over the SVG
+    * rendering, which does not scroll with them. The card grows to fit instead.
+    */
+   onCodeScroll(event: Event): void {
+      const area = event.target as HTMLTextAreaElement;
+      if (area.scrollLeft || area.scrollTop) {
+         area.scrollLeft = 0;
+         area.scrollTop = 0;
+      }
    }
 
    /** Leaving one pane of a diff card's editor: moving to the other pane keeps editing. */
@@ -387,7 +469,18 @@ export class TextEditingService {
 
    /** Copy / cut / paste with several cursors (one line per cursor). */
    onCodeClipboard(event: ClipboardEvent): void {
-      this.cursors.get(event.target as HTMLTextAreaElement)?.handleClipboard(event);
+      const area = event.target as HTMLTextAreaElement;
+      this.cursors.get(area)?.handleClipboard(event);
+      // A split diff's pane holds invisible spacer lines: never let them reach the clipboard.
+      if (event.defaultPrevented || event.type === 'paste' || !event.clipboardData) return;
+      const picked = area.value.slice(area.selectionStart, area.selectionEnd);
+      if (!picked.includes(DIFF_SPACER)) return;
+      event.preventDefault();
+      event.clipboardData.setData('text/plain', stripDiffSpacers(picked));
+      if (event.type === 'cut') {
+         area.setRangeText('', area.selectionStart, area.selectionEnd, 'start');
+         area.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteByCut' }));
+      }
    }
 
    /** The box a text element takes for `value`: always hugging its content, never wrapped. */
@@ -427,14 +520,20 @@ export class TextEditingService {
       if (event.shiftKey && event.altKey && event.code === 'KeyS') {
          // Fit the card to what is being typed (grow or shrink); saved on commit.
          event.preventDefault();
-         const size = codeContentSize(area.value, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
+         const size = codeDiffActive(el)
+            ? codeDiffEditSize(el)
+            : codeContentSize(area.value, el.fontSize ?? CODE_FONT_SIZE, codeTitle(el));
          this.store.patchElementLocal(el.id, { width: size.width, height: size.height });
          return;
       }
       if (event.shiftKey && event.altKey && event.code === 'KeyF') {
          // Format in place through the textarea so the edit stays one undo step.
          event.preventDefault();
-         void formatCode(area.value, el.language, codePrintWidth(el))
+         const side = area.classList.contains('diff-pane') ? 'modified' : 'original';
+         const widths = codeDiffPrintWidths(el);
+         const source = stripDiffSpacers(area.value);
+         const printWidth = codeDiffActive(el) ? widths[side] : codePrintWidth(el);
+         void formatCode(source, el.language, printWidth)
             .then((formatted) => {
                if (formatted === area.value) {
                   return;
@@ -442,10 +541,7 @@ export class TextEditingService {
                area.select();
                insert(formatted);
             })
-            .catch((err: unknown) => {
-               const message = err instanceof Error ? err.message : 'Could not format the code.';
-               this.snackBar.open(`Couldn't format: ${message}`, undefined, { duration: 4000 });
-            });
+            .catch((err: unknown) => this.codeActions.reportFormatErrors(el, side, err, source, printWidth));
          return;
       }
       if (event.key === 'Tab') {
@@ -499,8 +595,13 @@ export class TextEditingService {
    /** Where the double-click that opened the editor landed (screen coords), if any. */
    editClickPoint: { x: number; y: number } | null = null;
 
+   /** The edited element as it was when its inline editor opened (undo baseline). */
+   private editStart: CanvasElementModel | null = null;
+
    commitTextEdit(): void {
       const id = this.editingTextId$();
+      const start = this.editStart?.id === id ? this.editStart : null;
+      this.editStart = null;
       this.editingTextId$.set(null);
       this.teardownRichEditor();
       if (!id) {
@@ -516,29 +617,40 @@ export class TextEditingService {
          this.codeActions.diffEditSide.set('original');
          // Code blocks stay even when left empty. A diff card grows to fit its diff view.
          const size = codeElementContentSize(el);
-         void this.store.updateElement(id, {
+         // A diff card widened only to edit both panes goes back to its own size (or what its view needs).
+         const origin = diff && this.diffEditOrigin?.id === id ? this.diffEditOrigin : null;
+         this.diffEditOrigin = null;
+         const base = origin ?? el;
+         // A split diff was edited in place: it keeps its width (only grows taller).
+         const keepWidth = diff && splitDiffEdit(el);
+         void this.store.commitElementEdit(id, start, {
             text,
             ...(diff ? { diffText: el.diffText ?? '' } : {}),
-            width: Math.max(el.width, size.width),
-            height: Math.max(el.height, size.height),
+            width: keepWidth ? base.width : Math.max(base.width, size.width),
+            height: Math.max(base.height, size.height),
          });
          return;
       }
       if (el.type !== 'text') {
          // Shape label: store the (possibly empty) label without resizing the shape.
-         void this.store.updateElement(id, { text, runs: text ? (usableRuns(text, el.runs) ?? null) : null });
+         void this.store.commitElementEdit(id, start, {
+            text,
+            runs: text ? (usableRuns(text, el.runs) ?? null) : null,
+         });
          return;
       }
       // All text recolored alike: that is the block's color now, for text typed later too.
       const hoisted = text.trim() ? hoistUniformColor(usableRuns(text, el.runs)) : null;
       if (text.trim() === '') {
          // An emptied placeholder stays: it goes back to showing its prompt.
-         void (el.placeholder ? this.store.updateElement(id, { text: '', runs: null }) : this.store.deleteElement(id));
+         void (el.placeholder
+            ? this.store.commitElementEdit(id, start, { text: '', runs: null })
+            : this.store.deleteElement(id));
          return;
       }
       const runs = hoisted ? hoisted.runs : usableRuns(text, el.runs);
       const size = fitTextElement(el, { text, runs });
-      void this.store.updateElement(id, {
+      void this.store.commitElementEdit(id, start, {
          text,
          runs: runs ?? null,
          ...(hoisted ? { strokeColor: hoisted.color } : {}),
@@ -594,3 +706,8 @@ export class TextEditingService {
    }
 }
 export type { TextEditingHost } from './text-editing.helpers';
+
+/** A split diff (not inline) is edited in place over its own view, with spacer lines. */
+function splitDiffEdit(el: CanvasElementModel): boolean {
+   return el.type === 'code' && codeDiffActive(el) && el.diffView !== 'inline';
+}

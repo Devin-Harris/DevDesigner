@@ -828,5 +828,15 @@
             </g>
          }
       }
+      @for (fe of formatErrorMarks$(); track $index) {
+         <path
+            class="format-error"
+            fill="none"
+            stroke="#e5484d"
+            pointer-events="none"
+            [attr.d]="fe.d"
+            [attr.stroke-width]="fe.width"
+         ></path>
+      }
    </g>
 </svg>

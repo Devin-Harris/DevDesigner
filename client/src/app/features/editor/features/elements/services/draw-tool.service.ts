@@ -61,7 +61,7 @@ export class DrawToolService {
       return (
          tool === 'rectangle' ||
          tool === 'ellipse' ||
-         tool === 'diamond' ||
+         tool === 'diamond' || tool === 'triangle' ||
          tool === 'frame' ||
          tool === 'line' ||
          tool === 'arrow' ||

@@ -6,6 +6,7 @@
       [style.cursor]="tools.canvasCursor$()"
       (pointerdown)="pointer.onCanvasPointerDown($event)"
       (dblclick)="dblClick.onCanvasDblClick($event)"
+      (contextmenu)="contextMenu.onContextMenu($event)"
       (wheel)="viewport.onWheel($event)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
@@ -889,7 +890,8 @@
                (cut)="textEditing.onCodeClipboard($event)"
                (paste)="textEditing.onCodeClipboard($event)"
                (keydown)="textEditing.onEditorKeydown($event)"
-               (input)="textEditing.onTextInput($any($event.target).value)"
+               (scroll)="t.code && textEditing.onCodeScroll($event)"
+               (input)="textEditing.onTextInput($any($event.target).value, $event)"
                (blur)="t.code ? textEditing.onCodePaneBlur($event) : textEditing.commitTextEdit()"
             ></textarea>
          }
@@ -923,7 +925,8 @@
             (cut)="textEditing.onCodeClipboard($event)"
             (paste)="textEditing.onCodeClipboard($event)"
             (keydown)="textEditing.onEditorKeydown($event)"
-            (input)="textEditing.onDiffPaneInput($any($event.target).value)"
+            (scroll)="textEditing.onCodeScroll($event)"
+            (input)="textEditing.onDiffPaneInput($any($event.target).value, $event)"
             (blur)="textEditing.onCodePaneBlur($event)"
          ></textarea>
       }
@@ -1002,6 +1005,7 @@
                [style.top.px]="h.top"
                [style.--span.px]="h.span"
                (pointerdown)="groupTransform.startSpacingDrag($event)"
+               (dblclick)="groupTransform.resetListSpacing($event)"
             ></div>
          }
       }
@@ -1144,4 +1148,5 @@
          </div>
       }
    </div>
+   <dd-canvas-context-menu />
 </div>

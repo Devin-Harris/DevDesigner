@@ -376,25 +376,41 @@ export class SequenceGestures {
                }
             }
          }
-         if (d.kind === 'diagram' && !this.host.dragCopied) {
-            const moves: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] = [];
-            for (const [id, from] of d.companions.elements) {
-               const el = this.host.store.elements().find((e) => e.id === id);
-               if (el && (el.x !== from.x || el.y !== from.y)) {
-                  moves.push({ id, from, to: { x: el.x, y: el.y } });
-               }
-            }
-            this.host.store.recordElementMove(moves);
-         }
          const own = d.kind === 'diagram' ? d.diagramId : this.host.diagram$().id;
          const befores = new Map(this.host.othersBefore);
          if (this.host.layoutBefore) befores.set(own, this.host.layoutBefore);
-         for (const [dId, before] of befores) {
-            const after = this.host.snapshotLayout(dId);
-            if (!this.host.dragCopied && this.host.layoutChanged(before, after)) {
-               this.host.store.recordSequenceLayout(dId, before, after);
+         // One undo step for the whole gesture: every moved diagram plus its companions.
+         this.host.store.batchHistorySync(() => {
+            if (d.kind === 'diagram' && !this.host.dragCopied) {
+               // Companion elements, tables and the routes between them moved too.
+               const c = d.companions;
+               const els = new Map(this.host.store.elements().map((e) => [e.id, e] as const));
+               const tbs = new Map(this.host.store.tables().map((t) => [t.id, t] as const));
+               const rels = new Map(this.host.store.relationships().map((r) => [r.id, r] as const));
+               const pos = <T extends { x: number; y: number }>(
+                  m: Map<string, T>,
+                  id: string,
+                  f: { x: number; y: number }
+               ) => {
+                  const cur = m.get(id);
+                  return cur ? { x: cur.x, y: cur.y } : f;
+               };
+               this.host.store.recordItemMoves(
+                  { elements: c.elements, tables: c.tables, waypoints: c.waypoints },
+                  {
+                     elements: new Map([...c.elements].map(([id, f]) => [id, pos(els, id, f)])),
+                     tables: new Map([...c.tables].map(([id, f]) => [id, pos(tbs, id, f)])),
+                     waypoints: new Map([...c.waypoints].map(([id, wp]) => [id, rels.get(id)?.waypoints ?? wp])),
+                  }
+               );
             }
-         }
+            for (const [dId, before] of befores) {
+               const after = this.host.snapshotLayout(dId);
+               if (!this.host.dragCopied && this.host.layoutChanged(before, after)) {
+                  this.host.store.recordSequenceLayout(dId, before, after);
+               }
+            }
+         });
          this.host.layoutBefore = null;
          this.host.othersBefore = new Map();
       }

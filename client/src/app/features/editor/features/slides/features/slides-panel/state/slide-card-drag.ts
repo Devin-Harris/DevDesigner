@@ -1,10 +1,14 @@
 import { type CanvasElementModel } from '@devdesigner/shared';
 import { FRAME_PRESETS } from '../../../../../shared/constants/frame-presets';
 import { revealCard } from './slides-panel.state.helpers';
+import { nextSlideSelection } from './slide-range-selection.helper';
 import type { SlidesPanelState } from './slides-panel.state';
 
 /** Slide card drag, reorder and row selection for the slides panel. */
 export class SlideCardDrag {
+   /** Where a Shift-click range starts: the last plainly clicked or Ctrl/Cmd-toggled slide. */
+   private anchorId: string | null = null;
+
    constructor(private readonly host: SlidesPanelState) {}
 
    selectAll(): void {
@@ -29,6 +33,7 @@ export class SlideCardDrag {
       const cur = list.findIndex((f) => f.id === this.host.activeId());
       const next = list[Math.min(list.length - 1, Math.max(0, cur < 0 ? 0 : cur + delta))];
       if (next && next.id !== this.host.activeId()) {
+         this.anchorId = next.id;
          this.host.command.emit({ kind: 'focus', id: next.id });
          const cards = event.currentTarget as HTMLElement | null;
          const index = this.host.shown$().findIndex((f) => f.id === next.id);
@@ -38,7 +43,7 @@ export class SlideCardDrag {
       }
    }
 
-   /** Plain click shows that slide; Ctrl/Cmd/Shift-click toggles it in the selection. */
+   /** Plain click shows that slide; Ctrl/Cmd-click toggles it; Shift-click selects the range from the anchor. */
    onRowClick(f: CanvasElementModel, event: Event): void {
       if (this.host.suppressClick || f.id === this.host.pendingCloneId) {
          return;
@@ -46,15 +51,22 @@ export class SlideCardDrag {
       // A click or an Enter / Space press: both carry the modifier keys.
       const { ctrlKey, metaKey, shiftKey } = event as MouseEvent | KeyboardEvent;
       if (ctrlKey || metaKey || shiftKey) {
-         const ids = new Set(this.host.activeSlides$().map((x) => x.id));
-         if (ids.has(f.id)) {
-            ids.delete(f.id);
-         } else {
-            ids.add(f.id);
-         }
-         this.host.store.setSelection([], [], [...ids]);
+         const order = this.host
+            .shown$()
+            .filter((x) => x.id !== this.host.pendingCloneId)
+            .map((x) => x.id);
+         const selected = this.host.activeSlides$().map((x) => x.id);
+         // Fall back to the shown slide when the anchor is gone (deleted, or selection changed elsewhere).
+         const anchor =
+            this.anchorId && order.includes(this.anchorId) && selected.includes(this.anchorId)
+               ? this.anchorId
+               : this.host.activeId();
+         const next = nextSlideSelection(order, selected, anchor, f.id, shiftKey ? 'range' : 'toggle');
+         this.anchorId = next.anchor;
+         this.host.store.setSelection([], [], next.ids);
          return;
       }
+      this.anchorId = f.id;
       this.host.command.emit({ kind: 'focus', id: f.id });
    }
 

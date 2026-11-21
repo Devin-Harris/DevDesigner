@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { CanvasContent } from '../../services/canvas-content.service';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
-import type { ArrowheadType } from '@devdesigner/shared';
+import type { ArrowheadType, CanvasElementModel } from '@devdesigner/shared';
 import { GridTableService } from '../../../../services/grid-table.service';
 import type { CodeDotAction, GridTableView, ImageView, ShapeView } from '../../../../models/shape-view.model';
 import { MediaVideoComponent } from '../../../../shared/components/media-video/media-video.component';
@@ -12,6 +12,7 @@ import { EmbedFramesService } from '../../../../services/embed-frames.service';
 import { EmbedUrlBarComponent } from '../../../../shared/components/embed-frame/embed-url-bar.component';
 import { EmbedFrameComponent } from '../../../../shared/components/embed-frame/embed-frame.component';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../../../../helpers/element-geometry.helper';
+import { CODE_FONT_SIZE, codeLineMark } from '../../../../helpers/render';
 import { CallPipe, AtPipe, HasPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 import { ImageKindPipe, ImagePosterPipe, ImageUrlPipe } from '../../../../../../features/editor/shared/pipes/element-image.pipes';
 import type { MediaKind } from '../../../../../../features/editor/services/element-images.service';
@@ -96,6 +97,44 @@ export class CanvasShapesComponent {
    private readonly grids = inject(GridTableService);
    protected readonly content = inject(CanvasContent);
    protected readonly embeds = inject(EmbedFramesService);
+
+   /**
+    * Red squiggles under every line the last Format could not handle (each until that
+    * side's code changes), drawn by the layer that draws the code block.
+    */
+   protected readonly formatErrorMarks$ = computed(() => {
+      if (!this.interactive$()) return [];
+      const shown = new Set(this.visible$().map((s) => s.id));
+      const out: { d: string; width: number }[] = [];
+      for (const err of this.codeActions.formatErrors()) {
+         if (!shown.has(err.id)) continue;
+         const el = this.content.elements().find((e) => e.id === err.id);
+         if (el?.type !== 'code') continue;
+         const source = err.side === 'modified' ? el.diffText : el.text;
+         if ((source ?? '') !== err.source) continue;
+         const squiggle = this.squiggle(el, err.side, err.line, err.column);
+         if (squiggle) out.push(squiggle);
+      }
+      return out;
+   });
+
+   private squiggle(
+      el: CanvasElementModel,
+      side: 'original' | 'modified',
+      line: number,
+      column: number | undefined
+   ): { d: string; width: number } | null {
+      const mark = codeLineMark(el, side, line, column);
+      if (!mark) return null;
+      const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+      const y = mark.y + fontSize * 0.3;
+      const step = Math.max(2, fontSize * 0.22);
+      let d = `M${mark.x},${y}`;
+      for (let x = mark.x, up = true; x < mark.x + mark.width; x += step, up = !up) {
+         d += ` L${Math.min(x + step, mark.x + mark.width)},${y + (up ? -step / 2 : step / 2)}`;
+      }
+      return { d, width: Math.max(1, fontSize / 12) };
+   }
 
    /** The picture under the pointer (GIFs set to play on hover animate while hovered). */
    protected readonly hoveredId = signal<string | null>(null);

@@ -111,7 +111,7 @@ export class ElementFloatingToolbarComponent {
    protected readonly currentLineHeight$ = computed(() => this.element$().lineHeight ?? DEFAULT_LINE_HEIGHT);
    /** Elements whose stroke is an outline/line (text colour is not an outline). */
    protected readonly strokeOpacityShown$ = computed(() =>
-      ['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw', 'frame', 'code', 'grid'].includes(
+      ['rectangle', 'ellipse', 'diamond', 'triangle', 'line', 'arrow', 'freedraw', 'frame', 'code', 'grid'].includes(
          this.element$().type
       )
    );
@@ -222,12 +222,13 @@ export class ElementFloatingToolbarComponent {
    });
    protected readonly multiText$ = computed(() => this.textTargets().length > 1);
    protected readonly hasFill$ = computed(
-      () => !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw' && this.element$().type !== 'image'
+      () =>
+         !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw' && this.element$().type !== 'image'
    );
    /** Closed shapes and code cards can drop their outline entirely ("no stroke"). */
    protected readonly strokeCanBeNone$ = computed(() => {
       const t = this.element$().type;
-      return t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'code';
+      return t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'triangle' || t === 'code';
    });
    /** The theme stroke swatch applies to whole elements, not to cell or rich-text styling. */
    protected readonly strokeThemeValue$ = computed(() => (this.cellsOn() || this.editingRich$() ? null : THEME_STROKE));
@@ -296,15 +297,31 @@ export class ElementFloatingToolbarComponent {
       'endArrowhead',
    ] as const;
 
+   /** Patch every selected element (or this one) in one undo step; `patchFor` returns null to skip. */
+   private updateSelected(patchFor: (el: CanvasElementModel) => UpdateElementDto | null): void {
+      const ids = this.edits.selectedElementIds();
+      const targets = new Set(ids.length ? ids : [this.element$().id]);
+      this.updateEach(
+         this.edits.elements().filter((e) => targets.has(e.id)),
+         patchFor
+      );
+   }
+
+   private updateEach(els: CanvasElementModel[], patchFor: (el: CanvasElementModel) => UpdateElementDto | null): void {
+      void this.edits.batchHistory(() =>
+         Promise.all(
+            els.map((el) => {
+               const p = patchFor(el);
+               return p && this.edits.updateElement(el.id, p);
+            })
+         )
+      );
+   }
+
    /** Apply a patch to every selected element and remember its style for new draws. */
    private patchAll(patch: UpdateElementDto): void {
-      const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element$().id];
-      for (const id of targets) {
-         // Text boxes hug their glyphs: a font/size/weight change refits the box.
-         const el = this.edits.elements().find((e) => e.id === id);
-         void this.edits.updateElement(id, el ? withTextFit(el, this.withRunReset(el, patch)) : patch);
-      }
+      // Text boxes hug their glyphs: a font/size/weight change refits the box.
+      this.updateSelected((el) => withTextFit(el, this.withRunReset(el, patch)));
       const stylePatch: Record<string, unknown> = {};
       for (const key of ElementFloatingToolbarComponent.STYLE_KEYS) {
          if (key in patch) {
@@ -336,13 +353,7 @@ export class ElementFloatingToolbarComponent {
 
    /** Code-block edits apply to every selected code block and never touch the sticky text style. */
    private patchCode(patch: UpdateElementDto): void {
-      const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element$().id];
-      for (const id of targets) {
-         if (this.edits.elements().find((e) => e.id === id)?.type === 'code') {
-            void this.edits.updateElement(id, patch);
-         }
-      }
+      this.updateSelected((el) => (el.type === 'code' ? patch : null));
    }
 
    protected readonly canFormat$ = computed(() => canFormatCode(this.element$().language));
@@ -449,22 +460,20 @@ export class ElementFloatingToolbarComponent {
 
    /** Font changes go to every selected element that has text, never to pictures, lines, etc. */
    private patchText(patch: UpdateElementDto): void {
-      for (const el of this.textTargets()) {
-         void this.edits.updateElement(el.id, withTextFit(el, this.withRunReset(el, patch)));
-      }
+      this.updateEach(this.textTargets(), (el) => withTextFit(el, this.withRunReset(el, patch)));
       this.edits.setElementStyle(patch as Record<string, unknown>);
    }
 
    /** Step every selected text's size to the next preset up or down (each from its own size). */
    protected stepFontSize(dir: 1 | -1): void {
-      for (const el of this.textTargets()) {
+      this.updateEach(this.textTargets(), (el) => {
          const cur = el.fontSize ?? TEXT_SIZE_DEFAULT;
          const next =
             dir > 0
                ? (FONT_SIZES.find((s) => s > cur) ?? Math.round(cur * 1.25))
                : ([...FONT_SIZES].reverse().find((s) => s < cur) ?? Math.max(6, Math.round(cur * 0.8)));
-         void this.edits.updateElement(el.id, withTextFit(el, { fontSize: next }));
-      }
+         return withTextFit(el, { fontSize: next });
+      });
    }
 
    /** A size typed into the size menu. */
@@ -497,13 +506,7 @@ export class ElementFloatingToolbarComponent {
    /** Switch a text block between auto-size and fixed-width (wrapping) mode. */
    protected toggleWrap(): void {
       const on = !this.element$().wrap;
-      const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element$().id]) {
-         const el = this.edits.elements().find((e) => e.id === id);
-         if (el?.type === 'text') {
-            void this.edits.updateElement(id, withTextFit(el, { wrap: on }));
-         }
-      }
+      this.updateSelected((el) => (el.type === 'text' ? withTextFit(el, { wrap: on }) : null));
    }
 
    /** Underline has no element-level flag: it is applied to every run of the block. */
@@ -512,16 +515,12 @@ export class ElementFloatingToolbarComponent {
       if (this.editingRich$() && this.rich.apply({ underline: on })) {
          return;
       }
-      const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element$().id]) {
-         const el = this.edits.elements().find((e) => e.id === id);
-         if (el?.type !== 'text') {
-            continue;
-         }
+      this.updateSelected((el) => {
+         if (el.type !== 'text') return null;
          const text = el.text ?? '';
          const runs = patchRuns(runsOrPlain(text, el.runs), 0, text.length, { underline: on });
-         void this.edits.updateElement(id, withTextFit(el, { runs: isPlainRuns(runs) ? null : runs }));
-      }
+         return withTextFit(el, { runs: isPlainRuns(runs) ? null : runs });
+      });
    }
 
    /** The list kind of the selected lines (editing) or of the whole block. */
@@ -538,19 +537,12 @@ export class ElementFloatingToolbarComponent {
       if (this.editingRich$() && this.rich.toggleList(kind)) {
          return;
       }
-      const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element$().id]) {
-         const el = this.edits.elements().find((e) => e.id === id);
-         if (el?.type !== 'text') {
-            continue;
-         }
+      this.updateSelected((el) => {
+         if (el.type !== 'text') return null;
          const text = el.text ?? '';
          const { runs } = toggleListRuns(runsOrPlain(text, el.runs), 0, text.length, kind);
-         void this.edits.updateElement(
-            id,
-            withTextFit(el, { text: plainOf(runs), runs: isPlainRuns(runs) ? null : runs })
-         );
-      }
+         return withTextFit(el, { text: plainOf(runs), runs: isPlainRuns(runs) ? null : runs });
+      });
    }
 
    /** Tag the selected words so they glide into the same-tagged words of the next slide. */
@@ -706,9 +698,7 @@ export class ElementFloatingToolbarComponent {
    /** Selected items changed from their slide's layout (or master) that can go back. */
    protected readonly revert$ = computed(() => {
       const ids = new Set(this.edits.selectedElementIds());
-      return this.edits.revertable(
-         this.edits.elements().filter((e) => ids.has(e.id))
-      );
+      return this.edits.revertable(this.edits.elements().filter((e) => ids.has(e.id)));
    });
 
    protected revertToLayout(): void {

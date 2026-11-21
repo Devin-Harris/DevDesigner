@@ -13,7 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import type { CurrentUserResponse } from '@devdesigner/shared';
+import type { CurrentUserResponse, UserPreferences } from '@devdesigner/shared';
 import { User } from './user.entity';
 import { ApiToken } from './api-token.entity';
 import {
@@ -172,6 +172,18 @@ export class AuthService implements OnModuleInit {
   }
 
   /** Resolve the current user for GET /auth/me, or null when anonymous/missing. */
+  /** Merge editor view preferences into the account. */
+  async updatePreferences(userId: string, patch: UserPreferences): Promise<UserPreferences> {
+    const user = await this.users.findOneOrFail({ where: { id: userId } });
+    const next: UserPreferences = { ...(user.preferences ?? {}) };
+    for (const key of ['gridSnap', 'smartGuides', 'minimap', 'minimapCollapsed'] as const) {
+      if (typeof patch[key] === 'boolean') next[key] = patch[key];
+    }
+    user.preferences = next;
+    await this.users.save(user);
+    return next;
+  }
+
   async me(userId: string | null): Promise<CurrentUserResponse | null> {
     if (!userId) {
       return null;
@@ -257,6 +269,9 @@ function toResponse(user: User): CurrentUserResponse {
   };
   if (user.role === 'admin') {
     response.isAdmin = true;
+  }
+  if (user.preferences) {
+    response.preferences = user.preferences;
   }
   return response;
 }

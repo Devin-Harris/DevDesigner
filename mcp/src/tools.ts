@@ -836,10 +836,10 @@ export function registerTools(server: McpServer, api: DevDesignerApi): void {
 
   tool(
     'add_shape',
-    'Add a rectangle, ellipse or diamond (optionally labelled) to the canvas. Position is auto-chosen free space unless x/y or near is given. Returns its id for add_arrow.',
+    'Add a rectangle, ellipse, diamond or triangle (optionally labelled) to the canvas. Position is auto-chosen free space unless x/y or near is given. Returns its id for add_arrow.',
     {
       projectId,
-      shape: z.enum(['rectangle', 'ellipse', 'diamond']),
+      shape: z.enum(['rectangle', 'ellipse', 'diamond', 'triangle']),
       text: z.string().optional().describe('Label centered in the shape.'),
       width: z.number().optional().describe('Default 180.'),
       height: z.number().optional().describe('Default 90.'),

@@ -70,7 +70,7 @@ export class DrawCommit {
       const { x, y, points } = draft;
       let { width, height } = draft;
       let text = draft.text;
-      if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
+      if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond' || draft.type === 'triangle') {
          if (width < 4 && height < 4) {
             width = 120;
             height = 80;

@@ -38,4 +38,4 @@ export interface ElementGesture {
 }
 
 /** Elements that Ctrl + resize scales with their content (font size included). */
-export const CONTENT_SCALE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['code', 'rectangle', 'ellipse', 'diamond']);
+export const CONTENT_SCALE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['code', 'rectangle', 'ellipse', 'diamond', 'triangle']);

@@ -146,11 +146,40 @@ export async function formatCode(text: string, language: CodeLanguage | undefine
       // A bare method/property is only valid inside a class body.
       try {
          out = unwrapClass(await run(`class __DdSnippet {\n${source}\n}`));
-      } catch {
-         throw cleanError(err);
+      } catch (wrappedErr) {
+         // Report whichever attempt got further: a snippet of methods fails at its first
+         // line unwrapped, but its real mistake is wherever the class-wrapped parse stops.
+         const first = cleanError(err);
+         const wrapped = cleanError(wrappedErr);
+         const wrappedLine = wrapped.line != null ? wrapped.line - 1 : undefined;
+         if (wrappedLine != null && wrappedLine >= 1 && wrappedLine > (first.line ?? 0)) {
+            throw new CodeFormatError(wrapped.reason, wrappedLine, wrapped.column);
+         }
+         throw first;
       }
    }
-   return restore(out.replace(/\n+$/, ''));
+   return breakLongImports(restore(out.replace(/\n+$/, '')), printWidth);
+}
+
+/**
+ * Prettier never breaks an import/export of a single braced name, so a long one overflows
+ * the width. Split any such line that is too wide over several lines to stay in bounds.
+ */
+export function breakLongImports(code: string, printWidth: number): string {
+   return code
+      .split('\n')
+      .map((line) => {
+         if (line.length <= printWidth) return line;
+         const m = /^(\s*)((?:import|export)(?: type)?) \{ ([^{}]+?) \} from (.+)$/.exec(line);
+         if (!m) return line;
+         const [, indent, head, names, rest] = m;
+         const items = names
+            .split(/,\s*/)
+            .filter(Boolean)
+            .map((n) => `${indent}  ${n},`);
+         return [`${indent}${head} {`, ...items, `${indent}} from ${rest}`].join('\n');
+      })
+      .join('\n');
 }
 
 /** SQL is not a Prettier language; `sql-formatter` handles it (also lazy-loaded). */
@@ -170,10 +199,38 @@ async function formatSql(text: string, printWidth: number): Promise<string> {
    }
 }
 
-function cleanError(err: unknown): Error {
+/** Why code could not be formatted, with the 1-based line/column of the problem when known. */
+export class CodeFormatError extends Error {
+   constructor(
+      readonly reason: string,
+      readonly line?: number,
+      readonly column?: number
+   ) {
+      super(line ? `line ${line}${column ? `, col ${column}` : ''}: ${reason}` : reason);
+      this.name = 'CodeFormatError';
+   }
+}
+
+function cleanError(err: unknown): CodeFormatError {
    const raw = err instanceof Error ? err.message : String(err);
    // Prettier appends a source frame; the first line is the useful part.
-   return new Error(raw.split('\n')[0].replace(/^SyntaxError:\s*/, ''));
+   let reason = raw.split('\n')[0].replace(/^SyntaxError:\s*/, '').trim();
+   const loc = (err as { loc?: { start?: { line?: number; column?: number } } } | null)?.loc?.start;
+   let line = loc?.line;
+   let column = loc?.column;
+   // "Unexpected token (3:5)" (Prettier) / "... at line 3 column 5" (sql-formatter).
+   const paren = /\s*\((\d+):(\d+)\)\s*$/.exec(reason);
+   if (paren) {
+      line ??= Number(paren[1]);
+      column ??= Number(paren[2]);
+      reason = reason.slice(0, paren.index);
+   }
+   const words = /\bline:?\s*(\d+),?\s*col(?:umn)?:?\s*(\d+)/i.exec(raw);
+   if (words) {
+      line ??= Number(words[1]);
+      column ??= Number(words[2]);
+   }
+   return new CodeFormatError(reason || 'Could not format the code.', line, column);
 }
 
 /**
@@ -247,4 +304,36 @@ function stripNonCode(line: string, inBlock: boolean): { text: string; inBlock: 
       text += ch;
    }
    return { text, inBlock };
+}
+
+/**
+ * Every line that keeps `text` from formatting, not just the first: parsers stop at their
+ * first error, so each failing line is blanked (keeping line numbers) and the code re-parsed
+ * until it formats or no new line is found. Empty when the code formats.
+ */
+export async function findFormatErrors(
+   text: string,
+   language: CodeLanguage | undefined,
+   printWidth = 80,
+   max = 25
+): Promise<CodeFormatError[]> {
+   const errors: CodeFormatError[] = [];
+   const lines = text.replace(/\r\n?/g, '\n').split('\n');
+   const seen = new Set<number>();
+   for (let i = 0; i < max; i++) {
+      try {
+         await formatCode(lines.join('\n'), language, printWidth);
+         return errors;
+      } catch (err) {
+         const e = err instanceof CodeFormatError ? err : new CodeFormatError(err instanceof Error ? err.message : String(err));
+         if (e.line == null || e.line < 1 || e.line > lines.length || seen.has(e.line)) {
+            if (!errors.length) errors.push(e);
+            return errors;
+         }
+         errors.push(e);
+         seen.add(e.line);
+         lines[e.line - 1] = '';
+      }
+   }
+   return errors;
 }

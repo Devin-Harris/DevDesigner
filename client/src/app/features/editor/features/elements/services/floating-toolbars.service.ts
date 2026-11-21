@@ -23,7 +23,7 @@ export class FloatingToolbarsService {
       // even while a draw tool stays active (drawing a shape selects it).
       const editingId = this.textEditing.editingTextId$();
       const editType = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type;
-      const richEditing = !!editingId && ['text', 'rectangle', 'ellipse', 'diamond'].includes(editType || '');
+      const richEditing = !!editingId && ['text', 'rectangle', 'ellipse', 'diamond', 'triangle'].includes(editType || '');
       if ((editingId && !richEditing) || this.gesture.gestureActive()) {
          return null;
       }
@@ -194,9 +194,9 @@ export class FloatingToolbarsService {
    });
 
    /** Element types a "fill / stroke for all" applies to. */
-   private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond']);
+   private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond', 'triangle']);
 
-   private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'arrow', 'line', 'freedraw']);
+   private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'triangle', 'arrow', 'line', 'freedraw']);
 
    /** Some selected elements take a fill or stroke. */
    readonly selectionStylable$ = computed(() => {

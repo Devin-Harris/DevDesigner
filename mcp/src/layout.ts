@@ -322,7 +322,7 @@ export function findTextOverflow(schema: SchemaModel, scope?: (e: CanvasElementM
     if (scope && !scope(e)) continue;
     const item = items.get(e.id);
     if (!item || !e.text) continue;
-    if (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') {
+    if (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond' || e.type === 'triangle') {
       const fontSize = e.fontSize ?? 18;
       const inset = e.type === 'rectangle' ? 0.9 : e.type === 'ellipse' ? 0.7 : 0.5;
       const usable = Math.max(20, e.width * inset - 16);

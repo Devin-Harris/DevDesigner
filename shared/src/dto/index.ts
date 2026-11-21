@@ -60,6 +60,16 @@ export interface CurrentUserResponse {
   displayName: string | null;
   /** Present (true) only for admins; the role itself is never in the session token. */
   isAdmin?: boolean;
+  /** Editor view preferences, synced across devices. */
+  preferences?: UserPreferences;
+}
+
+/** Per-account editor view settings (persisted so clearing browser storage does not lose them). */
+export interface UserPreferences {
+  gridSnap?: boolean;
+  smartGuides?: boolean;
+  minimap?: boolean;
+  minimapCollapsed?: boolean;
 }
 
 // --- API tokens (MCP / automation) ---

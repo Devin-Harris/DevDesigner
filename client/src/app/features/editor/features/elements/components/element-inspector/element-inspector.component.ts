@@ -30,7 +30,7 @@ export class ElementInspectorComponent {
 
    /** Closed shapes and code cards can drop their outline entirely. */
    protected readonly strokeCanBeNone$ = computed(() =>
-      ['rectangle', 'ellipse', 'diamond', 'code'].includes(this.element$().type)
+      ['rectangle', 'ellipse', 'diamond', 'triangle', 'code'].includes(this.element$().type)
    );
    protected readonly widths = [1, 2, 4];
    protected readonly styles: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
@@ -84,7 +84,7 @@ export class ElementInspectorComponent {
    protected readonly hasFill$ = computed(() => !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw');
    protected readonly canHaveText$ = computed(() => {
       const t = this.element$().type;
-      return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond';
+      return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'triangle';
    });
 
    private static readonly STYLE_KEYS = [

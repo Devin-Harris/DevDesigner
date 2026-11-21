@@ -220,7 +220,7 @@ export class DeckCompareDrag {
          const e = byId.get(h.id!);
          return (
             !!e &&
-            (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
+            (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond' || e.type === 'triangle') &&
             (e.fillStyle === 'none' || !e.backgroundColor || e.backgroundColor === 'transparent')
          );
       };

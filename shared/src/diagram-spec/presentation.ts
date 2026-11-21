@@ -127,7 +127,7 @@ export type SlideItem =
   | {
       type: 'shape';
       morph?: string;
-      shape: 'rectangle' | 'ellipse' | 'diamond';
+      shape: 'rectangle' | 'ellipse' | 'diamond' | 'triangle';
       text?: string;
       width?: number;
       height?: number;
@@ -148,6 +148,13 @@ export type SlideItem =
       morph?: string;
       /** Card surface (palette name or hex); a dark one switches the code to the light token palette. */
       backgroundColor?: string;
+      /**
+       * Show the card as a diff: `code` is the ORIGINAL (before) version and `diffCode`
+       * the CHANGED (after) version; changed lines are highlighted red/green.
+       */
+      diffCode?: string;
+      /** How a diff is shown: side by side (default when `diffCode` is given) or inline. */
+      diffView?: 'split' | 'inline';
     }
   | { type: 'schema'; tables: SpecTable[]; relationships?: SpecRelationship[]; x?: number; y?: number }
   | {
@@ -498,13 +505,34 @@ export function buildSlideContent(
           inner,
           Math.max(320, nameWidth, Math.ceil(longest * size * 0.62) + 32),
         );
-        const h = header + Math.ceil(lines.length * size * 1.5) + 32;
-        const p = place(item, w, h);
+        let cardW = w;
+        let h = header + Math.ceil(lines.length * size * 1.5) + 32;
+        const diffView = item.diffCode != null ? (item.diffView ?? 'split') : undefined;
+        if (item.diffCode != null) {
+          const after = item.diffCode.split('\n');
+          const longestAfter = Math.max(...after.map((l) => l.length), 1);
+          const same = commonLineCount(lines, after);
+          // Inline lists every removed and added line; split pairs them row by row.
+          const rows = diffView === 'inline' ? lines.length + after.length - same : Math.max(lines.length, after.length);
+          const gutter = 32 + 3 * size * 0.62;
+          const pane = (n: number): number => Math.ceil(n * size * 0.62 + gutter);
+          cardW = Math.min(
+            inner,
+            Math.max(
+              320,
+              nameWidth,
+              diffView === 'inline' ? pane(Math.max(longest, longestAfter)) : 2 * pane(Math.max(longest, longestAfter)),
+            ),
+          );
+          h = header + Math.ceil(rows * size * 1.5) + 32;
+        }
+        const p = place(item, cardW, h);
         out.elements.push({
           ...baseElement('code', newId(), z++),
+          ...(diffView ? { diffText: item.diffCode, diffView } : {}),
           x: p.x,
           y: p.y,
-          width: w,
+          width: cardW,
           height: h,
           text: item.code,
           language: item.language ?? 'typescript',
@@ -849,4 +877,18 @@ export function shiftPresentation(
     }
   }
   return schema;
+}
+
+/** How many lines two versions share in order (longest common subsequence of lines). */
+function commonLineCount(a: readonly string[], b: readonly string[]): number {
+  if (a.length * b.length > 1_000_000) return 0;
+  let prev = new Array<number>(b.length + 1).fill(0);
+  for (const line of a) {
+    const cur = new Array<number>(b.length + 1).fill(0);
+    for (let j = 0; j < b.length; j++) {
+      cur[j + 1] = line === b[j] ? prev[j] + 1 : Math.max(prev[j + 1], cur[j]);
+    }
+    prev = cur;
+  }
+  return prev[b.length];
 }

@@ -7,6 +7,7 @@ export type EditorTool =
    | 'rectangle'
    | 'ellipse'
    | 'diamond'
+   | 'triangle'
    | 'arrow'
    | 'line'
    | 'text'

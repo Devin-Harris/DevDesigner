@@ -16,7 +16,7 @@ export function createSlideSteps(ctx: StepContext, canvas: CanvasSteps) {
             cursor({ x: el.x + el.width / 2, y: el.y + el.height / 2, label: 'Alt-drag to copy' });
             apply({ kind: 'element.created', element: el });
             await wait(110);
-         } else if (['rectangle', 'ellipse', 'diamond'].includes(el.type)) await dragOut(el);
+         } else if (['rectangle', 'ellipse', 'diamond', 'triangle'].includes(el.type)) await dragOut(el);
          else {
             apply({ kind: 'element.created', element: el });
             await wait(120);

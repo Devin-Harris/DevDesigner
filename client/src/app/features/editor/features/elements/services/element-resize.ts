@@ -46,7 +46,11 @@ export class ElementResize {
       if (onlyX && resized?.type === 'text') {
          // A side handle on text fixes its width: it wraps and the height follows the text.
          let width = Math.max(24, s.width + (left ? -dx : dx) * factor);
-         if (this.host.snap.gridSnap$()) {
+         // The dragged edge lines up with other items and the slide edges (smart guides).
+         const smart = this.resizeSnap(g.id, s, left, false, width, s.height, { x: true, y: false }, ev.altKey);
+         if (smart?.snappedX) {
+            width = Math.max(24, width + (left ? -smart.ox : smart.ox) * factor);
+         } else if (this.host.snap.gridSnap$()) {
             width = Math.max(24, snapToGrid(width));
          }
          const wrapped: CanvasElementModel = { ...resized, wrap: true };

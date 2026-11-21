@@ -162,7 +162,7 @@ export class CanvasDblClickService {
             hit.type === 'frame' ||
             hit.type === 'rectangle' ||
             hit.type === 'ellipse' ||
-            hit.type === 'diamond' ||
+            hit.type === 'diamond' || hit.type === 'triangle' ||
             hit.type === 'arrow' ||
             hit.type === 'line'
          ) {
@@ -272,7 +272,7 @@ export class CanvasDblClickService {
       const copy = await standInFor(this.store, item, frame);
       if (!copy) return;
       this.store.selectElement(copy.id);
-      if (['text', 'rectangle', 'ellipse', 'diamond', 'code'].includes(copy.type))
+      if (['text', 'rectangle', 'ellipse', 'diamond', 'triangle', 'code'].includes(copy.type))
          this.textEditing.editingTextId$.set(copy.id);
    }
 

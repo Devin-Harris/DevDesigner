@@ -17,7 +17,7 @@ export const STROKE_STYLE_ICONS: { value: StrokeStyle; icon: string }[] = [
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 44, 48, 60, 72, 96];
 
 /** Element types that carry text (their own, or a label) and take font styling. */
-export const TEXT_TYPES = new Set(['text', 'rectangle', 'ellipse', 'diamond', 'grid']);
+export const TEXT_TYPES = new Set(['text', 'rectangle', 'ellipse', 'diamond', 'triangle', 'grid']);
 
 export const TEXT_SIZE_DEFAULT = 20;
 

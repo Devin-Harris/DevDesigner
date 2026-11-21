@@ -51,6 +51,7 @@ const EXPECTED: Record<string, string> = {
   'DELETE /auth/api-tokens/:tokenId': 'caller',
   'POST /auth/logout-all': 'caller',
   'DELETE /auth/me': 'caller',
+  'PATCH /auth/me/preferences': 'caller',
   // health, admin
   'GET /health': 'public',
   'GET /health/ready': 'public',

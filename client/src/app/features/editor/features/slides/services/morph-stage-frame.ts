@@ -134,6 +134,9 @@ export class MorphStageFrame {
          for (const m of c.moves) {
             m.el.setAttribute('transform', `translate(${m.dx * (1 - t)} ${m.dy * (1 - t)})`);
          }
+         for (const m of 'outMoves' in c ? (c.outMoves ?? []) : []) {
+            m.el.setAttribute('transform', `translate(${m.dx * t} ${m.dy * t})`);
+         }
          for (const g of c.fadeOut) {
             g.setAttribute('opacity', String(fadeOut(t)));
          }

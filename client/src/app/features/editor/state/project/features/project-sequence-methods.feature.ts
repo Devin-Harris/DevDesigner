@@ -86,62 +86,69 @@ export function withProjectSequenceMethods() {
             };
          };
 
-            /**
-             * Show (or with null, remove) a local-only starter diagram filling a box being
-             * dragged out with the sequence tool, so it renders as it will look. Never saved.
-             */
+         /**
+          * Show (or with null, remove) a local-only starter diagram filling a box being
+          * dragged out with the sequence tool, so it renders as it will look. Never saved.
+          */
          const previewSequenceLocal = (box: { x: number; y: number; width: number; height: number } | null): void => {
-               setSchema((s) => {
-                  const rest = {
-                     ...s,
-                     sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== PREVIEW_ID),
-                     lifelines: s.lifelines.filter((l) => l.diagramId !== PREVIEW_ID),
-                     sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== PREVIEW_ID),
-                  };
-                  if (!box) return rest;
-                  const l = starterLayout(box.x, box.y, box);
-                  const base = { diagramId: PREVIEW_ID, width: l.lifelineWidth };
-                  return {
-                     ...rest,
-                     sequenceDiagrams: [
-                        ...rest.sequenceDiagrams,
-                        {
-                           id: PREVIEW_ID,
-                           lifelineSpacing: l.lifelineSpacing,
-                           rowSpacing: l.rowSpacing,
-                           headerHeight: l.headerHeight,
-                           originY: box.y,
-                           zIndex: -1,
-                        },
-                     ],
-                     lifelines: [
-                        ...rest.lifelines,
-                        { ...base, id: `${PREVIEW_ID}-a`, label: 'Participant 1', x: l.x, order: 0, color: TABLE_PALETTE[0] },
-                        {
-                           ...base,
-                           id: `${PREVIEW_ID}-b`,
-                           label: 'Participant 2',
-                           x: l.x + l.lifelineSpacing,
-                           order: 1,
-                           color: TABLE_PALETTE[1],
-                        },
-                     ],
-                     sequenceMessages: [
-                        ...rest.sequenceMessages,
-                        {
-                           id: `${PREVIEW_ID}-m`,
-                           diagramId: PREVIEW_ID,
-                           fromLifelineId: `${PREVIEW_ID}-a`,
-                           toLifelineId: `${PREVIEW_ID}-b`,
-                           y: box.y + l.headerHeight + l.rowSpacing,
-                           style: 'solid',
-                           direction: 'forward',
-                           arrowhead: 'arrow',
-                        },
-                     ],
-                  };
-               });
-            };
+            setSchema((s) => {
+               const rest = {
+                  ...s,
+                  sequenceDiagrams: s.sequenceDiagrams.filter((d) => d.id !== PREVIEW_ID),
+                  lifelines: s.lifelines.filter((l) => l.diagramId !== PREVIEW_ID),
+                  sequenceMessages: s.sequenceMessages.filter((m) => m.diagramId !== PREVIEW_ID),
+               };
+               if (!box) return rest;
+               const l = starterLayout(box.x, box.y, box);
+               const base = { diagramId: PREVIEW_ID, width: l.lifelineWidth };
+               return {
+                  ...rest,
+                  sequenceDiagrams: [
+                     ...rest.sequenceDiagrams,
+                     {
+                        id: PREVIEW_ID,
+                        lifelineSpacing: l.lifelineSpacing,
+                        rowSpacing: l.rowSpacing,
+                        headerHeight: l.headerHeight,
+                        originY: box.y,
+                        zIndex: -1,
+                     },
+                  ],
+                  lifelines: [
+                     ...rest.lifelines,
+                     {
+                        ...base,
+                        id: `${PREVIEW_ID}-a`,
+                        label: 'Participant 1',
+                        x: l.x,
+                        order: 0,
+                        color: TABLE_PALETTE[0],
+                     },
+                     {
+                        ...base,
+                        id: `${PREVIEW_ID}-b`,
+                        label: 'Participant 2',
+                        x: l.x + l.lifelineSpacing,
+                        order: 1,
+                        color: TABLE_PALETTE[1],
+                     },
+                  ],
+                  sequenceMessages: [
+                     ...rest.sequenceMessages,
+                     {
+                        id: `${PREVIEW_ID}-m`,
+                        diagramId: PREVIEW_ID,
+                        fromLifelineId: `${PREVIEW_ID}-a`,
+                        toLifelineId: `${PREVIEW_ID}-b`,
+                        y: box.y + l.headerHeight + l.rowSpacing,
+                        style: 'solid',
+                        direction: 'forward',
+                        arrowhead: 'arrow',
+                     },
+                  ],
+               };
+            });
+         };
 
          return {
             /** Positions of a diagram's lifelines/rows, captured at the start of a group move. */
@@ -364,9 +371,12 @@ export function withProjectSequenceMethods() {
                }
                // Move/resize gestures record their own layout step; only the appearance
                // settings are recorded here.
-               const keys = Object.keys(patch).filter((k) =>
-                  record &&
-                  ['backgroundColor', 'borderColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(k)
+               const keys = Object.keys(patch).filter(
+                  (k) =>
+                     record &&
+                     ['backgroundColor', 'borderColor', 'lifelineSpacing', 'headerHeight', 'title', 'morphId'].includes(
+                        k
+                     )
                );
                const current = store.sequenceDiagrams().find((d) => d.id === diagramId);
                const before = current && keys.length ? pickKeys(current, keys) : null;
@@ -388,13 +398,13 @@ export function withProjectSequenceMethods() {
             ): void {
                const apply = (snap: SequenceLayoutSnapshot): void => {
                   for (const [id, x] of snap.lifelineXs) {
-                     store.moveLifeline(id, x);
+                     store.moveLifeline(rid(id), x);
                   }
                   for (const [id, y] of snap.messageYs) {
-                     store.moveMessage(id, y);
+                     store.moveMessage(rid(id), y);
                   }
                   void this.updateSequenceConfig(
-                     diagramId,
+                     rid(diagramId),
                      {
                         rowSpacing: snap.rowSpacing,
                         originY: snap.originY,
@@ -405,12 +415,17 @@ export function withProjectSequenceMethods() {
                      false
                   );
                   for (const [id, width] of snap.lifelineWidths ?? []) {
-                     const l = store.lifelines().find((x) => x.id === id);
+                     const l = store.lifelines().find((x) => x.id === rid(id));
                      // withProjectSequenceRowsMethods is composed before this feature (project.store).
                      const rows = store as unknown as {
-                        updateLifeline(id: string, p: { width: number }, prev: undefined, record: boolean): Promise<void>;
+                        updateLifeline(
+                           id: string,
+                           p: { width: number },
+                           prev: undefined,
+                           record: boolean
+                        ): Promise<void>;
                      };
-                     if (l && l.width !== width) void rows.updateLifeline(id, { width }, undefined, false);
+                     if (l && l.width !== width) void rows.updateLifeline(l.id, { width }, undefined, false);
                   }
                };
                pushHistory({ undo: () => apply(before), redo: () => apply(after) });

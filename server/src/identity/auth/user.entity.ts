@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import type { UserPreferences } from '@devdesigner/shared';
 import type { UserRole } from './auth.types';
 
 /**
@@ -38,6 +39,10 @@ export class User {
 
   @Column({ type: 'datetime', nullable: true })
   lastLoginAt!: Date | null;
+
+  /** Editor view preferences (grid snap, smart guides, minimap), synced across devices. */
+  @Column({ type: 'simple-json', nullable: true })
+  preferences!: UserPreferences | null;
 
   // Throttled activity touch (analytics Phase 1); not written yet.
   @Column({ type: 'datetime', nullable: true })

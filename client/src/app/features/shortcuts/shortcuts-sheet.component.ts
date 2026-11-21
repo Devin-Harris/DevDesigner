@@ -12,7 +12,7 @@ const GROUPS: ShortcutGroup[] = [
       items: [
          ['V', 'Select'],
          ['H', 'Hand / pan (or hold Space)'],
-         ['R · O · D', 'Rectangle · ellipse · diamond (press again to cycle)'],
+         ['R · O · D', 'Rectangle · ellipse · diamond · triangle (press again to cycle)'],
          ['A · L', 'Arrow · line'],
          ['P', 'Draw'],
          ['T', 'Text'],
@@ -33,6 +33,7 @@ const GROUPS: ShortcutGroup[] = [
          ['Ctrl C · Ctrl V', 'Copy · paste'],
          ['Delete', 'Delete selection'],
          ['Ctrl G', 'Group'],
+         ['Ctrl Shift E', 'Export the selection (choose a format)'],
          ['Ctrl Shift G', 'Ungroup'],
          ['Ctrl ] · Ctrl [', 'Bring forward · send backward'],
          ['Ctrl Shift ] · [', 'Bring to front · send to back'],

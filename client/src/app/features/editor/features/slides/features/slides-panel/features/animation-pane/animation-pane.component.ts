@@ -67,6 +67,7 @@ const TYPE_NAMES: Record<string, string> = {
    rectangle: 'Rectangle',
    ellipse: 'Ellipse',
    diamond: 'Diamond',
+   triangle: 'Triangle',
    line: 'Line',
    arrow: 'Arrow',
    freedraw: 'Drawing',

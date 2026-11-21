@@ -48,6 +48,8 @@ export interface CodeMorph {
    moves: Array<{ el: SVGGElement; dx: number; dy: number }>;
    fadeOut: SVGGElement[];
    fadeIn: SVGGElement[];
+   /** A-side pieces (diff bands/signs) that drift by (dx, dy) as they fade out with their row. */
+   outMoves?: Array<{ el: SVGGElement; dx: number; dy: number }>;
 }
 
 /**

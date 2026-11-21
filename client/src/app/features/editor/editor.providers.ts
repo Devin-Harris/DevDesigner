@@ -1,3 +1,4 @@
+import { CanvasContextMenuService } from './services/canvas-context-menu.service';
 import type { Provider } from '@angular/core';
 import { EditorShortcutsService } from './services/editor-shortcuts.service';
 import { EditorExportService } from './features/export/services/editor-export.service';
@@ -39,6 +40,7 @@ import { EditorBridgeService } from './editor-bridge.service';
 export function provideEditor(): Provider[] {
    return [
       EditorShortcutsService,
+      CanvasContextMenuService,
       EditorExportService,
       MediaDropService,
       ClipboardService,

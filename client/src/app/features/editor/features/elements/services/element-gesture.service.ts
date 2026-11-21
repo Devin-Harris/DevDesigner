@@ -69,7 +69,7 @@ export class ElementGestureService {
     */
    private pickInnermostAt(clicked: CanvasElementModel, event: PointerEvent): CanvasElementModel {
       const unfilled = (e: CanvasElementModel): boolean =>
-         (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
+         (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond' || e.type === 'triangle') &&
          (e.fillStyle === 'none' || !e.backgroundColor);
       if (!unfilled(clicked)) {
          return clicked;

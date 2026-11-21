@@ -1,6 +1,8 @@
 import { LiveFramesNoticeComponent } from './shared/components/embed-frame/live-frames-notice.component';
 import { readSavedViewport } from './state/project/viewport-storage';
 import { isSandboxId } from '../../core/sandbox/sandbox-backend.service';
+import { CanvasContextMenuService } from './services/canvas-context-menu.service';
+import { CanvasContextMenuComponent } from './features/context-menu/canvas-context-menu.component';
 import { provideEditor } from './editor.providers';
 import { EditorBridgeService } from './editor-bridge.service';
 import { FloatingToolbarsService } from './features/elements/services/floating-toolbars.service';
@@ -87,20 +89,12 @@ import { FocusUiState } from './features/slides/features/slides-panel/services/f
 import { PopoverTriggerDirective } from '../../shared/ui/directives/popover-trigger.directive';
 import { DeckCompareComponent } from './features/slides/features/deck-compare/deck-compare.component';
 import { CompareUiState } from './features/slides/features/deck-compare/services/compare-ui-state.service';
+import { UserPrefsService } from '../../core/auth/user-prefs.service';
 import type { EditorEmbedApi, EditorHostOptions } from './models/editor-embed.model';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import type { RelinkPreview } from './services/canvas-view.service';
 import { AtPipe, HasPipe } from '../../shared/ui/pipes/collection.pipes';
-function readFlag(key: string, fallback: boolean): boolean {
-   try {
-      const v = globalThis.localStorage?.getItem(key);
-      return v == null ? fallback : v === '1';
-   } catch {
-      return fallback;
-   }
-}
-
 /**
  * Canvas host and interaction orchestrator: pan/zoom, table dragging, multi
  * selection (modifier-click + marquee), relationship linking and endpoint
@@ -113,7 +107,7 @@ function readFlag(key: string, fallback: boolean): boolean {
 @Component({
    selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [AtPipe, HasPipe, LiveFramesNoticeComponent, ImageCropOverlayComponent, MatProgressSpinnerModule, IconComponent, MatTooltipModule, CanvasConnectorsComponent, CanvasShapesComponent, LaserLayerComponent, ShapeToolbarComponent, InspectorComponent, SequenceInspectorComponent, SequenceMessageToolbarComponent, SequenceParticipantToolbarComponent, SequenceDiagramToolbarComponent, MinimapComponent, CanvasSequenceComponent, ElementFloatingToolbarComponent, RelationshipInspectorComponent, ElementInspectorComponent, RelationshipToolbarComponent, MultiSelectBarComponent, PenOptionsBarComponent, DeckCompareComponent, PopoverTriggerDirective, AnimationPaneComponent, TableToolbarComponent, TableNodeComponent, AutofocusDirective, SlidesPanelComponent, PresentModeComponent],
+   imports: [AtPipe, CanvasContextMenuComponent, HasPipe, LiveFramesNoticeComponent, ImageCropOverlayComponent, MatProgressSpinnerModule, IconComponent, MatTooltipModule, CanvasConnectorsComponent, CanvasShapesComponent, LaserLayerComponent, ShapeToolbarComponent, InspectorComponent, SequenceInspectorComponent, SequenceMessageToolbarComponent, SequenceParticipantToolbarComponent, SequenceDiagramToolbarComponent, MinimapComponent, CanvasSequenceComponent, ElementFloatingToolbarComponent, RelationshipInspectorComponent, ElementInspectorComponent, RelationshipToolbarComponent, MultiSelectBarComponent, PenOptionsBarComponent, DeckCompareComponent, PopoverTriggerDirective, AnimationPaneComponent, TableToolbarComponent, TableNodeComponent, AutofocusDirective, SlidesPanelComponent, PresentModeComponent],
    providers: [provideEditor()],
    host: {
       '[class.chrome-picture]': "hostOptions$().chrome === 'picture'",
@@ -152,6 +146,7 @@ export class EditorComponent {
    protected readonly mediaDrop = inject(MediaDropService);
    protected readonly exporter = inject(EditorExportService);
    protected readonly shortcuts = inject(EditorShortcutsService);
+   protected readonly contextMenu = inject(CanvasContextMenuService);
    protected readonly store = inject(ProjectStore);
    protected readonly realtime = inject(RealtimeService);
    private readonly laser = inject(LaserService);
@@ -235,16 +230,11 @@ export class EditorComponent {
       }
    });
 
-   /** Bottom-right minimap visibility (remembered per browser). */
-   protected readonly showMinimap$ = signal(readFlag('devdesigner.minimap', true));
+   /** Bottom-right minimap visibility (saved to the account). */
+   private readonly userPrefs = inject(UserPrefsService);
+   protected readonly showMinimap$ = computed(() => this.userPrefs.prefs$().minimap);
    protected toggleMinimap(): void {
-      const on = !this.showMinimap$();
-      this.showMinimap$.set(on);
-      try {
-         globalThis.localStorage?.setItem('devdesigner.minimap', on ? '1' : '0');
-      } catch {
-         // storage unavailable
-      }
+      this.userPrefs.set('minimap', !this.showMinimap$());
    }
 
    protected duplicateSelectionInPlace(): void {
@@ -307,6 +297,12 @@ export class EditorComponent {
       this.mediaDrop.connect(this);
       this.exporter.connect(this);
       this.shortcuts.connect(this);
+      this.contextMenu.connect({
+         copySelection: () => this.clipboard.copySelection(),
+         pasteClipboard: () => this.clipboard.pasteClipboard(),
+         hasClipboard: () => this.clipboard.hasClipboard(),
+         isEditingText: () => !!this.textEditing.editingTextId$(),
+      });
       // Ctrl/Cmd+wheel (and trackpad pinch) anywhere over the editor — canvas,
       // slides panel, side panels — must never zoom the browser page. Capture
       // phase so panels that stopPropagation() on wheel are still covered; the

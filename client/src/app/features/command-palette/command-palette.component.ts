@@ -23,6 +23,7 @@ const TOOL_COMMANDS: { tool: string; label: string; key: string; icon: string }[
    { tool: 'rectangle', label: 'Rectangle', key: 'R', icon: 'crop_square' },
    { tool: 'ellipse', label: 'Ellipse', key: 'O', icon: 'circle' },
    { tool: 'diamond', label: 'Diamond', key: 'D', icon: 'diamond' },
+   { tool: 'triangle', label: 'Triangle', key: 'D D', icon: 'triangle' },
    { tool: 'arrow', label: 'Arrow', key: 'A', icon: 'arrow_tool' },
    { tool: 'line', label: 'Line', key: 'L', icon: 'line_tool' },
    { tool: 'freedraw', label: 'Draw', key: 'P', icon: 'pen' },

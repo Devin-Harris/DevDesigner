@@ -349,7 +349,7 @@ export function registerAgentTools(tool: ToolFn, api: DevDesignerApi, journal: J
       projectId,
       text: z.string().optional().describe('Case-insensitive substring.'),
       kinds: z.array(z.enum(KINDS)).optional(),
-      types: z.array(z.string()).optional().describe('Element types: rectangle, ellipse, diamond, text, code, image, arrow, line, freedraw, frame.'),
+      types: z.array(z.string()).optional().describe('Element types: rectangle, ellipse, diamond, triangle, text, code, image, arrow, line, freedraw, frame.'),
       slide: z.string().optional().describe('Slide id or 1-based number (with presentation): items owned by that slide.'),
       presentation: z.string().optional(),
       group: z.string().optional().describe('Group id.'),

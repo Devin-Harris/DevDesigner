@@ -7,7 +7,7 @@ import { elementBox, tableBox } from '../helpers/element-geometry.helper';
 import { tableHeight, tableWidth } from '../helpers/node-metrics.helper';
 import type { Box } from '../models/geometry.model';
 /** Element kinds that can contain other items (a lone selection aligns to these). */
-const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond']);
+const CONTAINER_TYPES: ReadonlySet<string> = new Set(['frame', 'rectangle', 'ellipse', 'diamond', 'triangle']);
 
 /** What alignment reaches in a sub-feature; the editor entry wires it with `connect`. */
 export interface AlignHost {

@@ -209,7 +209,7 @@ export async function playBuild(
          for (const el of els.filter((e) => !isArrow(e))) {
             if (el.type === 'code') await typeCode(el);
             else if (el.type === 'text') await typeText(el);
-            else if (['rectangle', 'ellipse', 'diamond'].includes(el.type)) await dragOut(el);
+            else if (['rectangle', 'ellipse', 'diamond', 'triangle'].includes(el.type)) await dragOut(el);
             else if (el.type === 'freedraw') await drawPen(el);
             else {
                await point(el.x, el.y);

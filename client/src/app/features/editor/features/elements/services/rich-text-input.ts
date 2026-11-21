@@ -144,7 +144,7 @@ export class RichTextInput {
       if (
          !id ||
          !el ||
-         (el.type !== 'text' && el.type !== 'rectangle' && el.type !== 'ellipse' && el.type !== 'diamond')
+         (el.type !== 'text' && el.type !== 'rectangle' && el.type !== 'ellipse' && el.type !== 'diamond' && el.type !== 'triangle')
       ) {
          return;
       }

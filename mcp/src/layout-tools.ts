@@ -261,7 +261,7 @@ export function registerLayoutTools(tool: ToolFn, api: DevDesignerApi): void {
           for (const e of schema.elements.filter((x) => x.slideId === frame.id)) {
             const isText = e.type === 'text';
             const isOutlineOnly =
-              (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond') &&
+              (e.type === 'rectangle' || e.type === 'ellipse' || e.type === 'diamond' || e.type === 'triangle') &&
               (e.fillStyle === 'none' || !e.backgroundColor);
             if (!isText && !isOutlineOnly) continue;
             const ratio = contrastRatio(resolveThemeColor(e.strokeColor, theme), fill);

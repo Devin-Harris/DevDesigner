@@ -188,6 +188,8 @@ function drawElement(
     }
     case 'ellipse':
       return `<g${op}><ellipse cx="${e.x + e.width / 2}" cy="${e.y + e.height / 2}" rx="${e.width / 2}" ry="${e.height / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${ds}/>${label()}</g>`;
+    case 'triangle':
+      return `<g${op}><polygon points="${e.x + e.width / 2},${e.y} ${e.x + e.width},${e.y + e.height} ${e.x},${e.y + e.height}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${ds}/>${label()}</g>`;
     case 'diamond': {
       const cx = e.x + e.width / 2;
       const cy = e.y + e.height / 2;

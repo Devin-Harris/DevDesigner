@@ -25,12 +25,13 @@ import type { AlignAction, ExportImageFormat } from '../../models/toolbar-action
 const ROUNDED_RADIUS = 12;
 
 /** Shape tools grouped behind the dock's Shape flyout. */
-const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];
+const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond', 'triangle'];
 
 const SHAPE_ICONS: Record<string, string> = {
    rectangle: 'crop_square',
    ellipse: 'circle',
    diamond: 'diamond',
+   triangle: 'triangle',
 };
 
 /**

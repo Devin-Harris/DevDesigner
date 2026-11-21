@@ -734,6 +734,53 @@ describe('ProjectStore history', () => {
       expect(store.undoDepth()).toBe(1);
    });
 
+   it('batchHistorySync records several synchronous entries as ONE undo step', async () => {
+      const { store } = createStore({ elements: [element('e1', { x: 0, y: 0 }), element('e2', { x: 0, y: 0 })] });
+      store.moveItemsLocal({ elements: new Map([['e1', { x: 10, y: 0 }]]) });
+      store.moveItemsLocal({ elements: new Map([['e2', { x: 0, y: 20 }]]) });
+      store.batchHistorySync(() => {
+         store.recordElementMove([{ id: 'e1', from: { x: 0, y: 0 }, to: { x: 10, y: 0 } }]);
+         store.recordItemMoves(
+            { elements: new Map([['e2', { x: 0, y: 0 }]]) },
+            { elements: new Map([['e2', { x: 0, y: 20 }]]) }
+         );
+      });
+      expect(store.undoDepth()).toBe(1);
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements.map((e) => [e.x, e.y])).toEqual([
+         [0, 0],
+         [0, 0],
+      ]);
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements.map((e) => [e.x, e.y])).toEqual([
+         [10, 0],
+         [0, 20],
+      ]);
+   });
+
+   it('commitElementEdit records a live (patchElementLocal) edit against the start snapshot', async () => {
+      const { store } = createStore({ elements: [element('e1', { text: 'old', strokeColor: '#111111' })] });
+      const start = store.schema()!.elements[0];
+      store.patchElementLocal('e1', { text: 'new' });
+      await store.commitElementEdit('e1', start, { text: 'new', runs: null });
+      expect(store.undoDepth()).toBe(1);
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements[0].text).toBe('old');
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements[0].text).toBe('new');
+   });
+
+   it('commitElementEdit records nothing when the edit changed nothing', async () => {
+      const { store } = createStore({ elements: [element('e1', { text: 'same' })] });
+      const start = store.schema()!.elements[0];
+      await store.commitElementEdit('e1', start, { text: 'same' });
+      expect(store.undoDepth()).toBe(0);
+   });
+
    it('a new edit clears the redo stack', async () => {
       const { store } = createStore({ elements: [element('e1')] });
       await store.updateElement('e1', { x: 5 });

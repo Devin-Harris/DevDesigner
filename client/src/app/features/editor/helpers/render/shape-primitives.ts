@@ -180,6 +180,17 @@ export function shapeTextBox(
    element: Pick<CanvasElementModel, 'type' | 'x' | 'y' | 'width' | 'height'>,
    box: { x: number; y: number; width: number; height: number } = element
 ): { x: number; y: number; width: number; height: number } {
+   if (element.type === 'triangle') {
+      // The widest part of an up-pointing triangle is its lower half.
+      const ix = Math.max(0, Math.min(box.width * 0.25 + 6, box.width / 2 - 4));
+      const top = box.y + box.height * 0.4;
+      return {
+         x: box.x + ix,
+         y: top,
+         width: Math.max(8, box.width - 2 * ix),
+         height: Math.max(8, box.y + box.height - 4 - top),
+      };
+   }
    const k = element.type === 'ellipse' ? 0.146 : element.type === 'diamond' ? 0.25 : 0;
    const ix = Math.min(box.width * k + 6, box.width / 2 - 4);
    const iy = Math.min(box.height * k + 4, box.height / 2 - 4);

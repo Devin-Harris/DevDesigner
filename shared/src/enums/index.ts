@@ -70,6 +70,7 @@ export type ElementType =
   | 'rectangle'
   | 'ellipse'
   | 'diamond'
+  | 'triangle'
   | 'line'
   | 'arrow'
   | 'freedraw'
@@ -85,6 +86,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
   'ellipse',
   'diamond',
+  'triangle',
   'line',
   'arrow',
   'freedraw',

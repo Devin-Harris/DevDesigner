@@ -49,6 +49,11 @@ export class ClipboardService {
 
    private pasteCount = 0;
 
+   /** Whether something copied in the editor is waiting to be pasted. */
+   hasClipboard(): boolean {
+      return this.clipboard !== null;
+   }
+
    onPaste(event: ClipboardEvent): void {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;

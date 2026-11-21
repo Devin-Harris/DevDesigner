@@ -115,6 +115,11 @@
                         <path d="M12 3l9 9-9 9-9-9 9-9z" />
                      </svg>
                   }
+                  @case ('triangle') {
+                     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 4l9 16H3z" />
+                     </svg>
+                  }
                   @default {
                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
                         <rect x="4" y="5" width="16" height="14" rx="2.5" />
@@ -159,6 +164,17 @@
                      (click)="onChange('diamond'); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
+                  </button>
+                  <button
+                     class="flyout-btn"
+                     type="button"
+                     matTooltip="Triangle (D again)"
+                     aria-label="Triangle"
+                     matTooltipPosition="above"
+                     [class.on]="tool$() === 'triangle'"
+                     (click)="onChange('triangle'); close()"
+                  >
+                     <svg class="ico" viewBox="0 0 24 24"><path d="M12 4l9 16H3z" /></svg>
                   </button>
                </div>
             </ng-template>

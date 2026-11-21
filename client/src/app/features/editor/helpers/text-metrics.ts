@@ -99,12 +99,40 @@ export function measureTextBox(
    } else {
       el.textContent = text.length ? text : ' ';
    }
+   // A trailing line break opens an empty last line (the caret sits on it right
+   // after Enter), but a trailing newline alone doesn't add a line box.
+   if (text.endsWith('\n')) {
+      el.appendChild(document.createTextNode(' '));
+   }
    const rect = el.getBoundingClientRect();
    return {
       // Fixed-width text keeps the box width it was given.
       width: wrapWidth !== undefined ? wrapWidth : Math.max(8, Math.ceil(rect.width) + 6),
       height: Math.ceil(rect.height) + 4,
    };
+}
+
+/** Rendered rows of a text element (wrapped text is measured at its box width). */
+function textBlockRows(el: CanvasElementModel, wrapped: boolean, L: number): number {
+   const lines = (el.text ?? '').split('\n').length;
+   if (!wrapped) return lines;
+   const h = fitTextElement({ ...el, wrap: true }).height - 4;
+   return Math.max(lines, Math.round(h / L));
+}
+
+/**
+ * How far a text element's first line is drawn below (or, overflowing, above) where
+ * top-aligned text would sit, mirroring `layoutTextBlock`'s vertical alignment.
+ */
+export function textBlockShift(el: CanvasElementModel, wrapped?: boolean): number {
+   const vAlign = el.verticalAlign ?? 'top';
+   if (vAlign === 'top') return 0;
+   const fontSize = el.fontSize ?? TEXT_DEFAULT_FONT_SIZE;
+   const L = fontSize * (el.lineHeight ?? DEFAULT_LINE_HEIGHT);
+   const explicit = (el.text ?? '').split('\n').length;
+   const w = wrapped ?? (el.wrap ?? el.height > explicit * L + 4 + L * 0.5);
+   const blockH = textBlockRows(el, w, L) * L;
+   return vAlign === 'middle' ? (el.height - blockH) / 2 - 2 : el.height - blockH - 4;
 }
 
 /** The box a text element takes for its content at its current typography. */
@@ -235,7 +263,21 @@ export function textInkInsets(el: CanvasElementModel): TextInk {
    const lh = el.lineHeight ?? DEFAULT_LINE_HEIGHT;
    const stack = fontStack(themeFont(el));
    const runs = usableRuns(text, el.runs);
-   const key = JSON.stringify([text, runs, fontSize, weight, italic, lh, stack, el.textAlign, el.wrap, el.width]);
+   const vAlign = el.verticalAlign ?? 'top';
+   const key = JSON.stringify([
+      text,
+      runs,
+      fontSize,
+      weight,
+      italic,
+      lh,
+      stack,
+      el.textAlign,
+      el.wrap,
+      el.width,
+      vAlign,
+      el.height,
+   ]);
    const hit = inkCache.get(key);
    if (hit) {
       return hit;
@@ -295,19 +337,24 @@ export function textInkInsets(el: CanvasElementModel): TextInk {
    if (first < 0) {
       return NO_INK;
    }
-   const baseline = PAD + half + asc;
-   const top = baseline + first * L - vert[first].a;
-   const bottomInk = baseline + last * L + vert[last].d;
    // Unwrapped text is drawn as exactly its lines; wrapped (or legacy-wrapped)
    // text keeps its stored height, and its breaks aren't known here, so only
    // the top/bottom are trimmed.
    const natural = lines.length * L + PAD * 2;
    const wrapped = !!el.wrap || el.height > natural + L * 0.5;
+   // Middle/bottom-aligned text (layout placeholders) is drawn shifted inside its box,
+   // and may overflow past its top: follow the drawn lines.
+   const shift = textBlockShift(el, wrapped);
+   const baseline = PAD + half + asc + shift;
+   const top = baseline + first * L - vert[first].a;
+   const bottomInk = baseline + last * L + vert[last].d;
+   const blockBottom = PAD + shift + textBlockRows(el, wrapped, L) * L;
    const horiz = !wrapped && inkL < Infinity;
    const ink: TextInk = {
-      top: Math.max(0, top),
+      top: wrapped && vAlign !== 'top' ? Math.min(0, top) : shift < 0 ? top : Math.max(0, top),
       // Relative to the STORED height (it may lag the drawn lines until refit).
-      bottom: wrapped ? 0 : el.height - bottomInk,
+      // Wrapped text keeps its box, but grows to lines drawn past its bottom.
+      bottom: wrapped ? Math.min(0, el.height - blockBottom) : el.height - bottomInk,
       left: horiz ? inkL : 0,
       right: horiz ? el.width - inkR : 0,
    };

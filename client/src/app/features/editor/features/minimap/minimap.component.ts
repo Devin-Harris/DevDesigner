@@ -1,8 +1,9 @@
 import type { MinimapItem } from '../../models/minimap-item.model';
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, viewChild } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../../../core/theme/theme.service';
+import { UserPrefsService } from '../../../../core/auth/user-prefs.service';
 
 export interface MinimapView {
    x0: number;
@@ -14,15 +15,6 @@ export interface MinimapView {
 const WIDTH = 200;
 const HEIGHT = 140;
 const PAD_FRACTION = 0.08;
-const COLLAPSED_KEY = 'dd-minimap-collapsed';
-
-function readCollapsed(): boolean {
-   try {
-      return globalThis.localStorage?.getItem(COLLAPSED_KEY) === '1';
-   } catch {
-      return false;
-   }
-}
 
 /**
  * Bottom-right overview of the whole project. Draws every element as a filled
@@ -46,7 +38,8 @@ export class MinimapComponent {
 
    protected readonly width = WIDTH;
    protected readonly height = HEIGHT;
-   protected readonly collapsed$ = signal(readCollapsed());
+   private readonly userPrefs = inject(UserPrefsService);
+   protected readonly collapsed$ = computed(() => this.userPrefs.prefs$().minimapCollapsed);
 
    private readonly cv = viewChild<ElementRef<HTMLCanvasElement>>('cv');
    private readonly theme = inject(ThemeService);
@@ -92,13 +85,7 @@ export class MinimapComponent {
    }
 
    protected toggle(): void {
-      const next = !this.collapsed$();
-      this.collapsed$.set(next);
-      try {
-         globalThis.localStorage?.setItem(COLLAPSED_KEY, next ? '1' : '0');
-      } catch {
-         // ignore storage errors
-      }
+      this.userPrefs.set('minimapCollapsed', !this.collapsed$());
    }
 
    private computeBounds(): MinimapView {

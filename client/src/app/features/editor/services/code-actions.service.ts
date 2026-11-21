@@ -3,15 +3,24 @@ import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { CanvasElementModel, CodeDiffView } from '@devdesigner/shared';
 import { ProjectStore } from '../state/project/project.store';
-import { formatCode } from '../helpers/code-format.helper';
+import { CodeFormatError, findFormatErrors, formatCode } from '../helpers/code-format.helper';
+
+/** One line Format could not handle, underlined on the card. */
+export interface FormatErrorMark {
+   id: string;
+   side: 'original' | 'modified';
+   line: number;
+   column?: number;
+   source: string;
+}
 import {
    CODE_FONT_SIZE,
    codeContentSize,
    codeHeaderHeight,
    codeTitle,
-   codePrintWidth,
    codeDiffActive,
    codeElementContentSize,
+   codeDiffPrintWidths,
 } from '../helpers/render';
 
 /** Actions on code-block elements shared by the inspector and the floating toolbar. */
@@ -44,19 +53,31 @@ export class CodeActionsService {
     * the new view; one that was fit to its old view is refit exactly.
     */
    async setDiffView(ids: readonly string[], view: CodeDiffView): Promise<void> {
-      const blocks = this.store.elements().filter((e) => e.type === 'code' && ids.includes(e.id));
-      for (const el of blocks) {
-         if ((el.diffView ?? 'off') === view && (view === 'off' || el.diffText != null)) {
-            continue;
-         }
-         const diffText = el.diffText ?? (view === 'off' ? undefined : (el.text ?? ''));
-         const next: CanvasElementModel = { ...el, diffView: view, diffText };
-         await this.store.updateElement(el.id, {
-            diffView: view,
-            ...(el.diffText == null && diffText != null ? { diffText } : {}),
-            ...this.refit(el, next),
+      // Every patch is worked out from one snapshot up front, then applied as ONE undo
+      // step: nothing reads the store half-way through a multi-block change.
+      const wanted = new Set(ids);
+      const patches = this.store
+         .elements()
+         .filter((e) => e.type === 'code' && wanted.has(e.id))
+         .filter((el) => !((el.diffView ?? 'off') === view && (view === 'off' || el.diffText != null)))
+         .map((el) => {
+            const diffText = el.diffText ?? (view === 'off' ? undefined : (el.text ?? ''));
+            const next: CanvasElementModel = { ...el, diffView: view, diffText };
+            return {
+               id: el.id,
+               patch: {
+                  diffView: view,
+                  ...(el.diffText == null && diffText != null ? { diffText } : {}),
+                  ...this.refit(el, next),
+               },
+            };
          });
+      if (!patches.length) {
+         return;
       }
+      await this.store.batchHistory(async () => {
+         await Promise.all(patches.map((p) => this.store.updateElement(p.id, p.patch)));
+      });
    }
 
    /** Toggle whether whitespace-only changes count in a code block's diff (ignored by default). */
@@ -147,35 +168,76 @@ export class CodeActionsService {
       }
    }
 
-   /** Prettier-format every selected code block to its card's width, growing the card taller to fit. */
+   /**
+    * Every line the last Format could not handle, each drawn as a red squiggle until that
+    * side's code changes (`source` is the side's text it was reported against).
+    */
+   readonly formatErrors = signal<FormatErrorMark[]>([]);
+
+   /**
+    * Mark every failing line of one side (`err` is the first failure, used when the full
+    * scan finds nothing better) and describe them in a snackbar.
+    */
+   async reportFormatErrors(
+      el: CanvasElementModel,
+      side: 'original' | 'modified',
+      err: unknown,
+      source: string,
+      printWidth: number
+   ): Promise<void> {
+      const found = await findFormatErrors(source, el.language, printWidth);
+      const errs = found.length ? found : [err];
+      const marks: FormatErrorMark[] = [];
+      for (const e of errs) {
+         if (e instanceof CodeFormatError && e.line) marks.push({ id: el.id, side, line: e.line, column: e.column, source });
+      }
+      this.formatErrors.update((list) => [...list.filter((m) => !(m.id === el.id && m.side === side)), ...marks]);
+      this.describeFormatError(el, side, errs[0], errs.length);
+   }
+
+   /** Snackbar text for a failed side: which side, the first line and reason, and how many more. */
+   private describeFormatError(el: CanvasElementModel, side: 'original' | 'modified', err: unknown, count: number): void {
+      const diff = codeDiffActive(el) || (side === 'modified' && el.diffText != null);
+      const where = diff ? (side === 'original' ? 'Original (left) side' : 'Changed (right) side') : '';
+      const reason =
+         err instanceof CodeFormatError ? err.reason : err instanceof Error ? err.message : 'Could not format the code.';
+      const line = err instanceof CodeFormatError ? err.line : undefined;
+      const column = err instanceof CodeFormatError ? err.column : undefined;
+      const at = line ? `line ${line}${column ? `, col ${column}` : ''}` : '';
+      const prefix = [where, at].filter(Boolean).join(', ');
+      const more = count > 1 ? ` (+${count - 1} more line${count > 2 ? 's' : ''} underlined)` : '';
+      this.snackBar.open(`Couldn't format${prefix ? ` (${prefix})` : ''}: ${reason}${more}`, 'Dismiss', { duration: 8000 });
+   }
+
+   /**
+    * Prettier-format every selected code block to its card's width without resizing the card.
+    * Each side of a diff is formatted to the room it has as shown (half a split), so
+    * setting a width and formatting fits the code to it, like a plain block.
+    */
    async format(ids: readonly string[]): Promise<void> {
       const blocks = this.store.elements().filter((e) => e.type === 'code' && ids.includes(e.id));
+      this.formatErrors.set([]);
       for (const el of blocks) {
-         try {
-            const fontSize = el.fontSize ?? CODE_FONT_SIZE;
-            // Re-flow to the card's current width: it grows taller, not wider.
-            const text = await formatCode(el.text ?? '', el.language, codePrintWidth(el));
-            const diffText =
-               el.diffText != null ? await formatCode(el.diffText, el.language, codePrintWidth(el)) : undefined;
-            if (text === (el.text ?? '') && diffText === el.diffText) {
-               continue;
+         const widths = codeDiffPrintWidths(el);
+         const side = async (which: 'original' | 'modified', source: string, width: number): Promise<string | null> => {
+            try {
+               return await formatCode(source, el.language, width);
+            } catch (err) {
+               await this.reportFormatErrors(el, which, err, source, width);
+               return null;
             }
-            const size = codeDiffActive(el)
-               ? codeElementContentSize({ ...el, text, diffText })
-               : codeContentSize(text, fontSize, codeTitle(el));
-            // A collapsed block keeps its title-bar height; only the text changes.
-            await this.store.updateElement(el.id, {
-               text,
-               ...(diffText !== el.diffText ? { diffText } : {}),
-               width: Math.max(el.width, size.width),
-               ...(el.expandedHeight == null
-                  ? { height: Math.max(el.height, size.height) }
-                  : { expandedHeight: Math.max(el.expandedHeight, size.height) }),
-            });
-         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Could not format the code.';
-            this.snackBar.open(`Couldn't format: ${message}`, undefined, { duration: 4000 });
+         };
+         // Re-flow to the card's current width.
+         // Both sides are checked even when one fails, so every bad line gets underlined.
+         const text = await side('original', el.text ?? '', widths.original);
+         const formattedDiff = el.diffText != null ? await side('modified', el.diffText, widths.modified) : undefined;
+         if (text == null || formattedDiff === null) continue;
+         const diffText = formattedDiff;
+         if (text === (el.text ?? '') && diffText === el.diffText) {
+            continue;
          }
+         // Formatting never resizes the card: it fits the code to the bounds as best it can.
+         await this.store.updateElement(el.id, { text, ...(diffText !== el.diffText ? { diffText } : {}) });
       }
    }
 

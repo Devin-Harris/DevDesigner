@@ -55,7 +55,7 @@ const FIELDS: Record<BatchSection, Record<string, unknown>> = {
     strokeWidth: 2, strokeStyle: 'solid', opacity: 100, zIndex: 0, cornerRadius: null, points: [], text: null,
     fontSize: null, fontFamily: null, bold: null, italic: null, lineHeight: null, wrap: null, runs: null,
     textAlign: null, verticalAlign: null, startBinding: null, endBinding: null, startArrowhead: null,
-    endArrowhead: null, curvature: null, language: null, fileName: '', expandedHeight: null, slide: null,
+    endArrowhead: null, curvature: null, language: null, fileName: '', diffText: null, diffView: 'off', expandedHeight: null, slide: null,
     morphId: null, step: null, groupId: null, slideId: null,
   },
   diagrams: {

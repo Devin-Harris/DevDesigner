@@ -7,6 +7,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -19,6 +20,7 @@ import type {
   ApiTokenResponse,
   CreatedApiTokenResponse,
   CurrentUserResponse,
+  UserPreferences,
 } from '@devdesigner/shared';
 import { CallerScoped, Public } from '../../collaboration/access/access-policy';
 import { RateLimit } from '../../platform/throttle/rate-limit';
@@ -31,6 +33,7 @@ import { CreateApiTokenDto } from './dto/create-api-token.dto';
 import { AUTH_COOKIE, SESSION_MAX_AGE_MS, type AuthUser } from './auth.types';
 import { baseCookieOptions, durationMs } from './cookies';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { track } from '../../platform/analytics/track';
 import { isLoopback } from '../../platform/http/loopback';
 
@@ -134,6 +137,16 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.deleteAccount(this.requireSessionUser(user), dto.password);
     res.clearCookie(AUTH_COOKIE, { ...this.cookieOptions(), maxAge: undefined });
+  }
+
+  /** Save editor view preferences for the signed-in account (merged; omitted keys stay). */
+  @Patch('me/preferences')
+  @CallerScoped()
+  updatePreferences(
+    @Body() dto: UpdatePreferencesDto,
+    @CurrentUser() user: AuthUser | null,
+  ): Promise<UserPreferences> {
+    return this.auth.updatePreferences(this.requireSessionUser(user), dto);
   }
 
   @Get('me')

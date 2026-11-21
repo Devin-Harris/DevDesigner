@@ -1,6 +1,7 @@
-import { Injectable, inject, type Signal, type WritableSignal } from '@angular/core';
+import { Injectable, Injector, inject, type Signal, type WritableSignal } from '@angular/core';
 import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from '../models/pen-limits.constants';
 import { PenPrefsService } from './pen-prefs.service';
+import { CanvasContextMenuService } from './canvas-context-menu.service';
 import { presentationOf, presentationSlides } from '@devdesigner/shared';
 import { ProjectStore } from '../state/project/project.store';
 import { CodeActionsService } from './code-actions.service';
@@ -46,6 +47,7 @@ export class EditorShortcutsService {
    private readonly viewport = inject(EditorViewportService);
    private readonly gesture = inject(PointerGestureService);
    private readonly tools = inject(EditorToolService);
+   private readonly injector = inject(Injector);
    private host!: ShortcutsHost;
 
    connect(host: ShortcutsHost): void {
@@ -154,6 +156,13 @@ export class EditorShortcutsService {
                this.store.undoElement();
             }
          }
+         return;
+      }
+      if (mod && event.shiftKey && !event.altKey && event.code === 'KeyE') {
+         // Choose an export format for the selection (or the whole project when nothing is selected).
+         event.preventDefault();
+         // Looked up lazily: the menu service depends on this one.
+         this.injector.get(CanvasContextMenuService).openExportMenu();
          return;
       }
       if (mod && event.key.toLowerCase() === 'y') {
@@ -528,7 +537,7 @@ export class EditorShortcutsService {
 
    /** Tool families a repeated shortcut cycles through. */
    private static readonly TOOL_CYCLES: readonly (readonly EditorTool[])[] = [
-      ['rectangle', 'ellipse', 'diamond'],
+      ['rectangle', 'ellipse', 'diamond', 'triangle'],
       ['arrow', 'line'],
    ];
 

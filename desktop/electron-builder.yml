@@ -38,19 +38,32 @@ publish:
   releaseType: draft
 # Stable file names (no version) so the web home page can link releases/latest/download/<file>;
 # electron-updater finds the files through latest*.yml.
+# Icons: the single source is client/src/assets/brand/logo.svg. After replacing it, run
+# `node desktop/scripts/render-icon.mjs` to regenerate build/icon.png + build/icon.ico.
 win:
   target: nsis
+  icon: build/icon.ico
+  # Stamps the icon and version info (FileDescription = productName) into DevDesigner.exe.
+  signAndEditExecutable: true
   artifactName: DevDesigner-Setup.${ext}
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DevDesigner
 mac:
+  icon: build/icon.png
   target: [dmg, zip]
   category: public.app-category.developer-tools
   artifactName: DevDesigner-${arch}.${ext}
 linux:
+  icon: build/icon.png
   target: AppImage
   category: Development
   artifactName: DevDesigner.${ext}

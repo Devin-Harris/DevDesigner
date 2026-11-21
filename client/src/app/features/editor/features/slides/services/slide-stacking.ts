@@ -1,6 +1,6 @@
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { presentationOf, presentationSlides, presentationLayouts } from '@devdesigner/shared';
-import { boxToOuter, toOuter } from '../../../helpers/slide-zoom.helper';
+import { boxToOuter, toInner, toOuter } from '../../../helpers/slide-zoom.helper';
 import { frameContents } from '../../../helpers/frame-contents.helper';
 import { elementBox, tableBox } from '../../../helpers/element-geometry.helper';
 import type { Box } from '../../../models/geometry.model';
@@ -23,6 +23,7 @@ export class SlideStacking {
       const shown = this.host.store.shownSlideIds();
       const views = new Map(this.host.canvasView.slideViews().map((v) => [v.frameId, v]));
       const release = { elements: [] as string[], tables: [] as string[], diagrams: [] as string[] };
+      const moveTo = new Map<string, { elements: string[]; tables: string[]; diagrams: string[] }>();
       const check = (id: string, slideId: string | undefined, box: Box, kind: 'elements' | 'tables'): void => {
          const f = slideId ? frames.get(slideId) : undefined;
          if (!f || !shown.has(f.id)) return;
@@ -30,14 +31,33 @@ export class SlideStacking {
          const drawn = view ? boxToOuter(view, box) : box;
          const outside = drawn.x1 < f.x || drawn.x0 > f.x + f.width || drawn.y1 < f.y || drawn.y0 > f.y + f.height;
          if (!outside) return;
+         const one = { elements: kind === 'elements' ? [id] : [], tables: kind === 'tables' ? [id] : [], diagrams: [] };
+         const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
+         const to = view ? toOuter(view, c) : c;
          if (view) {
-            const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
-            const to = toOuter(view, c);
-            this.host.shiftItems(
-               { elements: kind === 'elements' ? [id] : [], tables: kind === 'tables' ? [id] : [], diagrams: [] },
-               to.x - c.x,
-               to.y - c.y
-            );
+            this.host.shiftItems(one, to.x - c.x, to.y - c.y);
+         }
+         // Dropped onto another shown slide: it moves straight there, keeping its theme
+         // tokens ($heading, $accent1...) instead of being baked as a free canvas item first.
+         const target = [...frames.values()].find(
+            (g) =>
+               g.id !== f.id &&
+               shown.has(g.id) &&
+               to.x >= g.x &&
+               to.x <= g.x + g.width &&
+               to.y >= g.y &&
+               to.y <= g.y + g.height
+         );
+         if (target) {
+            const tv = views.get(target.id);
+            if (tv) {
+               const inner = toInner(tv, to);
+               this.host.shiftItems(one, inner.x - to.x, inner.y - to.y);
+            }
+            const list = moveTo.get(target.id) ?? { elements: [], tables: [], diagrams: [] };
+            list[kind].push(id);
+            moveTo.set(target.id, list);
+            return;
          }
          release[kind].push(id);
       };
@@ -51,6 +71,9 @@ export class SlideStacking {
       }
       if (release.elements.length || release.tables.length) {
          void this.host.store.assignSlide(release, null);
+      }
+      for (const [slideId, items] of moveTo) {
+         void this.host.store.assignSlide(items, slideId);
       }
    }
 

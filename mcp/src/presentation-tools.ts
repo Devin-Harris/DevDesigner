@@ -202,7 +202,7 @@ const slideItem = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('shape'),
-    shape: z.enum(['rectangle', 'ellipse', 'diamond']),
+    shape: z.enum(['rectangle', 'ellipse', 'diamond', 'triangle']),
     text: z.string().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
@@ -229,6 +229,17 @@ const slideItem = z.discriminatedUnion('type', [
       .describe(
         'Card surface: palette name (e.g. "ink", "charcoal" for a dark editor look, "slate-soft"; #hex only if the user asked for an exact color). Default: light grey. Token colors switch to a light palette on dark surfaces.',
       ),
+    diffCode: z
+      .string()
+      .max(50000)
+      .optional()
+      .describe(
+        'Makes this a code DIFF card: `code` is the ORIGINAL (before) version and `diffCode` the CHANGED (after) version, both as full plain source (no +/- prefixes, no unified-diff headers). Lines are compared automatically; removed lines show red, added green, changed words emphasised.',
+      ),
+    diffView: z
+      .enum(['split', 'inline'])
+      .optional()
+      .describe('How a diff shows (only with `diffCode`): "split" = before | after side by side (default), "inline" = one column with removed and added lines interleaved.'),
     ...morph,
     ...at,
   }),
@@ -561,7 +572,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
   const titleOf = (schema: SchemaModel, frameId: string): CanvasElementModel | undefined =>
     schema.elements.filter((e) => e.slideId === frameId && e.type === 'text').sort((a, b) => a.y - b.y)[0];
 
-  const DECOR_TYPES = new Set(['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw']);
+  const DECOR_TYPES = new Set(['rectangle', 'ellipse', 'diamond', 'triangle', 'line', 'arrow', 'freedraw']);
 
   /** Give templated slides the template's title styling and its decorative (text-less) shapes. */
   const applyTemplates = async (
@@ -906,7 +917,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
 
   tool(
     'update_element',
-    'Edit fields of ONE element by id in one call: text, runs (rich text), x/y/width/height (world coords), fontSize, lineHeight, wrap, language, fileName, morph tag. For colors/fill/stroke (or many elements at once) use style_elements. Returns each changed field before and after, read back from storage.',
+    'Edit fields of ONE element by id in one call: text, runs (rich text), x/y/width/height (world coords), fontSize, lineHeight, wrap, language, fileName, code diff (diffText/diffView), morph tag. For colors/fill/stroke (or many elements at once) use style_elements. Returns each changed field before and after, read back from storage.\n\nCode diffs: on a code block, `text` is the ORIGINAL (before) code and `diffText` the CHANGED (after) code, both full plain source - never a unified diff with +/- prefixes. To show a diff, pass diffText (and optionally diffView "split" | "inline"; split is the default when turning one on). diffView "off" hides the diff but keeps diffText; diffText null removes it. The card is resized to fit the diff unless you pass width/height.',
     {
       projectId,
       id: z.string(),
@@ -924,6 +935,18 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
       wrap: z.boolean().optional(),
       language: z.string().optional().describe('Code blocks only.'),
       fileName: z.string().max(120).optional().describe('Code blocks only.'),
+      diffText: z
+        .string()
+        .max(50000)
+        .nullable()
+        .optional()
+        .describe(
+          'Code blocks only: the CHANGED (after) version of the code, full plain source; `text` stays the ORIGINAL (before). null removes the diff.',
+        ),
+      diffView: z
+        .enum(['split', 'inline', 'off'])
+        .optional()
+        .describe('Code blocks only: "split" (before | after side by side), "inline" (one column), or "off" (show only the original; the diff is kept).'),
       morph: z.string().optional().describe('Morph tag.'),
     },
     { idempotent: true },
@@ -934,6 +957,10 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
       const patch: Record<string, unknown> = Object.fromEntries(
         Object.entries(fields).filter(([, v]) => v !== undefined),
       );
+      if ((patch.diffText !== undefined || patch.diffView !== undefined) && el.type !== 'code') {
+        throw new UserError(`diffText/diffView only apply to code blocks; "${elId}" is a ${el.type}.`);
+      }
+      if (el.type === 'code') Object.assign(patch, codeDiffPatch(el, patch));
       if (morph !== undefined) patch.morphId = morphIdForTag(morph) ?? soloMorphId();
       if (!Object.keys(patch).length) throw new UserError('Nothing to change.');
       // New plain text replaces rich runs that no longer match it.
@@ -1561,4 +1588,43 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
     },
   );
 
+}
+
+/**
+ * Normalise a code block's diff edit: turning a diff on needs a changed side, giving a
+ * changed side without a view shows it split, removing it turns the view off, and the
+ * card grows to fit the diff unless a size was given (rough monospace estimate).
+ */
+export function codeDiffPatch(el: CanvasElementModel, patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const touched = patch.diffText !== undefined || patch.diffView !== undefined;
+  if (!touched) return out;
+  if (typeof patch.diffText === 'string' && /^(?:---|\+\+\+|@@) /m.test(patch.diffText)) {
+    throw new UserError(
+      'diffText looks like a unified diff (---/+++/@@ lines). Pass the full CHANGED source code instead; the original goes in `text`.',
+    );
+  }
+  const diffText = patch.diffText === undefined ? el.diffText : (patch.diffText as string | null);
+  let view = (patch.diffView as string | undefined) ?? undefined;
+  if (patch.diffText === null) view = 'off';
+  else if (view === undefined && typeof patch.diffText === 'string' && (el.diffView ?? 'off') === 'off') view = 'split';
+  if (view && view !== 'off' && diffText == null) {
+    throw new UserError('To show a diff, also pass diffText (the changed version of the code).');
+  }
+  if (view !== undefined) out.diffView = view;
+  if (patch.width === undefined && patch.height === undefined && view !== 'off' && diffText != null) {
+    const size = el.fontSize ?? 14;
+    const before = String(patch.text ?? el.text ?? '').split('\n');
+    const after = diffText.split('\n');
+    const longest = Math.max(1, ...before.map((l) => l.length), ...after.map((l) => l.length));
+    const inline = (view ?? el.diffView) === 'inline';
+    const shared = after.filter((l) => before.includes(l)).length;
+    const rows = inline ? before.length + after.length - shared : Math.max(before.length, after.length);
+    const pane = Math.ceil(longest * size * 0.62 + 32 + 3 * size * 0.62);
+    const width = inline ? pane : 2 * pane;
+    const height = Math.round(size * 2.5) + Math.ceil(rows * size * 1.5) + 24;
+    if (width > el.width) out.width = width;
+    if (height > el.height) out.height = height;
+  }
+  return out;
 }
