@@ -207,7 +207,7 @@ export class SlideMorphSettings {
          morphId === null && t.kind === 'element' && slotTag(t.id) ? t.id : morphId;
       const targets = this.tagTargets().filter((e) =>
          morphId === null
-            ? morphTagOf(e.morphId) !== null || (e.kind === 'element' && !e.morphId && !!slotTag(e.id))
+            ? morphTagOf(e.morphId) !== null || (e.kind === 'element' && e.morphId !== e.id && !!slotTag(e.id))
             : e.morphId !== morphId
       );
       if (!targets.length) {
@@ -217,6 +217,7 @@ export class SlideMorphSettings {
          for (const t of targets) {
             if (t.kind === 'element') {
                await this.host.store.updateElement(t.id, { morphId: next(t) });
+               await this.tagLayoutCopies(t.id, t.morphId, morphId);
             } else if (t.kind === 'table') {
                await this.host.store.updateTable(t.id, { morphId: morphId ?? '' });
             } else if (t.kind === 'lifeline') {
@@ -228,6 +229,29 @@ export class SlideMorphSettings {
             }
          }
       });
+   }
+
+   /**
+    * A tag set on a layout / master placeholder goes onto each slide's copy of it (the real
+    * slide element), so a slide can clear it to opt out. Copies that already chose a
+    * different tag of their own keep it.
+    */
+   private async tagLayoutCopies(slotId: string, before: string | undefined, after: string | null): Promise<void> {
+      const store = this.host.store;
+      const slot = store.elements().find((e) => e.id === slotId);
+      const layoutIds = new Set(
+         store
+            .slideFrames()
+            .filter((f) => f.slide?.layout)
+            .map((f) => f.id)
+      );
+      if (!slot?.placeholder || slot.placeholder.of || !slot.slideId || !layoutIds.has(slot.slideId)) return;
+      const following = (m: string | undefined): boolean => !m || morphTagOf(m) === null || m === before;
+      for (const c of store.elements()) {
+         if (c.placeholder?.of !== slotId || !following(c.morphId)) continue;
+         const want = after !== null && morphTagOf(after) !== null ? after : null;
+         if ((c.morphId ?? null) !== want) await store.updateElement(c.id, { morphId: want });
+      }
    }
 
    /** Make the selected elements one lineage so they morph into each other across slides. */

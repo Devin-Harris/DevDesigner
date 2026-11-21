@@ -493,10 +493,20 @@ export class DrawToolService {
       }
       if (draft.type === 'line' || draft.type === 'arrow') {
          // Highlight the shape/table the free end would bind to; binding beats snapping.
-         const bindBox = this.gesture.noBindHeld
-            ? null
-            : (this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null);
-         this.elementGestures.bindHighlight$.set(bindBox);
+         // Highlight both the shape the line starts on and the one its free end would bind to.
+         const boxes = [];
+         let bindBox: { x: number; y: number; width: number; height: number } | null = null;
+         if (!this.gesture.noBindHeld) {
+            const startBox = this.elementGestures.bindingTargetAt({ x: draft.x, y: draft.y }, draft.id)?.box;
+            bindBox = this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null;
+            if (startBox) {
+               boxes.push(startBox);
+            }
+            if (bindBox && bindBox !== startBox) {
+               boxes.push(bindBox);
+            }
+         }
+         this.elementGestures.bindHighlight$.set(boxes);
          const space = { ctx: this.tools.drawSlideId() ?? null, view };
          const spanOf = (px: number, py: number) => ({
             x0: Math.min(px, draft.x),

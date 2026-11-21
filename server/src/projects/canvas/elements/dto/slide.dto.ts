@@ -40,6 +40,7 @@ import {
   type SlideAnimation,
   type SlideAnimationEffect,
   type SlideAnimationKind,
+  type SlideAnimationStagger,
   type SlideAnimationTrigger,
   type SlideConfig,
   type SlideDirection,
@@ -116,6 +117,41 @@ export class SlideAnimationDto implements SlideAnimation {
   @IsOptional()
   @IsIn([...SLIDE_DIRECTIONS])
   direction?: SlideDirection;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  part?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SlideAnimationStaggerDto)
+  stagger?: SlideAnimationStagger;
+}
+
+/** How a staggered animation plays its pieces. */
+export class SlideAnimationStaggerDto implements SlideAnimationStagger {
+  @IsIn([...SLIDE_ANIMATION_TRIGGERS])
+  trigger!: SlideAnimationTrigger;
+
+  @IsNumber()
+  @Min(0)
+  @Max(MAX_ANIMATION_DELAY)
+  delay!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  joined?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  skip?: string[];
 }
 
 class MediaCropDto {
@@ -342,6 +378,13 @@ export class SlideDto implements SlideConfig {
   @ValidateNested({ each: true })
   @Type(() => SlideAnimationDto)
   animations?: SlideAnimation[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_SLIDE_ANIMATIONS)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  animationsOff?: string[];
 
   @IsOptional()
   @IsBoolean()

@@ -113,3 +113,30 @@
    outline: 2px solid var(--dd-primary);
    outline-offset: 1px;
 }
+
+/* Animate: switch between the transition into the slide and the animations on it. */
+.seg {
+   display: flex;
+   gap: 2px;
+   padding: 2px;
+   margin: 0 0 10px;
+   border-radius: 8px;
+   background: var(--dd-surface-2);
+}
+.seg > button {
+   flex: 1;
+   height: 26px;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+}
+.seg > button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}

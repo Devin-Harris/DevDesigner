@@ -51,6 +51,9 @@ export type SmartDragFn = (
 
 export type SmartDragEndFn = () => void;
 
+/** Called after diagrams are dropped, so ones dragged off a slide leave it. */
+export type DiagramsDroppedFn = (diagramIds: string[]) => void;
+
 /** Smart-guide correction for edges of a box being resized (only `xs` / `ys` snap). */
 export type SmartEdgesFn = (
    id: string,

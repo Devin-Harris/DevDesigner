@@ -27,6 +27,7 @@ import {
    type GroupResizeFn,
    type Handle,
    type MessageView,
+   type DiagramsDroppedFn,
    type SmartDragEndFn,
    type SmartDragFn,
    type SmartEdgesFn,
@@ -108,6 +109,7 @@ export class SequenceDiagramComponent {
    readonly diagramId = input.required<string>();
    /** Screen→world mapping supplied by the editor (for drag-connect drop targets). */
    readonly toWorld = input<WorldFn | null>(null);
+   readonly diagramsDropped = input<DiagramsDroppedFn | null>(null);
    /** Snap a world coordinate to the grid (identity when grid-snap is off). */
    readonly snap = input<SnapFn | null>(null);
    /** Smart-guide snapping against nearby items, supplied by the editor. */
@@ -719,4 +721,4 @@ export class SequenceDiagramComponent {
       return this.sequenceGestures.onUp;
    }
 }
-export type { SmartDragFn, SmartDragEndFn, SmartEdgesFn, GroupResizeFn } from './sequence-diagram.helpers';
+export type { SmartDragFn, SmartDragEndFn, DiagramsDroppedFn, SmartEdgesFn, GroupResizeFn } from './sequence-diagram.helpers';

@@ -1,24 +1,30 @@
 <div class="f-tabs" role="tablist">
    <button class="f-tab" type="button" [class.on]="s.ftab$() === 'slide'" (click)="s.ftab$.set('slide')">Slide</button>
-   <button class="f-tab" type="button" [class.on]="s.ftab$() === 'transition'" (click)="s.ftab$.set('transition')">
-      Transition
-   </button>
-   <button class="f-tab" type="button" [class.on]="s.ftab$() === 'animations'" (click)="s.ftab$.set('animations')">
-      Animations <span class="cnt">{{ s.active$() ? ((s.animCounts$() | at: s.active$()!.id) ?? 0) : 0 }}</span>
+   <button
+      class="f-tab"
+      type="button"
+      [class.on]="s.ftab$() === 'transition' || s.ftab$() === 'animations'"
+      (click)="s.ftab$.set('transition')"
+   >
+      Animate
    </button>
    <button class="f-tab" type="button" [class.on]="s.ftab$() === 'notes'" (click)="s.ftab$.set('notes')">Notes</button>
 </div>
-<div class="f-body" [class.gap12]="s.ftab$() === 'transition'">
-   @if (s.ftab$() === 'transition') {
+<div class="f-body" [class.gap12]="s.ftab$() === 'transition' || s.ftab$() === 'animations'">
+   @if (s.ftab$() === 'transition' || s.ftab$() === 'animations') {
+      <span class="f-lab">Transition in</span>
       <dd-focus-transition-body></dd-focus-transition-body>
       @if (s.active$() && s.hasTransitionTarget$()) {
          <button class="f-tb outline" type="button" (click)="s.command.emit({ kind: 'screen', screen: 'morph' })">
-            <dd-icon name="open_in_full" />Refine
+            <dd-icon name="open_in_full" />Refine transition
          </button>
       }
-   } @else if (s.ftab$() === 'animations') {
+      <span class="f-lab">Animations on this slide</span>
       @if (s.active$(); as a) {
-         <dd-animation-pane [slide]="a" (play)="s.command.emit({ kind: 'present', from: 'current' })" />
+         <dd-animation-pane
+            [slide]="a"
+            (openRefine)="s.command.emit({ kind: 'screen', screen: 'anim' })"
+         />
       } @else {
          <p class="hint">Select a slide.</p>
       }
@@ -116,6 +122,13 @@
             [disabled]="!s.canEdit$()"
             (blur)="s.slideMorphSettings.setNotes($any($event.target).value)"
          ></textarea>
+      }
+   } @else if (s.ftab$() === 'slide' && s.shownLayout$(); as l) {
+      <span class="f-lab">{{ l.slide?.master ? 'Master' : (s.layoutNames$() | at: l.id) }}</span>
+      @if (s.canEdit$() && s.tagCount$() === 1) {
+         <dd-focus-morph-tag />
+      } @else {
+         <p class="hint">Select an object to give it a morph tag.</p>
       }
    } @else {
       <p class="hint">Select a slide.</p>

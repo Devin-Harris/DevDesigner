@@ -23,9 +23,10 @@ export class DeckFocusService {
    private host!: DeckFocusHost;
 
    constructor() {
-      // The transition screen shows its own preview: hide the canvas's floating toolbars.
+      // The transition and animation screens show their own previews: hide the canvas's floating toolbars.
       effect(() => {
-         document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck$() && this.focusScreen$() === 'morph');
+         const screen = this.focusScreen$();
+         document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck$() && (screen === 'morph' || screen === 'anim'));
       });
       // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
       effect(() => {

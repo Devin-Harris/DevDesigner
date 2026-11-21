@@ -200,10 +200,28 @@ export function slideMorphKey(
   e: { id: string; morphId?: string; placeholder?: { of?: string } },
   slot: (id: string) => { morphId?: string } | undefined,
 ): string {
+  const inherited = inheritedSlotTag(e, slot);
+  if (inherited) return inherited;
   if (e.morphId) return e.morphId;
   const of = e.placeholder?.of;
   if (!of) return e.id;
   return slot(of)?.morphId ?? `placeholder:${of}`;
+}
+
+/**
+ * The tag a slide's copy of a layout placeholder takes from that placeholder: whenever the
+ * copy has no tag of its own. A copy keeps its own tag, and one cleared on purpose (its
+ * morphId set to its own id) opts out; any other id it carries (e.g. lineage from a
+ * duplicated slide) gives way to the layout's tag.
+ */
+export function inheritedSlotTag(
+  e: { id: string; morphId?: string; placeholder?: { of?: string } },
+  slot: (id: string) => { morphId?: string } | undefined,
+): string | undefined {
+  const of = e.placeholder?.of;
+  if (!of || morphTagOf(e.morphId) !== null || e.morphId === e.id) return undefined;
+  const tag = slot(of)?.morphId;
+  return morphTagOf(tag) !== null ? tag : undefined;
 }
 
 /** Prefix that marks a morph lineage key as a name the user typed (a "morph tag"). */

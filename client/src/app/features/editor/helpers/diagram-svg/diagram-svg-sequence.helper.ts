@@ -180,6 +180,12 @@ export function renderSequence(
       const parts = out.splice(index);
       out.push(`<g opacity="${attr(Math.max(0, opacity))}">${parts.join('\n')}</g>`);
    };
+   /** Group a message's pieces (from `index` on) so slide animations can reveal it on its own. */
+   const tagMessage = (index: number, id: string): void => {
+      if (out.length <= index) return;
+      const parts = out.splice(index);
+      out.push(`<g data-msg="${esc(id)}">${parts.join('\n')}</g>`);
+   };
    out.push(
       `<rect x="${attr(x0)}" y="${attr(y0)}" width="${attr(x1 - x0)}" height="${attr(y1 - y0)}" rx="16" ry="16" ` +
          `fill="${attr(bg)}" stroke="${attr(themed(diagram.borderColor, theme) || theme.border)}" stroke-width="1.5" />`
@@ -241,6 +247,7 @@ export function renderSequence(
             );
          }
          wrapFrom(at, fade?.messages?.get(m.id));
+         tagMessage(at, m.id);
          continue;
       }
       if (!f || !t) {
@@ -273,6 +280,7 @@ export function renderSequence(
          );
       }
       wrapFrom(at, fade?.messages?.get(m.id));
+      tagMessage(at, m.id);
    }
 
    for (const l of lls) {

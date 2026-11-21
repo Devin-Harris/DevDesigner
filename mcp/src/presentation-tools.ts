@@ -97,12 +97,34 @@ const animationSchema = z.object({
     .enum(SLIDE_ANIMATION_TRIGGERS as unknown as [string, ...string[]])
     .optional()
     .describe("'click' (default: waits for the presenter), 'with' (together with the entry above) or 'after' (when it ends)."),
-  duration: z.number().min(0).max(10000).optional().describe('Milliseconds (default 500).'),
+  duration: z.number().min(0).max(10000).optional().describe('Milliseconds (default 300).'),
   delay: z.number().min(0).max(30000).optional().describe('Milliseconds after the trigger (default 0).'),
   direction: z
     .enum(SLIDE_DIRECTIONS as unknown as [string, ...string[]])
     .optional()
     .describe("For fly / wipe: the side it comes from (exits: goes to). Default left."),
+  part: z
+    .string()
+    .max(100)
+    .optional()
+    .describe(
+      "Animate one piece of the target: 'p<n>' = the n-th line (paragraph, 0-based) of a text element, a message id of a sequence diagram, or 'diff' on a code block with a diff (reveals the diff by morphing from the original; effect is always 'morph').",
+    ),
+  stagger: z
+    .object({
+      trigger: z
+        .enum(SLIDE_ANIMATION_TRIGGERS as unknown as [string, ...string[]])
+        .describe("How each piece after the first starts: 'click', 'with' or 'after' the piece before."),
+      delay: z.number().min(0).max(30000).optional().describe('Milliseconds between pieces (default 0).'),
+      joined: z
+        .array(z.string())
+        .optional()
+        .describe('Pieces (message ids / p<n>) that start together with the piece before them.'),
+    })
+    .optional()
+    .describe(
+      'Play the target piece by piece: the paragraphs of a text (bullets one after another) or the messages of a sequence diagram.',
+    ),
 });
 
 const transitionSchema = z.object({
@@ -1151,7 +1173,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
 
   tool(
     'set_slide_animations',
-    "Replace a slide's object animations (like PowerPoint's animation pane). `animations` is the PLAY ORDER: each entry animates one element / table / sequence diagram id from get_slide. An 'enter' object is hidden until its entry plays. trigger 'click' waits for the presenter to advance, 'with' starts together with the previous entry, 'after' when the previous ends; leading with/after entries play by themselves when the slide appears. Keep it sparse: reveal list items or steps one click at a time, not everything. Pass [] to clear.",
+    "Replace a slide's object animations (like PowerPoint's animation pane). `animations` is the PLAY ORDER: each entry animates one element / table / sequence diagram id from get_slide. An 'enter' object is hidden until its entry plays. trigger 'click' waits for the presenter to advance, 'with' starts together with the previous entry, 'after' when the previous ends; leading with/after entries play by themselves when the slide appears. Keep it sparse: reveal list items or steps one click at a time, not everything. Use `stagger` to reveal a text's bullets or a sequence diagram's messages one by one. Code blocks with a diff and sequence diagrams animate automatically (diff on a click, messages one click each) unless listed here or switched off in the app; get_slide marks those `automatic`. Pass [] to clear.",
     {
       projectId,
       slide: z.string().describe('Slide id, or 1-based number (with `presentation`).'),
@@ -1184,6 +1206,16 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
             ...(a.duration !== undefined ? { duration: a.duration } : {}),
             ...(a.delay !== undefined ? { delay: a.delay } : {}),
             ...(a.direction ? { direction: a.direction as SlideDirection } : {}),
+            ...(a.part ? { part: a.part } : {}),
+            ...(a.stagger
+              ? {
+                  stagger: {
+                    trigger: a.stagger.trigger as SlideAnimationTrigger,
+                    delay: a.stagger.delay ?? 0,
+                    ...(a.stagger.joined ? { joined: a.stagger.joined } : {}),
+                  },
+                }
+              : {}),
           }),
         ),
       );
@@ -1313,7 +1345,11 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
             ? { morphTag: morphTagOf(e.morphId) }
             : {}),
         })),
-        animations: slideAnimations(frame.slide, own.elements).map((a) => ({
+        animations: slideAnimations(frame.slide, own.elements, {
+          elements: own.elements.filter((e) => e.type !== 'frame'),
+          diagrams: schema.sequenceDiagrams.filter((d) => own.diagramIds.includes(d.id)),
+          messages: schema.sequenceMessages.filter((m) => own.diagramIds.includes(m.diagramId)),
+        }).map((a) => ({
           target: a.target,
           kind: a.kind,
           effect: a.effect,
@@ -1321,6 +1357,9 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
           duration: a.duration,
           delay: a.delay,
           ...(a.direction ? { direction: a.direction } : {}),
+          ...(a.part ? { part: a.part } : {}),
+          ...(a.stagger ? { stagger: a.stagger } : {}),
+          ...(a.id.startsWith('auto-') && !frame.slide?.animations?.some((b) => b.id === a.id) ? { automatic: true } : {}),
         })),
         tables: schema.tables
           .filter((t) => own.tableIds.includes(t.id))

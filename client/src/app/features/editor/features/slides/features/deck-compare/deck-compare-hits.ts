@@ -13,6 +13,8 @@ import {
 } from '@devdesigner/shared';
 import { lineEnds } from '../../../../helpers/render';
 import { tableBox } from '../../../../helpers/node-metrics.helper';
+import { elementBox } from '../../../../helpers/element-geometry.helper';
+import { fitTextElement } from '../../../../helpers/text-metrics';
 import { gridPartLabel } from './grid-zones.helper';
 import { COL, type Hit, type MorphPair, PAIR_COLORS, type PartLine, type Side } from './deck-compare.model';
 import type { DeckCompareComponent } from './deck-compare.component';
@@ -276,6 +278,7 @@ export class DeckCompareHits {
       for (const e of this.host.store.elements()) {
          if (e.slideId !== frame.id || e.type === 'frame' || (e.placeholder && !(e.text ?? '').trim())) continue;
          const text = (e.text ?? '').trim();
+         const b = shownBox(e);
          out.push({
             item: {
                key: slideMorphKey(e, (id) => byId.get(id)),
@@ -284,10 +287,10 @@ export class DeckCompareHits {
                kind: 'element',
                type: e.type,
                text: e.type === 'grid' ? '' : (e.text ?? ''),
-               cx: e.x + e.width / 2 - frame.x,
-               cy: e.y + e.height / 2 - frame.y,
-               w: e.width,
-               h: e.height,
+               cx: (b.x0 + b.x1) / 2 - frame.x,
+               cy: (b.y0 + b.y1) / 2 - frame.y,
+               w: b.x1 - b.x0,
+               h: b.y1 - b.y0,
             },
             label: (e.type === 'grid' ? '' : text.split('\n')[0].slice(0, 28)) || e.fileName || e.type,
             id: e.id,
@@ -313,4 +316,14 @@ export class DeckCompareHits {
       }
       return out;
    }
+}
+
+/**
+ * Where an element shows on its slide: text by its glyphs (as the canvas selection is),
+ * with a stored height that lags its wrapped lines grown to fit them.
+ */
+function shownBox(e: CanvasElementModel): { x0: number; y0: number; x1: number; y1: number } {
+   if (e.type !== 'text' || !(e.text ?? '').trim()) return elementBox(e);
+   const need = fitTextElement(e).height;
+   return elementBox(need > e.height ? { ...e, height: need } : e);
 }

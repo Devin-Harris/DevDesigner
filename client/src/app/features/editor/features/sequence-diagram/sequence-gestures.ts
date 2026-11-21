@@ -413,6 +413,7 @@ export class SequenceGestures {
          });
          this.host.layoutBefore = null;
          this.host.othersBefore = new Map();
+         if (d.kind === 'diagram' && !this.host.dragCopied) this.host.diagramsDropped()?.(ids);
       }
       this.host.drag = null;
    };

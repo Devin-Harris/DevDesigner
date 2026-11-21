@@ -21,6 +21,7 @@ import {
    isBuiltInRecord,
    layoutNameOf,
    layoutOf,
+   inheritedSlotTag,
    morphTagOf,
    presentationLayouts,
    presentationMaster,
@@ -344,7 +345,8 @@ export class SlidesPanelState {
       }
       const isMorph = (f: CanvasElementModel | undefined): boolean =>
          !!f && transitionMorphs(effectiveTransition(f.slide));
-      return (i > 0 && isMorph(frames[i])) || (i > 1 && isMorph(frames[i - 1]));
+      // Tags matter when this slide morphs in from the one before or out into the next.
+      return (i > 0 && isMorph(frames[i])) || isMorph(frames[i + 1]);
    });
    /** Selected non-frame elements (what a morph tag or pairing applies to). */
    readonly selectedObjects = computed(() => {
@@ -375,12 +377,13 @@ export class SlidesPanelState {
    readonly morphTag$ = computed(() => {
       // A slide's placeholder copy without its own tag shows the one set on the layout's placeholder.
       const byId = new Map(this.selectedObjects().map((e) => [e.id, e] as const));
+      const slot = (id: string): CanvasElementModel | undefined => this.store.elements().find((p) => p.id === id);
       const inherited = (id: string): string | undefined => {
-         const of = byId.get(id)?.placeholder?.of;
-         return of ? this.store.elements().find((p) => p.id === of)?.morphId : undefined;
+         const e = byId.get(id);
+         return e ? inheritedSlotTag(e, slot) : undefined;
       };
       const tags = new Set(
-         this.slideMorphSettings.tagTargets().map((e) => morphTagOf(e.morphId ?? inherited(e.id)) ?? '')
+         this.slideMorphSettings.tagTargets().map((e) => morphTagOf(inherited(e.id) ?? e.morphId) ?? '')
       );
       return tags.size === 1 ? [...tags][0] : '';
    });

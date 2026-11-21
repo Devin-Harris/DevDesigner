@@ -12,17 +12,17 @@
       </button>
    } @else {
       <div class="tabs" role="tablist">
-         <button class="tab" type="button" [class.on]="s.tab$() === 'transition'" (click)="s.pick('transition')">
-            Transition
+         <button
+            class="tab"
+            type="button"
+            [class.on]="s.tab$() === 'transition' || s.tab$() === 'animations'"
+            (click)="s.pick('transition')"
+         >
+            Animate
          </button>
          <button class="tab" type="button" [class.on]="s.tab$() === 'size'" (click)="s.pick('size')">Size</button>
          <button class="tab" type="button" [class.on]="s.tab$() === 'design'" (click)="s.pick('design')">Design</button>
          <button class="tab" type="button" [class.on]="s.tab$() === 'notes'" (click)="s.pick('notes')">Notes</button>
-         @if (s.active$()) {
-            <button class="tab" type="button" [class.on]="s.tab$() === 'animations'" (click)="s.pick('animations')">
-               Animations
-            </button>
-         }
          <button
             class="icon fold"
             type="button"
@@ -38,7 +38,10 @@
          <div class="tabbody">
             @switch (s.tab$()) {
                @case ('transition') {
-                  <dd-transition-settings></dd-transition-settings>
+                  <ng-container *ngTemplateOutlet="animate" />
+               }
+               @case ('animations') {
+                  <ng-container *ngTemplateOutlet="animate" />
                }
                @case ('design') {
                   <dd-design-settings></dd-design-settings>
@@ -80,19 +83,27 @@
                      <p class="hint">Select a slide to edit its notes.</p>
                   }
                }
-               @case ('animations') {
-                  @if (s.active$(); as a) {
-                     @if (s.activeSlides$().length <= 1) {
-                        <dd-animation-pane [slide]="a" (play)="s.command.emit({ kind: 'present', from: 'current' })" />
-                     } @else {
-                        <p class="hint">Select a single slide to edit its animations.</p>
-                     }
-                  } @else {
-                     <p class="hint">Select a slide to edit its animations.</p>
-                  }
-               }
             }
          </div>
       }
    }
 </div>
+
+<!-- Transition into the slide and the animations on it, edited together. -->
+<ng-template #animate>
+   <span class="sec">Transition in</span>
+   <dd-transition-settings></dd-transition-settings>
+   <span class="sec">Animations on this slide</span>
+   @if (s.active$(); as a) {
+      @if (s.activeSlides$().length <= 1) {
+         <dd-animation-pane
+            [slide]="a"
+            (openRefine)="s.command.emit({ kind: 'screen', screen: 'anim' })"
+         />
+      } @else {
+         <p class="hint">Select a single slide to edit its animations.</p>
+      }
+   } @else {
+      <p class="hint">Select a slide to edit its animations.</p>
+   }
+</ng-template>

@@ -52,13 +52,8 @@ export class ElementGestureService {
 
    elementGesture: ElementGesture | null = null;
 
-   /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
-   readonly bindHighlight$ = signal<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-   } | null>(null);
+   /** Boxes of the shapes/tables the arrow being drawn or dragged binds to (drawn as highlights). */
+   readonly bindHighlight$ = signal<readonly { x: number; y: number; width: number; height: number }[]>([]);
 
    // --- canvas element pointer (select / move / resize / rotate / endpoint) ---
 

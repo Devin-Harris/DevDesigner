@@ -196,7 +196,8 @@ export function renderTextBlock(t: TextBlockView): string {
                  )
                  .join('')
             : esc(l.text);
-         return `<tspan x="${attr(l.x)}" y="${attr(l.y)}" style="white-space:pre">${inner}</tspan>`;
+         const para = l.para === undefined ? '' : ` data-para="${l.para}"`;
+         return `<tspan x="${attr(l.x)}" y="${attr(l.y)}"${para} style="white-space:pre">${inner}</tspan>`;
       })
       .join('');
    return (

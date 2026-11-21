@@ -6,11 +6,13 @@ import { FocusTransitionBodyComponent } from '../focus-transition-body/focus-tra
 import { SlidesPanelState } from '../../state/slides-panel.state';
 import { AtPipe, CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
+import { FocusMorphTagComponent } from '../focus-morph-tag/focus-morph-tag.component';
+
 /** Focus mode settings dock: Slide / Transition / Animations / Notes. */
 @Component({
    selector: 'dd-focus-settings',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, AtPipe, AnimationPaneComponent, FormsModule, IconComponent, FocusTransitionBodyComponent],
+   imports: [CallPipe, AtPipe, AnimationPaneComponent, FormsModule, IconComponent, FocusTransitionBodyComponent, FocusMorphTagComponent],
    templateUrl: './focus-settings.component.html',
    styleUrl: './focus-settings.component.scss',
 })

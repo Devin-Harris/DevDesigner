@@ -104,59 +104,8 @@
    }
 }
 
-@if (s.canEdit$() && s.morphRelevant$() && s.tagCount$() === 1) {
-   <div class="f-sect">
-      <div class="f-between">
-         <span class="f-lab">Selected · morph tag</span>
-         @if (s.splitTarget$(); as st) {
-            <button
-               class="f-link"
-               type="button"
-               [title]="st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'"
-               (click)="s.slideMorphSettings.toggleSplit(st)"
-            >
-               {{ st.split ? 'Join in / out' : 'Split in / out' }}
-            </button>
-         }
-      </div>
-      @if (s.splitTarget$()?.split) {
-         <div class="f-split">
-            <span class="f-small">In · from the slide before</span>
-            <dd-tag-input
-               placeholder="type a tag…"
-               [value]="s.tagText | call: s.splitTarget$()!.in"
-               [suggestions]="s.morphTagSuggestions$()"
-               [maxlength]="80"
-               (commit)="s.slideMorphSettings.setSplitTag('in', $event)"
-            />
-            <span class="f-small">Out · to the slide after</span>
-            <dd-tag-input
-               placeholder="type a tag…"
-               [value]="s.tagText | call: s.splitTarget$()!.out"
-               [maxlength]="80"
-               (commit)="s.slideMorphSettings.setSplitTag('out', $event)"
-            />
-         </div>
-      } @else {
-         <dd-tag-input
-            placeholder="type a tag…"
-            [value]="s.morphTag$()"
-            [suggestions]="s.morphTagSuggestions$()"
-            [taken]="s.takenTags$()"
-            [maxlength]="80"
-            (commit)="s.slideMorphSettings.setMorphTag($event)"
-         />
-      }
-      @if (s.morphTagSuggestions$().length) {
-         <div class="f-small">
-            Tags used on the previous slide:
-            @for (t of s.morphTagSuggestions$(); track t; let last = $last) {
-               <span class="vt" [class.taken]="s.takenTags$() | has: t">{{ t }}</span
-               >{{ last ? '' : ' · ' }}
-            }
-         </div>
-      }
-   </div>
+@if (s.canEdit$() && s.morphRelevant$()) {
+   <dd-focus-morph-tag />
 }
 @if (s.canEdit$() && s.pairable$()) {
    <button class="f-tb outline" type="button" (click)="s.slideMorphSettings.pairSelected()">

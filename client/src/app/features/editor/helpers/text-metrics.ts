@@ -1,7 +1,7 @@
 import { resolveThemeFont, type CanvasElementModel, type TextRun } from '@devdesigner/shared';
 import { runLines, runWeight, usableRuns } from './rich-text.helper';
 import { fontStack, fontWeightFor } from './render/fonts';
-import { clearShapeRenderCaches } from './render/text-layout';
+import { clearShapeRenderCaches, layoutTextBlock } from './render/text-layout';
 
 /** Default line height multiple, and the options offered in the UI. */
 export const DEFAULT_LINE_HEIGHT = 1.25;
@@ -113,11 +113,28 @@ export function measureTextBox(
 }
 
 /** Rendered rows of a text element (wrapped text is measured at its box width). */
-function textBlockRows(el: CanvasElementModel, wrapped: boolean, L: number): number {
+function textBlockRows(el: CanvasElementModel, wrapped: boolean, _lineHeight: number): number {
    const lines = (el.text ?? '').split('\n').length;
    if (!wrapped) return lines;
-   const h = fitTextElement({ ...el, wrap: true }).height - 4;
-   return Math.max(lines, Math.round(h / L));
+   // The rows the renderer actually draws (same layout call), so the box matches the glyphs.
+   const drawn = layoutTextBlock(
+      el.text ?? '',
+      { x: 0, y: 0, width: el.width, height: el.height },
+      {
+         fontSize: el.fontSize ?? TEXT_DEFAULT_FONT_SIZE,
+         fontFamilyKey: themeFont(el) ?? el.fontFamily,
+         fontWeight: el.bold ? 800 : fontWeightFor(el.strokeWidth),
+         italic: el.italic,
+         color: '#000',
+         align: el.textAlign ?? 'left',
+         vAlign: 'top',
+         padding: 2,
+         wrap: true,
+         lineHeight: el.lineHeight,
+         runs: usableRuns(el.text ?? '', el.runs),
+      }
+   ).lines.length;
+   return Math.max(lines, drawn);
 }
 
 /**

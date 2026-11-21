@@ -92,6 +92,7 @@ import { CompareUiState } from './features/slides/features/deck-compare/services
 import { UserPrefsService } from '../../core/auth/user-prefs.service';
 import type { EditorEmbedApi, EditorHostOptions } from './models/editor-embed.model';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
+import { AnimationPreviewComponent } from './features/slides/features/slides-panel/features/animation-preview/animation-preview.component';
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
 import type { RelinkPreview } from './services/canvas-view.service';
 import { AtPipe, HasPipe } from '../../shared/ui/pipes/collection.pipes';
@@ -107,7 +108,7 @@ import { AtPipe, HasPipe } from '../../shared/ui/pipes/collection.pipes';
 @Component({
    selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [AtPipe, CanvasContextMenuComponent, HasPipe, LiveFramesNoticeComponent, ImageCropOverlayComponent, MatProgressSpinnerModule, IconComponent, MatTooltipModule, CanvasConnectorsComponent, CanvasShapesComponent, LaserLayerComponent, ShapeToolbarComponent, InspectorComponent, SequenceInspectorComponent, SequenceMessageToolbarComponent, SequenceParticipantToolbarComponent, SequenceDiagramToolbarComponent, MinimapComponent, CanvasSequenceComponent, ElementFloatingToolbarComponent, RelationshipInspectorComponent, ElementInspectorComponent, RelationshipToolbarComponent, MultiSelectBarComponent, PenOptionsBarComponent, DeckCompareComponent, PopoverTriggerDirective, AnimationPaneComponent, TableToolbarComponent, TableNodeComponent, AutofocusDirective, SlidesPanelComponent, PresentModeComponent],
+   imports: [AtPipe, CanvasContextMenuComponent, HasPipe, LiveFramesNoticeComponent, ImageCropOverlayComponent, MatProgressSpinnerModule, IconComponent, MatTooltipModule, CanvasConnectorsComponent, CanvasShapesComponent, LaserLayerComponent, ShapeToolbarComponent, InspectorComponent, SequenceInspectorComponent, SequenceMessageToolbarComponent, SequenceParticipantToolbarComponent, SequenceDiagramToolbarComponent, MinimapComponent, CanvasSequenceComponent, ElementFloatingToolbarComponent, RelationshipInspectorComponent, ElementInspectorComponent, RelationshipToolbarComponent, MultiSelectBarComponent, PenOptionsBarComponent, DeckCompareComponent, PopoverTriggerDirective, AnimationPaneComponent, AnimationPreviewComponent, TableToolbarComponent, TableNodeComponent, AutofocusDirective, SlidesPanelComponent, PresentModeComponent],
    providers: [provideEditor()],
    host: {
       '[class.chrome-picture]': "hostOptions$().chrome === 'picture'",
@@ -118,6 +119,8 @@ import { AtPipe, HasPipe } from '../../shared/ui/pipes/collection.pipes';
    styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
+   /** Animation Refine screen: rows playing in the step its preview shows. */
+   protected readonly animStepRows$ = signal<ReadonlySet<string>>(new Set());
    protected readonly bridge = inject(EditorBridgeService);
    protected readonly presence = inject(RemotePresenceService);
    protected readonly bars = inject(FloatingToolbarsService);
@@ -400,7 +403,7 @@ export class EditorComponent {
             this.deckFocus.enterDeckFocus(presentation, cmd.screen === 'design' ? 'main' : cmd.screen);
             if (cmd.screen === 'design') this.deckFocus.openFocusDesign();
             // The first slide has no transition into it: show the one into slide 2.
-            if (cmd.screen !== 'design' && this.deckFocus.focusSlide$()?.index === 1) this.deckFocus.goToTransition(2);
+            if (cmd.screen === 'morph' && this.deckFocus.focusSlide$()?.index === 1) this.deckFocus.goToTransition(2);
             this.deckFocus.focusFromCanvas.set(true);
             break;
          case 'fold':

@@ -649,9 +649,13 @@ export class SlidePlacementService {
    }
 
    // ---- delegates to slide-stacking.ts ----
-   releaseDroppedOutOfSlides(ids: { elements: string[]; tables: string[] }): void {
+   releaseDroppedOutOfSlides(ids: { elements: string[]; tables: string[]; diagrams?: string[] }): void {
       return this.slideStacking.releaseDroppedOutOfSlides(ids);
    }
+
+   /** Sequence diagrams run their own drags; dropped wholly off their slide, they leave it. */
+   readonly releaseDroppedDiagrams = (diagramIds: string[]): void =>
+      this.slideStacking.releaseDroppedOutOfSlides({ elements: [], tables: [], diagrams: diagramIds });
    stackLegacySlides(): Promise<void> {
       return this.slideStacking.stackLegacySlides();
    }

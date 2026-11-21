@@ -112,6 +112,44 @@ function unwrapClass(text: string): string {
       .join('\n');
 }
 
+const TOP_LEVEL_LINE = /^\s*(?:import\b|export\s+(?:\*|\{|type\s*\{)|$)/;
+
+/**
+ * Retry a TS snippet as a class body. Leading imports (and blank/elided lines between
+ * them) stay outside the wrapper, so `import ...` + a bare `constructor(...) {}` parses.
+ */
+async function runWrapped(source: string, run: (code: string) => Promise<string>): Promise<string> {
+   const lines = source.split('\n');
+   let split = 0;
+   let lastImport = -1;
+   for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\s*(?:import|export)\b/.test(line) && TOP_LEVEL_LINE.test(line)) {
+         // Follow a multi-line import to its closing `from '...'` / quote.
+         let j = i;
+         while (j < lines.length - 1 && !/(?:from\s*)?['"][^'"]*['"];?\s*$/.test(lines[j])) j++;
+         lastImport = j;
+         i = j;
+         split = j + 1;
+      } else if (line.trim() === '' || line.includes(LINE_MARK)) {
+         continue;
+      } else {
+         break;
+      }
+   }
+   if (lastImport < 0) {
+      return unwrapClass(await run(`class __DdSnippet {\n${source}\n}`));
+   }
+   const head = lines.slice(0, split).join('\n');
+   const body = lines.slice(split).join('\n');
+   const printed = await run(`${head}\n// __dd_split__\nclass __DdSnippet {\n${body}\n}`);
+   const at = printed.indexOf('// __dd_split__');
+   const before = printed.slice(0, at).replace(/\n+$/, '');
+   const after = unwrapClass(printed.slice(at).replace(/^\/\/ __dd_split__\n/, ''));
+   // Keep one blank line between the imports and the member, as Prettier would.
+   return `${before}\n\n${after.replace(/^\n+/, '')}`;
+}
+
 /**
  * Format `text` as `language`. `printWidth` should reflect how wide the card is;
  * the default suits a typical diagram card. Throws an Error with a readable
@@ -145,7 +183,7 @@ export async function formatCode(text: string, language: CodeLanguage | undefine
       }
       // A bare method/property is only valid inside a class body.
       try {
-         out = unwrapClass(await run(`class __DdSnippet {\n${source}\n}`));
+         out = await runWrapped(source, run);
       } catch (wrappedErr) {
          // Report whichever attempt got further: a snippet of methods fails at its first
          // line unwrapped, but its real mistake is wherever the class-wrapped parse stops.

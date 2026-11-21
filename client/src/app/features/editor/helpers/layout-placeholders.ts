@@ -4,6 +4,7 @@
 
 import {
    matchPlaceholders,
+   morphTagOf,
    type CanvasElementModel,
    type CreateElementDto,
    type UpdateElementDto,
@@ -63,7 +64,8 @@ function emptyCopy(slot: CanvasElementModel, layout: CanvasElementModel, slide: 
       zIndex: undefined,
       text: '',
       runs: undefined,
-      morphId: undefined,
+      // The slot's morph tag lives on each slide's copy, so a slide can drop it.
+      morphId: morphTagOf(slot.morphId) !== null ? slot.morphId : undefined,
       step: undefined,
       slideId: slide.id,
       placeholder: { ...slot.placeholder!, of: slot.id },
@@ -128,7 +130,12 @@ export async function resetToLayout(store: Store, copies: readonly CanvasElement
       const slide = frames.find((f) => f.id === c.slideId);
       if (slot && layout && slide) {
          // Dropping its own tag lets it take the slot's again.
-         await store.updateElement(c.id, { ...slotLook(slot, layout, slide), ...(c.morphId ? { morphId: null } : {}) });
+         await store.updateElement(c.id, {
+            ...slotLook(slot, layout, slide),
+            ...(c.morphId ? { morphId: null } : {}),
+            ...(c.morphIn != null || slot.morphIn != null ? { morphIn: slot.morphIn ?? null } : {}),
+            ...(c.morphOut != null || slot.morphOut != null ? { morphOut: slot.morphOut ?? null } : {}),
+         });
       }
    }
 }
@@ -208,6 +215,9 @@ export function copyDrifted(
    if (Math.abs(copy.x - at.x) > 0.5 || Math.abs(copy.y - at.y) > 0.5) return true;
    // Its own morph tag replaces the one it would take from the slot.
    if (copy.morphId && copy.morphId !== slot.morphId) return true;
+   // So does a split in / out tag of its own.
+   if ((copy.morphIn ?? null) !== (slot.morphIn ?? null) || (copy.morphOut ?? null) !== (slot.morphOut ?? null))
+      return true;
    // An empty copy is drawn as its slot, so only where it sits counts.
    if (!(copy.text ?? '').trim()) return false;
    return DRIFT_KEYS.some((k) => (copy[k] ?? null) !== (slot[k] ?? null));
@@ -364,7 +374,8 @@ export async function standInFor(
    const dto = {
       ...elementToCreateDto(source),
       ...moved(source, from, frame),
-      morphId: undefined,
+      // Keep the master item's morph tag; clearing it here opts this frame out.
+      morphId: morphTagOf(source.morphId) !== null ? source.morphId : undefined,
       step: undefined,
       groupId: undefined,
       slideId: frame.id,

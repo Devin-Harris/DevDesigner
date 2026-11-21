@@ -1,6 +1,10 @@
 import { placeholderGhosts } from '../../../helpers/layout-placeholders';
 import { Injectable, inject } from '@angular/core';
 import {
+   DIFF_PART,
+   isDiffAnimation,
+   animationParts,
+   paragraphOfPart,
    effectiveTransition,
    hiddenAtStep,
    parseGrid,
@@ -28,6 +32,7 @@ import {
    isEmbedUrl,
 } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../services/element-images.service';
+import { slideAnimationSource } from '../helpers/animation-source.helper';
 import { ProjectStore } from '../../../state/project/project.store';
 import { elementBox, tableBox } from '../../../helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
@@ -42,6 +47,57 @@ function gridCellsText(text: string | undefined): string {
       .cells.flat()
       .filter((c) => c.trim())
       .join(' ');
+}
+
+/**
+ * The slide's objects as they are when the animation keys in `hidden` have not played
+ * (or have been taken away): code blocks whose `<id>#diff` is hidden show the original
+ * code, sequence messages whose `<diagram>#<message>` is hidden are left out.
+ */
+export function partsApplied<E extends CanvasElementModel, M extends SequenceMessageModel>(
+   elements: readonly E[],
+   messages: readonly M[],
+   hidden: ReadonlySet<string>
+): { elements: E[]; messages: M[] } {
+   if (!hidden.size) {
+      return { elements: [...elements], messages: [...messages] };
+   }
+   return {
+      elements: elements.map((e) =>
+         e.type === 'code' && hidden.has(`${e.id}#${DIFF_PART}`) ? { ...e, diffView: 'off' as const } : e
+      ),
+      messages: messages.filter((m) => !hidden.has(m.diagramId) && !hidden.has(`${m.diagramId}#${m.id}`)),
+   };
+}
+
+/** Hide the lines of text paragraphs whose `<element>#p<n>` key is in `hidden` (layout stays). */
+export function hideParagraphs(svg: string, hidden: ReadonlySet<string>): string {
+   const picks: string[] = [];
+   for (const key of hidden) {
+      const at = key.indexOf('#');
+      if (at < 0) continue;
+      const part = key.slice(at + 1);
+      const id = key.slice(0, at).replace(/["\\]/g, '');
+      const n = paragraphOfPart(part);
+      if (n !== null) {
+         picks.push(`[data-eid="${id}"] tspan[data-para="${n}"]`);
+      } else if (part !== DIFF_PART) {
+         // A sequence message keeps its place, so the diagram does not grow as messages enter.
+         picks.push(`[data-seq="${id}"] [data-msg="${part.replace(/["\\]/g, '')}"]`);
+      }
+   }
+   if (!picks.length || typeof DOMParser === 'undefined') {
+      return svg;
+   }
+   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+   const nodes = doc.querySelectorAll(picks.join(','));
+   if (!nodes.length) {
+      return svg;
+   }
+   for (const n of Array.from(nodes)) {
+      n.setAttribute('visibility', 'hidden');
+   }
+   return new XMLSerializer().serializeToString(doc.documentElement);
 }
 
 /** An element or table that appears on a slide, in slide-local coordinates. */
@@ -197,16 +253,30 @@ export class SlideRenderService {
          // Animations: one picture per state (after each click group) plus, for each group, a
          // "mix" picture holding everything visible before OR after it, which the player
          // animates the changing objects on top of.
+         // Only the slide's own objects get pieces and automatic animations (never free
+         // canvas content or layout / master items).
+         const animSource = slideAnimationSource(frame, {
+            elements: this.store.elements(),
+            diagrams: this.store.sequenceDiagrams(),
+            messages: this.store.sequenceMessages(),
+            slideFrames: this.store.slideFrames(),
+         });
          const animations = slideAnimations(
             frame.slide,
-            elements.filter((e) => e.type !== 'frame')
+            elements.filter((e) => e.type !== 'frame'),
+            frame.slide && !frame.slide.layout ? animSource : undefined
+         ).filter(
+            // A diff reveal only means something while the code block shows a diff.
+            (a) =>
+               !isDiffAnimation(a) ||
+               elements.some((e) => e.id === a.target && !!e.diffText && !!e.diffView && e.diffView !== 'off')
          );
          const targets = new Set<string>([
             ...elements.filter((e) => e.type !== 'frame').map((e) => e.id),
             ...tables.map((t) => t.id),
             ...sequences.diagrams.map((d) => d.id),
          ]);
-         const plan = planAnimations(animations, targets);
+         const plan = planAnimations(animations, targets, animationParts(animSource));
          const maxStep = plan.groups.length;
          const hiddenByStep: Array<ReadonlySet<string>> = [];
          const stepSvgs: string[] = [];
@@ -219,19 +289,23 @@ export class SlideRenderService {
                if (hit !== undefined) {
                   return hit;
                }
+               const shown = partsApplied(elements, sequences.messages, hidden);
                const v = buildDiagramSvg(
                   tables.filter((t) => !hidden.has(t.id)),
                   relationships,
-                  elements.filter((e) => !hidden.has(e.id)),
+                  shown.elements.filter((e) => !hidden.has(e.id)),
                   {
                      diagrams: sequences.diagrams.filter((d) => !hidden.has(d.id)),
                      lifelines: sequences.lifelines.filter((l) => !hidden.has(l.diagramId)),
+                     // Messages not played yet stay in the layout (hidden below), so the
+                     // diagram's size never changes while its messages animate in.
                      messages: sequences.messages.filter((m) => !hidden.has(m.diagramId)),
                   },
                   crop,
                   imageData
                );
-               const markup = options.fonts ? await embedFonts(v.svg) : v.svg;
+               const plain = hideParagraphs(v.svg, hidden);
+               const markup = options.fonts ? await embedFonts(plain) : plain;
                cache.set(key, markup);
                return markup;
             };
@@ -477,14 +551,22 @@ export function slideAtStep(slide: RenderedSlide, step: number): RenderedSlide {
    }
    const k = Math.min(slide.maxStep, Math.max(0, step));
    const hidden = slide.hiddenByStep[k];
+   const shown = partsApplied([], slide.sequences.messages, hidden);
    return {
       ...slide,
       svg: slide.stepSvgs[k],
-      items: slide.items.filter((i) => !hidden.has(i.id)),
+      // Code blocks whose diff has not played yet morph as their original code.
+      items: slide.items
+         .filter((i) => !hidden.has(i.id))
+         .map((i) =>
+            i.element?.type === 'code' && hidden.has(`${i.id}#${DIFF_PART}`)
+               ? { ...i, element: { ...i.element, diffView: 'off' as const } }
+               : i
+         ),
       sequences: {
          diagrams: slide.sequences.diagrams.filter((d) => !hidden.has(d.id)),
          lifelines: slide.sequences.lifelines.filter((l) => !hidden.has(l.diagramId)),
-         messages: slide.sequences.messages.filter((m) => !hidden.has(m.diagramId)),
+         messages: shown.messages,
       },
    };
 }

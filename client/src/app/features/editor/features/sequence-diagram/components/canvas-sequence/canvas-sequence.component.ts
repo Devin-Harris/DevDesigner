@@ -3,6 +3,7 @@ import type { SequenceDiagramModel } from '@devdesigner/shared';
 import {
    SequenceDiagramComponent,
    type SmartDragEndFn,
+   type DiagramsDroppedFn,
    type GroupResizeFn,
    type SmartDragFn,
    type SmartEdgesFn,
@@ -35,6 +36,7 @@ export class CanvasSequenceComponent {
    /** Smart-guide snapping for whole-diagram drags (null when not wired). */
    readonly smartDrag$ = input<SmartDragFn | null>(null, { alias: 'smartDrag' });
    readonly smartDragEnd$ = input<SmartDragEndFn | null>(null, { alias: 'smartDragEnd' });
+   readonly diagramsDropped$ = input<DiagramsDroppedFn | null>(null, { alias: 'diagramsDropped' });
    readonly smartEdges$ = input<SmartEdgesFn | null>(null, { alias: 'smartEdges' });
    readonly groupResize$ = input<GroupResizeFn | null>(null, { alias: 'groupResize' });
    /** Diagram ids to leave out (collapsed by the slides focus mode). */

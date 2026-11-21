@@ -302,7 +302,7 @@ export class ElementResize {
       }
       let world = this.host.viewport.toWorld(clientX, clientY);
       const target = this.host.gesture.noBindHeld ? null : this.bindingTargetAt(world, g.id);
-      this.host.bindHighlight$.set(target?.box ?? null);
+      this.host.bindHighlight$.set(target ? [target.box] : []);
       const binding = target?.binding ?? null;
       const pts = g.points.map((p) => ({ ...p }));
       const idx = g.which === 'start' ? 0 : pts.length - 1;

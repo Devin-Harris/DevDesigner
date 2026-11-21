@@ -2,15 +2,19 @@
    <button class="f-tab" type="button" (click)="s.ftab$.set('slide'); s.command.emit({ kind: 'screen', screen: 'main' })">
       Slide
    </button>
-   <button class="f-tab on" type="button">Transition</button>
-   <button
-      class="f-tab"
-      type="button"
-      (click)="s.ftab$.set('animations'); s.command.emit({ kind: 'screen', screen: 'main' })"
-   >
-      Animations
-   </button>
+   <button class="f-tab on" type="button">Animate</button>
 </div>
 <div class="f-body gap12">
+   <div class="seg" role="tablist" aria-label="Animate">
+      <button class="on" type="button" role="tab" aria-selected="true">Transition in</button>
+      <button
+         type="button"
+         role="tab"
+         aria-selected="false"
+         (click)="s.command.emit({ kind: 'screen', screen: 'anim' })"
+      >
+         Animations
+      </button>
+   </div>
    <dd-focus-transition-body></dd-focus-transition-body>
 </div>

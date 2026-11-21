@@ -111,7 +111,7 @@
    </defs>
 
    <g [attr.transform]="'translate(' + svgOffset$() + ',' + svgOffset$() + ')'">
-      @if (bindHighlight$(); as h) {
+      @for (h of bindHighlight$(); track $index) {
          <rect
             class="bind-highlight"
             rx="8"

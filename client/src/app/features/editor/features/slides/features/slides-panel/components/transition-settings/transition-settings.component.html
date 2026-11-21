@@ -101,7 +101,12 @@
       }
       @if (s.morphs$()) {
          <label class="field">
-            <span>Animate by</span>
+            <span class="lab-info">
+               Animate by
+               <span class="info" tabindex="0" role="img" [attr.aria-label]="morphByInfo" [title]="morphByInfo">
+                  <dd-icon name="info" />
+               </span>
+            </span>
             <dd-select
                [options]="s.morphByOptions"
                [ngModel]="s.transition$().morphBy ?? 'character'"
@@ -109,10 +114,6 @@
                (ngModelChange)="s.slideMorphSettings.setTransition({ morphBy: $event })"
             />
          </label>
-         <p class="hint">
-            Characters: letters and words glide. Words: whole words glide. Objects: text moves as one piece and
-            cross-fades. Applies to text, code blocks, tables and diagrams.
-         </p>
          @if (s.itemMorphTarget$(); as cur) {
             <!-- Keyed by object: switching the selection rebuilds the control with its own value. -->
             @for (it of [cur]; track it.id) {
@@ -149,7 +150,12 @@
    @if (s.tagCount$() > 0) {
       <div class="field">
          <span class="tagline">
-            Morph tag
+            <span class="lab-info">
+               Morph tag
+               <span class="info" tabindex="0" role="img" [attr.aria-label]="tagInfo" [title]="tagInfo">
+                  <dd-icon name="info" />
+               </span>
+            </span>
             @if (s.splitTarget$(); as st) {
                <button
                   class="link"
@@ -195,10 +201,6 @@
             />
          }
       </div>
-      <p class="hint">
-         Tagged objects only morph into the object with the same tag on the next slide; they are never matched to
-         look-alikes.
-      </p>
    }
    @if (s.pairable$()) {
       <button class="btn wide" type="button" (click)="s.slideMorphSettings.pairSelected()">

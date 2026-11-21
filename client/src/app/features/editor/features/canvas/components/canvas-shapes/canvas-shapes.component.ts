@@ -90,7 +90,7 @@ export class CanvasShapesComponent {
    readonly editingId$ = input<string | null>(null, { alias: 'editingId' });
 
    /** World-space bounding box of a shape/table being hovered as a binding target. */
-   readonly bindHighlight$ = input<{ x: number; y: number; width: number; height: number } | null>(null, { alias: 'bindHighlight' });
+   readonly bindHighlight$ = input<readonly { x: number; y: number; width: number; height: number }[]>([], { alias: 'bindHighlight' });
 
    protected readonly images = inject(ElementImagesService);
    private readonly codeActions = inject(CodeActionsService);

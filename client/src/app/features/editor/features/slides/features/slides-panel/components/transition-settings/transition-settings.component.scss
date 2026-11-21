@@ -225,3 +225,25 @@ input[type='number'],
       accent-color: var(--dd-primary);
    }
 }
+
+/* Field label with an (i) that explains it on hover / focus. */
+.lab-info {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+}
+.info {
+   display: inline-flex;
+   color: var(--dd-text-muted);
+   cursor: help;
+   --dd-icon-size: 14px;
+}
+.info dd-icon {
+   font-size: 14px;
+   width: 14px;
+   height: 14px;
+}
+.info:hover,
+.info:focus-visible {
+   color: var(--dd-text);
+}

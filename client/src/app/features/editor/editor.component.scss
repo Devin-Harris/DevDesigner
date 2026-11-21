@@ -1108,3 +1108,53 @@
    opacity: 0.45;
    cursor: not-allowed;
 }
+
+/* Animate: switch between the transition into the slide and the animations on it. */
+.fd-body .seg {
+   display: flex;
+   gap: 2px;
+   padding: 2px;
+   margin: 0 0 10px;
+   border-radius: 8px;
+   background: var(--dd-surface-2);
+}
+.fd-body .seg > button {
+   flex: 1;
+   height: 26px;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+}
+.fd-body .seg > button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.fd-body .seg > button:disabled {
+   opacity: 0.45;
+   cursor: default;
+}
+
+/* Animation Refine: the slide's preview player fills the middle of the screen. */
+.anim-stage {
+   position: absolute;
+   top: 72px;
+   bottom: 24px;
+   left: 96px;
+   right: 392px;
+   z-index: 5;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   container-type: size;
+   background: var(--dd-canvas-bg, var(--dd-bg));
+}
+.anim-preview {
+   width: min(100cqw, calc((100cqh - 40px) * 16 / 9));
+}

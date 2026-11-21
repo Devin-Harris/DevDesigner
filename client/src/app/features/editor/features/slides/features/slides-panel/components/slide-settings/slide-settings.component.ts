@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AnimationPaneComponent } from '../../features/animation-pane/animation-pane.component';
 import { FormsModule } from '@angular/forms';
@@ -11,7 +12,7 @@ import { SlidesPanelState } from '../../state/slides-panel.state';
 @Component({
    selector: 'dd-slide-settings',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [AnimationPaneComponent, FormsModule, IconComponent, SelectComponent, TransitionSettingsComponent, DesignSettingsComponent],
+   imports: [AnimationPaneComponent, FormsModule, NgTemplateOutlet, IconComponent, SelectComponent, TransitionSettingsComponent, DesignSettingsComponent],
    templateUrl: './slide-settings.component.html',
    styleUrl: './slide-settings.component.scss',
 })

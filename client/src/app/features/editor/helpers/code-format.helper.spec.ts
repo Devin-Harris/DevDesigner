@@ -19,6 +19,21 @@ describe('formatCode errors', () => {
       expect((err as CodeFormatError).line).toBe(5);
    });
 
+   it('formats imports followed by a bare class member with elisions', async () => {
+      const src = [
+         "import { REF } from './ref';",
+         '',
+         'constructor(...) {',
+         '  ...',
+         '  afterNextRender(() => {',
+         '    this.el[REF] = this;',
+         '  });',
+         '}',
+      ].join('\n');
+      await expect(formatCode(src, 'typescript', 80)).resolves.toBe(src);
+      await expect(findFormatErrors(src, 'typescript', 80)).resolves.toEqual([]);
+   });
+
    it('still formats valid code', async () => {
       await expect(formatCode('const a=1', 'typescript', 80)).resolves.toBe('const a = 1;');
    });

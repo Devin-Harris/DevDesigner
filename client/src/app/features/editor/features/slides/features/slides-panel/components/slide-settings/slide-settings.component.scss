@@ -189,3 +189,15 @@ textarea {
 textarea {
    resize: vertical;
 }
+.sec {
+   display: block;
+   margin: 14px 4px 6px;
+   font-size: 10px;
+   font-weight: 700;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+}
+.sec:first-child {
+   margin-top: 2px;
+}

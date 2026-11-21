@@ -10,7 +10,8 @@ export class FocusUiState {
    /** Entering focus: open the same tab there (Design / Size live in the top bar, so Slide). */
    toFocus(): void {
       const t = this.canvasTab();
-      this.tab.set(t === 'transition' || t === 'animations' || t === 'notes' ? t : 'slide');
+      // Transition and animations share one tab.
+      this.tab.set(t === 'transition' || t === 'animations' ? 'transition' : t === 'notes' ? t : 'slide');
    }
 
    /** Leaving focus: the canvas panel shows the tab that was open in focus mode. */

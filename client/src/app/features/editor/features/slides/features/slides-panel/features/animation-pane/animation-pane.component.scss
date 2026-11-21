@@ -8,7 +8,7 @@
    gap: 6px;
    width: 100%;
    height: 32px;
-   margin: 4px 0 8px;
+   margin: 0 0 8px;
    border-radius: 8px;
    border: 1px solid var(--dd-primary);
    background: var(--dd-primary);
@@ -17,73 +17,116 @@
    font-weight: 600;
    cursor: pointer;
 }
-.add:disabled {
-   opacity: 0.45;
-   cursor: default;
-}
-.hint,
-.sum {
-   margin: 6px 4px 10px;
+.hint {
+   margin: 4px 4px 8px;
    color: var(--dd-text-muted);
    line-height: 1.45;
    font-size: 12px;
 }
-.sum {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-}
-.rows {
-   list-style: none;
-   margin: 0;
-   padding: 0;
+
+/* ---- blocks: one per click; cards inside play together / one after another ---- */
+.blocks {
    display: flex;
    flex-direction: column;
-   gap: 2px;
 }
-.mark {
-   margin: 8px 4px 2px;
-   font-size: 10px;
-   font-weight: 700;
-   letter-spacing: 0.08em;
-   text-transform: uppercase;
-   color: var(--dd-text-muted);
+.blocks.dragging {
+   user-select: none;
+   cursor: grabbing;
 }
-.row {
-   display: grid;
-   grid-template-columns: 22px minmax(0, 1fr) auto;
-   align-items: center;
-   gap: 8px;
-   padding: 6px 6px 6px 8px;
-   border-radius: 8px;
-   border: 1px solid transparent;
-   cursor: pointer;
+.gap {
+   height: 6px;
+   margin: 0 6px;
+   border-radius: 2px;
 }
-.row:hover {
-   background: var(--dd-surface-2);
+.blocks.dragging .gap {
+   height: 10px;
 }
-.row.sel {
-   background: var(--dd-primary-weak);
-   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+.gap.on {
+   background: var(--dd-primary);
+   height: 4px;
+   margin: 3px 6px;
 }
-.row.gone {
-   opacity: 0.55;
+.block {
+   position: relative;
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   padding: 4px;
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
 }
-.idx {
-   width: 20px;
-   height: 20px;
-   border-radius: 50%;
-   display: inline-flex;
+.block.multi {
+   padding-left: 18px;
+}
+.block.auto {
+   border-style: dashed;
+}
+.block.lifted {
+   opacity: 0.45;
+}
+.bgrip {
+   position: absolute;
+   left: 1px;
+   top: 0;
+   bottom: 0;
+   width: 16px;
+   display: flex;
    align-items: center;
    justify-content: center;
-   font-size: 11px;
-   font-weight: 700;
-   background: var(--dd-surface-2);
    color: var(--dd-text-muted);
+   cursor: grab;
+   opacity: 0;
+   touch-action: none;
 }
-.row.sel .idx {
-   background: var(--dd-primary);
-   color: var(--dd-white);
+.bgrip dd-icon {
+   transform: rotate(90deg);
+}
+.block:hover > .bgrip,
+.blocks.dragging .bgrip {
+   opacity: 0.7;
+}
+.card {
+   border-radius: 8px;
+   background: var(--dd-surface-2);
+   transition: background-color 0.15s;
+}
+.card.open {
+   background: var(--dd-surface);
+   box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-primary) 45%, transparent);
+}
+.card.now {
+   background: var(--dd-primary-weak);
+}
+.card.gone {
+   opacity: 0.55;
+}
+.card.lifted {
+   opacity: 0.4;
+}
+.card.drop-before {
+   box-shadow: 0 -3px 0 -1px var(--dd-primary);
+}
+.card.drop-after {
+   box-shadow: 0 3px 0 -1px var(--dd-primary);
+}
+.head {
+   display: grid;
+   grid-template-columns: auto minmax(0, 1fr) auto;
+   align-items: center;
+   gap: 4px;
+   padding: 4px;
+   cursor: pointer;
+   border-radius: 8px;
+}
+.grip {
+   display: inline-flex;
+   color: var(--dd-text-muted);
+   cursor: grab;
+   opacity: 0.6;
+   touch-action: none;
+}
+.grip:hover {
+   opacity: 1;
 }
 .what {
    display: flex;
@@ -95,14 +138,19 @@
    text-overflow: ellipsis;
    white-space: nowrap;
    font-weight: 600;
+   font-size: 12px;
+}
+.piece {
+   font-weight: 400;
+   color: var(--dd-text-muted);
 }
 .how {
    font-size: 11px;
    color: var(--dd-text-muted);
 }
 .icon {
-   width: 24px;
-   height: 24px;
+   width: 22px;
+   height: 22px;
    display: inline-flex;
    align-items: center;
    justify-content: center;
@@ -111,34 +159,30 @@
    background: transparent;
    color: var(--dd-text-muted);
    cursor: pointer;
+   opacity: 0;
+}
+.card:hover .icon,
+.card.open .icon,
+.icon:focus-visible {
+   opacity: 1;
 }
 .icon:hover {
    background: var(--dd-surface-2);
    color: var(--dd-text);
 }
-.link {
-   display: inline-flex;
-   align-items: center;
-   gap: 4px;
-   border: none;
-   background: transparent;
-   color: var(--dd-primary);
-   font: inherit;
-   font-size: 12px;
-   font-weight: 600;
-   cursor: pointer;
-   padding: 2px 0;
+.body {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   padding: 6px 8px 8px;
 }
-.detail {
-   margin-top: 10px;
-   padding-top: 12px;
-   border-top: 1px solid var(--dd-border);
-}
+
+/* ---- fields ---- */
 .field {
    display: flex;
    flex-direction: column;
    gap: 4px;
-   margin-bottom: 10px;
+   margin-bottom: 8px;
 }
 .field > span {
    font-size: 11px;
@@ -160,17 +204,81 @@ input[type='number'] {
    box-sizing: border-box;
    width: 100%;
 }
-.order {
+.check {
    display: flex;
+   align-items: center;
    gap: 6px;
+   margin: 0 0 8px;
+   font-size: 12px;
+   cursor: pointer;
 }
-.btn {
-   flex: 1;
+.link {
    display: inline-flex;
    align-items: center;
-   justify-content: center;
+   gap: 4px;
+   border: none;
+   background: transparent;
+   color: var(--dd-primary);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+   padding: 2px 0;
+}
+.link.on {
+   color: var(--dd-text);
+}
+.reset {
+   align-self: flex-start;
+}
+.sub {
+   display: block;
+   margin: 2px 0 4px;
+   font-size: 11px;
+   color: var(--dd-text-muted);
+}
+.pieces,
+.offs {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   margin: 0 0 8px;
+}
+.offs {
+   margin-top: 8px;
+}
+.pc,
+.off {
+   display: grid;
+   grid-template-columns: auto 18px minmax(0, 1fr);
+   align-items: center;
+   gap: 6px;
+   padding: 3px 4px;
+   border-radius: 6px;
+   font-size: 12px;
+}
+.off {
+   grid-template-columns: minmax(0, 1fr) auto;
+   color: var(--dd-text-muted);
+}
+.pc.joined {
+   margin-left: 14px;
+}
+.pc .name,
+.off .name {
+   font-weight: 400;
+}
+.pn {
+   font-size: 11px;
+   color: var(--dd-text-muted);
+}
+/* Same full-width button as the transition section's Refine. */
+.btn {
+   display: inline-flex;
+   align-items: center;
    gap: 4px;
    height: 30px;
+   padding: 0 10px;
    border-radius: 8px;
    border: 1px solid var(--dd-border);
    background: var(--dd-surface-2);
@@ -179,7 +287,13 @@ input[type='number'] {
    font-weight: 600;
    cursor: pointer;
 }
-.btn:disabled {
-   opacity: 0.45;
-   cursor: default;
+.btn.wide {
+   width: 100%;
+   height: auto;
+   padding: 8px 10px;
+   text-align: left;
+   font-weight: 500;
+}
+.refine {
+   margin: 10px 0 6px;
 }

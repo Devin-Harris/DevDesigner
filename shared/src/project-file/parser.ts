@@ -43,6 +43,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   SlideAnimation,
+  SlideAnimationStagger,
   SlideConfig,
   TableModel,
   TextRun,
@@ -255,8 +256,30 @@ function slideAnimations(value: unknown, path: string): SlideAnimation[] | undef
       duration: Math.min(MAX_ANIMATION_DURATION, Math.max(0, num(a, 'duration', p, 500))),
       delay: Math.min(MAX_ANIMATION_DELAY, Math.max(0, num(a, 'delay', p, 0))),
       direction: optOneOf(a, 'direction', p, SLIDE_DIRECTIONS),
+      ...(optStr(a, 'part', p, 100) ? { part: optStr(a, 'part', p, 100) } : {}),
+      ...(a['stagger'] === undefined || a['stagger'] === null ? {} : { stagger: stagger(a['stagger'], `${p}.stagger`) }),
     };
   });
+}
+
+function stagger(value: unknown, path: string): SlideAnimationStagger {
+  const s = obj(value, path);
+  const joined = s['joined'] === undefined || s['joined'] === null ? undefined : list(s['joined'], `${path}.joined`);
+  const skip = stringList(s['skip'], `${path}.skip`);
+  return {
+    trigger: oneOf(s, 'trigger', path, SLIDE_ANIMATION_TRIGGERS, 'click'),
+    delay: Math.min(MAX_ANIMATION_DELAY, Math.max(0, num(s, 'delay', path, 0))),
+    ...(joined ? { joined: joined.filter((j): j is string => typeof j === 'string').map((j) => j.slice(0, 100)) } : {}),
+    ...(skip?.length ? { skip } : {}),
+  };
+}
+
+function stringList(value: unknown, path: string): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  return list(value, path)
+    .filter((j): j is string => typeof j === 'string')
+    .map((j) => j.slice(0, 100))
+    .slice(0, MAX_SLIDE_ANIMATIONS);
 }
 
 function slide(value: unknown, path: string, opts: ParseProjectExportOptions): SlideConfig | undefined {
@@ -281,6 +304,7 @@ function slide(value: unknown, path: string, opts: ParseProjectExportOptions): S
         }
       : undefined,
     animations: slideAnimations(s['animations'], `${path}.animations`),
+    animationsOff: stringList(s['animationsOff'], `${path}.animationsOff`),
     layout: s['layout'] === undefined || s['layout'] === null ? undefined : bool(s, 'layout', path, false),
     layoutName: optStr(s, 'layoutName', path, 120),
     layoutId: optStr(s, 'layoutId', path, 64),

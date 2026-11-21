@@ -18,7 +18,7 @@ import { RealtimeService } from '../../../../../../core/realtime/realtime.servic
 import { notifySignal } from '../../../../../../shared/helpers/signals';
 import { slideAtStep, type RenderedSlide, type SlideMedia } from '../../services/slide-render.service';
 import { SlideMediaLayerComponent } from './components/slide-media-layer/slide-media-layer.component';
-import { playGroup, undoGroup } from './helpers/step-animator';
+import { playSlideStep } from './helpers/step-player';
 import { TransitionRunner, transitionAnimates, transitionSetup } from './helpers/transition-runner';
 import { LaserOverlayComponent } from './components/laser-overlay/laser-overlay.component';
 import { PresenterControlsComponent } from './components/presenter-controls/presenter-controls.component';
@@ -460,41 +460,11 @@ export class PresentModeComponent {
    private async goStep(target: number): Promise<void> {
       const i = this.index$();
       const from = this.step$();
-      if (target === from) {
+      const slide = this.slides$()[i];
+      if (!slide || target === from) {
          return;
       }
-      const slide = this.slides$()[i];
-      if (slide && slide.maxStep > 0 && Math.abs(target - from) === 1) {
-         const forward = target > from;
-         const k = forward ? target : from;
-         const group = slide.plan.groups[k - 1];
-         const mix = slide.mixSvgs[k];
-         if (group && mix) {
-            await this.runner.run({
-               fromUrl: '',
-               toUrl: '',
-               duration: 0,
-               easing: 'linear',
-               setup: () => undefined,
-               commit: () => this.step$.set(target),
-               live: {
-                  markup: mix,
-                  width: slide.width,
-                  height: slide.height,
-                  play: (svg, add) => (forward ? playGroup : undoGroup)(svg, slide, group, add).duration,
-               },
-            });
-            return;
-         }
-      }
-      await this.runner.run({
-         fromUrl: this.urlFor(i, from),
-         toUrl: this.urlFor(i, target),
-         duration: 280,
-         easing: 'ease',
-         setup: (_out, inc, animate) => animate(inc, [{ opacity: 0 }, { opacity: 1 }]),
-         commit: () => this.step$.set(target),
-      });
+      await playSlideStep(this.runner, slide, from, target, (k) => this.urlFor(i, k), () => this.step$.set(target));
    }
 
    /**

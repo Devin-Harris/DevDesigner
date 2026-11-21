@@ -394,7 +394,7 @@ export class EditorPointerService {
       this.elementGestures.elementGesture = null;
       this.gesture.gestureActive.set(false);
       this.gesture.movingItems.set(false);
-      this.elementGestures.bindHighlight$.set(null);
+      this.elementGestures.bindHighlight$.set([]);
       this.gesture.multiDragStart.clear();
       this.gesture.waypointDragStart.clear();
       this.marqueeStart.set(null);

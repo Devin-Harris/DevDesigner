@@ -459,8 +459,11 @@ body.dd-gesture dd-minimap {
    opacity: 0.25;
 }
 
-/* Focus mode transition screen: the canvas's floating toolbars stay out of the way. */
+/* Focus mode transition / animation screens: the canvas's floating toolbars stay out of the way. */
 body.dd-focus-morph dd-element-floating-toolbar,
+body.dd-focus-morph dd-sequence-message-toolbar,
+body.dd-focus-morph dd-sequence-participant-toolbar,
+body.dd-focus-morph dd-sequence-diagram-toolbar,
 body.dd-focus-morph dd-table-toolbar,
 body.dd-focus-morph dd-relationship-toolbar,
 body.dd-focus-morph dd-multi-select-bar,

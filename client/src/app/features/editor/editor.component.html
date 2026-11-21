@@ -111,6 +111,7 @@
                      [snap]="snap.snapWorld"
                      [smartDrag]="snap.smartDrag"
                      [smartDragEnd]="snap.smartDragEnd"
+                     [diagramsDropped]="placement.releaseDroppedDiagrams"
                      [smartEdges]="snap.smartResize"
                      [groupResize]="groupTransform.startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
@@ -188,6 +189,7 @@
             [snap]="snap.snapWorld"
             [smartDrag]="snap.smartDrag"
             [smartDragEnd]="snap.smartDragEnd"
+            [diagramsDropped]="placement.releaseDroppedDiagrams"
             [smartEdges]="snap.smartResize"
             [groupResize]="groupTransform.startGroupResize"
             [hiddenIds]="canvasView.outerHiddenDiagramIds$()"
@@ -749,10 +751,25 @@
                   <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
-                  <button class="fb-btn go" type="button" (click)="deckFocus.presentFromCurrent(fd)">
-                     ▶ Preview slide
+                  <button
+                     class="fb-btn outline"
+                     type="button"
+                     title="Run the slideshow from this slide"
+                     (click)="deckFocus.presentFromCurrent(fd)"
+                  >
+                     ▶ Present from here
                   </button>
                </div>
+               @if (fslide) {
+                  <div class="anim-stage" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+                     <dd-animation-preview
+                        class="anim-preview"
+                        [slide]="fslide.frame"
+                        [startAtEnd]="true"
+                        (stepRows)="animStepRows$.set($event)"
+                     />
+                  </div>
+               }
                <div
                   class="fdock right anim col"
                   (pointerdown)="$event.stopPropagation()"
@@ -760,14 +777,28 @@
                >
                   <div class="fd-tabs">
                      <button class="fd-tab" type="button" (click)="deckFocus.stayInFocus()">Slide</button>
-                     <button class="fd-tab" type="button" (click)="deckFocus.focusScreen$.set('morph')">
-                        Transition
-                     </button>
-                     <button class="fd-tab on" type="button">Animations</button>
+                     <button class="fd-tab on" type="button">Animate</button>
                   </div>
                   <div class="fd-body">
+                     <div class="seg" role="tablist" aria-label="Animate">
+                        <button
+                           type="button"
+                           role="tab"
+                           aria-selected="false"
+                           [disabled]="(fslide?.index ?? 1) <= 1"
+                           [title]="(fslide?.index ?? 1) <= 1 ? 'The first slide has no transition into it' : 'The transition into this slide'"
+                           (click)="deckFocus.focusScreen$.set('morph')"
+                        >
+                           Transition in
+                        </button>
+                        <button class="on" type="button" role="tab" aria-selected="true">Animations</button>
+                     </div>
                      @if (fslide) {
-                        <dd-animation-pane [slide]="fslide.frame" (play)="deckFocus.presentFromCurrent(fd)" />
+                        <dd-animation-pane
+                           [slide]="fslide.frame"
+                           [refine]="true"
+                           [highlight]="animStepRows$()"
+                        />
                      }
                   </div>
                </div>

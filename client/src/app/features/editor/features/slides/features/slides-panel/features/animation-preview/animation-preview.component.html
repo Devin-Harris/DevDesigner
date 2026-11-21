@@ -1,0 +1,42 @@
+<div class="stage" [style.aspect-ratio]="ratio$()">
+   @if (url$(); as u) {
+      <img alt="Slide preview" draggable="false" [src]="u" />
+   } @else {
+      <span class="loading">Rendering…</span>
+   }
+   <div #overlay class="overlay"></div>
+</div>
+<div class="bar">
+   <button class="ib" type="button" aria-label="Previous step" title="Previous step" [disabled]="!canBack$()" (click)="back()">
+      <dd-icon name="chevron_left" />
+   </button>
+   <div class="chips" role="tablist" aria-label="Animation steps">
+      @for (c of chips$(); track c.step) {
+         <button
+            class="chip"
+            type="button"
+            role="tab"
+            [class.on]="c.step === step$()"
+            [attr.aria-selected]="c.step === step$()"
+            [title]="c.title"
+            (click)="jump(c.step)"
+         >
+            {{ c.label }}
+         </button>
+      } @empty {
+         <span class="none">No animations</span>
+      }
+   </div>
+   <button class="ib" type="button" aria-label="Next step" title="Next step" [disabled]="!canNext$()" (click)="next()">
+      <dd-icon name="chevron_right" />
+   </button>
+   <button
+      class="play"
+      type="button"
+      [disabled]="!maxStep$()"
+      [title]="playing$() ? 'Stop' : 'Play every step from the start'"
+      (click)="playAll()"
+   >
+      <dd-icon [name]="playing$() ? 'stop' : 'play_arrow'" />{{ playing$() ? 'Stop' : 'Play' }}
+   </button>
+</div>

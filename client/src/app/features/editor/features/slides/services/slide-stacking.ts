@@ -15,7 +15,7 @@ export class SlideStacking {
     * slide's zoom) become free canvas items. While zoomed out they are moved to where
     * they appear, so they stay under the pointer.
     */
-   releaseDroppedOutOfSlides(ids: { elements: string[]; tables: string[] }): void {
+   releaseDroppedOutOfSlides(ids: { elements: string[]; tables: string[]; diagrams?: string[] }): void {
       if (!this.host.store.canEdit()) {
          return;
       }
@@ -24,14 +24,18 @@ export class SlideStacking {
       const views = new Map(this.host.canvasView.slideViews().map((v) => [v.frameId, v]));
       const release = { elements: [] as string[], tables: [] as string[], diagrams: [] as string[] };
       const moveTo = new Map<string, { elements: string[]; tables: string[]; diagrams: string[] }>();
-      const check = (id: string, slideId: string | undefined, box: Box, kind: 'elements' | 'tables'): void => {
+      const check = (id: string, slideId: string | undefined, box: Box, kind: 'elements' | 'tables' | 'diagrams'): void => {
          const f = slideId ? frames.get(slideId) : undefined;
          if (!f || !shown.has(f.id)) return;
          const view = views.get(f.id);
          const drawn = view ? boxToOuter(view, box) : box;
          const outside = drawn.x1 < f.x || drawn.x0 > f.x + f.width || drawn.y1 < f.y || drawn.y0 > f.y + f.height;
          if (!outside) return;
-         const one = { elements: kind === 'elements' ? [id] : [], tables: kind === 'tables' ? [id] : [], diagrams: [] };
+         const one = {
+            elements: kind === 'elements' ? [id] : [],
+            tables: kind === 'tables' ? [id] : [],
+            diagrams: kind === 'diagrams' ? [id] : [],
+         };
          const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
          const to = view ? toOuter(view, c) : c;
          if (view) {
@@ -69,7 +73,12 @@ export class SlideStacking {
       for (const t of this.host.store.tables()) {
          if (tableIds.has(t.id)) check(t.id, t.slideId, tableBox(t), 'tables');
       }
-      if (release.elements.length || release.tables.length) {
+      const diagramIds = new Set(ids.diagrams ?? []);
+      for (const d of this.host.store.sequenceDiagrams()) {
+         const r = diagramIds.has(d.id) ? this.host.canvasView.diagramBox(d) : null;
+         if (r) check(d.id, d.slideId, { x0: r.minX, y0: r.minY, x1: r.maxX, y1: r.maxY }, 'diagrams');
+      }
+      if (release.elements.length || release.tables.length || release.diagrams.length) {
          void this.host.store.assignSlide(release, null);
       }
       for (const [slideId, items] of moveTo) {

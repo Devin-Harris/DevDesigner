@@ -13,6 +13,7 @@ export * from './diagram-spec/presentation';
 export * from './sequence';
 export * from './slides/sequence-match';
 export * from './slides/animations';
+export * from './slides/animation-blocks';
 export * from './slides/themes';
 export * from './slides/layout-kinds';
 export * from './slides/fields';

@@ -16,4 +16,8 @@ import { CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pip
 })
 export class TransitionSettingsComponent {
    protected readonly s = inject(SlidesPanelState);
+   protected readonly morphByInfo =
+      'Characters: letters and words glide. Words: whole words glide. Objects: text moves as one piece and cross-fades. Applies to text, code blocks, tables and diagrams.';
+   protected readonly tagInfo =
+      'Tagged objects only morph into the object with the same tag on the next slide; they are never matched to look-alikes.';
 }
