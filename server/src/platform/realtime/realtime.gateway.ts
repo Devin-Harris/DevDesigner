@@ -198,6 +198,10 @@ export class RealtimeGateway
     }
 
     const user = await this.socketUser(client);
+    if (user?.viaToken?.projectId && user.viaToken.projectId !== projectId) {
+      client.disconnect(true);
+      return;
+    }
     let accessLevel: AccessLevel;
     try {
       accessLevel = await this.access.resolveProjectAccess(projectId, user?.id ?? guestId, token);

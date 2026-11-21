@@ -38,28 +38,28 @@ export class TitleBarComponent {
    protected readonly mac = this.bridge?.platform === 'darwin';
 
    protected readonly updates = inject(UpdateService);
-   protected readonly update = this.updates.status;
-   protected readonly version = computed(() => {
-      const s = this.update();
+   protected readonly update$ = this.updates.status$;
+   protected readonly version$ = computed(() => {
+      const s = this.update$();
       return s.state === 'downloading' || s.state === 'ready' ? s.version : '';
    });
-   protected readonly percent = computed(() => {
-      const s = this.update();
+   protected readonly percent$ = computed(() => {
+      const s = this.update$();
       return s.state === 'downloading' ? s.percent : 0;
    });
 
-   protected readonly project = computed(() => this.projects.selected());
+   protected readonly project$ = computed(() => this.projects.selected());
    /** "on Team server" for a project that lives on a server. */
-   protected readonly where = computed(() => {
-      const project = this.project();
-      const link = project ? this.sync.links().get(project.id) : undefined;
+   protected readonly where$ = computed(() => {
+      const project = this.project$();
+      const link = project ? this.sync.links$().get(project.id) : undefined;
       return link ? this.sync.remoteName(link.remoteId) : null;
    });
 
    constructor() {
       // Tint the OS window buttons whenever the theme changes.
       afterRenderEffect(() => {
-         this.theme.dark();
+         this.theme.dark$();
          const style = getComputedStyle(this.host.nativeElement);
          this.bridge?.setTitleBarColors(toHex(style.backgroundColor), toHex(style.color));
       });

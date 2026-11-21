@@ -11,18 +11,18 @@
 .home {
    position: relative;
    overflow-x: hidden;
-   --home-amber: #bd7d1c;
-   --home-teal: #0f8f86;
-   --home-violet: #7048e8;
-   --home-red: #d64545;
+   --home-amber: var(--dd-amber-700);
+   --home-teal: var(--dd-teal-600);
+   --home-violet: var(--dd-violet-600);
+   --home-red: var(--dd-red-600);
    min-height: 100%;
 }
 
 :host-context(html.dark) .home {
-   --home-amber: #e0a84a;
-   --home-teal: #2bb3a8;
-   --home-violet: #9b7bff;
-   --home-red: #ef6b6b;
+   --home-amber: var(--dd-amber-400);
+   --home-teal: var(--dd-teal-400);
+   --home-violet: var(--dd-violet-400);
+   --home-red: var(--dd-red-400);
 }
 
 .wrap {
@@ -77,7 +77,7 @@
    height: 32px;
    border-radius: 9px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    --dd-icon-size: 19px;
 }
 
@@ -167,9 +167,9 @@ nav {
    &.primary {
       background: var(--dd-primary);
       border-color: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
       &:hover {
-         background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+         background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
       }
    }
    &.lg {
@@ -467,9 +467,9 @@ nav {
       margin: 0;
       padding: 14px 16px;
       border-radius: 10px;
-      background: #11151c;
-      color: #e7ecf3;
-      border: 1px solid #262e39;
+      background: var(--dd-ink-900);
+      color: var(--dd-gray-100);
+      border: 1px solid var(--dd-ink-700);
       font-size: 12px;
       line-height: 1.6;
       overflow-x: auto;
@@ -482,15 +482,15 @@ nav {
    right: 8px;
    padding: 3px 10px;
    border-radius: 6px;
-   border: 1px solid #343d4a;
-   background: #1b222c;
-   color: #e7ecf3;
+   border: 1px solid var(--dd-ink-650);
+   background: var(--dd-ink-850);
+   color: var(--dd-gray-100);
    font: inherit;
    font-size: 12px;
    cursor: pointer;
 
    &:hover {
-      background: #262e39;
+      background: var(--dd-ink-700);
    }
 }
 
@@ -513,21 +513,21 @@ nav {
 .ai-chat {
    padding: 20px;
    border-radius: 14px;
-   background: #11151c;
-   color: #e7ecf3;
-   border: 1px solid #262e39;
+   background: var(--dd-ink-900);
+   color: var(--dd-gray-100);
+   border: 1px solid var(--dd-ink-700);
    font-size: 13px;
    line-height: 1.8;
    overflow-x: auto;
 
    .muted {
-      color: #8b95a4;
+      color: var(--dd-gray-400);
    }
    .gap {
       margin-top: 10px;
    }
    .ok {
-      color: #2bb3a8;
+      color: var(--dd-teal-400);
    }
 }
 
@@ -669,7 +669,7 @@ $loop: 16s;
       justify-content: center;
       font-size: 10px;
       font-weight: 700;
-      color: #fff;
+      color: var(--dd-white);
       border: 2px solid var(--dd-surface);
    }
    .av-m {
@@ -775,9 +775,9 @@ $loop: 16s;
 .b-web {
    left: px(24);
    top: py(106);
-   color: #2f6bff;
-   border-color: #2f6bff;
-   background: color-mix(in srgb, #2f6bff 14%, var(--dd-surface));
+   color: var(--dd-blue-600);
+   border-color: var(--dd-blue-600);
+   background: color-mix(in srgb, var(--dd-blue-600) 14%, var(--dd-surface));
    // Devin opens the loop by dragging this box out and typing its label.
    transform-origin: top left;
    animation: hb-web $loop ease-out infinite;
@@ -846,9 +846,9 @@ $loop: 16s;
 .b-queue {
    left: px(288);
    top: py(40);
-   color: #ec4899;
-   border-color: #ec4899;
-   background: color-mix(in srgb, #ec4899 14%, var(--dd-surface));
+   color: var(--dd-pink-500);
+   border-color: var(--dd-pink-500);
+   background: color-mix(in srgb, var(--dd-pink-500) 14%, var(--dd-surface));
    transform-origin: top left;
    animation: hb-queue $loop ease-out infinite;
    .typed {
@@ -1070,7 +1070,7 @@ $loop: 16s;
       padding: 0 5px;
       border-radius: 4px 4px 4px 0;
       background: var(--home-violet);
-      color: #fff;
+      color: var(--dd-white);
       font-size: 9px;
       font-weight: 700;
       line-height: 15px;
@@ -1101,8 +1101,8 @@ $loop: 16s;
       position: relative;
       min-width: 70px;
       padding: 6px 10px;
-      background: #fde68a;
-      color: #4a3b00;
+      background: var(--dd-yellow-200);
+      color: var(--dd-yellow-900);
       font-size: 11px;
       font-weight: 600;
       border-radius: 3px;
@@ -1190,9 +1190,9 @@ $loop: 16s;
    width: px(158);
    box-sizing: border-box;
    border-radius: 8px;
-   background: #11151c;
-   border: 1px solid #262e39;
-   color: #e7ecf3;
+   background: var(--dd-ink-900);
+   border: 1px solid var(--dd-ink-700);
+   color: var(--dd-gray-100);
    overflow: hidden;
    @include pop(hb-code, 67%);
 
@@ -1201,14 +1201,14 @@ $loop: 16s;
       align-items: center;
       gap: 3px;
       padding: 4px 7px;
-      border-bottom: 1px solid #262e39;
+      border-bottom: 1px solid var(--dd-ink-700);
       font-size: 8.5px;
-      color: #8b95a4;
+      color: var(--dd-gray-400);
       i {
          width: 5px;
          height: 5px;
          border-radius: 50%;
-         background: #3a4350;
+         background: var(--dd-ink-600);
       }
       span {
          margin: 0 auto;
@@ -1239,15 +1239,15 @@ $loop: 16s;
       animation: hb-l4 $loop steps(1) infinite;
    }
    b {
-      color: #c792ea;
+      color: var(--dd-purple-300);
       font-weight: 400;
    }
    i {
-      color: #82aaff;
+      color: var(--dd-blue-300);
       font-style: normal;
    }
    em {
-      color: #f78c6c;
+      color: var(--dd-orange-300);
       font-style: normal;
    }
 }
@@ -1310,7 +1310,7 @@ $loop: 16s;
       border-radius: 6px;
       font-size: 10px;
       font-weight: 600;
-      color: #fff;
+      color: var(--dd-white);
    }
 }
 .c1 {
@@ -1695,30 +1695,9 @@ $loop: 16s;
       display: block;
       pointer-events: none;
    }
-
-   // A picture of the real editor: no tool dock, minimap, deck panels or selection chrome.
-   ::ng-deep {
-      dd-shape-toolbar,
-      dd-minimap,
-      dd-laser-layer,
-      dd-slides-panel,
-      .deck-header,
-      .slide-bounds,
-      .chips,
-      .icon-btn.tiny,
-      .type .chev,
-      .node-head .icon-btn,
-      .overlay.hint {
-         display: none !important;
-      }
-   }
 }
 .sc-demo.prepping dd-editor {
    opacity: 0;
-}
-// The slides tab ends on the editor's transition screen: let its panels show.
-.sc-demo.morphing ::ng-deep dd-slides-panel {
-   display: revert !important;
 }
 .sc-typebox {
    position: absolute;
@@ -1760,7 +1739,7 @@ $loop: 16s;
    }
    path {
       fill: var(--dd-primary);
-      stroke: #fff;
+      stroke: var(--dd-white);
       stroke-width: 1;
    }
    span {
@@ -1768,7 +1747,7 @@ $loop: 16s;
       padding: 2px 7px;
       border-radius: 6px;
       background: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
       font-size: 11px;
       font-weight: 600;
       white-space: nowrap;
@@ -1948,10 +1927,6 @@ $loop: 16s;
    }
 }
 
-// Sequence tab: a message stays hidden until the player has drawn it (it reveals each one).
-.sc-demo.seq-tab:not(.prepping) ::ng-deep dd-sequence-diagram > :is(.msg-line, .msg-head, .msg-label-wrap) {
-   visibility: hidden;
-}
 
 // Slides tab: the editor's real transition components in a trimmed-down frame.
 .sc-morph {
@@ -2101,7 +2076,7 @@ $loop: 16s;
    .sq-act.primary {
       background: var(--dd-primary);
       border-color: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
    }
    .sq-body {
       flex: 1;
@@ -2150,11 +2125,6 @@ $loop: 16s;
    min-width: 0;
    padding: 8px;
 }
-// The message toolbar is the editor's own; in this read-only example its buttons are disabled but should look live.
-.sc-demo ::ng-deep dd-sequence-message-toolbar button:disabled {
-   opacity: 1 !important;
-   cursor: default;
-}
 
 // Dragging: the pointer follows exactly, no easing behind the object.
 .sc-cursor.fast {
@@ -2171,7 +2141,7 @@ $loop: 16s;
    padding: 5px 12px;
    border-radius: 999px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font-size: 12px;
    font-weight: 600;
    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);

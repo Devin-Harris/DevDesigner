@@ -726,7 +726,7 @@ export function registerDesignTools(tool: ToolFn, api: DevDesignerApi): DesignHe
   });
   const shapeItem = z.object({
     kind: z.literal('shape'),
-    shape: z.enum(['rectangle', 'ellipse', 'diamond']),
+    shape: z.enum(['rectangle', 'ellipse', 'diamond', 'triangle']),
     x: z.number(), y: z.number(), w: z.number(),
     h: z.number().describe('Fraction of the slide height.'),
     fill: z.string().optional().describe('Token or #hex; omit for no fill.'),

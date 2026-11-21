@@ -1,17 +1,6 @@
 import { computed, DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type {
-   AddSyncRemoteDto,
-   MergeChoice,
-   MergeConflict,
-   UpdateSyncRemoteDto,
-   ProjectExportFile,
-   ProjectSummary,
-   SyncDefaultRemoteResponse,
-   SyncLinkResponse,
-   SyncLinkResult,
-   SyncRemoteResponse,
-} from '@devdesigner/shared';
+import type { AddSyncRemoteDto, MergeChoice, MergeConflict, UpdateSyncRemoteDto, ProjectExportFile, ProjectSummary, SyncDefaultRemoteResponse, SyncLinkResponse, SyncLinkResult, SyncRemoteResponse } from '@devdesigner/shared';
 import { ApiClientService } from '../http/api-client.service';
 import { runtimeConfig } from '../config/runtime-config';
 
@@ -28,11 +17,11 @@ export class SyncService {
    private readonly api = inject(ApiClientService);
 
    readonly enabled = runtimeConfig.desktop;
-   readonly remotes = signal<SyncRemoteResponse[]>([]);
+   readonly remotes$ = signal<SyncRemoteResponse[]>([]);
    /** The hosted server this build offers ready-made (null when the build has none). */
-   readonly defaultRemote = signal<SyncDefaultRemoteResponse | null>(null);
+   readonly defaultRemote$ = signal<SyncDefaultRemoteResponse | null>(null);
    private readonly linkList = signal<SyncLinkResponse[]>([]);
-   readonly links = computed(() => new Map(this.linkList().map((l) => [l.projectId, l])));
+   readonly links$ = computed(() => new Map(this.linkList().map((l) => [l.projectId, l])));
    private timer: ReturnType<typeof setInterval> | null = null;
 
    constructor() {
@@ -51,21 +40,34 @@ export class SyncService {
          firstValueFrom(this.api.get<SyncLinkResponse[]>('/sync/links')),
          firstValueFrom(this.api.get<SyncDefaultRemoteResponse | null>('/sync/default-remote')),
       ]);
-      this.remotes.set(remotes);
-      this.defaultRemote.set(defaultRemote);
+      this.remotes$.set(remotes);
+      this.defaultRemote$.set(defaultRemote);
       this.linkList.set(links);
    }
 
    /** The project's page in the server's web app (API base minus /api). */
+   /** Display name of each remote, by id. */
+   readonly remoteNames$ = computed(() => new Map(this.remotes$().map((r) => [r.id, r.name] as const)));
+   /** Web address of each linked project on its server, by project id. */
+   readonly webUrls$ = computed(() => {
+      const remotes = new Map(this.remotes$().map((r) => [r.id, r] as const));
+      const out = new Map<string, string>();
+      for (const [projectId, link] of this.links$()) {
+         const remote = remotes.get(link.remoteId);
+         if (remote) out.set(projectId, `${remote.url.replace(/\/api\/?$/, '')}/projects/${encodeURIComponent(projectId)}`);
+      }
+      return out;
+   });
+
    webUrlOf(projectId: string): string | null {
-      const link = this.links().get(projectId);
-      const remote = link && this.remotes().find((r) => r.id === link.remoteId);
+      const link = this.links$().get(projectId);
+      const remote = link && this.remotes$().find((r) => r.id === link.remoteId);
       if (!remote) return null;
       return `${remote.url.replace(/\/api\/?$/, '')}/projects/${encodeURIComponent(projectId)}`;
    }
 
    remoteName(remoteId: string): string {
-      return this.remotes().find((r) => r.id === remoteId)?.name ?? 'the server';
+      return this.remotes$().find((r) => r.id === remoteId)?.name ?? 'the server';
    }
 
    async addRemote(dto: AddSyncRemoteDto): Promise<void> {

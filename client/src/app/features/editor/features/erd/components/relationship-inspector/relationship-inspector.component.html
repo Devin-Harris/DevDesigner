@@ -8,7 +8,7 @@
          type="button"
          title="Delete relationship"
          aria-label="Delete relationship"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (click)="remove()"
       >
          <dd-icon name="delete" />
@@ -17,9 +17,9 @@
 
    <div class="field-label">Source column</div>
    <dd-select
-      [options]="columnOptions()"
-      [ngModel]="relationship().sourceColumnId"
-      [disabled]="!store.canEdit()"
+      [options]="columnOptions$()"
+      [ngModel]="relationship$().sourceColumnId"
+      [disabled]="!edits.canEdit$()"
       (ngModelChange)="setSource($event)"
    />
 
@@ -27,17 +27,17 @@
 
    <div class="field-label">Target column</div>
    <dd-select
-      [options]="columnOptions()"
-      [ngModel]="relationship().targetColumnId"
-      [disabled]="!store.canEdit()"
+      [options]="columnOptions$()"
+      [ngModel]="relationship$().targetColumnId"
+      [disabled]="!edits.canEdit$()"
       (ngModelChange)="setTarget($event)"
    />
 
    <div class="field-label">Type</div>
    <dd-select
       [options]="typeOptions"
-      [ngModel]="relationship().type"
-      [disabled]="!store.canEdit()"
+      [ngModel]="relationship$().type"
+      [disabled]="!edits.canEdit$()"
       (ngModelChange)="setType($event)"
    />
 
@@ -46,8 +46,8 @@
          <div class="field-label">On delete</div>
          <dd-select
             [options]="actionOptions"
-            [ngModel]="relationship().onDelete ?? ''"
-            [disabled]="!store.canEdit()"
+            [ngModel]="relationship$().onDelete ?? ''"
+            [disabled]="!edits.canEdit$()"
             (ngModelChange)="setOnDelete($event)"
          />
       </div>
@@ -55,8 +55,8 @@
          <div class="field-label">On update</div>
          <dd-select
             [options]="actionOptions"
-            [ngModel]="relationship().onUpdate ?? ''"
-            [disabled]="!store.canEdit()"
+            [ngModel]="relationship$().onUpdate ?? ''"
+            [disabled]="!edits.canEdit$()"
             (ngModelChange)="setOnUpdate($event)"
          />
       </div>

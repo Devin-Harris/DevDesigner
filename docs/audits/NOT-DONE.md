@@ -1,86 +1,64 @@
 # Audit items not done
 
-Waves 0–6 of [00-master-plan.md](00-master-plan.md) are finished: Waves 0–5 are merged into `main` and Wave 6 is on `audit/wave-6`. This file lists everything in the four audits that was planned but **not done, done partially, or deliberately changed**, and why. Each line names its step id (`S` = security, `P` = performance, `C` = cleanliness, `A` = analytics). The details for each id are in the matching audit file. [CHANGELOG.md](CHANGELOG.md) records what each wave did.
+Waves 0–6 of [00-master-plan.md](00-master-plan.md) are finished. On 2026-11-19 the items that Wave 6 left open were worked through; see "Done on 2026-11-19" at the end. This file lists what in the four audits is still **not done, done partially, or deliberately changed**, and why. Each line names its step id (`S` = security, `P` = performance, `C` = cleanliness, `A` = analytics). The details for each id are in the matching audit file. [CHANGELOG.md](CHANGELOG.md) records what each wave did.
 
 ## 1. Skipped on purpose
 
 | Item | What it was | Why it wasn't done |
 |---|---|---|
-| **A3b** | Consent banner, PostHog (server sink + browser SDK after consent), privacy page, self-hosted fonts | Marked optional in the plan. It needs product decisions (whether to use a third-party analytics vendor at all, the consent wording, the privacy policy text) and a PostHog account. The privacy page and self-hosted fonts are independent and can be done any time. |
+| **A3b** | Consent banner, PostHog (server sink + browser SDK after consent), privacy page | Optional in the plan. It needs product decisions (whether to use a third-party analytics vendor at all, the consent wording, the privacy policy text) and a PostHog account. Fonts are already self-hosted (desktop phase 4). |
 | **A3a uptime monitor** | External uptime check (Better Stack / UptimeRobot) on `/api/health/ready` | It's an account on an outside service, not code. The endpoint exists; you only need to create the monitor. |
 | **S0.1 / S0.2** | Check prod env values; reissue local `.mcp.json` tokens | Manual owner tasks with no code. Prod env vars are set in Railway. |
 
-## 2. Blocked by uncommitted work at the time (Wave 5)
+## 2. Still open
 
-These touch `editor.component.ts` and the slides/present files, which had uncommitted local changes during Wave 5. The rule was never to edit or commit someone else's dirty files, so they were left alone.
-
-| Item | What it was | Status |
+| Item | Status | What's left |
 |---|---|---|
-| **C3.5** | Split `slides-panel.component.ts` (~2,150 lines) into a slides store, child components and `deck-layout-sync.service` | Not done. Only the one-line duplicate-save guard (P2.6) shipped. |
-| **P2.6 (rest)** | Slides-panel perf work that was meant to land in the C3.5 split | Not done; it waits for C3.5. |
-| **C3.6** | Decompose present mode, `morph-stage` and deck compare | Not done. |
-| **C3.7** | Leaf components take store values as inputs instead of injecting the store | Partial. The remaining leaves are all mounted from `editor.component.ts`. |
-| **C3.8 `EditorEmbedApi`** | One embed API for home showcase / guide sandboxes instead of reaching into editor internals | Not done. The home content split (the other half of C3.8) did ship. |
-| **Undo bugs** found during the audit | Edge cases in client undo/redo | Some were fixed (re-created ids, sequence diagrams). The rest touched the same dirty editor files. |
+| **Switch prod to migrations** | The code is ready. A synchronize-created database is adopted on boot (`adoptSynchronizedDatabase`). | An owner step in Railway: follow [docs/database-migrations.md](../database-migrations.md). |
+| **Drop `X-Guest-Id`** (S4.3) | The server already adopts the header into the `dd_guest` cookie. | Drop the header once prod data shows most active guests carry the cookie. Dropping it earlier would cut guests off from their projects. |
+| **P3.5** | Thumbnails are cached per editor and re-render only the frames whose rows changed. | Keying by project revision is still open, but the remaining win is small. |
+| **Home `showTransition`** | Dead code: nothing calls it. It now goes through `EditorComponent.embed` like everything else. | Delete it, or wire it into the Slides showcase. |
 
-**Now that `main` is clean, all of these are unblocked.** C3.5 → P2.6 is the most valuable pair.
-
-## 3. Not reached
-
-| Item | What it was | Why |
-|---|---|---|
-| **P3.5** | Slide thumbnails keyed by project revision, so they re-render only when content changes | It depends on the C3.5 slides-panel split. Thumbnail re-encoding per edit already dropped to 0 in Wave 3, so the remaining win is smaller. |
-| **Migrations instead of `DATABASE_SYNCHRONIZE`** | A baseline migration plus a migration runner, then `synchronize=false` in prod (part of S1.4 / C4.1) | Deferred since Wave 1. Prod depends on synchronize to add new columns (Wave 6 added `users.tokenVersion` and `share_links.tokenSealed` this way). Switching needs a baseline taken from the real prod schema, so it should be its own careful change. |
-| **`start:prod` path** | `start:prod` runs `dist/main.js`, but the build writes `dist/src/main.js` | Noted in Wave 1 and never fixed. It doesn't matter if Railway uses a different start command, but it should be fixed or removed. |
-
-## 4. Server routes with no client UI yet
-
-The server side is done and tested, but nothing in the app calls these yet:
-
-- **Log out everywhere:** `POST /auth/logout-all` (S4.2).
-- **Delete my account:** `DELETE /auth/me` (S4.7).
-- **Hygiene preview:** `POST /api/admin/hygiene/preview` (A4). It belongs on the admin dashboard.
-- **Guest cookie:** the client still sends `X-Guest-Id`. The server adopts it into the `dd_guest` cookie, and the header can be dropped once enough guests have the cookie (S4.3).
-
-## 5. Security extras deferred in Wave 6
-
-| Item | Why |
-|---|---|
-| API-token expiry and per-project scope | Optional in S4.x. It changes the token UI and MCP setup flow, so it needs a design decision. |
-| Confirmation step before a guest's projects are claimed on sign-in | Optional. It needs a UI dialog. |
-| Hashed share tokens rely on a stable seal key | Not a gap but a constraint. If `JWT_SECRET` / `SHARE_TOKEN_SECRET` changes, old links keep working but the share dialog can no longer show them. |
-
-## 6. Measured and rejected
-
-| Item | Result |
-|---|---|
-| **P4.2 extras:** defer the command palette / shortcuts / customize panel, lazy-load the projects overlay | Measured in Wave 5 and **reverted**. Each made Angular's chunk optimizer pull realtime/socket.io/material into `main`, adding +27 to +81 kB to the initial bundle. Only the sign-in and API-token dialogs stayed lazy. |
-
-## 7. Lint rules still at warning (C5.2)
-
-Every lint rule was meant to be an error. These stay at warning because each needs hand fixes across many files that Wave 6 didn't otherwise touch:
-
-| Rule | Count | Note |
-|---|---|---|
-| `template/no-call-expression` | 1,567 | Waits for a `$`-suffix naming convention for signals in templates. Mostly mechanical, but large. |
-| `consistent-type-assertions` | 61 | |
-| `no-input-rename` | 32 | Renames are part of public component APIs. |
-| `click-events-have-key-events` | 17 | Real a11y fixes; each needs keyboard handling. |
-| `interactive-supports-focus` | 17 | Same as above. |
-| `label-has-associated-control` | 17 | |
-| `max-lines` | 14 | The god files waiting on C3.5 / C3.6 / C3.7. |
-| Listed boundary exceptions | 18 | Imports that cross folder boundaries, also mostly in the unsplit editor and slides files. |
-
-## 8. Operational constraints to know (not tasks)
+## 3. Operational constraints to know (not tasks)
 
 - The throttler, caches, lockouts and session-version cache are in memory, so the server assumes **a single replica**. Scaling out needs Redis or similar.
 - The analytics rollup uses a plain timer, not `@nestjs/schedule`, so it runs in every replica (fine with one).
+- Hashed share tokens rely on a stable seal key. If `JWT_SECRET` / `SHARE_TOKEN_SECRET` changes, old links keep working, but the share dialog can no longer show them.
+- P4.2 extras (deferring the command palette, shortcuts and customize panel, or lazy-loading the projects overlay) were measured in Wave 5 and **rejected**. Each pulled realtime, socket.io and Material into `main`, adding 27–81 kB to the initial bundle.
 
-## Suggested order if you pick these up
+## Done on 2026-11-19
 
-1. Fix the `start:prod` path (minutes).
-2. Client UI for log-out-everywhere and account deletion (small; the server is ready).
-3. C3.5 → P2.6 → P3.5 (slides panel split, then its perf work).
-4. C3.6, C3.7, the C3.8 embed API, then the remaining lint warnings in those files.
-5. A migration baseline to replace `DATABASE_SYNCHRONIZE` in prod.
-6. A3b, if you decide you want third-party analytics.
+- **`start:prod`** runs `dist/src/main.js`.
+- **Account UI** (S4.2, S4.7): an Account settings dialog with sign out everywhere and delete account (with a password check). It's hidden in the desktop app.
+- **Hygiene preview** (A4): a Cleanup preview card on Admin → Storage.
+- **C3.5 + P2.6**: the slides panel is a host plus a component-scoped `SlidesPanelState` store, 11 part components and per-component SCSS. Deck-wide work runs once per deck in `deck-layout-sync.service` and `slide-thumbnails.service`, not once per mounted panel.
+- **C3.6**:
+  - `morph-stage.ts` went from 2,490 to about 1,100 lines, with the rest in `slides/helpers/morph/{model,geometry,text,code,grid}`. The code/grid builders now take a `MorphContext`.
+  - Present mode went from 880 to about 545 lines: a `TransitionRunner`, plus `presenter-controls` and `laser-overlay` components.
+  - Deck-compare: the `ComparePreviewPlayer` and a model file were extracted.
+- **C3.7**: the 11 leaf components that injected `ProjectStore` now inject a narrow facade owned by their sub-feature (`ElementEdits`, `ErdEdits`, `SequenceEdits`, `CanvasContent`), built with `storeMember()`. Their boundary exceptions are gone, so the rule is enforced as an error. *Deliberate change:* these are facades, not pure input/output components. Their dependency on project state is now an explicit list, and the editor template didn't need rewiring.
+- **C3.8**: `EditorHostOptions` (`chrome: 'picture'`, `hideSequenceMessages`) and `EditorComponent.embed: EditorEmbedApi`. Home no longer uses `::ng-deep` into the editor or queries the deck-compare play button. Preview play goes through `CompareUiState`.
+- **Undo**: ERD edits were mostly not undoable. Now table add, delete, rename and recolor, table drags (with their relationship bends), column edits and reorders, indexes, and relationship add, delete and edit all undo and redo. Deleted rows come back under their own ids, and `rid()` still covers re-created columns. Covered by `ProjectStore ERD history` specs.
+- **Migrations**: `adoptSynchronizedDatabase` lets a synchronize-created database switch to migrations safely (specs cover adopted, fresh and refused). See [docs/database-migrations.md](../database-migrations.md).
+- **Security extras**:
+  - API tokens can expire (30, 90 or 365 days) and can be limited to one project the caller owns. Enforcement: `ProjectAccessGuard` returns 404 for other projects, `OptionalAuthGuard` lets scoped tokens reach only project, public and `@ProjectTokenOk` routes, the project list is filtered, and the realtime gateway refuses other projects. Includes a migration and specs.
+  - The guest-project claim prompt now follows every sign-in path (home sign-in used to skip it).
+- **Lint (C5.2)**:
+  - `click-events-have-key-events`, `interactive-supports-focus`, `label-has-associated-control` and `consistent-type-assertions` are now **errors** at 0. Fixes: keyboard support on list rows, a `ddStopClicks` directive for click-stopping containers, wrapping labels, and `satisfies` where it fits. The remaining deliberate partial rows say why inline.
+  - `no-input-rename` is **off**, because the `$`-suffix convention aliases inputs on purpose.
+  - Two templates had stray Windows-1252 "…" bytes, shown as "�" in the desktop settings and sync panel. They're fixed.
+- **`template/no-call-expression` is an error at 0** (it was 1,808 warnings).
+  - 600 signals that templates read were renamed to `name$` with the TypeScript language service, across components, services and facades. Inputs keep their public names through `alias`. Signal-store state keys were deliberately **not** renamed; the three entry components that read the store directly expose `$` fields for it.
+  - Method calls became computed lookups, or one of the pipes in `shared/ui/pipes/collection.pipes.ts` (`has`, `at`, `join`, and `call` for pure functions or closure computeds).
+  - The lazy image and thumbnail reads use **impure** pipes (`imageUrl`/`imageKind`/`imagePoster`, `thumbState`, `editedAgo`), because reading them starts a load or reads the clock.
+- **`max-lines` is an error at 0** (it was 14 warnings). The over-limit files were split as follows:
+  - Module-level code moved to `*.helpers.ts` files next to its file, with re-exports.
+  - Big data and helper files were split by topic: `guide-*-tools.ts`, `diagram-svg/*.helper.ts`, and the `showcase-*-steps.ts` files.
+  - Big classes moved methods into **part classes** that take the host in their constructor (for example `ElementResize`, `RichTextInput`, `SequenceGestures`, `DeckCompareDrag`, `MorphStageFrame`, `HomeShowcaseScript`). Method bodies are unchanged, with `this.x` rewritten to `this.host.x`. The host keeps delegates for its public and template API.
+  - The `SlidesPanelState` parts (`slideCardDrag`, `slideLayoutEditing`, `slideMorphSettings`, `slideLayoutViews`) are public fields, so templates call `s.slideMorphSettings.setTransition(...)` and so on.
+  - *Tradeoff:* host members that a part reads lost their `private` modifier.
+- **Boundaries: no exceptions left**, so the rule is an error.
+  - `canvas-sequence` now lives in the `sequence-diagram` sub-feature.
+  - The sandbox and the projects overlay depend on abstract classes (`CodeBlockSizer`, `ProjectPictureRenderer`). The editor implementations are bound to them in `app.config.ts`.
+- **Hex colors**: component styles now use CSS variables. Fixed colors come from a `--dd-*` palette in `styles.scss`, the only file allowed to contain hex. Stylelint now reports at **error** severity.
+

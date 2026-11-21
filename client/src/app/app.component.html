@@ -13,7 +13,7 @@
 
    <!-- Chrome-less editor: two floating islands over the canvas instead of a top bar.
        The home page (no project open) draws its own header. -->
-   @if (editorActions.active() && !editorActions.focusedDeck() && !onGuide()) {
+   @if (editorActions.active$() && !editorActions.focusedDeck$() && !onGuide$()) {
       <div class="island left">
          <button
             class="brand-btn"
@@ -26,8 +26,8 @@
             <dd-logo [size]="28" />
             <dd-icon name="expand_more" class="brand-chev" />
          </button>
-         @if (projects.selected(); as project) {
-            @if (renaming()) {
+         @if (selected$(); as project) {
+            @if (renaming$()) {
                <input
                   #nameInput
                   class="crumb-input"
@@ -36,7 +36,7 @@
                   ddAutofocusSelect="textarea"
                   [value]="project.name"
                   (keydown.enter)="commitRename(nameInput.value)"
-                  (keydown.escape)="renaming.set(false)"
+                  (keydown.escape)="renaming$.set(false)"
                   (blur)="commitRename(nameInput.value)"
                />
             } @else {
@@ -57,7 +57,7 @@
             type="button"
             matTooltip="Undo (Ctrl+Z)"
             aria-label="Undo"
-            [disabled]="!editorActions.canUndo()"
+            [disabled]="!editorActions.canUndo$()"
             (click)="undo()"
          >
             <dd-icon name="undo" />
@@ -67,7 +67,7 @@
             type="button"
             matTooltip="Redo (Ctrl+Shift+Z)"
             aria-label="Redo"
-            [disabled]="!editorActions.canRedo()"
+            [disabled]="!editorActions.canRedo$()"
             (click)="redo()"
          >
             <dd-icon name="redo" />
@@ -75,7 +75,7 @@
       </div>
 
       <div class="island right">
-         @if (realtime.participants().length > 1) {
+         @if (realtime.participants$().length > 1) {
             <button
                class="avatars"
                type="button"
@@ -83,28 +83,28 @@
                aria-label="People here"
                [ddPopoverTrigger]="peopleMenu"
             >
-               @for (p of realtime.participants(); track p.id) {
+               @for (p of realtime.participants$(); track p.id) {
                   <span
                      class="avatar"
-                     [class.followed]="editorActions.following() === p.id"
+                     [class.followed]="editorActions.following$() === p.id"
                      [style.background]="p.color"
-                     >{{ p.name.charAt(0).toUpperCase() }}</span
+                     >{{ (p.name | slice: 0 : 1 | uppercase) }}</span
                   >
                }
             </button>
             <ng-template #peopleMenu let-close>
                <div class="dd-menu people-menu">
-                  @for (p of realtime.participants(); track p.id) {
+                  @for (p of realtime.participants$(); track p.id) {
                      <div class="person">
-                        <span class="avatar" [style.background]="p.color">{{ p.name.charAt(0).toUpperCase() }}</span>
+                        <span class="avatar" [style.background]="p.color">{{ (p.name | slice: 0 : 1 | uppercase) }}</span>
                         <span class="pn">
-                           {{ p.id === realtime.selfId() ? p.name + ' (you)' : p.name }}
+                           {{ p.id === realtime.selfId$() ? p.name + ' (you)' : p.name }}
                            <small>{{
                               p.presenting ? 'Presenting' : p.accessLevel === 'VIEW' ? 'View only' : 'Editing'
                            }}</small>
                         </span>
-                        @if (p.id !== realtime.selfId()) {
-                           @if (editorActions.following() === p.id) {
+                        @if (p.id !== realtime.selfId$()) {
+                           @if (editorActions.following$() === p.id) {
                               <button
                                  class="pa on"
                                  type="button"
@@ -132,11 +132,11 @@
          <button class="nav-btn" type="button" placement="below-end" [ddPopoverTrigger]="decksMenu">
             <dd-icon name="slideshow" />
             Presentations
-            @if (editorActions.decks().length) {
-               <span class="count">{{ editorActions.decks().length }}</span>
+            @if (editorActions.decks$().length) {
+               <span class="count">{{ editorActions.decks$().length }}</span>
             }
          </button>
-         @if (editorActions.accessMode() === 'OWNER' && !desktop) {
+         @if (editorActions.accessMode$() === 'OWNER' && !desktop) {
             <button class="nav-btn primary" type="button" (click)="share()">
                <dd-icon name="share" />
                Share
@@ -144,7 +144,7 @@
          }
          @if (desktop) {
             <!-- Desktop: one local account, nothing to sign in or out of. -->
-         } @else if (auth.currentUser(); as user) {
+         } @else if (auth.currentUser$(); as user) {
             <button
                class="nav-icon"
                type="button"
@@ -174,16 +174,16 @@
                <dd-icon name="home" />Home page
             </button>
          }
-         <button class="dd-menu-item" type="button" (click)="paletteOpen.set(true); close()">
+         <button class="dd-menu-item" type="button" (click)="paletteOpen$.set(true); close()">
             <dd-icon name="search" />Projects &amp; commands<span class="kbd">Ctrl K</span>
          </button>
          <button class="dd-menu-item" type="button" (click)="openProjects(); close()">
             <dd-icon name="table_chart" />All projects…
          </button>
 
-         @if (projects.selected(); as project) {
+         @if (selected$(); as project) {
             <div class="menu-label">This project</div>
-            @if (editorActions.accessMode() === 'OWNER') {
+            @if (editorActions.accessMode$() === 'OWNER') {
                <button class="dd-menu-item" type="button" (click)="startRename(); close()">
                   <dd-icon name="edit" />Rename
                </button>
@@ -194,7 +194,7 @@
                   <dd-icon name="archive" />{{ project.archived ? 'Unarchive' : 'Archive' }}
                </button>
             }
-            @if (editorActions.canEdit()) {
+            @if (editorActions.canEdit$()) {
                <button class="dd-menu-item" type="button" (click)="importInput.click(); close()">
                   <dd-icon name="upload" />Import<span class="kbd">.json</span>
                </button>
@@ -202,12 +202,12 @@
             <button class="dd-menu-item" type="button" placement="right-start" [ddPopoverTrigger]="exportMenu">
                <dd-icon name="download" />Export<span class="kbd">SQL · PNG · SVG · PDF · JSON ›</span>
             </button>
-            @if (editorActions.accessMode() === 'OWNER' && !desktop) {
+            @if (editorActions.accessMode$() === 'OWNER' && !desktop) {
                <button class="dd-menu-item" type="button" (click)="share(); close()">
                   <dd-icon name="share" />Share &amp; link access
                </button>
             }
-            @if (editorActions.canEdit()) {
+            @if (editorActions.canEdit$()) {
                <button class="dd-menu-item" type="button" (click)="editorActions.setHome(); close()">
                   <dd-icon name="center_focus_strong" />Set home view here
                </button>
@@ -216,30 +216,33 @@
 
          <div class="menu-label">You</div>
          <div class="theme-row">
-            <dd-icon [name]="theme.dark() ? 'dark_mode' : 'light_mode'" />Theme
+            <dd-icon [name]="theme.dark$() ? 'dark_mode' : 'light_mode'" />Theme
             <span class="theme-seg">
-               <button type="button" [class.on]="theme.mode() === 'light'" (click)="theme.setMode('light')">
+               <button type="button" [class.on]="theme.mode$() === 'light'" (click)="theme.setMode('light')">
                   Light
                </button>
-               <button type="button" [class.on]="theme.mode() === 'dark'" (click)="theme.setMode('dark')">Dark</button>
-               <button type="button" [class.on]="theme.mode() === 'system'" (click)="theme.setMode('system')">
+               <button type="button" [class.on]="theme.mode$() === 'dark'" (click)="theme.setMode('dark')">Dark</button>
+               <button type="button" [class.on]="theme.mode$() === 'system'" (click)="theme.setMode('system')">
                   System
                </button>
             </span>
          </div>
-         @if (editorActions.active()) {
-            <button class="dd-menu-item" type="button" (click)="toolbarPrefs.panelOpen.set(true); close()">
+         @if (editorActions.active$()) {
+            <button class="dd-menu-item" type="button" (click)="toolbarPrefs.panelOpen$.set(true); close()">
                <dd-icon name="tune" />Customize toolbar…
             </button>
          }
-         <button class="dd-menu-item" type="button" (click)="shortcutsOpen.set(true); close()">
+         <button class="dd-menu-item" type="button" (click)="shortcutsOpen$.set(true); close()">
             <dd-icon name="keyboard" />Keyboard shortcuts<span class="kbd">?</span>
          </button>
-         @if (auth.currentUser()) {
+         @if (auth.currentUser$()) {
             <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
                <dd-icon name="key" />API tokens for MCP
             </button>
             @if (!desktop) {
+               <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+                  <dd-icon name="account_circle" />Account settings
+               </button>
                <button class="dd-menu-item" type="button" (click)="signOut(); close()">
                   <dd-icon name="logout" />Sign out
                </button>
@@ -250,19 +253,19 @@
 
    <ng-template #exportMenu let-close>
       <div class="dd-menu">
-         @if (editorActions.hasTableSelection()) {
+         @if (editorActions.hasTableSelection$()) {
             <button
                class="dd-menu-item"
                type="button"
-               [disabled]="!editorActions.canExportSql()"
+               [disabled]="!editorActions.canExportSql$()"
                [title]="
-                  editorActions.canExportSql()
+                  editorActions.canExportSql$()
                      ? ''
                      : 'Selected tables share a name. Table names must be unique to export SQL.'
                "
                (click)="exportSql(); close()"
             >
-               <dd-icon [name]="editorActions.canExportSql() ? 'data_object' : 'warning'" />SQL…
+               <dd-icon [name]="editorActions.canExportSql$() ? 'data_object' : 'warning'" />SQL…
             </button>
          }
          <button class="dd-menu-item" type="button" (click)="exportImage('png'); close()">
@@ -274,17 +277,17 @@
          <button class="dd-menu-item" type="button" (click)="exportImage('pdf'); close()">
             <dd-icon name="picture_as_pdf" />Image (PDF)
          </button>
-         @if (editorActions.presentationName()) {
+         @if (editorActions.presentationName$()) {
             <button
                class="dd-menu-item"
                type="button"
-               [title]="'Slides of ' + editorActions.presentationName()"
+               [title]="'Slides of ' + editorActions.presentationName$()"
                (click)="exportSlidesPdf(); close()"
             >
                <dd-icon name="picture_as_pdf" />All slides (PDF pages)
             </button>
          }
-         @if (!editorActions.presentationName() || editorActions.hasPlainFrames()) {
+         @if (!editorActions.presentationName$() || editorActions.hasPlainFrames$()) {
             <button class="dd-menu-item" type="button" (click)="exportFramesPdf(); close()">
                <dd-icon name="picture_as_pdf" />All frames (PDF pages)
             </button>
@@ -292,7 +295,7 @@
          <button class="dd-menu-item" type="button" (click)="exportProjectFile(); close()">
             <dd-icon name="download" />Project file (.json)
          </button>
-         @if (editorActions.hasSelection()) {
+         @if (editorActions.hasSelection$()) {
             <button class="dd-menu-item" type="button" (click)="exportSelectionFile(); close()">
                <dd-icon name="download" />Selection only (.json)
             </button>
@@ -303,7 +306,7 @@
    <ng-template #decksMenu let-close>
       <div class="dd-menu decks-menu">
          <div class="menu-label">In this project · click a name to fly there</div>
-         @for (d of editorActions.decks(); track d.name) {
+         @for (d of editorActions.decks$(); track d.name) {
             <div class="deck-row">
                <button
                   class="deck-name"
@@ -345,7 +348,7 @@
          } @empty {
             <div class="decks-empty">No presentations yet.</div>
          }
-         @if (editorActions.canEdit()) {
+         @if (editorActions.canEdit$()) {
             <div class="dd-menu-sep"></div>
             <button class="dd-menu-item" type="button" (click)="editorActions.newDeck(); close()">
                <dd-icon name="add" />New presentation<span class="kbd">S</span>
@@ -356,7 +359,7 @@
 
    <ng-template #accountMenu let-close>
       <div class="dd-menu">
-         @if (auth.currentUser()?.email; as email) {
+         @if (auth.currentUser$()?.email; as email) {
             <div class="menu-email">{{ email }}</div>
          }
          @if (auth.isAdmin$()) {
@@ -367,15 +370,18 @@
          <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
             <dd-icon name="key" />API tokens
          </button>
+         <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+            <dd-icon name="account_circle" />Account settings
+         </button>
          <button class="dd-menu-item" type="button" (click)="signOut(); close()">
             <dd-icon name="logout" />Sign out
          </button>
       </div>
    </ng-template>
 
-   @if (paletteOpen()) {
+   @if (paletteOpen$()) {
       @defer {
-         <dd-command-palette (closed)="paletteOpen.set(false)" />
+         <dd-command-palette (closed)="paletteOpen$.set(false)" />
       }
    }
 
@@ -388,13 +394,13 @@
    />
 </div>
 
-@if (shortcutsOpen()) {
+@if (shortcutsOpen$()) {
    @defer {
-      <dd-shortcuts-sheet (closed)="shortcutsOpen.set(false)" />
+      <dd-shortcuts-sheet (closed)="shortcutsOpen$.set(false)" />
    }
 }
 
-@if (toolbarPrefs.panelOpen()) {
+@if (toolbarPrefs.panelOpen$()) {
    @defer {
       <dd-toolbar-customize-panel />
    }

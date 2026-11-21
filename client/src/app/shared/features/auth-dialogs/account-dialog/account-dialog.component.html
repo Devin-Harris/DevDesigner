@@ -1,0 +1,55 @@
+<h2 mat-dialog-title class="dlg-title">Account settings</h2>
+
+<mat-dialog-content class="dlg-body">
+   @if (auth.currentUser$()?.email; as email) {
+      <p class="lead">Signed in as <strong>{{ email }}</strong></p>
+   }
+
+   <section class="block">
+      <h3>Sessions</h3>
+      <p class="hint">Sign out on every browser and device, including this one. API tokens are not affected.</p>
+      <div class="row">
+         <button class="btn" type="button" [disabled]="busy$() !== null" (click)="logoutAll()">
+            <dd-icon name="logout" />{{ busy$() === 'logout-all' ? 'Signing out…' : 'Sign out everywhere' }}
+         </button>
+      </div>
+   </section>
+
+   <section class="block danger-zone">
+      <h3>Delete account</h3>
+      <p class="hint">
+         Permanently deletes your account, your projects, themes and API tokens. This cannot be undone.
+      </p>
+      @if (!confirmingDelete$()) {
+         <div class="row">
+            <button class="btn danger-outline" type="button" (click)="confirmingDelete$.set(true)">
+               <dd-icon name="delete" />Delete my account…
+            </button>
+         </div>
+      } @else {
+         <label class="field-label" for="dd-delete-password">Confirm with your password</label>
+         <div class="row">
+            <dd-input
+               id="dd-delete-password"
+               class="grow"
+               type="password"
+               placeholder="Password"
+               [formControl]="password"
+               (keydown.enter)="deleteAccount()"
+            />
+            <button class="btn danger" type="button" [disabled]="!canDelete$()" (click)="deleteAccount()">
+               {{ busy$() === 'delete' ? 'Deleting…' : 'Delete permanently' }}
+            </button>
+            <button class="btn ghost" type="button" (click)="confirmingDelete$.set(false)">Cancel</button>
+         </div>
+      }
+   </section>
+
+   @if (error$()) {
+      <p class="err" role="alert">{{ error$() }}</p>
+   }
+</mat-dialog-content>
+
+<mat-dialog-actions class="dlg-actions">
+   <button class="btn" mat-dialog-close type="button">Close</button>
+</mat-dialog-actions>

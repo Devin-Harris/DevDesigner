@@ -11,7 +11,7 @@
     "desktop"
   ],
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks || true",
+    "prepare": "node scripts/patch-nest-cli.mjs && git config core.hooksPath .githooks || true",
     "build:shared": "npm run build -w shared",
     "watch:shared": "npm run watch -w shared",
     "dev:server": "npm run start:dev -w server",

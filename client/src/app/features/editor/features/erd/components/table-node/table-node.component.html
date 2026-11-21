@@ -1,4 +1,4 @@
-@if (selected() && editable()) {
+@if (selected$() && editable$()) {
    @for (c of corners; track c) {
       <span
          title="Drag to scale - double-click to reset"
@@ -11,10 +11,10 @@
 
 <header
    class="node-head"
-   [class.colored]="!!table().color"
-   [class.light]="isLight(table().color)"
-   [class.stock]="isSwatch(table().color)"
-   [style.--tbl-color]="css(table().color)"
+   [class.colored]="!!table$().color"
+   [class.light]="(isLight | call: table$().color)"
+   [class.stock]="(isSwatch | call: table$().color)"
+   [style.--tbl-color]="(css | call: table$().color)"
    [style.height.px]="headerH"
 >
    <button
@@ -24,23 +24,23 @@
       title="Header color"
       aria-label="Header color"
       [ddPopoverTrigger]="colorMenu"
-      [disabled]="!editable()"
+      [disabled]="!editable$()"
       (pointerdown)="$event.stopPropagation()"
    >
-      <span class="color-dot" [style.background]="css(table().color) || 'var(--dd-handle)'"></span>
+      <span class="color-dot" [style.background]="(css | call: table$().color) || 'var(--dd-handle)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
-         <dd-color-swatches themeValue="surface" [value]="table().color" (pick)="setColor($event); close()" />
+         <dd-color-swatches themeValue="surface" [value]="table$().color" (pick)="setColor($event); close()" />
       </div>
    </ng-template>
 
-   @if (editingName()) {
+   @if (editingName$()) {
       <input
          class="edit title-edit"
          ddAutofocus
          maxlength="120"
-         [value]="table().name"
+         [value]="table$().name"
          (pointerdown)="$event.stopPropagation()"
          (keydown.enter)="commitName($event)"
          (keydown.escape)="cancelInline()"
@@ -48,14 +48,14 @@
       />
    } @else {
       <span class="title" title="Double-click to rename" (dblclick)="startEditName($event)">
-         {{ table().name }}
+         {{ table$().name }}
       </span>
    }
 
-   <span class="count" title="Columns">{{ table().columns.length }}</span>
+   <span class="count" title="Columns">{{ table$().columns.length }}</span>
 </header>
 
-@for (b of uniqueBrackets(); track b.id) {
+@for (b of uniqueBrackets$(); track b.id) {
    <span
       class="uq-bracket"
       [style.top.px]="b.top"
@@ -69,11 +69,11 @@
    </span>
 }
 
-@if (table().columns.length === 0) {
+@if (table$().columns.length === 0) {
    <div class="empty">No columns yet — use +</div>
 } @else {
-   @for (column of table().columns; track column.id) {
-      <div class="row" [style.height.px]="rowH" [class.uq-peer]="uniqueHighlight().has(column.id)">
+   @for (column of table$().columns; track column.id) {
+      <div class="row" [style.height.px]="rowH" [class.uq-peer]="(uniqueHighlight$() | has: column.id)">
          <span
             class="handle left"
             title="Drag to connect"
@@ -85,7 +85,7 @@
             @if (column.isPrimaryKey) {
                <dd-icon name="key" class="keyglyph pk" title="Primary key" />
             }
-            @if (uniqueTitle(column); as title) {
+            @if (uniqueTitles$() | at: column.id; as title) {
                <dd-icon
                   name="key"
                   class="keyglyph uq"
@@ -94,12 +94,12 @@
                   (pointerleave)="hoverUnique.set(null)"
                />
             }
-            @if (!column.isPrimaryKey && fkColumnIds().has(column.id)) {
+            @if (!column.isPrimaryKey && (fkColumnIds$() | has: column.id)) {
                <dd-icon name="link" class="keyglyph fk" title="Foreign key" />
             }
          </span>
 
-         @if (editingColumnId() === column.id) {
+         @if (editingColumnId$() === column.id) {
             <input
                class="edit"
                ddAutofocus
@@ -148,9 +148,9 @@
                type="button"
                placement="below-end"
                title="Unique"
-               [class.on]="column.isUnique || uniqueSets().has(column.id)"
+               [class.on]="column.isUnique || (uniqueSets$() | has: column.id)"
                [ddPopoverTrigger]="uniqueMenu"
-               [disabled]="!editable()"
+               [disabled]="!editable$()"
                (pointerdown)="$event.stopPropagation()"
             >
                UQ
@@ -166,18 +166,18 @@
                      <dd-icon [name]="column.isUnique ? 'check' : 'key'" />
                      Unique on its own
                   </button>
-                  @if (uniqueIndexes().length) {
+                  @if (uniqueIndexes$().length) {
                      <div class="dd-menu-sep"></div>
-                     @for (ix of uniqueIndexes(); track ix.id) {
+                     @for (ix of uniqueIndexes$(); track ix.id) {
                         <button
                            class="dd-menu-item"
                            type="button"
-                           [class.on]="ix.columnIds.includes(column.id)"
-                           [title]="indexColumnNames(ix)"
+                           [class.on]="(ix.columnIds | has: column.id)"
+                           [title]="(indexColumnNames$() | at: ix.id)"
                            (click)="toggleIndexMember(ix, column)"
                         >
-                           <dd-icon [name]="ix.columnIds.includes(column.id) ? 'check' : 'add'" />
-                           {{ ix.name }} <span class="ix-cols">({{ indexColumnNames(ix) }})</span>
+                           <dd-icon [name]="(ix.columnIds | has: column.id) ? 'check' : 'add'" />
+                           {{ ix.name }} <span class="ix-cols">({{ (indexColumnNames$() | at: ix.id) }})</span>
                         </button>
                      }
                   }
@@ -198,7 +198,7 @@
             >
                AI
             </button>
-            @if (isNumeric(column.dataType.name)) {
+            @if ((isNumeric | call: column.dataType.name)) {
                <button
                   class="chip un"
                   type="button"
@@ -255,7 +255,7 @@
             type="button"
             title="Delete column"
             aria-label="Delete column"
-            [disabled]="!editable()"
+            [disabled]="!editable$()"
             (pointerdown)="$event.stopPropagation()"
             (click)="deleteColumn(column)"
          >

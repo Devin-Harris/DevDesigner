@@ -3,6 +3,36 @@
    height: 100%;
 }
 
+// Embedded as a picture (EditorHostOptions.chrome 'picture'): no tool dock, minimap, laser
+// layer, deck panels or selection chrome. The deck panels return on the transition screen.
+:host(.chrome-picture) ::ng-deep {
+   dd-shape-toolbar,
+   dd-minimap,
+   dd-laser-layer,
+   dd-slides-panel,
+   .deck-header,
+   .slide-bounds,
+   .chips,
+   .icon-btn.tiny,
+   .type .chev,
+   .node-head .icon-btn,
+   .overlay.hint {
+      display: none !important;
+   }
+   // A picture's controls are disabled (view-only) but should look live.
+   dd-sequence-message-toolbar button:disabled {
+      opacity: 1 !important;
+      cursor: default;
+   }
+}
+:host(.chrome-picture.deck-focused) ::ng-deep dd-slides-panel {
+   display: revert !important;
+}
+// A showcase player reveals sequence messages one by one.
+:host(.hide-seq-msgs) ::ng-deep dd-sequence-diagram > :is(.msg-line, .msg-head, .msg-label-wrap) {
+   visibility: hidden;
+}
+
 .editor {
    display: flex;
    height: 100%;
@@ -83,12 +113,12 @@
    z-index: 4;
 
    line {
-      stroke: #f43f5e;
+      stroke: var(--dd-rose-500);
       stroke-width: 1;
    }
 
    text {
-      fill: #f43f5e;
+      fill: var(--dd-rose-500);
       font-size: 9.5px;
       font-weight: 500;
       text-anchor: middle;
@@ -245,7 +275,7 @@
       border-radius: 999px;
       padding: 5px 12px;
       background: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
       font: inherit;
       font-weight: 600;
       cursor: pointer;
@@ -341,7 +371,7 @@
    border-radius: 8px;
    font-size: 11px;
    line-height: 16px;
-   color: #fff;
+   color: var(--dd-white);
    white-space: nowrap;
 }
 
@@ -367,7 +397,7 @@
    width: 28px;
    height: 28px;
    border-radius: 50%;
-   color: #fff;
+   color: var(--dd-white);
    font-size: 13px;
    font-weight: 600;
    border: 2px solid var(--dd-canvas-bg);
@@ -440,7 +470,7 @@
    padding: 4px 10px;
    border-radius: 999px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font-size: 12px;
    font-weight: 600;
    white-space: nowrap;
@@ -548,7 +578,7 @@
       top: 50%;
       width: 2px;
       height: 100%;
-      background: #f43f5e;
+      background: var(--dd-rose-500);
       transform: translate(-50%, -50%);
       opacity: 0;
       transition: opacity 100ms ease;
@@ -641,7 +671,7 @@
    border: none;
    border-radius: 7px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font: inherit;
    font-size: 12px;
    font-weight: 600;
@@ -649,7 +679,7 @@
    --dd-icon-size: 15px;
 
    &:hover {
-      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
    }
 }
 
@@ -707,7 +737,7 @@
    box-sizing: border-box;
 
    &.amber {
-      border: 2px solid #bd7d1c;
+      border: 2px solid var(--dd-amber-700);
    }
 }
 
@@ -741,8 +771,8 @@
    &.amber {
       gap: 10px;
       padding-left: 14px;
-      background: color-mix(in srgb, #bd7d1c 14%, var(--dd-surface));
-      border-color: #bd7d1c;
+      background: color-mix(in srgb, var(--dd-amber-700) 14%, var(--dd-surface));
+      border-color: var(--dd-amber-700);
    }
 }
 
@@ -889,10 +919,10 @@
    }
    &.go {
       background: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
       font-weight: 600;
       &:hover:not(:disabled) {
-         background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+         background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
       }
    }
    &.outline {
@@ -957,7 +987,7 @@
    inset: 0;
    z-index: 19;
    pointer-events: none;
-   box-shadow: inset 0 0 0 3px #0f8f86;
+   box-shadow: inset 0 0 0 3px var(--dd-teal-600);
 }
 
 .follow-banner {
@@ -971,8 +1001,8 @@
    gap: 12px;
    padding: 7px 14px;
    border-radius: 0 0 10px 10px;
-   background: #0f8f86;
-   color: #fff;
+   background: var(--dd-teal-600);
+   color: var(--dd-white);
    font-size: 13px;
 
    button {
@@ -981,7 +1011,7 @@
       border: none;
       border-radius: 6px;
       background: rgba(255, 255, 255, 0.18);
-      color: #fff;
+      color: var(--dd-white);
       font: inherit;
       font-size: 12px;
       cursor: pointer;
@@ -1012,7 +1042,7 @@
    width: 10px;
    height: 10px;
    border-radius: 50%;
-   background: #ff5c5c;
+   background: var(--dd-coral-400);
 }
 
 .lk {
@@ -1077,4 +1107,54 @@
 .fb-btn:disabled {
    opacity: 0.45;
    cursor: not-allowed;
+}
+
+/* Animate: switch between the transition into the slide and the animations on it. */
+.fd-body .seg {
+   display: flex;
+   gap: 2px;
+   padding: 2px;
+   margin: 0 0 10px;
+   border-radius: 8px;
+   background: var(--dd-surface-2);
+}
+.fd-body .seg > button {
+   flex: 1;
+   height: 26px;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+}
+.fd-body .seg > button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.fd-body .seg > button:disabled {
+   opacity: 0.45;
+   cursor: default;
+}
+
+/* Animation Refine: the slide's preview player fills the middle of the screen. */
+.anim-stage {
+   position: absolute;
+   top: 72px;
+   bottom: 24px;
+   left: 96px;
+   right: 392px;
+   z-index: 5;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   container-type: size;
+   background: var(--dd-canvas-bg, var(--dd-bg));
+}
+.anim-preview {
+   width: min(100cqw, calc((100cqh - 40px) * 16 / 9));
 }

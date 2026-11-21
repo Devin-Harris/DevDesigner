@@ -21,13 +21,13 @@ interface UpdatesBridge {
 @Injectable({ providedIn: 'root' })
 export class UpdateService {
    private readonly bridge = (globalThis as { devdesigner?: { updates?: UpdatesBridge } }).devdesigner?.updates;
-   readonly status = signal<UpdateStatus>({ state: 'idle' });
-   readonly checking = computed(() => this.status().state === 'checking');
+   readonly status$ = signal<UpdateStatus>({ state: 'idle' });
+   readonly checking$ = computed(() => this.status$().state === 'checking');
 
    constructor() {
       if (!this.bridge) return;
-      this.bridge.onStatus((s) => this.status.set(s));
-      void this.bridge.get().then((s) => s && this.status.set(s));
+      this.bridge.onStatus((s) => this.status$.set(s));
+      void this.bridge.get().then((s) => s && this.status$.set(s));
    }
 
    install(): void {

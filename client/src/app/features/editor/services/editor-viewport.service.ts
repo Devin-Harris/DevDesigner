@@ -39,12 +39,12 @@ export class EditorViewportService {
       return this.host.canvasRef();
    }
 
-   readonly worldTransform = computed(() => {
+   readonly worldTransform$ = computed(() => {
       const v = this.store.viewport();
       return `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
    });
 
-   readonly zoomLabel = computed(() => `${Math.round(this.store.viewport().zoom * 100)}%`);
+   readonly zoomLabel$ = computed(() => `${Math.round(this.store.viewport().zoom * 100)}%`);
 
    /** Bumped when the canvas may have moved or resized on screen (resize, scroll). */
    private readonly canvasLayout$ = notifySignal();
@@ -346,7 +346,7 @@ export class EditorViewportService {
    }
 
    /** The visible canvas area in world coordinates (re-evaluated as the viewport changes). */
-   readonly minimapView = computed(() => {
+   readonly minimapView$ = computed(() => {
       const v = this.store.viewport();
       const rect = this.canvasSize();
       return {

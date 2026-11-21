@@ -1,0 +1,184 @@
+<header class="head">
+   <input
+      class="rename"
+      type="text"
+      maxlength="120"
+      aria-label="Presentation name"
+      [value]="s.presentation$()"
+      [disabled]="!s.canEdit$()"
+      (keydown.enter)="$any($event.target).blur()"
+      (keydown.escape)="s.cancelRename($any($event.target))"
+      (blur)="s.slideMorphSettings.commitRename($any($event.target))"
+   />
+   @if (s.canEdit$()) {
+      <button
+         class="icon"
+         type="button"
+         title="Delete presentation and its slides"
+         aria-label="Delete presentation"
+         (click)="s.command.emit({ kind: 'deletePresentation' })"
+      >
+         <dd-icon name="delete" />
+      </button>
+   }
+</header>
+
+<!-- Separate buttons, worded and styled as in focus mode. -->
+<div class="actions">
+   <button
+      class="f-go"
+      type="button"
+      title="Present from the first slide (F5)"
+      [disabled]="!s.playable$()"
+      (click)="s.command.emit({ kind: 'present', from: 'start' })"
+   >
+      <span>▶ Present <span class="f5">F5</span></span>
+   </button>
+   <button
+      class="f-tb outline"
+      type="button"
+      title="Present from the selected slide"
+      [disabled]="!s.playable$()"
+      (click)="s.command.emit({ kind: 'present', from: 'current' })"
+   >
+      From here
+   </button>
+</div>
+
+<div class="top">
+   @if (s.frames$().length === 0) {
+      <p class="empty">
+         No slides yet. Press <b>New slide</b> to add a blank slide, or select a frame and add it here. Only one slide
+         is shown on the canvas at a time; everything inside its frame is part of it.
+      </p>
+   }
+
+   @if (s.frames$().length > 1) {
+      <div class="listbar">
+         <span class="muted">{{ s.selectedCount$() }} selected</span>
+         <button class="link" type="button" (click)="s.slideCardDrag.selectAll()">Select all</button>
+      </div>
+   }
+</div>
+
+<!-- Only the slide cards scroll; the controls above and the details below stay put. -->
+<div
+   class="cards"
+   tabindex="0"
+   (keydown.arrowUp)="s.slideCardDrag.stepSlide(-1, $event)"
+   (keydown.arrowDown)="s.slideCardDrag.stepSlide(1, $event)"
+>
+   <ol class="list" [class.reordering]="s.draggingIndex$() !== null">
+      @for (f of s.shown$(); track f.id; let i = $index) {
+         <li
+            class="card"
+            title="Drag to reorder · Alt-drag to duplicate"
+            tabindex="-1"
+            [class.on]="s.activeSlideIds$() | has: f.id"
+            [class.current]="f.id === (s.shownLayout$() ? s.lastSlide$() : s.active_$())"
+            [class.hidden]="!!f.slide?.hidden"
+            [class.dragging]="s.draggingIndex$() === i && !s.cloning$()"
+            [class.settling]="s.draggingIndex$() === i && !s.cloning$() && s.settling$()"
+            [class.pending]="f.id === s.pendingCloneId"
+            [style.transform]="s.cardTransforms$()[i]"
+            (pointerdown)="s.slideCardDrag.onCardDown(i, $event)"
+            (click)="s.slideCardDrag.onRowClick(f, $event)"
+            (keydown.enter)="s.slideCardDrag.onRowClick(f, $event)"
+            (keydown.space)="s.slideCardDrag.onRowClick(f, $event)"
+         >
+            <span class="num">{{ i + 1 }}</span>
+            <span class="thumb" [style.aspect-ratio]="f.width + ' / ' + f.height">
+               @if (s.shownThumbs$() | at: f.id; as src) {
+                  <img alt="" draggable="false" [src]="src" />
+               }
+               @if (s.foreignSlideIds$() | has: f.id) {
+                  <dd-icon name="warning" class="foreign" matTooltip="Its layout is not one of this design's layouts" />
+               }
+            </span>
+            @if (s.canEdit$() && f.id !== s.pendingCloneId) {
+               <span class="icons" ddStopClicks>
+                  <button
+                     class="icon"
+                     type="button"
+                     aria-label="Skip slide"
+                     [title]="f.slide?.hidden ? 'Skipped: include in the presentation' : 'Skip in the presentation'"
+                     (click)="s.slideMorphSettings.toggleHidden(f)"
+                  >
+                     <dd-icon [name]="f.slide?.hidden ? 'visibility_off' : 'visibility'" />
+                  </button>
+                  <button
+                     class="icon"
+                     type="button"
+                     title="Duplicate slide"
+                     aria-label="Duplicate slide"
+                     (click)="s.command.emit({ kind: 'duplicate', id: f.id })"
+                  >
+                     <dd-icon name="content_copy" />
+                  </button>
+                  <button
+                     class="icon"
+                     type="button"
+                     title="Delete slide and its contents"
+                     aria-label="Delete slide"
+                     (click)="s.command.emit({ kind: 'delete', id: f.id })"
+                  >
+                     <dd-icon name="delete" />
+                  </button>
+               </span>
+            }
+         </li>
+      }
+      <!-- Alt-drag: the original stays put while this copy follows the pointer. -->
+      @if (s.cloneGhost$(); as g) {
+         <li
+            class="card dragging ghost"
+            [class.settling]="s.settling$()"
+            [style.top.px]="g.top"
+            [style.height.px]="g.height"
+            [style.transform]="'translateY(' + s.dragDy$() + 'px) scale(1.02)'"
+         >
+            <span class="num">+{{ g.count > 1 ? g.count : '' }}</span>
+            <span class="thumb" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
+               @if (s.thumbs$() | at: g.id; as src) {
+                  <img alt="" draggable="false" [src]="src" />
+               }
+            </span>
+         </li>
+      }
+   </ol>
+</div>
+@if (s.canEdit$()) {
+   <!-- New slides go at the bottom, as in focus mode's slide rail. -->
+   <div class="newfoot">
+      <div class="newsplit">
+         <button class="f-go" type="button" title="Add a blank slide" (click)="s.command.emit({ kind: 'add' })">
+            <span>+ Slide</span>
+         </button>
+         <button
+            class="f-tb outline"
+            type="button"
+            aria-label="New slide with a layout"
+            title="New slide with a layout…"
+            (click)="s.newMenu$.set(!s.newMenu$())"
+         >
+            Layout ▾
+         </button>
+         @if (s.newMenu$()) {
+            <div class="menu" role="menu" (pointerdown)="$event.stopPropagation()">
+               @for (l of s.slideLayoutViews.menuLayouts$(); track l.id) {
+                  <button role="menuitem" type="button" (click)="s.addWithLayout(l.id)">
+                     <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                        @if (s.layoutThumbs$() | at: l.id; as src) {
+                           <img alt="" draggable="false" [src]="src" />
+                        }</span
+                     >{{ s.layoutNames$() | at: l.id }}
+                  </button>
+               }
+               @if (!s.layouts$().length) {
+                  <p class="hint">Add layouts in the settings panel's Design tab.</p>
+               }
+            </div>
+         }
+      </div>
+   </div>
+}

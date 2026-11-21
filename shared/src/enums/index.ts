@@ -70,6 +70,7 @@ export type ElementType =
   | 'rectangle'
   | 'ellipse'
   | 'diamond'
+  | 'triangle'
   | 'line'
   | 'arrow'
   | 'freedraw'
@@ -85,6 +86,7 @@ export const ELEMENT_TYPES: readonly ElementType[] = [
   'rectangle',
   'ellipse',
   'diamond',
+  'triangle',
   'line',
   'arrow',
   'freedraw',
@@ -244,8 +246,11 @@ export const SLIDE_ANIMATION_KINDS: readonly SlideAnimationKind[] = [
   'emphasis',
 ] as const;
 
-/** The motion of an animation. `pulse` is an emphasis; the rest are entrances and exits. */
-export type SlideAnimationEffect = 'appear' | 'fade' | 'fly' | 'wipe' | 'zoom' | 'pulse';
+/**
+ * The motion of an animation. `pulse` is an emphasis; `morph` (a code block's diff only)
+ * morphs between the original and the changed code; the rest are entrances and exits.
+ */
+export type SlideAnimationEffect = 'appear' | 'fade' | 'fly' | 'wipe' | 'zoom' | 'pulse' | 'morph';
 export const SLIDE_ANIMATION_EFFECTS: readonly SlideAnimationEffect[] = [
   'appear',
   'fade',
@@ -253,14 +258,15 @@ export const SLIDE_ANIMATION_EFFECTS: readonly SlideAnimationEffect[] = [
   'wipe',
   'zoom',
   'pulse',
+  'morph',
 ] as const;
 
 /** The effects each kind of animation offers. */
 export const SLIDE_ANIMATION_EFFECTS_BY_KIND: Readonly<
   Record<SlideAnimationKind, readonly SlideAnimationEffect[]>
 > = {
-  enter: ['appear', 'fade', 'fly', 'wipe', 'zoom'],
-  exit: ['appear', 'fade', 'fly', 'wipe', 'zoom'],
+  enter: ['appear', 'fade', 'fly', 'wipe', 'zoom', 'morph'],
+  exit: ['appear', 'fade', 'fly', 'wipe', 'zoom', 'morph'],
   emphasis: ['pulse'],
 };
 

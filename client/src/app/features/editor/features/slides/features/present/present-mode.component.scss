@@ -7,8 +7,8 @@
 .present {
    position: absolute;
    inset: 0;
-   background: #000;
-   color: #fff;
+   background: var(--dd-black);
+   color: var(--dd-white);
    outline: none;
    cursor: default;
    user-select: none;
@@ -100,111 +100,9 @@ frame (for morph entrances/exits) never show in the letterbox bars. */
 .notes .none {
    color: rgba(255, 255, 255, 0.5);
 }
-.bar {
-   position: absolute;
-   left: 50%;
-   bottom: 18px;
-   transform: translateX(-50%);
-   display: flex;
-   align-items: center;
-   gap: 6px;
-   padding: 6px 10px;
-   border-radius: 14px;
-   background: rgba(18, 20, 26, 0.88);
-   border: 1px solid rgba(255, 255, 255, 0.14);
-   font-size: 13px;
-   transition: opacity 0.2s ease;
-   touch-action: none;
-}
-.grip {
-   width: 10px;
-   height: 22px;
-   margin-right: 2px;
-   border-radius: 3px;
-   cursor: grab;
-   background-image: radial-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1.5px);
-   background-size: 5px 5px;
-   background-position: center;
-}
-.bar.dragging .grip {
-   cursor: grabbing;
-}
-.bar-hidden .bar {
-   opacity: 0;
-   pointer-events: none;
-}
-.btn {
-   width: 32px;
-   height: 32px;
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   border: none;
-   border-radius: 8px;
-   background: transparent;
-   color: inherit;
-   cursor: pointer;
-}
-.btn:hover:not(:disabled) {
-   background: rgba(255, 255, 255, 0.12);
-}
-.btn:disabled {
-   opacity: 0.35;
-   cursor: default;
-}
-.btn.on {
-   background: rgba(255, 255, 255, 0.18);
-}
-.count,
-.timer {
-   font-variant-numeric: tabular-nums;
-   min-width: 3.2em;
-   text-align: center;
-}
-.name {
-   max-width: 22ch;
-   overflow: hidden;
-   text-overflow: ellipsis;
-   white-space: nowrap;
-   color: rgba(255, 255, 255, 0.75);
-}
-.sep {
-   width: 1px;
-   height: 18px;
-   background: rgba(255, 255, 255, 0.18);
-   margin: 0 4px;
-}
 .stage-wrap {
    position: absolute;
    inset: 0;
-}
-.laser-capture {
-   position: absolute;
-   inset: 0;
-   cursor: crosshair;
-   touch-action: none;
-}
-.laser-svg {
-   position: absolute;
-   inset: 0;
-   width: 100%;
-   height: 100%;
-   pointer-events: none;
-   overflow: visible;
-   color: #ff2d2d;
-}
-.laser-svg .trail {
-   stroke: currentColor;
-   stroke-linecap: round;
-   filter: drop-shadow(0 0 4px currentColor);
-}
-.laser-svg .glow {
-   fill: currentColor;
-   opacity: 0.28;
-}
-.laser-svg .dot {
-   fill: currentColor;
-   filter: drop-shadow(0 0 4px currentColor);
 }
 .slide-grid {
    position: absolute;
@@ -227,13 +125,13 @@ frame (for morph entrances/exits) never show in the letterbox bars. */
    padding: 0;
    border: 2px solid transparent;
    border-radius: 6px;
-   background: #fff;
+   background: var(--dd-white);
    cursor: pointer;
    overflow: hidden;
    line-height: 0;
 }
 .sg-item.on {
-   border-color: #6f8bff;
+   border-color: var(--dd-indigo-400);
    box-shadow: 0 0 0 3px rgba(111, 139, 255, 0.35);
 }
 .sg-item img {
@@ -248,7 +146,7 @@ frame (for morph entrances/exits) never show in the letterbox bars. */
    padding: 3px 6px;
    border-radius: 4px;
    background: rgba(20, 24, 32, 0.8);
-   color: #fff;
+   color: var(--dd-white);
    font-size: 12px;
 }
 .follow {

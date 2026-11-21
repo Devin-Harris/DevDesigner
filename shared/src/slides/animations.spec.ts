@@ -1,5 +1,8 @@
 import type { SlideAnimation } from '../models';
 import {
+  animationParts,
+  defaultAnimations,
+  expandStagger,
   hiddenAtStep,
   legacyAnimations,
   newAnimation,
@@ -39,6 +42,22 @@ describe('planAnimations', () => {
       [650, 750],
     ]);
     expect(g.duration).toBe(750);
+  });
+
+  it('starts a with-previous animation together with a staggered one, not its last piece', () => {
+    const list = anim('t', { duration: 300, stagger: { trigger: 'with', delay: 200 } });
+    const plan = planAnimations(
+      [list, anim('r', { trigger: 'with', duration: 500 }), anim('s', { trigger: 'after', duration: 100 })],
+      undefined,
+      new Map([['t', ['p0', 'p1', 'p2']]]),
+    );
+    expect(plan.groups[0].entries.map((e) => [e.animation.target, e.start, e.end])).toEqual([
+      ['t', 0, 300],
+      ['t', 200, 500],
+      ['t', 400, 700],
+      ['r', 0, 500],
+      ['s', 500, 600],
+    ]);
   });
 
   it('plays leading with/after animations on their own, before any click', () => {
@@ -118,5 +137,60 @@ describe('remapAnimations / normalizeAnimations', () => {
   it('swaps an effect the kind does not offer', () => {
     const [a] = normalizeAnimations([anim('a', { kind: 'emphasis', effect: 'fly' })]);
     expect(a.effect).toBe('pulse');
+  });
+});
+
+describe('pieces and automatic animations', () => {
+  const src = {
+    elements: [
+      { id: 't', type: 'text', text: ['One', '', 'Two', 'Three'].join(String.fromCharCode(10)), x: 0, y: 10 },
+      { id: 'c', type: 'code', text: 'a', diffText: 'b', diffView: 'inline', x: 0, y: 50 },
+      { id: 'n', type: 'code', text: 'a', x: 0, y: 60 },
+    ],
+    diagrams: [{ id: 'd', originY: 100 }],
+    messages: [
+      { id: 'm2', diagramId: 'd', y: 2 },
+      { id: 'm1', diagramId: 'd', y: 1 },
+    ],
+  };
+
+  it('lists non-empty paragraphs and messages top to bottom', () => {
+    const parts = animationParts(src);
+    expect(parts.get('t')).toEqual(['p0', 'p2', 'p3']);
+    expect(parts.get('d')).toEqual(['m1', 'm2']);
+  });
+
+  it('adds a diff reveal and a message-by-message reveal unless switched off', () => {
+    expect(defaultAnimations([], undefined, src).map((a) => [a.target, a.part ?? null, !!a.stagger])).toEqual([
+      ['c', 'diff', false],
+      ['d', null, true],
+    ]);
+    expect(defaultAnimations([], ['c', 'd'], src)).toEqual([]);
+  });
+
+  it('expands a stagger into pieces, joining grouped ones', () => {
+    const a = anim('d', { stagger: { trigger: 'click', delay: 0, joined: ['m2'] } });
+    const out = expandStagger([a], animationParts(src));
+    expect(out.map((x) => [x.part, x.trigger])).toEqual([
+      ['m1', 'click'],
+      ['m2', 'with'],
+    ]);
+  });
+
+  it('hides pieces until they play', () => {
+    const plan = planAnimations(
+      defaultAnimations([], undefined, src),
+      undefined,
+      animationParts(src),
+    );
+    expect(plan.groups.length).toBe(3);
+    expect([...hiddenAtStep(plan, 0)].sort()).toEqual(['c#diff', 'd#m1', 'd#m2']);
+    expect([...hiddenAtStep(plan, 2)]).toEqual(['d#m2']);
+  });
+
+  it('spaces automatic pieces by the gap between starts, not the duration', () => {
+    const a = anim('d', { duration: 1000, stagger: { trigger: 'after', delay: 100 } });
+    const plan = planAnimations([a], undefined, animationParts(src));
+    expect(plan.groups[0].entries.map((e) => e.start)).toEqual([0, 100]);
   });
 });

@@ -1,4 +1,11 @@
-import type { AnimationGroup, PlannedAnimation, SlideDirection } from '@devdesigner/shared';
+import {
+   isDiffAnimation,
+   paragraphOfPart,
+   type AnimationGroup,
+   type PlannedAnimation,
+   type SlideAnimation,
+   type SlideDirection,
+} from '@devdesigner/shared';
 import type { RenderedSlide } from '../../../services/slide-render.service';
 
 /** How long undoing a group (stepping back) takes. */
@@ -12,10 +19,69 @@ export interface PlayedGroup {
 
 type Add = (animation: Animation) => void;
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const safeId = (id: string): string => id.replace(/["\\]/g, '');
+
 /** The element tagged for an animation target (element, table or sequence diagram). */
 function targetNode(svg: SVGSVGElement, id: string): SVGGraphicsElement | null {
-   const safe = id.replace(/["\\]/g, '');
+   const safe = safeId(id);
    return svg.querySelector<SVGGraphicsElement>(`[data-eid="${safe}"], [data-tid="${safe}"], [data-seq="${safe}"]`);
+}
+
+/**
+ * The node one paragraph of a text moves as: its lines are lifted out of the text into a
+ * group of their own (a copy of the text holding only those lines), so they can fly, wipe
+ * and zoom like a whole object while the rest of the text stays put.
+ */
+function paragraphNode(svg: SVGSVGElement, id: string, para: number): SVGGraphicsElement | null {
+   const host = svg.querySelector(`[data-eid="${safeId(id)}"]`);
+   const text = host?.querySelector('text');
+   if (!host || !text) {
+      return null;
+   }
+   const lines = Array.from(text.querySelectorAll(`:scope > tspan[data-para="${para}"]`));
+   if (!lines.length) {
+      return null;
+   }
+   const copy = text.cloneNode(true) as SVGTextElement;
+   for (const t of Array.from(copy.querySelectorAll(':scope > tspan'))) {
+      if (t.getAttribute('data-para') !== String(para)) {
+         t.remove();
+      }
+   }
+   for (const l of lines) {
+      l.setAttribute('visibility', 'hidden');
+   }
+   const g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+   g.setAttribute('data-part', `${id}#p${para}`);
+   g.appendChild(copy);
+   text.parentNode?.insertBefore(g, text.nextSibling);
+   return g;
+}
+
+/** The node an animation moves: its object, or the piece of it the animation names. */
+function animationNode(
+   svg: SVGSVGElement,
+   a: Pick<SlideAnimation, 'target' | 'part'>,
+   lifted: Map<string, SVGGraphicsElement | null>
+): SVGGraphicsElement | null {
+   if (!a.part) {
+      return targetNode(svg, a.target);
+   }
+   if (isDiffAnimation(a)) {
+      return null;
+   }
+   const para = paragraphOfPart(a.part);
+   if (para !== null) {
+      const key = `${a.target}#${a.part}`;
+      if (!lifted.has(key)) {
+         lifted.set(key, paragraphNode(svg, a.target, para));
+      }
+      return lifted.get(key) ?? null;
+   }
+   return svg.querySelector<SVGGraphicsElement>(
+      `[data-seq="${safeId(a.target)}"] [data-msg="${safeId(a.part)}"]`
+   );
 }
 
 /** The slide's edges in screen px and how many screen px one slide unit is. */
@@ -127,8 +193,9 @@ export function playGroup(svg: SVGSVGElement, slide: RenderedSlide, group: Anima
          })
       );
    };
+   const lifted = new Map<string, SVGGraphicsElement | null>();
    for (const p of group.entries) {
-      const el = targetNode(svg, p.animation.target);
+      const el = animationNode(svg, p.animation, lifted);
       if (!el) {
          continue;
       }
@@ -168,23 +235,28 @@ export function undoGroup(svg: SVGSVGElement, slide: RenderedSlide, group: Anima
    };
    const entered = new Set<string>();
    const left = new Set<string>();
+   const lifted = new Map<string, SVGGraphicsElement | null>();
+   const seen = new Set<string>();
    for (const { animation: a } of group.entries) {
-      if (a.kind === 'enter') {
-         entered.add(a.target);
-      } else if (a.kind === 'exit') {
-         left.add(a.target);
+      if (a.kind === 'emphasis') {
+         continue;
       }
-   }
-   for (const id of entered) {
-      const el = targetNode(svg, id);
-      if (el) {
-         fade(el, 1, 0);
+      // Pieces only change themselves; whole objects also move their connectors (below).
+      if (!a.part) {
+         (a.kind === 'enter' ? entered : left).add(a.target);
       }
-   }
-   for (const id of left) {
-      const el = targetNode(svg, id);
+      const key = a.part ? `${a.target}#${a.part}` : a.target;
+      if (seen.has(key)) {
+         continue;
+      }
+      seen.add(key);
+      const el = animationNode(svg, a, lifted);
       if (el) {
-         fade(el, 0, 1);
+         if (a.kind === 'enter') {
+            fade(el, 1, 0);
+         } else {
+            fade(el, 0, 1);
+         }
       }
    }
    for (const [rid, ends] of slide.relationshipEnds) {

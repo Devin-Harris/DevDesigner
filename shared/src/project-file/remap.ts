@@ -15,7 +15,7 @@ import type {
   TableModel,
 } from '../models';
 import { DEFAULT_PRESENTATION } from '../slides';
-import { remapMorphByItems } from '../slides/animations';
+import { remapAnimations, remapMorphByItems } from '../slides/animations';
 import { randomId } from './ids';
 
 /** The content of a schema (no viewport / home / themes), as models. */
@@ -187,11 +187,14 @@ export function remapProjectIds(schema: ProjectContent, opts: RemapOptions = {})
               : undefined,
             // Animations follow their objects to the new ids; ones whose object is gone drop.
             animations: e.slide.animations
-              ?.map((a) => {
-                const target = elementIds.get(a.target) ?? tableIds.get(a.target) ?? diagramIds.get(a.target);
-                return target ? { ...a, target } : null;
-              })
-              .filter((a): a is NonNullable<typeof a> => a !== null),
+              ? remapAnimations(e.slide.animations, {
+                  get: (id: string) =>
+                    elementIds.get(id) ?? tableIds.get(id) ?? diagramIds.get(id) ?? messageIds.get(id),
+                })
+              : undefined,
+            animationsOff: e.slide.animationsOff
+              ?.map((id) => elementIds.get(id) ?? diagramIds.get(id))
+              .filter((id): id is string => !!id),
           }
         : undefined,
     // A slide's placeholder copy points at its layout's element; drop the link if gone.

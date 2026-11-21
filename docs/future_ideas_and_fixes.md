@@ -2,28 +2,16 @@
 
 ## Bugs
 
-...
+- morph tags should be able to be adding while editing master and layout slides on designs
 
 ## Features
 
-<!-- - Improved code editing. I want to mimic some of my vscode shortcuts
-  - holding alt and arrow down/up to duplicate line(s)
-  - shift and arrow down/up to move line(s)
-  - shift end to highlight from cursor to end of line. same for shift home
-  - shift ctrl end to highlight to end of code. same for shift ctrl home
-  - highlighting text, then ctrl + d to highlight next instance of that text
-  - multiple cursors with ctrl clicks, alt shift drag over multiple lines, or above ctrl + d -->
-
-<!-- - Live Frames
-  - it would be cool if i could put an iframe into a presentation of the canvas by supplying the url i want to embed. This way i could have a project running locally and demo without having to leave the site (would need to think about cors for this but supporting localhost urls shouldnt be that hard)
-  - Might also need to consider how this works when sharing a project
-  - maybe localhost urls just dont work for people that were shared the link
-  - maybe we need a message when viewing a project that was shared with you denoting there are live frames that may not work, or the option to opt out and render a fallback block in place for the person viewing
-  - it would be nice to integrate this into the frame tool that exists, when exporting to pdf or images a screenshot of the frame at the point in time would suffice -->
-
-- Smart guidelines, minmap minimized, snap to grid, all should be persisted to the db so its not lost on local storage clearing
-
-- add triangle to shapes
+- we should combine animations and transitions. no need for both to be separate tabs
+  - animations should be able to be set up in their own refine section as well
+    - per element, ordering, with previous, on click start options, same effects as and types that exist, but additionally some way to stagger animations easily for things like bullets in a text block animate in/out one after the other.
+  - transition should work based on the ending state of the previous slide and the starting state of the next
+  - code blocks with diffs should default to have an animation where they show the original, then the diff after a click or arrow/space key. This way adding a codeblock with a diff to a slide automatically presents with both states and can morph between them. Should be able to be turned off with animation refinment. this may need to be a special animation type or something only for code blocks
+  - similarly sequence diagrams should default to have an animation where they show the each message one by one, after a click or arrow/space key. Should be able to be turned off with animation refinment. Also may want multiple messages to come in at the same time so some sort of grouping may be nice as well. This may need to be a special animation type or something only for code blocks
 
 - ability to add icons to canvas (might need to curate lists of icons)
 

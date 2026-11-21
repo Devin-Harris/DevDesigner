@@ -29,13 +29,13 @@ export class SyncBannerComponent {
    /** Open the side-by-side comparison of the two versions. */
    readonly compare = output<void>();
 
-   protected readonly link = computed(() => this.sync.links().get(this.projectId()) ?? null);
-   protected readonly server = computed(() => {
-      const link = this.link();
+   protected readonly link$ = computed(() => this.sync.links$().get(this.projectId()) ?? null);
+   protected readonly server$ = computed(() => {
+      const link = this.link$();
       return link ? this.sync.remoteName(link.remoteId) : '';
    });
-   protected readonly busy = signal(false);
-   protected readonly error = signal<string | null>(null);
+   protected readonly busy$ = signal(false);
+   protected readonly error$ = signal<string | null>(null);
 
    protected async retry(): Promise<void> {
       await this.run(() => this.sync.syncNow(this.projectId()));
@@ -49,7 +49,7 @@ export class SyncBannerComponent {
       if (
          !(await this.confirm(
             'Use the server version?',
-            `Your offline changes on this computer are discarded and the project becomes the version on ${this.server()}.`,
+            `Your offline changes on this computer are discarded and the project becomes the version on ${this.server$()}.`,
             'Use server version'
          ))
       )
@@ -61,7 +61,7 @@ export class SyncBannerComponent {
       if (
          !(await this.confirm(
             'Keep your version?',
-            `The changes made on ${this.server()} while you were offline are replaced by the version on this computer.`,
+            `The changes made on ${this.server$()} while you were offline are replaced by the version on this computer.`,
             'Keep mine'
          ))
       )
@@ -77,16 +77,16 @@ export class SyncBannerComponent {
    }
 
    private async run(work: () => Promise<unknown>): Promise<void> {
-      this.busy.set(true);
-      this.error.set(null);
+      this.busy$.set(true);
+      this.error$.set(null);
       try {
          await work();
       } catch (err) {
-         this.error.set(
+         this.error$.set(
             err instanceof HttpErrorResponse ? (err.error?.message ?? err.message) : (err as Error).message
          );
       } finally {
-         this.busy.set(false);
+         this.busy$.set(false);
       }
    }
 }

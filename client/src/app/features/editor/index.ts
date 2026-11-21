@@ -4,10 +4,12 @@
 
 export { EditorComponent } from './editor.component';
 export type { EditorTool } from './models/editor-tool.model';
+export type { EditorEmbedApi, EditorHostOptions } from './models/editor-embed.model';
 
-// The shell, command palette and realtime reach the editor through core/editor-bridge. Only the home
-// showcase still injects ProjectStore (it drives the store and renders deck-compare outside the editor),
-// which is why the store stays providedIn: 'root' (C3.8 replaces this with an EditorEmbedApi).
+// The shell, command palette and realtime reach the editor through core/editor-bridge. Embedders drive a
+// mounted editor through `EditorComponent.embed` (EditorEmbedApi) and style it through `hostOptions`
+// (EditorHostOptions). The home showcase still injects ProjectStore to replay its build-up through the
+// store's remote-apply path and renders deck-compare outside the editor, so the store stays providedIn: 'root'.
 export { ProjectStore } from './state/project/project.store';
 
 // Home showcase (§4.2 "home"): reuses the deck-compare view, code highlighting and table metrics.

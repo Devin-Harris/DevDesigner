@@ -79,6 +79,7 @@ export function withProjectSequenceRowsMethods() {
                   queueKey: `lifeline:${id}`,
                   section: 'lifelines',
                   insert: () =>
+                     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
                      setSchema((s) => ({ ...s, lifelines: [...s.lifelines, { ...dto, id } as LifelineModel] })),
                   remove: () => {
                      setSchema((s) => ({ ...s, lifelines: s.lifelines.filter((l) => l.id !== id) }));
@@ -249,6 +250,7 @@ export function withProjectSequenceRowsMethods() {
                   insert: () =>
                      setSchema((s) => ({
                         ...s,
+                        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
                         sequenceMessages: [...s.sequenceMessages, { ...dto, id } as SequenceMessageModel],
                      })),
                   remove: () => {

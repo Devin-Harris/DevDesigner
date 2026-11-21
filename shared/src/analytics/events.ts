@@ -39,7 +39,7 @@ export const MUTATION_KINDS = [
 
 /** Canvas element types (mirrors ELEMENT_TYPES; kept literal so the catalog stays self-contained). */
 export const ANALYTICS_ELEMENT_TYPES = [
-  'rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw', 'text', 'frame', 'image', 'code', 'grid', 'embed',
+  'rectangle', 'ellipse', 'diamond', 'triangle', 'line', 'arrow', 'freedraw', 'text', 'frame', 'image', 'code', 'grid', 'embed',
 ] as const;
 
 const ACCESS = ['OWNER', 'EDIT', 'VIEW'] as const;

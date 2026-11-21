@@ -1,4 +1,4 @@
-@if (link(); as l) {
+@if (link$(); as l) {
    @if (l.status !== 'live') {
       <div class="banner" role="status" [class.warn]="l.status === 'conflict' || l.status === 'error'">
          <dd-icon [name]="l.status === 'offline' || l.status === 'paused' ? 'cloud_off' : 'warning'" />
@@ -7,38 +7,38 @@
                @case ('paused') {
                   <strong>Auto-sync is off.</strong>
                   Edits stay on this computer{{ l.localChanges ? ' (some not sent yet)' : '' }} until you sync with
-                  {{ server() }}.
+                  {{ server$() }}.
                }
                @case ('offline') {
                   <strong>Offline: editing on this computer.</strong>
-                  {{ server() }} can't be reached. Your changes are kept here and sent when it's back.
+                  {{ server$() }} can't be reached. Your changes are kept here and sent when it's back.
                }
                @case ('conflict') {
                   <strong>Changed in both places.</strong>
-                  This project was edited on {{ server() }} while you edited it offline. Choose which version to keep.
+                  This project was edited on {{ server$() }} while you edited it offline. Choose which version to keep.
                }
                @default {
                   <strong>Sync problem.</strong>
                   {{ l.lastError ?? 'The server refused the last sync.' }}
                }
             }
-            @if (error()) {
-               <span class="err">{{ error() }}</span>
+            @if (error$()) {
+               <span class="err">{{ error$() }}</span>
             }
          </div>
          <div class="actions">
             @if (l.status === 'conflict') {
-               <button class="btn" type="button" [disabled]="busy()" (click)="compare.emit()">Compare</button>
-               <button class="btn" type="button" [disabled]="busy()" (click)="useServer()">Use server version</button>
-               <button class="btn primary" type="button" [disabled]="busy()" (click)="keepMine()">Keep mine</button>
+               <button class="btn" type="button" [disabled]="busy$()" (click)="compare.emit()">Compare</button>
+               <button class="btn" type="button" [disabled]="busy$()" (click)="useServer()">Use server version</button>
+               <button class="btn primary" type="button" [disabled]="busy$()" (click)="keepMine()">Keep mine</button>
             } @else if (l.status === 'paused') {
-               <button class="btn" type="button" [disabled]="busy()" (click)="retry()">
-                  {{ busy() ? 'Syncing…' : 'Sync now' }}
+               <button class="btn" type="button" [disabled]="busy$()" (click)="retry()">
+                  {{ busy$() ? 'Syncing…' : 'Sync now' }}
                </button>
-               <button class="btn primary" type="button" [disabled]="busy()" (click)="turnOn()">Turn on</button>
+               <button class="btn primary" type="button" [disabled]="busy$()" (click)="turnOn()">Turn on</button>
             } @else {
-               <button class="btn" type="button" [disabled]="busy()" (click)="retry()">
-                  {{ busy() ? 'Checking…' : 'Retry now' }}
+               <button class="btn" type="button" [disabled]="busy$()" (click)="retry()">
+                  {{ busy$() ? 'Checking…' : 'Retry now' }}
                </button>
             }
          </div>

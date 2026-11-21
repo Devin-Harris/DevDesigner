@@ -162,8 +162,9 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     CORS_ORIGIN: str('CORS_ORIGIN', 'http://localhost:4242'),
     PUBLIC_APP_URL: str('PUBLIC_APP_URL', 'http://localhost:4242'),
     DATABASE_PATH: str('DATABASE_PATH', 'devdesigner.sqlite'),
-    // Production still relies on synchronize to create/alter tables (there is no
-    // baseline migration and no migrationsRun), so the default stays on everywhere.
+    // Synchronize stays the default; DATABASE_MIGRATIONS_RUN=true switches to the
+    // baseline + migrations (a synchronize-created DB is adopted on boot). See
+    // docs/database-migrations.md for switching prod.
     DATABASE_SYNCHRONIZE: offInDesktop(bool('DATABASE_SYNCHRONIZE', true)),
     DATABASE_MIGRATIONS_RUN: desktop ? 'true' : bool('DATABASE_MIGRATIONS_RUN', false),
     DESKTOP: desktop ? 'true' : 'false',

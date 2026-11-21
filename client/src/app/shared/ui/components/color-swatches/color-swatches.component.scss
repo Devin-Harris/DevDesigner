@@ -43,8 +43,8 @@
    );
 }
 .sw.theme {
-   background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
-   color: #64748b;
+   background: linear-gradient(135deg, var(--dd-white) 0 50%, var(--dd-slate-800) 50% 100%);
+   color: var(--dd-slate-500);
    --dd-icon-size: 14px;
 }
 .sw.custom {

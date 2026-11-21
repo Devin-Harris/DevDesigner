@@ -9,13 +9,9 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { GRID_MIN_CELL, gridInPixels, serializeGrid } from '../../../helpers/grid-table.helper';
 import { absolutePoints, elementBox } from '../../../helpers/element-geometry.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
-import { gridRowNeeds } from '../../../helpers/render';
-import {
-   DEFAULT_LINE_HEIGHT,
-   fitTextElement,
-   TEXT_MAX_FONT_SIZE,
-   TEXT_MIN_FONT_SIZE,
-} from '../../../helpers/text-metrics';
+import { CODE_FONT_SIZE, gridRowNeeds } from '../../../helpers/render';
+import { CONTENT_SCALE_TYPES } from './element-gesture.helpers';
+import { DEFAULT_LINE_HEIGHT, fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from '../../../helpers/text-metrics';
 import { LIST_LINE } from '../helpers/rich-list.helper';
 import type { SequenceLayoutSnapshot } from '../../../state/project/models/project-state.model';
 import type { SequenceStart } from '../../../models/sequence-start.model';
@@ -33,6 +29,8 @@ interface GroupResize {
    box: { x0: number; y0: number; x1: number; y1: number };
    /** Element states at gesture start. */
    elements: CanvasElementModel[];
+   /** Set once Ctrl was held during the drag: content (fonts) scaled too, so commit saves it. */
+   contentScaled?: boolean;
    diagrams: {
       id: string;
       start: SequenceStart;
@@ -128,7 +126,10 @@ export class GroupTransformService {
       const gy = (top ? -dy : dy) * f;
       let sx = horiz ? (W + gx) / W : 1;
       let sy = vert ? (H + gy) / H : 1;
-      if (ev.shiftKey) {
+      // Ctrl (Cmd) scales the content too (fonts included), so proportions are kept.
+      const contentScale = ev.ctrlKey || ev.metaKey;
+      g.contentScaled = g.contentScaled || contentScale;
+      if (ev.shiftKey || contentScale) {
          if (horiz && vert) {
             // Project onto the box diagonal so the corner tracks the cursor smoothly.
             sx = sy = 1 + (gx * W + gy * H) / (W * W + H * H);
@@ -137,7 +138,7 @@ export class GroupTransformService {
          } else {
             sx = sy;
          }
-      } else if (this.snap.gridSnap() && !ev.altKey) {
+      } else if (this.snap.gridSnap$() && !ev.altKey) {
          // Land the dragged edge(s) on the grid.
          if (horiz) {
             sx = right ? (snapToGrid(b.x0 + W * sx) - b.x0) / W : (b.x1 - snapToGrid(b.x1 - W * sx)) / W;
@@ -191,6 +192,22 @@ export class GroupTransformService {
                width: size.width,
                height: size.height,
                fontSize,
+            });
+         } else if (contentScale && CONTENT_SCALE_TYPES.has(e.type)) {
+            // Scale the box and its content (code / label font) together, like a lone Ctrl+resize.
+            const startFont = e.fontSize ?? (e.type === 'code' ? CODE_FONT_SIZE : DEFAULT_FONT_SIZE);
+            const fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, startFont * sx));
+            const k = fontSize / startFont;
+            const cw = Math.max(8, e.width * k);
+            const ch = Math.max(8, e.height * k);
+            const p = place(cw, ch);
+            this.store.patchElementLocal(e.id, {
+               x: p.x,
+               y: p.y,
+               width: cw,
+               height: ch,
+               fontSize,
+               ...(e.expandedHeight != null ? { expandedHeight: e.expandedHeight * k } : {}),
             });
          } else if (e.type === 'grid') {
             const r = this.gridResize(e, w, hh);
@@ -250,7 +267,8 @@ export class GroupTransformService {
     */
    private readonly listSpacing = computed<{
       el: CanvasElementModel;
-      lines: number;
+      /** Cumulative rendered rows after each logical line but the last (wrapping can make a line span several rows). */
+      rowsAt: number[];
       pitch: number;
    } | null>(() => {
       if (!this.store.canEdit()) return null;
@@ -260,11 +278,19 @@ export class GroupTransformService {
       }
       const el = this.store.elements().find((e) => e.id === ids[0]);
       const text = el?.text ?? '';
-      if (!el || el.type !== 'text' || el.wrap || !LIST_LINE.test(text)) return null;
-      const lines = text.split('\n').length;
-      if (lines < 2) return null;
+      if (!el || el.type !== 'text' || !LIST_LINE.test(text)) return null;
+      const lines = text.split('\n');
+      if (lines.length < 2) return null;
       const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
-      return { el, lines, pitch: fontSize * (el.lineHeight ?? DEFAULT_LINE_HEIGHT) };
+      const pitch = fontSize * (el.lineHeight ?? DEFAULT_LINE_HEIGHT);
+      // Wrapped text: measure each prefix at the box width to find how many rows the
+      // lines above every boundary take, so the marks sit between items.
+      const rowsAt = lines.slice(0, -1).map((_, i) => {
+         if (!el.wrap) return i + 1;
+         const h = fitTextElement(el, { text: lines.slice(0, i + 1).join('\n'), runs: null }).height - 4;
+         return Math.max(i + 1, Math.round(h / pitch));
+      });
+      return { el, rowsAt, pitch };
    });
 
    private listSpacingDrag: { el: CanvasElementModel; pitch: number } | null = null;
@@ -282,8 +308,8 @@ export class GroupTransformService {
       const T = 3;
       // The gap shown is the leading between two lines' glyphs (pitch minus the font size).
       const lead = Math.max(2, s.pitch - fontSize * 0.8);
-      return Array.from({ length: s.lines - 1 }, (_, i) => {
-         const boundary = s.el.y + 2 + (i + 1) * s.pitch;
+      return s.rowsAt.map((rows, i) => {
+         const boundary = s.el.y + 2 + rows * s.pitch;
          const y1 = (boundary - lead / 2) * v.zoom + v.y;
          const y2 = (boundary + lead / 2) * v.zoom + v.y;
          const label = `${Number(lh.toFixed(2))}×`;
@@ -311,10 +337,10 @@ export class GroupTransformService {
     * Screen-space gap marks for {@link evenSpacing}, drawn like the smart-guide
     * gap marks (line, end ticks, distance label) with a grab area on each line.
     */
-   readonly spacingHandles = computed(() => {
+   readonly spacingHandles$ = computed(() => {
       const s = this.evenSpacing();
       if (!s) return this.listSpacingHandles();
-      if ( (this.gesture.gestureActive() && !this.spacingActive())) return null;
+      if (this.gesture.gestureActive() && !this.spacingActive()) return null;
       const v = this.store.viewport();
       const sx = (x: number): number => x * v.zoom + v.x;
       const sy = (y: number): number => y * v.zoom + v.y;
@@ -390,6 +416,23 @@ export class GroupTransformService {
       this.gesture.startClientX = event.clientX;
       this.gesture.startClientY = event.clientY;
       (event.target as Element).setPointerCapture?.(event.pointerId);
+   }
+
+   /** Double-click on a list gap mark: reset the block's line spacing to the default. */
+   resetListSpacing(event: MouseEvent): void {
+      const list = this.evenSpacing() ? null : this.listSpacing();
+      if (!list) return;
+      event.stopPropagation();
+      event.preventDefault();
+      const el = list.el;
+      if ((el.lineHeight ?? DEFAULT_LINE_HEIGHT) === DEFAULT_LINE_HEIGHT) return;
+      const size = fitTextElement({ ...el, lineHeight: DEFAULT_LINE_HEIGHT });
+      this.store.patchElementLocal(el.id, { lineHeight: DEFAULT_LINE_HEIGHT, width: size.width, height: size.height });
+      void this.store.commitElementGeometry(
+         el.id,
+         { lineHeight: el.lineHeight ?? DEFAULT_LINE_HEIGHT, width: el.width, height: el.height },
+         { lineHeight: DEFAULT_LINE_HEIGHT, width: size.width, height: size.height }
+      );
    }
 
    spacingMove(ev: PointerEvent): void {
@@ -494,6 +537,12 @@ export class GroupTransformService {
                  height: e.height,
                  ...(e.type === 'text' ? { fontSize: e.fontSize, wrap: e.wrap ?? false } : {}),
                  ...(e.type === 'grid' ? { text: e.text ?? '', fontSize: e.fontSize } : {}),
+                 ...(g.contentScaled && CONTENT_SCALE_TYPES.has(e.type)
+                    ? {
+                         fontSize: e.fontSize ?? (e.type === 'code' ? CODE_FONT_SIZE : DEFAULT_FONT_SIZE),
+                         ...(e.expandedHeight != null ? { expandedHeight: e.expandedHeight } : {}),
+                      }
+                    : {}),
               };
       void this.store.batchHistory(async () => {
          await Promise.all(

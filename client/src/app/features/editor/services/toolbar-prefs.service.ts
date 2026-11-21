@@ -83,21 +83,21 @@ export class ToolbarPrefsService {
    private readonly order = signal<DockToolId[]>(DOCK_TOOLS.map((t) => t.id));
    private readonly hidden = signal<ReadonlySet<DockToolId>>(new Set());
 
-   readonly position = signal<DockPosition>('left');
+   readonly position$ = signal<DockPosition>('left');
    /** Show each tool's name under its icon. */
-   readonly labels = signal(false);
+   readonly labels$ = signal(false);
    /** Smaller (32 px) dock buttons. */
-   readonly compact = signal(false);
+   readonly compact$ = signal(false);
    /** Side dock in two columns (half as tall) instead of one long list. */
-   readonly twoColumns = signal(false);
+   readonly twoColumns$ = signal(false);
    /** Measured width of a left-side dock (0 when it sits elsewhere), for layouts that avoid it. */
-   readonly leftDockWidth = signal(0);
+   readonly leftDockWidth$ = signal(0);
    /** Keep the tool after placing something (else back to Select). */
-   readonly stayOnTool = signal(false);
+   readonly stayOnTool$ = signal(false);
    /** Fade the floating islands while dragging or drawing on the canvas. */
-   readonly fadeWhileDragging = signal(true);
+   readonly fadeWhileDragging$ = signal(true);
    /** The customize panel is open (from the dock or the main menu). */
-   readonly panelOpen = signal(false);
+   readonly panelOpen$ = signal(false);
 
    readonly presets = (Object.keys(PRESETS) as DockPreset[]).map((id) => ({ id, label: PRESETS[id].label }));
 
@@ -117,10 +117,10 @@ export class ToolbarPrefsService {
    });
 
    /** The tools the dock leaves out (offered under "More" at the end of the dock). */
-   readonly hiddenTools = computed(() => this.allTools().filter((t) => !t.visible));
+   readonly hiddenTools$ = computed(() => this.allTools().filter((t) => !t.visible));
 
    /** The preset the current setup matches, if any. */
-   readonly activePreset = computed<DockPreset | null>(() => {
+   readonly activePreset$ = computed<DockPreset | null>(() => {
       const visible = new Set(this.visibleTools());
       for (const id of Object.keys(PRESETS) as DockPreset[]) {
          const want = PRESETS[id].tools;
@@ -175,24 +175,24 @@ export class ToolbarPrefsService {
    }
 
    setPosition(p: DockPosition): void {
-      this.position.set(p);
+      this.position$.set(p);
       this.save();
    }
 
    setFlag(flag: 'labels' | 'compact' | 'twoColumns' | 'stayOnTool' | 'fadeWhileDragging', on: boolean): void {
-      this[flag].set(on);
+      this[`${flag}$`].set(on);
       this.save();
    }
 
    reset(): void {
       this.order.set(DOCK_TOOLS.map((t) => t.id));
       this.hidden.set(new Set());
-      this.position.set('left');
-      this.labels.set(false);
-      this.compact.set(false);
-      this.twoColumns.set(false);
-      this.stayOnTool.set(false);
-      this.fadeWhileDragging.set(true);
+      this.position$.set('left');
+      this.labels$.set(false);
+      this.compact$.set(false);
+      this.twoColumns$.set(false);
+      this.stayOnTool$.set(false);
+      this.fadeWhileDragging$.set(true);
       this.save();
    }
 
@@ -210,12 +210,12 @@ export class ToolbarPrefsService {
          this.order.set(order);
          this.hidden.set(new Set((parsed.hidden ?? []).filter((id) => known.has(id))));
          if (parsed.position && ['left', 'top', 'right', 'bottom'].includes(parsed.position))
-            this.position.set(parsed.position);
-         this.labels.set(!!parsed.labels);
-         this.compact.set(!!parsed.compact);
-         this.twoColumns.set(!!parsed.twoColumns);
-         this.stayOnTool.set(!!parsed.stayOnTool);
-         this.fadeWhileDragging.set(parsed.fadeWhileDragging ?? true);
+            this.position$.set(parsed.position);
+         this.labels$.set(!!parsed.labels);
+         this.compact$.set(!!parsed.compact);
+         this.twoColumns$.set(!!parsed.twoColumns);
+         this.stayOnTool$.set(!!parsed.stayOnTool);
+         this.fadeWhileDragging$.set(parsed.fadeWhileDragging ?? true);
       } catch {
          // Unavailable or corrupt storage: keep the defaults.
       }
@@ -226,12 +226,12 @@ export class ToolbarPrefsService {
          const data: StoredPrefs = {
             order: this.order(),
             hidden: [...this.hidden()],
-            position: this.position(),
-            labels: this.labels(),
-            compact: this.compact(),
-            twoColumns: this.twoColumns(),
-            stayOnTool: this.stayOnTool(),
-            fadeWhileDragging: this.fadeWhileDragging(),
+            position: this.position$(),
+            labels: this.labels$(),
+            compact: this.compact$(),
+            twoColumns: this.twoColumns$(),
+            stayOnTool: this.stayOnTool$(),
+            fadeWhileDragging: this.fadeWhileDragging$(),
          };
          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       } catch {

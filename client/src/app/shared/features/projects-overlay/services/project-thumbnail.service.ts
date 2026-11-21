@@ -1,20 +1,9 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import {
-   layoutOf,
-   masterOf,
-   resolveThemedElements,
-   resolveThemedSequences,
-   slideSequence,
-   type CanvasElementModel,
-   type ProjectSummary,
-   type SchemaModel,
-} from '@devdesigner/shared';
-import { contentForFrame } from '../../../../features/editor/helpers/frame-contents.helper';
-import { ElementImagesService } from '../../../../features/editor/services/element-images.service';
+import type { ProjectSummary } from '@devdesigner/shared';
+import { ProjectPictureRenderer } from './project-picture-renderer';
 import { ProjectsApiService } from '../../../services/projects-api.service';
 import { ThemeService } from '../../../../core/theme/theme.service';
-import { buildDiagramSvg } from '../../../../features/editor/helpers/diagram-svg.helper';
 
 /** What a Projects dialog card should show for one project. */
 export type ThumbState =
@@ -45,7 +34,7 @@ const LOADING: ThumbState = { status: 'loading' };
 @Injectable({ providedIn: 'root' })
 export class ProjectThumbnailService {
    private readonly projects = inject(ProjectsApiService);
-   private readonly images = inject(ElementImagesService);
+   private readonly renderer = inject(ProjectPictureRenderer);
    private readonly theme = inject(ThemeService);
 
    private readonly states = signal<ReadonlyMap<string, ThumbState>>(new Map());
@@ -61,7 +50,7 @@ export class ProjectThumbnailService {
    state(project: ProjectSummary): ThumbState {
       const map = this.states();
       const entry = this.entries.get(project.id);
-      const dark = this.theme.dark();
+      const dark = this.theme.dark$();
       if (!entry || (!entry.inFlight && (entry.gen !== this.gen || entry.dark !== dark))) {
          this.enqueue(project.id);
       }
@@ -81,7 +70,7 @@ export class ProjectThumbnailService {
       this.entries.set(id, {
          state: existing?.state ?? LOADING,
          gen: this.gen,
-         dark: this.theme.dark(),
+         dark: this.theme.dark$(),
          inFlight: true,
       });
       this.queue.push(id);
@@ -107,25 +96,11 @@ export class ProjectThumbnailService {
       let state: ThumbState;
       try {
          const { schema } = await firstValueFrom(this.projects.getGraph(id));
-         const sequences = resolveThemedSequences(
-            { diagrams: schema.sequenceDiagrams, lifelines: schema.lifelines, messages: schema.sequenceMessages },
-            schema.elements
-         );
          if (schema.tables.length === 0 && schema.elements.length === 0 && schema.lifelines.length === 0) {
             state = { status: 'empty' };
          } else {
-            const imageData = await this.imageData(schema.elements);
-            const built =
-               this.firstSlideSvg(schema, imageData) ??
-               buildDiagramSvg(
-                  schema.tables,
-                  schema.relationships,
-                  resolveThemedElements(schema.elements),
-                  sequences,
-                  undefined,
-                  imageData
-               );
-            const blob = new Blob([built.svg], { type: 'image/svg+xml' });
+            const svg = await this.renderer.svgOf(schema);
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
             state = { status: 'ready', url: URL.createObjectURL(blob) };
          }
       } catch {
@@ -133,40 +108,6 @@ export class ProjectThumbnailService {
          state = entry.state.status === 'ready' ? entry.state : { status: 'error' };
       }
       this.publish(id, state);
-   }
-
-   /**
-    * A project with a presentation previews as its first slide, rendered the
-    * way the slide player draws it (cropped to the frame, with its layout and
-    * master underneath). Drawing the whole canvas instead shrinks the slides to
-    * specks among layouts and off-slide scratch content.
-    */
-   private firstSlideSvg(schema: SchemaModel, imageData: ReadonlyMap<string, string>) {
-      const frames = slideSequence(schema.elements.filter((e) => e.type === 'frame'));
-      const frame = frames.find((f) => !f.slide?.layout && !f.slide?.master && !f.slide?.hidden);
-      if (!frame) return null;
-      const mine = contentForFrame(
-         frame.id,
-         true,
-         schema.elements,
-         schema.tables,
-         schema.sequenceDiagrams,
-         schema.lifelines,
-         schema.sequenceMessages,
-         layoutOf(frame, frames)?.id,
-         masterOf(frame, frames)?.id
-      );
-      return buildDiagramSvg(
-         mine.tables,
-         schema.relationships,
-         resolveThemedElements(mine.elements, schema.elements),
-         resolveThemedSequences(
-            { diagrams: mine.diagrams, lifelines: mine.lifelines, messages: mine.messages },
-            schema.elements
-         ),
-         { x: frame.x, y: frame.y, width: frame.width, height: frame.height, frameId: frame.id },
-         imageData
-      );
    }
 
    private publish(id: string, state: ThumbState): void {
@@ -183,25 +124,5 @@ export class ProjectThumbnailService {
       const next = new Map(this.states());
       next.set(id, state);
       this.states.set(next);
-   }
-
-   private async imageData(elements: readonly CanvasElementModel[]): Promise<Map<string, string>> {
-      const ids = [
-         ...new Set(
-            elements
-               .filter((e) => (e.type === 'image' || e.type === 'embed') && e.fileId)
-               .map((e) => e.fileId as string)
-         ),
-      ];
-      const data = new Map<string, string>();
-      await Promise.all(
-         ids.map(async (fileId) => {
-            const url = await this.images.stillDataUrl(fileId);
-            if (url) {
-               data.set(fileId, url);
-            }
-         })
-      );
-      return data;
    }
 }

@@ -2,7 +2,7 @@
    <nav class="side" aria-label="Settings sections">
       <h2 class="title">Settings</h2>
       @for (t of tabs; track t.id) {
-         <button class="side-item" type="button" [class.on]="tab() === t.id" (click)="tab.set(t.id)">
+         <button class="side-item" type="button" [class.on]="tab$() === t.id" (click)="tab$.set(t.id)">
             <dd-icon [name]="t.icon" />{{ t.label }}
          </button>
       }
@@ -13,7 +13,7 @@
          <dd-icon name="close" />
       </button>
 
-      @switch (tab()) {
+      @switch (tab$()) {
          @case ('general') {
             <h3 class="h">Updates</h3>
             <p class="lead">
@@ -21,7 +21,7 @@
             </p>
             <dd-segmented [formControl]="updates" [options]="updateOptions" />
             <p class="hint">
-               @switch (updatesValue()) {
+               @switch (updatesValue$()) {
                   @case ('ask') {
                      When an update is ready you choose to restart now or later.
                   }
@@ -37,18 +37,18 @@
                <button
                   class="btn"
                   type="button"
-                  [disabled]="busy() || updater.checking()"
+                  [disabled]="busy$() || updater.checking$()"
                   (click)="run('check-updates')"
                >
-                  @if (updater.checking()) {
-                     <dd-icon name="sync" class="spin" />Checking�
+                  @if (updater.checking$()) {
+                     <dd-icon name="sync" class="spin" />Checking…
                   } @else {
                      <dd-icon name="sync" />Check now
                   }
                </button>
-               @switch (updater.status().state) {
+               @switch (updater.status$().state) {
                   @case ('downloading') {
-                     <span class="update-note">Downloading update� {{ $any(updater.status()).percent }}%</span>
+                     <span class="update-note">Downloading update… {{ $any(updater.status$()).percent }}%</span>
                   }
                   @case ('ready') {
                      <button class="btn" type="button" (click)="updater.install()">Restart to update</button>
@@ -68,12 +68,12 @@
          @case ('data') {
             <h3 class="h">Data folder</h3>
             <p class="lead">Everything you make is stored here, on this computer.</p>
-            <code class="path">{{ state()?.dataDir }}</code>
+            <code class="path">{{ state$()?.dataDir }}</code>
             <div class="row">
                <button class="btn" type="button" (click)="run('open-data-folder')">
                   <dd-icon name="folder_open" />Open folder
                </button>
-               <button class="btn" type="button" [disabled]="busy()" (click)="run('backup-now')">
+               <button class="btn" type="button" [disabled]="busy$()" (click)="run('backup-now')">
                   <dd-icon name="download" />Back up to a file…
                </button>
             </div>
@@ -95,13 +95,13 @@
                backups
             </label>
             <div class="backups">
-               @for (b of state()?.backups ?? []; track b.id) {
+               @for (b of state$()?.backups ?? []; track b.id) {
                   <div class="backup">
                      <span class="backup-text">
-                        <span class="backup-label">{{ labelOf(b.label) }}</span>
+                        <span class="backup-label">{{ (labelOf | call: b.label) }}</span>
                         <span class="backup-date">{{ b.createdAt | date: 'medium' }}</span>
                      </span>
-                     <button class="btn ghost" type="button" [disabled]="busy()" (click)="run('restore', b.id)">
+                     <button class="btn ghost" type="button" [disabled]="busy$()" (click)="run('restore', b.id)">
                         Restore…
                      </button>
                   </div>
@@ -116,7 +116,7 @@
             </div>
          }
          @case ('about') {
-            <h3 class="h">DevDesigner {{ state()?.version }}</h3>
+            <h3 class="h">DevDesigner {{ state$()?.version }}</h3>
             <p class="lead">
                A local-first diagram and presentation editor. Nothing leaves this computer unless you sync a project to
                a server. Crash reports stay on this computer.

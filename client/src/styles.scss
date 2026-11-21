@@ -152,6 +152,56 @@ html.dark {
    --dd-chart-3: #199e70;
 }
 
+/* Fixed palette: the same in light and dark themes. Component styles use these (or the
+   theme tokens above) instead of hex values (stylelint color-no-hex). */
+:root {
+   --dd-white: #ffffff;
+   --dd-black: #000000;
+   --dd-red-400: #ef6b6b;
+   --dd-red-500: #e5484d;
+   --dd-red-600: #d64545;
+   --dd-coral-400: #ff5c5c;
+   --dd-laser-red: #ff2d2d;
+   --dd-rose-500: #f43f5e;
+   --dd-pink-500: #ec4899;
+   --dd-teal-400: #2bb3a8;
+   --dd-teal-600: #0f8f86;
+   --dd-green-500: #12b76a;
+   --dd-green-700: #2f9e44;
+   --dd-yellow-200: #fde68a;
+   --dd-yellow-900: #4a3b00;
+   --dd-amber-400: #e0a84a;
+   --dd-amber-500: #f5a623;
+   --dd-amber-600: #d97706;
+   --dd-amber-700: #bd7d1c;
+   --dd-amber-950: #1a1205;
+   --dd-orange-300: #f78c6c;
+   --dd-orange-600: #f08c00;
+   --dd-violet-400: #9b7bff;
+   --dd-violet-500: #7c5cff;
+   --dd-violet-600: #7048e8;
+   --dd-purple-300: #c792ea;
+   --dd-purple-600: #ae3ec9;
+   --dd-indigo-400: #6f8bff;
+   --dd-indigo-600: #3b5bdb;
+   --dd-blue-300: #82aaff;
+   --dd-blue-400: #4c8dff;
+   --dd-blue-500: #3b82f6;
+   --dd-blue-600: #2f6bff;
+   --dd-slate-400: #94a3b8;
+   --dd-slate-500: #64748b;
+   --dd-slate-800: #1e293b;
+   --dd-slate-900: #0f172a;
+   --dd-gray-100: #e7ecf3;
+   --dd-gray-400: #8b95a4;
+   --dd-gray-500: #6b707a;
+   --dd-ink-600: #3a4350;
+   --dd-ink-650: #343d4a;
+   --dd-ink-700: #262e39;
+   --dd-ink-850: #1b222c;
+   --dd-ink-900: #11151c;
+}
+
 html,
 body {
    height: 100%;
@@ -409,8 +459,11 @@ body.dd-gesture dd-minimap {
    opacity: 0.25;
 }
 
-/* Focus mode transition screen: the canvas's floating toolbars stay out of the way. */
+/* Focus mode transition / animation screens: the canvas's floating toolbars stay out of the way. */
 body.dd-focus-morph dd-element-floating-toolbar,
+body.dd-focus-morph dd-sequence-message-toolbar,
+body.dd-focus-morph dd-sequence-participant-toolbar,
+body.dd-focus-morph dd-sequence-diagram-toolbar,
 body.dd-focus-morph dd-table-toolbar,
 body.dd-focus-morph dd-relationship-toolbar,
 body.dd-focus-morph dd-multi-select-bar,

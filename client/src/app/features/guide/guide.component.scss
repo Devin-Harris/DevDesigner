@@ -7,22 +7,22 @@
 
 .guide {
    --g-blue: var(--dd-primary);
-   --g-teal: #0f8f86;
-   --g-amber: #bd7d1c;
-   --g-violet: #7048e8;
-   --g-red: #d64545;
-   --g-slate: #6b707a;
+   --g-teal: var(--dd-teal-600);
+   --g-amber: var(--dd-amber-700);
+   --g-violet: var(--dd-violet-600);
+   --g-red: var(--dd-red-600);
+   --g-slate: var(--dd-gray-500);
    display: grid;
    grid-template-columns: 272px minmax(0, 1fr);
    height: 100%;
 }
 
 :host-context(html.dark) .guide {
-   --g-teal: #2bb3a8;
-   --g-amber: #e0a84a;
-   --g-violet: #9b7bff;
-   --g-red: #ef6b6b;
-   --g-slate: #8b95a4;
+   --g-teal: var(--dd-teal-400);
+   --g-amber: var(--dd-amber-400);
+   --g-violet: var(--dd-violet-400);
+   --g-red: var(--dd-red-400);
+   --g-slate: var(--dd-gray-400);
 }
 
 .disp {
@@ -163,7 +163,7 @@
    height: 30px;
    border-radius: 9px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    --dd-icon-size: 18px;
 }
 

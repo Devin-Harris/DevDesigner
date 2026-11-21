@@ -142,6 +142,15 @@ function createStore(start: Partial<SchemaModel> = {}) {
          remove: jest.fn((): Observable<unknown> => of(undefined)),
          create: jest.fn((_tableId: string, body: object): Observable<unknown> => of(body)),
       },
+      relationships: {
+         create: jest.fn((_projectId: string, body: object): Observable<unknown> => of(body)),
+         update: jest.fn((id: string, body: object): Observable<unknown> => of({ id, ...body })),
+         remove: jest.fn((): Observable<unknown> => of(undefined)),
+      },
+      indexes: {
+         create: jest.fn((_tableId: string, body: object): Observable<unknown> => of(body)),
+         remove: jest.fn((): Observable<unknown> => of(undefined)),
+      },
       elements: {
          create: jest.fn((_projectId: string, body: CanvasElementModel) => of(body)),
          remove: jest.fn((): Observable<unknown> => of(undefined)),
@@ -154,8 +163,8 @@ function createStore(start: Partial<SchemaModel> = {}) {
          { provide: ProjectsApiService, useValue: api.projects },
          { provide: TablesApiService, useValue: api.tables },
          { provide: ColumnsApiService, useValue: api.columns },
-         { provide: IndexesApiService, useValue: {} },
-         { provide: RelationshipsApiService, useValue: {} },
+         { provide: IndexesApiService, useValue: api.indexes },
+         { provide: RelationshipsApiService, useValue: api.relationships },
          { provide: ElementsApiService, useValue: api.elements },
          { provide: SequenceApiService, useValue: {} },
          { provide: ShareLinksApiService, useValue: {} },
@@ -725,6 +734,53 @@ describe('ProjectStore history', () => {
       expect(store.undoDepth()).toBe(1);
    });
 
+   it('batchHistorySync records several synchronous entries as ONE undo step', async () => {
+      const { store } = createStore({ elements: [element('e1', { x: 0, y: 0 }), element('e2', { x: 0, y: 0 })] });
+      store.moveItemsLocal({ elements: new Map([['e1', { x: 10, y: 0 }]]) });
+      store.moveItemsLocal({ elements: new Map([['e2', { x: 0, y: 20 }]]) });
+      store.batchHistorySync(() => {
+         store.recordElementMove([{ id: 'e1', from: { x: 0, y: 0 }, to: { x: 10, y: 0 } }]);
+         store.recordItemMoves(
+            { elements: new Map([['e2', { x: 0, y: 0 }]]) },
+            { elements: new Map([['e2', { x: 0, y: 20 }]]) }
+         );
+      });
+      expect(store.undoDepth()).toBe(1);
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements.map((e) => [e.x, e.y])).toEqual([
+         [0, 0],
+         [0, 0],
+      ]);
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements.map((e) => [e.x, e.y])).toEqual([
+         [10, 0],
+         [0, 20],
+      ]);
+   });
+
+   it('commitElementEdit records a live (patchElementLocal) edit against the start snapshot', async () => {
+      const { store } = createStore({ elements: [element('e1', { text: 'old', strokeColor: '#111111' })] });
+      const start = store.schema()!.elements[0];
+      store.patchElementLocal('e1', { text: 'new' });
+      await store.commitElementEdit('e1', start, { text: 'new', runs: null });
+      expect(store.undoDepth()).toBe(1);
+      store.undoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements[0].text).toBe('old');
+      store.redoElement();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.schema()!.elements[0].text).toBe('new');
+   });
+
+   it('commitElementEdit records nothing when the edit changed nothing', async () => {
+      const { store } = createStore({ elements: [element('e1', { text: 'same' })] });
+      const start = store.schema()!.elements[0];
+      await store.commitElementEdit('e1', start, { text: 'same' });
+      expect(store.undoDepth()).toBe(0);
+   });
+
    it('a new edit clears the redo stack', async () => {
       const { store } = createStore({ elements: [element('e1')] });
       await store.updateElement('e1', { x: 5 });
@@ -822,6 +878,119 @@ describe('ProjectStore history', () => {
 });
 
 // ---- importFile --------------------------------------------------------------------------------
+
+// ---- ERD history -------------------------------------------------------------------------------
+
+describe('ProjectStore ERD history', () => {
+   beforeEach(() => jest.useFakeTimers());
+   afterEach(() => jest.useRealTimers());
+
+   const step = async (fn: () => void): Promise<void> => {
+      fn();
+      await jest.advanceTimersByTimeAsync(0);
+   };
+
+   it('undoing a table delete re-creates it with its columns, indexes and relationships under their ids', async () => {
+      const users = table('users', { x: 5, y: 6, columns: [column('u.id'), column('u.name')] });
+      const posts = table('posts', {
+         columns: [column('p.id'), column('p.user')],
+         indexes: [{ id: 'ix1', name: 'by_user', columnIds: ['p.user'], isUnique: false } as IndexModel],
+      });
+      const { store, api } = createStore({
+         tables: [users, posts],
+         relationships: [relationship('r1', 'u.id', 'p.user')],
+      });
+      await store.deleteTable('posts');
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.tables().map((t) => t.id)).toEqual(['users']);
+      expect(store.relationships()).toEqual([]);
+
+      await step(() => store.undoElement());
+      const back = store.tables().find((t) => t.id === 'posts')!;
+      expect(back.columns.map((c) => c.id)).toEqual(['p.id', 'p.user']);
+      expect(back.indexes?.map((i) => [i.id, i.columnIds])).toEqual([['ix1', ['p.user']]]);
+      expect(store.relationships().map((r) => [r.id, r.sourceColumnId, r.targetColumnId])).toEqual([
+         ['r1', 'u.id', 'p.user'],
+      ]);
+      expect(api.tables.create).toHaveBeenCalledWith('p1', expect.objectContaining({ id: 'posts' }));
+
+      await step(() => store.redoElement());
+      expect(store.tables().map((t) => t.id)).toEqual(['users']);
+   });
+
+   it('undoes adding a table, and redo brings it back', async () => {
+      const { store } = createStore();
+      await store.addTable(10, 20);
+      await jest.advanceTimersByTimeAsync(0);
+      const id = store.tables()[0].id;
+      await step(() => store.undoElement());
+      expect(store.tables()).toEqual([]);
+      await step(() => store.redoElement());
+      expect(store.tables().map((t) => [t.id, t.x, t.y])).toEqual([[id, 10, 20]]);
+   });
+
+   it('undoes a table rename and a column edit', async () => {
+      const { store } = createStore({ tables: [table('t1', { name: 'old', columns: [column('c1', { name: 'a' })] })] });
+      await store.updateTable('t1', { name: 'new' });
+      await store.updateColumn('t1', 'c1', { name: 'b', isNullable: false });
+      await step(() => store.undoElement());
+      expect(store.tables()[0].columns[0]).toMatchObject({ name: 'a', isNullable: true });
+      await step(() => store.undoElement());
+      expect(store.tables()[0].name).toBe('old');
+      await step(() => store.redoElement());
+      expect(store.tables()[0].name).toBe('new');
+   });
+
+   it('undoes a column reorder', async () => {
+      const { store } = createStore({ tables: [table('t1', { columns: [column('a'), column('b'), column('c')] })] });
+      store.reorderColumns('t1', ['c', 'a', 'b']);
+      await step(() => store.undoElement());
+      expect(store.tables()[0].columns.map((c) => c.id)).toEqual(['a', 'b', 'c']);
+   });
+
+   it('undoes deleting a relationship and changing its type', async () => {
+      const { store, api } = createStore({
+         tables: [table('t1', { columns: [column('a')] }), table('t2', { columns: [column('b')] })],
+         relationships: [relationship('r1', 'a', 'b')],
+      });
+      await store.updateRelationship('r1', { type: 'ONE_TO_ONE' as RelationshipModel['type'] });
+      await store.deleteRelationship('r1');
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.relationships()).toEqual([]);
+
+      await step(() => store.undoElement());
+      expect(store.relationships().map((r) => [r.id, r.type])).toEqual([['r1', 'ONE_TO_ONE']]);
+      expect(api.relationships.create).toHaveBeenCalledWith('p1', expect.objectContaining({ id: 'r1' }));
+      await step(() => store.undoElement());
+      expect(store.relationships()[0].type).toBe('ONE_TO_MANY');
+   });
+
+   it('undoes deleting an index', async () => {
+      const ix = { id: 'ix1', name: 'i', columnIds: ['a'], isUnique: true } as IndexModel;
+      const { store } = createStore({ tables: [table('t1', { columns: [column('a')], indexes: [ix] })] });
+      await store.deleteIndex('t1', 'ix1');
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.tables()[0].indexes).toEqual([]);
+      await step(() => store.undoElement());
+      expect(store.tables()[0].indexes).toEqual([expect.objectContaining({ id: 'ix1', isUnique: true })]);
+   });
+
+   it('recordTableDrag undoes a table drag and the relationship bends that moved with it', async () => {
+      const { store } = createStore({
+         tables: [table('t1', { x: 50, y: 60, columns: [column('a')] }), table('t2', { columns: [column('b')] })],
+         relationships: [{ ...relationship('r1', 'a', 'b'), waypoints: [{ x: 70, y: 80 }] }],
+      });
+      store.recordTableDrag(
+         [{ id: 't1', from: { x: 0, y: 0 }, to: { x: 50, y: 60 } }],
+         [{ id: 'r1', from: [{ x: 20, y: 20 }], to: [{ x: 70, y: 80 }] }]
+      );
+      await step(() => store.undoElement());
+      expect(store.tables()[0]).toMatchObject({ x: 0, y: 0 });
+      expect(store.relationships()[0].waypoints).toEqual([{ x: 20, y: 20 }]);
+      await step(() => store.redoElement());
+      expect(store.tables()[0]).toMatchObject({ x: 50, y: 60 });
+   });
+});
 
 describe('ProjectStore.importFile', () => {
    it('applies the returned mutations and selects the imported tables, elements and diagrams', async () => {

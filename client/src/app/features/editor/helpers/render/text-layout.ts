@@ -111,9 +111,9 @@ function wrapRunLines(
    baseWeight: number,
    baseItalic: boolean,
    fontFor: (weight: number, italic: boolean) => string
-): { runs: TextRun[]; indent: number }[] {
-   const out: { runs: TextRun[]; indent: number }[] = [];
-   for (const para of paragraphs) {
+): { runs: TextRun[]; indent: number; para: number }[] {
+   const out: { runs: TextRun[]; indent: number; para: number }[] = [];
+   for (const [paraIndex, para] of paragraphs.entries()) {
       let line: TextRun[] = [];
       let width = 0;
       // Wrapped lines of a list item start under its text, not under the marker.
@@ -147,7 +147,7 @@ function wrapRunLines(
          if (last) {
             last.text = last.text.replace(/\s+$/, '');
          }
-         out.push({ runs: line.filter((r) => r.text), indent });
+         out.push({ runs: line.filter((r) => r.text), indent, para: paraIndex });
          line = [];
          width = 0;
          indent = hang;
@@ -186,7 +186,7 @@ function wrapRunLines(
             }
          }
       }
-      out.push({ runs: line, indent });
+      out.push({ runs: line, indent, para: paraIndex });
    }
    return out;
 }
@@ -223,18 +223,22 @@ export function layoutTextBlock(
    const wrapped = opts.runs?.length
       ? opts.wrap
          ? wrapRunLines(runLines(opts.runs), maxWidth, opts.fontWeight, !!opts.italic, cssFontFor(opts))
-         : runLines(opts.runs).map((runs) => ({ runs, indent: 0 }))
+         : runLines(opts.runs).map((runs, para) => ({ runs, indent: 0, para }))
       : null;
    const rich = wrapped?.map((l) => l.runs) ?? null;
    const lines: string[] = [];
    const indents: number[] = [];
+   /** The source paragraph (line of `text`) each laid-out line comes from. */
+   const paras: number[] = [];
    if (wrapped) {
       for (const line of wrapped) {
          lines.push(line.runs.map((r) => r.text).join(''));
          indents.push(line.indent);
+         paras.push(line.para);
       }
    } else {
-      for (const para of text.split('\n')) {
+      for (const [paraIndex, para] of text.split('\n').entries()) {
+         const before = lines.length;
          if (opts.wrap) {
             const prefix = LIST_PREFIX.exec(para)?.[0];
             if (prefix) {
@@ -251,6 +255,9 @@ export function layoutTextBlock(
          } else {
             lines.push(para);
             indents.push(0);
+         }
+         for (let i = before; i < lines.length; i += 1) {
+            paras.push(paraIndex);
          }
       }
    }
@@ -281,7 +288,7 @@ export function layoutTextBlock(
    const lineViews: TextLineView[] = lines.map((t, i) => {
       // Hanging indent only reads as one with left-aligned text.
       const lx = anchor === 'start' ? x + indents[i] : x;
-      const view: TextLineView = { text: t, x: lx, y: top + i * lineHeight + baseline };
+      const view: TextLineView = { text: t, x: lx, y: top + i * lineHeight + baseline, para: paras[i] };
       if (rich) {
          view.spans = rich[i].map((r) => ({
             text: r.text,

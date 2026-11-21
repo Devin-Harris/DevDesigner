@@ -77,70 +77,70 @@ export interface EditorStateSources {
 @Injectable({ providedIn: 'root' })
 export class EditorActionsService {
    /** True while an editor is mounted with a project loaded. */
-   readonly active = signal(false);
+   readonly active$ = signal(false);
    /** False when the tables in the export scope share a name (SQL would be invalid). */
-   readonly canExportSql = proxySignal(true);
+   readonly canExportSql$ = proxySignal(true);
    /** True when at least one table is selected (SQL export is offered only then). */
-   readonly hasTableSelection = proxySignal(false);
+   readonly hasTableSelection$ = proxySignal(false);
    /** True when anything (table, shape, sequence part) is selected. */
-   readonly hasSelection = proxySignal(false);
+   readonly hasSelection$ = proxySignal(false);
    /** The selected presentation's name, or null when the project has no slides. */
-   readonly presentationName = proxySignal<string | null>(null);
+   readonly presentationName$ = proxySignal<string | null>(null);
    /** True when the project has frames that are not slides. */
-   readonly hasPlainFrames = proxySignal(false);
+   readonly hasPlainFrames$ = proxySignal(false);
    /** Every presentation in the open project. */
-   readonly decks = proxySignal<DeckSummary[]>([]);
+   readonly decks$ = proxySignal<DeckSummary[]>([]);
    /** The presentation open in focus mode (app chrome steps aside for the deck bars), or null. */
-   readonly focusedDeck = proxySignal<string | null>(null);
+   readonly focusedDeck$ = proxySignal<string | null>(null);
    /** The collaborator whose cursor the canvas is following, or null. */
-   readonly following = proxySignal<string | null>(null);
+   readonly following$ = proxySignal<string | null>(null);
    /** The open project's id, or null without an editor. */
    readonly projectId = proxySignal<string | null>(null);
    /** Access to the open project (VIEW without an editor). */
-   readonly accessMode = proxySignal<AccessLevel>('VIEW');
-   readonly canEdit = proxySignal(false);
-   readonly canUndo = proxySignal(false);
-   readonly canRedo = proxySignal(false);
+   readonly accessMode$ = proxySignal<AccessLevel>('VIEW');
+   readonly canEdit$ = proxySignal(false);
+   readonly canUndo$ = proxySignal(false);
+   readonly canRedo$ = proxySignal(false);
    private handlers: EditorActionHandlers | null = null;
 
    register(handlers: EditorActionHandlers): void {
       this.handlers = handlers;
-      this.active.set(true);
+      this.active$.set(true);
    }
 
    /** Point the chrome's state signals at the mounted editor's (until `clear()`). */
    registerState(state: EditorStateSources): void {
-      this.canExportSql.register(state.canExportSql);
-      this.hasTableSelection.register(state.hasTableSelection);
-      this.hasSelection.register(state.hasSelection);
-      this.presentationName.register(state.presentationName);
-      this.hasPlainFrames.register(state.hasPlainFrames);
-      this.decks.register(state.decks);
-      this.focusedDeck.register(state.focusedDeck);
-      this.following.register(state.following);
+      this.canExportSql$.register(state.canExportSql);
+      this.hasTableSelection$.register(state.hasTableSelection);
+      this.hasSelection$.register(state.hasSelection);
+      this.presentationName$.register(state.presentationName);
+      this.hasPlainFrames$.register(state.hasPlainFrames);
+      this.decks$.register(state.decks);
+      this.focusedDeck$.register(state.focusedDeck);
+      this.following$.register(state.following);
       this.projectId.register(state.projectId);
-      this.accessMode.register(state.accessMode);
-      this.canEdit.register(state.canEdit);
-      this.canUndo.register(state.canUndo);
-      this.canRedo.register(state.canRedo);
+      this.accessMode$.register(state.accessMode);
+      this.canEdit$.register(state.canEdit);
+      this.canUndo$.register(state.canUndo);
+      this.canRedo$.register(state.canRedo);
    }
 
    clear(): void {
       this.handlers = null;
-      this.canExportSql.reset();
-      this.hasTableSelection.reset();
-      this.hasSelection.reset();
-      this.presentationName.reset();
-      this.hasPlainFrames.reset();
-      this.decks.reset();
-      this.focusedDeck.reset();
-      this.following.reset();
+      this.canExportSql$.reset();
+      this.hasTableSelection$.reset();
+      this.hasSelection$.reset();
+      this.presentationName$.reset();
+      this.hasPlainFrames$.reset();
+      this.decks$.reset();
+      this.focusedDeck$.reset();
+      this.following$.reset();
       this.projectId.reset();
-      this.accessMode.reset();
-      this.canEdit.reset();
-      this.canUndo.reset();
-      this.canRedo.reset();
-      this.active.set(false);
+      this.accessMode$.reset();
+      this.canEdit$.reset();
+      this.canUndo$.reset();
+      this.canRedo$.reset();
+      this.active$.set(false);
    }
 
    share(): void {

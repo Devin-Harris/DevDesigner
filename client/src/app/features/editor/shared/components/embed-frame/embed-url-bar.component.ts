@@ -10,33 +10,33 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
    changeDetection: ChangeDetectionStrategy.OnPush,
    host: { '(pointerdown)': '$event.stopPropagation()', '(dblclick)': '$event.stopPropagation()' },
    template: `
-      <form class="bar" [class.bad]="invalid()" (submit)="save($event, field)">
+      <form class="bar" [class.bad]="invalid$()" (submit)="save($event, field)">
          <input
             #field
             type="text"
             spellcheck="false"
             autocomplete="off"
             aria-label="Live frame URL"
-            [value]="url()"
-            [readOnly]="!editable()"
+            [value]="url$()"
+            [readOnly]="!editable$()"
             (keydown)="onKey($event, field)"
-            (input)="invalid.set(false)"
+            (input)="invalid$.set(false)"
             (blur)="save(null, field)"
          />
-         @if (editable()) {
+         @if (editable$()) {
             <!-- Opt in to a snapshot of this frame for thumbnails, transitions and PDF export. -->
             <label class="snap" title="Use a snapshot of this page in thumbnails, slide transitions and PDF exports (asks to share this tab for a moment)">
-               <input type="checkbox" [checked]="snapshot()" (change)="snapshotToggle.emit($any($event.target).checked)" />
+               <input type="checkbox" [checked]="snapshot$()" (change)="snapshotToggle.emit($any($event.target).checked)" />
                Snapshot
             </label>
-            @if (snapshot()) {
+            @if (snapshot$()) {
                <button type="button" title="Retake the snapshot" aria-label="Retake snapshot" (click)="retake.emit()">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.2" /></svg>
                </button>
             }
          }
          <button type="button" title="Reload" aria-label="Reload page" (click)="reload.emit()">⟳</button>
-         <a title="Open in a new tab" aria-label="Open in a new tab" target="_blank" rel="noopener noreferrer" [href]="url()">↗</a>
+         <a title="Open in a new tab" aria-label="Open in a new tab" target="_blank" rel="noopener noreferrer" [href]="url$()">↗</a>
       </form>
    `,
    styles: `
@@ -126,39 +126,39 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
    `,
 })
 export class EmbedUrlBarComponent {
-   readonly url = input.required<string>();
-   readonly editable = input(true);
+   readonly url$ = input.required<string>({ alias: 'url' });
+   readonly editable$ = input(true, { alias: 'editable' });
    readonly urlCommit = output<string>();
    readonly reload = output<void>();
    /** This frame has a snapshot (it shows in thumbnails and exports). */
-   readonly snapshot = input(false);
+   readonly snapshot$ = input(false, { alias: 'snapshot' });
    readonly snapshotToggle = output<boolean>();
    readonly retake = output<void>();
-   protected readonly invalid = signal(false);
+   protected readonly invalid$ = signal(false);
 
    protected onKey(event: KeyboardEvent, field: HTMLInputElement): void {
       event.stopPropagation();
       if (event.key === 'Escape') {
-         field.value = this.url();
-         this.invalid.set(false);
+         field.value = this.url$();
+         this.invalid$.set(false);
          field.blur();
       }
    }
 
    protected save(event: Event | null, field: HTMLInputElement): void {
       event?.preventDefault();
-      if (!this.editable()) return;
+      if (!this.editable$()) return;
       const raw = field.value.trim();
-      if (raw === this.url()) {
+      if (raw === this.url$()) {
          if (event) field.blur();
          return;
       }
       const next = normalizeEmbedUrl(raw);
       if (!next) {
-         this.invalid.set(true);
+         this.invalid$.set(true);
          return;
       }
-      this.invalid.set(false);
+      this.invalid$.set(false);
       field.value = next;
       this.urlCommit.emit(next);
       if (event) field.blur();

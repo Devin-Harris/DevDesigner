@@ -25,12 +25,13 @@ import type { AlignAction, ExportImageFormat } from '../../models/toolbar-action
 const ROUNDED_RADIUS = 12;
 
 /** Shape tools grouped behind the dock's Shape flyout. */
-const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond'];
+const SHAPE_TOOLS: readonly EditorTool[] = ['rectangle', 'ellipse', 'diamond', 'triangle'];
 
 const SHAPE_ICONS: Record<string, string> = {
    rectangle: 'crop_square',
    ellipse: 'circle',
    diamond: 'diamond',
+   triangle: 'triangle',
 };
 
 /**
@@ -49,9 +50,9 @@ const SHAPE_ICONS: Record<string, string> = {
 })
 export class ShapeToolbarComponent {
    /** Dock modifiers: position, labels, compact. */
-   protected readonly dockClass = computed(() => {
+   protected readonly dockClass$ = computed(() => {
       const p = this.prefs;
-      return `dock at-${p.position()}${p.labels() ? ' labels' : ''}${p.compact() ? ' compact' : ''}${this.wrapped() || p.twoColumns() ? ' wrap' : ''}`;
+      return `dock at-${p.position$()}${p.labels$() ? ' labels' : ''}${p.compact$() ? ' compact' : ''}${this.wrapped() || p.twoColumns$() ? ' wrap' : ''}`;
    });
    /** A side dock too tall for the space (short window, browser zoom) flows into two columns. */
    protected readonly wrapped = signal(false);
@@ -60,13 +61,13 @@ export class ShapeToolbarComponent {
    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
    private readonly destroyRef = inject(DestroyRef);
    /** Tooltips open away from the dock's edge. */
-   protected readonly tipPos = computed(() => {
-      const pos = this.prefs.position();
+   protected readonly tipPos$ = computed(() => {
+      const pos = this.prefs.position$();
       return pos === 'left' ? 'right' : pos === 'right' ? 'left' : pos === 'top' ? 'below' : 'above';
    });
    /** Flyouts open away from the dock's edge. */
-   protected readonly morePlacement = computed(() => {
-      const pos = this.prefs.position();
+   protected readonly morePlacement$ = computed(() => {
+      const pos = this.prefs.position$();
       return pos === 'left'
          ? 'right-start'
          : pos === 'right'
@@ -78,13 +79,13 @@ export class ShapeToolbarComponent {
 
    private fitDock(): void {
       const dock = this.host.nativeElement.querySelector<HTMLElement>('.dock');
-      const pos = this.prefs.position();
-      queueMicrotask(() => this.prefs.leftDockWidth.set(dock && pos === 'left' ? dock.offsetWidth : 0));
+      const pos = this.prefs.position$();
+      queueMicrotask(() => this.prefs.leftDockWidth$.set(dock && pos === 'left' ? dock.offsetWidth : 0));
       if (!dock || (pos !== 'left' && pos !== 'right')) {
          if (this.wrapped()) this.wrapped.set(false);
          return;
       }
-      if (this.prefs.twoColumns()) return; // always two columns: nothing to decide
+      if (this.prefs.twoColumns$()) return; // always two columns: nothing to decide
       // Room the dock may use: its container minus the top offset and the bottom bar
       // (mirrors the CSS max-height, which getComputedStyle may report as a calc()).
       const host = this.host.nativeElement;
@@ -106,7 +107,7 @@ export class ShapeToolbarComponent {
             this.onChange(this.lastShape());
             return;
          case 'connector':
-            this.onChange(this.lastConnector());
+            this.onChange(this.lastConnector$());
             return;
          case 'image':
             this.addImage.emit();
@@ -116,29 +117,29 @@ export class ShapeToolbarComponent {
       }
    }
 
-   readonly tool = input.required<EditorTool>();
-   readonly disabled = input<boolean>(false);
-   readonly zoomLabel = input<string>('100%');
-   readonly saveLabel = input<string>('');
-   readonly gridSnap = input<boolean>(false);
-   readonly smartGuides = input<boolean>(false);
+   readonly tool$ = input.required<EditorTool>({ alias: 'tool' });
+   readonly disabled$ = input<boolean>(false, { alias: 'disabled' });
+   readonly zoomLabel$ = input<string>('100%', { alias: 'zoomLabel' });
+   readonly saveLabel$ = input<string>('', { alias: 'saveLabel' });
+   readonly gridSnap$ = input<boolean>(false, { alias: 'gridSnap' });
+   readonly smartGuides$ = input<boolean>(false, { alias: 'smartGuides' });
    /** Minimap shown (bottom right). */
-   readonly minimap = input<boolean>(true);
-   readonly canAlign = input<boolean>(false);
+   readonly minimap$ = input<boolean>(true, { alias: 'minimap' });
+   readonly canAlign$ = input<boolean>(false, { alias: 'canAlign' });
    /** Three or more units selected, so distribute is meaningful. */
-   readonly canDistribute = input<boolean>(false);
+   readonly canDistribute$ = input<boolean>(false, { alias: 'canDistribute' });
    /** A lone selection aligns to its surrounding frame/shape rather than to peers. */
-   readonly alignToContainer = input<boolean>(false);
+   readonly alignToContainer$ = input<boolean>(false, { alias: 'alignToContainer' });
    readonly canExport = input<boolean>(false);
    readonly canUndo = input<boolean>(false);
    readonly canRedo = input<boolean>(false);
    /** True when the project has a saved home view. */
-   readonly hasHome = input<boolean>(false);
+   readonly hasHome$ = input<boolean>(false, { alias: 'hasHome' });
    /** Whether the viewer may save/clear the shared home view (editors only). */
-   readonly canSetHome = input<boolean>(false);
+   readonly canSetHome$ = input<boolean>(false, { alias: 'canSetHome' });
 
    /** The aspect-ratio preset new frames are drawn with (two-way bound to the editor). */
-   readonly framePreset = model<string>(DEFAULT_FRAME_PRESET);
+   readonly framePreset$ = model<string>(DEFAULT_FRAME_PRESET, { alias: 'framePreset' });
    protected readonly framePresets = FRAME_PRESETS;
 
    readonly toolChange = output<EditorTool>();
@@ -167,18 +168,18 @@ export class ShapeToolbarComponent {
     */
    protected readonly lastShape = signal<EditorTool>('rectangle');
    /** Last of Arrow / Line, so the merged dock button keeps showing it. */
-   protected readonly lastConnector = signal<EditorTool>('arrow');
+   protected readonly lastConnector$ = signal<EditorTool>('arrow');
 
    /** True when a shape tool is active, so the dock's Shape button reads as selected. */
-   protected readonly isShape = computed(() => SHAPE_TOOLS.includes(this.tool()));
+   protected readonly isShape$ = computed(() => SHAPE_TOOLS.includes(this.tool$()));
    /** The icon the Shape dock button shows — the last-picked shape. */
-   protected readonly shapeIcon = computed(() => SHAPE_ICONS[this.lastShape()] ?? 'crop_square');
+   protected readonly shapeIcon$ = computed(() => SHAPE_ICONS[this.lastShape()] ?? 'crop_square');
 
    private readonly store = inject(ProjectStore);
 
    /** Dock customization (which tools show, in what order). */
    protected readonly prefs = inject(ToolbarPrefsService);
-   protected readonly dockTools = this.prefs.visibleTools;
+   protected readonly dockTools$ = this.prefs.visibleTools;
 
    /**
     * Which rectangle variant was last chosen — sharp (0) or rounded (>0) — so the
@@ -197,18 +198,18 @@ export class ShapeToolbarComponent {
       });
       // Tool set / sizing changes alter the dock's height: re-check.
       effect(() => {
-         this.dockClass();
-         this.dockTools();
+         this.dockClass$();
+         this.dockTools$();
          queueMicrotask(() => this.fitDock());
       });
       // Remember the most recent shape tool so the dock reflects it afterward.
       effect(() => {
-         const t = this.tool();
+         const t = this.tool$();
          if (SHAPE_TOOLS.includes(t)) {
             this.lastShape.set(t);
          }
          if (t === 'arrow' || t === 'line') {
-            this.lastConnector.set(t);
+            this.lastConnector$.set(t);
          }
       });
    }
@@ -219,7 +220,7 @@ export class ShapeToolbarComponent {
 
    /** Pick the frame tool with a specific page ratio. */
    protected pickFrame(presetId: string): void {
-      this.framePreset.set(presetId);
+      this.framePreset$.set(presetId);
       this.onChange('frame');
    }
 

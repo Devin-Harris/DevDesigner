@@ -7,21 +7,21 @@
          type="text"
          placeholder="Search projects, presentations, canvas items and commands"
          aria-label="Search"
-         [value]="query()"
+         [value]="query$()"
          (input)="onInput($any($event.target).value)"
          (keydown)="onKey($event)"
       />
       <span class="k">Esc</span>
    </div>
    <div #list class="list">
-      @for (g of results(); track g.name) {
+      @for (g of results$(); track g.name) {
          <div class="lab">{{ g.name }}</div>
          @for (x of g.items; track x.index) {
             <button
                class="row"
                type="button"
-               [class.on]="x.index === active()"
-               (pointerenter)="active.set(x.index)"
+               [class.on]="x.index === active$()"
+               (pointerenter)="active$.set(x.index)"
                (click)="run(x.entry)"
             >
                <dd-icon class="ri" [name]="x.entry.icon" />
@@ -35,7 +35,7 @@
             </button>
          }
       } @empty {
-         <div class="empty">Nothing matches “{{ query() }}”.</div>
+         <div class="empty">Nothing matches “{{ query$() }}”.</div>
       }
    </div>
    <div class="foot">

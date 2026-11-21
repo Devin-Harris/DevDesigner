@@ -222,6 +222,11 @@ function focusWindow(): void {
   mainWindow.focus();
 }
 
+// Must equal electron-builder.yml `appId`: the installer stamps it on the Start menu shortcut,
+// so the taskbar groups the window under that shortcut and shows the app's icon, not Electron's.
+const APP_USER_MODEL_ID = 'dev.devdesigner.desktop';
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -467,7 +472,7 @@ function saveWindowState(win: BrowserWindow): void {
 
 /** The shared product logo (client assets/brand; see desktop/scripts/render-icon.mjs). */
 const LOGO_DIR = join(paths.clientDir, 'assets', 'brand');
-/** Window/taskbar icon: needed when unpackaged (dev) and on Linux; packaged Windows/macOS use build/icon.png. */
+/** Window/taskbar icon (generated from logo.svg); packaged exe/installer/shortcuts use build/icon.ico. */
 const WINDOW_ICON = join(LOGO_DIR, 'logo.png');
 const LOGO_DATA_URL = (() => {
   try {

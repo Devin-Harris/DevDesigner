@@ -1,0 +1,91 @@
+<div class="f-head">
+   <span class="f-lab"
+      >Layouts
+      <dd-icon
+         name="info"
+         class="info"
+         tabindex="0"
+         matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. The master shows under all of them."
+      />
+   </span>
+</div>
+<div class="f-cards">
+   @if (s.master$(); as m) {
+      <button
+         class="ly"
+         type="button"
+         [class.on]="m.id === s.active_$()"
+         (click)="s.command.emit({ kind: 'focus', id: m.id })"
+      >
+         <span class="lt" [style.aspect-ratio]="m.width + ' / ' + m.height">
+            @if (s.thumbs$() | at: m.id; as src) {
+               <img alt="" draggable="false" [src]="src" />
+            }
+         </span>
+         <span class="meta"><b>Master</b><span>under all</span></span>
+      </button>
+      <div class="f-div"></div>
+   }
+   @for (l of s.designLayouts$(); track l.id; let li = $index) {
+      <div
+         class="lyw"
+         [class.ly-dragging]="s.lyDrag$()?.from === li"
+         [class.ly-copy]="s.lyDrag$()?.from === li && s.lyDrag$()?.alt"
+         [class.ly-before]="s.lyDrag$()?.to === li && s.lyDrag$()?.from !== li"
+         [class.ly-after]="s.lyDrag$()?.to === s.designLayouts$().length && li === s.designLayouts$().length - 1"
+         (pointerdown)="s.slideLayoutEditing.onLayoutDown(li, $event)"
+      >
+         @if (s.canEdit$() && !l.slide?.defaultLayout) {
+            <button
+               class="rec-edit del ly-del"
+               type="button"
+               title="Delete layout and its items"
+               aria-label="Delete layout"
+               (click)="s.command.emit({ kind: 'delete', id: l.id })"
+            >
+               <dd-icon name="delete" />
+            </button>
+         }
+         <button
+            class="ly"
+            type="button"
+            [class.on]="l.id === s.active_$()"
+            (click)="!s.lySuppress && s.command.emit({ kind: 'focus', id: l.id })"
+         >
+            <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
+               @if (s.thumbs$() | at: l.id; as src) {
+                  <img alt="" draggable="false" [src]="src" />
+               }
+            </span>
+            <span class="meta"
+               ><span class="nm">{{ s.layoutNames$() | at: l.id }}</span
+               ><span
+                  >{{ (s.slideLayoutViews.layoutUsage$() | at: l.id) ?? 0 }} slide{{
+                     ((s.slideLayoutViews.layoutUsage$() | at: l.id) ?? 0) === 1 ? '' : 's'
+                  }}</span
+               ></span
+            >
+         </button>
+      </div>
+   }
+</div>
+@if (s.canEdit$()) {
+   <div class="f-foot col">
+      <button class="f-tb outline" type="button" (click)="s.command.emit({ kind: 'add', layout: true })">
+         + Empty layout
+      </button>
+      @if (s.slideLayoutViews.missingKinds$().length) {
+         <button
+            class="f-tb outline"
+            type="button"
+            (click)="s.slideLayoutEditing.addStandard(s.slideLayoutViews.missingKinds$())"
+         >
+            + Standard layouts{{
+               s.slideLayoutViews.missingKinds$().length < s.standardKinds.length
+                  ? ' (' + s.slideLayoutViews.missingKinds$().length + ' missing)'
+                  : ''
+            }}
+         </button>
+      }
+   </div>
+}

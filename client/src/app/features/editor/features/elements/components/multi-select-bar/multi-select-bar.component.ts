@@ -20,12 +20,12 @@ export type ArrangeOp = 'front' | 'forward' | 'backward' | 'back';
    styleUrl: './multi-select-bar.component.scss',
 })
 export class MultiSelectBarComponent {
-   readonly count = input.required<number>();
-   readonly canDistribute = input(false);
+   readonly count$ = input.required<number>({ alias: 'count' });
+   readonly canDistribute$ = input(false, { alias: 'canDistribute' });
    /** The selection is exactly one (not entered) group: offer Ungroup. */
-   readonly grouped = input(false);
+   readonly grouped$ = input(false, { alias: 'grouped' });
    /** Some selected items take a fill / stroke (shapes, lines). */
-   readonly canStyle = input(false);
+   readonly canStyle$ = input(false, { alias: 'canStyle' });
 
    readonly align = output<AlignAction>();
    readonly group = output<void>();

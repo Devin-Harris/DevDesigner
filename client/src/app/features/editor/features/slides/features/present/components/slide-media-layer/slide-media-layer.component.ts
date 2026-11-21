@@ -4,6 +4,8 @@ import type { SlideMedia } from '../../../../services/slide-render.service';
 import { MediaVideoComponent } from '../../../../../../shared/components/media-video/media-video.component';
 import { EmbedFrameComponent } from '../../../../../../shared/components/embed-frame/embed-frame.component';
 import { EmbedFramesService } from '../../../../../../services/embed-frames.service';
+import { CallPipe, AtPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
+import { ImagePosterPipe, ImageUrlPipe } from '../../../../../../../../features/editor/shared/pipes/element-image.pipes';
 
 /**
  * The live GIFs and videos of the slide being presented, laid over the slide
@@ -15,7 +17,7 @@ import { EmbedFramesService } from '../../../../../../services/embed-frames.serv
 @Component({
    selector: 'dd-slide-media-layer',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [MediaVideoComponent, EmbedFrameComponent],
+   imports: [AtPipe, ImagePosterPipe, ImageUrlPipe, CallPipe, MediaVideoComponent, EmbedFrameComponent],
    templateUrl: './slide-media-layer.component.html',
    styleUrl: './slide-media-layer.component.scss',
 })
@@ -33,11 +35,11 @@ export class SlideMediaLayerComponent {
    private readonly started = signal<ReadonlyMap<string, number>>(new Map());
    private runs = 0;
 
-   protected readonly aspect = computed(() => String(this.slideWidth() / Math.max(1, this.slideHeight())));
-   protected readonly items = computed(() => {
+   protected readonly aspect$ = computed(() => String(this.slideWidth() / Math.max(1, this.slideHeight())));
+   protected readonly items$ = computed(() => {
       const hidden = this.hidden();
       // A viewer who turned live frames off sees the placeholder card in the slide picture.
-      const blocked = this.embeds.blocked();
+      const blocked = this.embeds.blocked$();
       return this.media().filter((m) => !hidden?.has(m.id) && !(blocked && m.kind === 'embed'));
    });
 
@@ -46,19 +48,18 @@ export class SlideMediaLayerComponent {
    }
 
    /** The GIF's file while it plays (a fresh URL fragment restarts it), else its first frame. */
-   protected gifSrc(m: SlideMedia): string | null {
-      const url = this.images.url(m.fileId);
-      const poster = this.images.posterUrl(m.fileId);
-      const mode = this.playbackOf(m);
-      if (!url) {
-         return null;
-      }
-      if (mode === 'auto') {
-         return url;
-      }
-      const run = mode === 'hover' ? (this.hovered() === m.id ? 0 : undefined) : this.started().get(m.id);
-      return run === undefined ? (poster ?? url) : `${url}#${run}`;
-   }
+   /** GIF source: plays (restarting by fragment) or shows its first frame, by playback mode. */
+   protected readonly gifSrc$ = computed(() => {
+      const hovered = this.hovered();
+      const started = this.started();
+      return (m: SlideMedia, url: string | null, poster: string | null): string | null => {
+         const mode = this.playbackOf(m);
+         if (!url) return null;
+         if (mode === 'auto') return url;
+         const run = mode === 'hover' ? (hovered === m.id ? 0 : undefined) : started.get(m.id);
+         return run === undefined ? (poster ?? url) : `${url}#${run}`;
+      };
+   });
 
    protected frame(m: SlideMedia): { left: number; top: number; width: number; height: number } {
       const v = m.view;

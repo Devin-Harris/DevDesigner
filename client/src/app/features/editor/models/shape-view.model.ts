@@ -5,6 +5,8 @@ export interface TextLineView {
    text: string;
    x: number;
    y: number;
+   /** The paragraph (line of the source text) this line belongs to; slide animations reveal paragraphs one by one. */
+   para?: number;
    /** Rich text: the styled pieces of this line (absent = the line is one plain run). */
    spans?: TextSpanView[];
 }

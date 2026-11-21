@@ -23,7 +23,7 @@ export class SlideshowService {
    private presentStartedAt: number | null = null;
 
    /** The running presentation (or a one-transition preview), or null when not presenting. */
-   readonly presentation = signal<{
+   readonly presentation$ = signal<{
       slides: RenderedSlide[];
       start: number;
       preview: boolean;
@@ -32,11 +32,11 @@ export class SlideshowService {
    } | null>(null);
 
    /** Other participants who are presenting right now (offer to follow them). */
-   readonly presenters = this.realtime.presenters;
+   readonly presenters$ = this.realtime.presenters;
 
    /** Per presentation: the last slide (not a layout) shown, so editing a layout keeps your place. */
    /** The last ordinary (non-layout) slide each deck showed, kept while a layout is shown. */
-   readonly lastSlides = linkedSignal<
+   readonly lastSlides$ = linkedSignal<
       { shown: ReadonlyMap<string, string>; frames: readonly CanvasElementModel[] },
       ReadonlyMap<string, string>
    >({
@@ -56,13 +56,10 @@ export class SlideshowService {
       },
    });
 
-   lastSlideOf(name: string): string | null {
-      return this.lastSlides().get(name) ?? null;
-   }
 
    /** Watch another participant's presentation, staying on their slide and step. */
    async followPresenter(participantId: string): Promise<void> {
-      const p = this.realtime.participants().find((x) => x.id === participantId);
+      const p = this.realtime.participants$().find((x) => x.id === participantId);
       // Watch the presentation the presenter is in (the one their slide belongs to).
       const theirs = this.store.slideFrames().find((f) => f.id === p?.presenting?.frameId);
       const slides = (
@@ -76,7 +73,7 @@ export class SlideshowService {
          slides.findIndex((f) => f.id === p?.presenting?.frameId)
       );
       const rendered = await this.slideRender.render(slides, { fonts: true, liveEmbeds: true });
-      this.presentation.set({ slides: rendered, start, preview: false, follow: participantId });
+      this.presentation$.set({ slides: rendered, start, preview: false, follow: participantId });
    }
 
    /**
@@ -93,9 +90,9 @@ export class SlideshowService {
 
    /** Leave the presenter, selecting the slide it was on (not for one-transition previews). */
    onPresentationClosed(frameId: string | null): void {
-      const shown = this.presentation();
+      const shown = this.presentation$();
       const preview = shown?.preview;
-      this.presentation.set(null);
+      this.presentation$.set(null);
       if (this.presentStartedAt !== null) {
          this.telemetry.track('client.present', {
             action: 'end',
@@ -183,12 +180,12 @@ export class SlideshowService {
       }
       try {
          const rendered = await this.slideRender.render(slides, { fonts: true, liveEmbeds: true });
-         this.presentation.set({ slides: rendered, start, preview: false, follow: null });
+         this.presentation$.set({ slides: rendered, start, preview: false, follow: null });
          this.presentStartedAt = Date.now();
          this.telemetry.track('client.present', {
             action: 'start',
             slides: rendered.length,
-            solo: this.realtime.participants().length <= 1,
+            solo: this.realtime.participants$().length <= 1,
          });
       } catch (err) {
          this.snackBar.open(
@@ -210,6 +207,6 @@ export class SlideshowService {
          return;
       }
       const rendered = await this.slideRender.render([frames[i - 1], frames[i]]);
-      this.presentation.set({ slides: rendered, start: 0, preview: true, follow: null });
+      this.presentation$.set({ slides: rendered, start: 0, preview: true, follow: null });
    }
 }

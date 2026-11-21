@@ -84,7 +84,7 @@
    height: 28px;
    border-radius: 8px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    --dd-icon-size: 18px;
 }
 
@@ -168,10 +168,10 @@
    &.primary {
       background: var(--dd-primary);
       border-color: var(--dd-primary);
-      color: #fff;
+      color: var(--dd-white);
    }
    &.primary:hover {
-      background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+      background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
    }
 }
 
@@ -187,7 +187,7 @@
    width: 28px;
    height: 28px;
    border-radius: 50%;
-   color: #fff;
+   color: var(--dd-white);
    font-size: 12px;
    font-weight: 600;
    border: 2px solid var(--dd-surface);
@@ -392,7 +392,7 @@ button.avatars {
 }
 
 .avatar.followed {
-   box-shadow: 0 0 0 2px #0f8f86;
+   box-shadow: 0 0 0 2px var(--dd-teal-600);
 }
 
 .people-menu {
@@ -440,7 +440,7 @@ button.avatars {
    }
 
    &.on {
-      color: #0f8f86;
+      color: var(--dd-teal-600);
       font-weight: 600;
    }
 }

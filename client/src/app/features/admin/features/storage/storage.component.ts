@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import type { AdminCount } from '@devdesigner/shared';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import type { AdminCount, AdminHygienePreviewResponse } from '@devdesigner/shared';
 import { BarListComponent } from '../../components/bar-list/bar-list.component';
 import { DataTableComponent } from '../../components/data-table/data-table.component';
 import { KpiTileComponent } from '../../components/kpi-tile/kpi-tile.component';
@@ -7,6 +8,7 @@ import { StatBarComponent } from '../../components/stat-bar/stat-bar.component';
 import { humanize } from '../../helpers/admin-format.helpers';
 import type { BarItem, StatSegment, TableColumn, TableRow } from '../../models/admin.models';
 import { AdminFormatPipe } from '../../pipes/admin-format.pipe';
+import { AdminApiService } from '../../services/admin-api.service';
 import { AdminStore } from '../../state/admin/admin.store';
 
 const LARGEST_COLUMNS: TableColumn[] = [
@@ -31,6 +33,12 @@ const segments = (counts: readonly AdminCount[]): StatSegment[] =>
 })
 export class StorageComponent {
    protected readonly store = inject(AdminStore);
+   private readonly adminApi = inject(AdminApiService);
+
+   /** Cleanup dry run (POST /admin/hygiene/preview); only fetched on request. */
+   protected readonly hygiene$ = signal<AdminHygienePreviewResponse | null>(null);
+   protected readonly hygieneLoading$ = signal(false);
+   protected readonly hygieneError$ = signal<string | null>(null);
 
    protected readonly largestColumns = LARGEST_COLUMNS;
    protected readonly view$ = this.store.storageView;
@@ -100,5 +108,17 @@ export class StorageComponent {
 
    constructor() {
       this.store.connect('storage');
+   }
+
+   protected async runHygienePreview(): Promise<void> {
+      this.hygieneLoading$.set(true);
+      this.hygieneError$.set(null);
+      try {
+         this.hygiene$.set(await firstValueFrom(this.adminApi.hygienePreview()));
+      } catch {
+         this.hygieneError$.set('Could not compute the cleanup preview.');
+      } finally {
+         this.hygieneLoading$.set(false);
+      }
    }
 }

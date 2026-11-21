@@ -60,6 +60,7 @@ export function assertKnown(ids: unknown[], known: ReadonlyArray<{ id: string }>
 
 /** Shallow patch with the API's semantics: `null` clears a field, `undefined` leaves it. */
 export function patch<T extends object>(target: T, dto: Dict, skip: string[] = ['id']): T {
+   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
    const out = { ...target } as Dict;
    for (const [k, v] of Object.entries(dto)) {
       if (skip.includes(k) || v === undefined) continue;

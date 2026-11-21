@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { type SequenceMessageModel } from '@devdesigner/shared';
-import { ProjectStore } from '../../../../state/project/project.store';
+import { SequenceEdits } from '../../services/sequence-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { InputComponent } from '../../../../../../shared/ui/components/input/input.component';
@@ -21,28 +21,28 @@ import { SelectComponent, type SelectOption } from '../../../../../../shared/ui/
    styleUrl: './sequence-inspector.component.scss',
 })
 export class SequenceInspectorComponent {
-   protected readonly store = inject(ProjectStore);
+   protected readonly edits = inject(SequenceEdits);
 
-   protected readonly lifeline = computed(() => this.store.selectedLifeline());
-   protected readonly message = computed(() => this.store.selectedMessage());
+   protected readonly lifeline$ = computed(() => this.edits.selectedLifeline());
+   protected readonly message$ = computed(() => this.edits.selectedMessage());
    /** The diagram the current selection belongs to (box, or the selected part's). */
    protected readonly activeDiagram = computed(() => {
-      const direct = this.store.selectedDiagram();
+      const direct = this.edits.selectedDiagram();
       if (direct) return direct;
-      const diagramId = this.lifeline()?.diagramId ?? this.message()?.diagramId;
-      return diagramId ? (this.store.sequenceDiagrams().find((d) => d.id === diagramId) ?? null) : null;
+      const diagramId = this.lifeline$()?.diagramId ?? this.message$()?.diagramId;
+      return diagramId ? (this.edits.sequenceDiagrams().find((d) => d.id === diagramId) ?? null) : null;
    });
    /** The whole diagram box is selected (no single lifeline/message). */
-   protected readonly diagram = computed(() => this.store.selectedDiagram());
-   protected readonly participantCount = computed(
-      () => this.store.lifelines().filter((l) => l.diagramId === this.activeDiagram()?.id).length
+   protected readonly diagram$ = computed(() => this.edits.selectedDiagram());
+   protected readonly participantCount$ = computed(
+      () => this.edits.lifelines().filter((l) => l.diagramId === this.activeDiagram()?.id).length
    );
-   protected readonly messageCount = computed(
-      () => this.store.sequenceMessages().filter((m) => m.diagramId === this.activeDiagram()?.id).length
+   protected readonly messageCount$ = computed(
+      () => this.edits.sequenceMessages().filter((m) => m.diagramId === this.activeDiagram()?.id).length
    );
 
-   protected readonly lifelineOptions = computed<SelectOption[]>(() =>
-      this.store
+   protected readonly lifelineOptions$ = computed<SelectOption[]>(() =>
+      this.edits
          .lifelines()
          .filter((l) => l.diagramId === this.activeDiagram()?.id)
          .map((l) => ({ value: l.id, label: l.label }))
@@ -50,93 +50,93 @@ export class SequenceInspectorComponent {
 
    // ---- Lifeline ----
    protected setLabel(label: string | number): void {
-      const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { label: String(label) });
+      const l = this.lifeline$();
+      if (l) void this.edits.updateLifeline(l.id, { label: String(label) });
    }
    protected setColor(color: string): void {
-      const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { color });
+      const l = this.lifeline$();
+      if (l) void this.edits.updateLifeline(l.id, { color });
    }
    protected setBackground(backgroundColor: string): void {
       const d = this.activeDiagram();
-      if (d) void this.store.updateSequenceConfig(d.id, { backgroundColor });
+      if (d) void this.edits.updateSequenceConfig(d.id, { backgroundColor });
    }
    protected setBorder(borderColor: string): void {
       const d = this.activeDiagram();
-      if (d) void this.store.updateSequenceConfig(d.id, { borderColor });
+      if (d) void this.edits.updateSequenceConfig(d.id, { borderColor });
    }
    protected setStrokeColor(strokeColor: string): void {
-      const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { strokeColor });
+      const l = this.lifeline$();
+      if (l) void this.edits.updateLifeline(l.id, { strokeColor });
    }
    protected setTextColor(textColor: string): void {
-      const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { textColor });
+      const l = this.lifeline$();
+      if (l) void this.edits.updateLifeline(l.id, { textColor });
    }
    protected setLineColor(lineColor: string): void {
-      const l = this.lifeline();
-      if (l) void this.store.updateLifeline(l.id, { lineColor });
+      const l = this.lifeline$();
+      if (l) void this.edits.updateLifeline(l.id, { lineColor });
    }
    protected setWidth(width: string | number): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       const w = Math.round(Number(width));
       if (l && Number.isFinite(w)) {
-         void this.store.updateLifeline(l.id, { width: Math.min(600, Math.max(60, w)) });
+         void this.edits.updateLifeline(l.id, { width: Math.min(600, Math.max(60, w)) });
       }
    }
    protected nudgeWidth(delta: number): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) this.setWidth(l.width + delta);
    }
    protected deleteLifeline(): void {
-      const l = this.lifeline();
-      if (l) void this.store.deleteLifeline(l.id);
+      const l = this.lifeline$();
+      if (l) void this.edits.deleteLifeline(l.id);
    }
    protected addParticipant(side: 'left' | 'right' = 'right'): void {
       const d = this.activeDiagram();
-      if (d) void this.store.addLifeline(d.id, side === 'left' ? 0 : Infinity);
+      if (d) void this.edits.addLifeline(d.id, side === 'left' ? 0 : Infinity);
    }
 
    // ---- Message ----
    protected setFrom(id: string): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { fromLifelineId: id });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { fromLifelineId: id });
    }
    protected setTo(id: string): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { toLifelineId: id });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { toLifelineId: id });
    }
    protected setMsgLabel(label: string | number): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { label: String(label) });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { label: String(label) });
    }
    protected setMsgColor(color: string): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { color });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { color });
    }
    protected setStyle(style: SequenceMessageModel['style']): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { style });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { style });
    }
    protected toggleWrap(): void {
-      const m = this.message();
-      if (m) void this.store.updateMessage(m.id, { wrap: m.wrap === false });
+      const m = this.message$();
+      if (m) void this.edits.updateMessage(m.id, { wrap: m.wrap === false });
    }
    protected flipDirection(): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) {
-         void this.store.updateMessage(m.id, {
+         void this.edits.updateMessage(m.id, {
             direction: m.direction === 'forward' ? 'reverse' : 'forward',
          });
       }
    }
    protected deleteMessage(): void {
-      const m = this.message();
-      if (m) void this.store.deleteMessage(m.id);
+      const m = this.message$();
+      if (m) void this.edits.deleteMessage(m.id);
    }
 
    /** Re-stack the selected diagram against drawing elements. */
    protected arrange(op: 'front' | 'back'): void {
-      this.store.arrangeSelection(op);
+      this.edits.arrangeSelection(op);
    }
 }

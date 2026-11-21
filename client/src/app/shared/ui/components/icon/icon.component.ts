@@ -23,7 +23,7 @@ export class IconComponent {
    /** Icon key from the registry (see icon-registry.ts). */
    readonly name = input.required<string>();
 
-   protected readonly svg = computed<SafeHtml>(() => {
+   protected readonly svg$ = computed<SafeHtml>(() => {
       const inner = ICON_PATHS[this.name()] ?? '';
       const markup =
          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ` +

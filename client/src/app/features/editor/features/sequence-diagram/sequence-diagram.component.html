@@ -1,9 +1,9 @@
-@if (lls().length) {
+@if (lls$().length) {
    <!-- Bounding box: select / move / (when selected) resize this diagram. -->
-   @if (box(); as b) {
+   @if (box$(); as b) {
       <div
          class="seq-box"
-         [class.selected]="sequenceSelected()"
+         [class.selected]="sequenceSelected$()"
          [style.left.px]="b.left"
          [style.top.px]="b.top"
          [style.width.px]="b.width"
@@ -13,8 +13,8 @@
    }
 
    <!-- Title: top-left of the box, in its top padding. Double-click to edit. -->
-   @if (box(); as b) {
-      @if (editingTitle()) {
+   @if (box$(); as b) {
+      @if (editingTitle$()) {
          <input
             class="seq-title-edit"
             ddAutofocus
@@ -23,14 +23,14 @@
             [style.left.px]="b.left + 10"
             [style.top.px]="b.top + 4"
             [style.width.px]="b.width - 20"
-            [value]="editValue()"
+            [value]="editValue$()"
             (pointerdown)="$event.stopPropagation()"
             (input)="onEditInput($any($event.target).value)"
             (keydown.enter)="commitTitle()"
-            (keydown.escape)="editingTitle.set(false)"
+            (keydown.escape)="editingTitle$.set(false)"
             (blur)="commitTitle()"
          />
-      } @else if (title()) {
+      } @else if (title$()) {
          <div
             class="seq-title"
             [style.left.px]="b.left + 14"
@@ -39,9 +39,9 @@
             (pointerdown)="onBoxDown($event)"
             (dblclick)="startEditTitle($event)"
          >
-            {{ title() }}
+            {{ title$() }}
          </div>
-      } @else if (canEdit() && sequenceSelected()) {
+      } @else if (canEdit$() && sequenceSelected$()) {
          <div
             class="seq-title placeholder"
             [style.left.px]="b.left + 14"
@@ -54,7 +54,7 @@
       }
    }
 
-   @if (marqueeRect(); as q) {
+   @if (marqueeRect$(); as q) {
       <div
          class="seq-marquee"
          [style.left.px]="q.left"
@@ -65,62 +65,62 @@
    }
 
    <!-- Lifeline spines (visual) -->
-   @for (l of lls(); track l.id) {
+   @for (l of lls$(); track l.id) {
       <div
          class="spine"
-         [style.--line-color]="css(l.lineColor)"
+         [style.--line-color]="(css$() | call: l.lineColor)"
          [style.left.px]="l.x"
-         [style.top.px]="headerBottom()"
-         [style.height.px]="spineEnd() - headerBottom()"
+         [style.top.px]="headerBottom$()"
+         [style.height.px]="spineEnd$() - headerBottom$()"
       ></div>
 
       <!-- Connect-drag source: drag from anywhere on the spine to another spine. -->
-      @if (canEdit()) {
+      @if (canEdit$()) {
          <div
             class="spine-hit"
             title="Drag to connect"
             [style.left.px]="l.x - 8"
-            [style.top.px]="headerBottom()"
-            [style.height.px]="spineEnd() - headerBottom()"
+            [style.top.px]="headerBottom$()"
+            [style.height.px]="spineEnd$() - headerBottom$()"
             (pointerdown)="onConnectDown($event, l)"
          ></div>
       }
    }
 
    <!-- Participant header boxes -->
-   @for (l of lls(); track l.id) {
+   @for (l of lls$(); track l.id) {
       <div
          class="ll-head"
-         [class.selected]="selectedLifelineIds().has(l.id)"
+         [class.selected]="(selectedLifelineIds$() | has: l.id)"
          [class.colored]="!!l.color"
-         [class.light]="isLight(l.color)"
-         [class.swatch]="isSwatch(l.color)"
-         [style.left.px]="headerLeft(l)"
-         [style.top.px]="originY()"
+         [class.light]="(isLight$() | call: l.color)"
+         [class.swatch]="(isSwatch$() | call: l.color)"
+         [style.left.px]="(headerLeft | call: l)"
+         [style.top.px]="originY$()"
          [style.width.px]="l.width"
-         [style.height.px]="headerH()"
-         [style.--ll-color]="css(l.color)"
-         [style.border-color]="css(l.strokeColor)"
-         [style.color]="css(l.textColor)"
+         [style.height.px]="headerH$()"
+         [style.--ll-color]="(css$() | call: l.color)"
+         [style.border-color]="(css$() | call: l.strokeColor)"
+         [style.color]="(css$() | call: l.textColor)"
          (pointerdown)="onHeaderDown($event, l)"
          (dblclick)="startEditLifeline($event, l)"
       >
-         @if (editingLifelineId() === l.id) {
+         @if (editingLifelineId$() === l.id) {
             <input
                class="ll-edit"
                ddAutofocus
                maxlength="120"
-               [value]="editValue()"
+               [value]="editValue$()"
                (pointerdown)="$event.stopPropagation()"
                (input)="onEditInput($any($event.target).value)"
                (keydown.enter)="commitLifeline(l)"
-               (keydown.escape)="editingLifelineId.set(null)"
+               (keydown.escape)="editingLifelineId$.set(null)"
                (blur)="commitLifeline(l)"
             />
          } @else {
             <span class="ll-label">{{ l.label }}</span>
          }
-         @if (canEdit() && selectedLifelineIds().has(l.id) && editingLifelineId() !== l.id) {
+         @if (canEdit$() && (selectedLifelineIds$() | has: l.id) && editingLifelineId$() !== l.id) {
             <div class="ll-width-handle left" title="Drag to resize" (pointerdown)="onWidthDown($event, l, -1)"></div>
             <div class="ll-width-handle right" title="Drag to resize" (pointerdown)="onWidthDown($event, l, 1)"></div>
          }
@@ -128,13 +128,13 @@
    }
 
    <!-- Messages (snapped rows; draggable vertically; rows may be shared). -->
-   @for (m of msgViews(); track m.id) {
+   @for (m of msgViews$(); track m.id) {
       @if (m.isBreak) {
          <!-- Break: a label-only divider across the diagram, no arrows. -->
          <div
             class="break-line"
             [class.selected]="m.selected"
-            [style.--msg-color]="css(m.color)"
+            [style.--msg-color]="(css$() | call: m.color)"
             [style.left.px]="m.spanLeft"
             [style.top.px]="m.y"
             [style.width.px]="m.spanWidth"
@@ -148,19 +148,19 @@
             (dblclick)="startEditMessage($event, m)"
          ></div>
          <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y">
-            @if (editingMessageId() === m.id) {
+            @if (editingMessageId$() === m.id) {
                <textarea
                   class="msg-edit break"
                   ddAutofocus
                   maxlength="200"
                   [class.wrap]="m.editMaxPx !== null"
                   [style.max-width.px]="m.editMaxPx"
-                  [rows]="editRows()"
-                  [value]="editValue()"
+                  [rows]="editRows$()"
+                  [value]="editValue$()"
                   (pointerdown)="$event.stopPropagation()"
                   (input)="onEditInput($any($event.target).value)"
                   (keydown.enter)="onMessageEnter($event, m)"
-                  (keydown.escape)="editingMessageId.set(null)"
+                  (keydown.escape)="editingMessageId$.set(null)"
                   (blur)="commitMessage(m)"
                ></textarea>
             } @else if (m.label) {
@@ -178,7 +178,7 @@
             class="msg-line"
             [class.dashed]="m.dashed"
             [class.selected]="m.selected"
-            [style.--msg-color]="css(m.color)"
+            [style.--msg-color]="(css$() | call: m.color)"
             [style.left.px]="m.leftX"
             [style.top.px]="m.y"
             [style.width.px]="m.width"
@@ -189,9 +189,9 @@
             viewBox="0 0 10 10"
             [class.dashed]="m.dashed"
             [class.selected]="m.selected"
-            [style.--msg-color]="css(m.color)"
-            [style.left.px]="m.headX - (m.dirRight ? 9 : 1) * k()"
-            [style.top.px]="m.y - 5 * k()"
+            [style.--msg-color]="(css$() | call: m.color)"
+            [style.left.px]="m.headX - (m.dirRight ? 9 : 1) * k$()"
+            [style.top.px]="m.y - 5 * k$()"
          >
             @if (m.dirRight) {
                <path d="M1 1 L9 5 L1 9" />
@@ -210,19 +210,19 @@
          ></div>
 
          <div class="msg-label-wrap" [style.left.px]="m.mid" [style.top.px]="m.y">
-            @if (editingMessageId() === m.id) {
+            @if (editingMessageId$() === m.id) {
                <textarea
                   class="msg-edit"
                   ddAutofocus
                   maxlength="200"
                   [class.wrap]="m.editMaxPx !== null"
                   [style.max-width.px]="m.editMaxPx"
-                  [rows]="editRows()"
-                  [value]="editValue()"
+                  [rows]="editRows$()"
+                  [value]="editValue$()"
                   (pointerdown)="$event.stopPropagation()"
                   (input)="onEditInput($any($event.target).value)"
                   (keydown.enter)="onMessageEnter($event, m)"
-                  (keydown.escape)="editingMessageId.set(null)"
+                  (keydown.escape)="editingMessageId$.set(null)"
                   (blur)="commitMessage(m)"
                ></textarea>
             } @else if (m.label) {
@@ -237,7 +237,7 @@
          </div>
 
          <!-- Endpoint handles (selected message): drag an end to another participant. -->
-         @if (m.selected && singleMessage() && canEdit()) {
+         @if (m.selected && singleMessage$() && canEdit$()) {
             <div
                class="msg-endpoint"
                title="Drag to move the start"
@@ -257,15 +257,15 @@
    }
 
    <!-- Add-participant buttons on the left/right edges, shown on hover (editor-only; never exported). -->
-   @if (canEdit() && showAddButtons()) {
-      @for (s of addSlots(); track s.key) {
+   @if (canEdit$() && showAddButtons$()) {
+      @for (s of addSlots$(); track s.key) {
          <button
             class="add-ll-btn"
             type="button"
             title="Add participant here"
             aria-label="Add participant here"
             [style.left.px]="s.x"
-            [style.top.px]="originY() + headerH() / 2"
+            [style.top.px]="originY$() + headerH$() / 2"
             (pointerdown)="$event.stopPropagation()"
             (click)="addParticipant($event, s.at)"
          >
@@ -276,19 +276,32 @@
    }
 
    <!-- Resize handles on every side/corner (only when this diagram is selected). -->
-   @if (canEdit() && soleSelected()) {
-      @for (h of handles(); track h.id) {
+   @if (canEdit$() && soleSelected$()) {
+      @for (h of handles$(); track h.id) {
          <div
             class="seq-handle {{ h.id }}"
+            title="Drag to resize (Alt: respace messages, Ctrl: scale). Double-click: fit to content"
             [style.left.px]="h.x"
             [style.top.px]="h.y"
             (pointerdown)="onResizeDown($event, h.id)"
+            (dblclick)="onHandleDblClick($event, h.id)"
+         ></div>
+      }
+      <!-- Row-gap bands (invisible until hovered): drag to change the spacing between messages. -->
+      @for (g of gaps$(); track g.row) {
+         <div
+            class="seq-gap"
+            title="Drag to change message spacing"
+            [style.left.px]="g.x"
+            [style.top.px]="g.y"
+            [style.width.px]="g.w"
+            (pointerdown)="onGapDown($event, g.row)"
          ></div>
       }
    }
 
    <!-- Endpoint reattach preview: the arrow following the dragged end. -->
-   @if (endpointPreview(); as ep) {
+   @if (endpointPreview$(); as ep) {
       <div class="preview-line" [style.left.px]="ep.leftX" [style.top.px]="ep.y" [style.width.px]="ep.width"></div>
       <svg
          class="preview-head"
@@ -305,13 +318,13 @@
    }
 
    <!-- Live draw indicator: shows the arrow at the row it will occupy. -->
-   @if (connectPreview(); as p) {
+   @if (connectPreview$(); as p) {
       <div
          class="preview-line"
          [class.invalid]="!p.valid"
          [style.left.px]="p.dirRight ? p.fromX : p.toX"
          [style.top.px]="p.y"
-         [style.width.px]="abs(p.toX - p.fromX)"
+         [style.width.px]="(abs | call: p.toX - p.fromX)"
       ></div>
       @if (p.valid) {
          <svg

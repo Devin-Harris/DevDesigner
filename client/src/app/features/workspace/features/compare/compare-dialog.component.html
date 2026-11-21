@@ -11,19 +11,19 @@
       <button class="icon-btn" type="button" aria-label="Close" (click)="close()"><dd-icon name="close" /></button>
    </header>
 
-   @if (loading()) {
+   @if (loading$()) {
       <div class="state">Loading both versions…</div>
-   } @else if (!panes().length) {
+   } @else if (!panes$().length) {
       <div class="state">Could not load both versions to compare. You can still choose one below.</div>
    } @else {
       <div class="body">
          <div class="panes">
-            @for (pane of panes(); track pane.title) {
+            @for (pane of panes$(); track pane.title) {
                <section class="pane">
                   <h3 class="pane-title">{{ pane.title }}</h3>
                   <div class="stage">
-                     <svg class="drawing" preserveAspectRatio="xMidYMid meet" [attr.viewBox]="viewBox()">
-                        <foreignObject x="0" y="0" [attr.width]="frameSize().width" [attr.height]="frameSize().height">
+                     <svg class="drawing" preserveAspectRatio="xMidYMid meet" [attr.viewBox]="viewBox$()">
+                        <foreignObject x="0" y="0" [attr.width]="frameSize$().width" [attr.height]="frameSize$().height">
                            <img class="drawing-img" alt="" [src]="pane.image" />
                         </foreignObject>
                         @for (m of pane.marks; track m.key) {
@@ -33,11 +33,11 @@
                               [class.mine]="m.side === 'mine'"
                               [class.server]="m.side === 'server'"
                               [class.changed]="m.side === 'changed'"
-                              [class.focus]="focus() === m.key"
-                              [attr.height]="rect(m.box).height"
-                              [attr.width]="rect(m.box).width"
-                              [attr.x]="rect(m.box).x"
-                              [attr.y]="rect(m.box).y"
+                              [class.focus]="focus$() === m.key"
+                              [attr.height]="(rect$() | call: m.box).height"
+                              [attr.width]="(rect$() | call: m.box).width"
+                              [attr.x]="(rect$() | call: m.box).x"
+                              [attr.y]="(rect$() | call: m.box).y"
                            />
                         }
                      </svg>
@@ -48,25 +48,25 @@
 
          <aside class="list">
             <div class="list-head">
-               {{ entries().length }} {{ entries().length === 1 ? 'difference' : 'differences' }}
-               @if (focus()) {
-                  <button class="link" type="button" (click)="focus.set(null)">Show all</button>
+               {{ entries$().length }} {{ entries$().length === 1 ? 'difference' : 'differences' }}
+               @if (focus$()) {
+                  <button class="link" type="button" (click)="focus$.set(null)">Show all</button>
                }
             </div>
-            @for (e of entries(); track e.key) {
-               <button class="entry" type="button" [class.on]="focus() === e.key" (click)="toggleFocus(e.key)">
+            @for (e of entries$(); track e.key) {
+               <button class="entry" type="button" [class.on]="focus$() === e.key" (click)="toggleFocus(e.key)">
                   <span class="dot" [class]="e.side"></span>
                   <span class="entry-text">
                      <span class="entry-label">{{ e.label }}</span>
-                     <span class="entry-details">{{ e.details.join(' · ') }}</span>
-                     @if (conflictKeys().has(e.key)) {
+                     <span class="entry-details">{{ (e.details | join: ' · ') }}</span>
+                     @if ((conflictKeys$() | has: e.key)) {
                         <span class="pick" role="group" aria-label="Which version to keep">
                            <span class="pick-label">Changed on both, keep:</span>
                            <span
                               class="pick-btn"
                               role="button"
                               tabindex="0"
-                              [class.on]="choiceOf(e.key) === 'mine'"
+                              [class.on]="(choices$()[e.key] ?? 'server') === 'mine'"
                               (click)="setChoice(e.key, 'mine', $event)"
                               (keydown.enter)="setChoice(e.key, 'mine', $event)"
                               >Mine</span
@@ -75,19 +75,19 @@
                               class="pick-btn"
                               role="button"
                               tabindex="0"
-                              [class.on]="choiceOf(e.key) === 'server'"
+                              [class.on]="(choices$()[e.key] ?? 'server') === 'server'"
                               (click)="setChoice(e.key, 'server', $event)"
                               (keydown.enter)="setChoice(e.key, 'server', $event)"
                               >Server</span
                            >
                         </span>
-                     } @else if (canMerge()) {
+                     } @else if (canMerge$()) {
                         <span class="auto">Merged automatically</span>
                      }
                   </span>
                </button>
             }
-            @for (c of otherConflicts(); track c.key) {
+            @for (c of otherConflicts$(); track c.key) {
                <div class="entry static">
                   <span class="dot changed"></span>
                   <span class="entry-text">
@@ -97,7 +97,7 @@
                         <button
                            class="pick-btn"
                            type="button"
-                           [class.on]="choiceOf(c.key) === 'mine'"
+                           [class.on]="(choices$()[c.key] ?? 'server') === 'mine'"
                            (click)="setChoice(c.key, 'mine')"
                         >
                            Mine
@@ -105,7 +105,7 @@
                         <button
                            class="pick-btn"
                            type="button"
-                           [class.on]="choiceOf(c.key) === 'server'"
+                           [class.on]="(choices$()[c.key] ?? 'server') === 'server'"
                            (click)="setChoice(c.key, 'server')"
                         >
                            Server
@@ -114,7 +114,7 @@
                   </span>
                </div>
             }
-            @if (!entries().length && !otherConflicts().length) {
+            @if (!entries$().length && !otherConflicts$().length) {
                <p class="muted">
                   The drawings match. Only details that are not drawn differ (for example the project name or theme).
                </p>
@@ -124,28 +124,28 @@
    }
 
    <footer class="foot">
-      @if (error()) {
-         <span class="err">{{ error() }}</span>
+      @if (error$()) {
+         <span class="err">{{ error$() }}</span>
       }
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="busy() || loading()" (click)="choose('server')">
+      <button class="btn" type="button" [disabled]="busy$() || loading$()" (click)="choose('server')">
          Use server version
       </button>
       <button
          class="btn"
          type="button"
-         [class.primary]="!canMerge()"
-         [disabled]="busy() || loading()"
+         [class.primary]="!canMerge$()"
+         [disabled]="busy$() || loading$()"
          (click)="choose('mine')"
       >
          Keep mine
       </button>
-      @if (canMerge()) {
+      @if (canMerge$()) {
          <button
             class="btn primary"
             type="button"
             title="Keep both sides' changes; for items changed on both, use the picks in the list"
-            [disabled]="busy() || loading()"
+            [disabled]="busy$() || loading$()"
             (click)="choose('merge')"
          >
             Merge

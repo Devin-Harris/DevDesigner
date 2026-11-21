@@ -23,14 +23,15 @@ export class DeckFocusService {
    private host!: DeckFocusHost;
 
    constructor() {
-      // The transition screen shows its own preview: hide the canvas's floating toolbars.
+      // The transition and animation screens show their own previews: hide the canvas's floating toolbars.
       effect(() => {
-         document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck() && this.focusScreen() === 'morph');
+         const screen = this.focusScreen$();
+         document.body.classList.toggle('dd-focus-morph', !!this.focusedDeck$() && (screen === 'morph' || screen === 'anim'));
       });
       // Focus mode keeps its slide fitted between the docks (screen, slide or window changes).
       effect(() => {
-         if (!this.focusedDeck()) return;
-         this.focusScreen();
+         if (!this.focusedDeck$()) return;
+         this.focusScreen$();
          const f = this.focusShown();
          this.viewport.canvasSize();
          if (!f) return;
@@ -44,47 +45,51 @@ export class DeckFocusService {
    }
 
    /** The settings panel is folded to a narrow strip (it folds sideways, toward the frame's edge). */
-   readonly settingsFolded = signal(false);
+   readonly settingsFolded$ = signal(false);
 
    /** The deck header asks a deck's settings panel to show a tab. */
-   readonly deckTabRequest = signal<{ name: string; tab: 'design' | 'size' | 'notes' } | null>(null);
+   readonly deckTabRequest$ = signal<{ name: string; tab: 'design' | 'size' | 'notes' } | null>(null);
 
    openDeckTab(name: string, tab: 'design' | 'size' | 'notes'): void {
       this.host.selectSlideSet(name);
-      this.settingsFolded.set(false);
-      this.deckTabRequest.set({ name, tab });
+      this.settingsFolded$.set(false);
+      this.deckTabRequest$.set({ name, tab });
    }
 
-   /** Slides in a presentation (deck header count). */
-   deckSlideCount(name: string): number {
-      return presentationSlides(this.store.slideFrames(), name).length;
-   }
-
-   /** 1-based position of the deck's shown slide among its slides (0 when unknown). */
-   deckSlideIndex(name: string, frameId: string): number {
-      return presentationSlides(this.store.slideFrames(), name).findIndex((f) => f.id === frameId) + 1;
-   }
-
-   /** Aspect label of a deck's slides ("16:9", "4:3", ...), for the deck header and focus bar. */
-   deckRatioLabel(frameId: string): string {
-      const f = this.store.slideFrames().find((x) => x.id === frameId);
-      if (!f || !f.height) return 'Size';
-      const r = f.width / f.height;
-      const known: [number, string][] = [
-         [16 / 9, '16:9'],
-         [4 / 3, '4:3'],
-         [1, '1:1'],
-         [9 / 16, '9:16'],
-         [16 / 10, '16:10'],
-         [1 / Math.SQRT2, 'A4'],
-         [Math.SQRT2, 'A4'],
-      ];
-      return known.find(([v]) => Math.abs(v - r) < 0.02)?.[1] ?? `${Math.round(f.width)}×${Math.round(f.height)}`;
-   }
+   /** Every deck's slides, in order, by deck name. */
+   private readonly deckSlides$ = computed(() => {
+      const frames = this.store.slideFrames();
+      return new Map(this.store.presentations().map((name) => [name, presentationSlides(frames, name)] as const));
+   });
+   /** Slides per deck (deck header count). */
+   readonly deckSlideCounts$ = computed(
+      () => new Map([...this.deckSlides$()].map(([name, slides]) => [name, slides.length] as const))
+   );
+   /** 1-based position of each slide in its deck, by frame id. */
+   readonly slideIndexes$ = computed(() => {
+      const out = new Map<string, number>();
+      for (const slides of this.deckSlides$().values()) slides.forEach((f, i) => out.set(f.id, i + 1));
+      return out;
+   });
+   /** The slide numbers a deck's transitions lead into (2..n), by deck name. */
+   readonly transitionNumbers$ = computed(
+      () =>
+         new Map(
+            [...this.deckSlides$()].map(
+               ([name, slides]) => [name, Array.from({ length: Math.max(0, slides.length - 1) }, (_, i) => i + 2)] as const
+            )
+         )
+   );
+   /** Aspect label of each slide frame ("16:9", "4:3", ...), for the deck header and focus bar. */
+   readonly deckRatioLabels$ = computed(() => new Map(this.store.slideFrames().map((f) => [f.id, ratioLabel(f)] as const)));
+   /** Theme name of each slide frame. */
+   readonly deckThemeNames$ = computed(
+      () => new Map(this.store.slideFrames().map((f) => [f.id, f.slide?.theme?.name ?? 'Default'] as const))
+   );
 
    // ---- Deck focus mode ----------------------------------------------------
    /** The presentation being edited in focus mode (the rest of the canvas dimmed), or null. */
-   readonly focusedDeck = linkedSignal<readonly string[], string | null>({
+   readonly focusedDeck$ = linkedSignal<readonly string[], string | null>({
       source: () => this.store.presentations(),
       // Focus mode ends when its deck is gone.
       computation: (decks, previous) => {
@@ -97,12 +102,12 @@ export class DeckFocusService {
    private viewBeforeFocus: { x: number; y: number; zoom: number } | null = null;
 
    /** Which focus-mode screen is open: the deck (DeckFocus), design, transition or animations. */
-   readonly focusScreen = signal<'main' | 'design' | 'morph' | 'anim'>('main');
+   readonly focusScreen$ = signal<'main' | 'design' | 'morph' | 'anim'>('main');
 
    /** Screen-space frame of each focus screen's docks (left dock clears the tool dock). */
    private focusArea(): { left: number; right: number; top: number; bottom: number } {
       const rect = this.viewport.canvasRect();
-      const screen = this.focusScreen();
+      const screen = this.focusScreen$();
       const leftDock = screen === 'main' || screen === 'design' ? 76 + 196 + 32 : 84;
       const rightW = screen === 'anim' ? 360 : 344;
       return { left: leftDock, right: rect.width - (16 + rightW + 32), top: 72 + 24, bottom: rect.height - 40 };
@@ -110,15 +115,15 @@ export class DeckFocusService {
 
    /** The shown slide (or layout) of the focused deck. */
    readonly focusShown = computed(() => {
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       const id = name ? this.store.shownByPresentation().get(name) : undefined;
       return id ? (this.store.slideFrames().find((f) => f.id === id) ?? null) : null;
    });
 
    /** The focused slide with its number and the slide before it (transition screens). */
-   readonly focusSlide = computed(() => {
+   readonly focusSlide$ = computed(() => {
       const frame = this.focusShown();
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       if (!frame || !name || frame.slide?.layout)
          return frame ? { frame, index: 0, prev: null, prev2: null, next: null } : null;
       const slides = presentationSlides(this.store.slideFrames(), name);
@@ -133,7 +138,7 @@ export class DeckFocusService {
    });
 
    /** Staging area around the slide on screen (dashed in the mock): the hole in the dim. */
-   readonly focusStage = computed(() => {
+   readonly focusStage$ = computed(() => {
       const f = this.focusShown();
       if (!f) return null;
       const v = this.store.viewport();
@@ -147,9 +152,9 @@ export class DeckFocusService {
    });
 
    /** clip-path for the dim layer: the whole canvas minus the staging area. */
-   readonly focusDimClip = computed(() => {
+   readonly focusDimClip$ = computed(() => {
       // The hole is the slide itself: nothing else on the canvas shows in focus mode.
-      const st = this.focusStage();
+      const st = this.focusStage$();
       const h = st ? { left: st.left + 40, top: st.top + 40, width: st.width - 80, height: st.height - 80 } : null;
       const { width, height } = this.viewport.canvasSize();
       if (!h) return 'none';
@@ -161,33 +166,28 @@ export class DeckFocusService {
    });
 
    /** The layout or master shown in the design screen, with how many slides use it. */
-   readonly focusLayoutInfo = computed(() => {
+   readonly focusLayoutInfo$ = computed(() => {
       const f = this.focusShown();
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       if (!f?.slide?.layout || !name) return null;
       const used = presentationSlides(this.store.slideFrames(), name).filter((s) => s.slide?.layoutId === f.id).length;
       return { master: !!f.slide.master, name: f.slide.layoutName ?? 'Layout', used };
    });
 
-   /** Theme name for the focus bar ("Theme: Harbor"). */
-   deckThemeName(frameId: string): string {
-      const f = this.store.slideFrames().find((x) => x.id === frameId);
-      return f?.slide?.theme?.name ?? 'Default';
-   }
 
    /** Edit one presentation on its own: the view locks onto its slide between the focus docks. */
    enterDeckFocus(name: string, screen: 'main' | 'morph' | 'anim' = 'main'): void {
       if (!this.store.presentations().includes(name)) return;
-      if (!this.focusedDeck()) this.viewBeforeFocus = { ...this.store.viewport() };
+      if (!this.focusedDeck$()) this.viewBeforeFocus = { ...this.store.viewport() };
       this.focusFromCanvas.set(false);
-      this.focusScreen.set(screen);
-      if (!this.focusedDeck()) this.focusUi.toFocus();
-      this.focusedDeck.set(name);
+      this.focusScreen$.set(screen);
+      if (!this.focusedDeck$()) this.focusUi.toFocus();
+      this.focusedDeck$.set(name);
       this.store.selectPresentation(name);
       // A layout left open goes back to its slide.
       const shown = this.focusShown();
       if (shown?.slide?.layout) {
-         const back = this.slideshow.lastSlides().get(name);
+         const back = this.slideshow.lastSlides$().get(name);
          if (back) this.focusFrame_(back);
       }
       this.fitFocus(true);
@@ -195,13 +195,13 @@ export class DeckFocusService {
 
    /** Leave focus mode and go back to the view from before it. */
    exitDeckFocus(): void {
-      if (!this.focusedDeck()) return;
-      const name = this.focusedDeck()!;
-      if (this.focusScreen() === 'design') this.closeFocusDesign(name);
+      if (!this.focusedDeck$()) return;
+      const name = this.focusedDeck$()!;
+      if (this.focusScreen$() === 'design') this.closeFocusDesign(name);
       this.focusUi.fromFocus();
       this.focusFromCanvas.set(false);
-      this.focusedDeck.set(null);
-      this.focusScreen.set('main');
+      this.focusedDeck$.set(null);
+      this.focusScreen$.set('main');
       const v = this.viewBeforeFocus;
       this.viewBeforeFocus = null;
       if (v) this.viewport.animateViewport(v.x, v.y, v.zoom);
@@ -210,7 +210,7 @@ export class DeckFocusService {
    /** Fit the focused slide (plus staging room) into the space between the docks. */
    fitFocus(animate: boolean): void {
       const f = this.focusShown();
-      if (!f || this.focusScreen() === 'morph') return;
+      if (!f || this.focusScreen$() === 'morph') return;
       const a = this.focusArea();
       const pad = 40;
       const availW = Math.max(100, a.right - a.left);
@@ -225,33 +225,33 @@ export class DeckFocusService {
    /** Layouts & master / Theme: show the slide's layout (or the master) and the design screen. */
    openFocusDesign(): void {
       const f = this.focusShown();
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       if (!f || !name) return;
       const frames = this.store.slideFrames();
       const target =
          (f.slide?.layoutId && frames.find((x) => x.id === f.slide!.layoutId)) ||
          frames.find((x) => presentationOf(x) === name && x.slide?.master);
       if (target) this.focusFrame_(target.id);
-      this.focusScreen.set('design');
+      this.focusScreen$.set('design');
    }
 
    /** Done: back to the slide that was shown before the design screen. */
    closeFocusDesign(name: string): void {
-      const back = this.slideshow.lastSlides().get(name);
+      const back = this.slideshow.lastSlides$().get(name);
       if (back && this.focusShown()?.slide?.layout) this.focusFrame_(back);
-      this.focusScreen.set('main');
+      this.focusScreen$.set('main');
    }
 
    /** Commands from the focus docks: screen switches here, the rest as usual. */
    onFocusCommand(cmd: SlidesCommand, name: string): void {
       if (cmd.kind === 'screen') {
          if (cmd.screen === 'design') this.openFocusDesign();
-         else if (cmd.screen === 'main' && this.focusScreen() !== 'main') this.stayInFocus();
+         else if (cmd.screen === 'main' && this.focusScreen$() !== 'main') this.stayInFocus();
          else {
-            this.focusScreen.set(cmd.screen);
+            this.focusScreen$.set(cmd.screen);
             // Refine always opens on Map pairs (Preview is one click away).
-            if (cmd.screen === 'morph') this.compareUi.view.set('map');
-            if (cmd.screen === 'morph' && this.focusSlide()?.index === 1) this.goToTransition(2);
+            if (cmd.screen === 'morph') this.compareUi.view$.set('map');
+            if (cmd.screen === 'morph' && this.focusSlide$()?.index === 1) this.goToTransition(2);
          }
          return;
       }
@@ -262,15 +262,13 @@ export class DeckFocusService {
    readonly focusFromCanvas = signal(false);
 
    /** "← Canvas" when the screen was opened from the canvas, else "← Slides". */
-   focusBackLabel(): string {
-      return this.focusFromCanvas() ? '← Canvas' : '← Slides';
-   }
+   readonly focusBackLabel$ = computed(() => (this.focusFromCanvas() ? '← Canvas' : '← Slides'));
 
    /** Leave a focus sub-screen: back to the deck, or to the canvas when it was opened from there. */
    /** Back to the deck's main focus screen, staying in focus even when opened from the canvas. */
    stayInFocus(): void {
       this.focusFromCanvas.set(false);
-      this.focusScreen.set('main');
+      this.focusScreen$.set('main');
    }
 
    leaveFocusScreen(): void {
@@ -278,12 +276,12 @@ export class DeckFocusService {
          this.exitDeckFocus();
          return;
       }
-      this.focusScreen.set('main');
+      this.focusScreen$.set('main');
    }
 
    /** Transition screen: move to the previous / next pair of slides. */
    stepTransition(delta: number): void {
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       const cur = this.focusShown();
       if (!name || !cur) return;
       const slides = presentationSlides(this.store.slideFrames(), name);
@@ -292,15 +290,10 @@ export class DeckFocusService {
       if (next && i + delta >= 1) this.focusFrame_(next.id);
    }
 
-   /** Slide numbers (2..n) that have a transition into them. */
-   transitionNumbers(name: string): number[] {
-      const n = presentationSlides(this.store.slideFrames(), name).length;
-      return Array.from({ length: Math.max(0, n - 1) }, (_, i) => i + 2);
-   }
 
    /** Transition screen: jump to the transition into slide `n` (1-based). */
    goToTransition(n: number): void {
-      const name = this.focusedDeck();
+      const name = this.focusedDeck$();
       if (!name) return;
       const f = presentationSlides(this.store.slideFrames(), name)[n - 1];
       if (f) this.focusFrame_(f.id);
@@ -315,9 +308,9 @@ export class DeckFocusService {
     * transition into slide `n`, optionally in its Map pairs or Preview view.
     */
    showTransitionScreen(name: string, n: number, view: 'map' | 'preview' = 'map'): void {
-      if (this.focusedDeck() !== name || this.focusScreen() !== 'morph') this.enterDeckFocus(name, 'morph');
+      if (this.focusedDeck$() !== name || this.focusScreen$() !== 'morph') this.enterDeckFocus(name, 'morph');
       this.goToTransition(n);
-      this.compareUi.view.set(view);
+      this.compareUi.view$.set(view);
    }
 
    /** Embedded use: leave deck focus mode if it is open. */
@@ -349,4 +342,20 @@ export class DeckFocusService {
          this.viewport.panToWorld({ x: f.x + f.width / 2, y: f.y + f.height / 2 });
       }
    }
+}
+
+/** "16:9", "4:3", ... for a slide frame (its pixel size when the ratio is not a common one). */
+function ratioLabel(f: { width: number; height: number }): string {
+   if (!f.height) return 'Size';
+   const r = f.width / f.height;
+   const known: [number, string][] = [
+      [16 / 9, '16:9'],
+      [4 / 3, '4:3'],
+      [1, '1:1'],
+      [9 / 16, '9:16'],
+      [16 / 10, '16:10'],
+      [1 / Math.SQRT2, 'A4'],
+      [Math.SQRT2, 'A4'],
+   ];
+   return known.find(([v]) => Math.abs(v - r) < 0.02)?.[1] ?? `${Math.round(f.width)}×${Math.round(f.height)}`;
 }

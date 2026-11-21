@@ -4,11 +4,11 @@ import { Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class PenPrefsService {
    /** Strokes are drawn wide and half see-through, like a marker. */
-   readonly highlighter = signal(false);
+   readonly highlighter$ = signal(false);
    /** Dragging erases the pen strokes it touches instead of drawing. */
-   readonly eraser = signal(false);
+   readonly eraser$ = signal(false);
    /** Eraser diameter in screen pixels. */
-   readonly eraserSize = signal(24);
+   readonly eraserSize$ = signal(24);
    /** Pen thickness, kept apart from the shapes' stroke width. */
    readonly width = signal(2);
 }

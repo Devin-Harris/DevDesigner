@@ -86,7 +86,8 @@ writeFileSync(
       productName: 'DevDesigner',
       // Desktop and web share one version: the root package.json's.
       version: rootPkg.version,
-      description: 'DevDesigner desktop app',
+      // Shown as the exe's file description (Task Manager, Start menu).
+      description: 'DevDesigner',
       author: 'DevDesigner',
       main: 'desktop/dist/main.js',
       // Built-in sync remote (Sync > DevDesigner Cloud); empty when the build doesn't set it.

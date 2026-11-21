@@ -185,6 +185,14 @@ export function withProjectCloneMethods() {
                           ...(src.slide.animations?.length
                              ? { animations: remapAnimations(src.slide.animations, copyOf) }
                              : {}),
+                          ...(src.slide.animationsOff?.length
+                             ? {
+                                  animationsOff: src.slide.animationsOff.flatMap((t) => {
+                                     const to = copyOf.get(t);
+                                     return to ? [to] : [];
+                                  }),
+                               }
+                             : {}),
                           ...(src.slide.transition?.morphByItems
                              ? {
                                   transition: {

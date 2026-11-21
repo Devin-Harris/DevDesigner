@@ -18,12 +18,12 @@ export class FloatingToolbarsService {
    private readonly textEditing = inject(TextEditingService);
 
    /** Placement + representative element for the floating context toolbar. */
-   readonly elementToolbar = computed(() => {
+   readonly elementToolbar$ = computed(() => {
       // Shown whenever element(s) are selected and no gesture/text-edit is active,
       // even while a draw tool stays active (drawing a shape selects it).
-      const editingId = this.textEditing.editingTextId();
+      const editingId = this.textEditing.editingTextId$();
       const editType = !!editingId && this.store.elements().find((e) => e.id === editingId)?.type;
-      const richEditing = !!editingId && ['text', 'rectangle', 'ellipse', 'diamond'].includes(editType || '');
+      const richEditing = !!editingId && ['text', 'rectangle', 'ellipse', 'diamond', 'triangle'].includes(editType || '');
       if ((editingId && !richEditing) || this.gesture.gestureActive()) {
          return null;
       }
@@ -65,8 +65,8 @@ export class FloatingToolbarsService {
     * Placement for the multi-select bar: under the union box of 2+ selected units
     * (or a single selected group, so it can be ungrouped).
     */
-   readonly multiSelectBar = computed(() => {
-      if (this.gesture.gestureActive() || !this.store.canEdit() || this.textEditing.editingTextId()) {
+   readonly multiSelectBar$ = computed(() => {
+      if (this.gesture.gestureActive() || !this.store.canEdit() || this.textEditing.editingTextId$()) {
          return null;
       }
       const byItem = this.store.groupByItem();
@@ -119,7 +119,7 @@ export class FloatingToolbarsService {
    });
 
    /** Placement + table for the floating table action bar (single table selected). */
-   readonly tableToolbar = computed(() => {
+   readonly tableToolbar$ = computed(() => {
       if (this.gesture.gestureActive()) {
          return null;
       }
@@ -136,7 +136,7 @@ export class FloatingToolbarsService {
    });
 
    /** Placement for the floating contextual bar over the selected sequence message. */
-   readonly sequenceMessageToolbar = computed(() => {
+   readonly sequenceMessageToolbar$ = computed(() => {
       const m = this.store.selectedMessage();
       if (!m) {
          return null;
@@ -166,7 +166,7 @@ export class FloatingToolbarsService {
    });
 
    /** Placement for the floating participant (lifeline) toolbar, above its header. */
-   readonly sequenceParticipantToolbar = computed(() => {
+   readonly sequenceParticipantToolbar$ = computed(() => {
       const l = this.store.selectedLifeline();
       if (!l) {
          return null;
@@ -180,7 +180,7 @@ export class FloatingToolbarsService {
    });
 
    /** Screen anchor (top-center of the box) for the selected sequence diagram's toolbar. */
-   readonly sequenceDiagramToolbar = computed(() => {
+   readonly sequenceDiagramToolbar$ = computed(() => {
       const d = this.store.selectedDiagram();
       if (!d || this.store.selectedLifeline() || this.store.selectedMessage()) {
          return null;
@@ -194,12 +194,12 @@ export class FloatingToolbarsService {
    });
 
    /** Element types a "fill / stroke for all" applies to. */
-   private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond']);
+   private static readonly FILLABLE = new Set(['rectangle', 'ellipse', 'diamond', 'triangle']);
 
-   private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'arrow', 'line', 'freedraw']);
+   private static readonly STROKABLE = new Set(['rectangle', 'ellipse', 'diamond', 'triangle', 'arrow', 'line', 'freedraw']);
 
    /** Some selected elements take a fill or stroke. */
-   readonly selectionStylable = computed(() => {
+   readonly selectionStylable$ = computed(() => {
       const ids = new Set(this.store.selectedElementIds());
       return this.store.elements().some((e) => ids.has(e.id) && FloatingToolbarsService.STROKABLE.has(e.type));
    });

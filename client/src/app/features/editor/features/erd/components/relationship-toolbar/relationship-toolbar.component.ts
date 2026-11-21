@@ -16,10 +16,10 @@ import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.
    styleUrl: './relationship-toolbar.component.scss',
 })
 export class RelationshipToolbarComponent {
-   readonly type = input.required<RelationshipType>();
-   readonly canEdit = input<boolean>(true);
+   readonly type$ = input.required<RelationshipType>({ alias: 'type' });
+   readonly canEdit$ = input<boolean>(true, { alias: 'canEdit' });
    /** Best-path routing on; off = manual line with pinned sides. */
-   readonly autoRoute = input<boolean>(false);
+   readonly autoRoute$ = input<boolean>(false, { alias: 'autoRoute' });
 
    readonly setType = output<RelationshipType>();
    readonly resetRoute = output<void>();

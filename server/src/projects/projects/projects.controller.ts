@@ -23,6 +23,7 @@ import type { Request, Response } from 'express';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
 import {
   CallerScoped,
+  ProjectTokenOk,
   ProjectAccess,
   RequiresAccess,
   type ResolvedProjectAccess,
@@ -50,8 +51,11 @@ export class ProjectsController {
 
   @Get()
   @CallerScoped()
-  list(@Caller() caller: Caller, @Query('archived') archived?: string): Promise<ProjectSummary[]> {
-    return this.projects.list(caller.ownerId, archived === 'true');
+  @ProjectTokenOk()
+  async list(@Caller() caller: Caller, @Query('archived') archived?: string): Promise<ProjectSummary[]> {
+    const all = await this.projects.list(caller.ownerId, archived === 'true');
+    // A project-scoped API token lists only its project.
+    return caller.tokenProjectId ? all.filter((p) => p.id === caller.tokenProjectId) : all;
   }
 
   @Post()

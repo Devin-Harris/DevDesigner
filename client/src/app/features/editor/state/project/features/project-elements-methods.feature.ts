@@ -49,6 +49,7 @@ function createElementOps(store: ElementOpsHost) {
       const zIndex =
          withSlide.zIndex ?? (store.schema()?.elements ?? []).reduce((m, e) => Math.max(m, e.zIndex + 1), 0);
       const body: CreateElementDto = { ...withSlide, id, zIndex };
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a partial row completed from its DTO / patch (the model type is the intent)
       const local = { angle: 0, ...body, id, zIndex } as CanvasElementModel;
       setSchema((s) => ({ ...s, elements: [...s.elements, local] }));
       const key = `element:${id}`;
@@ -248,6 +249,35 @@ export function withProjectElementsMethods() {
             },
 
             /**
+             * Persist an edit made live with `patchElementLocal` (inline text / label /
+             * per-run styling) and record it against `snapshot`, the element as it was
+             * when the edit began. `updateElement` can't be used there: the store already
+             * holds the edited state, so its captured "before" would equal the patch.
+             */
+            async commitElementEdit(
+               elementId: string,
+               snapshot: CanvasElementModel | null,
+               patch: UpdateElementDto
+            ): Promise<void> {
+               if (!snapshot || snapshot.id !== elementId) {
+                  await this.updateElement(elementId, patch);
+                  return;
+               }
+               const before = captureBefore(snapshot, patch);
+               await updateElementRaw(elementId, patch);
+               if (
+                  JSON.stringify(before) ===
+                  JSON.stringify(captureBefore({ ...snapshot, ...patch } as CanvasElementModel, patch))
+               ) {
+                  return;
+               }
+               pushHistory({
+                  undo: () => updateElementRaw(rid(elementId), before),
+                  redo: () => updateElementRaw(rid(elementId), patch),
+               });
+            },
+
+            /**
              * Persist a geometry change made live (resize/rotate/endpoint) and record it
              * for undo. The element already holds `after` locally; `before` is its state
              * at gesture start.
@@ -272,6 +302,24 @@ export function withProjectElementsMethods() {
                const to = (pick: (m: (typeof moves)[number]) => PointModel) =>
                   this.moveItemsLocal({ elements: new Map(moves.map((m) => [rid(m.id), pick(m)])) });
                pushHistory({ undo: () => to((m) => m.from), redo: () => to((m) => m.to) });
+            },
+
+            /**
+             * Record a completed multi-kind drag (elements, tables, relationship routes;
+             * already applied) as one undo entry that restores `before` / reapplies `after`.
+             */
+            recordItemMoves(before: ItemMoves, after: ItemMoves): void {
+               const remap = <T>(m?: ReadonlyMap<string, T>) =>
+                  m && new Map([...m].map(([id, v]) => [rid(id), v] as const));
+               const empty = !before.elements?.size && !before.tables?.size && !before.waypoints?.size;
+               if (empty) return;
+               const to = (m: ItemMoves) =>
+                  this.moveItemsLocal({
+                     elements: remap(m.elements),
+                     tables: remap(m.tables),
+                     waypoints: remap(m.waypoints),
+                  });
+               pushHistory({ undo: () => to(before), redo: () => to(after) });
             },
 
             /**

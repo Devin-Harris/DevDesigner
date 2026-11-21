@@ -8,12 +8,16 @@ export class CompareUiState {
    /** The object under the pointer. */
    readonly lit = signal<string | null>(null);
    /** Stage view: map pairs on both slides, or a full-size preview. */
-   readonly view = signal<'map' | 'preview'>('map');
+   readonly view$ = signal<'map' | 'preview'>('map');
    /**
     * The selected object / pair in Map pairs, for the side panel's controls (the stage
     * publishes it with the actions it supports; null when nothing is selected).
     */
-   readonly selection = signal<PairSelection | null>(null);
+   readonly selection$ = signal<PairSelection | null>(null);
+   /** The preview is playing (mirrored from the stage, for embedders). */
+   readonly previewPlaying = signal(false);
+   /** Bumped to press the preview's ▶ / ↻ button from outside (EditorEmbedApi). */
+   readonly previewPlayRequests = signal(0);
 }
 
 export interface PairSelection {

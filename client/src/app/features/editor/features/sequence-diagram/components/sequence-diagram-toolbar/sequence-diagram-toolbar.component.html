@@ -1,4 +1,4 @@
-@if (diagram(); as d) {
+@if (diagram$(); as d) {
    <button
       type="button"
       class="ico-act"
@@ -6,7 +6,7 @@
       title="Background"
       aria-label="Background"
       [ddPopoverTrigger]="bgMenu"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
    >
       <span
          class="color-dot"
@@ -36,7 +36,7 @@
       title="Border"
       aria-label="Border"
       [ddPopoverTrigger]="borderMenu"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
    >
       <span
          class="color-dot ring"
@@ -60,10 +60,30 @@
    </ng-template>
    <button
       type="button"
+      class="ico-act"
+      title="Space messages evenly"
+      aria-label="Space messages evenly"
+      [disabled]="!canEdit$()"
+      (click)="spaceEvenly.emit(d.id)"
+   >
+      <dd-icon name="vertical_distribute" />
+   </button>
+   <button
+      type="button"
+      class="ico-act"
+      title="Fit box to content"
+      aria-label="Fit box to content"
+      [disabled]="!canEdit$() || !(d.padLeft || d.padTop || d.boxWidth || d.boxHeight)"
+      (click)="fitToContent.emit(d.id)"
+   >
+      <dd-icon name="fit_screen" />
+   </button>
+   <button
+      type="button"
       class="ico-act details"
       title="Details"
       aria-label="Details"
-      [class.on]="inspector.shown()"
+      [class.on]="inspector.shown$()"
       (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />

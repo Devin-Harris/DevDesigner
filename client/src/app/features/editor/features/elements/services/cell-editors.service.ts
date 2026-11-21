@@ -26,7 +26,7 @@ export class CellEditorsService {
    }
 
    /** Screen-space placement of the inline editor over a grid table's cell. */
-   readonly gridCellEditor = computed(() => {
+   readonly gridCellEditor$ = computed(() => {
       const cell = this.grids.editingCell();
       const el = cell ? this.store.elements().find((e) => e.id === cell.id && e.type === 'grid') : null;
       if (!cell || !el) {
@@ -74,7 +74,7 @@ export class CellEditorsService {
    private readonly gridCellFocus = effect(() => this.syncGridCellArea());
 
    private syncGridCellArea(): void {
-      const gc = this.gridCellEditor();
+      const gc = this.gridCellEditor$();
       const area = this.host.gridCellArea()?.nativeElement;
       if (!gc || !area) {
          this.gridCellKey = null;
@@ -97,7 +97,7 @@ export class CellEditorsService {
     * Re-run on every keystroke so the text stays where the rendered cell shows it.
     */
    alignGridCellArea(): void {
-      const gc = this.gridCellEditor();
+      const gc = this.gridCellEditor$();
       const area = this.host.gridCellArea()?.nativeElement;
       if (!gc || !area) {
          return;
@@ -146,7 +146,7 @@ export class CellEditorsService {
    }
 
    /** Screen-space placement of the inline file-name input over a code block's title bar. */
-   readonly fileNameEditor = computed(() => {
+   readonly fileNameEditor$ = computed(() => {
       const id = this.codeActions.fileNameEditId();
       const el = id ? this.store.elements().find((e) => e.id === id && e.type === 'code') : null;
       if (!el || !this.store.canEdit()) {

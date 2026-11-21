@@ -1,5 +1,5 @@
-<div class="guide" [class.expanded]="expanded()" [class.collapsed]="railCollapsed()">
-   <aside class="rail" aria-label="Canvas tools" [class.open]="navOpen()">
+<div class="guide" [class.expanded]="expanded$()" [class.collapsed]="railCollapsed$()">
+   <aside class="rail" aria-label="Canvas tools" [class.open]="navOpen$()">
       <div class="rail-head">
          <a class="logo" routerLink="/">
             <dd-logo [size]="30" />
@@ -8,25 +8,25 @@
          <button
             class="icon-btn collapse-btn"
             type="button"
-            [attr.aria-label]="railCollapsed() ? 'Expand tool list' : 'Collapse tool list'"
-            [attr.aria-expanded]="!railCollapsed()"
-            [title]="railCollapsed() ? 'Expand' : 'Collapse'"
+            [attr.aria-label]="railCollapsed$() ? 'Expand tool list' : 'Collapse tool list'"
+            [attr.aria-expanded]="!railCollapsed$()"
+            [title]="railCollapsed$() ? 'Expand' : 'Collapse'"
             (click)="toggleRail()"
          >
-            <dd-icon [name]="railCollapsed() ? 'chevron_right' : 'chevron_left'" />
+            <dd-icon [name]="railCollapsed$() ? 'chevron_right' : 'chevron_left'" />
          </button>
          <button
             class="icon-btn theme-btn"
             type="button"
-            [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+            [attr.aria-label]="theme.dark$() ? 'Switch to light' : 'Switch to dark'"
             (click)="theme.toggle()"
          >
-            <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+            <dd-icon [name]="theme.dark$() ? 'light_mode' : 'dark_mode'" />
          </button>
       </div>
       <div class="rail-title">
-         <button class="rail-toggle" type="button" [attr.aria-expanded]="navOpen()" (click)="navOpen.set(!navOpen())">
-            <dd-icon [name]="tool().icon" />{{ tool().name }}
+         <button class="rail-toggle" type="button" [attr.aria-expanded]="navOpen$()" (click)="navOpen$.set(!navOpen$())">
+            <dd-icon [name]="tool$().icon" />{{ tool$().name }}
             <dd-icon name="expand_more" />
          </button>
       </div>
@@ -37,9 +37,9 @@
                <button
                   class="tab"
                   type="button"
-                  [class.on]="t.id === tool().id"
-                  [attr.aria-current]="t.id === tool().id ? 'page' : null"
-                  [attr.title]="railCollapsed() ? (t.keys ? t.name + ' (' + t.keys + ')' : t.name) : null"
+                  [class.on]="t.id === tool$().id"
+                  [attr.aria-current]="t.id === tool$().id ? 'page' : null"
+                  [attr.title]="railCollapsed$() ? (t.keys ? t.name + ' (' + t.keys + ')' : t.name) : null"
                   [attr.aria-label]="t.name"
                   (click)="go(t)"
                >
@@ -57,17 +57,17 @@
 
    <main #page class="page">
       <header class="hero">
-         <span class="hero-icon" [attr.data-tone]="tool().tone"><dd-icon [name]="tool().icon" /></span>
+         <span class="hero-icon" [attr.data-tone]="tool$().tone"><dd-icon [name]="tool$().icon" /></span>
          <div class="hero-text">
             <h1 class="disp">
-               {{ tool().name }}
-               @if (tool().keys) {
-                  <span class="k lg">{{ tool().keys }}</span>
+               {{ tool$().name }}
+               @if (tool$().keys) {
+                  <span class="k lg">{{ tool$().keys }}</span>
                }
             </h1>
-            <p class="tagline">{{ tool().tagline }}</p>
+            <p class="tagline">{{ tool$().tagline }}</p>
          </div>
-         <span class="lab hero-count">{{ index() + 1 }} / {{ tools.length }}</span>
+         <span class="lab hero-count">{{ index$() + 1 }} / {{ tools.length }}</span>
       </header>
 
       <!-- Sandbox first, sized to the window, so it is visible without scrolling. -->
@@ -75,9 +75,9 @@
          <section class="sandbox card" aria-label="Sandbox">
             <div class="sb-bar">
                <span class="sb-dot"></span>
-               <span class="sb-title">Sandbox · {{ tool().name }}</span>
+               <span class="sb-title">Sandbox · {{ tool$().name }}</span>
                <span class="sb-note">Your own scratch copy, kept for this browser session only. Reset any time.</span>
-               @if (tool().sandboxActions === 'export') {
+               @if (tool$().sandboxActions === 'export') {
                   <span class="sb-group" role="group" aria-label="Export and import">
                      <button class="btn sm" type="button" (click)="actions.exportImage('png')">
                         <dd-icon name="photo" />PNG
@@ -87,7 +87,7 @@
                      <button
                         class="btn sm"
                         type="button"
-                        [disabled]="!actions.hasSelection()"
+                        [disabled]="!actions.hasSelection$()"
                         (click)="actions.exportSelectionFile()"
                      >
                         <dd-icon name="download" />Selection
@@ -108,23 +108,23 @@
                <button
                   class="btn sm"
                   type="button"
-                  [attr.aria-label]="expanded() ? 'Exit full screen' : 'Full screen'"
-                  (click)="expanded.set(!expanded())"
+                  [attr.aria-label]="expanded$() ? 'Exit full screen' : 'Full screen'"
+                  (click)="expanded$.set(!expanded$())"
                >
-                  <dd-icon [name]="expanded() ? 'close' : 'open_in_full'" />{{ expanded() ? 'Close' : 'Expand' }}
+                  <dd-icon [name]="expanded$() ? 'close' : 'open_in_full'" />{{ expanded$() ? 'Close' : 'Expand' }}
                </button>
             </div>
             <div class="sb-stage">
-               @if (sandboxId()) {
+               @if (sandboxId$()) {
                   <!-- One-item loop so switching tools mounts a fresh editor. -->
-                  @for (key of [mountKey()]; track key) {
+                  @for (key of [mountKey$()]; track key) {
                      <dd-editor
-                        [projectId]="sandboxId()"
+                        [projectId]="sandboxId$()"
                         [fitOnLoad]="true"
-                        [initialTool]="tool().editorTool ?? null"
+                        [initialTool]="tool$().editorTool ?? null"
                      ></dd-editor>
                   }
-               } @else if (sandboxError(); as err) {
+               } @else if (sandboxError$(); as err) {
                   <div class="sb-msg">
                      <dd-icon name="warning" />{{ err }}
                      <button class="btn sm" type="button" (click)="reset()">Try again</button>
@@ -137,20 +137,20 @@
          <aside class="try card" aria-label="Try it">
             <span class="lab">Try it</span>
             <ol>
-               @for (s of tool().tryIt; track s) {
+               @for (s of tool$().tryIt; track s) {
                   <li>{{ s }}</li>
                }
             </ol>
          </aside>
       </div>
 
-      <p class="intro">{{ tool().intro }}</p>
+      <p class="intro">{{ tool$().intro }}</p>
 
       <section class="details">
          <div class="col">
             <h2 class="disp">How it works</h2>
             <div class="steps">
-               @for (s of tool().howTo; track s.title; let i = $index) {
+               @for (s of tool$().howTo; track s.title; let i = $index) {
                   <div class="step">
                      <span class="num">{{ i + 1 }}</span>
                      <div>
@@ -161,10 +161,10 @@
                }
             </div>
 
-            @if (tool().deepDive?.length) {
+            @if (tool$().deepDive?.length) {
                <h2 class="disp">In depth</h2>
                <div class="deep">
-                  @for (d of tool().deepDive; track d.title) {
+                  @for (d of tool$().deepDive; track d.title) {
                      <div class="deep-item">
                         <h3>{{ d.title }}</h3>
                         @if (d.body) {
@@ -184,7 +184,7 @@
 
             <h2 class="disp">Options</h2>
             <div class="opts">
-               @for (o of tool().options; track o.title) {
+               @for (o of tool$().options; track o.title) {
                   <div class="opt card">
                      <b>{{ o.title }}</b>
                      <p>{{ o.body }}</p>
@@ -197,7 +197,7 @@
             <div class="card">
                <span class="lab">Shortcuts</span>
                <dl class="keys">
-                  @for (s of tool().shortcuts; track s.keys) {
+                  @for (s of tool$().shortcuts; track s.keys) {
                      <div class="row">
                         <dt>{{ s.action }}</dt>
                         <dd>
@@ -207,11 +207,11 @@
                   }
                </dl>
             </div>
-            @if (tool().tips.length) {
+            @if (tool$().tips.length) {
                <div class="card tips">
                   <span class="lab">Tips</span>
                   <ul>
-                     @for (t of tool().tips; track t) {
+                     @for (t of tool$().tips; track t) {
                         <li>{{ t }}</li>
                      }
                   </ul>
@@ -221,14 +221,14 @@
       </section>
 
       <nav class="pager" aria-label="Next and previous tool">
-         @if (prev(); as p) {
+         @if (prev$(); as p) {
             <button class="pg" type="button" (click)="go(p)">
                <span class="muted">Previous</span><span><dd-icon name="chevron_left" />{{ p.name }}</span>
             </button>
          } @else {
             <span></span>
          }
-         @if (next(); as n) {
+         @if (next$(); as n) {
             <button class="pg right" type="button" (click)="go(n)">
                <span class="muted">Next</span><span>{{ n.name }}<dd-icon name="chevron_right" /></span>
             </button>

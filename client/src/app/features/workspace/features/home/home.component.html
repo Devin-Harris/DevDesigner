@@ -14,13 +14,13 @@
          <button
             class="icon-btn"
             type="button"
-            [attr.aria-label]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
-            [title]="theme.dark() ? 'Switch to light' : 'Switch to dark'"
+            [attr.aria-label]="theme.dark$() ? 'Switch to light' : 'Switch to dark'"
+            [title]="theme.dark$() ? 'Switch to light' : 'Switch to dark'"
             (click)="theme.toggle()"
          >
-            <dd-icon [name]="theme.dark() ? 'light_mode' : 'dark_mode'" />
+            <dd-icon [name]="theme.dark$() ? 'light_mode' : 'dark_mode'" />
          </button>
-         @if (auth.currentUser(); as user) {
+         @if (auth.currentUser$(); as user) {
             <button class="link-btn" type="button" placement="below-end" [ddPopoverTrigger]="accountMenu">
                {{ user.email ?? 'Account' }}
             </button>
@@ -33,6 +33,9 @@
                   }
                   <button class="dd-menu-item" type="button" (click)="openApiTokens(); close()">
                      <dd-icon name="key" />API tokens
+                  </button>
+                  <button class="dd-menu-item" type="button" (click)="openAccount(); close()">
+                     <dd-icon name="account_circle" />Account settings
                   </button>
                   <button class="dd-menu-item" type="button" (click)="signOut(); close()">
                      <dd-icon name="logout" />Sign out
@@ -133,8 +136,8 @@
                role="tab"
                class="sc-tab"
                type="button"
-               [class.on]="active() === i"
-               [attr.aria-selected]="active() === i"
+               [class.on]="active$() === i"
+               [attr.aria-selected]="active$() === i"
                (click)="pick(i)"
             >
                <dd-icon [name]="t.icon" />{{ t.label }}
@@ -143,7 +146,7 @@
       </div>
       <div class="sc-stage" (mouseenter)="paused.set(true)" (mouseleave)="paused.set(false)">
          @for (t of showcase; track t.id; let i = $index) {
-            @if (active() === i) {
+            @if (active$() === i) {
                <div class="sc-text">
                   <h3 class="disp">{{ t.title }}</h3>
                   <a class="link-btn accent" [routerLink]="['/guide', t.guide]">Open the full guide →</a>
@@ -155,24 +158,24 @@
             class="sc-demo"
             aria-hidden="true"
             inert
-            [class.prepping]="prepping()"
-            [class.morphing]="morphing()"
-            [class.seq-tab]="showcase[active()].id === 'seq' || showcase[active()].id === 'more'"
+            [class.prepping]="prepping$()"
+            [class.morphing]="morphing$()"
+            [class.seq-tab]="showcase[active$()].id === 'seq' || showcase[active$()].id === 'more'"
          >
-            @if (sandboxId(); as id) {
-               @for (k of [mountKey()]; track k) {
-                  <dd-editor [projectId]="id" [fitOnLoad]="true"></dd-editor>
+            @if (sandboxId$(); as id) {
+               @for (k of [mountKey$()]; track k) {
+                  <dd-editor [projectId]="id" [fitOnLoad]="true" [hostOptions]="editorOptions$()"></dd-editor>
                }
             } @else {
                <div class="sc-loading">Loading example…</div>
             }
-            @if (transition(); as tr) {
+            @if (transition$(); as tr) {
                <div class="sc-morph">
                   <div class="mo-bar">
                      <span class="mo-name">Transition into slide 2</span>
                      <span class="mo-seg">
-                        <span [class.on]="compareUi.view() === 'map'">Map pairs</span>
-                        <span [class.on]="compareUi.view() === 'preview'">Preview</span>
+                        <span [class.on]="compareUi.view$() === 'map'">Map pairs</span>
+                        <span [class.on]="compareUi.view$() === 'preview'">Preview</span>
                      </span>
                   </div>
                   <div class="mo-body">
@@ -184,15 +187,15 @@
                            [index]="1"
                         />
                      }
-                     @if (moLine(); as l) {
+                     @if (moLine$(); as l) {
                         <svg class="mo-drag">
                            <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
                         </svg>
                      }
-                     @if (moCursor(); as c) {
+                     @if (moCursor$(); as c) {
                         <div
                            class="sc-cursor mo-cursor"
-                           [class.fast]="cursorFast()"
+                           [class.fast]="cursorFast$()"
                            [style.left.px]="c.x"
                            [style.top.px]="c.y"
                         >
@@ -211,10 +214,10 @@
                   </div>
                </div>
             }
-            @if (canvasBadge(); as cb) {
+            @if (canvasBadge$(); as cb) {
                <div class="sc-badge">{{ cb }}</div>
             }
-            @if (ctxMenu(); as cm) {
+            @if (ctxMenu$(); as cm) {
                <div class="dd-menu sc-ctx" [style.left.px]="cm.left" [style.top.px]="cm.top">
                   @for (it of cm.items; track it.label; let i = $index) {
                      <div class="dd-menu-item" [class.hot]="i === cm.hot">
@@ -226,12 +229,12 @@
                   }
                </div>
             }
-            @if (swatches(); as sw) {
+            @if (swatches$(); as sw) {
                <div class="dd-menu sc-swatches" [style.left.px]="sw.left" [style.top.px]="sw.top">
                   <dd-color-swatches noneLabel="Default" [value]="sw.value" />
                </div>
             }
-            @if (sqlPanel(); as q) {
+            @if (sqlPanel$(); as q) {
                <div class="sc-sql">
                   <div class="sq-bar">
                      <span class="sq-title">Export SQL</span>
@@ -241,10 +244,10 @@
                   </div>
                   <pre
                      class="sq-body mono"
-                  >@for (line of sqlLines(); track $index) {<div class="sq-line">@for (t of line; track $index) {<span [style.color]="t.color">{{ t.text }}</span>}&#8203;</div>}</pre>
+                  >@for (line of sqlLines$(); track $index) {<div class="sq-line">@for (t of line; track $index) {<span [style.color]="t.color">{{ t.text }}</span>}&#8203;</div>}</pre>
                </div>
             }
-            @if (slideThumbs(); as sp) {
+            @if (slideThumbs$(); as sp) {
                <div class="sc-slides">
                   <div class="sp-head">Slides</div>
                   @for (t of sp.slides; track $index; let i = $index) {
@@ -267,7 +270,7 @@
                   }
                </div>
             }
-            @for (lc of laneCursors(); track $index) {
+            @for (lc of laneCursors$(); track $index) {
                @if (lc) {
                   @if (lc.box; as b) {
                      <div
@@ -295,7 +298,7 @@
                   }
                }
             }
-            @if (cursor(); as c) {
+            @if (cursor$(); as c) {
                @if (c.box; as b) {
                   <div
                      class="sc-typebox"
@@ -313,7 +316,7 @@
                      [style.height.px]="c.caretH"
                   ></div>
                } @else {
-                  <div class="sc-cursor" [class.fast]="cursorFast()" [style.left.px]="c.left" [style.top.px]="c.top">
+                  <div class="sc-cursor" [class.fast]="cursorFast$()" [style.left.px]="c.left" [style.top.px]="c.top">
                      <svg viewBox="0 0 16 16"><path d="M1 1 L14 7 L8 9 L6 15 Z" /></svg>
                      @if (c.label) {
                         <span>{{ c.label }}</span>
@@ -325,14 +328,14 @@
       </div>
    </section>
 
-   @if (recent().length) {
+   @if (recent$().length) {
       <section class="wrap recent">
          <div class="sec-head">
             <h2 class="disp">Jump back in</h2>
             <button class="link-btn" type="button" (click)="openProjects()">All projects →</button>
          </div>
          <div class="recent-grid">
-            @for (p of recent(); track p.id) {
+            @for (p of recent$(); track p.id) {
                <button class="recent-card" type="button" (click)="open(p.id)">
                   <span class="rc-name">{{ p.name }}</span>
                   @if (p.description) {
@@ -394,7 +397,7 @@
       </div>
       <div class="mcp-config">
          <button class="mcp-copy" type="button" (click)="copyMcp('config')">
-            {{ mcpCopied() === 'config' ? 'Copied' : 'Copy' }}
+            {{ mcpCopied$() === 'config' ? 'Copied' : 'Copy' }}
          </button>
          <pre class="mono">{{ mcpConfig }}</pre>
       </div>
@@ -402,7 +405,7 @@
          <p>Or add it from the Claude Code CLI:</p>
          <div class="mcp-config mcp-cmd">
             <button class="mcp-copy" type="button" (click)="copyMcp('command')">
-               {{ mcpCopied() === 'command' ? 'Copied' : 'Copy' }}
+               {{ mcpCopied$() === 'command' ? 'Copied' : 'Copy' }}
             </button>
             <pre class="mono">{{ mcpCommand }}</pre>
          </div>

@@ -32,34 +32,34 @@ export class AuthDialogComponent {
       password: new FormControl('', { nonNullable: true }),
    });
    private readonly form$ = formSignal(this.form);
-   protected readonly busy = signal(false);
-   protected readonly error = signal<string | null>(null);
+   protected readonly busy$ = signal(false);
+   protected readonly error$ = signal<string | null>(null);
 
-   protected readonly isRegister = computed(() => this.mode() === 'register');
-   protected readonly title = computed(() => (this.isRegister() ? 'Create account' : 'Sign in'));
-   protected readonly submitLabel = computed(() => (this.isRegister() ? 'Create account' : 'Sign in'));
-   protected readonly canSubmit = computed(() => {
+   protected readonly isRegister$ = computed(() => this.mode() === 'register');
+   protected readonly title$ = computed(() => (this.isRegister$() ? 'Create account' : 'Sign in'));
+   protected readonly submitLabel$ = computed(() => (this.isRegister$() ? 'Create account' : 'Sign in'));
+   protected readonly canSubmit$ = computed(() => {
       const email = this.form$.value()?.email ?? '';
       const password = this.form$.value()?.password ?? '';
       const emailOk = email.trim().length > 3 && email.includes('@');
-      const passOk = this.isRegister() ? password.length >= 8 : password.length > 0;
-      return emailOk && passOk && !this.busy();
+      const passOk = this.isRegister$() ? password.length >= 8 : password.length > 0;
+      return emailOk && passOk && !this.busy$();
    });
 
    protected toggleMode(): void {
       this.mode.update((m) => (m === 'login' ? 'register' : 'login'));
-      this.error.set(null);
+      this.error$.set(null);
    }
 
    protected async submit(): Promise<void> {
-      if (!this.canSubmit()) {
+      if (!this.canSubmit$()) {
          return;
       }
-      this.busy.set(true);
-      this.error.set(null);
+      this.busy$.set(true);
+      this.error$.set(null);
       const { email, password, displayName } = this.form.getRawValue();
       try {
-         if (this.isRegister()) {
+         if (this.isRegister$()) {
             await this.auth.register({
                email: email.trim(),
                password,
@@ -70,9 +70,9 @@ export class AuthDialogComponent {
          }
          this.dialogRef.close(true);
       } catch (err) {
-         this.error.set(messageOf(err));
+         this.error$.set(messageOf(err));
       } finally {
-         this.busy.set(false);
+         this.busy$.set(false);
       }
    }
 }

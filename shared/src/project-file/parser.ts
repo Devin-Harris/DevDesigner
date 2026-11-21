@@ -43,6 +43,7 @@ import type {
   SequenceDiagramModel,
   SequenceMessageModel,
   SlideAnimation,
+  SlideAnimationStagger,
   SlideConfig,
   TableModel,
   TextRun,
@@ -255,8 +256,30 @@ function slideAnimations(value: unknown, path: string): SlideAnimation[] | undef
       duration: Math.min(MAX_ANIMATION_DURATION, Math.max(0, num(a, 'duration', p, 500))),
       delay: Math.min(MAX_ANIMATION_DELAY, Math.max(0, num(a, 'delay', p, 0))),
       direction: optOneOf(a, 'direction', p, SLIDE_DIRECTIONS),
+      ...(optStr(a, 'part', p, 100) ? { part: optStr(a, 'part', p, 100) } : {}),
+      ...(a['stagger'] === undefined || a['stagger'] === null ? {} : { stagger: stagger(a['stagger'], `${p}.stagger`) }),
     };
   });
+}
+
+function stagger(value: unknown, path: string): SlideAnimationStagger {
+  const s = obj(value, path);
+  const joined = s['joined'] === undefined || s['joined'] === null ? undefined : list(s['joined'], `${path}.joined`);
+  const skip = stringList(s['skip'], `${path}.skip`);
+  return {
+    trigger: oneOf(s, 'trigger', path, SLIDE_ANIMATION_TRIGGERS, 'click'),
+    delay: Math.min(MAX_ANIMATION_DELAY, Math.max(0, num(s, 'delay', path, 0))),
+    ...(joined ? { joined: joined.filter((j): j is string => typeof j === 'string').map((j) => j.slice(0, 100)) } : {}),
+    ...(skip?.length ? { skip } : {}),
+  };
+}
+
+function stringList(value: unknown, path: string): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  return list(value, path)
+    .filter((j): j is string => typeof j === 'string')
+    .map((j) => j.slice(0, 100))
+    .slice(0, MAX_SLIDE_ANIMATIONS);
 }
 
 function slide(value: unknown, path: string, opts: ParseProjectExportOptions): SlideConfig | undefined {
@@ -281,6 +304,7 @@ function slide(value: unknown, path: string, opts: ParseProjectExportOptions): S
         }
       : undefined,
     animations: slideAnimations(s['animations'], `${path}.animations`),
+    animationsOff: stringList(s['animationsOff'], `${path}.animationsOff`),
     layout: s['layout'] === undefined || s['layout'] === null ? undefined : bool(s, 'layout', path, false),
     layoutName: optStr(s, 'layoutName', path, 120),
     layoutId: optStr(s, 'layoutId', path, 64),
@@ -517,6 +541,13 @@ function parseImage(raw: unknown, path: string): ProjectExportImage {
   };
 }
 
+/** A diagram box bound: a positive number, or absent (0 / null / missing = hug the content). */
+function optBound(o: Record<string, unknown>, key: string, path: string): number | undefined {
+  if (o[key] === undefined || o[key] === null) return undefined;
+  const v = Math.min(100_000, Math.max(0, num(o, key, path, 0)));
+  return v > 0 ? v : undefined;
+}
+
 function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
   const d = obj(raw, path);
   return {
@@ -525,6 +556,10 @@ function parseDiagram(raw: unknown, path: string): SequenceDiagramModel {
     rowSpacing: num(d, 'rowSpacing', path, 48),
     headerHeight: num(d, 'headerHeight', path, 42),
     scale: d['scale'] === undefined || d['scale'] === null ? undefined : Math.min(20, Math.max(0.05, num(d, 'scale', path, 1))),
+    padLeft: optBound(d, 'padLeft', path),
+    padTop: optBound(d, 'padTop', path),
+    boxWidth: optBound(d, 'boxWidth', path),
+    boxHeight: optBound(d, 'boxHeight', path),
     originY: num(d, 'originY', path, 0),
     zIndex: num(d, 'zIndex', path, -1),
     groupId: optStr(d, 'groupId', path, 100),

@@ -9,7 +9,7 @@ export class RemotePresenceService {
    private readonly realtime = inject(RealtimeService);
 
    /** Other participants' cursors projected to screen coordinates for rendering. */
-   readonly remoteCursors = computed(() => {
+   readonly remoteCursors$ = computed(() => {
       const v = this.store.viewport();
       return this.realtime.remoteCursors().map((c) => ({
          id: c.participantId,
@@ -21,7 +21,7 @@ export class RemotePresenceService {
    });
 
    /** Highlight rings (world coords) for tables another participant has selected. */
-   readonly remoteTableHighlights = computed(() => {
+   readonly remoteTableHighlights$ = computed(() => {
       const highlights = this.realtime.tableHighlights();
       const rings: {
          id: string;

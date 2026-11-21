@@ -1,0 +1,114 @@
+@if (s.active$() && s.hasTransitionTarget$()) {
+   <div class="f-lab">Into this slide</div>
+   <div class="f-seg">
+      @for (t of s.focusTypes; track t.value) {
+         <button
+            type="button"
+            [class.on]="s.transition$().type === t.value"
+            [disabled]="!s.canEdit$()"
+            (click)="s.slideMorphSettings.setTransition({ type: t.value })"
+         >
+            {{ t.label }}
+         </button>
+      }
+   </div>
+   @if (s.transition$().type !== 'none' || s.morphs$()) {
+      <div class="f-row">
+         Duration
+         <span class="f-seg">
+            @for (d of [200, 300, 500]; track d) {
+               <button
+                  type="button"
+                  [class.on]="s.transition$().duration === d"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideMorphSettings.setTransition({ duration: d })"
+               >
+                  {{ d }}
+               </button>
+            }
+            <button
+               type="button"
+               placement="below-end"
+               [class.on]="!([200, 300, 500] | has: s.transition$().duration)"
+               [disabled]="!s.canEdit$()"
+               [ddPopoverTrigger]="durMenu"
+            >
+               ms…
+            </button>
+         </span>
+         <ng-template #durMenu let-close>
+            <div class="picker">
+               <input
+                  class="f-num"
+                  type="number"
+                  min="100"
+                  max="5000"
+                  step="50"
+                  [value]="s.transition$().duration"
+                  (change)="s.slideMorphSettings.setDuration($any($event.target).value); close()"
+               />
+            </div>
+         </ng-template>
+      </div>
+      <div class="f-row">
+         Easing
+         <dd-select
+            class="f-select"
+            [options]="s.easingOptions"
+            [ngModel]="s.transition$().easing"
+            [disabled]="!s.canEdit$()"
+            (ngModelChange)="s.slideMorphSettings.setTransition({ easing: $event })"
+         />
+      </div>
+   }
+   @if (s.transition$().type === 'slide') {
+      <div class="f-row">
+         Direction
+         <dd-select
+            class="f-select"
+            [options]="s.directionOptions"
+            [ngModel]="s.transition$().direction ?? 'left'"
+            [disabled]="!s.canEdit$()"
+            (ngModelChange)="s.slideMorphSettings.setTransition({ direction: $event })"
+         />
+      </div>
+   }
+   @if (s.morphs$()) {
+      <div class="f-row">
+         Animate by
+         <span class="f-seg">
+            @for (m of s.focusMorphBy; track m.value) {
+               <button
+                  type="button"
+                  [class.on]="(s.transition$().morphBy ?? 'character') === m.value"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideMorphSettings.setTransition({ morphBy: m.value })"
+               >
+                  {{ m.label }}
+               </button>
+            }
+         </span>
+      </div>
+   }
+   @if (s.canEdit$()) {
+      <button class="f-tb outline" type="button" (click)="s.slideMorphSettings.applyToAll()">
+         Apply to all slides
+      </button>
+   }
+} @else {
+   <p class="hint">The first slide has no transition into it.</p>
+   @if (s.frames$().length > 1) {
+      <button class="f-tb outline" type="button" (click)="s.command.emit({ kind: 'screen', screen: 'morph' })">
+         <dd-icon name="open_in_full" />Refine
+      </button>
+   }
+}
+
+@if (s.canEdit$() && s.morphRelevant$()) {
+   <dd-focus-morph-tag />
+}
+@if (s.canEdit$() && s.pairable$()) {
+   <button class="f-tb outline" type="button" (click)="s.slideMorphSettings.pairSelected()">
+      Treat the {{ s.pairable$() }} selected items as the same object
+   </button>
+}

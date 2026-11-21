@@ -48,8 +48,8 @@ dd-home {
    height: 56px;
    margin-bottom: 16px;
    border-radius: 14px;
-   background: linear-gradient(135deg, #6f8bff, #3b5bdb);
-   color: #fff;
+   background: linear-gradient(135deg, var(--dd-indigo-400), var(--dd-indigo-600));
+   color: var(--dd-white);
 
    --dd-icon-size: 30px;
 }

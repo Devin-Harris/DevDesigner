@@ -15,3 +15,46 @@
    color: var(--dd-text-muted);
    font-size: 12px;
 }
+
+.hygiene-run {
+   height: 32px;
+   padding: 0 12px;
+   border: 1px solid var(--dd-border-strong);
+   border-radius: var(--dd-radius);
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   font-size: 12px;
+   font-weight: 600;
+   cursor: pointer;
+
+   &:hover:not(:disabled) {
+      background: var(--dd-surface-2);
+   }
+   &:disabled {
+      opacity: 0.5;
+      cursor: default;
+   }
+}
+
+.hygiene {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: 8px 16px;
+   margin: 16px 0 0;
+   font-size: 13px;
+
+   dt span {
+      color: var(--dd-text-muted);
+      font-size: 12px;
+   }
+   dd {
+      margin: 0;
+      text-align: end;
+      font-variant-numeric: tabular-nums;
+   }
+}
+
+.hygiene-error {
+   color: var(--dd-danger);
+}

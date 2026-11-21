@@ -37,12 +37,12 @@ export class TagInputComponent implements OnDestroy {
    readonly value = input<string>('');
    /** Tags to offer, best first. */
    readonly suggestions = input<readonly string[]>([]);
-   readonly placeholder = input<string>('');
-   readonly maxlength = input<number>(80);
-   readonly disabled = input<boolean>(false);
+   readonly placeholder$ = input<string>('', { alias: 'placeholder' });
+   readonly maxlength$ = input<number>(80, { alias: 'maxlength' });
+   readonly disabled$ = input<boolean>(false, { alias: 'disabled' });
    /** Tags that can't be used here (another object already has them); never offered or committed. */
    readonly taken = input<readonly string[]>([]);
-   readonly takenLabel = input<string>('Already used by another object on this slide');
+   readonly takenLabel$ = input<string>('Already used by another object on this slide', { alias: 'takenLabel' });
    /** Heading above the suggestion list. */
    readonly suggestionsLabel = input<string>('From the previous slide');
    /** Fires with the new tag ('' clears it) when the user commits. */
@@ -51,22 +51,22 @@ export class TagInputComponent implements OnDestroy {
    private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
    private readonly list = viewChild.required<TemplateRef<unknown>>('list');
 
-   protected readonly focused = signal(false);
+   protected readonly focused$ = signal(false);
    /** What is typed right now (follows `value` until the user edits). */
    private readonly draft = signal<string | null>(null);
-   protected readonly text = computed(() => this.draft() ?? this.value());
-   protected readonly active = signal(0);
+   protected readonly text$ = computed(() => this.draft() ?? this.value());
+   protected readonly active$ = signal(0);
    private readonly takenKeys = computed(() => new Set(this.taken().map((t) => t.trim().toLowerCase())));
    /** The typed text is a tag another object already carries. */
-   protected readonly conflict = computed(() => {
+   protected readonly conflict$ = computed(() => {
       const d = (this.draft() ?? '').trim().toLowerCase();
       return d !== '' && this.takenKeys().has(d);
    });
-   protected readonly menuWidth = signal(220);
+   protected readonly menuWidth$ = signal(220);
    private ref: OverlayRef | null = null;
 
    /** Suggestions that contain the typed text (all of them when nothing is typed). */
-   protected readonly visible = computed(() => {
+   protected readonly visible$ = computed(() => {
       const q = (this.draft() ?? '').trim().toLowerCase();
       const seen = new Set<string>();
       return this.suggestions().filter((s) => {
@@ -84,39 +84,39 @@ export class TagInputComponent implements OnDestroy {
          return true;
       });
    });
-   protected readonly headLabel = computed(() =>
+   protected readonly headLabel$ = computed(() =>
       (this.draft() ?? '').trim() ? 'Matching tags' : this.suggestionsLabel()
    );
 
    protected onFocus(): void {
-      this.focused.set(true);
-      this.active.set(0);
+      this.focused$.set(true);
+      this.active$.set(0);
       this.syncMenu();
    }
 
    protected onInput(event: Event): void {
       this.draft.set((event.target as HTMLInputElement).value);
-      this.active.set(0);
+      this.active$.set(0);
       this.syncMenu();
    }
 
    protected onBlur(): void {
-      this.focused.set(false);
+      this.focused$.set(false);
       this.closeMenu();
       this.finish();
    }
 
    protected onKey(event: KeyboardEvent): void {
-      const n = this.visible().length;
+      const n = this.visible$().length;
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
          event.preventDefault();
          if (n) {
             this.syncMenu();
-            this.active.update((i) => (i + (event.key === 'ArrowDown' ? 1 : n - 1)) % n);
+            this.active$.update((i) => (i + (event.key === 'ArrowDown' ? 1 : n - 1)) % n);
          }
       } else if (event.key === 'Enter') {
          event.preventDefault();
-         const pick = this.ref && n ? this.visible()[this.active()] : undefined;
+         const pick = this.ref && n ? this.visible$()[this.active$()] : undefined;
          if (pick !== undefined && this.draft() !== null && this.draft()!.trim() !== pick) {
             // A partial entry completes to the highlighted suggestion.
             this.pick(pick);
@@ -152,17 +152,17 @@ export class TagInputComponent implements OnDestroy {
       const d = this.draft();
       this.draft.set(null);
       if (d === null || this.takenKeys().has(d.trim().toLowerCase())) return;
-      const next = d.trim().slice(0, this.maxlength());
+      const next = d.trim().slice(0, this.maxlength$());
       if (next !== this.value()) this.commit.emit(next);
    }
 
    private syncMenu(): void {
-      if (this.disabled() || !this.visible().length) {
+      if (this.disabled$() || !this.visible$().length) {
          this.closeMenu();
          return;
       }
       if (this.ref) return;
-      this.menuWidth.set(Math.max(180, this.host.nativeElement.getBoundingClientRect().width));
+      this.menuWidth$.set(Math.max(180, this.host.nativeElement.getBoundingClientRect().width));
       this.ref = this.overlay.create({
          positionStrategy: this.overlay
             .position()

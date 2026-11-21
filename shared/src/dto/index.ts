@@ -60,6 +60,16 @@ export interface CurrentUserResponse {
   displayName: string | null;
   /** Present (true) only for admins; the role itself is never in the session token. */
   isAdmin?: boolean;
+  /** Editor view preferences, synced across devices. */
+  preferences?: UserPreferences;
+}
+
+/** Per-account editor view settings (persisted so clearing browser storage does not lose them). */
+export interface UserPreferences {
+  gridSnap?: boolean;
+  smartGuides?: boolean;
+  minimap?: boolean;
+  minimapCollapsed?: boolean;
 }
 
 // --- API tokens (MCP / automation) ---
@@ -69,6 +79,10 @@ export const API_TOKEN_SCOPES: readonly ApiTokenScope[] = ['read', 'write'] as c
 export interface CreateApiTokenDto {
   name: string;
   scope?: ApiTokenScope;
+  /** Days until the token stops working (1-3650); omitted = never expires. */
+  expiresInDays?: number;
+  /** Restrict the token to one project the caller owns; omitted = all their projects. */
+  projectId?: string;
 }
 /** A token as listed in account settings. The secret itself is never returned again. */
 export interface ApiTokenResponse {
@@ -80,6 +94,10 @@ export interface ApiTokenResponse {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** When it stops working (null = never). */
+  expiresAt: string | null;
+  /** The only project it may touch (null = every project of its owner). */
+  projectId: string | null;
 }
 /** Returned once, on creation: the only time the full secret is visible. */
 export interface CreatedApiTokenResponse extends ApiTokenResponse {
@@ -475,6 +493,11 @@ export interface UpdateSequenceDiagramDto {
   headerHeight?: number;
   /** Text size multiple (Ctrl + resize). */
   scale?: number;
+  /** Box bounds beyond the content (0 = hug the content). */
+  padLeft?: number;
+  padTop?: number;
+  boxWidth?: number;
+  boxHeight?: number;
   originY?: number;
   /** Stacking order against elements; a diagram sits above elements ranked below it. */
   zIndex?: number;

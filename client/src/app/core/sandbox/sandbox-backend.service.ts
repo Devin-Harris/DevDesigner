@@ -1,38 +1,10 @@
-import { Injectable } from '@angular/core';
-import type {
-   CanvasElementModel,
-   ProjectExportFile,
-   ProjectGraphResponse,
-   RelationshipModel,
-   SchemaModel,
-   TableModel,
-} from '@devdesigner/shared';
+import { Injectable, inject } from '@angular/core';
+import { CodeBlockSizer } from './code-block-sizer';
+import type { CanvasElementModel, ProjectExportFile, ProjectGraphResponse, RelationshipModel, SchemaModel, TableModel } from '@devdesigner/shared';
 import { parseProjectExport } from '@devdesigner/shared';
-import {
-   assertColors,
-   type Dict,
-   isSandboxId,
-   patch,
-   SANDBOX_PREFIX,
-   SandboxError,
-   type SandboxProject,
-   uuid,
-} from './sandbox.helpers';
-import {
-   diagramRoute,
-   entityRoute,
-   lifelineRoute,
-   messageRoute,
-   type SandboxEntityKind,
-} from './sandbox-routes.helpers';
-import {
-   applyBatch,
-   applyClone,
-   applyImportContent,
-   fitCodeBlocks,
-   normalizeSchema,
-   remapFile,
-} from './sandbox-schema.helpers';
+import { assertColors, type Dict, isSandboxId, patch, SANDBOX_PREFIX, SandboxError, type SandboxProject, uuid } from './sandbox.helpers';
+import { diagramRoute, entityRoute, lifelineRoute, messageRoute, type SandboxEntityKind } from './sandbox-routes.helpers';
+import { applyBatch, applyClone, applyImportContent, fitCodeBlocks, normalizeSchema, remapFile } from './sandbox-schema.helpers';
 
 export { isSandboxId, SANDBOX_PREFIX, SandboxError } from './sandbox.helpers';
 
@@ -45,6 +17,7 @@ const STORAGE_PREFIX = 'dd-sandbox:';
  */
 @Injectable({ providedIn: 'root' })
 export class SandboxBackendService {
+   private readonly codeSizer = inject(CodeBlockSizer);
    private readonly projects = new Map<string, SandboxProject>();
    private readonly saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -74,7 +47,7 @@ export class SandboxBackendService {
             createdAt: now,
             updatedAt: now,
          },
-         schema: fitCodeBlocks(normalizeSchema(schema)),
+         schema: fitCodeBlocks(normalizeSchema(schema), (el) => this.codeSizer.size(el)),
          images,
          viewOnly: opts.viewOnly,
       });

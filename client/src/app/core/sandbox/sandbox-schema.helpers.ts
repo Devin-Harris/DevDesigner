@@ -1,24 +1,12 @@
-import type {
-   CloneItemsDto,
-   ParsedProjectImport,
-   ProjectContent,
-   RemapOptions,
-   SchemaModel,
-   SchemaMutation,
-} from '@devdesigner/shared';
-import {
-   offsetToAnchor,
-   parseProjectExport,
-   planClone,
-   planImportStacking,
-   ProjectFileError,
-   remapProjectIds,
-} from '@devdesigner/shared';
-import { codeElementContentSize } from '../../features/editor/helpers/render';
+import type { CloneItemsDto, ParsedProjectImport, ProjectContent, RemapOptions, SchemaModel, SchemaMutation } from '@devdesigner/shared';
+import { offsetToAnchor, parseProjectExport, planClone, planImportStacking, ProjectFileError, remapProjectIds, type CanvasElementModel } from '@devdesigner/shared';
 import { type Dict, patch, SandboxError, type SandboxProject, tablePatch, uuid } from './sandbox.helpers';
 
 /** Size code blocks to their content with the editor's own (browser-measured) metrics. */
-export function fitCodeBlocks(s: SchemaModel): SchemaModel {
+export function fitCodeBlocks(
+   s: SchemaModel,
+   codeElementContentSize: (el: CanvasElementModel) => { width: number; height: number }
+): SchemaModel {
    for (const e of s.elements) {
       if (e.type !== 'code' || e.expandedHeight) continue;
       const size = codeElementContentSize(e);

@@ -41,6 +41,10 @@ export class ProjectAccessGuard implements CanActivate {
     }
     const projectId = policy.from === 'project' ? id : await this.resolver.projectIdOf(policy.from, id);
     const caller = callerOf(request);
+    // A project-scoped API token sees no other project (404, like one that does not exist).
+    if (caller.tokenProjectId && caller.tokenProjectId !== projectId) {
+      throw new NotFoundException('Not found.');
+    }
     const accessLevel = await this.access.resolveProjectAccess(projectId, caller.ownerId, caller.shareToken);
     this.access.requireLevel(accessLevel, policy.access);
     request.projectAccess = { projectId, accessLevel };

@@ -24,29 +24,29 @@ function sources() {
 describe('EditorActionsService', () => {
    it('shows defaults while no editor is mounted', () => {
       const actions = TestBed.inject(EditorActionsService);
-      expect(actions.canExportSql()).toBe(true);
-      expect(actions.hasSelection()).toBe(false);
-      expect(actions.decks()).toEqual([]);
-      expect(actions.focusedDeck()).toBeNull();
+      expect(actions.canExportSql$()).toBe(true);
+      expect(actions.hasSelection$()).toBe(false);
+      expect(actions.decks$()).toEqual([]);
+      expect(actions.focusedDeck$()).toBeNull();
       expect(actions.projectId()).toBeNull();
-      expect(actions.accessMode()).toBe('VIEW');
-      expect([actions.canEdit(), actions.canUndo(), actions.canRedo()]).toEqual([false, false, false]);
+      expect(actions.accessMode$()).toBe('VIEW');
+      expect([actions.canEdit$(), actions.canUndo$(), actions.canRedo$()]).toEqual([false, false, false]);
    });
 
    it('follows the registered editor state live', () => {
       const actions = TestBed.inject(EditorActionsService);
       const s = sources();
       actions.registerState(s);
-      expect(actions.canExportSql()).toBe(false);
-      expect(actions.presentationName()).toBe('Deck');
-      expect(actions.decks().map((d) => d.name)).toEqual(['Deck']);
+      expect(actions.canExportSql$()).toBe(false);
+      expect(actions.presentationName$()).toBe('Deck');
+      expect(actions.decks$().map((d) => d.name)).toEqual(['Deck']);
       s.focusedDeck.set('Deck');
       s.following.set('p2');
-      expect(actions.focusedDeck()).toBe('Deck');
-      expect(actions.following()).toBe('p2');
+      expect(actions.focusedDeck$()).toBe('Deck');
+      expect(actions.following$()).toBe('p2');
       expect(actions.projectId()).toBe('p1');
-      expect(actions.accessMode()).toBe('OWNER');
-      expect([actions.canEdit(), actions.canUndo(), actions.canRedo()]).toEqual([true, true, false]);
+      expect(actions.accessMode$()).toBe('OWNER');
+      expect([actions.canEdit$(), actions.canUndo$(), actions.canRedo$()]).toEqual([true, true, false]);
    });
 
    it('forwards undo and redo to the mounted editor', () => {
@@ -64,13 +64,13 @@ describe('EditorActionsService', () => {
       const actions = TestBed.inject(EditorActionsService);
       actions.register({} as never);
       actions.registerState(sources());
-      expect(actions.active()).toBe(true);
+      expect(actions.active$()).toBe(true);
       actions.clear();
-      expect(actions.active()).toBe(false);
-      expect(actions.hasSelection()).toBe(false);
-      expect(actions.canExportSql()).toBe(true);
-      expect(actions.decks()).toEqual([]);
-      expect(actions.presentationName()).toBeNull();
-      expect(actions.accessMode()).toBe('VIEW');
+      expect(actions.active$()).toBe(false);
+      expect(actions.hasSelection$()).toBe(false);
+      expect(actions.canExportSql$()).toBe(true);
+      expect(actions.decks$()).toEqual([]);
+      expect(actions.presentationName$()).toBeNull();
+      expect(actions.accessMode$()).toBe('VIEW');
    });
 });

@@ -64,32 +64,32 @@ export class GuideComponent {
       initialValue: null,
    });
 
-   protected readonly tool = computed<GuideTool>(
+   protected readonly tool$ = computed<GuideTool>(
       () => this.tools.find((t) => t.id === this.toolParam()) ?? this.tools[0]
    );
-   private readonly seed = computed(() => this.tool().seed ?? this.tool().id);
+   private readonly seed = computed(() => this.tool$().seed ?? this.tool$().id);
 
-   protected readonly index = computed(() => this.tools.indexOf(this.tool()));
-   protected readonly prev = computed(() => this.tools[this.index() - 1] ?? null);
-   protected readonly next = computed(() => this.tools[this.index() + 1] ?? null);
+   protected readonly index$ = computed(() => this.tools.indexOf(this.tool$()));
+   protected readonly prev$ = computed(() => this.tools[this.index$() - 1] ?? null);
+   protected readonly next$ = computed(() => this.tools[this.index$() + 1] ?? null);
 
    /** Sandbox project for the current tool; null while it is being prepared. */
-   protected readonly sandboxId = signal<string | null>(null);
+   protected readonly sandboxId$ = signal<string | null>(null);
    /** Remounts the editor per tab (tabs sharing a seed still get their own tool + fit). */
-   protected readonly mountKey = computed(() => `${this.tool().id}:${this.sandboxId()}`);
-   protected readonly sandboxError = signal<string | null>(null);
-   protected readonly expanded = signal(false);
+   protected readonly mountKey$ = computed(() => `${this.tool$().id}:${this.sandboxId$()}`);
+   protected readonly sandboxError$ = signal<string | null>(null);
+   protected readonly expanded$ = signal(false);
    /** Desktop: tool rail collapsed to icons (remembered per browser). */
-   protected readonly railCollapsed = signal(readFlag('dd-guide-rail-collapsed'));
+   protected readonly railCollapsed$ = signal(readFlag('dd-guide-rail-collapsed'));
    /** Mobile: tool rail collapsed into a dropdown. */
-   protected readonly navOpen = signal(false);
+   protected readonly navOpen$ = signal(false);
 
    private readonly page = viewChild<ElementRef<HTMLElement>>('page');
 
    constructor() {
       // New tool → start at the top (the page scrolls; on narrow screens the window does).
       effect(() => {
-         this.tool();
+         this.tool$();
          untracked(() => {
             this.page()?.nativeElement.scrollTo({ top: 0 });
             window.scrollTo({ top: 0 });
@@ -101,29 +101,29 @@ export class GuideComponent {
       // `client.guide_tab` per page shown (the catalog drops ids it does not list).
       const telemetry = inject(TelemetryService);
       effect(() => {
-         const tool = this.tool().id as (typeof GUIDE_TOOL_IDS)[number];
+         const tool = this.tool$().id as (typeof GUIDE_TOOL_IDS)[number];
          untracked(() => telemetry.track('client.guide_tab', { tool }));
       });
    }
 
    protected toggleRail(): void {
-      this.railCollapsed.update((v) => !v);
+      this.railCollapsed$.update((v) => !v);
       try {
-         localStorage.setItem('dd-guide-rail-collapsed', this.railCollapsed() ? '1' : '0');
+         localStorage.setItem('dd-guide-rail-collapsed', this.railCollapsed$() ? '1' : '0');
       } catch {
          /* not remembered */
       }
    }
 
    protected go(tool: GuideTool): void {
-      this.navOpen.set(false);
+      this.navOpen$.set(false);
       void this.router.navigate(['/guide', tool.id]);
    }
 
    protected async reset(): Promise<void> {
       const seed = this.seed();
-      const old = this.sandboxId();
-      this.sandboxId.set(null);
+      const old = this.sandboxId$();
+      this.sandboxId$.set(null);
       writeStored(seed, null);
       if (old) this.sandboxes.delete(old);
       await this.loadSandbox(seed);
@@ -145,15 +145,15 @@ export class GuideComponent {
    }
 
    private async loadSandbox(seed: string): Promise<void> {
-      this.sandboxId.set(null);
-      this.sandboxError.set(null);
+      this.sandboxId$.set(null);
+      this.sandboxError$.set(null);
       const current = (): boolean => this.seed() === seed;
       try {
          const id = await prepareSandbox(this.sandboxes, seed, SEEDS[seed]);
-         if (current()) this.sandboxId.set(id);
+         if (current()) this.sandboxId$.set(id);
       } catch (err) {
          console.error('Could not prepare guide sandbox', err);
-         if (current()) this.sandboxError.set('Could not load the sandbox examples.');
+         if (current()) this.sandboxError$.set('Could not load the sandbox examples.');
       }
    }
 }

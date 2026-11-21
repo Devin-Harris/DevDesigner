@@ -461,6 +461,16 @@ export function codeDiffEditLayout(el: CanvasElementModel): {
    rows: number;
 } {
    const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+   if (el.diffView !== 'inline') {
+      // Split: the textareas sit exactly over the split view's two halves and rows.
+      const model = codeDiffModel(el, 'plaintext', fontSize);
+      return {
+         left: el.width * codeDiffSplit(el),
+         textOffset: diffGutters(model.digits, model.cw).split,
+         lineHeight: model.lineHeight,
+         rows: splitRows(model.unified).length,
+      };
+   }
    const count = Math.max(codeLineCount(el.text ?? ''), codeLineCount(el.diffText ?? ''));
    const m = codeLayoutMetrics(fontSize, count);
    // Same gutter as the split view (numbers + a sign column), so code doesn't jump on commit.
@@ -468,6 +478,27 @@ export function codeDiffEditLayout(el: CanvasElementModel): {
    const textOffset = diffGutters(digits, m.charWidth).split;
    const rows = Math.max(splitLines(el.text ?? '').length, splitLines(el.diffText ?? '').length);
    return { left: el.width * codeDiffSplit(el), textOffset, lineHeight: m.lineHeight, rows };
+}
+
+/**
+ * The smallest card that shows both sides of a diff while they are edited (two plain
+ * panes at the current split): the textareas must never need to scroll, or the caret
+ * would drift away from the highlighted code drawn beneath them.
+ */
+export function codeDiffEditSize(el: CanvasElementModel): { width: number; height: number } {
+   const fontSize = el.fontSize ?? CODE_FONT_SIZE;
+   const d = codeDiffEditLayout(el);
+   const cw = codeCharWidth(fontSize);
+   const longest = (text: string): number =>
+      Math.max(1, ...splitLines(text).map((l) => expandTabs(l).length));
+   // One spare column so a caret at the end of the longest line still fits.
+   const pane = (n: number): number => d.textOffset + (n + 1) * cw + CODE_PADDING;
+   const r = codeDiffSplit(el);
+   const width = Math.max(pane(longest(el.text ?? '')) / r, pane(longest(el.diffText ?? '')) / (1 - r));
+   return {
+      width: Math.ceil(width),
+      height: Math.ceil(codeHeaderHeight(fontSize) + d.rows * d.lineHeight + CODE_PADDING * 2),
+   };
 }
 
 /** Diff-aware content size: the plain size, or the inline/split diff's when a diff is shown. */
@@ -521,6 +552,74 @@ export function codePrintWidth(element: CanvasElementModel): number {
    return Math.max(20, codeColumns(element.width, m.textOffset, m.charWidth));
 }
 
+/**
+ * Print widths that fit each side of a diff to its share of the card as currently shown
+ * (half a split, or the whole inline view), so Format re-flows taller rather than wider.
+ */
+export function codeDiffPrintWidths(element: CanvasElementModel): { original: number; modified: number } {
+   if (!codeDiffActive(element)) {
+      const w = codePrintWidth(element);
+      return { original: w, modified: w };
+   }
+   const fontSize = element.fontSize ?? CODE_FONT_SIZE;
+   const count = Math.max(codeLineCount(element.text ?? ''), codeLineCount(element.diffText ?? ''));
+   const cw = codeCharWidth(fontSize);
+   const gut = diffGutters(Math.max(2, String(count).length), cw);
+   const fit = (width: number, gutter: number, pad: number): number =>
+      Math.max(20, Math.floor((width - gutter - pad) / cw + 1e-6));
+   if (element.diffView === 'inline') {
+      const w = fit(element.width, gut.inline, CODE_PADDING);
+      return { original: w, modified: w };
+   }
+   const left = element.width * codeDiffSplit(element);
+   return {
+      original: fit(left, gut.split, CODE_PADDING / 2 + 1),
+      modified: fit(element.width - left, gut.split, CODE_PADDING / 2 + 1),
+   };
+}
+
+/**
+ * Where a 1-based line/column of one side sits on the card as drawn now (plain, split or
+ * inline diff): the start x, the row's baseline and the width to underline (to the end of
+ * the line). Null when the line is not shown (collapsed, or out of range).
+ */
+export function codeLineMark(
+   element: CanvasElementModel,
+   side: 'original' | 'modified',
+   line: number,
+   column = 1
+): { x: number; y: number; width: number } | null {
+   if (element.expandedHeight != null || line < 1) return null;
+   const fontSize = element.fontSize ?? CODE_FONT_SIZE;
+   const top = element.y + codeHeaderHeight(fontSize) + CODE_PADDING + codeBaseline(fontSize);
+   const diff = codeDiffActive(element);
+   const source = side === 'modified' && diff ? (element.diffText ?? '') : (element.text ?? '');
+   const lines = splitLines(source);
+   const raw = lines[line - 1];
+   if (raw == null) return null;
+   const cw = codeCharWidth(fontSize);
+   const col = Math.min(expandTabs(raw.slice(0, Math.max(0, column - 1))).length, expandTabs(raw).length);
+   const rest = Math.max(1, expandTabs(raw).length - col);
+   if (!diff) {
+      const m = codeLayoutMetrics(fontSize, codeLineCount(source));
+      return { x: element.x + m.textOffset + col * cw, y: top + (line - 1) * m.lineHeight, width: rest * cw };
+   }
+   const { unified, digits, lineHeight } = codeDiffModel(element, 'plaintext', fontSize);
+   const gut = diffGutters(digits, cw);
+   const key = side === 'modified' ? 'b' : 'a';
+   if (element.diffView === 'inline') {
+      const at = unified.findIndex((d) => d[key] === line - 1);
+      if (at < 0) return null;
+      return { x: element.x + gut.inline + col * cw, y: top + at * lineHeight, width: rest * cw };
+   }
+   const at = splitRows(unified).findIndex((r) => r[key] === line - 1);
+   if (at < 0) return null;
+   const left = element.width * codeDiffSplit(element);
+   const x0 = side === 'modified' ? element.x + left : element.x;
+   const maxW = (side === 'modified' ? element.x + element.width : element.x + left) - (x0 + gut.split + col * cw);
+   return { x: x0 + gut.split + col * cw, y: top + at * lineHeight, width: Math.max(cw, Math.min(rest * cw, maxW)) };
+}
+
 /** The surface a code card is drawn on: its own fill, else the theme-matched default. */
 function codeBackground(element: CanvasElementModel, theme: ThemeColors | undefined): string {
    if (element.fillStyle !== 'none' && element.backgroundColor) {
@@ -547,7 +646,17 @@ export function codeBlockView(
    const top = element.y + header + CODE_PADDING;
    const diff =
       !collapsed && codeDiffActive(element)
-         ? codeDiffLines(element, palette, isDarkColor(background), language, fontSize, top + baseline, diffEditing)
+         ? codeDiffLines(
+              element,
+              palette,
+              isDarkColor(background),
+              language,
+              fontSize,
+              top + baseline,
+              // A split diff edits in place over its own view (spacer lines keep the rows);
+              // only an inline diff switches to two plain panes while edited.
+              diffEditing && element.diffView === 'inline'
+           )
          : null;
    const lines = collapsed
       ? []

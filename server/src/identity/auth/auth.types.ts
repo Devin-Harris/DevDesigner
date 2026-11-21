@@ -33,7 +33,7 @@ export interface AuthUser {
   id: string;
   email: string | null;
   /** Set when the caller authenticated with an API token instead of a session cookie. */
-  viaToken?: { id: string; scope: 'read' | 'write' };
+  viaToken?: { id: string; scope: 'read' | 'write'; projectId?: string | null };
 }
 
 /** Account role. Stored on users.role; never carried in the JWT. */

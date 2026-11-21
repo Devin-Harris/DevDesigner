@@ -1,0 +1,32 @@
+:host {
+   display: contents;
+}
+
+.laser-capture {
+   position: absolute;
+   inset: 0;
+   cursor: crosshair;
+   touch-action: none;
+}
+.laser-svg {
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%;
+   pointer-events: none;
+   overflow: visible;
+   color: var(--dd-laser-red);
+}
+.laser-svg .trail {
+   stroke: currentColor;
+   stroke-linecap: round;
+   filter: drop-shadow(0 0 4px currentColor);
+}
+.laser-svg .glow {
+   fill: currentColor;
+   opacity: 0.28;
+}
+.laser-svg .dot {
+   fill: currentColor;
+   filter: drop-shadow(0 0 4px currentColor);
+}

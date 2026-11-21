@@ -10,6 +10,7 @@ import { ApiClientService } from '../../../../core/http/api-client.service';
 import { SyncService } from '../../../../core/sync/sync.service';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { compareBounds, contentBoxes, diffSchemas, type DiffEntry } from './schema-diff';
+import { CallPipe, HasPipe, JoinPipe } from '../../../../shared/ui/pipes/collection.pipes';
 
 export interface CompareDialogData {
    projectId: string;
@@ -31,7 +32,7 @@ interface Pane {
 @Component({
    selector: 'dd-compare-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [IconComponent],
+   imports: [CallPipe, HasPipe, JoinPipe, IconComponent],
    templateUrl: './compare-dialog.component.html',
    styleUrl: './compare-dialog.component.scss',
 })
@@ -42,32 +43,32 @@ export class CompareDialogComponent {
    private readonly sync = inject(SyncService);
    private readonly sanitizer = inject(DomSanitizer);
 
-   protected readonly loading = signal(true);
-   protected readonly busy = signal(false);
-   protected readonly error = signal<string | null>(null);
-   protected readonly entries = signal<DiffEntry[]>([]);
-   protected readonly panes = signal<Pane[]>([]);
+   protected readonly loading$ = signal(true);
+   protected readonly busy$ = signal(false);
+   protected readonly error$ = signal<string | null>(null);
+   protected readonly entries$ = signal<DiffEntry[]>([]);
+   protected readonly panes$ = signal<Pane[]>([]);
    /** The whole drawing's box; both panes share it so they line up. */
    private readonly frame = signal<Box>({ x0: 0, y0: 0, x1: 800, y1: 600 });
    /** Merging is possible (a common earlier version is known). */
-   protected readonly canMerge = signal(false);
+   protected readonly canMerge$ = signal(false);
    /** Items changed on both sides; each needs a pick before merging. */
    protected readonly conflicts = signal<MergeConflict[]>([]);
    /** The pick per conflicting item (default: the server's). */
-   protected readonly choices = signal<Record<string, MergeChoice>>({});
-   protected readonly conflictKeys = computed(() => new Set(this.conflicts().map((c) => c.key)));
+   protected readonly choices$ = signal<Record<string, MergeChoice>>({});
+   protected readonly conflictKeys$ = computed(() => new Set(this.conflicts().map((c) => c.key)));
    /** Conflicts that are not drawn on the canvas (home view, themes). */
-   protected readonly otherConflicts = computed(() => {
-      const drawn = new Set(this.entries().map((e) => e.key));
+   protected readonly otherConflicts$ = computed(() => {
+      const drawn = new Set(this.entries$().map((e) => e.key));
       return this.conflicts().filter((c) => !drawn.has(c.key));
    });
    /** The entry zoomed to (null = whole drawing). */
-   protected readonly focus = signal<string | null>(null);
+   protected readonly focus$ = signal<string | null>(null);
 
    /** The viewBox both panes show: the whole drawing, or the focused item (from either side). */
-   protected readonly viewBox = computed(() => {
+   protected readonly viewBox$ = computed(() => {
       const frame = this.frame();
-      const entry = this.entries().find((e) => e.key === this.focus());
+      const entry = this.entries$().find((e) => e.key === this.focus$());
       const boxes = entry ? [entry.mineBox, entry.serverBox].filter((b): b is Box => !!b) : [];
       const box = boxes.length
          ? {
@@ -80,7 +81,7 @@ export class CompareDialogComponent {
       return `${box.x0 - frame.x0} ${box.y0 - frame.y0} ${box.x1 - box.x0} ${box.y1 - box.y0}`;
    });
    /** The full-size image's viewBox (the drawing is positioned inside the shared frame). */
-   protected readonly frameSize = computed(() => {
+   protected readonly frameSize$ = computed(() => {
       const f = this.frame();
       return { width: f.x1 - f.x0, height: f.y1 - f.y0 };
    });
@@ -96,20 +97,20 @@ export class CompareDialogComponent {
             this.sync.serverVersion(this.data.projectId),
             this.sync.mergePreview(this.data.projectId).catch(() => ({ canMerge: false, conflicts: [] })),
          ]);
-         this.canMerge.set(preview.canMerge);
+         this.canMerge$.set(preview.canMerge);
          this.conflicts.set(preview.conflicts);
          const entries = diffSchemas(mine.schema, server.schema);
          const frame = compareBounds(entries, [...contentBoxes(mine.schema), ...contentBoxes(server.schema)]);
          this.frame.set(frame);
-         this.entries.set(entries);
-         this.panes.set([
+         this.entries$.set(entries);
+         this.panes$.set([
             this.pane('On this computer', mine.schema, frame, entries, 'mine'),
             this.pane(`On ${this.data.serverName}`, server.schema, frame, entries, 'server'),
          ]);
       } catch (err) {
-         this.error.set(describe(err));
+         this.error$.set(describe(err));
       } finally {
-         this.loading.set(false);
+         this.loading$.set(false);
       }
    }
 
@@ -133,34 +134,40 @@ export class CompareDialogComponent {
    }
 
    protected toggleFocus(key: string): void {
-      this.focus.set(this.focus() === key ? null : key);
+      this.focus$.set(this.focus$() === key ? null : key);
    }
 
    /** A highlight's rectangle in the shared frame's coordinates. */
+   /** A box in the picture's own coordinates, with a margin. */
+   protected readonly rect$ = computed(() => {
+      const f = this.frame();
+      return (box: Box) => ({ x: box.x0 - f.x0 - 6, y: box.y0 - f.y0 - 6, width: box.x1 - box.x0 + 12, height: box.y1 - box.y0 + 12 });
+   });
+
    protected rect(box: Box): { x: number; y: number; width: number; height: number } {
       const f = this.frame();
       return { x: box.x0 - f.x0 - 6, y: box.y0 - f.y0 - 6, width: box.x1 - box.x0 + 12, height: box.y1 - box.y0 + 12 };
    }
 
    protected choiceOf(key: string): MergeChoice {
-      return this.choices()[key] ?? 'server';
+      return this.choices$()[key] ?? 'server';
    }
 
    protected setChoice(key: string, side: MergeChoice, event?: Event): void {
       event?.stopPropagation();
-      this.choices.update((c) => ({ ...c, [key]: side }));
+      this.choices$.update((c) => ({ ...c, [key]: side }));
    }
 
    protected async choose(keep: 'server' | 'mine' | 'merge'): Promise<void> {
-      this.busy.set(true);
-      this.error.set(null);
+      this.busy$.set(true);
+      this.error$.set(null);
       try {
-         await this.sync.resolve(this.data.projectId, keep, keep === 'merge' ? this.choices() : {});
+         await this.sync.resolve(this.data.projectId, keep, keep === 'merge' ? this.choices$() : {});
          this.ref.close(keep);
       } catch (err) {
-         this.error.set(describe(err));
+         this.error$.set(describe(err));
       } finally {
-         this.busy.set(false);
+         this.busy$.set(false);
       }
    }
 

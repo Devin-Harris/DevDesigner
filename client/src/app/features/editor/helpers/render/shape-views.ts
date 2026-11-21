@@ -267,6 +267,14 @@ export function buildShapeViews(
             base.label = shapeLabel(element, base.bbox, theme);
             break;
          }
+         case 'triangle':
+            base.polygon = [
+               `${element.x + element.width / 2},${element.y}`,
+               `${element.x + element.width},${element.y + element.height}`,
+               `${element.x},${element.y + element.height}`,
+            ].join(' ');
+            base.label = shapeLabel(element, base.bbox, theme);
+            break;
          case 'freedraw':
             // Non-finite points are gaps a live eraser drag has cut; draw each piece apart.
             base.path = splitAtGaps(absolutePoints(element))

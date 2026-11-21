@@ -1,16 +1,16 @@
 <div class="panel">
    <div class="panel-head">
-      <span class="dot" [style.background]="table().color || 'var(--dd-handle)'"></span>
+      <span class="dot" [style.background]="table$().color || 'var(--dd-handle)'"></span>
       <div class="head-text">
          <div class="eyebrow">Table</div>
-         <div class="tname">{{ table().name }}</div>
+         <div class="tname">{{ table$().name }}</div>
       </div>
       <button
          class="icon-btn del"
          type="button"
          title="Delete table"
          aria-label="Delete table"
-         [disabled]="!store.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (click)="deleteTable()"
       >
          <dd-icon name="delete" />
@@ -18,14 +18,14 @@
    </div>
 
    <div class="field-label">Name</div>
-   <dd-input [ngModel]="table().name" [maxlength]="120" [disabled]="!store.canEdit()" (commit)="renameTable($event)" />
+   <dd-input [ngModel]="table$().name" [maxlength]="120" [disabled]="!edits.canEdit$()" (commit)="renameTable($event)" />
 
    <div class="field-label">Header color</div>
    <dd-color-swatches
       class="swatches"
       themeValue="surface"
-      [value]="table().color"
-      [disabled]="!store.canEdit()"
+      [value]="table$().color"
+      [disabled]="!edits.canEdit$()"
       (pick)="setColor($event)"
    />
 
@@ -34,40 +34,40 @@
       class="note"
       rows="2"
       maxlength="2000"
-      [value]="table().note ?? ''"
-      [disabled]="!store.canEdit()"
+      [value]="table$().note ?? ''"
+      [disabled]="!edits.canEdit$()"
       (change)="setNote($any($event.target).value)"
    ></textarea>
 
    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" type="button" [class.on]="tab() === 'columns'" (click)="tab.set('columns')">
+      <button class="tab" role="tab" type="button" [class.on]="tab$() === 'columns'" (click)="tab$.set('columns')">
          Columns
       </button>
-      <button class="tab" role="tab" type="button" [class.on]="tab() === 'indexes'" (click)="tab.set('indexes')">
+      <button class="tab" role="tab" type="button" [class.on]="tab$() === 'indexes'" (click)="tab$.set('indexes')">
          Indexes
       </button>
-      <button class="tab" role="tab" type="button" [class.on]="tab() === 'sql'" (click)="tab.set('sql')">SQL</button>
+      <button class="tab" role="tab" type="button" [class.on]="tab$() === 'sql'" (click)="tab$.set('sql')">SQL</button>
    </div>
 
-   @switch (tab()) {
+   @switch (tab$()) {
       @case ('columns') {
          <div class="section-head">
             <span class="panel-title">Columns</span>
-            <button class="add-btn" type="button" [disabled]="!store.canEdit()" (click)="addColumn()">
+            <button class="add-btn" type="button" [disabled]="!edits.canEdit$()" (click)="addColumn()">
                <dd-icon name="add" />Add
             </button>
          </div>
 
          <div cdkDropList class="col-list" (cdkDropListDropped)="onReorder($event)">
-            @for (column of table().columns; track column.id) {
-               <div cdkDrag class="col-card" [cdkDragDisabled]="!store.canEdit()">
+            @for (column of table$().columns; track column.id) {
+               <div cdkDrag class="col-card" [cdkDragDisabled]="!edits.canEdit$()">
                   <div class="col-row">
                      <dd-icon cdkDragHandle name="drag_indicator" class="drag" />
                      <dd-input
                         class="grow"
                         [ngModel]="column.name"
                         [maxlength]="120"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (commit)="renameColumn(column, $event)"
                      />
                      <button
@@ -75,7 +75,7 @@
                         type="button"
                         title="Delete column"
                         aria-label="Delete column"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (click)="deleteColumn(column)"
                      >
                         <dd-icon name="close" />
@@ -87,7 +87,7 @@
                         class="grow"
                         [options]="typeOptions"
                         [ngModel]="column.dataType.name"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (ngModelChange)="setType(column, $event)"
                      />
                      @if (column.dataType.name === 'VARCHAR') {
@@ -96,7 +96,7 @@
                            type="number"
                            [min]="1"
                            [ngModel]="column.dataType.length ?? null"
-                           [disabled]="!store.canEdit()"
+                           [disabled]="!edits.canEdit$()"
                            (commit)="setLength(column, $event)"
                         />
                      }
@@ -108,7 +108,7 @@
                         type="button"
                         title="Primary key"
                         [class.on]="column.isPrimaryKey"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (click)="setFlag(column, 'isPrimaryKey', !column.isPrimaryKey)"
                      >
                         PK
@@ -118,7 +118,7 @@
                         type="button"
                         title="Not null"
                         [class.on]="!column.isNullable"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (click)="setNotNull(column, column.isNullable)"
                      >
                         NN
@@ -128,7 +128,7 @@
                         type="button"
                         title="Unique"
                         [class.on]="column.isUnique"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (click)="setFlag(column, 'isUnique', !column.isUnique)"
                      >
                         UQ
@@ -138,7 +138,7 @@
                         type="button"
                         title="Auto increment"
                         [class.on]="column.isAutoIncrement"
-                        [disabled]="!store.canEdit()"
+                        [disabled]="!edits.canEdit$()"
                         (click)="setFlag(column, 'isAutoIncrement', !column.isAutoIncrement)"
                      >
                         AI
@@ -155,25 +155,25 @@
             <button
                class="add-btn"
                type="button"
-               [disabled]="!store.canEdit() || table().columns.length === 0"
+               [disabled]="!edits.canEdit$() || table$().columns.length === 0"
                (click)="addIndex()"
             >
                <dd-icon name="add" />Add
             </button>
          </div>
 
-         @if ((table().indexes ?? []).length === 0) {
+         @if ((table$().indexes ?? []).length === 0) {
             <div class="empty-hint">No indexes yet. Add one to index a column or set of columns.</div>
          } @else {
             <div class="col-list">
-               @for (index of table().indexes ?? []; track index.id) {
+               @for (index of table$().indexes ?? []; track index.id) {
                   <div class="col-card">
                      <div class="col-row">
                         <dd-input
                            class="grow"
                            [ngModel]="index.name"
                            [maxlength]="120"
-                           [disabled]="!store.canEdit()"
+                           [disabled]="!edits.canEdit$()"
                            (commit)="renameIndex(index, $event)"
                         />
                         <button
@@ -181,7 +181,7 @@
                            type="button"
                            title="Delete index"
                            aria-label="Delete index"
-                           [disabled]="!store.canEdit()"
+                           [disabled]="!edits.canEdit$()"
                            (click)="deleteIndex(index)"
                         >
                            <dd-icon name="close" />
@@ -189,10 +189,10 @@
                      </div>
 
                      <div class="idx-cols">
-                        @for (column of table().columns; track column.id) {
+                        @for (column of table$().columns; track column.id) {
                            <dd-checkbox
-                              [ngModel]="indexHasColumn(index, column.id)"
-                              [disabled]="!store.canEdit()"
+                              [ngModel]="(indexHasColumn | call: index : column.id)"
+                              [disabled]="!edits.canEdit$()"
                               (ngModelChange)="toggleIndexColumn(index, column.id, $event)"
                               >{{ column.name }}</dd-checkbox
                            >
@@ -202,7 +202,7 @@
                      <div class="col-flags">
                         <dd-checkbox
                            [ngModel]="index.isUnique"
-                           [disabled]="!store.canEdit()"
+                           [disabled]="!edits.canEdit$()"
                            (ngModelChange)="setIndexUnique(index, $event)"
                            >Unique</dd-checkbox
                         >
@@ -217,7 +217,7 @@
          <div class="section-head">
             <span class="panel-title">SQL (MySQL)</span>
          </div>
-         <pre class="sql">{{ tableSql() }}</pre>
+         <pre class="sql">{{ tableSql$() }}</pre>
       }
    }
 </div>

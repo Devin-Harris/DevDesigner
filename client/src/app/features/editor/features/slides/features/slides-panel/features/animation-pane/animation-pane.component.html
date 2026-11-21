@@ -1,152 +1,291 @@
-@if (canEdit()) {
-   <button class="add" type="button" [disabled]="!selectedTargets().length" (click)="addSelected()">
+@let d = drop$();
+
+@if (canEdit$() && selectedTargets$().length) {
+   <button class="add" type="button" (click)="addSelected()">
       <dd-icon name="add" />
-      Add animation{{ selectedTargets().length > 1 ? ' to ' + selectedTargets().length + ' objects' : '' }}
+      Animate {{ selectedTargets$().length > 1 ? selectedTargets$().length + ' objects' : 'selection' }}
    </button>
-   @if (!selectedTargets().length && !rows().length) {
-      <p class="hint">
-         Select an object on the slide, then add an animation to bring it in, take it out, or draw attention to it.
-         Animations play in the order listed.
-      </p>
-   }
+} @else if (!blocks$().length) {
+   <p class="hint">Select something on the slide to animate it.</p>
 }
 
-@if (rows().length) {
-   <ol class="rows">
-      @for (r of rows(); track r.animation.id; let i = $index) {
-         @if (r.animation.trigger === 'click' || i === 0) {
-            <li class="mark" aria-hidden="true">
-               {{ r.animation.trigger === 'click' ? 'Click ' + r.click : 'Starts by itself' }}
-            </li>
-         }
-         <li
-            class="row"
-            [class.sel]="r.animation.id === selectedId()"
-            [class.gone]="!r.target"
-            (click)="pickRow(r.animation)"
+@if (blocks$().length) {
+   <div class="blocks" [class.dragging]="!!drag$()">
+      @for (b of blocks$(); track $index; let bi = $index) {
+         <div class="gap" [attr.data-gap]="bi" [class.on]="d?.type === 'gap' && d.index === bi"></div>
+         <div
+            class="block"
+            [attr.data-block]="bi"
+            [class.auto]="b.auto"
+            [class.multi]="b.rows.length > 1"
+            [class.lifted]="dragBlock$() === bi"
+            [title]="b.auto ? 'Plays when the slide appears' : ''"
          >
-            <span class="idx">{{ i + 1 }}</span>
-            <span class="what">
-               <span class="name">{{ r.target?.label ?? 'Missing object' }}</span>
-               <span class="how">
-                  {{ effectName(r.animation) }}
-                  @if (r.animation.trigger !== 'click') {
-                     · {{ r.animation.trigger === 'with' ? 'with previous' : 'after previous' }}
-                  }
-               </span>
-            </span>
-            @if (canEdit()) {
-               <button
-                  class="icon"
-                  aria-label="Remove animation"
-                  title="Remove"
-                  type="button"
-                  (click)="remove(r.animation.id); $event.stopPropagation()"
+            <!-- A group of one moves by its card's grip; only groups of several need their own. -->
+            @if (canEdit$() && b.rows.length > 1) {
+               <span
+                  class="bgrip"
+                  title="Drag to move this group"
+                  aria-hidden="true"
+                  (pointerdown)="startBlockDrag($event, bi)"
+                  (pointermove)="onDragMove($event)"
+                  (pointerup)="onDragEnd()"
+                  (pointercancel)="cancelDrag()"
                >
-                  <dd-icon name="close" />
-               </button>
+                  <dd-icon name="drag_handle" />
+               </span>
             }
-         </li>
+            @for (r of b.rows; track r.animation.id) {
+               @let a = r.animation;
+               <div
+                  class="card"
+                  [attr.data-card]="r.index"
+                  [class.open]="a.id === selectedId$()"
+                  [class.now]="highlight$() | has: a.id"
+                  [class.gone]="!r.target"
+                  [class.lifted]="dragCard$() === a.id"
+                  [class.drop-before]="d?.type === 'card' && d.block === bi && d.index === r.index"
+                  [class.drop-after]="d?.type === 'card' && d.block === bi && d.index === r.index + 1 && r.index === b.rows.length - 1"
+               >
+                  <div
+                     class="head"
+                     tabindex="0"
+                     role="button"
+                     [attr.aria-expanded]="a.id === selectedId$()"
+                     (click)="toggleRow(a)"
+                     (keydown.enter)="toggleRow(a)"
+                     (keydown.space)="$event.preventDefault(); toggleRow(a)"
+                  >
+                     @if (canEdit$()) {
+                        <span
+                           class="grip"
+                           title="Drag to reorder"
+                           aria-hidden="true"
+                           (pointerdown)="startCardDrag($event, a.id)"
+                           (pointermove)="onDragMove($event)"
+                           (pointerup)="onDragEnd()"
+                           (pointercancel)="cancelDrag()"
+                           (click)="$event.stopPropagation()"
+                        >
+                           <dd-icon name="drag_indicator" />
+                        </span>
+                     }
+                     <span class="what">
+                        <span class="name">
+                           {{ r.target?.label ?? 'Missing object' }}
+                           @if (r.piece) {
+                              <span class="piece">· {{ r.piece }}</span>
+                           }
+                        </span>
+                        <span class="how">
+                           {{ (effectName | call: a) }}
+                           @if (r.pieces > 1) {
+                              · one by one
+                           }
+                           @if (r.index > 0 && a.trigger === 'after') {
+                              · after previous
+                           }
+                           @if (r.auto) {
+                              · automatic
+                           }
+                        </span>
+                     </span>
+                     @if (canEdit$()) {
+                        <button
+                           class="icon"
+                           aria-label="Remove animation"
+                           type="button"
+                           [title]="r.auto ? 'Switch off this automatic animation' : 'Remove'"
+                           (click)="remove(a.id); $event.stopPropagation()"
+                        >
+                           <dd-icon name="close" />
+                        </button>
+                     }
+                  </div>
+
+                  @if (a.id === selectedId$()) {
+                     <div class="body">
+                        <div class="two">
+                           <label class="field">
+                              <span>Type</span>
+                              <dd-select
+                                 [options]="kindOptions"
+                                 [ngModel]="a.kind"
+                                 [disabled]="!canEdit$()"
+                                 (ngModelChange)="patch(a.id, { kind: $event, effect: effectFor($event, a.effect) })"
+                              />
+                           </label>
+                           <label class="field">
+                              <span>Effect</span>
+                              <dd-select
+                                 [options]="effectOptions$()"
+                                 [ngModel]="a.effect"
+                                 [disabled]="!canEdit$() || (isDiff | call: a)"
+                                 (ngModelChange)="patch(a.id, { effect: $event })"
+                              />
+                           </label>
+                        </div>
+                        <div class="two">
+                           @if (directional | call: a) {
+                              <label class="field">
+                                 <span>Direction</span>
+                                 <dd-select
+                                    [options]="a.kind === 'exit' ? exitDirections : directions"
+                                    [ngModel]="a.direction ?? 'left'"
+                                    [disabled]="!canEdit$()"
+                                    (ngModelChange)="patch(a.id, { direction: $event })"
+                                 />
+                              </label>
+                           }
+                           <!-- Pieces played automatically are timed by the gap instead. -->
+                           @if (a.effect !== 'appear' && (!a.stagger || a.stagger.trigger === 'click')) {
+                              <label class="field">
+                                 <span>Duration (ms)</span>
+                                 <input
+                                    type="number"
+                                    min="50"
+                                    max="10000"
+                                    step="50"
+                                    [ngModel]="a.duration"
+                                    [disabled]="!canEdit$()"
+                                    (change)="patch(a.id, { duration: num($any($event.target).value, a.duration) })"
+                                 />
+                              </label>
+                           }
+                        </div>
+
+                        <div class="two">
+                           @if (bi === 0 && r.index === 0) {
+                              <label class="field">
+                                 <span>Start</span>
+                                 <dd-select
+                                    [options]="firstStartOptions"
+                                    [ngModel]="a.trigger === 'click' ? 'click' : 'with'"
+                                    [disabled]="!canEdit$()"
+                                    (ngModelChange)="patch(a.id, { trigger: $event })"
+                                 />
+                              </label>
+                           } @else {
+                              <label class="field">
+                                 <span>Start</span>
+                                 <dd-select
+                                    [options]="followStartOptions"
+                                    [ngModel]="a.trigger"
+                                    [disabled]="!canEdit$()"
+                                    (ngModelChange)="patch(a.id, { trigger: $event })"
+                                 />
+                              </label>
+                           }
+                           <label class="field">
+                              <span>Delay (ms)</span>
+                              <input
+                                 type="number"
+                                 min="0"
+                                 max="30000"
+                                 step="100"
+                                 [ngModel]="a.delay"
+                                 [disabled]="!canEdit$()"
+                                 (change)="patch(a.id, { delay: num($any($event.target).value, a.delay) })"
+                              />
+                           </label>
+                        </div>
+
+                        @if (canStagger$()) {
+                           <label class="check">
+                              <input
+                                 type="checkbox"
+                                 [checked]="!!a.stagger"
+                                 [disabled]="!canEdit$()"
+                                 (change)="setOneByOne(a, $any($event.target).checked)"
+                              />
+                              One by one
+                           </label>
+                           @if (a.stagger; as st) {
+                              <div class="two">
+                                 <label class="field">
+                                    <span>Next piece</span>
+                                    <dd-select
+                                       [options]="staggerOptions"
+                                       [ngModel]="st.trigger === 'click' ? 'click' : 'with'"
+                                       [disabled]="!canEdit$()"
+                                       (ngModelChange)="patchStagger(a, { trigger: $event })"
+                                    />
+                                 </label>
+                                 @if (st.trigger !== 'click') {
+                                    <label class="field">
+                                       <span>Gap (ms)</span>
+                                       <input
+                                          type="number"
+                                          min="0"
+                                          max="30000"
+                                          step="50"
+                                          title="Time from one piece starting to the next starting"
+                                          [ngModel]="st.delay"
+                                          [disabled]="!canEdit$()"
+                                          (change)="patchStagger(a, { delay: num($any($event.target).value, st.delay) })"
+                                       />
+                                    </label>
+                                 }
+                              </div>
+                              @if (refine$()) {
+                                 <div class="pieces">
+                                    <span class="sub">Tick a piece to play it with the one above</span>
+                                    @for (pc of pieces$(); track pc.part; let n = $index) {
+                                       <label class="pc" [class.joined]="pc.joined">
+                                          <input
+                                             type="checkbox"
+                                             [checked]="pc.joined"
+                                             [disabled]="!canEdit$() || pc.first"
+                                             (change)="toggleJoined(a, pc.part)"
+                                          />
+                                          <span class="pn">{{ n + 1 }}</span>
+                                          <span class="name">{{ pc.label }}</span>
+                                       </label>
+                                    }
+                                 </div>
+                              }
+                           }
+                        }
+
+                        @if (canEdit$() && canReset$()) {
+                           <button class="link reset" type="button" (click)="resetToAuto(a.target)">
+                              <dd-icon name="restart_alt" />Reset to automatic
+                           </button>
+                        }
+                     </div>
+                  }
+               </div>
+            }
+         </div>
       }
-   </ol>
-   <p class="sum">
-      {{ summary() }}
-      <button class="link" type="button" (click)="play.emit()"><dd-icon name="play_arrow" />Preview</button>
-   </p>
+      <div
+         class="gap"
+         [attr.data-gap]="blocks$().length"
+         [class.on]="d?.type === 'gap' && d.index === blocks$().length"
+      ></div>
+   </div>
 }
 
-@if (selected(); as a) {
-   <div class="detail">
-      <div class="two">
-         <label class="field">
-            <span>Type</span>
-            <dd-select
-               [options]="kindOptions"
-               [ngModel]="a.kind"
-               [disabled]="!canEdit()"
-               (ngModelChange)="patch(a.id, { kind: $event, effect: effectFor($event, a.effect) })"
-            />
-         </label>
-         <label class="field">
-            <span>Effect</span>
-            <dd-select
-               [options]="effectOptions()"
-               [ngModel]="a.effect"
-               [disabled]="!canEdit()"
-               (ngModelChange)="patch(a.id, { effect: $event })"
-            />
-         </label>
-      </div>
-      @if (directional(a)) {
-         <label class="field">
-            <span>Direction</span>
-            <dd-select
-               [options]="a.kind === 'exit' ? exitDirections : directions"
-               [ngModel]="a.direction ?? 'left'"
-               [disabled]="!canEdit()"
-               (ngModelChange)="patch(a.id, { direction: $event })"
-            />
-         </label>
-      }
-      <label class="field">
-         <span>Start</span>
-         <dd-select
-            [options]="triggerOptions"
-            [ngModel]="a.trigger"
-            [disabled]="!canEdit()"
-            (ngModelChange)="patch(a.id, { trigger: $event })"
-         />
-      </label>
-      @if (a.effect !== 'appear') {
-         <div class="two">
-            <label class="field">
-               <span>Duration (ms)</span>
-               <input
-                  type="number"
-                  min="50"
-                  max="10000"
-                  step="50"
-                  [ngModel]="a.duration"
-                  [disabled]="!canEdit()"
-                  (change)="patch(a.id, { duration: num($any($event.target).value, a.duration) })"
-               />
-            </label>
-            <label class="field">
-               <span>Delay (ms)</span>
-               <input
-                  type="number"
-                  min="0"
-                  max="30000"
-                  step="100"
-                  [ngModel]="a.delay"
-                  [disabled]="!canEdit()"
-                  (change)="patch(a.id, { delay: num($any($event.target).value, a.delay) })"
-               />
-            </label>
-         </div>
-      } @else {
-         <label class="field">
-            <span>Delay (ms)</span>
-            <input
-               type="number"
-               min="0"
-               max="30000"
-               step="100"
-               [ngModel]="a.delay"
-               [disabled]="!canEdit()"
-               (change)="patch(a.id, { delay: num($any($event.target).value, a.delay) })"
-            />
-         </label>
-      }
-      @if (canEdit()) {
-         <div class="order">
-            <button class="btn" type="button" [disabled]="!canMove(a.id, -1)" (click)="move(a.id, -1)">
-               <dd-icon name="arrow_upward" />Earlier
-            </button>
-            <button class="btn" type="button" [disabled]="!canMove(a.id, 1)" (click)="move(a.id, 1)">
-               <dd-icon name="arrow_downward" />Later
-            </button>
+@if (offTargets$().length) {
+   <div class="offs">
+      @for (o of offTargets$(); track o.id) {
+         <div class="off">
+            <span class="name">{{ o.label }} · automatic off</span>
+            @if (canEdit$()) {
+               <button class="link" type="button" (click)="resetToAuto(o.id)">Restore</button>
+            }
          </div>
       }
    </div>
+}
+
+@if (!refine$() && blocks$().length) {
+   <button
+      class="btn wide refine"
+      type="button"
+      title="Edit the slide's animations on a larger screen"
+      (click)="openRefine.emit()"
+   >
+      <dd-icon name="open_in_full" />Refine
+   </button>
 }

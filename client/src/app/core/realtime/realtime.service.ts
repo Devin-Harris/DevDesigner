@@ -1,18 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { io, type Socket } from 'socket.io-client';
-import {
-   REALTIME_NAMESPACE,
-   RT_EVENTS,
-   type MutationBatchEvent,
-   type MutationEvent,
-   type Participant,
-   type PresenceCursor,
-   type PresenceLaser,
-   type PresenceSelection,
-   type RealtimeHandshakeAuth,
-   type RealtimeSession,
-   type SchemaMutation,
-} from '@devdesigner/shared';
+import { REALTIME_NAMESPACE, RT_EVENTS, type MutationBatchEvent, type MutationEvent, type Participant, type PresenceCursor, type PresenceLaser, type PresenceSelection, type RealtimeHandshakeAuth, type RealtimeSession, type SchemaMutation } from '@devdesigner/shared';
 import { runtimeConfig } from '../config/runtime-config';
 import { LaserService } from './laser.service';
 import { ShareSessionService } from '../auth/share-session.service';
@@ -52,7 +40,7 @@ export class RealtimeService {
    private readonly _connected = signal(false);
    private readonly _selfId = signal<string | null>(null);
 
-   readonly participants = this._participants.asReadonly();
+   readonly participants$ = this._participants.asReadonly();
    /** Other participants who are presenting right now. */
    readonly presenters = computed(() => this._participants().filter((p) => p.presenting && p.id !== this._selfId()));
    readonly connected = this._connected.asReadonly();
@@ -61,7 +49,7 @@ export class RealtimeService {
     * readers in a reactive context re-run when a peer joins, so they can send a fresh state.
     */
    readonly hasPeers = computed(() => this._connected() && this._participants().length > 1);
-   readonly selfId = this._selfId.asReadonly();
+   readonly selfId$ = this._selfId.asReadonly();
 
    private readonly byId = computed(() => {
       const map = new Map<string, Participant>();

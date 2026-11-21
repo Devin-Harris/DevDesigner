@@ -17,13 +17,7 @@ import { gridCellAt } from '../../../helpers/grid-table.helper';
 import { standInFor } from '../../../helpers/layout-placeholders';
 import { hitTestElement } from '../../../helpers/element-geometry.helper';
 import { EmbedFramesService } from '../../../services/embed-frames.service';
-import {
-   CODE_FONT_SIZE,
-   codeDiffActive,
-   codeDiffSplit,
-   codeDotsWidth,
-   codeHeaderHeight,
-} from '../../../helpers/render';
+import { CODE_FONT_SIZE, codeDiffActive, codeDiffSplit, codeDotsWidth, codeHeaderHeight } from '../../../helpers/render';
 /**
  * Double-clicks on the canvas: edit text/code/cells, enter groups, crop images, create text, and
  * take over a layout's inherited item on a slide. Detects double-clicks itself (see `attach`).
@@ -69,7 +63,7 @@ export class CanvasDblClickService {
          !!target &&
          (target === canvas || !!target.closest('.world')) &&
          !target.closest('.text-editor, [contenteditable="true"], textarea, input');
-      if (!onSurface || this.textEditing.editingTextId()) {
+      if (!onSurface || this.textEditing.editingTextId$()) {
          return;
       }
       // Layers with their own (dblclick) handlers — ERD tables (rename table / edit
@@ -118,7 +112,7 @@ export class CanvasDblClickService {
       // Double-clicking a live frame hands it the pointer (scroll, click, type in the page).
       if (hit?.type === 'embed' && hit.text) {
          this.store.selectElement(hit.id);
-         this.embeds.interactingId.set(hit.id);
+         this.embeds.interactingId$.set(hit.id);
          return;
       }
       if (!this.store.canEdit() || !this.store.projectId()) {
@@ -168,7 +162,7 @@ export class CanvasDblClickService {
             hit.type === 'frame' ||
             hit.type === 'rectangle' ||
             hit.type === 'ellipse' ||
-            hit.type === 'diamond' ||
+            hit.type === 'diamond' || hit.type === 'triangle' ||
             hit.type === 'arrow' ||
             hit.type === 'line'
          ) {
@@ -196,7 +190,7 @@ export class CanvasDblClickService {
                   codeDiffActive(hit) && world.x >= hit.x + hit.width * codeDiffSplit(hit) ? 'modified' : 'original'
                );
             }
-            this.textEditing.editingTextId.set(hit.id);
+            this.textEditing.editingTextId$.set(hit.id);
          }
          return;
       }
@@ -263,7 +257,7 @@ export class CanvasDblClickService {
    /** A grabbed master item's copy that was never changed goes once it is deselected. */
    private readonly prunePristine = effect(() => {
       const selected = new Set(this.store.selectedElementIds());
-      const editing = this.textEditing.editingTextId();
+      const editing = this.textEditing.editingTextId$();
       untracked(() => {
          for (const [id, look] of [...this.pristineStandIns]) {
             if (selected.has(id) || editing === id) continue;
@@ -278,8 +272,8 @@ export class CanvasDblClickService {
       const copy = await standInFor(this.store, item, frame);
       if (!copy) return;
       this.store.selectElement(copy.id);
-      if (['text', 'rectangle', 'ellipse', 'diamond', 'code'].includes(copy.type))
-         this.textEditing.editingTextId.set(copy.id);
+      if (['text', 'rectangle', 'ellipse', 'diamond', 'triangle', 'code'].includes(copy.type))
+         this.textEditing.editingTextId$.set(copy.id);
    }
 
    /** Create an empty text block at a world point and open its inline editor. */

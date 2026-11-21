@@ -15,32 +15,32 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
    styleUrl: './input.component.scss',
 })
 export class InputComponent implements ControlValueAccessor {
-   readonly type = input<'text' | 'number' | 'email' | 'password'>('text');
-   readonly placeholder = input<string>('');
-   readonly min = input<number | null>(null);
-   readonly maxlength = input<number | null>(null);
-   readonly disabled = signal(false);
+   readonly type$ = input<'text' | 'number' | 'email' | 'password'>('text', { alias: 'type' });
+   readonly placeholder$ = input<string>('', { alias: 'placeholder' });
+   readonly min$ = input<number | null>(null, { alias: 'min' });
+   readonly maxlength$ = input<number | null>(null, { alias: 'maxlength' });
+   readonly disabled$ = signal(false);
    /** Fires on native change (blur/Enter) — for commit-on-blur callers. */
    readonly commit = output<string | number>();
 
-   protected readonly value = signal<string | number>('');
+   protected readonly value$ = signal<string | number>('');
    protected onChange: (v: string | number) => void = () => {};
    protected onTouched: () => void = () => {};
 
    protected onInput(event: Event): void {
       const raw = (event.target as HTMLInputElement).value;
-      const v = this.type() === 'number' ? (raw === '' ? '' : Number(raw)) : raw;
-      this.value.set(v);
+      const v = this.type$() === 'number' ? (raw === '' ? '' : Number(raw)) : raw;
+      this.value$.set(v);
       this.onChange(v);
    }
 
    protected onCommit(event: Event): void {
       const raw = (event.target as HTMLInputElement).value;
-      this.commit.emit(this.type() === 'number' ? (raw === '' ? '' : Number(raw)) : raw);
+      this.commit.emit(this.type$() === 'number' ? (raw === '' ? '' : Number(raw)) : raw);
    }
 
    writeValue(v: string | number | null): void {
-      this.value.set(v ?? '');
+      this.value$.set(v ?? '');
    }
    registerOnChange(fn: (v: string | number) => void): void {
       this.onChange = fn;
@@ -49,6 +49,6 @@ export class InputComponent implements ControlValueAccessor {
       this.onTouched = fn;
    }
    setDisabledState(isDisabled: boolean): void {
-      this.disabled.set(isDisabled);
+      this.disabled$.set(isDisabled);
    }
 }

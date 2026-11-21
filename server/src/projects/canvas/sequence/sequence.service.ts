@@ -282,6 +282,9 @@ export function applyDiagramPatch(entity: SequenceDiagramEntity, dto: UpdateSequ
     'backgroundColor',
     'borderColor',
   ]);
+  for (const key of ['padLeft', 'padTop', 'boxWidth', 'boxHeight'] as const) {
+    if (dto[key] !== undefined) entity[key] = dto[key] || null;
+  }
   if (dto.title !== undefined) entity.title = dto.title.trim() || null;
   if (dto.morphId !== undefined) entity.morphId = dto.morphId.trim() || null;
 }

@@ -1,0 +1,507 @@
+<input #designFileInput type="file" accept=".json,application/json" hidden (change)="s.importDesign(designFileInput)" />
+<div class="sub">
+   <span class="subt">
+      Design
+      <dd-icon
+         name="info"
+         class="info"
+         tabindex="0"
+         matTooltip="A design is one set of layouts plus the theme it uses. The Default design uses the standard layouts and the Default theme; changing a layout, or a theme's colors or fonts, saves a custom design, so the defaults never change."
+      />
+   </span>
+   @if (s.canEdit$()) {
+      <span class="sub-actions">
+         <button
+            class="icon"
+            type="button"
+            aria-label="New design"
+            matTooltip="New design: a copy of this one (its layouts and theme) to change"
+            (click)="s.newDesign()"
+         >
+            <dd-icon name="add" />
+         </button>
+         @if (s.designIsCustom$()) {
+            <button
+               class="icon"
+               type="button"
+               aria-label="Delete design"
+               matTooltip="Delete this design; the deck goes back to the Default layouts"
+               (click)="s.deleteDesign()"
+            >
+               <dd-icon name="delete" />
+            </button>
+         }
+         <button
+            class="icon"
+            type="button"
+            aria-label="Export design"
+            matTooltip="Download this design (its layouts and theme) as one file"
+            (click)="s.exportDesign('design')"
+         >
+            <dd-icon name="download" />
+         </button>
+         <button
+            class="icon"
+            type="button"
+            aria-label="Import design"
+            matTooltip="Add a design from a file and use it"
+            (click)="s.importPart.set('design'); designFileInput.click()"
+         >
+            <dd-icon name="upload" />
+         </button>
+      </span>
+   }
+</div>
+<dd-select
+   class="design-pick"
+   aria-label="Design"
+   [options]="s.designOptions$()"
+   [ngModel]="s.design$().id"
+   [disabled]="!s.canEdit$()"
+   [removable]="true"
+   (ngModelChange)="s.pickDesign($event)"
+   (rename)="s.renameRecord($event.value, $event.label)"
+   (remove)="s.deleteDesignById($event)"
+/>
+@if (s.themeNote$() ?? s.relayoutNote$(); as note) {
+   <p class="hint">{{ note }}</p>
+}
+<dd-segmented
+   class="design-seg"
+   [options]="s.designTabOptions"
+   [ngModel]="s.designTab$()"
+   (ngModelChange)="s.designTab$.set($event)"
+/>
+@if (s.designTab$() === 'layouts') {
+   @if (s.shownLayout$(); as l) {
+      <div class="sub">
+         <span class="subt">
+            {{ l.slide?.master ? 'Master' : 'Layout' }}
+            <dd-icon
+               name="info"
+               class="info"
+               tabindex="0"
+               [matTooltip]="
+                  l.slide?.master
+                     ? 'The master is drawn under every slide and layout. Put logos, footers and fields here.'
+                     : 'Items drawn here show, locked, under every slide using this layout. Mark a text box as a placeholder and each slide gets its own empty copy to type into (shown faded until something is typed).'
+               "
+            />
+         </span>
+      </div>
+      <label class="field" [hidden]="!!l.slide?.master">
+         <span>Layout name</span>
+         <input
+            class="text-input"
+            type="text"
+            maxlength="120"
+            aria-label="Layout name"
+            [value]="s.layoutNames$() | at: l.id"
+            [disabled]="!s.canEdit$()"
+            (keydown.enter)="$any($event.target).blur()"
+            (blur)="s.slideLayoutEditing.renameLayout(l, $any($event.target))"
+         />
+      </label>
+      @if (s.layoutTextSelection$().length; as n) {
+         <div class="field">
+            <dd-checkbox
+               [ngModel]="!!s.layoutTextSelection$()[0].placeholder"
+               [disabled]="!s.canEdit$()"
+               (ngModelChange)="s.slideLayoutEditing.setPlaceholder($event)"
+            >
+               {{ n > 1 ? 'Selected text boxes are placeholders' : 'Selected text box is a placeholder' }}
+            </dd-checkbox>
+         </div>
+         @if (s.layoutTextSelection$()[0].placeholder; as ph) {
+            <label class="field">
+               <span>Style type</span>
+               <dd-select
+                  [options]="s.roleOptions"
+                  [ngModel]="ph.role ?? ''"
+                  [disabled]="!s.canEdit$()"
+                  (ngModelChange)="s.slideLayoutEditing.setRole($event)"
+               />
+            </label>
+         }
+      }
+      @if (s.canEdit$() && s.tagCount$() > 0) {
+         <div class="field">
+            <span class="tagline">
+               Morph tag
+               @if (s.splitTarget$(); as st) {
+                  <button
+                     class="link"
+                     type="button"
+                     [title]="
+                        st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'
+                     "
+                     (click)="s.slideMorphSettings.toggleSplit(st)"
+                  >
+                     {{ st.split ? 'Join in / out' : 'Split in / out' }}
+                  </button>
+               }
+            </span>
+            @if (s.splitTarget$()?.split) {
+               <span class="sublab">In · from the slide before</span>
+               <dd-tag-input
+                  placeholder="type a tag…"
+                  [value]="s.tagText | call: s.splitTarget$()!.in"
+                  [maxlength]="80"
+                  (commit)="s.slideMorphSettings.setSplitTag('in', $event)"
+               />
+               <span class="sublab">Out · to the slide after</span>
+               <dd-tag-input
+                  placeholder="type a tag…"
+                  [value]="s.tagText | call: s.splitTarget$()!.out"
+                  [maxlength]="80"
+                  (commit)="s.slideMorphSettings.setSplitTag('out', $event)"
+               />
+            } @else {
+               <dd-tag-input
+                  [value]="s.morphTag$()"
+                  [taken]="s.takenTags$()"
+                  [maxlength]="80"
+                  [disabled]="s.tagCount$() > 1"
+                  [placeholder]="s.tagCount$() > 1 ? 'Select a single object to tag it' : 'Name it to morph it between slides'"
+                  (commit)="s.slideMorphSettings.setMorphTag($event)"
+               />
+            }
+         </div>
+      }
+      <div class="row">
+         <button class="btn" type="button" (click)="s.slideLayoutEditing.backToSlide()">
+            <dd-icon name="chevron_left" />Back to slides
+         </button>
+         @if (s.canEdit$() && !s.shownLayout$()?.slide?.master) {
+            <button
+               class="btn"
+               type="button"
+               title="Add a slide that uses this layout"
+               (click)="s.command.emit({ kind: 'add', layoutId: s.shownLayout$()!.id })"
+            >
+               <dd-icon name="add" />New slide
+            </button>
+         }
+      </div>
+   }
+   @if (s.active$() && !s.shownLayout$()) {
+      <label class="field">
+         <span>Layout of {{ s.activeSlides$().length > 1 ? 'these slides' : 'this slide' }}</span>
+         <dd-select
+            [options]="s.slideLayoutViews.layoutOptions$()"
+            [ngModel]="s.activeLayoutValue$()"
+            [disabled]="!s.canEdit$() || !s.layouts$().length"
+            (ngModelChange)="s.slideLayoutEditing.setLayout($event)"
+         />
+      </label>
+   }
+   @if (s.canEdit$() && s.drift$(); as d) {
+      <div class="field">
+         <span>{{ s.driftLabel | call: d }}</span>
+         @if (s.selectedDrifted$().length) {
+            <button
+               class="btn wide"
+               type="button"
+               title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
+               (click)="s.slideLayoutEditing.resetSlide(true)"
+            >
+               <dd-icon name="undo" />Reset selected to layout
+            </button>
+         } @else {
+            <button
+               class="btn wide"
+               type="button"
+               title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
+               (click)="s.slideLayoutEditing.resetSlide(false)"
+            >
+               <dd-icon name="undo" />Reset slide to layout
+            </button>
+         }
+      </div>
+   }
+   @if (s.canEdit$() && s.slideLayoutViews.standIns$().length) {
+      <div class="field">
+         <span
+            >{{ s.slideLayoutViews.standIns$().length }} master item{{
+               s.slideLayoutViews.standIns$().length > 1 ? 's' : ''
+            }}
+            changed on this {{ s.shownLayout$() ? 'layout' : 'slide' }}</span
+         >
+         @if (s.slideLayoutViews.selectedStandIns$().length) {
+            <button
+               class="btn wide"
+               type="button"
+               title="Show the master's version of the selected items again"
+               (click)="s.slideLayoutEditing.resetMaster(true)"
+            >
+               <dd-icon name="undo" />Reset selected to master
+            </button>
+         } @else {
+            <button
+               class="btn wide"
+               type="button"
+               title="Show the master's version of every item changed here again"
+               (click)="s.slideLayoutEditing.resetMaster(false)"
+            >
+               <dd-icon name="undo" />Reset to master
+            </button>
+         }
+      </div>
+   }
+   <div class="listbar">
+      <span class="muted subt">
+         Layouts
+         <dd-icon
+            name="info"
+            class="info"
+            tabindex="0"
+            matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. Standard layouts follow the theme's design; the master shows under all of them."
+         />
+      </span>
+      @if (s.canEdit$()) {
+         <span class="listbar-actions">
+            <button
+               class="icon"
+               type="button"
+               aria-label="Export layouts"
+               matTooltip="Download this design's layouts and master as a file"
+               (click)="s.exportDesign('layouts')"
+            >
+               <dd-icon name="download" />
+            </button>
+            <button
+               class="icon"
+               type="button"
+               aria-label="Import layouts"
+               matTooltip="Use layouts from a file in this design (its theme stays)"
+               (click)="s.importPart.set('layouts'); designFileInput.click()"
+            >
+               <dd-icon name="upload" />
+            </button>
+            <button
+               class="link"
+               type="button"
+               placement="below-end"
+               matTooltip="Add ready-made layouts that follow the theme"
+               [ddPopoverTrigger]="standardMenu"
+            >
+               <dd-icon name="template" />Standard
+            </button>
+            <button
+               class="link"
+               type="button"
+               matTooltip="Add an empty layout"
+               (click)="s.command.emit({ kind: 'add', layout: true })"
+            >
+               <dd-icon name="add" />Layout
+            </button>
+         </span>
+         <ng-template #standardMenu let-close>
+            <div class="dd-menu">
+               <button
+                  class="dd-menu-item"
+                  type="button"
+                  [disabled]="!s.slideLayoutViews.missingKinds$().length"
+                  (click)="s.slideLayoutEditing.addStandard(s.slideLayoutViews.missingKinds$()); close()"
+               >
+                  {{
+                     s.slideLayoutViews.missingKinds$().length
+                        ? 'All missing standard layouts'
+                        : 'All standard layouts added'
+                  }}
+               </button>
+               <div class="dd-menu-sep"></div>
+               @for (k of s.slideLayoutViews.missingKinds$(); track k) {
+                  <button class="dd-menu-item" type="button" (click)="s.slideLayoutEditing.addStandard([k]); close()">
+                     {{ s.kindLabels[k] }}
+                  </button>
+               }
+            </div>
+         </ng-template>
+      }
+   </div>
+   <ol class="layout-list">
+      @if (s.master$(); as m) {
+         <li class="lslot">
+            <button
+               class="lcard dd-button-reset"
+               type="button"
+               title="Edit the master: logos, footers and fields (slide number, date) placed here show on every slide"
+               [class.current]="m.id === s.active_$()"
+               (click)="s.command.emit({ kind: 'focus', id: m.id })"
+            >
+               <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
+                  @if (s.thumbs$() | at: m.id; as src) {
+                     <img alt="" draggable="false" [src]="src" />
+                  }
+               </span>
+               <span class="lname">Master</span>
+            </button>
+         </li>
+      }
+      @for (l of s.designLayouts$(); track l.id) {
+         <li
+            class="lcard"
+            tabindex="0"
+            role="button"
+            [class.current]="l.id === s.active_$()"
+            [title]="'Edit layout ' + (s.layoutNames$() | at: l.id)"
+            (click)="s.command.emit({ kind: 'focus', id: l.id })"
+            (keydown.enter)="s.command.emit({ kind: 'focus', id: l.id })"
+            (keydown.space)="$event.preventDefault(); s.command.emit({ kind: 'focus', id: l.id })"
+         >
+            <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
+               @if (s.thumbs$() | at: l.id; as src) {
+                  <img alt="" draggable="false" [src]="src" />
+               }
+            </span>
+            <span class="lname">{{ s.layoutNames$() | at: l.id }}</span>
+            @if (s.canEdit$()) {
+               <span class="licons">
+                  <button
+                     class="icon"
+                     type="button"
+                     title="Duplicate layout"
+                     aria-label="Duplicate layout"
+                     (click)="$event.stopPropagation(); s.command.emit({ kind: 'duplicate', id: l.id })"
+                  >
+                     <dd-icon name="content_copy" />
+                  </button>
+                  @if (!l.slide?.defaultLayout) {
+                     <button
+                        class="icon"
+                        type="button"
+                        title="Delete layout and its items"
+                        aria-label="Delete layout"
+                        (click)="$event.stopPropagation(); s.command.emit({ kind: 'delete', id: l.id })"
+                     >
+                        <dd-icon name="delete" />
+                     </button>
+                  }
+               </span>
+            }
+         </li>
+      }
+   </ol>
+   @if (!s.designLayouts$().length) {
+      <p class="hint">No layouts yet.</p>
+   }
+} @else {
+   <div class="sub">
+      <span class="subt">
+         Theme
+         <dd-icon
+            name="info"
+            class="info"
+            tabindex="0"
+            matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy."
+         />
+      </span>
+      @if (s.canEdit$()) {
+         <span class="sub-actions">
+            @if (s.themeIsCustom$()) {
+               <button
+                  class="icon"
+                  type="button"
+                  aria-label="Delete theme"
+                  matTooltip="Delete this theme; the deck takes the Default theme"
+                  (click)="s.deleteTheme()"
+               >
+                  <dd-icon name="delete" />
+               </button>
+            }
+            <button
+               class="icon"
+               type="button"
+               aria-label="Export theme"
+               matTooltip="Download this theme's colors and fonts as a file"
+               (click)="s.exportDesign('theme')"
+            >
+               <dd-icon name="download" />
+            </button>
+            <button
+               class="icon"
+               type="button"
+               aria-label="Import theme"
+               matTooltip="Add a theme from a file and use it in this design (its layouts stay)"
+               (click)="s.importPart.set('theme'); designFileInput.click()"
+            >
+               <dd-icon name="upload" />
+            </button>
+         </span>
+      }
+   </div>
+   <dd-select
+      class="design-pick"
+      aria-label="Theme"
+      [options]="s.themeOptions$()"
+      [ngModel]="s.deckTheme$().id ?? 'default'"
+      [disabled]="!s.canEdit$()"
+      [removable]="true"
+      (ngModelChange)="s.pickTheme($event)"
+      (rename)="s.renameRecord($event.value, $event.label)"
+      (remove)="s.deleteThemeById($event)"
+   />
+   <div class="field">
+      <span>Colors</span>
+      <div class="token-grid">
+         @for (k of s.colorTokens; track k) {
+            <button
+               type="button"
+               class="token"
+               placement="below-start"
+               [ddPopoverTrigger]="tokenPicker"
+               [disabled]="!s.canEdit$()"
+               [title]="s.colorLabels[k]"
+            >
+               <span
+                  class="tsw"
+                  [class.none]="s.deckTheme$().colors[k] === 'transparent'"
+                  [class.follow]="s.isFollow | call: s.deckTheme$().colors[k]"
+                  [style.background]="
+                     s.deckTheme$().colors[k] === 'transparent' || (s.isFollow | call: s.deckTheme$().colors[k])
+                        ? null
+                        : (s.css | call: s.deckTheme$().colors[k])
+                  "
+               >
+                  @if (s.isFollow | call: s.deckTheme$().colors[k]) {
+                     <dd-icon name="contrast" />
+                  }
+               </span>
+               <span class="tlabel">{{ s.colorLabels[k] }}</span>
+            </button>
+            <ng-template #tokenPicker let-close>
+               <div class="picker">
+                  <dd-color-swatches
+                     noneValue="transparent"
+                     noneLabel="None"
+                     [value]="s.deckTheme$().colors[k]"
+                     [themeValue]="s.followValue | call: k"
+                     (pick)="s.setThemeColor(k, $event); close()"
+                  />
+               </div>
+            </ng-template>
+         }
+      </div>
+   </div>
+   <div class="two">
+      <label class="field">
+         <span>Heading font</span>
+         <dd-select
+            [options]="s.fontOptions"
+            [ngModel]="s.deckTheme$().fonts.heading"
+            [disabled]="!s.canEdit$()"
+            (ngModelChange)="s.setThemeFont('heading', $event)"
+         />
+      </label>
+      <label class="field">
+         <span>Body font</span>
+         <dd-select
+            [options]="s.fontOptions"
+            [ngModel]="s.deckTheme$().fonts.body"
+            [disabled]="!s.canEdit$()"
+            (ngModelChange)="s.setThemeFont('body', $event)"
+         />
+      </label>
+   </div>
+}

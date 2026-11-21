@@ -54,5 +54,27 @@ describe('ApiTokenService.verify', () => {
   it('creates new tokens with the dd_ prefix', async () => {
     const created = await service.create('u1', { name: 'cli' } as never);
     expect(created.token.startsWith('dd_')).toBe(true);
+    expect(created).toMatchObject({ expiresAt: null, projectId: null });
+  });
+
+  it('rejects an expired token and accepts one that has not expired yet', async () => {
+    store('dd_old', { expiresAt: new Date(Date.now() - 1000) });
+    store('dd_fresh', { expiresAt: new Date(Date.now() + 60_000) });
+    await expect(service.verify('dd_old')).resolves.toBeNull();
+    await expect(service.verify('dd_fresh')).resolves.toMatchObject({ id: 'u1' });
+  });
+
+  it('carries a project restriction on the verified caller', async () => {
+    store('dd_one', { projectId: 'p1' });
+    await expect(service.verify('dd_one')).resolves.toMatchObject({ viaToken: { projectId: 'p1' } });
+  });
+
+  it('sets an expiry and only limits a token to a project its owner owns', async () => {
+    const query = jest.fn(async (_sql: string, [projectId]: string[]) => (projectId === 'mine' ? [{}] : []));
+    (tokens as unknown as { manager: unknown }).manager = { query };
+    const created = await service.create('u1', { name: 'ci', expiresInDays: 30, projectId: 'mine' } as never);
+    expect(created.projectId).toBe('mine');
+    expect(new Date(created.expiresAt!).getTime()).toBeGreaterThan(Date.now() + 29 * 86_400_000);
+    await expect(service.create('u1', { name: 'x', projectId: 'theirs' } as never)).rejects.toThrow(/project you own/);
   });
 });

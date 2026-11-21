@@ -8,6 +8,10 @@ import { shareTokenInterceptor } from './core/http/interceptors/share-token.inte
 import { sandboxInterceptor } from './core/sandbox/sandbox.interceptor';
 import { provideErrorTelemetry } from './core/telemetry/error-telemetry';
 import { FontMetricsService } from './features/editor/services/font-metrics.service';
+import { EditorProjectPictureRenderer } from './features/editor/services/editor-project-picture-renderer.service';
+import { ProjectPictureRenderer } from './shared/features/projects-overlay/services/project-picture-renderer';
+import { CodeBlockSizer } from './core/sandbox/code-block-sizer';
+import { EditorCodeBlockSizer } from './features/editor/services/editor-code-block-sizer.service';
 
 /**
  * Application providers. Zoneless change detection is the default in Angular 22,
@@ -17,6 +21,10 @@ import { FontMetricsService } from './features/editor/services/font-metrics.serv
  */
 export const appConfig: ApplicationConfig = {
    providers: [
+      // Project thumbnails are drawn by the editor's renderer (shared/ only knows the abstraction).
+      { provide: ProjectPictureRenderer, useExisting: EditorProjectPictureRenderer },
+      // The sandbox (guide/home examples) sizes code blocks with the editor's measurement.
+      { provide: CodeBlockSizer, useExisting: EditorCodeBlockSizer },
       provideZonelessChangeDetection(),
       provideRouter(routes),
       provideAnimationsAsync(),

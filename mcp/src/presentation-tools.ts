@@ -97,12 +97,34 @@ const animationSchema = z.object({
     .enum(SLIDE_ANIMATION_TRIGGERS as unknown as [string, ...string[]])
     .optional()
     .describe("'click' (default: waits for the presenter), 'with' (together with the entry above) or 'after' (when it ends)."),
-  duration: z.number().min(0).max(10000).optional().describe('Milliseconds (default 500).'),
+  duration: z.number().min(0).max(10000).optional().describe('Milliseconds (default 300).'),
   delay: z.number().min(0).max(30000).optional().describe('Milliseconds after the trigger (default 0).'),
   direction: z
     .enum(SLIDE_DIRECTIONS as unknown as [string, ...string[]])
     .optional()
     .describe("For fly / wipe: the side it comes from (exits: goes to). Default left."),
+  part: z
+    .string()
+    .max(100)
+    .optional()
+    .describe(
+      "Animate one piece of the target: 'p<n>' = the n-th line (paragraph, 0-based) of a text element, a message id of a sequence diagram, or 'diff' on a code block with a diff (reveals the diff by morphing from the original; effect is always 'morph').",
+    ),
+  stagger: z
+    .object({
+      trigger: z
+        .enum(SLIDE_ANIMATION_TRIGGERS as unknown as [string, ...string[]])
+        .describe("How each piece after the first starts: 'click', 'with' or 'after' the piece before."),
+      delay: z.number().min(0).max(30000).optional().describe('Milliseconds between pieces (default 0).'),
+      joined: z
+        .array(z.string())
+        .optional()
+        .describe('Pieces (message ids / p<n>) that start together with the piece before them.'),
+    })
+    .optional()
+    .describe(
+      'Play the target piece by piece: the paragraphs of a text (bullets one after another) or the messages of a sequence diagram.',
+    ),
 });
 
 const transitionSchema = z.object({
@@ -202,7 +224,7 @@ const slideItem = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('shape'),
-    shape: z.enum(['rectangle', 'ellipse', 'diamond']),
+    shape: z.enum(['rectangle', 'ellipse', 'diamond', 'triangle']),
     text: z.string().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
@@ -229,6 +251,17 @@ const slideItem = z.discriminatedUnion('type', [
       .describe(
         'Card surface: palette name (e.g. "ink", "charcoal" for a dark editor look, "slate-soft"; #hex only if the user asked for an exact color). Default: light grey. Token colors switch to a light palette on dark surfaces.',
       ),
+    diffCode: z
+      .string()
+      .max(50000)
+      .optional()
+      .describe(
+        'Makes this a code DIFF card: `code` is the ORIGINAL (before) version and `diffCode` the CHANGED (after) version, both as full plain source (no +/- prefixes, no unified-diff headers). Lines are compared automatically; removed lines show red, added green, changed words emphasised.',
+      ),
+    diffView: z
+      .enum(['split', 'inline'])
+      .optional()
+      .describe('How a diff shows (only with `diffCode`): "split" = before | after side by side (default), "inline" = one column with removed and added lines interleaved.'),
     ...morph,
     ...at,
   }),
@@ -561,7 +594,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
   const titleOf = (schema: SchemaModel, frameId: string): CanvasElementModel | undefined =>
     schema.elements.filter((e) => e.slideId === frameId && e.type === 'text').sort((a, b) => a.y - b.y)[0];
 
-  const DECOR_TYPES = new Set(['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw']);
+  const DECOR_TYPES = new Set(['rectangle', 'ellipse', 'diamond', 'triangle', 'line', 'arrow', 'freedraw']);
 
   /** Give templated slides the template's title styling and its decorative (text-less) shapes. */
   const applyTemplates = async (
@@ -906,7 +939,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
 
   tool(
     'update_element',
-    'Edit fields of ONE element by id in one call: text, runs (rich text), x/y/width/height (world coords), fontSize, lineHeight, wrap, language, fileName, morph tag. For colors/fill/stroke (or many elements at once) use style_elements. Returns each changed field before and after, read back from storage.',
+    'Edit fields of ONE element by id in one call: text, runs (rich text), x/y/width/height (world coords), fontSize, lineHeight, wrap, language, fileName, code diff (diffText/diffView), morph tag. For colors/fill/stroke (or many elements at once) use style_elements. Returns each changed field before and after, read back from storage.\n\nCode diffs: on a code block, `text` is the ORIGINAL (before) code and `diffText` the CHANGED (after) code, both full plain source - never a unified diff with +/- prefixes. To show a diff, pass diffText (and optionally diffView "split" | "inline"; split is the default when turning one on). diffView "off" hides the diff but keeps diffText; diffText null removes it. The card is resized to fit the diff unless you pass width/height.',
     {
       projectId,
       id: z.string(),
@@ -924,6 +957,18 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
       wrap: z.boolean().optional(),
       language: z.string().optional().describe('Code blocks only.'),
       fileName: z.string().max(120).optional().describe('Code blocks only.'),
+      diffText: z
+        .string()
+        .max(50000)
+        .nullable()
+        .optional()
+        .describe(
+          'Code blocks only: the CHANGED (after) version of the code, full plain source; `text` stays the ORIGINAL (before). null removes the diff.',
+        ),
+      diffView: z
+        .enum(['split', 'inline', 'off'])
+        .optional()
+        .describe('Code blocks only: "split" (before | after side by side), "inline" (one column), or "off" (show only the original; the diff is kept).'),
       morph: z.string().optional().describe('Morph tag.'),
     },
     { idempotent: true },
@@ -934,6 +979,10 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
       const patch: Record<string, unknown> = Object.fromEntries(
         Object.entries(fields).filter(([, v]) => v !== undefined),
       );
+      if ((patch.diffText !== undefined || patch.diffView !== undefined) && el.type !== 'code') {
+        throw new UserError(`diffText/diffView only apply to code blocks; "${elId}" is a ${el.type}.`);
+      }
+      if (el.type === 'code') Object.assign(patch, codeDiffPatch(el, patch));
       if (morph !== undefined) patch.morphId = morphIdForTag(morph) ?? soloMorphId();
       if (!Object.keys(patch).length) throw new UserError('Nothing to change.');
       // New plain text replaces rich runs that no longer match it.
@@ -1124,7 +1173,7 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
 
   tool(
     'set_slide_animations',
-    "Replace a slide's object animations (like PowerPoint's animation pane). `animations` is the PLAY ORDER: each entry animates one element / table / sequence diagram id from get_slide. An 'enter' object is hidden until its entry plays. trigger 'click' waits for the presenter to advance, 'with' starts together with the previous entry, 'after' when the previous ends; leading with/after entries play by themselves when the slide appears. Keep it sparse: reveal list items or steps one click at a time, not everything. Pass [] to clear.",
+    "Replace a slide's object animations (like PowerPoint's animation pane). `animations` is the PLAY ORDER: each entry animates one element / table / sequence diagram id from get_slide. An 'enter' object is hidden until its entry plays. trigger 'click' waits for the presenter to advance, 'with' starts together with the previous entry, 'after' when the previous ends; leading with/after entries play by themselves when the slide appears. Keep it sparse: reveal list items or steps one click at a time, not everything. Use `stagger` to reveal a text's bullets or a sequence diagram's messages one by one. Code blocks with a diff and sequence diagrams animate automatically (diff on a click, messages one click each) unless listed here or switched off in the app; get_slide marks those `automatic`. Pass [] to clear.",
     {
       projectId,
       slide: z.string().describe('Slide id, or 1-based number (with `presentation`).'),
@@ -1157,6 +1206,16 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
             ...(a.duration !== undefined ? { duration: a.duration } : {}),
             ...(a.delay !== undefined ? { delay: a.delay } : {}),
             ...(a.direction ? { direction: a.direction as SlideDirection } : {}),
+            ...(a.part ? { part: a.part } : {}),
+            ...(a.stagger
+              ? {
+                  stagger: {
+                    trigger: a.stagger.trigger as SlideAnimationTrigger,
+                    delay: a.stagger.delay ?? 0,
+                    ...(a.stagger.joined ? { joined: a.stagger.joined } : {}),
+                  },
+                }
+              : {}),
           }),
         ),
       );
@@ -1286,7 +1345,11 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
             ? { morphTag: morphTagOf(e.morphId) }
             : {}),
         })),
-        animations: slideAnimations(frame.slide, own.elements).map((a) => ({
+        animations: slideAnimations(frame.slide, own.elements, {
+          elements: own.elements.filter((e) => e.type !== 'frame'),
+          diagrams: schema.sequenceDiagrams.filter((d) => own.diagramIds.includes(d.id)),
+          messages: schema.sequenceMessages.filter((m) => own.diagramIds.includes(m.diagramId)),
+        }).map((a) => ({
           target: a.target,
           kind: a.kind,
           effect: a.effect,
@@ -1294,6 +1357,9 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
           duration: a.duration,
           delay: a.delay,
           ...(a.direction ? { direction: a.direction } : {}),
+          ...(a.part ? { part: a.part } : {}),
+          ...(a.stagger ? { stagger: a.stagger } : {}),
+          ...(a.id.startsWith('auto-') && !frame.slide?.animations?.some((b) => b.id === a.id) ? { automatic: true } : {}),
         })),
         tables: schema.tables
           .filter((t) => own.tableIds.includes(t.id))
@@ -1561,4 +1627,43 @@ export function registerPresentationTools(tool: ToolFn, api: DevDesignerApi, des
     },
   );
 
+}
+
+/**
+ * Normalise a code block's diff edit: turning a diff on needs a changed side, giving a
+ * changed side without a view shows it split, removing it turns the view off, and the
+ * card grows to fit the diff unless a size was given (rough monospace estimate).
+ */
+export function codeDiffPatch(el: CanvasElementModel, patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const touched = patch.diffText !== undefined || patch.diffView !== undefined;
+  if (!touched) return out;
+  if (typeof patch.diffText === 'string' && /^(?:---|\+\+\+|@@) /m.test(patch.diffText)) {
+    throw new UserError(
+      'diffText looks like a unified diff (---/+++/@@ lines). Pass the full CHANGED source code instead; the original goes in `text`.',
+    );
+  }
+  const diffText = patch.diffText === undefined ? el.diffText : (patch.diffText as string | null);
+  let view = (patch.diffView as string | undefined) ?? undefined;
+  if (patch.diffText === null) view = 'off';
+  else if (view === undefined && typeof patch.diffText === 'string' && (el.diffView ?? 'off') === 'off') view = 'split';
+  if (view && view !== 'off' && diffText == null) {
+    throw new UserError('To show a diff, also pass diffText (the changed version of the code).');
+  }
+  if (view !== undefined) out.diffView = view;
+  if (patch.width === undefined && patch.height === undefined && view !== 'off' && diffText != null) {
+    const size = el.fontSize ?? 14;
+    const before = String(patch.text ?? el.text ?? '').split('\n');
+    const after = diffText.split('\n');
+    const longest = Math.max(1, ...before.map((l) => l.length), ...after.map((l) => l.length));
+    const inline = (view ?? el.diffView) === 'inline';
+    const shared = after.filter((l) => before.includes(l)).length;
+    const rows = inline ? before.length + after.length - shared : Math.max(before.length, after.length);
+    const pane = Math.ceil(longest * size * 0.62 + 32 + 3 * size * 0.62);
+    const width = inline ? pane : 2 * pane;
+    const height = Math.round(size * 2.5) + Math.ceil(rows * size * 1.5) + 24;
+    if (width > el.width) out.width = width;
+    if (height > el.height) out.height = height;
+  }
+  return out;
 }

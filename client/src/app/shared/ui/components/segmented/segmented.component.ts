@@ -18,20 +18,20 @@ export interface SegmentedOption<T = string> {
    styleUrl: './segmented.component.scss',
 })
 export class SegmentedComponent<T = string> implements ControlValueAccessor {
-   readonly options = input.required<SegmentedOption<T>[]>();
-   readonly disabled = signal(false);
-   protected readonly value = signal<T | null>(null);
+   readonly options$ = input.required<SegmentedOption<T>[]>({ alias: 'options' });
+   readonly disabled$ = signal(false);
+   protected readonly value$ = signal<T | null>(null);
    protected onChange: (v: T) => void = () => {};
    protected onTouched: () => void = () => {};
 
    protected select(v: T): void {
-      this.value.set(v);
+      this.value$.set(v);
       this.onChange(v);
       this.onTouched();
    }
 
    writeValue(v: T | null): void {
-      this.value.set(v);
+      this.value$.set(v);
    }
    registerOnChange(fn: (v: T) => void): void {
       this.onChange = fn;
@@ -40,6 +40,6 @@ export class SegmentedComponent<T = string> implements ControlValueAccessor {
       this.onTouched = fn;
    }
    setDisabledState(isDisabled: boolean): void {
-      this.disabled.set(isDisabled);
+      this.disabled$.set(isDisabled);
    }
 }

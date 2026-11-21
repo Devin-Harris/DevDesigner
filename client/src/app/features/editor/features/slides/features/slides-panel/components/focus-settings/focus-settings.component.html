@@ -1,0 +1,136 @@
+<div class="f-tabs" role="tablist">
+   <button class="f-tab" type="button" [class.on]="s.ftab$() === 'slide'" (click)="s.ftab$.set('slide')">Slide</button>
+   <button
+      class="f-tab"
+      type="button"
+      [class.on]="s.ftab$() === 'transition' || s.ftab$() === 'animations'"
+      (click)="s.ftab$.set('transition')"
+   >
+      Animate
+   </button>
+   <button class="f-tab" type="button" [class.on]="s.ftab$() === 'notes'" (click)="s.ftab$.set('notes')">Notes</button>
+</div>
+<div class="f-body" [class.gap12]="s.ftab$() === 'transition' || s.ftab$() === 'animations'">
+   @if (s.ftab$() === 'transition' || s.ftab$() === 'animations') {
+      <span class="f-lab">Transition in</span>
+      <dd-focus-transition-body></dd-focus-transition-body>
+      @if (s.active$() && s.hasTransitionTarget$()) {
+         <button class="f-tb outline" type="button" (click)="s.command.emit({ kind: 'screen', screen: 'morph' })">
+            <dd-icon name="open_in_full" />Refine transition
+         </button>
+      }
+      <span class="f-lab">Animations on this slide</span>
+      @if (s.active$(); as a) {
+         <dd-animation-pane
+            [slide]="a"
+            (openRefine)="s.command.emit({ kind: 'screen', screen: 'anim' })"
+         />
+      } @else {
+         <p class="hint">Select a slide.</p>
+      }
+   } @else if (s.active$(); as a) {
+      @if (s.ftab$() === 'slide') {
+         <div class="f-between">
+            <span class="f-lab">Layout</span>
+            @if (s.canEdit$() && s.drift$()) {
+               <button class="f-link" type="button" (click)="s.slideLayoutEditing.resetSlide(false)">
+                  Reset slide to layout
+               </button>
+            }
+         </div>
+         <div class="f-lays">
+            @for (l of s.designLayouts$(); track l.id) {
+               <button
+                  class="lay"
+                  type="button"
+                  [class.on]="s.activeLayoutValue$() === l.id"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideLayoutEditing.setLayout(l.id)"
+               >
+                  <span class="lt" [style.aspect-ratio]="l.width + ' / ' + l.height">
+                     @if (s.thumbs$() | at: l.id; as src) {
+                        <img alt="" draggable="false" [src]="src" />
+                     }
+                  </span>
+                  {{ s.layoutNames$() | at: l.id }}
+               </button>
+            }
+            <button
+               class="lay"
+               type="button"
+               [class.on]="s.activeLayoutValue$() === ''"
+               [disabled]="!s.canEdit$()"
+               (click)="s.slideLayoutEditing.setLayout('')"
+            >
+               <span class="lt" [style.aspect-ratio]="a.width + ' / ' + a.height"></span>Blank
+            </button>
+         </div>
+         <div class="f-row">
+            <span>Background</span>
+            <span class="f-sws">
+               @for (k of s.bgTokens; track k) {
+                  <button
+                     class="sw"
+                     type="button"
+                     [class.on]="a.backgroundColor === (s.token | call: k) && a.fillStyle !== 'none'"
+                     [style.background]="s.css | call: s.deckTheme$().colors[k]"
+                     [disabled]="!s.canEdit$()"
+                     [attr.aria-label]="'Background ' + s.colorLabels[k]"
+                     (click)="s.setBackground(s.token(k))"
+                  ></button>
+               }
+            </span>
+         </div>
+         <div class="f-row">
+            <span>Skip in slideshow</span>
+            <button
+               class="tg"
+               type="button"
+               aria-label="Skip in slideshow"
+               [class.on]="!!a.slide?.hidden"
+               [disabled]="!s.canEdit$()"
+               (click)="s.slideMorphSettings.toggleHidden(a)"
+            ></button>
+         </div>
+         <div class="f-row">
+            <span>Edited master items</span>
+            @if (s.slideLayoutViews.standIns$().length) {
+               <button
+                  class="f-link"
+                  type="button"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideLayoutEditing.resetMaster(false)"
+               >
+                  {{ s.slideLayoutViews.standIns$().length }} · Revert
+               </button>
+            } @else {
+               <span class="muted">None</span>
+            }
+         </div>
+         <div class="f-row">
+            <span>Present from here</span>
+            <button class="f-k btnk" type="button" (click)="s.command.emit({ kind: 'present', from: 'current' })">
+               Shift F5
+            </button>
+         </div>
+      } @else if (s.ftab$() === 'notes') {
+         <textarea
+            class="f-notes"
+            rows="8"
+            placeholder="Shown to the presenter (press N while presenting)"
+            [ngModel]="a.slide?.notes ?? ''"
+            [disabled]="!s.canEdit$()"
+            (blur)="s.slideMorphSettings.setNotes($any($event.target).value)"
+         ></textarea>
+      }
+   } @else if (s.ftab$() === 'slide' && s.shownLayout$(); as l) {
+      <span class="f-lab">{{ l.slide?.master ? 'Master' : (s.layoutNames$() | at: l.id) }}</span>
+      @if (s.canEdit$() && s.tagCount$() === 1) {
+         <dd-focus-morph-tag />
+      } @else {
+         <p class="hint">Select an object to give it a morph tag.</p>
+      }
+   } @else {
+      <p class="hint">Select a slide.</p>
+   }
+</div>

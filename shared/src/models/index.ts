@@ -195,6 +195,25 @@ export interface SlideAnimation {
   delay: number;
   /** Where `fly` / `wipe` come from (entrances) or go to (exits). Default `left`. */
   direction?: SlideDirection;
+  /**
+   * One piece of the target instead of the whole object: a text paragraph (`p<n>`, the
+   * n-th line of its text), a sequence message (its id), or a code block's diff (`diff`).
+   */
+  part?: string;
+  /** Play the target piece by piece (paragraphs of a text, messages of a sequence diagram). */
+  stagger?: SlideAnimationStagger;
+}
+
+/** How a staggered animation plays its pieces after the first (which uses the animation's own trigger). */
+export interface SlideAnimationStagger {
+  /** When each later piece starts: on its own click, with the piece before, or after it. */
+  trigger: SlideAnimationTrigger;
+  /** Milliseconds between pieces. */
+  delay: number;
+  /** Pieces that always start together with the piece before them (e.g. a request and its reply). */
+  joined?: string[];
+  /** Pieces that do not animate (already showing, e.g. messages the previous slide had). */
+  skip?: string[];
 }
 
 /**
@@ -267,6 +286,11 @@ export interface SlideConfig {
    * per-element build `step` derive theirs from it (`slideAnimations`).
    */
   animations?: SlideAnimation[];
+  /**
+   * Objects whose automatic animation is switched off (code blocks with a diff reveal the
+   * change on a click, sequence diagrams their messages one by one, unless listed here).
+   */
+  animationsOff?: string[];
   /**
    * This frame is a layout of its presentation, not a slide: never in the sequence,
    * its items are drawn (locked) under every slide that uses it.
@@ -492,6 +516,15 @@ export interface SequenceDiagramModel {
   headerHeight: number;
   /** Text / arrowhead / label-box size multiple (Ctrl + resize scales it); absent = 1. */
   scale?: number;
+  /**
+   * Bounds beyond the content (a plain resize grows the box without respacing):
+   * the box starts `padLeft`/`padTop` outside the content box and is at least
+   * `boxWidth` x `boxHeight`. Absent / 0 = hug the content.
+   */
+  padLeft?: number;
+  padTop?: number;
+  boxWidth?: number;
+  boxHeight?: number;
   /** World-space Y where this diagram's lifeline spines begin. */
   originY: number;
   /**

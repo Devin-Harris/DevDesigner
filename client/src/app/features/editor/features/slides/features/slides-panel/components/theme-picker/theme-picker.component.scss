@@ -1,0 +1,412 @@
+:host {
+   display: contents;
+}
+
+.rec-row.on .rec-pick {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.rec-edit {
+   width: 26px;
+   height: 26px;
+   flex: none;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   border: none;
+   border-radius: 6px;
+   background: transparent;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+   --dd-icon-size: 14px;
+}
+.rec-edit:hover {
+   background: var(--dd-surface-2);
+   color: var(--dd-text);
+}
+.rec-edit.del:hover {
+   background: color-mix(in srgb, var(--dd-red-400) 18%, transparent);
+   color: var(--dd-red-400);
+}
+.nm-acts {
+   display: inline-flex;
+}
+.rec-input {
+   margin: 2px 6px;
+   width: calc(100% - 12px);
+   box-sizing: border-box;
+   height: 30px;
+   padding: 0 8px;
+   border: 1px solid var(--dd-primary);
+   border-radius: 6px;
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font: inherit;
+   outline: none;
+}
+.rec-input.card {
+   margin: 4px;
+   width: calc(100% - 8px);
+   height: 26px;
+   font-size: 12px;
+}
+.f-sub {
+   font-size: 12px;
+   color: var(--dd-text-muted);
+   margin-bottom: -6px;
+}
+.th .pv {
+   width: 100%;
+   border: none;
+   cursor: pointer;
+   text-align: left;
+}
+.th .nm {
+   align-items: center;
+}
+.f-design.top {
+   margin-top: 0;
+   border-top: none;
+   padding-top: 0;
+   padding-left: 0;
+   padding-right: 0;
+   border-bottom: 1px solid var(--dd-border);
+   padding-bottom: 12px;
+}
+.f-lab {
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: var(--dd-text-muted);
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+}
+.fs.on {
+   background: var(--dd-primary-weak);
+}
+/* Duplicate / delete on hover, over the thumbnail's top-right corner. */
+.f-acts {
+   position: absolute;
+   top: 4px;
+   right: 4px;
+   display: flex;
+   gap: 3px;
+   opacity: 0;
+   transition: opacity 120ms;
+}
+.fs:hover .f-acts,
+.f-acts:focus-within {
+   opacity: 1;
+}
+.f-cards.reordering .f-acts {
+   opacity: 0;
+}
+.fs.on .tn {
+   border: 2px solid var(--dd-primary);
+}
+.f-go:disabled,
+.f-tb:disabled {
+   opacity: 0.5;
+   cursor: default;
+}
+.f-tb {
+   height: 32px;
+   padding: 0 9px;
+   border: none;
+   border-radius: 7px;
+   background: transparent;
+   color: var(--dd-text);
+   font: inherit;
+   font-weight: 500;
+   cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 6px;
+   white-space: nowrap;
+}
+.f-tb:hover:not(:disabled) {
+   background: var(--dd-surface-2);
+}
+.f-tb.outline,
+.f-foot .f-tb {
+   border: 1px solid var(--dd-border);
+}
+.f-tb.sm {
+   height: 26px;
+   font-size: 12px;
+}
+.f-tab.on {
+   border-bottom-color: var(--dd-primary);
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.f-body {
+   padding: 14px 16px;
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   overflow-y: auto;
+   min-height: 0;
+}
+.f-body.gap12 {
+   gap: 12px;
+}
+.f-body.gap14 {
+   gap: 14px;
+}
+.f-body.fill {
+   flex: 1 1 auto;
+}
+.f-between {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+}
+.lay.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.f-body.gap12 .f-row {
+   border-top: none;
+   padding: 0;
+}
+.sw.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 2px;
+}
+.tg.on {
+   background: var(--dd-primary);
+}
+.tg.on::after {
+   left: 16px;
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.f-seg button.on {
+   background: var(--dd-surface);
+   color: var(--dd-text);
+   font-weight: 600;
+   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.f-select {
+   min-width: 120px;
+}
+.f-select.grow {
+   flex: 1;
+}
+.ly.on {
+   background: var(--dd-primary-weak);
+}
+.ly.on .lt {
+   border: 2px solid var(--dd-primary);
+}
+.ly.on .meta .nm {
+   color: var(--dd-primary);
+   font-weight: 600;
+}
+.f-acts {
+   display: flex;
+   gap: 4px;
+   align-items: center;
+}
+.th-grid {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 8px;
+}
+.th {
+   padding: 0;
+   border: 1px solid var(--dd-border);
+   border-radius: 10px;
+   overflow: hidden;
+   background: transparent;
+   font: inherit;
+   font-size: 12px;
+   color: var(--dd-text);
+   text-align: left;
+   cursor: pointer;
+}
+.th.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+.th .pv {
+   display: flex;
+   justify-content: space-between;
+   height: 52px;
+   padding: 8px;
+   box-sizing: border-box;
+   font-weight: 700;
+   font-size: 14px;
+}
+.th .bars {
+   display: flex;
+   gap: 2px;
+}
+.th .bars span {
+   width: 8px;
+   height: 22px;
+}
+.th .nm {
+   display: flex;
+   justify-content: space-between;
+   padding: 6px 8px;
+   color: var(--dd-text-muted);
+}
+.th.on .nm span:first-child {
+   color: var(--dd-text);
+   font-weight: 600;
+}
+.tok-grid {
+   display: grid;
+   grid-template-columns: repeat(5, minmax(0, 1fr));
+   gap: 8px 4px;
+}
+.tok {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 4px;
+   padding: 0;
+   border: none;
+   background: transparent;
+   font: inherit;
+   font-size: 10px;
+   color: var(--dd-text-muted);
+   cursor: pointer;
+}
+.tok .sq {
+   width: 26px;
+   height: 26px;
+   box-sizing: border-box;
+   border-radius: 5px;
+   border: 1px solid var(--dd-border-strong, rgba(127, 127, 127, 0.55));
+}
+.fnt {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   gap: 8px;
+   padding: 4px 4px 4px 10px;
+   border: 1px solid var(--dd-border);
+   border-radius: 8px;
+   font-size: 12px;
+}
+.f-design {
+   margin-top: auto;
+   border-top: 1px solid var(--dd-border);
+   padding-top: 12px;
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+}
+.top {
+   flex: none;
+   padding: 0 10px;
+}
+.tab.on {
+   background: var(--dd-primary-weak);
+   color: var(--dd-primary);
+}
+.card {
+   position: relative;
+   display: grid;
+   grid-template-columns: 18px minmax(0, 1fr) auto;
+   align-items: center;
+   gap: 6px;
+   padding: 4px 6px;
+   border-radius: 10px;
+   border: 1px solid transparent;
+   cursor: pointer;
+}
+.card:hover {
+   background: var(--dd-surface-2);
+}
+.card.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+}
+.card.current .thumb {
+   border-color: var(--dd-primary);
+}
+.card.hidden .thumb {
+   opacity: 0.45;
+}
+.card {
+   touch-action: none;
+   user-select: none;
+}
+/* While reordering, the other cards slide out of the way with the drag. */
+.list.reordering .card:not(.dragging) {
+   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+/* The dragged card is the drag preview: lifted, and glued to the pointer. */
+.card.dragging {
+   z-index: 5;
+   cursor: grabbing;
+   background: var(--dd-surface-2);
+   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+   transition: box-shadow 120ms;
+}
+.card.ghost {
+   position: absolute;
+   left: 0;
+   right: 0;
+   pointer-events: none;
+   box-sizing: border-box;
+}
+.card.pending {
+   opacity: 0.6;
+}
+.card.dragging.settling {
+   transition:
+      transform 170ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 120ms;
+}
+.card.current .num {
+   color: var(--dd-primary);
+}
+.muted {
+   color: var(--dd-text-muted);
+}
+.btn.on {
+   background: var(--dd-primary-weak);
+   border-color: color-mix(in srgb, var(--dd-primary) 40%, transparent);
+   color: var(--dd-primary);
+}
+.theme-card.on {
+   outline: 2px solid var(--dd-primary);
+   outline-offset: 1px;
+}
+.info {
+   --dd-icon-size: 13px;
+   color: var(--dd-text-muted);
+   cursor: help;
+}
+.picker {
+   display: block;
+   padding: 8px;
+   background: var(--dd-surface);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius);
+   box-shadow: var(--dd-shadow-3);
+}
+input[type='number'],
+.text-input,
+textarea {
+   font: inherit;
+   color: var(--dd-text);
+   background: var(--dd-surface-2);
+   border: 1px solid var(--dd-border);
+   border-radius: var(--dd-radius-sm);
+   padding: 6px 8px;
+   box-sizing: border-box;
+   width: 100%;
+}
+input[type='number'],
+.text-input {
+   height: 34px;
+}

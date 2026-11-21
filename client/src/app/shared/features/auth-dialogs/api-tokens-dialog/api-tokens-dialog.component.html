@@ -13,7 +13,7 @@
       </p>
    }
 
-   @if (created(); as c) {
+   @if (created$(); as c) {
       <div class="secret" role="status">
          <div class="secret-head">
             <strong>{{ c.name }}</strong>
@@ -22,21 +22,21 @@
          <code class="secret-value">{{ c.token }}</code>
          <div class="row">
             <button class="btn" type="button" (click)="copy('token')">
-               <dd-icon [name]="copied() === 'token' ? 'check' : 'content_copy'" />
-               {{ copied() === 'token' ? 'Copied' : 'Copy token' }}
+               <dd-icon [name]="copied$() === 'token' ? 'check' : 'content_copy'" />
+               {{ copied$() === 'token' ? 'Copied' : 'Copy token' }}
             </button>
             <button class="btn" type="button" (click)="copy('config')">
-               <dd-icon [name]="copied() === 'config' ? 'check' : 'content_copy'" />
-               {{ copied() === 'config' ? 'Copied' : 'Copy MCP config' }}
+               <dd-icon [name]="copied$() === 'config' ? 'check' : 'content_copy'" />
+               {{ copied$() === 'config' ? 'Copied' : 'Copy MCP config' }}
             </button>
             <button class="btn ghost" type="button" (click)="dismissCreated()">Done</button>
          </div>
-         <pre class="snippet">{{ configSnippet() }}</pre>
+         <pre class="snippet">{{ configSnippet$() }}</pre>
       </div>
    }
 
    <div class="create" [formGroup]="form">
-      <label class="field-label">New token</label>
+      <span class="field-label">New token</span>
       <div class="row">
          <dd-input
             class="grow"
@@ -46,23 +46,27 @@
             (keydown.enter)="create()"
          />
          <dd-segmented formControlName="scope" [options]="scopeOptions" />
-         <button class="btn primary" type="button" [disabled]="!canCreate()" (click)="create()">
+         <button class="btn primary" type="button" [disabled]="!canCreate$()" (click)="create()">
             <dd-icon name="add" />Create
          </button>
       </div>
+      <div class="row limits">
+         <dd-select class="grow" formControlName="project" [options]="projectOptions$()" />
+         <dd-select class="grow" formControlName="expires" [options]="expiryOptions" />
+      </div>
    </div>
 
-   @if (error()) {
-      <p class="err">{{ error() }}</p>
+   @if (error$()) {
+      <p class="err">{{ error$() }}</p>
    }
 
    <div class="list">
-      @if (loading()) {
+      @if (loading$()) {
          <p class="hint">Loading...</p>
-      } @else if (active().length === 0) {
+      } @else if (active$().length === 0) {
          <p class="hint">No active tokens.</p>
       } @else {
-         @for (t of active(); track t.id) {
+         @for (t of active$(); track t.id) {
             <div class="token">
                <dd-icon name="key" />
                <div class="meta">
@@ -70,6 +74,9 @@
                   <span class="hint">
                      {{ t.prefix }}... · {{ t.scope === 'read' ? 'read only' : 'read & write' }} ·
                      {{ t.lastUsedAt ? 'used ' + (t.lastUsedAt | date: 'mediumDate') : 'never used' }}
+                     @if ((limits$() | call: t); as l) {
+                        · {{ l }}
+                     }
                   </span>
                </div>
                <button class="icon-btn" type="button" aria-label="Revoke token" title="Revoke" (click)="revoke(t)">
