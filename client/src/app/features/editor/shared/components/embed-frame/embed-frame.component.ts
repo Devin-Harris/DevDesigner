@@ -22,43 +22,43 @@ function embedHost(url: string | null | undefined): string {
 @Component({
    selector: 'dd-embed-frame',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   host: { class: 'embed-frame', '[class.interacting]': 'interacting()' },
+   host: { class: 'embed-frame', '[class.interacting]': 'interacting$()' },
    template: `
-      @if (src(); as s) {
+      @if (src$(); as s) {
          <!-- allow-same-origin keeps the page on its real origin: without it the origin is
               'null' and module scripts (Vite dev servers, most SPAs) fail CORS. -->
-         @if (failed()) {
+         @if (failed$()) {
             <div class="state error" role="alert">
                <div class="badge bad" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5.5M12 16.2v.3" /></svg>
                </div>
                <p class="title">Couldn't load this page</p>
-               <p class="sub url">{{ host() }}</p>
+               <p class="sub url">{{ host$() }}</p>
                <p class="sub">Check that it's running and reachable from this browser.</p>
                <button type="button" class="retry" (pointerdown)="$event.stopPropagation()" (click)="retry()">Try again</button>
             </div>
          } @else {
             <!-- Stays mounted and fades away once the page is in, revealing it underneath. -->
-            <div class="state loading" aria-live="polite" [class.done]="loaded()">
+            <div class="state loading" aria-live="polite" [class.done]="loaded$()">
                <div class="spinner" aria-hidden="true"></div>
                <p class="sub">Loading</p>
-               <p class="sub url">{{ host() }}</p>
+               <p class="sub url">{{ host$() }}</p>
             </div>
          }
-         @for (k of [nonce() + retries()]; track k) {
+         @for (k of [nonce$() + retries$()]; track k) {
             <iframe
                title="Live frame"
                referrerpolicy="no-referrer"
                allow="clipboard-read; clipboard-write; fullscreen; autoplay"
                sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-same-origin"
-               [class.ready]="loaded() && !failed()"
+               [class.ready]="loaded$() && !failed$()"
                [src]="s"
                (load)="onLoad($event)"
             ></iframe>
          }
          <!-- The frame's own border, drawn over the page so its corners never look cut off. -->
          <div class="edge" aria-hidden="true"></div>
-      } @else if (editable() && !url()) {
+      } @else if (editable$() && !url$()) {
          <!-- Only the field and button take the pointer: the rest drags the frame. -->
          <form class="ask" (submit)="submit($event, field.value)">
             <div class="panel">
@@ -67,7 +67,7 @@ function embedHost(url: string | null | undefined): string {
                </div>
                <label class="title" [attr.for]="fieldId">Embed a live page</label>
                <p class="sub">A running site or your local dev server</p>
-               <div class="field" [class.bad]="invalid()">
+               <div class="field" [class.bad]="invalid$()">
                   <input
                      #field
                      type="text"
@@ -77,11 +77,11 @@ function embedHost(url: string | null | undefined): string {
                      [id]="fieldId"
                      (pointerdown)="$event.stopPropagation()"
                      (keydown)="$event.stopPropagation()"
-                     (input)="invalid.set(false)"
+                     (input)="invalid$.set(false)"
                   />
                   <button type="submit" (pointerdown)="$event.stopPropagation()">Embed</button>
                </div>
-               @if (invalid()) {
+               @if (invalid$()) {
                   <p class="hint err">Use an http:// or https:// address.</p>
                }
             </div>
@@ -283,46 +283,46 @@ export class EmbedFrameComponent {
    private readonly sanitizer = inject(DomSanitizer);
    private static seq = 0;
 
-   readonly url = input<string | null | undefined>(null);
+   readonly url$ = input<string | null | undefined>(null, { alias: 'url' });
    /** Load the page (false = leave the placeholder underneath showing). */
    readonly live = input(true);
-   readonly interacting = input(false);
-   readonly editable = input(false);
+   readonly interacting$ = input(false, { alias: 'interacting' });
+   readonly editable$ = input(false, { alias: 'editable' });
    /** Change to reload the page. */
-   readonly nonce = input(0);
+   readonly nonce$ = input(0, { alias: 'nonce' });
    readonly urlCommit = output<string>();
 
    protected readonly fieldId = `embed-url-${(EmbedFrameComponent.seq += 1)}`;
-   protected readonly invalid = signal(false);
+   protected readonly invalid$ = signal(false);
    /** The page finished loading (fades in over the spinner). */
-   protected readonly loaded = signal(false);
+   protected readonly loaded$ = signal(false);
    /** The address could not be reached (or took too long). */
-   protected readonly failed = signal(false);
-   protected readonly retries = signal(0);
-   protected readonly host = computed(() => embedHost(this.url()));
+   protected readonly failed$ = signal(false);
+   protected readonly retries$ = signal(0);
+   protected readonly host$ = computed(() => embedHost(this.url$()));
 
    constructor() {
       // A new address or a reload starts hidden again until the page loads.
       effect((onCleanup) => {
-         const url = this.url()?.trim();
-         this.nonce();
-         this.retries();
+         const url = this.url$()?.trim();
+         this.nonce$();
+         this.retries$();
          const live = this.live();
-         this.loaded.set(false);
-         this.failed.set(false);
+         this.loaded$.set(false);
+         this.failed$.set(false);
          if (!live || !url || !isEmbedUrl(url)) return;
          // A cross-origin iframe never reports errors, so probe the address: a
          // no-cors fetch rejects when the server is down or the name won't resolve.
          let done = false;
          const fail = (): void => {
-            if (!done) this.failed.set(true);
+            if (!done) this.failed$.set(true);
          };
          const ctrl = new AbortController();
          fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal }).catch(() => {
             if (!ctrl.signal.aborted) fail();
          });
          const timer = setTimeout(() => {
-            if (!untracked(this.loaded)) fail();
+            if (!untracked(this.loaded$)) fail();
          }, LOAD_TIMEOUT_MS);
          onCleanup(() => {
             done = true;
@@ -345,15 +345,15 @@ export class EmbedFrameComponent {
       } catch {
          // Cross-origin: the real page is there.
       }
-      this.loaded.set(true);
+      this.loaded$.set(true);
    }
 
    protected retry(): void {
-      this.retries.update((n) => n + 1);
+      this.retries$.update((n) => n + 1);
    }
 
-   protected readonly src = computed<SafeResourceUrl | null>(() => {
-      const url = this.url()?.trim();
+   protected readonly src$ = computed<SafeResourceUrl | null>(() => {
+      const url = this.url$()?.trim();
       if (!this.live() || !url || !isEmbedUrl(url)) return null;
       return this.sanitizer.bypassSecurityTrustResourceUrl(url);
    });
@@ -361,7 +361,7 @@ export class EmbedFrameComponent {
    protected submit(event: Event, value: string): void {
       event.preventDefault();
       const url = normalizeEmbedUrl(value);
-      this.invalid.set(!url);
+      this.invalid$.set(!url);
       if (url) this.urlCommit.emit(url);
    }
 }

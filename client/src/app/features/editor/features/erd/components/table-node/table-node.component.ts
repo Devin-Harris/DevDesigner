@@ -1,25 +1,5 @@
-import {
-   ChangeDetectionStrategy,
-   Component,
-   computed,
-   effect,
-   inject,
-   input,
-   output,
-   signal,
-   untracked,
-} from '@angular/core';
-import {
-   DATA_TYPE_NAMES,
-   isNumericType,
-   type ColumnModel,
-   type IndexModel,
-   type TableModel,
-   type UpdateColumnDto,
-   isLightFill,
-   isSwatchColor,
-   themeColorCss,
-} from '@devdesigner/shared';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { DATA_TYPE_NAMES, isNumericType, type ColumnModel, type IndexModel, type TableModel, type UpdateColumnDto, isLightFill, isSwatchColor, themeColorCss } from '@devdesigner/shared';
 import { AutofocusDirective } from '../../../../../../shared/ui/directives/autofocus.directive';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
@@ -27,6 +7,7 @@ import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/
 import { ErdEdits, type TableGeometry } from '../../services/erd-edits.service';
 import { HEADER_H, MAX_TABLE_SCALE, MIN_TABLE_SCALE, ROW_H } from '../../../../shared/constants/canvas.constants';
 import { nodeHeight, tableBaseWidth, tableScale } from '../../../../helpers/node-metrics.helper';
+import { AtPipe, HasPipe, CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 
 export interface HandleEvent {
    event: PointerEvent;
@@ -67,16 +48,16 @@ function resolveTypeName(word: string): string | undefined {
 @Component({
    selector: 'dd-table-node',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [ColorSwatchesComponent, AutofocusDirective, IconComponent, PopoverTriggerDirective],
+   imports: [AtPipe, CallPipe, HasPipe, ColorSwatchesComponent, AutofocusDirective, IconComponent, PopoverTriggerDirective],
    templateUrl: './table-node.component.html',
    styleUrl: './table-node.component.scss',
    host: {
-      '[style.left.px]': 'table().x',
-      '[style.top.px]': 'table().y',
-      '[style.width.px]': 'nodeWidth()',
-      '[style.transform]': 'transform()',
-      '[style.--inv-scale]': 'inverseScale()',
-      '[class.selected]': 'selected()',
+      '[style.left.px]': 'table$().x',
+      '[style.top.px]': 'table$().y',
+      '[style.width.px]': 'nodeWidth$()',
+      '[style.transform]': 'transform$()',
+      '[style.--inv-scale]': 'inverseScale$()',
+      '[class.selected]': 'selected$()',
       '(pointerdown)': 'nodePointerDown.emit($event)',
       '(dblclick)': 'onDblClick($event)',
    },
@@ -90,11 +71,11 @@ export class TableNodeComponent {
    /** CSS for a stored color (resolves the theme sentinels). */
    protected readonly css = themeColorCss;
 
-   readonly table = input.required<TableModel>();
-   readonly selected = input<boolean>(false);
-   readonly editable = input<boolean>(false);
+   readonly table$ = input.required<TableModel>({ alias: 'table' });
+   readonly selected$ = input<boolean>(false, { alias: 'selected' });
+   readonly editable$ = input<boolean>(false, { alias: 'editable' });
    /** Column ids that are relationship endpoints; a non-PK one renders an FK glyph. */
-   readonly fkColumnIds = input<ReadonlySet<string>>(new Set<string>());
+   readonly fkColumnIds$ = input<ReadonlySet<string>>(new Set<string>(), { alias: 'fkColumnIds' });
 
    /** Snap a world coordinate to the grid (identity/null when grid-snap is off). */
    readonly snap = input<((n: number) => number) | null>(null);
@@ -104,11 +85,11 @@ export class TableNodeComponent {
    readonly handleUp = output<HandleEvent>();
 
    /** Natural width: grows to fit the widest name; the scale is applied as a transform. */
-   protected readonly nodeWidth = computed(() => tableBaseWidth(this.table()));
-   private readonly scale = computed(() => tableScale(this.table()));
-   protected readonly transform = computed(() => (this.scale() === 1 ? null : `scale(${this.scale()})`));
+   protected readonly nodeWidth$ = computed(() => tableBaseWidth(this.table$()));
+   private readonly scale = computed(() => tableScale(this.table$()));
+   protected readonly transform$ = computed(() => (this.scale() === 1 ? null : `scale(${this.scale()})`));
    /** Counter-scale so the corner handles keep a constant on-screen size. */
-   protected readonly inverseScale = computed(() => 1 / this.scale());
+   protected readonly inverseScale$ = computed(() => 1 / this.scale());
    protected readonly headerH = HEADER_H;
    protected readonly rowH = ROW_H;
    protected readonly dataTypeNames = DATA_TYPE_NAMES;
@@ -117,12 +98,12 @@ export class TableNodeComponent {
    // --- unique keys ---
 
    /** The table's unique indexes (single- or multi-column). */
-   protected readonly uniqueIndexes = computed(() => (this.table().indexes ?? []).filter((ix) => ix.isUnique));
+   protected readonly uniqueIndexes$ = computed(() => (this.table$().indexes ?? []).filter((ix) => ix.isUnique));
 
    /** Column id -> the unique indexes it belongs to. */
-   protected readonly uniqueSets = computed(() => {
+   protected readonly uniqueSets$ = computed(() => {
       const map = new Map<string, IndexModel[]>();
-      for (const ix of this.uniqueIndexes()) {
+      for (const ix of this.uniqueIndexes$()) {
          for (const id of ix.columnIds) {
             map.set(id, [...(map.get(id) ?? []), ix]);
          }
@@ -135,17 +116,17 @@ export class TableNodeComponent {
 
    private readonly hoveredSets = computed(() => {
       const id = this.hoverUnique();
-      return id ? (this.uniqueSets().get(id) ?? []) : [];
+      return id ? (this.uniqueSets$().get(id) ?? []) : [];
    });
 
-   protected readonly uniqueHighlight = computed(() => new Set(this.hoveredSets().flatMap((ix) => ix.columnIds)));
+   protected readonly uniqueHighlight$ = computed(() => new Set(this.hoveredSets().flatMap((ix) => ix.columnIds)));
 
    /**
     * One bracket per hovered multi-column set, each in its own lane in the left
     * gutter so a column in several sets shows every grouping without overlap.
     */
-   protected readonly uniqueBrackets = computed(() => {
-      const order = new Map(this.table().columns.map((c, i) => [c.id, i] as const));
+   protected readonly uniqueBrackets$ = computed(() => {
+      const order = new Map(this.table$().columns.map((c, i) => [c.id, i] as const));
       return this.hoveredSets()
          .filter((ix) => ix.columnIds.length > 1)
          .map((ix, lane) => {
@@ -167,8 +148,23 @@ export class TableNodeComponent {
    });
 
    /** Tooltip for the red unique key, or null when the column isn't unique. */
+   /** "a, b" for each index of this table, by index id. */
+   protected readonly indexColumnNames$ = computed(() => {
+      const names = new Map(this.table$().columns.map((c) => [c.id, c.name] as const));
+      return new Map((this.table$().indexes ?? []).map((ix) => [ix.id, ix.columnIds.map((id) => names.get(id) ?? '?').join(', ')] as const));
+   });
+   /** Tooltip of each column's unique-key glyph, by column id (absent when it has none). */
+   protected readonly uniqueTitles$ = computed(() => {
+      const out = new Map<string, string>();
+      for (const column of this.table$().columns) {
+         const title = this.uniqueTitle(column);
+         if (title) out.set(column.id, title);
+      }
+      return out;
+   });
+
    protected uniqueTitle(column: ColumnModel): string | null {
-      const sets = this.uniqueSets().get(column.id) ?? [];
+      const sets = this.uniqueSets$().get(column.id) ?? [];
       const lines = sets.map((ix) => `Unique ${ix.name}: ${this.indexColumnNames(ix)}`);
       if (column.isUnique && !column.isPrimaryKey) {
          lines.unshift('Unique');
@@ -177,15 +173,15 @@ export class TableNodeComponent {
    }
 
    protected indexColumnNames(ix: IndexModel): string {
-      const byId = new Map(this.table().columns.map((c) => [c.id, c.name] as const));
+      const byId = new Map(this.table$().columns.map((c) => [c.id, c.name] as const));
       return ix.columnIds.map((id) => byId.get(id) ?? '?').join(', ');
    }
 
    protected toggleIndexMember(ix: IndexModel, column: ColumnModel): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      const tableId = this.table().id;
+      const tableId = this.table$().id;
       const columnIds = ix.columnIds.includes(column.id)
          ? ix.columnIds.filter((id) => id !== column.id)
          : [...ix.columnIds, column.id];
@@ -198,10 +194,10 @@ export class TableNodeComponent {
 
    /** Start a new unique set with this column; add the others from their UQ menus. */
    protected newUniqueIndex(column: ColumnModel): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      const table = this.table();
+      const table = this.table$();
       const taken = new Set((table.indexes ?? []).map((ix) => ix.name));
       let name = `uq_${table.name}_${column.name}`;
       for (let i = 2; taken.has(name); i += 1) {
@@ -212,14 +208,14 @@ export class TableNodeComponent {
    /** Saturated header colors, then pale tints (the shared palette the MCP server also uses). */
 
    protected setColor(color: string): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      void this.edits.updateTable(this.table().id, { color });
+      void this.edits.updateTable(this.table$().id, { color });
    }
 
-   protected readonly editingName = signal(false);
-   protected readonly editingColumnId = signal<string | null>(null);
+   protected readonly editingName$ = signal(false);
+   protected readonly editingColumnId$ = signal<string | null>(null);
 
    // --- scale (drag a corner of the selection box; the opposite corner stays put) ---
 
@@ -228,10 +224,10 @@ export class TableNodeComponent {
    protected onScaleDown(event: PointerEvent, corner: 'nw' | 'ne' | 'sw' | 'se'): void {
       event.stopPropagation();
       event.preventDefault();
-      if (!this.editable() || event.button !== 0) {
+      if (!this.editable$() || event.button !== 0) {
          return;
       }
-      const table = this.table();
+      const table = this.table$();
       const startScale = tableScale(table);
       const baseW = tableBaseWidth(table);
       const baseH = nodeHeight(table.columns.length);
@@ -295,7 +291,7 @@ export class TableNodeComponent {
 
    /** This table plus, when it is part of a multi-selection, the other selected tables. */
    private scaleTargets(): TableModel[] {
-      const table = this.table();
+      const table = this.table$();
       const ids = this.edits.selectedTableIds();
       if (!ids.includes(table.id) || ids.length < 2) {
          return [table];
@@ -320,7 +316,7 @@ export class TableNodeComponent {
    protected resetScale(event: Event): void {
       event.stopPropagation();
       const targets = this.scaleTargets().filter((t) => tableScale(t) !== 1);
-      if (!this.editable() || !targets.length) {
+      if (!this.editable$() || !targets.length) {
          return;
       }
       const before = targets.map((t) => ({
@@ -352,11 +348,11 @@ export class TableNodeComponent {
     */
    private enterGroupInstead(event: Event): boolean {
       event.stopPropagation();
-      const gid = this.edits.groupIdOf(this.table().id);
+      const gid = this.edits.groupIdOf(this.table$().id);
       if (!gid || gid === this.edits.enteredGroupId()) {
          return false;
       }
-      this.edits.enterGroup('table', this.table().id);
+      this.edits.enterGroup('table', this.table$().id);
       return true;
    }
 
@@ -365,39 +361,39 @@ export class TableNodeComponent {
    }
 
    protected startEditName(event: Event): void {
-      if (this.enterGroupInstead(event) || !this.editable()) {
+      if (this.enterGroupInstead(event) || !this.editable$()) {
          return;
       }
-      this.editingColumnId.set(null);
-      this.editingName.set(true);
+      this.editingColumnId$.set(null);
+      this.editingName$.set(true);
    }
 
    protected commitName(event: Event): void {
-      if (!this.editingName()) {
+      if (!this.editingName$()) {
          return;
       }
-      this.editingName.set(false);
+      this.editingName$.set(false);
       const name = (event.target as HTMLInputElement).value.trim();
-      if (name && name !== this.table().name) {
-         void this.edits.updateTable(this.table().id, { name });
+      if (name && name !== this.table$().name) {
+         void this.edits.updateTable(this.table$().id, { name });
       }
    }
 
    // --- inline column name ---
 
    protected startEditColumn(event: Event, column: ColumnModel): void {
-      if (this.enterGroupInstead(event) || !this.editable()) {
+      if (this.enterGroupInstead(event) || !this.editable$()) {
          return;
       }
-      this.editingName.set(false);
-      this.editingColumnId.set(column.id);
+      this.editingName$.set(false);
+      this.editingColumnId$.set(column.id);
    }
 
    protected commitColumn(column: ColumnModel, event: Event): void {
-      if (this.editingColumnId() !== column.id) {
+      if (this.editingColumnId$() !== column.id) {
          return;
       }
-      this.editingColumnId.set(null);
+      this.editingColumnId$.set(null);
       this.saveColumnText(column, (event.target as HTMLInputElement).value);
    }
 
@@ -407,18 +403,18 @@ export class TableNodeComponent {
     * to type into.
     */
    protected async onColumnKey(column: ColumnModel, event: KeyboardEvent): Promise<void> {
-      const cols = this.table().columns;
+      const cols = this.table$().columns;
       const i = cols.findIndex((c) => c.id === column.id);
       if (event.key === 'Tab') {
          event.preventDefault();
          this.saveColumnText(column, (event.target as HTMLInputElement).value);
          const next = cols[i + (event.shiftKey ? -1 : 1)];
-         this.editingColumnId.set(next ? next.id : null);
+         this.editingColumnId$.set(next ? next.id : null);
       } else if (event.key === 'Enter') {
          event.preventDefault();
          this.saveColumnText(column, (event.target as HTMLInputElement).value);
-         this.editingColumnId.set(null);
-         if (i === cols.length - 1 && this.editable()) {
+         this.editingColumnId$.set(null);
+         if (i === cols.length - 1 && this.editable$()) {
             await this.addColumnAndEdit();
          }
       }
@@ -449,53 +445,53 @@ export class TableNodeComponent {
          }
       }
       if (Object.keys(patch).length) {
-         void this.edits.updateColumn(this.table().id, column.id, patch);
+         void this.edits.updateColumn(this.table$().id, column.id, patch);
       }
    }
 
    /** Column ids before an Enter-adds-a-row; the next new id gets edited. */
    private pendingEditAfter: Set<string> | null = null;
    private readonly editNewColumn = effect(() => {
-      const cols = this.table().columns;
+      const cols = this.table$().columns;
       const before = this.pendingEditAfter;
       if (!before) return;
       const added = cols.find((c) => !before.has(c.id));
       if (added) {
          this.pendingEditAfter = null;
-         untracked(() => this.editingColumnId.set(added.id));
+         untracked(() => this.editingColumnId$.set(added.id));
       }
    });
 
    private async addColumnAndEdit(): Promise<void> {
-      this.pendingEditAfter = new Set(this.table().columns.map((c) => c.id));
+      this.pendingEditAfter = new Set(this.table$().columns.map((c) => c.id));
       await this.addColumnAsync();
    }
 
    protected cancelInline(): void {
-      this.editingName.set(false);
-      this.editingColumnId.set(null);
+      this.editingName$.set(false);
+      this.editingColumnId$.set(null);
    }
 
    // --- data type + constraints ---
 
    protected setType(column: ColumnModel, name: string): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
       const length = name === 'VARCHAR' ? (column.dataType.length ?? 255) : undefined;
-      void this.edits.updateColumn(this.table().id, column.id, {
+      void this.edits.updateColumn(this.table$().id, column.id, {
          dataType: { name, length },
          ...(column.isUnsigned && !isNumericType(name) ? { isUnsigned: false } : {}),
       });
    }
 
    protected setLength(column: ColumnModel, event: Event): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
       const raw = Number((event.target as HTMLInputElement).value);
       const length = Number.isFinite(raw) && raw > 0 ? raw : undefined;
-      void this.edits.updateColumn(this.table().id, column.id, {
+      void this.edits.updateColumn(this.table$().id, column.id, {
          dataType: { name: column.dataType.name, length },
       });
    }
@@ -521,10 +517,10 @@ export class TableNodeComponent {
    }
 
    private editColumn(column: ColumnModel, patch: UpdateColumnDto): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      void this.edits.updateColumn(this.table().id, column.id, patch);
+      void this.edits.updateColumn(this.table$().id, column.id, patch);
    }
 
    // --- add / delete ---
@@ -534,30 +530,30 @@ export class TableNodeComponent {
    }
 
    private async addColumnAsync(): Promise<void> {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      const names = new Set(this.table().columns.map((c) => c.name));
-      let i = this.table().columns.length + 1;
+      const names = new Set(this.table$().columns.map((c) => c.name));
+      let i = this.table$().columns.length + 1;
       let name = `column_${i}`;
       while (names.has(name)) {
          i += 1;
          name = `column_${i}`;
       }
-      await this.edits.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+      await this.edits.addColumn(this.table$().id, { name, dataType: { name: 'INT' } });
    }
 
    protected deleteColumn(column: ColumnModel): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      void this.edits.deleteColumn(this.table().id, column.id);
+      void this.edits.deleteColumn(this.table$().id, column.id);
    }
 
    protected deleteTable(): void {
-      if (!this.editable()) {
+      if (!this.editable$()) {
          return;
       }
-      void this.edits.deleteTable(this.table().id);
+      void this.edits.deleteTable(this.table$().id);
    }
 }

@@ -1,9 +1,9 @@
-@if (canEdit()) {
-   <button class="add" type="button" [disabled]="!selectedTargets().length" (click)="addSelected()">
+@if (canEdit$()) {
+   <button class="add" type="button" [disabled]="!selectedTargets$().length" (click)="addSelected()">
       <dd-icon name="add" />
-      Add animation{{ selectedTargets().length > 1 ? ' to ' + selectedTargets().length + ' objects' : '' }}
+      Add animation{{ selectedTargets$().length > 1 ? ' to ' + selectedTargets$().length + ' objects' : '' }}
    </button>
-   @if (!selectedTargets().length && !rows().length) {
+   @if (!selectedTargets$().length && !rows$().length) {
       <p class="hint">
          Select an object on the slide, then add an animation to bring it in, take it out, or draw attention to it.
          Animations play in the order listed.
@@ -11,9 +11,9 @@
    }
 }
 
-@if (rows().length) {
+@if (rows$().length) {
    <ol class="rows">
-      @for (r of rows(); track r.animation.id; let i = $index) {
+      @for (r of rows$(); track r.animation.id; let i = $index) {
          @if (r.animation.trigger === 'click' || i === 0) {
             <li class="mark" aria-hidden="true">
                {{ r.animation.trigger === 'click' ? 'Click ' + r.click : 'Starts by itself' }}
@@ -23,7 +23,7 @@
             class="row"
             tabindex="0"
             role="button"
-            [class.sel]="r.animation.id === selectedId()"
+            [class.sel]="r.animation.id === selectedId$()"
             [class.gone]="!r.target"
             (click)="pickRow(r.animation)"
             (keydown.enter)="pickRow(r.animation)"
@@ -33,13 +33,13 @@
             <span class="what">
                <span class="name">{{ r.target?.label ?? 'Missing object' }}</span>
                <span class="how">
-                  {{ effectName(r.animation) }}
+                  {{ (effectName | call: r.animation) }}
                   @if (r.animation.trigger !== 'click') {
                      · {{ r.animation.trigger === 'with' ? 'with previous' : 'after previous' }}
                   }
                </span>
             </span>
-            @if (canEdit()) {
+            @if (canEdit$()) {
                <button
                   class="icon"
                   aria-label="Remove animation"
@@ -54,12 +54,12 @@
       }
    </ol>
    <p class="sum">
-      {{ summary() }}
+      {{ summary$() }}
       <button class="link" type="button" (click)="play.emit()"><dd-icon name="play_arrow" />Preview</button>
    </p>
 }
 
-@if (selected(); as a) {
+@if (selected$(); as a) {
    <div class="detail">
       <div class="two">
          <label class="field">
@@ -67,27 +67,27 @@
             <dd-select
                [options]="kindOptions"
                [ngModel]="a.kind"
-               [disabled]="!canEdit()"
+               [disabled]="!canEdit$()"
                (ngModelChange)="patch(a.id, { kind: $event, effect: effectFor($event, a.effect) })"
             />
          </label>
          <label class="field">
             <span>Effect</span>
             <dd-select
-               [options]="effectOptions()"
+               [options]="effectOptions$()"
                [ngModel]="a.effect"
-               [disabled]="!canEdit()"
+               [disabled]="!canEdit$()"
                (ngModelChange)="patch(a.id, { effect: $event })"
             />
          </label>
       </div>
-      @if (directional(a)) {
+      @if ((directional | call: a)) {
          <label class="field">
             <span>Direction</span>
             <dd-select
                [options]="a.kind === 'exit' ? exitDirections : directions"
                [ngModel]="a.direction ?? 'left'"
-               [disabled]="!canEdit()"
+               [disabled]="!canEdit$()"
                (ngModelChange)="patch(a.id, { direction: $event })"
             />
          </label>
@@ -97,7 +97,7 @@
          <dd-select
             [options]="triggerOptions"
             [ngModel]="a.trigger"
-            [disabled]="!canEdit()"
+            [disabled]="!canEdit$()"
             (ngModelChange)="patch(a.id, { trigger: $event })"
          />
       </label>
@@ -111,7 +111,7 @@
                   max="10000"
                   step="50"
                   [ngModel]="a.duration"
-                  [disabled]="!canEdit()"
+                  [disabled]="!canEdit$()"
                   (change)="patch(a.id, { duration: num($any($event.target).value, a.duration) })"
                />
             </label>
@@ -123,7 +123,7 @@
                   max="30000"
                   step="100"
                   [ngModel]="a.delay"
-                  [disabled]="!canEdit()"
+                  [disabled]="!canEdit$()"
                   (change)="patch(a.id, { delay: num($any($event.target).value, a.delay) })"
                />
             </label>
@@ -137,17 +137,17 @@
                max="30000"
                step="100"
                [ngModel]="a.delay"
-               [disabled]="!canEdit()"
+               [disabled]="!canEdit$()"
                (change)="patch(a.id, { delay: num($any($event.target).value, a.delay) })"
             />
          </label>
       }
-      @if (canEdit()) {
+      @if (canEdit$()) {
          <div class="order">
-            <button class="btn" type="button" [disabled]="!canMove(a.id, -1)" (click)="move(a.id, -1)">
+            <button class="btn" type="button" [disabled]="!(movableUp$() | has: a.id)" (click)="move(a.id, -1)">
                <dd-icon name="arrow_upward" />Earlier
             </button>
-            <button class="btn" type="button" [disabled]="!canMove(a.id, 1)" (click)="move(a.id, 1)">
+            <button class="btn" type="button" [disabled]="!(movableDown$() | has: a.id)" (click)="move(a.id, 1)">
                <dd-icon name="arrow_downward" />Later
             </button>
          </div>

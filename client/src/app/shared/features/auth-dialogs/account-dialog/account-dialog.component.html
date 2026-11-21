@@ -1,7 +1,7 @@
 <h2 mat-dialog-title class="dlg-title">Account settings</h2>
 
 <mat-dialog-content class="dlg-body">
-   @if (auth.currentUser()?.email; as email) {
+   @if (auth.currentUser$()?.email; as email) {
       <p class="lead">Signed in as <strong>{{ email }}</strong></p>
    }
 
@@ -9,8 +9,8 @@
       <h3>Sessions</h3>
       <p class="hint">Sign out on every browser and device, including this one. API tokens are not affected.</p>
       <div class="row">
-         <button class="btn" type="button" [disabled]="busy() !== null" (click)="logoutAll()">
-            <dd-icon name="logout" />{{ busy() === 'logout-all' ? 'Signing out…' : 'Sign out everywhere' }}
+         <button class="btn" type="button" [disabled]="busy$() !== null" (click)="logoutAll()">
+            <dd-icon name="logout" />{{ busy$() === 'logout-all' ? 'Signing out…' : 'Sign out everywhere' }}
          </button>
       </div>
    </section>
@@ -20,9 +20,9 @@
       <p class="hint">
          Permanently deletes your account, your projects, themes and API tokens. This cannot be undone.
       </p>
-      @if (!confirmingDelete()) {
+      @if (!confirmingDelete$()) {
          <div class="row">
-            <button class="btn danger-outline" type="button" (click)="confirmingDelete.set(true)">
+            <button class="btn danger-outline" type="button" (click)="confirmingDelete$.set(true)">
                <dd-icon name="delete" />Delete my account…
             </button>
          </div>
@@ -37,16 +37,16 @@
                [formControl]="password"
                (keydown.enter)="deleteAccount()"
             />
-            <button class="btn danger" type="button" [disabled]="!canDelete()" (click)="deleteAccount()">
-               {{ busy() === 'delete' ? 'Deleting…' : 'Delete permanently' }}
+            <button class="btn danger" type="button" [disabled]="!canDelete$()" (click)="deleteAccount()">
+               {{ busy$() === 'delete' ? 'Deleting…' : 'Delete permanently' }}
             </button>
-            <button class="btn ghost" type="button" (click)="confirmingDelete.set(false)">Cancel</button>
+            <button class="btn ghost" type="button" (click)="confirmingDelete$.set(false)">Cancel</button>
          </div>
       }
    </section>
 
-   @if (error()) {
-      <p class="err" role="alert">{{ error() }}</p>
+   @if (error$()) {
+      <p class="err" role="alert">{{ error$() }}</p>
    }
 </mat-dialog-content>
 

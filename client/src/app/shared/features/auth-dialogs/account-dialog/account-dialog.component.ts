@@ -25,42 +25,42 @@ export class AccountDialogComponent {
    protected readonly auth = inject(AuthService);
    private readonly ref = inject<MatDialogRef<AccountDialogComponent, AccountDialogResult>>(MatDialogRef);
 
-   protected readonly busy = signal<'logout-all' | 'delete' | null>(null);
-   protected readonly error = signal<string | null>(null);
+   protected readonly busy$ = signal<'logout-all' | 'delete' | null>(null);
+   protected readonly error$ = signal<string | null>(null);
    /** Delete is two-step: reveal the password field + confirm button first. */
-   protected readonly confirmingDelete = signal(false);
+   protected readonly confirmingDelete$ = signal(false);
    protected readonly password = new FormControl('', { nonNullable: true });
    private readonly password$ = formSignal(this.password);
-   protected readonly canDelete = computed(
-      () => (this.password$.value() ?? '').length > 0 && this.busy() === null
+   protected readonly canDelete$ = computed(
+      () => (this.password$.value() ?? '').length > 0 && this.busy$() === null
    );
 
    protected async logoutAll(): Promise<void> {
-      this.busy.set('logout-all');
-      this.error.set(null);
+      this.busy$.set('logout-all');
+      this.error$.set(null);
       try {
          await this.auth.logoutAll();
          this.ref.close('signed-out');
       } catch (err) {
-         this.error.set(describe(err, 'Could not sign out of other devices.'));
+         this.error$.set(describe(err, 'Could not sign out of other devices.'));
       } finally {
-         this.busy.set(null);
+         this.busy$.set(null);
       }
    }
 
    protected async deleteAccount(): Promise<void> {
-      if (!this.canDelete()) {
+      if (!this.canDelete$()) {
          return;
       }
-      this.busy.set('delete');
-      this.error.set(null);
+      this.busy$.set('delete');
+      this.error$.set(null);
       try {
          await this.auth.deleteAccount(this.password.value);
          this.ref.close('deleted');
       } catch (err) {
-         this.error.set(describe(err, 'Could not delete the account.'));
+         this.error$.set(describe(err, 'Could not delete the account.'));
       } finally {
-         this.busy.set(null);
+         this.busy$.set(null);
       }
    }
 }

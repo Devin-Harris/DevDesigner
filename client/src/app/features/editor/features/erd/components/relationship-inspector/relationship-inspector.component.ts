@@ -28,10 +28,10 @@ const TYPE_LABELS: Record<RelationshipType, string> = {
 export class RelationshipInspectorComponent {
    protected readonly edits = inject(ErdEdits);
 
-   readonly relationship = input.required<RelationshipModel>();
+   readonly relationship$ = input.required<RelationshipModel>({ alias: 'relationship' });
 
    /** All columns as "table.column" options for the endpoint selects. */
-   protected readonly columnOptions = computed<SelectOption[]>(() =>
+   protected readonly columnOptions$ = computed<SelectOption[]>(() =>
       this.edits.tables().flatMap((t) => t.columns.map((c) => ({ value: c.id, label: `${t.name}.${c.name}` })))
    );
    protected readonly typeOptions: SelectOption[] = RELATIONSHIP_TYPES.map((t) => ({
@@ -44,32 +44,32 @@ export class RelationshipInspectorComponent {
    }));
 
    protected setSource(columnId: string): void {
-      if (columnId === this.relationship().targetColumnId) {
+      if (columnId === this.relationship$().targetColumnId) {
          return;
       }
-      void this.edits.updateRelationship(this.relationship().id, { sourceColumnId: columnId });
+      void this.edits.updateRelationship(this.relationship$().id, { sourceColumnId: columnId });
    }
 
    protected setTarget(columnId: string): void {
-      if (columnId === this.relationship().sourceColumnId) {
+      if (columnId === this.relationship$().sourceColumnId) {
          return;
       }
-      void this.edits.updateRelationship(this.relationship().id, { targetColumnId: columnId });
+      void this.edits.updateRelationship(this.relationship$().id, { targetColumnId: columnId });
    }
 
    protected setType(type: string): void {
-      void this.edits.updateRelationship(this.relationship().id, { type: type as RelationshipType });
+      void this.edits.updateRelationship(this.relationship$().id, { type: type as RelationshipType });
    }
 
    protected setOnDelete(onDelete: string): void {
-      void this.edits.updateRelationship(this.relationship().id, { onDelete });
+      void this.edits.updateRelationship(this.relationship$().id, { onDelete });
    }
 
    protected setOnUpdate(onUpdate: string): void {
-      void this.edits.updateRelationship(this.relationship().id, { onUpdate });
+      void this.edits.updateRelationship(this.relationship$().id, { onUpdate });
    }
 
    protected remove(): void {
-      void this.edits.deleteRelationship(this.relationship().id);
+      void this.edits.deleteRelationship(this.relationship$().id);
    }
 }

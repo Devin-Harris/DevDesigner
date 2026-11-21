@@ -25,7 +25,7 @@ export interface SettingsTabRequest {
 /** What the host SlidesPanelComponent hands its SlidesPanelState: its output and inputs. */
 export interface SlidesPanelBindings {
    command: Pick<OutputEmitterRef<SlidesCommand>, 'emit'>;
-   part: Signal<SlidesPanelPart>;
+   part$: Signal<SlidesPanelPart>;
    folded: Signal<boolean>;
    active_: Signal<string | null>;
    presentation: Signal<string>;

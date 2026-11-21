@@ -1,10 +1,10 @@
 <div class="ws">
-   @if (selectedProject(); as project) {
+   @if (selectedProject$(); as project) {
       <dd-editor [projectId]="project.id"></dd-editor>
       @if (desktop) {
          <dd-sync-banner [projectId]="project.id" (compare)="compareWithServer(project.id)" />
       }
-   } @else if (resolving()) {
+   } @else if (resolving$()) {
       <!-- A project is being opened (refresh / deep link): nothing until it is known,
            so the home page and its showcase deck never flash first. -->
       <div class="ws-loading" aria-busy="true"></div>

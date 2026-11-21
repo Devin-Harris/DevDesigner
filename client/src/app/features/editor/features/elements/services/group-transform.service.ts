@@ -10,12 +10,7 @@ import { GRID_MIN_CELL, gridInPixels, serializeGrid } from '../../../helpers/gri
 import { absolutePoints, elementBox } from '../../../helpers/element-geometry.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 import { gridRowNeeds } from '../../../helpers/render';
-import {
-   DEFAULT_LINE_HEIGHT,
-   fitTextElement,
-   TEXT_MAX_FONT_SIZE,
-   TEXT_MIN_FONT_SIZE,
-} from '../../../helpers/text-metrics';
+import { DEFAULT_LINE_HEIGHT, fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from '../../../helpers/text-metrics';
 import { LIST_LINE } from '../helpers/rich-list.helper';
 import type { SequenceLayoutSnapshot } from '../../../state/project/models/project-state.model';
 import type { SequenceStart } from '../../../models/sequence-start.model';
@@ -137,7 +132,7 @@ export class GroupTransformService {
          } else {
             sx = sy;
          }
-      } else if (this.snap.gridSnap() && !ev.altKey) {
+      } else if (this.snap.gridSnap$() && !ev.altKey) {
          // Land the dragged edge(s) on the grid.
          if (horiz) {
             sx = right ? (snapToGrid(b.x0 + W * sx) - b.x0) / W : (b.x1 - snapToGrid(b.x1 - W * sx)) / W;
@@ -311,7 +306,7 @@ export class GroupTransformService {
     * Screen-space gap marks for {@link evenSpacing}, drawn like the smart-guide
     * gap marks (line, end ticks, distance label) with a grab area on each line.
     */
-   readonly spacingHandles = computed(() => {
+   readonly spacingHandles$ = computed(() => {
       const s = this.evenSpacing();
       if (!s) return this.listSpacingHandles();
       if (this.gesture.gestureActive() && !this.spacingActive()) return null;

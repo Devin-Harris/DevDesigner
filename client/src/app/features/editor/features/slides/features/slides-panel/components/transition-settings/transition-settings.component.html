@@ -1,17 +1,15 @@
-@if (s.active(); as a) {
+@if (s.active$(); as a) {
    <div class="who">
-      {{
-         s.activeSlides().length > 1 ? s.activeSlides().length + ' slides' : 'Slide ' + s.activeNumber()
-      }}
-      @if (s.activeSlides().length <= 1) {
+      {{ s.activeSlides$().length > 1 ? s.activeSlides$().length + ' slides' : 'Slide ' + s.activeNumber$() }}
+      @if (s.activeSlides$().length <= 1) {
          <button class="link" type="button" (click)="s.command.emit({ kind: 'preview', id: a.id })">
             <dd-icon name="play_arrow" />Preview
          </button>
       }
    </div>
-   @if (!s.hasTransitionTarget()) {
+   @if (!s.hasTransitionTarget$()) {
       <p class="hint">The first slide has no transition into it.</p>
-      @if (s.morphRelevantNext()) {
+      @if (s.morphRelevantNext$()) {
          <button
             class="btn wide map-pairs"
             type="button"
@@ -23,48 +21,60 @@
       }
    } @else {
       <label class="field">
-         <span
-            >Transition into {{ s.activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span
-         >
+         <span>Transition into {{ s.activeSlides$().length > 1 ? 'these slides' : 'this slide' }}</span>
          <dd-select
             [options]="s.typeOptions"
-            [ngModel]="s.transition().type"
-            [disabled]="!s.canEdit()"
-            (ngModelChange)="s.setTransition({ type: $event })"
+            [ngModel]="s.transition$().type"
+            [disabled]="!s.canEdit$()"
+            (ngModelChange)="s.slideMorphSettings.setTransition({ type: $event })"
          />
       </label>
-      @if (s.transition().type === 'slide') {
+      @if (s.transition$().type === 'slide') {
          <label class="field">
             <span>Direction</span>
             <dd-select
                [options]="s.directionOptions"
-               [ngModel]="s.transition().direction ?? 'left'"
-               [disabled]="!s.canEdit()"
-               (ngModelChange)="s.setTransition({ direction: $event })"
+               [ngModel]="s.transition$().direction ?? 'left'"
+               [disabled]="!s.canEdit$()"
+               (ngModelChange)="s.slideMorphSettings.setTransition({ direction: $event })"
             />
          </label>
       }
-      @if (s.transition().type === 'fade' || s.transition().type === 'slide' || s.transition().type === 'zoom') {
+      @if (s.transition$().type === 'fade' || s.transition$().type === 'slide' || s.transition$().type === 'zoom') {
          <label class="check" title="Auto pairs look-alikes by itself; other transitions morph only the pairs you made">
             <input
                type="checkbox"
-               [checked]="s.transition().pairs !== false"
-               [disabled]="!s.canEdit()"
-               (change)="s.setTransition({ pairs: $any($event.target).checked })"
+               [checked]="s.transition$().pairs !== false"
+               [disabled]="!s.canEdit$()"
+               (change)="s.slideMorphSettings.setTransition({ pairs: $any($event.target).checked })"
             />
             Morph my pairings
          </label>
       }
-      @if (s.transition().type === 'fade' || s.transition().type === 'slide' || s.transition().type === 'zoom') {
-      <div class="f-row" title="Auto pairs look-alikes by itself; other transitions morph only the pairs you made">
-         My pairings
-         <span class="f-seg">
-            <button type="button" [class.on]="s.transition().pairs !== false" [disabled]="!s.canEdit()" (click)="s.setTransition({ pairs: true })">Morph</button>
-            <button type="button" [class.on]="s.transition().pairs === false" [disabled]="!s.canEdit()" (click)="s.setTransition({ pairs: false })">Off</button>
-         </span>
-      </div>
-   }
-   @if (s.transition().type !== 'none' || s.morphs()) {
+      @if (s.transition$().type === 'fade' || s.transition$().type === 'slide' || s.transition$().type === 'zoom') {
+         <div class="f-row" title="Auto pairs look-alikes by itself; other transitions morph only the pairs you made">
+            My pairings
+            <span class="f-seg">
+               <button
+                  type="button"
+                  [class.on]="s.transition$().pairs !== false"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideMorphSettings.setTransition({ pairs: true })"
+               >
+                  Morph
+               </button>
+               <button
+                  type="button"
+                  [class.on]="s.transition$().pairs === false"
+                  [disabled]="!s.canEdit$()"
+                  (click)="s.slideMorphSettings.setTransition({ pairs: false })"
+               >
+                  Off
+               </button>
+            </span>
+         </div>
+      }
+      @if (s.transition$().type !== 'none' || s.morphs$()) {
          <div class="two">
             <label class="field">
                <span>Duration (ms)</span>
@@ -73,56 +83,55 @@
                   min="100"
                   max="5000"
                   step="100"
-                  [ngModel]="s.transition().duration"
-                  [disabled]="!s.canEdit()"
-                  (change)="s.setDuration($any($event.target).value)"
+                  [ngModel]="s.transition$().duration"
+                  [disabled]="!s.canEdit$()"
+                  (change)="s.slideMorphSettings.setDuration($any($event.target).value)"
                />
             </label>
             <label class="field">
                <span>Easing</span>
                <dd-select
                   [options]="s.easingOptions"
-                  [ngModel]="s.transition().easing"
-                  [disabled]="!s.canEdit()"
-                  (ngModelChange)="s.setTransition({ easing: $event })"
+                  [ngModel]="s.transition$().easing"
+                  [disabled]="!s.canEdit$()"
+                  (ngModelChange)="s.slideMorphSettings.setTransition({ easing: $event })"
                />
             </label>
          </div>
       }
-      @if (s.morphs()) {
+      @if (s.morphs$()) {
          <label class="field">
             <span>Animate by</span>
             <dd-select
                [options]="s.morphByOptions"
-               [ngModel]="s.transition().morphBy ?? 'character'"
-               [disabled]="!s.canEdit()"
-               (ngModelChange)="s.setTransition({ morphBy: $event })"
+               [ngModel]="s.transition$().morphBy ?? 'character'"
+               [disabled]="!s.canEdit$()"
+               (ngModelChange)="s.slideMorphSettings.setTransition({ morphBy: $event })"
             />
          </label>
          <p class="hint">
-            Characters: letters and words glide. Words: whole words glide. Objects: text moves as
-            one piece and cross-fades. Applies to text, code blocks, tables and diagrams.
+            Characters: letters and words glide. Words: whole words glide. Objects: text moves as one piece and
+            cross-fades. Applies to text, code blocks, tables and diagrams.
          </p>
-         @if (s.itemMorphTarget(); as cur) {
-         <!-- Keyed by object: switching the selection rebuilds the control with its own value. -->
-         @for (it of [cur]; track it.id) {
-            <label class="field">
-               <span>Selected object · animate by</span>
-               <dd-select
-                  [options]="s.itemMorphByOptions"
-                  [ngModel]="it.by"
-                  [disabled]="!s.canEdit()"
-                  (ngModelChange)="s.setItemMorphBy(it.id, $event)"
-               />
-            </label>
+         @if (s.itemMorphTarget$(); as cur) {
+            <!-- Keyed by object: switching the selection rebuilds the control with its own value. -->
+            @for (it of [cur]; track it.id) {
+               <label class="field">
+                  <span>Selected object · animate by</span>
+                  <dd-select
+                     [options]="s.itemMorphByOptions"
+                     [ngModel]="it.by"
+                     [disabled]="!s.canEdit$()"
+                     (ngModelChange)="s.slideMorphSettings.setItemMorphBy(it.id, $event)"
+                  />
+               </label>
+            }
          }
-         }
-
       }
-      @if (s.canEdit() && s.frames().length > 2) {
-         <button class="link" type="button" (click)="s.applyToAll()">Apply to all slides</button>
+      @if (s.canEdit$() && s.frames$().length > 2) {
+         <button class="link" type="button" (click)="s.slideMorphSettings.applyToAll()">Apply to all slides</button>
       }
-      @if (s.activeSlides().length <= 1) {
+      @if (s.activeSlides$().length <= 1) {
          <button
             class="btn wide map-pairs"
             type="button"
@@ -136,66 +145,64 @@
 } @else {
    <p class="hint">Select a slide to set its transition.</p>
 }
-@if (s.canEdit() && s.morphRelevant()) {
-   @if (s.tagCount() > 0) {
+@if (s.canEdit$() && s.morphRelevant$()) {
+   @if (s.tagCount$() > 0) {
       <div class="field">
          <span class="tagline">
             Morph tag
-            @if (s.splitTarget(); as st) {
+            @if (s.splitTarget$(); as st) {
                <button
                   class="link"
                   type="button"
                   [title]="
-                     st.split
-                        ? 'Use one tag both ways again'
-                        : 'Use a different tag into this slide than out of it'
+                     st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'
                   "
-                  (click)="s.toggleSplit(st)"
+                  (click)="s.slideMorphSettings.toggleSplit(st)"
                >
                   {{ st.split ? 'Join in / out' : 'Split in / out' }}
                </button>
             }
          </span>
-         @if (s.splitTarget()?.split) {
+         @if (s.splitTarget$()?.split) {
             <span class="sublab">In · from the slide before</span>
             <dd-tag-input
                placeholder="type a tag…"
-               [value]="s.tagText(s.splitTarget()!.in)"
-               [suggestions]="s.morphTagSuggestions()"
+               [value]="s.tagText | call: s.splitTarget$()!.in"
+               [suggestions]="s.morphTagSuggestions$()"
                [maxlength]="80"
-               (commit)="s.setSplitTag('in', $event)"
+               (commit)="s.slideMorphSettings.setSplitTag('in', $event)"
             />
             <span class="sublab">Out · to the slide after</span>
             <dd-tag-input
                placeholder="type a tag…"
-               [value]="s.tagText(s.splitTarget()!.out)"
+               [value]="s.tagText | call: s.splitTarget$()!.out"
                [maxlength]="80"
-               (commit)="s.setSplitTag('out', $event)"
+               (commit)="s.slideMorphSettings.setSplitTag('out', $event)"
             />
          } @else {
             <dd-tag-input
-               [value]="s.morphTag()"
-               [suggestions]="s.morphTagSuggestions()"
-               [taken]="s.takenTags()"
+               [value]="s.morphTag$()"
+               [suggestions]="s.morphTagSuggestions$()"
+               [taken]="s.takenTags$()"
                [maxlength]="80"
-               [disabled]="!s.store.canEdit() || s.tagCount() > 1"
+               [disabled]="!s.canEdit$() || s.tagCount$() > 1"
                [placeholder]="
-                  s.tagCount() > 1
+                  s.tagCount$() > 1
                      ? 'Select a single object to tag it'
                      : 'Name it, or pick one from the previous slide'
                "
-               (commit)="s.setMorphTag($event)"
+               (commit)="s.slideMorphSettings.setMorphTag($event)"
             />
          }
       </div>
       <p class="hint">
-         Tagged objects only morph into the object with the same tag on the next slide; they are
-         never matched to look-alikes.
+         Tagged objects only morph into the object with the same tag on the next slide; they are never matched to
+         look-alikes.
       </p>
    }
-   @if (s.pairable()) {
-      <button class="btn wide" type="button" (click)="s.pairSelected()">
-         Treat the {{ s.pairable() }} selected items as the same object (morph)
+   @if (s.pairable$()) {
+      <button class="btn wide" type="button" (click)="s.slideMorphSettings.pairSelected()">
+         Treat the {{ s.pairable$() }} selected items as the same object (morph)
       </button>
    }
 }

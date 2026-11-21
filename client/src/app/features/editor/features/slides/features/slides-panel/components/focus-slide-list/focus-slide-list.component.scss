@@ -114,7 +114,7 @@
    justify-content: center;
    border-radius: 5px;
    background: rgba(35, 38, 44, 0.8);
-   color: #fff;
+   color: var(--dd-white);
    cursor: pointer;
 }
 .f-act:hover {
@@ -165,7 +165,7 @@
    padding: 1px 4px;
    border-radius: 3px;
    background: rgba(35, 38, 44, 0.75);
-   color: #fff;
+   color: var(--dd-white);
 }
 .f-foot {
    display: flex;
@@ -181,14 +181,14 @@
    border: none;
    border-radius: 7px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font: inherit;
    font-weight: 600;
    cursor: pointer;
    white-space: nowrap;
 }
 .f-go:hover:not(:disabled) {
-   background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+   background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
 }
 .f-go:disabled,
 .f-tb:disabled {

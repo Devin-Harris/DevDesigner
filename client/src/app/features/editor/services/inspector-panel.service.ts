@@ -13,12 +13,12 @@ export class InspectorPanelService {
    /** Opened for the current selection via a toolbar's Details button. */
    readonly open = signal(false);
    /** Docked for every selection until unpinned. */
-   readonly pinned = signal(readPinned());
+   readonly pinned$ = signal(readPinned());
 
-   readonly shown = computed(() => this.open() || this.pinned());
+   readonly shown$ = computed(() => this.open() || this.pinned$());
 
    toggle(): void {
-      if (this.shown()) {
+      if (this.shown$()) {
          this.close();
       } else {
          this.open.set(true);
@@ -31,7 +31,7 @@ export class InspectorPanelService {
    }
 
    togglePin(): void {
-      const next = !this.pinned();
+      const next = !this.pinned$();
       this.setPinned(next);
       // Unpinning leaves the panel open for the current selection.
       if (!next) this.open.set(true);
@@ -43,7 +43,7 @@ export class InspectorPanelService {
    }
 
    private setPinned(on: boolean): void {
-      this.pinned.set(on);
+      this.pinned$.set(on);
       try {
          globalThis.localStorage?.setItem(PINNED_KEY, on ? '1' : '0');
       } catch {

@@ -8,35 +8,36 @@ import { EditorViewportService } from '../../../services/editor-viewport.service
 import { effect, inject, Injectable, untracked } from '@angular/core';
 import { ToolbarPrefsService } from '../../../services/toolbar-prefs.service';
 import { PenPrefsService } from '../../../services/pen-prefs.service';
-import type { CanvasElementModel, CreateElementDto, ElementType } from '@devdesigner/shared';
+import type { CanvasElementModel, ElementType } from '@devdesigner/shared';
 import { inBlock, toInner } from '../../../helpers/slide-zoom.helper';
 import { ProjectStore, elementToCreateDto } from '../../../state/project/project.store';
-import { splitAtGaps } from '../../../helpers/render';
+import { splitAtGaps, CODE_FONT_SIZE, SURFACE_FILL } from '../../../helpers/render';
 import { GridTableService } from '../../../services/grid-table.service';
-import { defaultGrid, parseGrid, serializeGrid } from '../../../helpers/grid-table.helper';
+import { defaultGrid, serializeGrid } from '../../../helpers/grid-table.helper';
 import { NODE_WIDTH } from '../../../shared/constants/canvas.constants';
 import { framePreset } from '../../../shared/constants/frame-presets';
 import { absolutePoints, elementBox, hitTestElement, toRelative } from '../../../helpers/element-geometry.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
-import { CODE_FONT_SIZE, SURFACE_FILL } from '../../../helpers/render';
 import type { EditorTool } from '../../../models/editor-tool.model';
-import { densify } from '../helpers/erase-geometry.helper';
-import { distanceToSegment } from '../helpers/erase-geometry.helper';
-import { segDistance } from '../helpers/erase-geometry.helper';
+import { densify, distanceToSegment, segDistance } from '../helpers/erase-geometry.helper';
+import { DrawCommit } from './draw-commit';
 /** Drawing new items with the active tool (shapes, lines, pen, frames, text, code, grids, tables) and the pen eraser. */
 @Injectable()
 export class DrawToolService {
-   private readonly store = inject(ProjectStore);
-   private readonly gesture = inject(PointerGestureService);
+   /** Methods moved to draw-commit.ts. */
+   private readonly drawCommit = new DrawCommit(this);
+
+   readonly store = inject(ProjectStore);
+   readonly gesture = inject(PointerGestureService);
    private readonly canvasView = inject(CanvasViewService);
    private readonly snap = inject(CanvasSnapService);
    private readonly viewport = inject(EditorViewportService);
-   private readonly tools = inject(EditorToolService);
-   private readonly grids = inject(GridTableService);
+   readonly tools = inject(EditorToolService);
+   readonly grids = inject(GridTableService);
    private readonly penPrefs = inject(PenPrefsService);
-   private readonly toolbarPrefs = inject(ToolbarPrefsService);
-   private readonly textEditing = inject(TextEditingService);
-   private readonly elementGestures = inject(ElementGestureService);
+   readonly toolbarPrefs = inject(ToolbarPrefsService);
+   readonly textEditing = inject(TextEditingService);
+   readonly elementGestures = inject(ElementGestureService);
 
    /** World-space point a shape draw started from (the corner, or the center with Alt). */
    private drawAnchor = { x: 0, y: 0 };
@@ -50,7 +51,7 @@ export class DrawToolService {
    constructor() {
       // Switching tools (or starting any gesture) drops the pre-draw guides.
       effect(() => {
-         this.tools.activeTool();
+         this.tools.activeTool$();
          untracked(() => this.clearHoverSnap());
       });
    }
@@ -93,7 +94,7 @@ export class DrawToolService {
 
    /** A point snapped to nearby items' edges and centers (guides shown), or null when nothing is in reach. */
    private snapPoint(clientX: number, clientY: number): { x: number; y: number } | null {
-      if (!this.snap.smartGuides()) return null;
+      if (!this.snap.smartGuides$()) return null;
       const { point: p, ctx, view } = this.spaceAt(clientX, clientY);
       // Targets are picked nearest the point: rebuild them as it moves.
       this.snap.smartBase = null;
@@ -113,7 +114,7 @@ export class DrawToolService {
    hoverSnap(event: PointerEvent): void {
       const target = event.target as Node | null;
       const overCanvas = !!target && this.viewport.canvasRef().nativeElement.contains(target);
-      if (!overCanvas || !this.store.canEdit() || !this.presnaps(this.tools.activeTool())) {
+      if (!overCanvas || !this.store.canEdit() || !this.presnaps(this.tools.activeTool$())) {
          this.clearHoverSnap();
          return;
       }
@@ -134,7 +135,7 @@ export class DrawToolService {
       const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x - NODE_WIDTH / 2);
       let y = Math.round(world.y - 12);
-      if (this.snap.gridSnap()) {
+      if (this.snap.gridSnap$()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }
@@ -146,7 +147,7 @@ export class DrawToolService {
       const world = this.viewport.toWorld(clientX, clientY);
       let x = Math.round(world.x);
       let y = Math.round(world.y);
-      if (this.snap.gridSnap()) {
+      if (this.snap.gridSnap$()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }
@@ -154,13 +155,13 @@ export class DrawToolService {
    }
 
    /** The current draw is a sequence-diagram placement box, not an element. */
-   private sequenceDraw = false;
+   sequenceDraw = false;
 
    /** Start sizing a sequence diagram: a dashed box follows the drag; release creates the diagram. */
    beginSequenceDraw(event: PointerEvent): void {
       const world = this.viewport.toWorld(event.clientX, event.clientY);
-      const x = this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
-      const y = this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
+      const x = this.snap.gridSnap$() ? snapToGrid(world.x) : world.x;
+      const y = this.snap.gridSnap$() ? snapToGrid(world.y) : world.y;
       this.drawCtx = this.spaceAt(event.clientX, event.clientY).ctx;
       this.tools.drawSlideId.set(null);
       this.tools.draft.set({
@@ -189,7 +190,7 @@ export class DrawToolService {
       this.gesture.gestureActive.set(true);
    }
 
-   private commitSequenceDraw(draft: CanvasElementModel | null): void {
+   commitSequenceDraw(draft: CanvasElementModel | null): void {
       this.sequenceDraw = false;
       if (!draft) {
          this.store.previewSequenceLocal(null);
@@ -233,7 +234,7 @@ export class DrawToolService {
       const p = view ? toInner(view, raw) : raw;
       const from = this.lastErasePoint ?? p;
       this.lastErasePoint = p;
-      const r = this.penPrefs.eraserSize() / 2 / this.store.viewport().zoom;
+      const r = this.penPrefs.eraserSize$() / 2 / this.store.viewport().zoom;
       for (const el of this.store.elements()) {
          if (el.type !== 'freedraw') continue;
          const reach = r + el.strokeWidth;
@@ -329,8 +330,8 @@ export class DrawToolService {
       this.hoverGuides = false;
       this.snap.smartBase = null;
       this.drawCtx = this.spaceAt(event.clientX, event.clientY).ctx;
-      const x = lined ? lined.x : this.snap.gridSnap() ? snapToGrid(world.x) : world.x;
-      const y = lined ? lined.y : this.snap.gridSnap() ? snapToGrid(world.y) : world.y;
+      const x = lined ? lined.x : this.snap.gridSnap$() ? snapToGrid(world.x) : world.x;
+      const y = lined ? lined.y : this.snap.gridSnap$() ? snapToGrid(world.y) : world.y;
       const type = tool as ElementType;
       const sticky = this.store.elementStyle();
       // Frames keep their own quiet look; they don't inherit the last-used shape style.
@@ -401,12 +402,12 @@ export class DrawToolService {
          fillStyle: style.fillStyle,
          strokeWidth:
             type === 'freedraw'
-               ? this.penPrefs.highlighter()
+               ? this.penPrefs.highlighter$()
                   ? Math.max(this.penPrefs.width(), 2) * 4
                   : this.penPrefs.width()
                : style.strokeWidth,
          strokeStyle: style.strokeStyle,
-         opacity: type === 'freedraw' && this.penPrefs.highlighter() ? 50 : style.opacity,
+         opacity: type === 'freedraw' && this.penPrefs.highlighter$() ? 50 : style.opacity,
          strokeOpacity: style.strokeOpacity,
          fillOpacity: style.fillOpacity,
          zIndex: this.store.elements().length,
@@ -484,7 +485,7 @@ export class DrawToolService {
       const view = this.canvasView.slideViews().find((v) => v.frameId === this.tools.drawSlideId());
       const raw = this.viewport.toWorldRaw(clientX, clientY);
       const world = view ? toInner(view, raw) : raw;
-      const snap = this.snap.gridSnap();
+      const snap = this.snap.gridSnap$();
       if (draft.type === 'freedraw') {
          const pt = toRelative(draft, world);
          this.tools.draft.set({ ...draft, points: [...(draft.points ?? []), pt] });
@@ -495,7 +496,7 @@ export class DrawToolService {
          const bindBox = this.gesture.noBindHeld
             ? null
             : (this.elementGestures.bindingTargetAt(world, draft.id)?.box ?? null);
-         this.elementGestures.bindHighlight.set(bindBox);
+         this.elementGestures.bindHighlight$.set(bindBox);
          const space = { ctx: this.tools.drawSlideId() ?? null, view };
          const spanOf = (px: number, py: number) => ({
             x0: Math.min(px, draft.x),
@@ -610,133 +611,8 @@ export class DrawToolService {
       });
    }
 
-   /**
-    * Persist the draft as a real element. Tiny click-only shapes get a sensible
-    * default size so a single click still produces a visible element.
-    */
-   async commitDraft(selectAfter: boolean): Promise<void> {
-      const draft = this.tools.draft();
-      this.tools.draft.set(null);
-      const drawSlide = this.tools.drawSlideId();
-      this.tools.drawSlideId.set(null);
-      if (this.sequenceDraw) {
-         this.commitSequenceDraw(draft);
-         return;
-      }
-      if (!draft) {
-         return;
-      }
-      const dto = this.draftToDto(draft);
-      if (drawSlide && draft.type !== 'frame') {
-         dto.slideId = drawSlide;
-      }
-      // Auto-bind an arrow/line whose endpoint was drawn on top of a shape or table,
-      // so it behaves as a flowchart connector and re-routes when the target moves.
-      if ((draft.type === 'arrow' || draft.type === 'line') && draft.points?.length) {
-         const pts = absolutePoints(draft);
-         const start = this.elementGestures.bindingTargetAt(pts[0], draft.id);
-         // Ctrl/Cmd on release leaves the end free (e.g. pointing at text inside a shape).
-         const end = this.gesture.noBindHeld
-            ? null
-            : this.elementGestures.bindingTargetAt(pts[pts.length - 1], draft.id);
-         if (start) {
-            dto.startBinding = start.binding;
-         }
-         if (end) {
-            dto.endBinding = end.binding;
-         }
-      }
-      // Freehand strokes keep the pen active (draw several in a row) and are not
-      // selected, so no bounds/toolbar pop up between strokes. Shapes and text
-      // revert to the select tool; the shape is selected for immediate styling and
-      // text jumps into its inline editor.
-      const isPen = draft.type === 'freedraw';
-      const created = await this.store.addElement(dto, !isPen);
-      if (!isPen && (draft.type === 'text' || !this.toolbarPrefs.stayOnTool())) {
-         this.tools.activeTool.set('select');
-         if (created && selectAfter && created.type === 'text') {
-            this.textEditing.editingTextId.set(created.id);
-         }
-         if (created && created.type === 'grid') {
-            // A fresh table opens its first cell for typing.
-            this.grids.beginEdit({ id: created.id, row: 0, col: 0 });
-         }
-         if (created && created.type === 'code') {
-            // A fresh code card opens straight into its editor.
-            this.textEditing.editingTextId.set(created.id);
-         }
-      }
-   }
-
-   private draftToDto(draft: CanvasElementModel): CreateElementDto {
-      const { x, y, points } = draft;
-      let { width, height } = draft;
-      let text = draft.text;
-      if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond') {
-         if (width < 4 && height < 4) {
-            width = 120;
-            height = 80;
-         }
-      }
-      if (draft.type === 'grid' && (width < 40 || height < 24)) {
-         const g = parseGrid(draft.text);
-         width = g.cols.reduce((a, b) => a + b, 0);
-         height = g.rows.reduce((a, b) => a + b, 0);
-      }
-      let fontSize = draft.fontSize;
-      if (draft.type === 'grid') {
-         // A table drawn bigger than the default starts with proportionally bigger
-         // text (the same diagonal measure a resize uses), so it reads as drawn.
-         const g = parseGrid(draft.text);
-         const w0 = g.cols.reduce((a, b) => a + b, 0);
-         const h0 = g.rows.reduce((a, b) => a + b, 0);
-         const k = (width * w0 + height * h0) / (w0 * w0 + h0 * h0);
-         fontSize = Math.round(Math.min(96, Math.max(10, (draft.fontSize ?? 14) * k)) * 2) / 2;
-      }
-      if (draft.type === 'embed' && (width < 80 || height < 60)) {
-         width = 640;
-         height = 400;
-      }
-      if (draft.type === 'code' && (width < 40 || height < 40)) {
-         width = 360;
-         height = 160;
-      }
-      if (draft.type === 'frame') {
-         const preset = framePreset(this.tools.framePresetId());
-         if (width < 40 || height < 40) {
-            width = preset.width;
-            height = preset.height;
-         }
-         const count = this.store.elements().filter((e) => e.type === 'frame').length;
-         text = text || `Frame ${count + 1}`;
-      }
-      return {
-         type: draft.type,
-         x,
-         y,
-         width,
-         height,
-         angle: 0,
-         strokeColor: draft.strokeColor,
-         backgroundColor: draft.backgroundColor,
-         fillStyle: draft.fillStyle,
-         strokeWidth: draft.strokeWidth,
-         strokeStyle: draft.strokeStyle,
-         opacity: draft.opacity,
-         strokeOpacity: draft.strokeOpacity,
-         fillOpacity: draft.fillOpacity,
-         zIndex: draft.zIndex,
-         cornerRadius: draft.cornerRadius,
-         points,
-         text,
-         fontSize,
-         fontFamily: draft.fontFamily,
-         textAlign: draft.textAlign,
-         startArrowhead: draft.startArrowhead,
-         endArrowhead: draft.endArrowhead,
-         curvature: draft.curvature,
-         language: draft.language,
-         fileName: draft.fileName,
-      };
+   // ---- delegates to draw-commit.ts ----
+   commitDraft(selectAfter: boolean): Promise<void> {
+      return this.drawCommit.commitDraft(selectAfter);
    }
 }

@@ -5,12 +5,13 @@ import { PopoverTriggerDirective } from '../../../../../../../../shared/ui/direc
 import { SelectComponent } from '../../../../../../../../shared/ui/components/select/select.component';
 import { TagInputComponent } from '../../../../../../../../shared/ui/components/tag-input/tag-input.component';
 import { SlidesPanelState } from '../../state/slides-panel.state';
+import { HasPipe, CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
 /** The transition controls shared by the focus dock and the focus Transition screen. */
 @Component({
    selector: 'dd-focus-transition-body',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [FormsModule, IconComponent, PopoverTriggerDirective, SelectComponent, TagInputComponent],
+   imports: [CallPipe, HasPipe, FormsModule, IconComponent, PopoverTriggerDirective, SelectComponent, TagInputComponent],
    templateUrl: './focus-transition-body.component.html',
    styleUrl: './focus-transition-body.component.scss',
 })

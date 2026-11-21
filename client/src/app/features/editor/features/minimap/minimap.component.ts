@@ -1,16 +1,5 @@
 import type { MinimapItem } from '../../models/minimap-item.model';
-import {
-   ChangeDetectionStrategy,
-   Component,
-   ElementRef,
-   computed,
-   effect,
-   inject,
-   input,
-   output,
-   signal,
-   viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../../../core/theme/theme.service';
@@ -57,7 +46,7 @@ export class MinimapComponent {
 
    protected readonly width = WIDTH;
    protected readonly height = HEIGHT;
-   protected readonly collapsed = signal(readCollapsed());
+   protected readonly collapsed$ = signal(readCollapsed());
 
    private readonly cv = viewChild<ElementRef<HTMLCanvasElement>>('cv');
    private readonly theme = inject(ThemeService);
@@ -94,7 +83,7 @@ export class MinimapComponent {
          this.items();
          this.view();
          this.colors$();
-         this.collapsed();
+         this.collapsed$();
          this.cv();
          cancelAnimationFrame(this.raf);
          this.raf = requestAnimationFrame(() => this.draw());
@@ -103,8 +92,8 @@ export class MinimapComponent {
    }
 
    protected toggle(): void {
-      const next = !this.collapsed();
-      this.collapsed.set(next);
+      const next = !this.collapsed$();
+      this.collapsed$.set(next);
       try {
          globalThis.localStorage?.setItem(COLLAPSED_KEY, next ? '1' : '0');
       } catch {

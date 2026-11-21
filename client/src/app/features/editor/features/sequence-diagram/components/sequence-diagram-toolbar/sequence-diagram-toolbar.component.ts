@@ -24,8 +24,8 @@ export interface SequenceDiagramColors {
 export class SequenceDiagramToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
    /** The selected diagram (the bar renders nothing without one). */
-   readonly diagram = input<SequenceDiagramModel | null>(null);
-   readonly canEdit = input(false);
+   readonly diagram$ = input<SequenceDiagramModel | null>(null, { alias: 'diagram' });
+   readonly canEdit$ = input(false, { alias: 'canEdit' });
    /** A color was picked for the diagram; the host persists it. */
    readonly diagramPatch = output<{ id: string; patch: SequenceDiagramColors }>();
    /** Spread the messages evenly down the current box. */
@@ -34,7 +34,7 @@ export class SequenceDiagramToolbarComponent {
    readonly fitToContent = output<string>();
 
    protected patch(patch: SequenceDiagramColors): void {
-      const d = this.diagram();
+      const d = this.diagram$();
       if (d) this.diagramPatch.emit({ id: d.id, patch });
    }
 }

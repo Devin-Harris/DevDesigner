@@ -112,7 +112,7 @@ export class GridTableService {
    });
 
    /** The selection spans more than one (unmerged) cell, so it can be merged. */
-   readonly canMerge = computed(() => {
+   readonly canMerge$ = computed(() => {
       const r = this.range();
       const el = r && this.grid(r.id);
       if (!r || !el) return false;
@@ -122,7 +122,7 @@ export class GridTableService {
    });
 
    /** The selection contains a merged block that can be split. */
-   readonly canUnmerge = computed(() => {
+   readonly canUnmerge$ = computed(() => {
       const r = this.range();
       const el = r && this.grid(r.id);
       if (!r || !el) return false;

@@ -8,12 +8,13 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SelectComponent } from '../../../../../../../../shared/ui/components/select/select.component';
 import { SegmentedComponent } from '../../../../../../../../shared/ui/components/segmented/segmented.component';
 import { SlidesPanelState } from '../../state/slides-panel.state';
+import { AtPipe, CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
 /** Settings panel Design tab: the deck's design, theme, layouts and placeholders. */
 @Component({
    selector: 'dd-design-settings',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CheckboxComponent, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent, SegmentedComponent],
+   imports: [CallPipe, AtPipe, CheckboxComponent, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent, SegmentedComponent],
    templateUrl: './design-settings.component.html',
    styleUrl: './design-settings.component.scss',
 })

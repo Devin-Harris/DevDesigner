@@ -13,15 +13,15 @@
       <div class="f-acts">
          <dd-select
             class="f-select grow"
-            [options]="s.designOptions()"
-            [ngModel]="s.design().id"
-            [disabled]="!s.canEdit()"
+            [options]="s.designOptions$()"
+            [ngModel]="s.design$().id"
+            [disabled]="!s.canEdit$()"
             [removable]="true"
             (ngModelChange)="s.pickDesign($event)"
             (rename)="s.renameRecord($event.value, $event.label)"
             (remove)="s.deleteDesignById($event)"
          />
-         @if (s.canEdit()) {
+         @if (s.canEdit$()) {
             <button class="f-tb sm" type="button" (click)="s.newDesign()">Save as new</button>
             <button class="f-tb sm" type="button" (click)="s.exportDesign('design')">Export</button>
          }
@@ -37,7 +37,7 @@
             matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy."
          />
       </span>
-      @if (s.canEdit()) {
+      @if (s.canEdit$()) {
          <span class="f-acts">
             <button class="f-tb sm" type="button" (click)="s.importPart.set('theme'); themeFileInput.click()">
                Import
@@ -46,7 +46,7 @@
          </span>
       }
    </div>
-   @for (g of s.themeGroups(); track g.name) {
+   @for (g of s.themeGroups$(); track g.name) {
       <div class="f-sub">{{ g.name }}</div>
       <div class="th-grid">
          @for (t of g.items; track t.id) {
@@ -54,20 +54,20 @@
                <button
                   class="pv"
                   type="button"
-                  [disabled]="!s.canEdit()"
-                  [style.background]="s.css(t.theme!.colors.background)"
-                  [style.color]="s.css(t.theme!.colors.heading)"
-                  [style.font-family]="s.stackOf(t.theme!.fonts.heading)"
+                  [disabled]="!s.canEdit$()"
+                  [style.background]="(s.css | call: t.theme!.colors.background)"
+                  [style.color]="(s.css | call: t.theme!.colors.heading)"
+                  [style.font-family]="(s.stackOf | call: t.theme!.fonts.heading)"
                   (click)="s.pickTheme(t.id)"
                >
                   Aa
                   <span class="bars">
                      @for (k of ['accent1', 'accent2', 'accent3']; track k) {
-                        <span [style.background]="s.css($any(t.theme!.colors)[k])"></span>
+                        <span [style.background]="(s.css | call: $any(t.theme!.colors)[k])"></span>
                      }
                   </span>
                </button>
-               @if (s.renaming() === t.id) {
+               @if (s.renaming$() === t.id) {
                   <input
                      class="rec-input card"
                      ddAutofocus
@@ -75,20 +75,20 @@
                      [value]="t.name"
                      [attr.aria-label]="'Rename ' + t.name"
                      (keydown.enter)="s.finishRename(t.id, $any($event.target).value)"
-                     (keydown.escape)="s.renaming.set(null)"
+                     (keydown.escape)="s.renaming$.set(null)"
                      (blur)="s.finishRename(t.id, $any($event.target).value)"
                   />
                } @else {
                   <span class="nm">
                      <span>{{ t.name }}</span>
-                     @if (t.custom && s.canEdit()) {
+                     @if (t.custom && s.canEdit$()) {
                         <span class="nm-acts">
                            <button
                               class="rec-edit"
                               type="button"
                               title="Rename"
                               [attr.aria-label]="'Rename ' + t.name"
-                              (click)="s.renaming.set(t.id)"
+                              (click)="s.renaming$.set(t.id)"
                            >
                               <dd-icon name="edit" />
                            </button>
@@ -117,14 +117,14 @@
             type="button"
             placement="below-start"
             [ddPopoverTrigger]="tokPick"
-            [disabled]="!s.canEdit()"
+            [disabled]="!s.canEdit$()"
          >
             <span
                class="sq"
                [style.background]="
-                  s.isFollow(s.deckTheme().colors[k]) || s.deckTheme().colors[k] === 'transparent'
+                  (s.isFollow | call: s.deckTheme$().colors[k]) || s.deckTheme$().colors[k] === 'transparent'
                      ? null
-                     : s.css(s.deckTheme().colors[k])
+                     : (s.css | call: s.deckTheme$().colors[k])
                "
             ></span>
             {{ s.colorLabels[k] }}
@@ -134,8 +134,8 @@
                <dd-color-swatches
                   noneValue="transparent"
                   noneLabel="None"
-                  [value]="s.deckTheme().colors[k]"
-                  [themeValue]="s.followValue(k)"
+                  [value]="s.deckTheme$().colors[k]"
+                  [themeValue]="(s.followValue | call: k)"
                   (pick)="s.setThemeColor(k, $event); close()"
                />
             </div>
@@ -148,8 +148,8 @@
       <dd-select
          class="f-select"
          [options]="s.fontOptions"
-         [ngModel]="s.deckTheme().fonts.heading"
-         [disabled]="!s.canEdit()"
+         [ngModel]="s.deckTheme$().fonts.heading"
+         [disabled]="!s.canEdit$()"
          (ngModelChange)="s.setThemeFont('heading', $event)"
       />
    </div>
@@ -158,8 +158,8 @@
       <dd-select
          class="f-select"
          [options]="s.fontOptions"
-         [ngModel]="s.deckTheme().fonts.body"
-         [disabled]="!s.canEdit()"
+         [ngModel]="s.deckTheme$().fonts.body"
+         [disabled]="!s.canEdit$()"
          (ngModelChange)="s.setThemeFont('body', $event)"
       />
    </div>

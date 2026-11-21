@@ -1,9 +1,9 @@
 <div
    class="bar"
    ddStopClicks
-   [class.dragging]="dragging()"
-   [class.hidden]="hidden()"
-   [style.transform]="transform()"
+   [class.dragging]="dragging$()"
+   [class.hidden]="hidden$()"
+   [style.transform]="transform$()"
 >
    <span
       class="grip"
@@ -14,28 +14,28 @@
       (pointercancel)="onUp($event)"
       (dblclick)="offset.set({ x: 0, y: 0 })"
    ></span>
-   <button class="btn" type="button" aria-label="Previous" [disabled]="following() || !canPrev()" (click)="prev.emit()">
+   <button class="btn" type="button" aria-label="Previous" [disabled]="following$() || !canPrev$()" (click)="prev.emit()">
       <dd-icon name="chevron_left" />
    </button>
    <span class="count">
-      {{ position() }} / {{ count() }}
-      @if (clicks() > 0) {
-         <small>· {{ clickStep() }}/{{ clicks() }}</small>
+      {{ position$() }} / {{ count$() }}
+      @if (clicks$() > 0) {
+         <small>· {{ clickStep$() }}/{{ clicks$() }}</small>
       }
    </span>
-   <button class="btn" type="button" aria-label="Next" [disabled]="following() || !canNext()" (click)="next.emit()">
+   <button class="btn" type="button" aria-label="Next" [disabled]="following$() || !canNext$()" (click)="next.emit()">
       <dd-icon name="chevron_right" />
    </button>
    <span class="sep"></span>
-   <span class="name">{{ name() }}</span>
+   <span class="name">{{ name$() }}</span>
    <span class="sep"></span>
-   <span class="timer">{{ clock() }}</span>
+   <span class="timer">{{ clock$() }}</span>
    <button
       class="btn"
       type="button"
       aria-label="Laser pointer (K)"
       title="Laser pointer (K): drag on the slide"
-      [class.on]="laserOn()"
+      [class.on]="laserOn$()"
       (click)="toggleLaser.emit()"
    >
       <dd-icon name="near_me" />
@@ -45,7 +45,7 @@
       type="button"
       aria-label="Speaker notes (N)"
       title="Speaker notes (N)"
-      [class.on]="notesOn()"
+      [class.on]="notesOn$()"
       (click)="toggleNotes.emit()"
    >
       <dd-icon name="notes" />
@@ -55,8 +55,8 @@
       type="button"
       aria-label="All slides (G)"
       title="All slides (G)"
-      [class.on]="gridOn()"
-      [disabled]="following()"
+      [class.on]="gridOn$()"
+      [disabled]="following$()"
       (click)="toggleGrid.emit()"
    >
       <dd-icon name="grid_view" />

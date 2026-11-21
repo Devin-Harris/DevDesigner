@@ -21,7 +21,7 @@
 .source {
    position: absolute;
    opacity: 0.35;
-   outline: 1px dashed var(--dd-border-strong, #94a3b8);
+   outline: 1px dashed var(--dd-border-strong);
    cursor: grab;
    touch-action: none;
 }
@@ -37,7 +37,7 @@
 .box {
    position: absolute;
    cursor: move;
-   outline: calc(1.5px * var(--inv, 1)) solid var(--dd-primary, #3b82f6);
+   outline: calc(1.5px * var(--inv, 1)) solid var(--dd-primary);
    touch-action: none;
 }
 .kept {
@@ -50,8 +50,8 @@
    width: calc(var(--s) * 1px);
    height: calc(var(--s) * 1px);
    margin: calc(var(--s) * -0.5px);
-   background: #fff;
-   border: 1.5px solid var(--dd-primary, #3b82f6);
+   background: var(--dd-white);
+   border: 1.5px solid var(--dd-primary);
    border-radius: 2px;
    box-sizing: border-box;
 }

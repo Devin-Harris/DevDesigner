@@ -13,7 +13,7 @@ export class SequenceEdits {
 
    readonly addLifeline = storeMember(this.store, 'addLifeline');
    readonly arrangeSelection = storeMember(this.store, 'arrangeSelection');
-   readonly canEdit = storeMember(this.store, 'canEdit');
+   readonly canEdit$ = storeMember(this.store, 'canEdit');
    readonly deleteLifeline = storeMember(this.store, 'deleteLifeline');
    readonly deleteMessage = storeMember(this.store, 'deleteMessage');
    readonly lifelines = storeMember(this.store, 'lifelines');

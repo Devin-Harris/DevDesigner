@@ -58,12 +58,12 @@ export class WorkspaceComponent {
    /** Desktop app: no home page; the projects browser is the start screen. */
    protected readonly desktop = runtimeConfig.desktop;
 
-   protected readonly selectedProject = computed(
+   protected readonly selectedProject$ = computed(
       () => this.store.projects().find((p) => p.id === this.store.selectedId()) ?? null
    );
 
    /** A project is selected but the project list has not loaded yet. */
-   protected readonly resolving = computed(
+   protected readonly resolving$ = computed(
       // loadProjects (called below) flips `loading` on synchronously, so this holds from the first render.
       () => !!this.store.selectedId() && this.store.loading()
    );
@@ -89,7 +89,7 @@ export class WorkspaceComponent {
       // A remembered project that no longer exists (deleted, access revoked) falls back home.
       effect(() => {
          const id = this.store.selectedId();
-         if (id && !this.store.loading() && this.store.projects().length && !this.selectedProject()) {
+         if (id && !this.store.loading() && this.store.projects().length && !this.selectedProject$()) {
             if (id === readLastProject() && id !== this.route.snapshot.paramMap.get('projectId')) {
                this.store.select(null);
             }
@@ -107,7 +107,7 @@ export class WorkspaceComponent {
 
    /** Conflict: compare this computer's version with the server's (visual diff). */
    protected async compareWithServer(projectId: string): Promise<void> {
-      const link = this.sync.links().get(projectId);
+      const link = this.sync.links$().get(projectId);
       // Desktop-only (diff + canvas renderer): loaded on first use.
       const { CompareDialogComponent } = await import('./features/compare/compare-dialog.component');
       this.dialog.open<InstanceType<typeof CompareDialogComponent>, CompareDialogData>(CompareDialogComponent, {

@@ -2,41 +2,41 @@
 <div
    class="f-cards"
    tabindex="0"
-   [class.reordering]="s.draggingIndex() !== null"
-   (keydown.arrowUp)="s.stepSlide(-1, $event)"
-   (keydown.arrowDown)="s.stepSlide(1, $event)"
+   [class.reordering]="s.draggingIndex$() !== null"
+   (keydown.arrowUp)="s.slideCardDrag.stepSlide(-1, $event)"
+   (keydown.arrowDown)="s.slideCardDrag.stepSlide(1, $event)"
 >
-   @for (f of s.shown(); track f.id; let i = $index) {
+   @for (f of s.shown$(); track f.id; let i = $index) {
       <div
          class="fs"
          role="button"
          tabindex="-1"
-         [class.on]="f.id === s.active_()"
-         [class.sel]="s.isSelected(f.id) && f.id !== s.active_()"
+         [class.on]="f.id === s.active_$()"
+         [class.sel]="(s.activeSlideIds$() | has: f.id) && f.id !== s.active_$()"
          [class.skipped]="!!f.slide?.hidden"
-         [class.dragging]="s.draggingIndex() === i && !s.cloning()"
-         [class.settling]="s.draggingIndex() === i && !s.cloning() && s.settling()"
+         [class.dragging]="s.draggingIndex$() === i && !s.cloning$()"
+         [class.settling]="s.draggingIndex$() === i && !s.cloning$() && s.settling$()"
          [class.pending]="f.id === s.pendingCloneId"
-         [style.transform]="s.cardTransform(i)"
-         [title]="s.canEdit() ? 'Drag to reorder · Alt-drag to duplicate' : ''"
-         (pointerdown)="s.onCardDown(i, $event)"
-         (click)="s.onRowClick(f, $event)"
+         [style.transform]="s.cardTransforms$()[i]"
+         [title]="s.canEdit$() ? 'Drag to reorder · Alt-drag to duplicate' : ''"
+         (pointerdown)="s.slideCardDrag.onCardDown(i, $event)"
+         (click)="s.slideCardDrag.onRowClick(f, $event)"
       >
          <span class="n">{{ i + 1 }}</span>
          <span class="tn" [style.aspect-ratio]="f.width + ' / ' + f.height">
-            @if (s.thumbs().get(s.thumbId(f)); as src) {
+            @if (s.shownThumbs$() | at: f.id; as src) {
                <img alt="" draggable="false" [src]="src" />
             }
             <span class="bd">
                @if (f.slide?.hidden) {
                   <span class="bdg">skipped</span>
                } @else {
-                  @if (s.animCount(f); as c) {
+                  @if (s.animCounts$() | at: f.id; as c) {
                      <span class="bdg">▶ {{ c }}</span>
                   }
                }
             </span>
-            @if (s.canEdit() && f.id !== s.pendingCloneId) {
+            @if (s.canEdit$() && f.id !== s.pendingCloneId) {
                <span class="f-acts" ddStopClicks>
                   <button
                      class="f-act dd-button-reset"
@@ -62,24 +62,24 @@
       </div>
    }
    <!-- Alt-drag: the original stays put while this copy follows the pointer. -->
-   @if (s.cloneGhost(); as g) {
+   @if (s.cloneGhost$(); as g) {
       <div
          class="fs dragging ghost"
-         [class.settling]="s.settling()"
+         [class.settling]="s.settling$()"
          [style.top.px]="g.top"
          [style.height.px]="g.height"
-         [style.transform]="'translateY(' + s.dragDy() + 'px) scale(1.02)'"
+         [style.transform]="'translateY(' + s.dragDy$() + 'px) scale(1.02)'"
       >
          <span class="n">+{{ g.count > 1 ? g.count : '' }}</span>
          <span class="tn" [style.aspect-ratio]="g.fw + ' / ' + g.fh">
-            @if (s.thumbs().get(g.id); as src) {
+            @if (s.thumbs$() | at: g.id; as src) {
                <img alt="" draggable="false" [src]="src" />
             }
          </span>
       </div>
    }
 </div>
-@if (s.canEdit()) {
+@if (s.canEdit$()) {
    <div class="f-foot">
       <button class="f-go" type="button" (click)="s.command.emit({ kind: 'add' })"><span>+ Slide</span></button>
       <button
@@ -93,16 +93,16 @@
       </button>
       <ng-template #focusLayoutMenu let-close>
          <div class="dd-menu">
-            @for (l of s.menuLayouts(); track l.id) {
+            @for (l of s.slideLayoutViews.menuLayouts$(); track l.id) {
                <button class="dd-menu-item lay-item" type="button" (click)="s.addWithLayout(l.id); close()">
                   <span class="mthumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
-                     @if (s.layoutThumbs().get(l.id); as src) {
+                     @if (s.layoutThumbs$() | at: l.id; as src) {
                         <img alt="" draggable="false" [src]="src" />
                      }</span
-                  >{{ s.layoutName(l) }}
+                  >{{ s.layoutNames$() | at: l.id }}
                </button>
             }
-            @if (!s.menuLayouts().length) {
+            @if (!s.slideLayoutViews.menuLayouts$().length) {
                <div class="f-hint">No layouts yet.</div>
             }
          </div>

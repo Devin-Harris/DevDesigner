@@ -28,6 +28,7 @@ import { IconComponent } from './shared/ui/components/icon/icon.component';
 import { LogoComponent } from './shared/ui/components/logo/logo.component';
 import { PopoverTriggerDirective } from './shared/ui/directives/popover-trigger.directive';
 import type { ExportImageFormat } from './core/editor-bridge/editor-actions.service';
+import { SlicePipe, UpperCasePipe } from '@angular/common';
 
 /**
  * Application shell: a single unified top bar (brand, breadcrumb → projects
@@ -37,20 +38,7 @@ import type { ExportImageFormat } from './core/editor-bridge/editor-actions.serv
 @Component({
    selector: 'dd-root',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [
-      TitleBarComponent,
-      CommandPaletteComponent,
-      ShortcutsSheetComponent,
-      AutofocusDirective,
-      RouterLink,
-      RouterOutlet,
-      MatToolbarModule,
-      MatTooltipModule,
-      IconComponent,
-      LogoComponent,
-      PopoverTriggerDirective,
-      ToolbarCustomizePanelComponent,
-   ],
+   imports: [SlicePipe, UpperCasePipe, TitleBarComponent, CommandPaletteComponent, ShortcutsSheetComponent, AutofocusDirective, RouterLink, RouterOutlet, MatToolbarModule, MatTooltipModule, IconComponent, LogoComponent, PopoverTriggerDirective, ToolbarCustomizePanelComponent],
    templateUrl: './app.component.html',
    styleUrl: './app.component.scss',
 })
@@ -74,7 +62,7 @@ export class AppComponent {
     * The workspace swaps between home and a project with location.replaceState (no router navigation), so the
     * home check keys off the selected project rather than the URL.
     */
-   protected readonly onGuide = computed(() => {
+   protected readonly onGuide$ = computed(() => {
       const path = this.routeUrl().split(/[?#]/)[0];
       if (path.startsWith('/guide')) return true;
       // Desktop has no home page: the empty workspace keeps its islands.
@@ -92,15 +80,17 @@ export class AppComponent {
    private readonly projectsApi = inject(ProjectsApiService);
 
    protected readonly toolbarPrefs = inject(ToolbarPrefsService);
+   // Store signals the template reads.
+   protected readonly selected$ = this.projects.selected;
    /** Desktop app: no link sharing, home page or sign-in/out (single local account). */
    protected readonly desktop = runtimeConfig.desktop;
 
    /** Ctrl/Cmd+K command palette. */
-   protected readonly paletteOpen = signal(false);
+   protected readonly paletteOpen$ = signal(false);
    /** Keyboard shortcuts sheet (?). */
-   protected readonly shortcutsOpen = signal(false);
+   protected readonly shortcutsOpen$ = signal(false);
    /** The project name in the top-left island is being edited. */
-   protected readonly renaming = signal(false);
+   protected readonly renaming$ = signal(false);
 
    constructor() {
       void this.auth.loadMe();
@@ -145,7 +135,7 @@ export class AppComponent {
          // Presenting owns the keyboard.
          if (document.querySelector('dd-present-mode')) return;
          event.preventDefault();
-         this.paletteOpen.update((v) => !v);
+         this.paletteOpen$.update((v) => !v);
          return;
       }
       if (event.key === '?' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -154,7 +144,7 @@ export class AppComponent {
             !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
          if (typing || document.querySelector('dd-present-mode')) return;
          event.preventDefault();
-         this.shortcutsOpen.update((v) => !v);
+         this.shortcutsOpen$.update((v) => !v);
       }
    }
 
@@ -176,15 +166,15 @@ export class AppComponent {
          clearTimeout(this.nameClickTimer);
          this.nameClickTimer = null;
       }
-      if (this.editorActions.accessMode() === 'OWNER') this.startRename();
+      if (this.editorActions.accessMode$() === 'OWNER') this.startRename();
    }
 
    protected startRename(): void {
-      this.renaming.set(true);
+      this.renaming$.set(true);
    }
    protected async commitRename(value: string): Promise<void> {
-      if (!this.renaming()) return;
-      this.renaming.set(false);
+      if (!this.renaming$()) return;
+      this.renaming$.set(false);
       const project = this.projects.selected();
       const name = value.trim();
       if (!project || !name || name === project.name) return;

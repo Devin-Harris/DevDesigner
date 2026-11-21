@@ -86,7 +86,7 @@ export class EditorPointerService {
 
    private readonly marqueeCurrent = signal<{ x: number; y: number } | null>(null);
 
-   readonly marqueeRect = computed<{
+   readonly marqueeRect$ = computed<{
       left: number;
       top: number;
       width: number;
@@ -120,13 +120,13 @@ export class EditorPointerService {
          this.grids.endEdit();
       }
       const panButton =
-         event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.tools.activeTool() === 'hand'));
+         event.button === 1 || (event.button === 0 && (this.gesture.spaceDown || this.tools.activeTool$() === 'hand'));
       // Focus mode locks the canvas, but a slide can still be panned inside its block.
       const slideUnder =
          panButton && (event.ctrlKey || event.metaKey)
             ? this.viewport.shownSlideUnder(this.viewport.toWorldRaw(event.clientX, event.clientY))
             : undefined;
-      if (panButton && (!this.deckFocus.focusedDeck() || slideUnder)) {
+      if (panButton && (!this.deckFocus.focusedDeck$() || slideUnder)) {
          event.preventDefault();
          this.gesture.mode = 'pan';
          this.tools.panning.set(true);
@@ -143,7 +143,7 @@ export class EditorPointerService {
       if (event.button !== 0) {
          return;
       }
-      const tool = this.tools.activeTool();
+      const tool = this.tools.activeTool$();
       if (tool !== 'select' && tool !== 'hand' && tool !== 'laser' && this.store.canEdit() && this.store.projectId()) {
          event.preventDefault();
          if (tool === 'table') {
@@ -162,7 +162,7 @@ export class EditorPointerService {
             this.tools.afterPlace();
             return;
          }
-         if (tool === 'freedraw' && this.penPrefs.eraser()) {
+         if (tool === 'freedraw' && this.penPrefs.eraser$()) {
             this.drawTool.beginErase(event);
             return;
          }
@@ -301,7 +301,7 @@ export class EditorPointerService {
          );
          dx += smart?.ox ?? 0;
          dy += smart?.oy ?? 0;
-         const grid = this.snap.gridSnap();
+         const grid = this.snap.gridSnap$();
          // The tables' actual (snapped) move, so routes carried with them stay attached.
          let moved: { x: number; y: number } | null = null;
          const tables = new Map<string, { x: number; y: number }>();
@@ -394,7 +394,7 @@ export class EditorPointerService {
       this.elementGestures.elementGesture = null;
       this.gesture.gestureActive.set(false);
       this.gesture.movingItems.set(false);
-      this.elementGestures.bindHighlight.set(null);
+      this.elementGestures.bindHighlight$.set(null);
       this.gesture.multiDragStart.clear();
       this.gesture.waypointDragStart.clear();
       this.marqueeStart.set(null);
@@ -524,7 +524,7 @@ export class EditorPointerService {
       const sx1 = Math.max(s.x, c.x);
       const sy1 = Math.max(s.y, c.y);
       const enclosed = this.deckPanels
-         .slideSets()
+         .slideSets$()
          .filter(
             (set) =>
                set.outline.left >= sx0 &&
@@ -584,8 +584,8 @@ export class EditorPointerService {
          this.store.setSelection(tableSel, relIds, elementSel, looseMessages, looseLifelines, diagramIds);
       }
       const names = enclosed.map((set) => set.name);
-      this.deckPanels.selectedSlideSets.set(
-         this.marqueeAdditive ? [...new Set([...this.deckPanels.selectedSlideSets(), ...names])] : names
+      this.deckPanels.selectedSlideSets$.set(
+         this.marqueeAdditive ? [...new Set([...this.deckPanels.selectedSlideSets$(), ...names])] : names
       );
    }
 

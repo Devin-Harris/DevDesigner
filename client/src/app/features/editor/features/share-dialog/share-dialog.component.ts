@@ -26,14 +26,7 @@ export interface ShareDialogData {
 @Component({
    selector: 'dd-share-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [
-      ReactiveFormsModule,
-      MatDialogModule,
-      MatProgressSpinnerModule,
-      MatTooltipModule,
-      IconComponent,
-      SegmentedComponent,
-   ],
+   imports: [ReactiveFormsModule, MatDialogModule, MatProgressSpinnerModule, MatTooltipModule, IconComponent, SegmentedComponent],
    templateUrl: './share-dialog.component.html',
    styleUrl: './share-dialog.component.scss',
 })
@@ -42,9 +35,9 @@ export class ShareDialogComponent {
    private readonly snackBar = inject(MatSnackBar);
    protected readonly data = inject<ShareDialogData>(MAT_DIALOG_DATA);
 
-   protected readonly items = signal<ShareLinkResponse[]>([]);
-   protected readonly loading = signal(true);
-   protected readonly creating = signal(false);
+   protected readonly items$ = signal<ShareLinkResponse[]>([]);
+   protected readonly loading$ = signal(true);
+   protected readonly creating$ = signal(false);
    /** Access level for the next link. */
    protected readonly newLevel = new FormControl<ShareAccessLevel>('EDIT', { nonNullable: true });
    protected readonly levelOptions: SegmentedOption[] = [
@@ -57,35 +50,35 @@ export class ShareDialogComponent {
    }
 
    private async refresh(): Promise<void> {
-      this.loading.set(true);
+      this.loading$.set(true);
       try {
          const links = await firstValueFrom(this.links.list(this.data.projectId));
-         this.items.set(links);
+         this.items$.set(links);
       } catch {
          this.snackBar.open('Could not load share links.', undefined, { duration: 3000 });
       } finally {
-         this.loading.set(false);
+         this.loading$.set(false);
       }
    }
 
    protected async create(): Promise<void> {
-      this.creating.set(true);
+      this.creating$.set(true);
       try {
          const link = await firstValueFrom(
             this.links.create(this.data.projectId, { accessLevel: this.newLevel.value })
          );
-         this.items.update((list) => [link, ...list]);
+         this.items$.update((list) => [link, ...list]);
       } catch {
          this.snackBar.open('Could not create the link.', undefined, { duration: 3000 });
       } finally {
-         this.creating.set(false);
+         this.creating$.set(false);
       }
    }
 
    protected async revoke(link: ShareLinkResponse): Promise<void> {
       try {
          await firstValueFrom(this.links.revoke(this.data.projectId, link.id));
-         this.items.update((list) => list.filter((l) => l.id !== link.id));
+         this.items$.update((list) => list.filter((l) => l.id !== link.id));
       } catch {
          this.snackBar.open('Could not revoke the link.', undefined, { duration: 3000 });
       }

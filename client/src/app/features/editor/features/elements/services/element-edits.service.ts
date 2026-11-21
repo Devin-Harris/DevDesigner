@@ -15,7 +15,7 @@ export class ElementEdits {
 
    readonly arrangeSelection = storeMember(this.store, 'arrangeSelection');
    readonly batchHistory = storeMember(this.store, 'batchHistory');
-   readonly canEdit = storeMember(this.store, 'canEdit');
+   readonly canEdit$ = storeMember(this.store, 'canEdit');
    readonly deleteElement = storeMember(this.store, 'deleteElement');
    readonly elements = storeMember(this.store, 'elements');
    readonly presentationThemes = storeMember(this.store, 'presentationThemes');

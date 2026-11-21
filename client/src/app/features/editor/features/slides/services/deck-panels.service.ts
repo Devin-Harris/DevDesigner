@@ -6,14 +6,7 @@ import { computed, inject, Injectable, linkedSignal } from '@angular/core';
 import { layoutNameOf } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
 import type { Box } from '../../../models/geometry.model';
-import { PANEL_FOLDED_W } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_GAP } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_LIST_W } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_MIN_H } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_MIN_PAD_PX } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_PAD } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_RADIUS } from '../../../shared/constants/slide-panels.constants';
-import { PANEL_SETTINGS_W } from '../../../shared/constants/slide-panels.constants';
+import { PANEL_FOLDED_W, PANEL_GAP, PANEL_LIST_W, PANEL_MIN_H, PANEL_MIN_PAD_PX, PANEL_PAD, PANEL_RADIUS, PANEL_SETTINGS_W } from '../../../shared/constants/slide-panels.constants';
 /** What the deck panels reach in sibling sub-features; the editor entry wires it with `connect`. */
 export interface DeckPanelsHost {
    readonly elementGestures: { onElementPointerDown(payload: ShapePointerEvent): void };
@@ -49,7 +42,7 @@ export class DeckPanelsService {
       const pad = Math.max(PANEL_PAD, PANEL_MIN_PAD_PX / zoom);
       const frames = this.store.slideFrames();
       const shown = this.store.shownByPresentation();
-      const settingsW = this.deckFocus.settingsFolded() ? PANEL_FOLDED_W : PANEL_SETTINGS_W;
+      const settingsW = this.deckFocus.settingsFolded$() ? PANEL_FOLDED_W : PANEL_SETTINGS_W;
       return this.store.presentations().flatMap((name) => {
          const f = frames.find((fr) => fr.id === shown.get(name));
          if (!f) return [];
@@ -69,12 +62,12 @@ export class DeckPanelsService {
       });
    }
 
-   readonly slideSets = computed(() => {
+   readonly slideSets$ = computed(() => {
       const v = this.store.viewport();
       const gap = PANEL_GAP;
       const frames = this.store.slideFrames();
       const shown = this.store.shownByPresentation();
-      const folded = this.deckFocus.settingsFolded();
+      const folded = this.deckFocus.settingsFolded$();
       return this.store.presentations().flatMap((name) => {
          const frame = frames.find((f) => f.id === shown.get(name));
          if (!frame) {
@@ -135,7 +128,7 @@ export class DeckPanelsService {
     * The presentations selected as a whole (outer border clicked, or enclosed by a
     * marquee): drawn with a selected outline, and Delete removes every slide of them.
     */
-   readonly selectedSlideSets = linkedSignal<{ ids: string[]; shown: ReadonlyMap<string, string> }, string[]>({
+   readonly selectedSlideSets$ = linkedSignal<{ ids: string[]; shown: ReadonlyMap<string, string> }, string[]>({
       source: () => ({ ids: this.store.selectedElementIds(), shown: this.store.shownByPresentation() }),
       // Still selected while its shown frame is (a marquee can take it with other items).
       computation: ({ ids, shown }, previous) => {
@@ -150,16 +143,16 @@ export class DeckPanelsService {
     * its shown slide frame (it carries its contents; the other slides follow it).
     */
    onSlideBorderDown(name: string, frameId: string, event: PointerEvent): void {
-      if (event.button !== 0 || !this.tools.shapesInteractive()) {
+      if (event.button !== 0 || !this.tools.shapesInteractive$()) {
          return;
       }
       event.stopPropagation();
       this.store.selectPresentation(name);
       // Grabbing one of several selected presentations moves them all, still selected.
-      const sets = this.selectedSlideSets();
+      const sets = this.selectedSlideSets$();
       const keep = sets.includes(name) && !PointerGestureService.additive(event);
       this.host.elementGestures.onElementPointerDown({ id: frameId, event });
-      this.selectedSlideSets.set(keep ? sets : [name]);
+      this.selectedSlideSets$.set(keep ? sets : [name]);
    }
 
    /** Touching a presentation's panels makes it the selected one (F5, export). */

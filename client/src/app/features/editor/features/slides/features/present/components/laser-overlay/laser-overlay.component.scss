@@ -15,7 +15,7 @@
    height: 100%;
    pointer-events: none;
    overflow: visible;
-   color: #ff2d2d;
+   color: var(--dd-laser-red);
 }
 .laser-svg .trail {
    stroke: currentColor;

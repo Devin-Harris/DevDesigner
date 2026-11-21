@@ -20,7 +20,7 @@ export class AuthService {
 
    private loading: Promise<void> | null = null;
 
-   readonly currentUser = this._currentUser.asReadonly();
+   readonly currentUser$ = this._currentUser.asReadonly();
    readonly ready = this._ready.asReadonly();
    readonly isAuthenticated = computed(() => this._currentUser() !== null);
    readonly isAdmin$ = computed(() => this._currentUser()?.isAdmin === true);

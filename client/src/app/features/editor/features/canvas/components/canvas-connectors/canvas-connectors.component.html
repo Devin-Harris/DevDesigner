@@ -2,9 +2,9 @@
    class="layer"
    width="10000"
    height="10000"
-   [class.dragging]="dragging()"
-   [style.left.px]="-svgOffset()"
-   [style.top.px]="-svgOffset()"
+   [class.dragging]="dragging$()"
+   [style.left.px]="-svgOffset$()"
+   [style.top.px]="-svgOffset$()"
 >
    <defs>
       <!-- "one": a single perpendicular bar just before the entity. -->
@@ -33,8 +33,8 @@
       </marker>
    </defs>
 
-   <g [attr.transform]="'translate(' + svgOffset() + ',' + svgOffset() + ')'">
-      @for (c of connectors(); track c.id) {
+   <g [attr.transform]="'translate(' + svgOffset$() + ',' + svgOffset$() + ')'">
+      @for (c of connectors$(); track c.id) {
          <path class="hit" [attr.d]="c.d" (pointerdown)="onHit(c.id, $event)" (dblclick)="resetRoute.emit(c.id)"></path>
          <path
             class="edge"
@@ -72,10 +72,10 @@
          }
       }
 
-      @if (tempLinkPath(); as path) {
+      @if (tempLinkPath$(); as path) {
          <path class="temp" [attr.d]="path"></path>
       }
-      @if (snapAnchor(); as p) {
+      @if (snapAnchor$(); as p) {
          <circle class="snap" r="8" [attr.cx]="p.x" [attr.cy]="p.y"></circle>
       }
    </g>

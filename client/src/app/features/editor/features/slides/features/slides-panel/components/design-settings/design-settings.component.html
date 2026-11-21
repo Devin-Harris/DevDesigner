@@ -1,10 +1,4 @@
-<input
-   #designFileInput
-   type="file"
-   accept=".json,application/json"
-   hidden
-   (change)="s.importDesign(designFileInput)"
-/>
+<input #designFileInput type="file" accept=".json,application/json" hidden (change)="s.importDesign(designFileInput)" />
 <div class="sub">
    <span class="subt">
       Design
@@ -15,7 +9,7 @@
          matTooltip="A design is one set of layouts plus the theme it uses. The Default design uses the standard layouts and the Default theme; changing a layout, or a theme's colors or fonts, saves a custom design, so the defaults never change."
       />
    </span>
-   @if (s.canEdit()) {
+   @if (s.canEdit$()) {
       <span class="sub-actions">
          <button
             class="icon"
@@ -26,7 +20,7 @@
          >
             <dd-icon name="add" />
          </button>
-         @if (s.designIsCustom()) {
+         @if (s.designIsCustom$()) {
             <button
                class="icon"
                type="button"
@@ -61,25 +55,25 @@
 <dd-select
    class="design-pick"
    aria-label="Design"
-   [options]="s.designOptions()"
-   [ngModel]="s.design().id"
-   [disabled]="!s.canEdit()"
+   [options]="s.designOptions$()"
+   [ngModel]="s.design$().id"
+   [disabled]="!s.canEdit$()"
    [removable]="true"
    (ngModelChange)="s.pickDesign($event)"
    (rename)="s.renameRecord($event.value, $event.label)"
    (remove)="s.deleteDesignById($event)"
 />
-@if (s.themeNote() ?? s.relayoutNote(); as note) {
+@if (s.themeNote$() ?? s.relayoutNote$(); as note) {
    <p class="hint">{{ note }}</p>
 }
 <dd-segmented
    class="design-seg"
    [options]="s.designTabOptions"
-   [ngModel]="s.designTab()"
-   (ngModelChange)="s.designTab.set($event)"
+   [ngModel]="s.designTab$()"
+   (ngModelChange)="s.designTab$.set($event)"
 />
-@if (s.designTab() === 'layouts') {
-   @if (s.shownLayout(); as l) {
+@if (s.designTab$() === 'layouts') {
+   @if (s.shownLayout$(); as l) {
       <div class="sub">
          <span class="subt">
             {{ l.slide?.master ? 'Master' : 'Layout' }}
@@ -102,74 +96,70 @@
             type="text"
             maxlength="120"
             aria-label="Layout name"
-            [value]="s.layoutName(l)"
-            [disabled]="!s.canEdit()"
+            [value]="s.layoutNames$() | at: l.id"
+            [disabled]="!s.canEdit$()"
             (keydown.enter)="$any($event.target).blur()"
-            (blur)="s.renameLayout(l, $any($event.target))"
+            (blur)="s.slideLayoutEditing.renameLayout(l, $any($event.target))"
          />
       </label>
-      @if (s.layoutTextSelection().length; as n) {
+      @if (s.layoutTextSelection$().length; as n) {
          <div class="field">
             <dd-checkbox
-               [ngModel]="!!s.layoutTextSelection()[0].placeholder"
-               [disabled]="!s.canEdit()"
-               (ngModelChange)="s.setPlaceholder($event)"
+               [ngModel]="!!s.layoutTextSelection$()[0].placeholder"
+               [disabled]="!s.canEdit$()"
+               (ngModelChange)="s.slideLayoutEditing.setPlaceholder($event)"
             >
-               {{
-                  n > 1
-                     ? 'Selected text boxes are placeholders'
-                     : 'Selected text box is a placeholder'
-               }}
+               {{ n > 1 ? 'Selected text boxes are placeholders' : 'Selected text box is a placeholder' }}
             </dd-checkbox>
          </div>
-         @if (s.layoutTextSelection()[0].placeholder; as ph) {
+         @if (s.layoutTextSelection$()[0].placeholder; as ph) {
             <label class="field">
                <span>Style type</span>
                <dd-select
                   [options]="s.roleOptions"
                   [ngModel]="ph.role ?? ''"
-                  [disabled]="!s.canEdit()"
-                  (ngModelChange)="s.setRole($event)"
+                  [disabled]="!s.canEdit$()"
+                  (ngModelChange)="s.slideLayoutEditing.setRole($event)"
                />
             </label>
          }
       }
       <div class="row">
-         <button class="btn" type="button" (click)="s.backToSlide()">
+         <button class="btn" type="button" (click)="s.slideLayoutEditing.backToSlide()">
             <dd-icon name="chevron_left" />Back to slides
          </button>
-         @if (s.canEdit() && !s.shownLayout()?.slide?.master) {
+         @if (s.canEdit$() && !s.shownLayout$()?.slide?.master) {
             <button
                class="btn"
                type="button"
                title="Add a slide that uses this layout"
-               (click)="s.command.emit({ kind: 'add', layoutId: s.shownLayout()!.id })"
+               (click)="s.command.emit({ kind: 'add', layoutId: s.shownLayout$()!.id })"
             >
                <dd-icon name="add" />New slide
             </button>
          }
       </div>
    }
-   @if (s.active() && !s.shownLayout()) {
+   @if (s.active$() && !s.shownLayout$()) {
       <label class="field">
-         <span>Layout of {{ s.activeSlides().length > 1 ? 'these slides' : 'this slide' }}</span>
+         <span>Layout of {{ s.activeSlides$().length > 1 ? 'these slides' : 'this slide' }}</span>
          <dd-select
-            [options]="s.layoutOptions()"
-            [ngModel]="s.activeLayoutValue()"
-            [disabled]="!s.canEdit() || !s.layouts().length"
-            (ngModelChange)="s.setLayout($event)"
+            [options]="s.slideLayoutViews.layoutOptions$()"
+            [ngModel]="s.activeLayoutValue$()"
+            [disabled]="!s.canEdit$() || !s.layouts$().length"
+            (ngModelChange)="s.slideLayoutEditing.setLayout($event)"
          />
       </label>
    }
-   @if (s.canEdit() && s.drift(); as d) {
+   @if (s.canEdit$() && s.drift$(); as d) {
       <div class="field">
-         <span>{{ s.driftLabel(d) }}</span>
-         @if (s.selectedDrifted().length) {
+         <span>{{ s.driftLabel | call: d }}</span>
+         @if (s.selectedDrifted$().length) {
             <button
                class="btn wide"
                type="button"
                title="Put the selected placeholders and objects back where and how the layout has them; keeps placeholder text"
-               (click)="s.resetSlide(true)"
+               (click)="s.slideLayoutEditing.resetSlide(true)"
             >
                <dd-icon name="undo" />Reset selected to layout
             </button>
@@ -178,25 +168,27 @@
                class="btn wide"
                type="button"
                title="Put every placeholder and layout object back where and how the layout has them and bring back deleted ones; keeps placeholder text"
-               (click)="s.resetSlide(false)"
+               (click)="s.slideLayoutEditing.resetSlide(false)"
             >
                <dd-icon name="undo" />Reset slide to layout
             </button>
          }
       </div>
    }
-   @if (s.canEdit() && s.standIns().length) {
+   @if (s.canEdit$() && s.slideLayoutViews.standIns$().length) {
       <div class="field">
          <span
-            >{{ s.standIns().length }} master item{{ s.standIns().length > 1 ? 's' : '' }} changed on
-            this {{ s.shownLayout() ? 'layout' : 'slide' }}</span
+            >{{ s.slideLayoutViews.standIns$().length }} master item{{
+               s.slideLayoutViews.standIns$().length > 1 ? 's' : ''
+            }}
+            changed on this {{ s.shownLayout$() ? 'layout' : 'slide' }}</span
          >
-         @if (s.selectedStandIns().length) {
+         @if (s.slideLayoutViews.selectedStandIns$().length) {
             <button
                class="btn wide"
                type="button"
                title="Show the master's version of the selected items again"
-               (click)="s.resetMaster(true)"
+               (click)="s.slideLayoutEditing.resetMaster(true)"
             >
                <dd-icon name="undo" />Reset selected to master
             </button>
@@ -205,7 +197,7 @@
                class="btn wide"
                type="button"
                title="Show the master's version of every item changed here again"
-               (click)="s.resetMaster(false)"
+               (click)="s.slideLayoutEditing.resetMaster(false)"
             >
                <dd-icon name="undo" />Reset to master
             </button>
@@ -222,7 +214,7 @@
             matTooltip="A layout holds the logo, bars and text boxes that repeat on slides. Standard layouts follow the theme's design; the master shows under all of them."
          />
       </span>
-      @if (s.canEdit()) {
+      @if (s.canEdit$()) {
          <span class="listbar-actions">
             <button
                class="icon"
@@ -265,18 +257,18 @@
                <button
                   class="dd-menu-item"
                   type="button"
-                  [disabled]="!s.missingKinds().length"
-                  (click)="s.addStandard(s.missingKinds()); close()"
+                  [disabled]="!s.slideLayoutViews.missingKinds$().length"
+                  (click)="s.slideLayoutEditing.addStandard(s.slideLayoutViews.missingKinds$()); close()"
                >
                   {{
-                     s.missingKinds().length
+                     s.slideLayoutViews.missingKinds$().length
                         ? 'All missing standard layouts'
                         : 'All standard layouts added'
                   }}
                </button>
                <div class="dd-menu-sep"></div>
-               @for (k of s.missingKinds(); track k) {
-                  <button class="dd-menu-item" type="button" (click)="s.addStandard([k]); close()">
+               @for (k of s.slideLayoutViews.missingKinds$(); track k) {
+                  <button class="dd-menu-item" type="button" (click)="s.slideLayoutEditing.addStandard([k]); close()">
                      {{ s.kindLabels[k] }}
                   </button>
                }
@@ -285,17 +277,17 @@
       }
    </div>
    <ol class="layout-list">
-      @if (s.master(); as m) {
+      @if (s.master$(); as m) {
          <li class="lslot">
             <button
                class="lcard dd-button-reset"
                type="button"
                title="Edit the master: logos, footers and fields (slide number, date) placed here show on every slide"
-               [class.current]="m.id === s.active_()"
+               [class.current]="m.id === s.active_$()"
                (click)="s.command.emit({ kind: 'focus', id: m.id })"
             >
                <span class="thumb" [style.aspect-ratio]="m.width + ' / ' + m.height">
-                  @if (s.thumbs().get(m.id); as src) {
+                  @if (s.thumbs$() | at: m.id; as src) {
                      <img alt="" draggable="false" [src]="src" />
                   }
                </span>
@@ -303,33 +295,31 @@
             </button>
          </li>
       }
-      @for (l of s.designLayouts(); track l.id) {
+      @for (l of s.designLayouts$(); track l.id) {
          <li
             class="lcard"
             tabindex="0"
             role="button"
-            [class.current]="l.id === s.active_()"
-            [title]="'Edit layout ' + s.layoutName(l)"
+            [class.current]="l.id === s.active_$()"
+            [title]="'Edit layout ' + (s.layoutNames$() | at: l.id)"
             (click)="s.command.emit({ kind: 'focus', id: l.id })"
             (keydown.enter)="s.command.emit({ kind: 'focus', id: l.id })"
             (keydown.space)="$event.preventDefault(); s.command.emit({ kind: 'focus', id: l.id })"
          >
             <span class="thumb" [style.aspect-ratio]="l.width + ' / ' + l.height">
-               @if (s.thumbs().get(l.id); as src) {
+               @if (s.thumbs$() | at: l.id; as src) {
                   <img alt="" draggable="false" [src]="src" />
                }
             </span>
-            <span class="lname">{{ s.layoutName(l) }}</span>
-            @if (s.canEdit()) {
+            <span class="lname">{{ s.layoutNames$() | at: l.id }}</span>
+            @if (s.canEdit$()) {
                <span class="licons">
                   <button
                      class="icon"
                      type="button"
                      title="Duplicate layout"
                      aria-label="Duplicate layout"
-                     (click)="
-                        $event.stopPropagation(); s.command.emit({ kind: 'duplicate', id: l.id })
-                     "
+                     (click)="$event.stopPropagation(); s.command.emit({ kind: 'duplicate', id: l.id })"
                   >
                      <dd-icon name="content_copy" />
                   </button>
@@ -339,9 +329,7 @@
                         type="button"
                         title="Delete layout and its items"
                         aria-label="Delete layout"
-                        (click)="
-                           $event.stopPropagation(); s.command.emit({ kind: 'delete', id: l.id })
-                        "
+                        (click)="$event.stopPropagation(); s.command.emit({ kind: 'delete', id: l.id })"
                      >
                         <dd-icon name="delete" />
                      </button>
@@ -351,7 +339,7 @@
          </li>
       }
    </ol>
-   @if (!s.designLayouts().length) {
+   @if (!s.designLayouts$().length) {
       <p class="hint">No layouts yet.</p>
    }
 } @else {
@@ -365,9 +353,9 @@
             matTooltip="The design's colors and fonts. Items set in a theme color or font follow it. Changing a built-in theme saves a custom copy."
          />
       </span>
-      @if (s.canEdit()) {
+      @if (s.canEdit$()) {
          <span class="sub-actions">
-            @if (s.themeIsCustom()) {
+            @if (s.themeIsCustom$()) {
                <button
                   class="icon"
                   type="button"
@@ -402,9 +390,9 @@
    <dd-select
       class="design-pick"
       aria-label="Theme"
-      [options]="s.themeOptions()"
-      [ngModel]="s.deckTheme().id ?? 'default'"
-      [disabled]="!s.canEdit()"
+      [options]="s.themeOptions$()"
+      [ngModel]="s.deckTheme$().id ?? 'default'"
+      [disabled]="!s.canEdit$()"
       [removable]="true"
       (ngModelChange)="s.pickTheme($event)"
       (rename)="s.renameRecord($event.value, $event.label)"
@@ -419,20 +407,20 @@
                class="token"
                placement="below-start"
                [ddPopoverTrigger]="tokenPicker"
-               [disabled]="!s.canEdit()"
+               [disabled]="!s.canEdit$()"
                [title]="s.colorLabels[k]"
             >
                <span
                   class="tsw"
-                  [class.none]="s.deckTheme().colors[k] === 'transparent'"
-                  [class.follow]="s.isFollow(s.deckTheme().colors[k])"
+                  [class.none]="s.deckTheme$().colors[k] === 'transparent'"
+                  [class.follow]="s.isFollow | call: s.deckTheme$().colors[k]"
                   [style.background]="
-                     s.deckTheme().colors[k] === 'transparent' || s.isFollow(s.deckTheme().colors[k])
+                     s.deckTheme$().colors[k] === 'transparent' || (s.isFollow | call: s.deckTheme$().colors[k])
                         ? null
-                        : s.css(s.deckTheme().colors[k])
+                        : (s.css | call: s.deckTheme$().colors[k])
                   "
                >
-                  @if (s.isFollow(s.deckTheme().colors[k])) {
+                  @if (s.isFollow | call: s.deckTheme$().colors[k]) {
                      <dd-icon name="contrast" />
                   }
                </span>
@@ -443,8 +431,8 @@
                   <dd-color-swatches
                      noneValue="transparent"
                      noneLabel="None"
-                     [value]="s.deckTheme().colors[k]"
-                     [themeValue]="s.followValue(k)"
+                     [value]="s.deckTheme$().colors[k]"
+                     [themeValue]="s.followValue | call: k"
                      (pick)="s.setThemeColor(k, $event); close()"
                   />
                </div>
@@ -457,8 +445,8 @@
          <span>Heading font</span>
          <dd-select
             [options]="s.fontOptions"
-            [ngModel]="s.deckTheme().fonts.heading"
-            [disabled]="!s.canEdit()"
+            [ngModel]="s.deckTheme$().fonts.heading"
+            [disabled]="!s.canEdit$()"
             (ngModelChange)="s.setThemeFont('heading', $event)"
          />
       </label>
@@ -466,8 +454,8 @@
          <span>Body font</span>
          <dd-select
             [options]="s.fontOptions"
-            [ngModel]="s.deckTheme().fonts.body"
-            [disabled]="!s.canEdit()"
+            [ngModel]="s.deckTheme$().fonts.body"
+            [disabled]="!s.canEdit$()"
             (ngModelChange)="s.setThemeFont('body', $event)"
          />
       </label>

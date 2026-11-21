@@ -12,7 +12,7 @@
    border-radius: 8px;
    border: 1px solid var(--dd-primary);
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font: inherit;
    font-weight: 600;
    cursor: pointer;
@@ -83,7 +83,7 @@
 }
 .row.sel .idx {
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
 }
 .what {
    display: flex;

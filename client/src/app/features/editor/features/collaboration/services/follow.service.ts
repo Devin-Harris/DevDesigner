@@ -13,9 +13,9 @@ export class FollowService {
    /** Participant whose cursor the view keeps in sight, or null. */
    readonly followingId = signal<string | null>(null);
 
-   readonly followingName = computed(() => {
+   readonly followingName$ = computed(() => {
       const id = this.followingId();
-      return id ? (this.realtime.participants().find((p) => p.id === id)?.name ?? null) : null;
+      return id ? (this.realtime.participants$().find((p) => p.id === id)?.name ?? null) : null;
    });
 
    /** Center the view on a collaborator's cursor. */
@@ -32,7 +32,7 @@ export class FollowService {
       effect(() => {
          const id = this.followingId();
          if (!id) return;
-         if (!this.realtime.participants().some((p) => p.id === id)) {
+         if (!this.realtime.participants$().some((p) => p.id === id)) {
             untracked(() => this.followingId.set(null));
             return;
          }

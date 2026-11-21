@@ -1,17 +1,17 @@
-<div class="editor" [style.--dock-w.px]="toolbarPrefs.leftDockWidth()">
+<div class="editor" [style.--dock-w.px]="toolbarPrefs.leftDockWidth$()">
    <div
       #canvas
       class="canvas"
-      [class.tool-active]="tools.activeTool() !== 'select'"
-      [style.cursor]="tools.canvasCursor()"
+      [class.tool-active]="tools.activeTool$() !== 'select'"
+      [style.cursor]="tools.canvasCursor$()"
       (pointerdown)="pointer.onCanvasPointerDown($event)"
       (dblclick)="dblClick.onCanvasDblClick($event)"
       (wheel)="viewport.onWheel($event)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
    >
-      <div class="world" [style.transform]="viewport.worldTransform()">
-         @if (align.croppingElement(); as ce) {
+      <div class="world" [style.transform]="viewport.worldTransform$()">
+         @if (align.croppingElement$(); as ce) {
             <dd-image-crop-overlay [element]="ce"></dd-image-crop-overlay>
          }
          <svg class="grid" width="1" height="1">
@@ -26,11 +26,11 @@
          <!-- Frames sit at the very back so their fills never cover connectors. -->
          <dd-canvas-shapes
             layer="frames"
-            [shapes]="canvasView.outerShapeViews()"
+            [shapes]="canvasView.outerShapeViews$()"
             [svgOffset]="svgOffset"
-            [dragging]="relLink.dragging()"
-            [interactive]="tools.shapesInteractive()"
-            [editingId]="textEditing.editingTextId()"
+            [dragging]="relLink.dragging$()"
+            [interactive]="tools.shapesInteractive$()"
+            [editingId]="textEditing.editingTextId$()"
             (elementPointerDown)="elementGestures.onElementPointerDown($event)"
             (resizeDown)="elementGestures.onElementResizeDown($event)"
             (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -41,10 +41,10 @@
          <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
            items, scaled about the frame's centre and clipped to the block (not while
            dragging, so an item can be carried out of it). -->
-         @for (z of canvasView.slideViewLayers(); track z.view.frameId) {
+         @for (z of canvasView.slideViewLayers$(); track z.view.frameId) {
             <div
                class="slide-zoom"
-               [class.clipped]="!slideUnclipped()"
+               [class.clipped]="!slideUnclipped$()"
                [style.left.px]="z.left"
                [style.top.px]="z.top"
                [style.width.px]="z.width"
@@ -55,9 +55,9 @@
                      layer="frames"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
-                     [dragging]="relLink.dragging()"
-                     [interactive]="tools.shapesInteractive()"
-                     [editingId]="textEditing.editingTextId()"
+                     [dragging]="relLink.dragging$()"
+                     [interactive]="tools.shapesInteractive$()"
+                     [editingId]="textEditing.editingTextId$()"
                      (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                      (resizeDown)="elementGestures.onElementResizeDown($event)"
                      (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -69,22 +69,22 @@
                      [tempLinkPath]="null"
                      [snapAnchor]="null"
                      [svgOffset]="svgOffset"
-                     [dragging]="relLink.dragging()"
+                     [dragging]="relLink.dragging$()"
                      (selectConnector)="relLink.onConnectorSelect($event)"
                      (endpointDown)="relLink.onEndpointDown($event)"
                      (segmentDown)="relLink.onSegmentDown($event)"
                      (resetRoute)="relLink.onAutoRoute($event)"
                   ></dd-canvas-connectors>
-                  @for (seg of canvasView.contentSegments(); track seg.index) {
+                  @for (seg of canvasView.contentSegments$(); track seg.index) {
                      <dd-canvas-shapes
                         layer="content"
                         [hostZ]="seg.z"
                         [accept]="seg.accept"
                         [shapes]="z.shapes"
                         [svgOffset]="svgOffset"
-                        [dragging]="relLink.dragging()"
-                        [interactive]="tools.shapesInteractive()"
-                        [editingId]="textEditing.editingTextId()"
+                        [dragging]="relLink.dragging$()"
+                        [interactive]="tools.shapesInteractive$()"
+                        [editingId]="textEditing.editingTextId$()"
                         (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                         (resizeDown)="elementGestures.onElementResizeDown($event)"
                         (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -95,9 +95,9 @@
                   @for (table of z.tables; track table.id) {
                      <dd-table-node
                         [table]="table"
-                        [selected]="store.selectedTableIdSet().has(table.id)"
-                        [editable]="store.canEdit()"
-                        [fkColumnIds]="store.foreignKeyColumnIds()"
+                        [selected]="(selectedTableIdSet$() | has: table.id)"
+                        [editable]="canEdit$()"
+                        [fkColumnIds]="foreignKeyColumnIds$()"
                         [snap]="snap.snapWorld"
                         (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
                         (handleDown)="relLink.onHandleDown($event)"
@@ -105,7 +105,7 @@
                      ></dd-table-node>
                   }
                   <dd-canvas-sequence
-                     [diagrams]="store.sequenceDiagrams()"
+                     [diagrams]="sequenceDiagrams$()"
                      [toWorld]="z.toWorld"
                      [snap]="snap.snapWorld"
                      [smartDrag]="snap.smartDrag"
@@ -113,16 +113,16 @@
                      [smartEdges]="snap.smartResize"
                      [groupResize]="groupTransform.startGroupResize"
                      [hiddenIds]="z.hiddenDiagramIds"
-                     [layerZ]="canvasView.diagramLayers().z"
+                     [layerZ]="canvasView.diagramLayers$().z"
                   ></dd-canvas-sequence>
                   <dd-canvas-shapes
                      layer="lines"
                      [shapes]="z.shapes"
                      [svgOffset]="svgOffset"
-                     [dragging]="relLink.dragging()"
-                     [interactive]="tools.shapesInteractive()"
-                     [editingId]="textEditing.editingTextId()"
-                     [bindHighlight]="elementGestures.bindHighlight()"
+                     [dragging]="relLink.dragging$()"
+                     [interactive]="tools.shapesInteractive$()"
+                     [editingId]="textEditing.editingTextId$()"
+                     [bindHighlight]="elementGestures.bindHighlight$()"
                      (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                      (resizeDown)="elementGestures.onElementResizeDown($event)"
                      (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -136,11 +136,11 @@
          <!-- Connectors render behind nodes so lines are hidden where they pass a
            table; anchors sit just outside nodes so markers/handles stay visible. -->
          <dd-canvas-connectors
-            [connectors]="canvasView.outerConnectors()"
-            [tempLinkPath]="relLink.tempLink()"
-            [snapAnchor]="relLink.linkSnap()?.anchor ?? null"
+            [connectors]="canvasView.outerConnectors$()"
+            [tempLinkPath]="relLink.tempLink$()"
+            [snapAnchor]="relLink.linkSnap$()?.anchor ?? null"
             [svgOffset]="svgOffset"
-            [dragging]="relLink.dragging()"
+            [dragging]="relLink.dragging$()"
             (selectConnector)="relLink.onConnectorSelect($event)"
             (endpointDown)="relLink.onEndpointDown($event)"
             (segmentDown)="relLink.onSegmentDown($event)"
@@ -149,16 +149,16 @@
 
          <!-- Free-form drawing layer (shapes, arrows, freehand, text). Sits above
            connectors and below table nodes so the ERD stays prominent. -->
-         @for (seg of canvasView.contentSegments(); track seg.index) {
+         @for (seg of canvasView.contentSegments$(); track seg.index) {
             <dd-canvas-shapes
                layer="content"
                [hostZ]="seg.z"
                [accept]="seg.accept"
-               [shapes]="canvasView.outerShapeViews()"
+               [shapes]="canvasView.outerShapeViews$()"
                [svgOffset]="svgOffset"
-               [dragging]="relLink.dragging()"
-               [interactive]="tools.shapesInteractive()"
-               [editingId]="textEditing.editingTextId()"
+               [dragging]="relLink.dragging$()"
+               [interactive]="tools.shapesInteractive$()"
+               [editingId]="textEditing.editingTextId$()"
                (elementPointerDown)="elementGestures.onElementPointerDown($event)"
                (resizeDown)="elementGestures.onElementResizeDown($event)"
                (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -167,12 +167,12 @@
             ></dd-canvas-shapes>
          }
 
-         @for (table of canvasView.outerTables(); track table.id) {
+         @for (table of canvasView.outerTables$(); track table.id) {
             <dd-table-node
                [table]="table"
-               [selected]="store.selectedTableIdSet().has(table.id)"
-               [editable]="store.canEdit()"
-               [fkColumnIds]="store.foreignKeyColumnIds()"
+               [selected]="(selectedTableIdSet$() | has: table.id)"
+               [editable]="canEdit$()"
+               [fkColumnIds]="foreignKeyColumnIds$()"
                [snap]="snap.snapWorld"
                (nodePointerDown)="tableDrag.onNodePointerDown($event, table)"
                (handleDown)="relLink.onHandleDown($event)"
@@ -182,27 +182,27 @@
 
          <!-- Sequence diagram layer: lifelines + messages (self-managed interactions). -->
          <dd-canvas-sequence
-            [diagrams]="store.sequenceDiagrams()"
+            [diagrams]="sequenceDiagrams$()"
             [toWorld]="viewport.toWorldPoint"
             [snap]="snap.snapWorld"
             [smartDrag]="snap.smartDrag"
             [smartDragEnd]="snap.smartDragEnd"
             [smartEdges]="snap.smartResize"
             [groupResize]="groupTransform.startGroupResize"
-            [hiddenIds]="canvasView.outerHiddenDiagramIds()"
-            [layerZ]="canvasView.diagramLayers().z"
+            [hiddenIds]="canvasView.outerHiddenDiagramIds$()"
+            [layerZ]="canvasView.diagramLayers$().z"
          ></dd-canvas-sequence>
 
          <!-- Lines/arrows on top of tables and sequence diagrams so they can anchor
            to message labels. -->
          <dd-canvas-shapes
             layer="lines"
-            [shapes]="canvasView.outerShapeViews()"
+            [shapes]="canvasView.outerShapeViews$()"
             [svgOffset]="svgOffset"
-            [dragging]="relLink.dragging()"
-            [interactive]="tools.shapesInteractive()"
-            [editingId]="textEditing.editingTextId()"
-            [bindHighlight]="elementGestures.bindHighlight()"
+            [dragging]="relLink.dragging$()"
+            [interactive]="tools.shapesInteractive$()"
+            [editingId]="textEditing.editingTextId$()"
+            [bindHighlight]="elementGestures.bindHighlight$()"
             (elementPointerDown)="elementGestures.onElementPointerDown($event)"
             (resizeDown)="elementGestures.onElementResizeDown($event)"
             (rotateDown)="elementGestures.onElementRotateDown($event)"
@@ -210,7 +210,7 @@
             (bendDown)="elementGestures.onElementBendDown($event)"
          ></dd-canvas-shapes>
 
-         @for (g of canvasView.groupOutlines(); track g.id) {
+         @for (g of canvasView.groupOutlines$(); track g.id) {
             <div
                class="group-outline"
                [class.entered]="g.entered"
@@ -223,7 +223,7 @@
 
          <!-- Selection highlights: a colored ring around tables another participant
            currently has selected (what they are editing). -->
-         @for (ring of presence.remoteTableHighlights(); track ring.id) {
+         @for (ring of presence.remoteTableHighlights$(); track ring.id) {
             <div
                class="remote-ring"
                [style.left.px]="ring.x"
@@ -236,7 +236,7 @@
       </div>
 
       <!-- Live cursors of other participants (screen coords, above the canvas). -->
-      @for (cursor of presence.remoteCursors(); track cursor.id) {
+      @for (cursor of presence.remoteCursors$(); track cursor.id) {
          <div class="remote-cursor" [style.left.px]="cursor.left" [style.top.px]="cursor.top">
             <dd-icon name="cursor" class="remote-cursor-icon" [style.color]="cursor.color" />
             <span class="remote-cursor-label" [style.background]="cursor.color">{{ cursor.name }}</span>
@@ -246,10 +246,10 @@
       <!-- Laser pointer: trails of everyone (pointer-transparent), plus a capture
          surface that only exists while the laser tool is active so it never
          interferes with tables, shapes or connectors. -->
-      <dd-laser-layer [viewport]="store.viewport()"></dd-laser-layer>
+      <dd-laser-layer [viewport]="viewport$()"></dd-laser-layer>
       <dd-live-frames-notice></dd-live-frames-notice>
 
-      @if (tools.activeTool() === 'laser') {
+      @if (tools.activeTool$() === 'laser') {
          <div
             class="laser-capture"
             (pointerdown)="laserInput.onLaserPointerDown($event)"
@@ -259,10 +259,10 @@
          ></div>
       }
 
-      @if (showMinimap() && !deckFocus.focusedDeck()) {
+      @if (showMinimap$() && !deckFocus.focusedDeck$()) {
          <dd-minimap
-            [items]="canvasView.minimapItems()"
-            [view]="viewport.minimapView()"
+            [items]="canvasView.minimapItems$()"
+            [view]="viewport.minimapView$()"
             (pointerdown)="$event.stopPropagation()"
             (wheel)="$event.stopPropagation()"
             (panTo)="viewport.panToWorld($event)"
@@ -270,21 +270,21 @@
       }
 
       <dd-shape-toolbar
-         [tool]="tools.activeTool()"
-         [disabled]="!store.canEdit() || !store.projectId()"
-         [zoomLabel]="viewport.zoomLabel()"
-         [saveLabel]="saveLabel()"
-         [gridSnap]="snap.gridSnap()"
-         [smartGuides]="snap.smartGuides()"
-         [minimap]="showMinimap()"
-         [canAlign]="align.alignToContainer() || !!align.croppingElement()"
-         [canDistribute]="align.canDistribute()"
-         [alignToContainer]="align.alignToContainer() || !!align.croppingElement()"
-         [canExport]="!!store.projectId()"
-         [canUndo]="store.canUndo()"
-         [canRedo]="store.canRedo()"
-         [hasHome]="!!store.home()"
-         [canSetHome]="store.canEdit() && !!store.projectId()"
+         [tool]="tools.activeTool$()"
+         [disabled]="!canEdit$() || !projectId$()"
+         [zoomLabel]="viewport.zoomLabel$()"
+         [saveLabel]="saveLabel$()"
+         [gridSnap]="snap.gridSnap$()"
+         [smartGuides]="snap.smartGuides$()"
+         [minimap]="showMinimap$()"
+         [canAlign]="align.alignToContainer$() || !!align.croppingElement$()"
+         [canDistribute]="align.canDistribute$()"
+         [alignToContainer]="align.alignToContainer$() || !!align.croppingElement$()"
+         [canExport]="!!projectId$()"
+         [canUndo]="canUndo$()"
+         [canRedo]="canRedo$()"
+         [hasHome]="!!home$()"
+         [canSetHome]="canEdit$() && !!projectId$()"
          [(framePreset)]="tools.framePresetId"
          (pointerdown)="$event.stopPropagation()"
          (toggleMinimap)="toggleMinimap()"
@@ -306,7 +306,7 @@
          (exportImage)="exporter.onExportImage($event)"
       ></dd-shape-toolbar>
 
-      @if (follow.followingName(); as who) {
+      @if (follow.followingName$(); as who) {
          <div class="follow-ring" aria-hidden="true"></div>
          <div class="follow-banner" (pointerdown)="$event.stopPropagation()">
             Following {{ who }}
@@ -314,24 +314,24 @@
          </div>
       }
 
-      @if (tools.activeTool() === 'laser') {
+      @if (tools.activeTool$() === 'laser') {
          <div class="laser-hint" aria-live="polite">
             <span class="ldot"></span>Laser on: drag to point, the trail fades <span class="lk">K</span
             ><span class="lk">Esc</span>
          </div>
       }
 
-      @if (tools.activeTool() === 'freedraw' && store.canEdit()) {
+      @if (tools.activeTool$() === 'freedraw' && canEdit$()) {
          <dd-pen-options-bar
             class="pen-bar"
-            [class.low]="!!deckFocus.focusedDeck() || toolbarPosTop()"
-            [strokeColor]="store.elementStyle().strokeColor"
+            [class.low]="!!deckFocus.focusedDeck$() || toolbarPosTop$()"
+            [strokeColor]="elementStyle$().strokeColor"
             (colorChange)="store.setElementStyle({ strokeColor: $event })"
             (pointerdown)="$event.stopPropagation()"
          />
       }
 
-      @for (st of stagedSlides(); track st.name) {
+      @for (st of stagedSlides$(); track st.name) {
          <!-- The slide is zoomed or panned inside its block: one click shows it as-is again. -->
          <button
             class="slide-recenter"
@@ -346,7 +346,7 @@
          </button>
       }
 
-      @for (set of deckPanels.slideSets(); track set.name) {
+      @for (set of deckPanels.slideSets$(); track set.name) {
          @if (set.layoutEdit; as le) {
             <div
                class="layout-edit-ring"
@@ -355,7 +355,7 @@
                [style.width.px]="le.width"
                [style.height.px]="le.height"
             >
-               @if (deckFocus.focusedDeck() !== set.name) {
+               @if (deckFocus.focusedDeck$() !== set.name) {
                   <span class="layout-edit-badge"
                      ><dd-icon name="template" />{{
                         le.master ? 'Editing master (shown on every slide)' : 'Editing layout · ' + le.name
@@ -364,11 +364,11 @@
                }
             </div>
          }
-         @if (deckFocus.focusedDeck() !== set.name) {
+         @if (deckFocus.focusedDeck$() !== set.name) {
             <!-- Deck header: sits just above the deck (left list + slide + settings), scaled with the canvas. -->
             <div
                class="deck-header"
-               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
+               [class.selected]="(deckPanels.selectedSlideSets$() | has: set.name)"
                [style.left.px]="set.outline.left"
                [style.top.px]="set.outline.top - 36 - 10 * set.list.scale"
                [style.transform]="'scale(' + set.list.scale + ')'"
@@ -378,8 +378,8 @@
                <dd-icon name="slideshow" class="dh-ico" />
                <span class="dh-name">{{ set.name }}</span>
                <span class="dh-count"
-                  >Slide {{ deckFocus.deckSlideIndex(set.name, set.frameId) }} of
-                  {{ deckFocus.deckSlideCount(set.name) }}</span
+                  >Slide {{ ((deckFocus.slideIndexes$() | at: set.frameId) ?? 0) }} of
+                  {{ ((deckFocus.deckSlideCounts$() | at: set.name) ?? 0) }}</span
                >
                <span class="dh-sep"></span>
                <button
@@ -406,8 +406,8 @@
                [style.width.px]="set.outline.width"
                [style.height.px]="set.outline.height"
                [style.border-radius.px]="set.outline.radius"
-               [class.grabbable]="tools.shapesInteractive()"
-               [class.selected]="deckPanels.selectedSlideSets().includes(set.name)"
+               [class.grabbable]="tools.shapesInteractive$()"
+               [class.selected]="(deckPanels.selectedSlideSets$() | has: set.name)"
             >
                <!-- Grab the outer border to select / move the whole presentation (Delete removes it). -->
                <span
@@ -437,7 +437,7 @@
                [style.transform]="'scale(' + set.list.scale + ')'"
                [presentation]="set.name"
                [active]="set.frameId"
-               [lastSlide]="slideshow.lastSlideOf(set.name)"
+               [lastSlide]="((slideshow.lastSlides$() | at: set.name) ?? null)"
                (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
@@ -445,16 +445,16 @@
             <dd-slides-panel
                class="slide-settings"
                part="settings"
-               [requestTab]="deckFocus.deckTabRequest()?.name === set.name ? deckFocus.deckTabRequest() : null"
+               [requestTab]="deckFocus.deckTabRequest$()?.name === set.name ? deckFocus.deckTabRequest$() : null"
                [presentation]="set.name"
-               [folded]="deckFocus.settingsFolded()"
+               [folded]="deckFocus.settingsFolded$()"
                [style.width.px]="set.settings.width"
                [style.left.px]="set.settings.left"
                [style.top.px]="set.settings.top"
                [style.height.px]="set.settings.height"
                [style.transform]="'scale(' + set.settings.scale + ')'"
                [active]="set.frameId"
-               [lastSlide]="slideshow.lastSlideOf(set.name)"
+               [lastSlide]="((slideshow.lastSlides$() | at: set.name) ?? null)"
                (pointerdown)="deckPanels.selectSlideSet(set.name); $event.stopPropagation()"
                (wheel)="$event.stopPropagation()"
                (command)="onSlidesCommand($event, set.name)"
@@ -462,23 +462,23 @@
          }
       }
 
-      @if (deckFocus.focusedDeck(); as fd) {
-         @let fframe = store.shownByPresentation().get(fd) ?? '';
-         @let fslide = deckFocus.focusSlide();
+      @if (deckFocus.focusedDeck$(); as fd) {
+         @let fframe = (shownByPresentation$() | at: fd) ?? '';
+         @let fslide = deckFocus.focusSlide$();
          <!-- Focus mode (DeckFocus / DeckDesign / DeckMorph / DeckAnim mocks). The canvas
            stays live under the dim, locked to the slide. -->
          <div
             class="focus-dim"
-            [class.solid]="deckFocus.focusScreen() === 'morph'"
-            [style.clip-path]="deckFocus.focusScreen() === 'morph' ? null : deckFocus.focusDimClip()"
+            [class.solid]="deckFocus.focusScreen$() === 'morph'"
+            [style.clip-path]="deckFocus.focusScreen$() === 'morph' ? null : deckFocus.focusDimClip$()"
             (pointerdown)="$event.stopPropagation(); $event.preventDefault()"
             (wheel)="$event.preventDefault()"
          ></div>
-         @if (deckFocus.focusStage(); as st) {
-            @if (deckFocus.focusScreen() !== 'morph') {
+         @if (deckFocus.focusStage$(); as st) {
+            @if (deckFocus.focusScreen$() !== 'morph') {
                <div
                   class="focus-stage"
-                  [class.amber]="deckFocus.focusScreen() === 'design'"
+                  [class.amber]="deckFocus.focusScreen$() === 'design'"
                   [style.left.px]="st.left"
                   [style.top.px]="st.top"
                   [style.width.px]="st.width"
@@ -487,7 +487,7 @@
             }
          }
 
-         @switch (deckFocus.focusScreen()) {
+         @switch (deckFocus.focusScreen$()) {
             @case ('main') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn" type="button" (click)="deckFocus.exitDeckFocus()">
@@ -495,11 +495,11 @@
                   </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">{{ fd }}</span>
-                  <span class="fb-count">{{ deckFocus.deckSlideCount(fd) }} slides</span>
+                  <span class="fb-count">{{ ((deckFocus.deckSlideCounts$() | at: fd) ?? 0) }} slides</span>
                </div>
                <div class="focus-bar center" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn" type="button" placement="below-start" [ddPopoverTrigger]="themeMenu">
-                     Theme: {{ deckFocus.deckThemeName(fframe) }} ▾
+                     Theme: {{ ((deckFocus.deckThemeNames$() | at: fframe) ?? 'Default') }} ▾
                   </button>
                   <ng-template #themeMenu>
                      <dd-slides-panel
@@ -530,9 +530,9 @@
                      type="button"
                      placement="below-start"
                      [ddPopoverTrigger]="sizeMenu"
-                     [disabled]="!store.canEdit()"
+                     [disabled]="!canEdit$()"
                   >
-                     {{ deckFocus.deckRatioLabel(fframe) }} ▾
+                     {{ ((deckFocus.deckRatioLabels$() | at: fframe) ?? 'Size') }} ▾
                   </button>
                   <ng-template #sizeMenu let-close>
                      <dd-slides-panel
@@ -550,22 +550,22 @@
                   <button
                      class="fb-btn go"
                      type="button"
-                     [disabled]="!deckFocus.deckSlideCount(fd)"
+                     [disabled]="!((deckFocus.deckSlideCounts$() | at: fd) ?? 0)"
                      (click)="deckFocus.presentDeck(fd)"
                   >
                      ▶ Present <span class="fb-f5">F5</span>
                   </button>
-                  @if (store.accessMode() === 'OWNER') {
+                  @if (accessMode$() === 'OWNER') {
                      <button class="fb-btn outline" type="button" (click)="bridge.openShare()">Share</button>
                   }
                </div>
                <dd-slides-panel
                   class="fdock left"
                   part="focus-list"
-                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
+                  [class.above-align]="align.alignToContainer$() || !!align.croppingElement$()"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  [lastSlide]="((slideshow.lastSlides$() | at: fd) ?? null)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
                   (command)="deckFocus.onFocusCommand($event, fd)"
@@ -575,7 +575,7 @@
                   part="focus-settings"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  [lastSlide]="((slideshow.lastSlides$() | at: fd) ?? null)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
                   (command)="deckFocus.onFocusCommand($event, fd)"
@@ -589,7 +589,7 @@
                   <span class="fb-name">{{ fd }}</span>
                </div>
                <div class="focus-bar center amber" (pointerdown)="$event.stopPropagation()">
-                  @if (deckFocus.focusLayoutInfo(); as li) {
+                  @if (deckFocus.focusLayoutInfo$(); as li) {
                      <span class="fb-banner">
                         @if (li.master) {
                            <b>Editing the master</b> · shown under every layout and slide
@@ -608,10 +608,10 @@
                <dd-slides-panel
                   class="fdock left"
                   part="design-layouts"
-                  [class.above-align]="align.alignToContainer() || !!align.croppingElement()"
+                  [class.above-align]="align.alignToContainer$() || !!align.croppingElement$()"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  [lastSlide]="((slideshow.lastSlides$() | at: fd) ?? null)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
                   (command)="deckFocus.onFocusCommand($event, fd)"
@@ -621,7 +621,7 @@
                   part="design-theme"
                   [presentation]="fd"
                   [active]="fframe"
-                  [lastSlide]="slideshow.lastSlideOf(fd)"
+                  [lastSlide]="((slideshow.lastSlides$() | at: fd) ?? null)"
                   (pointerdown)="$event.stopPropagation()"
                   (wheel)="$event.stopPropagation()"
                   (command)="deckFocus.onFocusCommand($event, fd)"
@@ -631,7 +631,7 @@
             @case ('morph') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
-                     {{ deckFocus.focusBackLabel() }}
+                     {{ deckFocus.focusBackLabel$() }}
                   </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Transition into slide {{ fslide?.index ?? '' }}</span>
@@ -659,7 +659,7 @@
                         </button>
                         <ng-template #pickTransition let-close>
                            <div class="tr-pick" role="menu">
-                              @for (n of deckFocus.transitionNumbers(fd); track n) {
+                              @for (n of ((deckFocus.transitionNumbers$() | at: fd) ?? []); track n) {
                                  <button
                                     role="menuitem"
                                     type="button"
@@ -676,7 +676,7 @@
                            type="button"
                            title="Next transition"
                            aria-label="Next transition"
-                           [disabled]="fslide.index >= deckFocus.deckSlideCount(fd)"
+                           [disabled]="fslide.index >= ((deckFocus.deckSlideCounts$() | at: fd) ?? 0)"
                            (click)="deckFocus.stepTransition(1)"
                         >
                            ›
@@ -686,18 +686,18 @@
                         <button
                            class="fb-btn"
                            type="button"
-                           [class.on]="compareUi.view() === 'map' && !cutTransition()"
-                           [disabled]="cutTransition()"
-                           [title]="cutTransition() ? 'The transition into this slide is None (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade, Slide or Zoom.' : 'See what morphs into what, and change it'"
-                           (click)="compareUi.view.set('map')"
+                           [class.on]="compareUi.view$() === 'map' && !cutTransition$()"
+                           [disabled]="cutTransition$()"
+                           [title]="cutTransition$() ? 'The transition into this slide is None (a cut): nothing morphs, so there is nothing to pair. Pick Auto, Fade, Slide or Zoom.' : 'See what morphs into what, and change it'"
+                           (click)="compareUi.view$.set('map')"
                         >
                            Map pairs
                         </button>
                         <button
                            class="fb-btn"
                            type="button"
-                           [class.on]="compareUi.view() === 'preview'"
-                           (click)="compareUi.view.set('preview')"
+                           [class.on]="compareUi.view$() === 'preview'"
+                           (click)="compareUi.view$.set('preview')"
                         >
                            Preview
                         </button>
@@ -728,7 +728,7 @@
                      part="focus-transition"
                      [presentation]="fd"
                      [active]="fframe"
-                     [lastSlide]="slideshow.lastSlideOf(fd)"
+                     [lastSlide]="((slideshow.lastSlides$() | at: fd) ?? null)"
                      (command)="deckFocus.onFocusCommand($event, fd)"
                   />
                   @if (fslide && fslide.prev) {
@@ -742,7 +742,7 @@
             @case ('anim') {
                <div class="focus-bar left" (pointerdown)="$event.stopPropagation()">
                   <button class="fb-btn" type="button" (click)="deckFocus.leaveFocusScreen()">
-                     {{ deckFocus.focusBackLabel() }}
+                     {{ deckFocus.focusBackLabel$() }}
                   </button>
                   <span class="fb-sep"></span>
                   <span class="fb-name">Slide {{ fslide?.index ?? '' }} · animations</span>
@@ -759,7 +759,7 @@
                >
                   <div class="fd-tabs">
                      <button class="fd-tab" type="button" (click)="deckFocus.stayInFocus()">Slide</button>
-                     <button class="fd-tab" type="button" (click)="deckFocus.focusScreen.set('morph')">
+                     <button class="fd-tab" type="button" (click)="deckFocus.focusScreen$.set('morph')">
                         Transition
                      </button>
                      <button class="fd-tab on" type="button">Animations</button>
@@ -774,7 +774,7 @@
          }
       }
 
-      @if (!slideshow.presentation() && slideshow.presenters()[0]; as who) {
+      @if (!slideshow.presentation$() && slideshow.presenters$()[0]; as who) {
          <div class="presenter-banner" (pointerdown)="$event.stopPropagation()">
             <span class="dot" [style.background]="who.color"></span>
             {{ who.name }} is presenting
@@ -782,7 +782,7 @@
          </div>
       }
 
-      @if (slideshow.presentation(); as p) {
+      @if (slideshow.presentation$(); as p) {
          @defer (on immediate) {
             <dd-present-mode
                [slides]="p.slides"
@@ -794,7 +794,7 @@
          }
       }
 
-      @if (cellEditors.fileNameEditor(); as f) {
+      @if (cellEditors.fileNameEditor$(); as f) {
          <input
             ddAutofocus
             ddAutofocusSelect="textarea"
@@ -818,7 +818,7 @@
          />
       }
 
-      @if (textEditing.textEditor(); as t) {
+      @if (textEditing.textEditor$(); as t) {
          @if (t.rich) {
             @if (t.ink; as k) {
                <div
@@ -867,7 +867,7 @@
                [class.wrap]="t.wrap"
                [class.code]="t.code"
                [class.code-pane]="t.code"
-               [class.split-pane]="t.code && !!textEditing.diffPaneEditor()"
+               [class.split-pane]="t.code && !!textEditing.diffPaneEditor$()"
                [attr.spellcheck]="t.code ? 'false' : null"
                [style.line-height.px]="t.lineHeight"
                [style.left.px]="t.left"
@@ -895,7 +895,7 @@
          }
       }
 
-      @if (textEditing.diffPaneEditor(); as p) {
+      @if (textEditing.diffPaneEditor$(); as p) {
          <div
             class="diff-edit-frame"
             [style.left.px]="p.frame.left"
@@ -928,7 +928,7 @@
          ></textarea>
       }
 
-      @if (cellEditors.gridCellEditor(); as gc) {
+      @if (cellEditors.gridCellEditor$(); as gc) {
          <textarea
             #gridCellArea
             class="text-editor wrap grid-cell-editor"
@@ -953,7 +953,7 @@
          ></textarea>
       }
 
-      @if (bars.elementToolbar(); as et) {
+      @if (bars.elementToolbar$(); as et) {
          <dd-element-floating-toolbar
             [style.left.px]="et.left"
             [style.top.px]="et.top"
@@ -963,7 +963,7 @@
          ></dd-element-floating-toolbar>
       }
 
-      @if (snap.smartGuideMarks(); as sg) {
+      @if (snap.smartGuideMarks$(); as sg) {
          <svg class="smart-guides">
             @for (l of sg.lines; track $index) {
                <line [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" />
@@ -977,7 +977,7 @@
          </svg>
       }
 
-      @if (groupTransform.spacingHandles(); as sh) {
+      @if (groupTransform.spacingHandles$(); as sh) {
          <svg class="smart-guides">
             @for (h of sh; track $index) {
                <line
@@ -1006,7 +1006,7 @@
          }
       }
 
-      @if (pointer.marqueeRect(); as m) {
+      @if (pointer.marqueeRect$(); as m) {
          <div
             class="marquee"
             [style.left.px]="m.left"
@@ -1016,14 +1016,14 @@
          ></div>
       }
 
-      @if (bars.multiSelectBar(); as ms) {
+      @if (bars.multiSelectBar$(); as ms) {
          <dd-multi-select-bar
             [style.left.px]="ms.left"
             [style.top.px]="ms.top"
             [count]="ms.count"
             [grouped]="ms.grouped"
-            [canDistribute]="align.canDistribute()"
-            [canStyle]="bars.selectionStylable()"
+            [canDistribute]="align.canDistribute$()"
+            [canStyle]="bars.selectionStylable$()"
             (fill)="bars.styleSelection('fill', $event)"
             (stroke)="bars.styleSelection('stroke', $event)"
             (pointerdown)="$event.stopPropagation()"
@@ -1036,7 +1036,7 @@
          ></dd-multi-select-bar>
       }
 
-      @if (bars.tableToolbar(); as tt) {
+      @if (bars.tableToolbar$(); as tt) {
          <dd-table-toolbar
             [style.left.px]="tt.left"
             [style.top.px]="tt.top"
@@ -1046,7 +1046,7 @@
          ></dd-table-toolbar>
       }
 
-      @if (bars.sequenceMessageToolbar(); as mt) {
+      @if (bars.sequenceMessageToolbar$(); as mt) {
          <dd-sequence-message-toolbar
             [style.left.px]="mt.left"
             [style.top.px]="mt.top"
@@ -1055,10 +1055,10 @@
          ></dd-sequence-message-toolbar>
       }
 
-      @if (bars.sequenceDiagramToolbar(); as dt) {
+      @if (bars.sequenceDiagramToolbar$(); as dt) {
          <dd-sequence-diagram-toolbar
-            [diagram]="store.selectedDiagram()"
-            [canEdit]="store.canEdit()"
+            [diagram]="selectedDiagram$()"
+            [canEdit]="canEdit$()"
             [style.left.px]="dt.left"
             [style.top.px]="dt.top"
             (pointerdown)="$event.stopPropagation()"
@@ -1069,7 +1069,7 @@
          ></dd-sequence-diagram-toolbar>
       }
 
-      @if (bars.sequenceParticipantToolbar(); as pt) {
+      @if (bars.sequenceParticipantToolbar$(); as pt) {
          <dd-sequence-participant-toolbar
             [style.left.px]="pt.left"
             [style.top.px]="pt.top"
@@ -1078,13 +1078,13 @@
          ></dd-sequence-participant-toolbar>
       }
 
-      @if (relLink.selectedRelInline(); as info) {
+      @if (relLink.selectedRelInline$(); as info) {
          <dd-relationship-toolbar
             [style.left.px]="info.x"
             [style.top.px]="info.y"
             [type]="info.rel.type"
             [autoRoute]="info.rel.autoRoute !== false"
-            [canEdit]="store.canEdit()"
+            [canEdit]="canEdit$()"
             (pointerdown)="$event.stopPropagation()"
             (toggleAutoRoute)="relLink.onToggleAutoRoute()"
             (setType)="relLink.onSetRelType($event)"
@@ -1093,13 +1093,13 @@
          ></dd-relationship-toolbar>
       }
 
-      @if (store.loading()) {
+      @if (loading$()) {
          <div class="overlay">
             <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
          </div>
-      } @else if (store.error()) {
-         <div class="overlay muted">{{ store.error() }}</div>
-      } @else if (store.tables().length === 0 && store.elements().length === 0 && store.lifelines().length === 0) {
+      } @else if (error$()) {
+         <div class="overlay muted">{{ error$() }}</div>
+      } @else if (tables$().length === 0 && elements$().length === 0 && lifelines$().length === 0) {
          <div class="overlay hint">
             Use the Table or Sequence tool to start, or double-click the canvas to add text.
          </div>
@@ -1107,16 +1107,16 @@
 
       <!-- Inspectors float over the canvas (they do not push it, and clear the top
          bar and share button). -->
-      @if (inspector.shown() && hasInspectable()) {
+      @if (inspector.shown$() && hasInspectable$()) {
          <div class="side-panel" (pointerdown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
             <div class="side-ctrls">
                <button
                   class="side-ctrl"
                   type="button"
-                  [class.on]="inspector.pinned()"
-                  [attr.aria-label]="inspector.pinned() ? 'Unpin details' : 'Pin details open'"
+                  [class.on]="inspector.pinned$()"
+                  [attr.aria-label]="inspector.pinned$() ? 'Unpin details' : 'Pin details open'"
                   [attr.title]="
-                     inspector.pinned() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'
+                     inspector.pinned$() ? 'Unpin (close when the selection changes)' : 'Pin open for every selection'
                   "
                   (click)="inspector.togglePin()"
                >
@@ -1132,11 +1132,11 @@
                   <dd-icon name="close" />
                </button>
             </div>
-            @if (store.selectedTable(); as table) {
+            @if (selectedTable$(); as table) {
                <dd-inspector [table]="table"></dd-inspector>
-            } @else if (store.selectedRelationship(); as relationship) {
+            } @else if (selectedRelationship$(); as relationship) {
                <dd-relationship-inspector [relationship]="relationship"></dd-relationship-inspector>
-            } @else if (store.selectedElement(); as element) {
+            } @else if (selectedElement$(); as element) {
                <dd-element-inspector [element]="element"></dd-element-inspector>
             } @else {
                <dd-sequence-inspector></dd-sequence-inspector>

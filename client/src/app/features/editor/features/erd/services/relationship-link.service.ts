@@ -3,10 +3,7 @@ import { EditorViewportService } from '../../../services/editor-viewport.service
 import { computed, inject, signal, Injectable } from '@angular/core';
 import type { RelationshipModel, RelationshipType } from '@devdesigner/shared';
 import { ProjectStore } from '../../../state/project/project.store';
-import {
-   type EndpointDownEvent,
-   type SegmentDownEvent,
-} from '../../canvas/components/canvas-connectors/canvas-connectors.component';
+import { type EndpointDownEvent, type SegmentDownEvent } from '../../canvas/components/canvas-connectors/canvas-connectors.component';
 import { segmentDrag } from '../../../helpers/connectors.helper';
 import { columnAnchor } from '../../../helpers/node-metrics.helper';
 import { elbowPath } from '../../../helpers/svg-path.helper';
@@ -29,7 +26,7 @@ export class RelationshipLinkService {
    private readonly store = inject(ProjectStore);
    private readonly viewport = inject(EditorViewportService);
    private readonly canvasView = inject(CanvasViewService);
-   readonly selectedRelInline = computed<{
+   readonly selectedRelInline$ = computed<{
       x: number;
       y: number;
       rel: RelationshipModel;
@@ -66,13 +63,13 @@ export class RelationshipLinkService {
    } | null>(null);
 
    /** True while any connector drag (link / re-point / segment) is in progress. */
-   readonly dragging = computed(() => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment()));
+   readonly dragging$ = computed(() => !!(this.linkSourceColumnId() || this.relinkState() || this.activeSegment()));
 
    /**
     * Column row the in-flight link / re-point would attach to if released now.
     * Magnetic: the cursor only has to be near a table, not on the tiny handle.
     */
-   readonly linkSnap = computed<LinkSnap | null>(() => {
+   readonly linkSnap$ = computed<LinkSnap | null>(() => {
       const cursor = this.linkCursor();
       if (!cursor) {
          return null;
@@ -92,8 +89,8 @@ export class RelationshipLinkService {
    });
 
    /** Dashed preview only for drawing a brand-new relationship (re-point moves the line itself). */
-   readonly tempLink = computed<string | null>(() => {
-      const cursor = this.linkSnap()?.anchor ?? this.linkCursor();
+   readonly tempLink$ = computed<string | null>(() => {
+      const cursor = this.linkSnap$()?.anchor ?? this.linkCursor();
       const sourceId = this.linkSourceColumnId();
       if (!cursor || !sourceId || this.relinkState()) {
          return null;
@@ -168,7 +165,7 @@ export class RelationshipLinkService {
 
    /** Released off a handle but near a table: attach to the snapped row. */
    commitLinkSnap(): void {
-      const snap = this.linkSnap();
+      const snap = this.linkSnap$();
       if (!snap) {
          return;
       }

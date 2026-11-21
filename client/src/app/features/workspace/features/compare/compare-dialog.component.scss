@@ -1,9 +1,9 @@
 @use '../../../../shared/features/projects-overlay/overlay-buttons';
 
 :host {
-   --mine: #2f9e44;
-   --server: #ae3ec9;
-   --changed: #f08c00;
+   --mine: var(--dd-green-700);
+   --server: var(--dd-purple-600);
+   --changed: var(--dd-orange-600);
 
    display: block;
    height: 100%;

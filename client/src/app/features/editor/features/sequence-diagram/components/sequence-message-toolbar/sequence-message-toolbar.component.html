@@ -1,9 +1,9 @@
-@if (message(); as m) {
+@if (message$(); as m) {
    <button
       type="button"
       class="seg"
       [class.active]="m.style === 'solid'"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="setStyle('solid')"
    >
       Sync
@@ -12,7 +12,7 @@
       type="button"
       class="seg"
       [class.active]="m.style === 'dashed'"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="setStyle('dashed')"
    >
       Return
@@ -21,7 +21,7 @@
       type="button"
       class="seg"
       [class.active]="m.style === 'break'"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="setStyle('break')"
    >
       Break
@@ -35,7 +35,7 @@
          class="ico-act"
          title="Flip direction"
          aria-label="Flip direction"
-         [disabled]="!canEdit()"
+         [disabled]="!canEdit$()"
          (click)="flip()"
       >
          <dd-icon name="swap_horiz" />
@@ -48,7 +48,7 @@
       title="Auto-wrap label"
       aria-label="Auto-wrap label"
       [class.active]="m.wrap !== false"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       [attr.aria-pressed]="m.wrap !== false"
       (click)="toggleWrap()"
    >
@@ -62,9 +62,9 @@
       title="Line color"
       aria-label="Line color"
       [ddPopoverTrigger]="colorMenu"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
    >
-      <span class="color-dot" [style.background]="css(m.color) || 'var(--dd-connector)'"></span>
+      <span class="color-dot" [style.background]="(css | call: m.color) || 'var(--dd-connector)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
@@ -82,7 +82,7 @@
       class="ico-act"
       title="Edit label"
       aria-label="Edit label"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="edit()"
    >
       <dd-icon name="edit" />
@@ -93,7 +93,7 @@
       class="ico-act details"
       title="Details"
       aria-label="Details"
-      [class.on]="inspector.shown()"
+      [class.on]="inspector.shown$()"
       (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
@@ -103,7 +103,7 @@
       class="ico-act del"
       title="Delete message"
       aria-label="Delete message"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="remove()"
    >
       <dd-icon name="delete" />

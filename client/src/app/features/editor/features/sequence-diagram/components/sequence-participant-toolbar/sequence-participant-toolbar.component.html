@@ -1,4 +1,4 @@
-@if (lifeline(); as l) {
+@if (lifeline$(); as l) {
    <button
       type="button"
       class="ico-act"
@@ -6,9 +6,9 @@
       title="Header color"
       aria-label="Header color"
       [ddPopoverTrigger]="colorMenu"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
    >
-      <span class="color-dot" [style.background]="css(l.color) || 'var(--dd-handle)'"></span>
+      <span class="color-dot" [style.background]="(css | call: l.color) || 'var(--dd-handle)'"></span>
    </button>
    <ng-template #colorMenu let-close>
       <div class="color-grid">
@@ -33,7 +33,7 @@
       class="ico-act"
       title="Rename participant"
       aria-label="Rename participant"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="edit()"
    >
       <dd-icon name="edit" />
@@ -44,7 +44,7 @@
       class="ico-act details"
       title="Details"
       aria-label="Details"
-      [class.on]="inspector.shown()"
+      [class.on]="inspector.shown$()"
       (click)="inspector.toggle()"
    >
       <dd-icon name="tune" />
@@ -54,7 +54,7 @@
       class="ico-act del"
       title="Delete participant"
       aria-label="Delete participant"
-      [disabled]="!canEdit()"
+      [disabled]="!canEdit$()"
       (click)="remove()"
    >
       <dd-icon name="delete" />

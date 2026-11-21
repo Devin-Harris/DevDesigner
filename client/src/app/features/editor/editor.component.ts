@@ -31,20 +31,7 @@ import { MediaDropService } from './features/elements/services/media-drop.servic
 import { ClipboardService } from './features/canvas/services/clipboard.service';
 import { EditorExportService } from './features/export/services/editor-export.service';
 import { EditorShortcutsService } from './services/editor-shortcuts.service';
-import {
-   ChangeDetectionStrategy,
-   Component,
-   DestroyRef,
-   ElementRef,
-   HostListener,
-   computed,
-   effect,
-   inject,
-   input,
-   signal,
-   untracked,
-   viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, HostListener, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { isPlainView } from './helpers/slide-zoom.helper';
 import { ToolbarPrefsService } from './services/toolbar-prefs.service';
 import { PenOptionsBarComponent } from './features/toolbar/components/pen-options-bar/pen-options-bar.component';
@@ -73,7 +60,7 @@ import { GridTableService } from './services/grid-table.service';
 import { CanvasConnectorsComponent } from './features/canvas/components/canvas-connectors/canvas-connectors.component';
 import { CanvasShapesComponent } from './features/canvas/components/canvas-shapes/canvas-shapes.component';
 import { MinimapComponent } from './features/minimap/minimap.component';
-import { NODE_WIDTH, SVG_OFFSET } from './shared/constants/canvas.constants';
+import { NODE_WIDTH, SVG_OFFSET, DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
 import { snapToGrid } from './helpers/node-metrics.helper';
 import type { Box, Rect } from './models/geometry.model';
 import { ElementFloatingToolbarComponent } from './features/elements/components/element-floating-toolbar/element-floating-toolbar.component';
@@ -84,7 +71,7 @@ import { SequenceInspectorComponent } from './features/sequence-diagram/componen
 import { SequenceMessageToolbarComponent } from './features/sequence-diagram/components/sequence-message-toolbar/sequence-message-toolbar.component';
 import { SequenceParticipantToolbarComponent } from './features/sequence-diagram/components/sequence-participant-toolbar/sequence-participant-toolbar.component';
 import { SequenceDiagramToolbarComponent } from './features/sequence-diagram/components/sequence-diagram-toolbar/sequence-diagram-toolbar.component';
-import { CanvasSequenceComponent } from './features/canvas/components/canvas-sequence/canvas-sequence.component';
+import { CanvasSequenceComponent } from './features/sequence-diagram/components/canvas-sequence/canvas-sequence.component';
 import { TableToolbarComponent } from './features/erd/components/table-toolbar/table-toolbar.component';
 import { RelationshipToolbarComponent } from './features/erd/components/relationship-toolbar/relationship-toolbar.component';
 import { MultiSelectBarComponent } from './features/elements/components/multi-select-bar/multi-select-bar.component';
@@ -103,8 +90,8 @@ import { CompareUiState } from './features/slides/features/deck-compare/services
 import type { EditorEmbedApi, EditorHostOptions } from './models/editor-embed.model';
 import { AnimationPaneComponent } from './features/slides/features/slides-panel/features/animation-pane/animation-pane.component';
 import { TableNodeComponent } from './features/erd/components/table-node/table-node.component';
-import { DEFAULT_ELEMENT_STROKE } from './shared/constants/canvas.constants';
 import type { RelinkPreview } from './services/canvas-view.service';
+import { AtPipe, HasPipe } from '../../shared/ui/pipes/collection.pipes';
 function readFlag(key: string, fallback: boolean): boolean {
    try {
       const v = globalThis.localStorage?.getItem(key);
@@ -126,43 +113,12 @@ function readFlag(key: string, fallback: boolean): boolean {
 @Component({
    selector: 'dd-editor',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [
-      LiveFramesNoticeComponent,
-      ImageCropOverlayComponent,
-      MatProgressSpinnerModule,
-      IconComponent,
-      MatTooltipModule,
-      CanvasConnectorsComponent,
-      CanvasShapesComponent,
-      LaserLayerComponent,
-      ShapeToolbarComponent,
-      InspectorComponent,
-      SequenceInspectorComponent,
-      SequenceMessageToolbarComponent,
-      SequenceParticipantToolbarComponent,
-      SequenceDiagramToolbarComponent,
-      MinimapComponent,
-      CanvasSequenceComponent,
-      ElementFloatingToolbarComponent,
-      RelationshipInspectorComponent,
-      ElementInspectorComponent,
-      RelationshipToolbarComponent,
-      MultiSelectBarComponent,
-      PenOptionsBarComponent,
-      DeckCompareComponent,
-      PopoverTriggerDirective,
-      AnimationPaneComponent,
-      TableToolbarComponent,
-      TableNodeComponent,
-      AutofocusDirective,
-      SlidesPanelComponent,
-      PresentModeComponent,
-   ],
+   imports: [AtPipe, HasPipe, LiveFramesNoticeComponent, ImageCropOverlayComponent, MatProgressSpinnerModule, IconComponent, MatTooltipModule, CanvasConnectorsComponent, CanvasShapesComponent, LaserLayerComponent, ShapeToolbarComponent, InspectorComponent, SequenceInspectorComponent, SequenceMessageToolbarComponent, SequenceParticipantToolbarComponent, SequenceDiagramToolbarComponent, MinimapComponent, CanvasSequenceComponent, ElementFloatingToolbarComponent, RelationshipInspectorComponent, ElementInspectorComponent, RelationshipToolbarComponent, MultiSelectBarComponent, PenOptionsBarComponent, DeckCompareComponent, PopoverTriggerDirective, AnimationPaneComponent, TableToolbarComponent, TableNodeComponent, AutofocusDirective, SlidesPanelComponent, PresentModeComponent],
    providers: [provideEditor()],
    host: {
-      '[class.chrome-picture]': "hostOptions().chrome === 'picture'",
-      '[class.deck-focused]': '!!deckFocus.focusedDeck()',
-      '[class.hide-seq-msgs]': '!!hostOptions().hideSequenceMessages',
+      '[class.chrome-picture]': "hostOptions$().chrome === 'picture'",
+      '[class.deck-focused]': '!!deckFocus.focusedDeck$()',
+      '[class.hide-seq-msgs]': '!!hostOptions$().hideSequenceMessages',
    },
    templateUrl: './editor.component.html',
    styleUrl: './editor.component.scss',
@@ -204,14 +160,14 @@ export class EditorComponent {
    private readonly focusUi = inject(FocusUiState);
    protected readonly compareUi = inject(CompareUiState);
    /** The shown slide's transition is None: a cut, nothing morphs (Map pairs is off). */
-   protected readonly cutTransition = computed(() => {
+   protected readonly cutTransition$ = computed(() => {
       const id = this.store.activeSlideId();
       const f = id ? this.store.slideFrames().find((x) => x.id === id) : undefined;
       return (f?.slide?.transition?.type ?? 'none') === 'none';
    });
 
    /** The tool dock sits along the top edge (bars that would sit there move down). */
-   protected readonly toolbarPosTop = computed(() => this.toolbarPrefs.position() === 'top');
+   protected readonly toolbarPosTop$ = computed(() => this.toolbarPrefs.position$() === 'top');
    private readonly dialog = inject(MatDialog);
    private readonly projectFile = inject(ProjectFileService);
    private readonly projectsStore = inject(ProjectsStore);
@@ -225,7 +181,7 @@ export class EditorComponent {
    /** Details panel visibility (opened from a floating toolbar, or pinned). */
    protected readonly inspector = inject(InspectorPanelService);
    /** Something is selected that the details panel can show. */
-   protected readonly hasInspectable = computed(
+   protected readonly hasInspectable$ = computed(
       () =>
          !!this.store.selectedTable() ||
          !!this.store.selectedRelationship() ||
@@ -258,7 +214,7 @@ export class EditorComponent {
    /** Embedded use (the canvas guide): frame the content once after it loads, at most 100%. */
    readonly fitOnLoad = input(false);
    /** How the host embeds the editor (showcases render a chrome-less picture). */
-   readonly hostOptions = input<EditorHostOptions>({});
+   readonly hostOptions$ = input<EditorHostOptions>({}, { alias: 'hostOptions' });
    private fittedProjectId: string | null = null;
    private homeAppliedFor: string | null = null;
    /** Embedded use: the tool to have active once the project loads (e.g. the guide's current tool). */
@@ -266,7 +222,7 @@ export class EditorComponent {
    private toolAppliedFor: string | null = null;
    readonly canvasRef = viewChild.required<ElementRef<HTMLDivElement>>('canvas');
 
-   protected readonly saveLabel = computed(() => {
+   protected readonly saveLabel$ = computed(() => {
       switch (this.store.saveStatus()) {
          case 'saving':
             return 'Saving...';
@@ -280,10 +236,10 @@ export class EditorComponent {
    });
 
    /** Bottom-right minimap visibility (remembered per browser). */
-   protected readonly showMinimap = signal(readFlag('devdesigner.minimap', true));
+   protected readonly showMinimap$ = signal(readFlag('devdesigner.minimap', true));
    protected toggleMinimap(): void {
-      const on = !this.showMinimap();
-      this.showMinimap.set(on);
+      const on = !this.showMinimap$();
+      this.showMinimap$.set(on);
       try {
          globalThis.localStorage?.setItem('devdesigner.minimap', on ? '1' : '0');
       } catch {
@@ -311,7 +267,7 @@ export class EditorComponent {
 
    /** Typing into an empty placeholder: it takes its slot's current size and style first. */
    private readonly adoptSlotLook = effect(() => {
-      const id = this.textEditing.editingTextId();
+      const id = this.textEditing.editingTextId$();
       const look = id ? untracked(() => this.canvasView.emptyCopyLooks().get(id)) : undefined;
       if (!id || !look || !this.store.canEdit()) return;
       const el = untracked(() => this.store.elements().find((e) => e.id === id));
@@ -321,8 +277,8 @@ export class EditorComponent {
    });
 
    /** Slide blocks stop clipping while anything is carried, so it stays visible past the block. */
-   protected readonly slideUnclipped = computed(() => {
-      if (this.relLink.dragging()) return true;
+   protected readonly slideUnclipped$ = computed(() => {
+      if (this.relLink.dragging$()) return true;
       if (!this.gesture.movingItems()) return false;
       // Only a carried slide item needs the block unclipped; moving canvas items must not
       // reveal the staging content around every slide.
@@ -380,7 +336,7 @@ export class EditorComponent {
          if (!this.fitOnLoad() || !id || this.store.loading() || this.fittedProjectId === id) return;
          // The store is app-wide: only frame the project this editor was given.
          if (id !== (this.projectId() ?? id)) return;
-         if (!this.canvasView.minimapItems().length) return;
+         if (!this.canvasView.minimapItems$().length) return;
          this.fittedProjectId = id;
          setTimeout(() => {
             if (!this.destroyRef.destroyed && this.store.projectId() === id) this.viewport.fitContent();
@@ -411,7 +367,7 @@ export class EditorComponent {
 
       // Floating islands fade while dragging or drawing (toolbar setting).
       effect(() => {
-         const on = this.gesture.gestureActive() && this.toolbarPrefs.fadeWhileDragging();
+         const on = this.gesture.gestureActive() && this.toolbarPrefs.fadeWhileDragging$();
          document.body.classList.toggle('dd-gesture', on);
       });
       // An unpinned details panel belongs to one selection: fold it when that changes.
@@ -448,11 +404,11 @@ export class EditorComponent {
             this.deckFocus.enterDeckFocus(presentation, cmd.screen === 'design' ? 'main' : cmd.screen);
             if (cmd.screen === 'design') this.deckFocus.openFocusDesign();
             // The first slide has no transition into it: show the one into slide 2.
-            if (cmd.screen !== 'design' && this.deckFocus.focusSlide()?.index === 1) this.deckFocus.goToTransition(2);
+            if (cmd.screen !== 'design' && this.deckFocus.focusSlide$()?.index === 1) this.deckFocus.goToTransition(2);
             this.deckFocus.focusFromCanvas.set(true);
             break;
          case 'fold':
-            this.deckFocus.settingsFolded.update((v) => !v);
+            this.deckFocus.settingsFolded$.update((v) => !v);
             break;
          case 'present':
             void this.slideshow.startPresentation(cmd.from);
@@ -512,6 +468,28 @@ export class EditorComponent {
    }
 
    private readonly mediaActions = inject(MediaActionsService);
+   // Store signals the template reads.
+   protected readonly selectedTableIdSet$ = this.store.selectedTableIdSet;
+   protected readonly canEdit$ = this.store.canEdit;
+   protected readonly foreignKeyColumnIds$ = this.store.foreignKeyColumnIds;
+   protected readonly sequenceDiagrams$ = this.store.sequenceDiagrams;
+   protected readonly viewport$ = this.store.viewport;
+   protected readonly projectId$ = this.store.projectId;
+   protected readonly canUndo$ = this.store.canUndo;
+   protected readonly canRedo$ = this.store.canRedo;
+   protected readonly home$ = this.store.home;
+   protected readonly elementStyle$ = this.store.elementStyle;
+   protected readonly shownByPresentation$ = this.store.shownByPresentation;
+   protected readonly accessMode$ = this.store.accessMode;
+   protected readonly selectedDiagram$ = this.store.selectedDiagram;
+   protected readonly loading$ = this.store.loading;
+   protected readonly error$ = this.store.error;
+   protected readonly tables$ = this.store.tables;
+   protected readonly elements$ = this.store.elements;
+   protected readonly lifelines$ = this.store.lifelines;
+   protected readonly selectedTable$ = this.store.selectedTable;
+   protected readonly selectedRelationship$ = this.store.selectedRelationship;
+   protected readonly selectedElement$ = this.store.selectedElement;
 
    @HostListener('window:paste', ['$event'])
    protected onPaste(event: ClipboardEvent): void {
@@ -528,20 +506,20 @@ export class EditorComponent {
 
    // --- ports: calls the editor's services make into sibling sub-features ---
 
-   readonly editingTextId = this.textEditing.editingTextId;
+   readonly editingTextId = this.textEditing.editingTextId$;
    readonly relinkPreview = computed<RelinkPreview | null>(() => {
       const relink = this.relLink.relinkState();
-      const cursor = this.relLink.linkSnap()?.anchor ?? this.relLink.linkCursor();
+      const cursor = this.relLink.linkSnap$()?.anchor ?? this.relLink.linkCursor();
       return relink && cursor ? { ...relink, cursor } : null;
    });
    readonly slideViews = this.canvasView.slideViews;
-   readonly minimapItems = this.canvasView.minimapItems;
+   readonly minimapItems = this.canvasView.minimapItems$;
    readonly drawnBox = (id: string, box: Box): Box => this.canvasView.drawnBox(id, box);
    readonly diagramBox = (d: SequenceDiagramModel): Rect | null => this.canvasView.diagramBox(d);
 
-   readonly presentation = this.slideshow.presentation;
-   readonly focusedDeck = this.deckFocus.focusedDeck;
-   readonly focusScreen = this.deckFocus.focusScreen;
+   readonly presentation = this.slideshow.presentation$;
+   readonly focusedDeck = this.deckFocus.focusedDeck$;
+   readonly focusScreen = this.deckFocus.focusScreen$;
    readonly followingId = this.follow.followingId;
    readonly focusFrame = (id: string): void => this.slideshow.focusFrame(id);
    readonly selectedPresentationName = (): string | null => this.slideshow.selectedPresentationName();
@@ -565,10 +543,10 @@ export class EditorComponent {
    };
    readonly followRoutes = (start: Map<string, { x: number; y: number }>): void => this.relLink.followRoutes(start);
    readonly handlePointerMove = (event: PointerEvent): void => this.pointer.handlePointerMove(event);
-   readonly selectedSlideSets = this.deckPanels.selectedSlideSets;
+   readonly selectedSlideSets = this.deckPanels.selectedSlideSets$;
    readonly selectSlideSet = (name: string): void => this.deckPanels.selectSlideSet(name);
    /** Shown slides zoomed or panned inside their block: a "Back to slide" chip (screen px) for each. */
-   protected readonly stagedSlides = computed(() => {
+   protected readonly stagedSlides$ = computed(() => {
       const v = this.store.viewport();
       return this.canvasView
          .slideViews()
@@ -604,7 +582,7 @@ export class EditorComponent {
       const v = this.store.viewport();
       let x = Math.round((rect.width / 2 - v.x) / v.zoom - NODE_WIDTH / 2);
       let y = Math.round((rect.height / 2 - v.y) / v.zoom - 40);
-      if (this.snap.gridSnap()) {
+      if (this.snap.gridSnap$()) {
          x = snapToGrid(x);
          y = snapToGrid(y);
       }

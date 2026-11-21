@@ -47,7 +47,7 @@ export class CanvasSnapService {
    constructor() {
       // Remember both toggles across refreshes.
       effect(() => {
-         const on = this.smartGuides();
+         const on = this.smartGuides$();
          try {
             globalThis.localStorage?.setItem(SMART_GUIDES_KEY, on ? '1' : '0');
          } catch {
@@ -55,7 +55,7 @@ export class CanvasSnapService {
          }
       });
       effect(() => {
-         const on = this.gridSnap();
+         const on = this.gridSnap$();
          try {
             globalThis.localStorage?.setItem(GRID_SNAP_KEY, on ? '1' : '0');
          } catch {
@@ -68,10 +68,10 @@ export class CanvasSnapService {
       this.host = host;
    }
 
-   readonly gridSnap = signal(readStoredGrid());
+   readonly gridSnap$ = signal(readStoredGrid());
 
    /** Snap drags to nearby items' edges, centers and spacing (Figma-style guides). */
-   readonly smartGuides = signal(readStoredSmartGuides());
+   readonly smartGuides$ = signal(readStoredSmartGuides());
 
    /** What the moving selection snaps against, captured when a drag starts. */
    smartBase: { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null = null;
@@ -80,7 +80,7 @@ export class CanvasSnapService {
    readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView } | null>(null);
 
    /** The current drag's guides in canvas-screen px, for the overlay. */
-   readonly smartGuideMarks = computed(() => {
+   readonly smartGuideMarks$ = computed(() => {
       const st = this.smartSnapState();
       if (!st) return null;
       const v = this.store.viewport();
@@ -135,10 +135,10 @@ export class CanvasSnapService {
    });
 
    /** Snap a world coordinate to the grid when grid-snap is enabled, else pass through. */
-   readonly snapWorld = (n: number): number => (this.gridSnap() ? snapToGrid(n) : n);
+   readonly snapWorld = (n: number): number => (this.gridSnap$() ? snapToGrid(n) : n);
 
    toggleGrid(): void {
-      this.gridSnap.update((v) => !v);
+      this.gridSnap$.update((v) => !v);
    }
 
    /** Smart-guide hooks handed to sequence diagrams, which run their own drags. */
@@ -159,7 +159,7 @@ export class CanvasSnapService {
    };
 
    toggleSmartGuides(): void {
-      this.smartGuides.update((v) => !v);
+      this.smartGuides$.update((v) => !v);
    }
 
    /**
@@ -175,7 +175,7 @@ export class CanvasSnapService {
       dy: number,
       diagramIds: Iterable<string> = []
    ): SmartSnap | null {
-      if (!this.smartGuides()) {
+      if (!this.smartGuides$()) {
          this.smartSnapState.set(null);
          return null;
       }
@@ -207,7 +207,7 @@ export class CanvasSnapService {
       ys: number[],
       draft?: { ctx: string | null; view?: SlideView }
    ): SmartSnap | null {
-      if (!this.smartGuides()) {
+      if (!this.smartGuides$()) {
          this.smartSnapState.set(null);
          return null;
       }
@@ -225,7 +225,7 @@ export class CanvasSnapService {
     * closest to a guide lands on it.
     */
    smartSpacing(elementIds: string[], diagramIds: string[], boxes: Box[], axis: 'x' | 'y', d: number): number {
-      if (!this.smartGuides() || boxes.length < 2) {
+      if (!this.smartGuides$() || boxes.length < 2) {
          this.smartSnapState.set(null);
          return d;
       }
@@ -341,7 +341,7 @@ export class CanvasSnapService {
          this.smartBase = {
             box,
             parts: boxes,
-            targets: snapTargets(box, all, ctx ? null : this.viewport.minimapView()),
+            targets: snapTargets(box, all, ctx ? null : this.viewport.minimapView$()),
             view,
          };
       }

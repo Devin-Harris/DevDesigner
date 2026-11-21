@@ -110,11 +110,11 @@
 
    &.colored {
       background: var(--ll-color);
-      color: #fff;
+      color: var(--dd-white);
       border-color: transparent;
 
       &.light {
-         color: #0f172a;
+         color: var(--dd-slate-900);
       }
 
       // Stock swatches keep the theme's text color (white in dark, dark in light).

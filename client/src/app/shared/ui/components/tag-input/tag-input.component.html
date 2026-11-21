@@ -1,20 +1,20 @@
-<div class="box" [class.disabled]="disabled()" [class.focus]="focused()" [class.bad]="conflict()">
+<div class="box" [class.disabled]="disabled$()" [class.focus]="focused$()" [class.bad]="conflict$()">
    <dd-icon name="link" class="lead" />
    <input
       #field
       type="text"
       autocomplete="off"
       spellcheck="false"
-      [attr.maxlength]="maxlength()"
-      [attr.placeholder]="placeholder()"
-      [disabled]="disabled()"
-      [value]="text()"
+      [attr.maxlength]="maxlength$()"
+      [attr.placeholder]="placeholder$()"
+      [disabled]="disabled$()"
+      [value]="text$()"
       (focus)="onFocus()"
       (input)="onInput($event)"
       (keydown)="onKey($event)"
       (blur)="onBlur()"
    />
-   @if (text() && !disabled()) {
+   @if (text$() && !disabled$()) {
       <button
          type="button"
          class="clear"
@@ -28,19 +28,19 @@
       </button>
    }
 </div>
-@if (conflict()) {
-   <p class="warn">{{ takenLabel() }}</p>
+@if (conflict$()) {
+   <p class="warn">{{ takenLabel$() }}</p>
 }
 <ng-template #list>
-   <div class="dd-menu tag-menu" [style.width.px]="menuWidth()">
-      <div class="tag-menu-head">{{ headLabel() }}</div>
-      @for (s of visible(); track s; let i = $index) {
+   <div class="dd-menu tag-menu" [style.width.px]="menuWidth$()">
+      <div class="tag-menu-head">{{ headLabel$() }}</div>
+      @for (s of visible$(); track s; let i = $index) {
          <button
             type="button"
             class="dd-menu-item"
-            [class.on]="i === active()"
+            [class.on]="i === active$()"
             (mousedown)="$event.preventDefault()"
-            (mouseenter)="active.set(i)"
+            (mouseenter)="active$.set(i)"
             (click)="pick(s)"
          >
             <span class="tag-name">{{ s }}</span>

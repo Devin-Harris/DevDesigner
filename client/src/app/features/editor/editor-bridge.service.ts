@@ -94,7 +94,7 @@ export class EditorBridgeService {
          presentationName: this.store.presentation,
          hasPlainFrames: this.hasPlainFrames$,
          decks: this.deckSummaries$,
-         focusedDeck: this.deckFocus.focusedDeck,
+         focusedDeck: this.deckFocus.focusedDeck$,
          following: this.follow.followingId,
          projectId: this.store.projectId,
          accessMode: this.store.accessMode,
@@ -167,7 +167,7 @@ export class EditorBridgeService {
    /** Every presentation with its slide count and current presenter (top-right Presentations menu). */
    private readonly deckSummaries$ = computed<DeckSummary[]>(() => {
       const frames = this.store.slideFrames();
-      const presenters = this.slideshow.presenters();
+      const presenters = this.slideshow.presenters$();
       return this.store.presentations().map((name) => {
          const p = presenters.find((x) => {
             const f = frames.find((fr) => fr.id === x.presenting?.frameId);

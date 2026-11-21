@@ -1,14 +1,14 @@
 <!-- Left vertical tool dock. Icons are thin-stroke inline SVG (design system
      signature) rather than Material glyphs. -->
-<div class="dock" [class]="dockClass()">
+<div class="dock" [class]="dockClass$()">
    <button
       class="dock-btn"
       type="button"
       matTooltip="Select (V)"
       aria-label="Select"
-      [class.on]="tool() === 'select'"
-      [disabled]="disabled()"
-      [matTooltipPosition]="tipPos()"
+      [class.on]="tool$() === 'select'"
+      [disabled]="disabled$()"
+      [matTooltipPosition]="tipPos$()"
       (click)="onChange('select')"
    >
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -18,7 +18,7 @@
 
    <div class="dock-sep"></div>
 
-   @for (id of dockTools(); track id) {
+   @for (id of dockTools$(); track id) {
       @switch (id) {
          @case ('hand') {
             <button
@@ -26,9 +26,9 @@
                type="button"
                matTooltip="Hand / pan (H)"
                aria-label="Hand"
-               [class.on]="tool() === 'hand'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'hand'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('hand')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -44,9 +44,9 @@
                type="button"
                matTooltip="ERD table (E)"
                aria-label="Table"
-               [class.on]="tool() === 'table'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'table'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('table')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -61,9 +61,9 @@
                type="button"
                matTooltip="Sequence (Q)"
                aria-label="Sequence diagram"
-               [class.on]="tool() === 'sequence'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'sequence'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('sequence')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -79,9 +79,9 @@
                type="button"
                matTooltip="Table (G)"
                aria-label="Table"
-               [class.on]="tool() === 'grid'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'grid'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('grid')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -97,14 +97,14 @@
                popoverTrigger="hover"
                matTooltip="Shapes (R · O · D) · press again to cycle"
                aria-label="Shape"
-               [class.on]="isShape()"
-               [disabled]="disabled()"
+               [class.on]="isShape$()"
+               [disabled]="disabled$()"
                [ddPopoverTrigger]="shapeMenu"
-               [placement]="morePlacement()"
-               [matTooltipPosition]="tipPos()"
+               [placement]="morePlacement$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange(lastShape())"
             >
-               @switch (shapeIcon()) {
+               @switch (shapeIcon$()) {
                   @case ('circle') {
                      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="12" cy="12" r="8" />
@@ -131,7 +131,7 @@
                      matTooltip="Rectangle (R)"
                      aria-label="Rectangle (R)"
                      matTooltipPosition="above"
-                     [class.on]="tool() === 'rectangle'"
+                     [class.on]="tool$() === 'rectangle'"
                      (click)="pickRectangle(0); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@
                      matTooltip="Ellipse (O)"
                      aria-label="Ellipse (O)"
                      matTooltipPosition="above"
-                     [class.on]="tool() === 'ellipse'"
+                     [class.on]="tool$() === 'ellipse'"
                      (click)="onChange('ellipse'); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
@@ -155,7 +155,7 @@
                      matTooltip="Diamond (D)"
                      aria-label="Diamond (D)"
                      matTooltipPosition="above"
-                     [class.on]="tool() === 'diamond'"
+                     [class.on]="tool$() === 'diamond'"
                      (click)="onChange('diamond'); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9 9-9z" /></svg>
@@ -169,11 +169,11 @@
                type="button"
                matTooltip="Frame (F) — a fixed-ratio page to export"
                aria-label="Frame"
-               [class.on]="tool() === 'frame' || tool() === 'embed'"
-               [disabled]="disabled()"
+               [class.on]="tool$() === 'frame' || tool$() === 'embed'"
+               [disabled]="disabled$()"
                [ddPopoverTrigger]="frameMenu"
-               [placement]="morePlacement()"
-               [matTooltipPosition]="tipPos()"
+               [placement]="morePlacement$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('frame')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -187,7 +187,7 @@
                      <button
                         class="dd-menu-item"
                         type="button"
-                        [class.on]="framePreset() === p.id"
+                        [class.on]="framePreset$() === p.id"
                         (click)="pickFrame(p.id); close()"
                      >
                         {{ p.label }}
@@ -199,7 +199,7 @@
                      type="button"
                      matTooltip="Embed a running site or local dev server (W)"
                      matTooltipPosition="right"
-                     [class.on]="tool() === 'embed'"
+                     [class.on]="tool$() === 'embed'"
                      (click)="onChange('embed'); close()"
                   >
                      Live frame (URL)
@@ -213,9 +213,9 @@
                type="button"
                matTooltip="Presentation (S) — click to place a new presentation"
                aria-label="Presentation"
-               [class.on]="tool() === 'slide'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'slide'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('slide')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -230,17 +230,17 @@
                type="button"
                popoverTrigger="hover"
                aria-label="Arrow or line"
-               [class.on]="tool() === 'arrow' || tool() === 'line'"
-               [disabled]="disabled()"
+               [class.on]="tool$() === 'arrow' || tool$() === 'line'"
+               [disabled]="disabled$()"
                [ddPopoverTrigger]="connectorMenu"
-               [placement]="morePlacement()"
+               [placement]="morePlacement$()"
                [matTooltip]="
-                  lastConnector() === 'line' ? 'Line (L) · press again for Arrow' : 'Arrow (A) · press again for Line'
+                  lastConnector$() === 'line' ? 'Line (L) · press again for Arrow' : 'Arrow (A) · press again for Line'
                "
-               [matTooltipPosition]="tipPos()"
-               (click)="onChange(lastConnector())"
+               [matTooltipPosition]="tipPos$()"
+               (click)="onChange(lastConnector$())"
             >
-               @if (lastConnector() === 'line') {
+               @if (lastConnector$() === 'line') {
                   <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5" /></svg>
                } @else {
                   <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5M11 5h8v8" /></svg>
@@ -255,7 +255,7 @@
                      matTooltip="Arrow (A)"
                      aria-label="Arrow (A)"
                      matTooltipPosition="above"
-                     [class.on]="tool() === 'arrow'"
+                     [class.on]="tool$() === 'arrow'"
                      (click)="onChange('arrow'); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5M11 5h8v8" /></svg>
@@ -266,7 +266,7 @@
                      matTooltip="Line (L)"
                      aria-label="Line (L)"
                      matTooltipPosition="above"
-                     [class.on]="tool() === 'line'"
+                     [class.on]="tool$() === 'line'"
                      (click)="onChange('line'); close()"
                   >
                      <svg class="ico" viewBox="0 0 24 24"><path d="M5 19L19 5" /></svg>
@@ -280,9 +280,9 @@
                type="button"
                matTooltip="Draw (P)"
                aria-label="Draw"
-               [class.on]="tool() === 'freedraw'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'freedraw'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('freedraw')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -296,9 +296,9 @@
                type="button"
                matTooltip="Text (T)"
                aria-label="Text"
-               [class.on]="tool() === 'text'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'text'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('text')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -312,9 +312,9 @@
                type="button"
                matTooltip="Code block (C)"
                aria-label="Code block"
-               [class.on]="tool() === 'code'"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'code'"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('code')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -328,8 +328,8 @@
                type="button"
                matTooltip="Image — or drop / paste one onto the canvas"
                aria-label="Image"
-               [disabled]="disabled()"
-               [matTooltipPosition]="tipPos()"
+               [disabled]="disabled$()"
+               [matTooltipPosition]="tipPos$()"
                (click)="addImage.emit()"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -345,8 +345,8 @@
                type="button"
                matTooltip="Laser pointer (K)"
                aria-label="Laser pointer"
-               [class.on]="tool() === 'laser'"
-               [matTooltipPosition]="tipPos()"
+               [class.on]="tool$() === 'laser'"
+               [matTooltipPosition]="tipPos$()"
                (click)="onChange('laser')"
             >
                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -365,17 +365,17 @@
       matTooltip="More tools and customize"
       aria-label="More"
       [ddPopoverTrigger]="moreMenu"
-      [placement]="morePlacement()"
-      [matTooltipPosition]="tipPos()"
+      [placement]="morePlacement$()"
+      [matTooltipPosition]="tipPos$()"
    >
       <dd-icon name="more_horiz" />
    </button>
    <ng-template #moreMenu let-close>
       <div class="dd-menu">
-         @if (prefs.hiddenTools().length) {
+         @if (prefs.hiddenTools$().length) {
             <div class="more-label">More tools</div>
-            @for (t of prefs.hiddenTools(); track t.id) {
-               <button class="dd-menu-item" type="button" [disabled]="disabled()" (click)="useHidden(t.id); close()">
+            @for (t of prefs.hiddenTools$(); track t.id) {
+               <button class="dd-menu-item" type="button" [disabled]="disabled$()" (click)="useHidden(t.id); close()">
                   {{ t.label }}
                   @if (t.key) {
                      <span class="kbd">{{ t.key }}</span>
@@ -384,7 +384,7 @@
             }
             <div class="dd-menu-sep"></div>
          }
-         <button class="dd-menu-item" type="button" (click)="prefs.panelOpen.set(true); close()">
+         <button class="dd-menu-item" type="button" (click)="prefs.panelOpen$.set(true); close()">
             <dd-icon name="tune" />Customize toolbar…
          </button>
       </div>
@@ -403,7 +403,7 @@
       matTooltip="Zoom options"
       [ddPopoverTrigger]="zoomMenu"
    >
-      {{ zoomLabel() }}
+      {{ zoomLabel$() }}
    </button>
    <button class="sbtn" type="button" matTooltip="Zoom in" aria-label="Zoom in" (click)="zoomIn.emit()">
       <dd-icon name="add" />
@@ -420,13 +420,13 @@
             <dd-icon name="home" />Go to home view<span class="kbd">Home</span>
          </button>
          <div class="dd-menu-sep"></div>
-         <button class="dd-menu-item" type="button" [disabled]="!canSetHome()" (click)="setHome.emit(); close()">
+         <button class="dd-menu-item" type="button" [disabled]="!canSetHome$()" (click)="setHome.emit(); close()">
             <dd-icon name="home" />Set home view to this
          </button>
          <button
             class="dd-menu-item"
             type="button"
-            [disabled]="!canSetHome() || !hasHome()"
+            [disabled]="!canSetHome$() || !hasHome$()"
             (click)="clearHome.emit(); close()"
          >
             <dd-icon name="close" />Clear home view
@@ -440,7 +440,7 @@
       class="tbtn"
       type="button"
       matTooltip="Go to home view (Home)"
-      [class.on]="hasHome()"
+      [class.on]="hasHome$()"
       (click)="resetView.emit()"
    >
       Home view
@@ -451,7 +451,7 @@
       type="button"
       matTooltip="Snap to grid"
       aria-label="Snap to grid"
-      [class.on]="gridSnap()"
+      [class.on]="gridSnap$()"
       (click)="toggleGrid.emit()"
    >
       <dd-icon name="grid_4x4" />
@@ -461,7 +461,7 @@
       type="button"
       matTooltip="Smart guides: snap to nearby items and spacing"
       aria-label="Smart guides: snap to nearby items and spacing"
-      [class.on]="smartGuides()"
+      [class.on]="smartGuides$()"
       (click)="toggleSmartGuides.emit()"
    >
       <dd-icon name="smart_guides" />
@@ -472,22 +472,22 @@
       type="button"
       matTooltip="Minimap"
       aria-label="Minimap"
-      [class.on]="minimap()"
+      [class.on]="minimap$()"
       (click)="toggleMinimap.emit()"
    >
       <dd-icon name="map" />
    </button>
 
-   @if (saveLabel()) {
-      <span class="save-label">{{ saveLabel() }}</span>
+   @if (saveLabel$()) {
+      <span class="save-label">{{ saveLabel$() }}</span>
    }
 </div>
 
 <!-- Quick-align panel: floats above the status bar while there is something to
      align (2+ units, or one unit sitting inside a frame / shape). -->
-@if (canAlign()) {
-   <div class="alignbar" [attr.aria-label]="alignToContainer() ? 'Align in container' : 'Align selection'">
-      @if (alignToContainer()) {
+@if (canAlign$()) {
+   <div class="alignbar" [attr.aria-label]="alignToContainer$() ? 'Align in container' : 'Align selection'">
+      @if (alignToContainer$()) {
          <span class="align-hint">In container</span>
       }
       <button
@@ -551,7 +551,7 @@
       >
          <dd-icon name="align_vertical_bottom" />
       </button>
-      @if (canDistribute()) {
+      @if (canDistribute$()) {
          <span class="sep"></span>
          <button
             class="sbtn"

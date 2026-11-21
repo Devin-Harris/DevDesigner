@@ -14,8 +14,8 @@ const clientRoot = path.dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 // Boundaries (§2 A5/A17 + folder-structure import rules) over the pass-2 tree (§4.3).
 // Element types are matched against paths relative to client/ (first match wins, so the most
-// specific descriptors come first). The rule is an ERROR since pass 2.7; the files that still break
-// it on purpose are listed in `boundaryExceptions` below, each with the pass that removes it.
+// specific descriptors come first). The rule is an ERROR with no exceptions: where a lower layer needs a
+// feature's behaviour, it declares an abstract class and app.config.ts binds the feature's implementation.
 // ---------------------------------------------------------------------------
 const boundaryElements = [
    { type: 'shared-ui', pattern: 'src/app/shared/ui', partialMatch: false },
@@ -113,21 +113,6 @@ const boundaryPolicies = [
    },
 ];
 
-// Known violations, kept visible as WARNINGS until the listed pass removes them. Do not add to this
-// list without a pass/step reference; shrink it as the work lands.
-const boundaryExceptions = [
-   // canvas-sequence no longer reads the store (C3.7) but composes the sequence-diagram entry, a sibling
-   // sub-feature: Pass 3 adds canvas.component, which composes sub-feature entries instead.
-   'src/app/features/editor/features/canvas/components/canvas-sequence/canvas-sequence.component.ts',
-
-   // C3.1: the sandbox measures code blocks with editor helpers until they move to @devdesigner/shared.
-   'src/app/core/sandbox/sandbox-backend.service.ts',
-   'src/app/core/sandbox/sandbox-schema.helpers.ts',
-
-   // Pass 3: thumbnails render with the editor's diagram SVG/frame helpers (move them to a shared renderer).
-   'src/app/shared/features/projects-overlay/services/project-thumbnail.service.ts',
-];
-
 export default tseslint.config(
    {
       ignores: [
@@ -182,16 +167,9 @@ export default tseslint.config(
             'error',
             { assertionStyle: 'as', objectLiteralTypeAssertions: 'allow-as-parameter' },
          ],
-         // Still warnings: 14 files over 600 lines; they shrink with the C3.x component splits.
-         'max-lines': ['warn', { max: 600, skipBlankLines: true, skipComments: true }],
+         // Files over 600 code lines split into part classes (host passed in) or *.helpers.ts modules.
+         'max-lines': ['error', { max: 600, skipBlankLines: true, skipComments: true }],
          'boundaries/dependencies': ['error', { default: 'allow', policies: boundaryPolicies }],
-      },
-   },
-   {
-      // Known pass-3 / C3.1 violations stay visible as warnings (see `boundaryExceptions`).
-      files: boundaryExceptions,
-      rules: {
-         'boundaries/dependencies': ['warn', { default: 'allow', policies: boundaryPolicies }],
       },
    },
    {
@@ -228,10 +206,9 @@ export default tseslint.config(
       files: ['**/*.html'],
       extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
       rules: {
-         // Event bindings are always allowed. Signal reads count too until the `$` suffix is adopted (pass 3),
-         // then `allowSuffix: '$'` lets `{{ name$() }}` through and only real method calls remain.
-         // Still warnings: ~1570 signal reads; flips once the `$` suffix convention is adopted.
-         '@angular-eslint/template/no-call-expression': ['warn', { allowSuffix: '$' }],
+         // Event bindings are always allowed. Signals read in templates end in `$` (`{{ name$() }}`);
+         // anything else is a computed lookup or a pipe (shared/ui/pipes, editor/shared/pipes).
+         '@angular-eslint/template/no-call-expression': ['error', { allowSuffix: '$' }],
          '@angular-eslint/template/attributes-order': 'error',
          '@angular-eslint/template/button-has-type': 'error',
          '@angular-eslint/template/prefer-control-flow': 'error',

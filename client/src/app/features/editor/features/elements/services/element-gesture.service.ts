@@ -3,74 +3,26 @@ import { CanvasSnapService } from '../../../services/canvas-snap.service';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 import { EditorToolService } from '../../../services/editor-tool.service';
 import { PointerGestureService } from '../../../services/pointer-gesture.service';
-import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
-import { CODE_FONT_SIZE } from '../../../helpers/render/code-block.render';
-import type { ElementType } from '@devdesigner/shared';
-
-/** Elements that Ctrl + resize scales with their content (font size included). */
-const CONTENT_SCALE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['code', 'rectangle', 'ellipse', 'diamond']);
 import type { SequenceStart } from '../../../models/sequence-start.model';
 import { EditorViewportService } from '../../../services/editor-viewport.service';
-import { inject, signal, Injectable, type WritableSignal } from '@angular/core';
-import type { CanvasElementModel, ElementBinding } from '@devdesigner/shared';
-import { presentationOf, presentationSlides } from '@devdesigner/shared';
-import { ProjectStore, type ItemMoves } from '../../../state/project/project.store';
+import { Injectable, inject, signal } from '@angular/core';
+import { type CanvasElementModel, type ElementBinding } from '@devdesigner/shared';
+import { type ItemMoves, ProjectStore } from '../../../state/project/project.store';
 import { GridTableService } from '../../../services/grid-table.service';
 import { gridCellAt } from '../../../helpers/grid-table.helper';
-import {
-   type ResizeDownEvent,
-   type ShapeBendEvent,
-   type ShapeEndpointEvent,
-   type ShapePointerEvent,
+import type {
+   ResizeDownEvent,
+   ShapeBendEvent,
+   ShapeEndpointEvent,
+   ShapePointerEvent,
 } from '../../canvas/components/canvas-shapes/canvas-shapes.component';
-import { frameContents } from '../../../helpers/frame-contents.helper';
-import {
-   absolutePoints,
-   elementBox,
-   focusAt,
-   hitTestElement,
-   tableBox,
-   type RotatedBox,
-} from '../../../helpers/element-geometry.helper';
+import { absolutePoints, elementBox, hitTestElement } from '../../../helpers/element-geometry.helper';
 import { chordNormal } from '../../../helpers/freedraw-path.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
-import { fitTextElement, TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE } from '../../../helpers/text-metrics';
-import { type SmartSnap } from '../../../helpers/smart-guides.helper';
 import type { Box } from '../../../models/geometry.model';
-import { PANEL_MIN_H } from '../../../shared/constants/slide-panels.constants';
-import type { ResizeHandle } from '../../canvas/components/canvas-shapes/canvas-shapes.component';
-/** What element gestures reach in the editor entry; the entry wires it with `connect`. */
-export interface ElementGestureHost {
-   readonly selectedSlideSets: WritableSignal<string[]>;
-   /** Slide frame boxes as last synced (duplicated slides are recorded so they don't drag the deck). */
-   readonly slideBounds: Map<string, { x: number; y: number; w: number; h: number }>;
-   handlePointerMove(event: PointerEvent): void;
-   onPointerUp(): void;
-   beginNodeDrag(tableId: string): void;
-   syncSlideMoves(): void;
-   newPresentationName(): string;
-}
-
-/** The element being moved/resized/rotated and its state at gesture start. */
-export interface ElementGesture {
-   id: string;
-   /** Starting geometry of the element(s) at gesture start (for delta math). */
-   start: { x: number; y: number; width: number; height: number; angle: number };
-   /** The element's full state at gesture start (for undo history). */
-   snapshot: CanvasElementModel;
-   /** Additional selected elements moved together (id -> start x/y), move only. */
-   others?: Map<string, { x: number; y: number }>;
-   /** Tables carried along by a moved frame (id -> start x/y). */
-   tables?: Map<string, { x: number; y: number }>;
-   /** Manual relationship routes between two carried tables (id -> start waypoints). */
-   waypoints?: Map<string, { x: number; y: number }[]>;
-   /** Sequence diagrams carried along by a moved frame (id -> start layout). */
-   sequences?: Map<string, SequenceStart>;
-   handle?: ResizeHandle;
-   which?: 'start' | 'end';
-   /** Original points (absolute) for an endpoint drag. */
-   points?: { x: number; y: number }[];
-}
+import { type ElementGesture, type ElementGestureHost } from './element-gesture.helpers';
+import { ElementResize } from './element-resize';
+import { ElementDuplicateDrag } from './element-duplicate-drag';
 
 /**
  * Pointer gestures on canvas elements: press/select, move (carrying frame contents, tables and
@@ -78,15 +30,21 @@ export interface ElementGesture {
  */
 @Injectable()
 export class ElementGestureService {
-   private readonly store = inject(ProjectStore);
-   private readonly gesture = inject(PointerGestureService);
-   private readonly canvasView = inject(CanvasViewService);
-   private readonly snap = inject(CanvasSnapService);
-   private readonly viewport = inject(EditorViewportService);
+   /** Methods moved to element-duplicate-drag.ts. */
+   private readonly elementDuplicateDrag = new ElementDuplicateDrag(this);
+
+   /** Methods moved to element-resize.ts. */
+   private readonly elementResize = new ElementResize(this);
+
+   readonly store = inject(ProjectStore);
+   readonly gesture = inject(PointerGestureService);
+   readonly canvasView = inject(CanvasViewService);
+   readonly snap = inject(CanvasSnapService);
+   readonly viewport = inject(EditorViewportService);
    private readonly tools = inject(EditorToolService);
    private readonly grids = inject(GridTableService);
-   private readonly groupTransform = inject(GroupTransformService);
-   private host!: ElementGestureHost;
+   readonly groupTransform = inject(GroupTransformService);
+   host!: ElementGestureHost;
 
    connect(host: ElementGestureHost): void {
       this.host = host;
@@ -95,7 +53,7 @@ export class ElementGestureService {
    elementGesture: ElementGesture | null = null;
 
    /** Box of the shape/table an arrow endpoint will bind to (drawn as a highlight). */
-   readonly bindHighlight = signal<{
+   readonly bindHighlight$ = signal<{
       x: number;
       y: number;
       width: number;
@@ -259,105 +217,6 @@ export class ElementGestureService {
          waypoints: carried?.waypoints,
          sequences: carried?.sequences,
       };
-   }
-
-   /**
-    * Everything fully inside any frame being moved (nested frames included) rides
-    * along with it: elements, tables, and the manual routes between carried tables.
-    * `extra` adds selected tables / diagrams (members of a mixed-kind group) that
-    * move rigidly with the grabbed element. Null when nothing rides along.
-    */
-   private carriedByFrames(
-      moving: { has(id: string): boolean },
-      extra?: { tableIds: ReadonlySet<string>; diagramIds: ReadonlySet<string> }
-   ): {
-      elements: Map<string, { x: number; y: number }>;
-      tables: Map<string, { x: number; y: number }>;
-      waypoints: Map<string, { x: number; y: number }[]>;
-      sequences: Map<string, SequenceStart>;
-   } | null {
-      const all = this.store.elements();
-      const hasFrame = all.some((e) => e.type === 'frame' && moving.has(e.id));
-      if (!hasFrame && !extra?.tableIds.size && !extra?.diagramIds.size) {
-         return null;
-      }
-      const inner = hasFrame
-         ? frameContents(
-              { has: (id) => moving.has(id) } as ReadonlySet<string>,
-              all,
-              this.store.tables(),
-              this.store.sequenceDiagrams(),
-              this.store.lifelines(),
-              this.store.sequenceMessages(),
-              this.store.shownSlideIds()
-           )
-         : {
-              elementIds: new Set<string>(),
-              tableIds: new Set<string>(),
-              diagramIds: new Set<string>(),
-           };
-      // Selected tables / diagrams (a group of mixed kinds) travel with the element.
-      extra?.tableIds.forEach((id) => inner.tableIds.add(id));
-      extra?.diagramIds.forEach((id) => inner.diagramIds.add(id));
-      const elements = new Map<string, { x: number; y: number }>();
-      for (const e of all) {
-         if (inner.elementIds.has(e.id)) {
-            elements.set(e.id, { x: e.x, y: e.y });
-         }
-      }
-      const tables = new Map<string, { x: number; y: number }>();
-      for (const t of this.store.tables()) {
-         if (inner.tableIds.has(t.id)) {
-            tables.set(t.id, { x: t.x, y: t.y });
-         }
-      }
-      const waypoints = new Map<string, { x: number; y: number }[]>();
-      if (tables.size) {
-         const locs = this.canvasView.columnLocations();
-         for (const rel of this.store.relationships()) {
-            const st = locs.get(rel.sourceColumnId)?.table.id;
-            const tt = locs.get(rel.targetColumnId)?.table.id;
-            if (st && tt && tables.has(st) && tables.has(tt) && rel.waypoints?.length) {
-               waypoints.set(
-                  rel.id,
-                  rel.waypoints.map((w) => ({ ...w }))
-               );
-            }
-         }
-      }
-      const sequences = new Map<string, SequenceStart>();
-      for (const id of inner.diagramIds) {
-         const start = this.canvasView.sequenceStart(id);
-         if (start) {
-            sequences.set(id, start);
-         }
-      }
-      return { elements, tables, waypoints, sequences };
-   }
-
-   /** Add freshly created copies (inside a duplicated frame) to the running drag. */
-   private attachCarried(elementIds: string[], tableIds: string[], diagramIds: string[]): void {
-      const g = this.elementGesture;
-      if (!g?.others) {
-         return;
-      }
-      for (const id of elementIds) {
-         const e = this.store.elements().find((x) => x.id === id);
-         if (e) {
-            g.others.set(id, { x: e.x, y: e.y });
-         }
-      }
-      g.tables = new Map(
-         this.store
-            .tables()
-            .filter((t) => tableIds.includes(t.id))
-            .map((t) => [t.id, { x: t.x, y: t.y }])
-      );
-      g.sequences = new Map(
-         diagramIds
-            .map((id) => [id, this.canvasView.sequenceStart(id)] as const)
-            .filter((e): e is readonly [string, SequenceStart] => !!e[1])
-      );
    }
 
    onElementResizeDown(payload: ResizeDownEvent): void {
@@ -573,7 +432,7 @@ export class ElementGestureService {
       );
       dx += smart?.ox ?? 0;
       dy += smart?.oy ?? 0;
-      const grid = this.snap.gridSnap();
+      const grid = this.snap.gridSnap$();
       const elements = new Map<string, { x: number; y: number }>();
       for (const [id, start] of g.others) {
          const nx = grid && !smart?.snappedX ? snapToGrid(start.x + dx) : Math.round(start.x + dx);
@@ -607,272 +466,6 @@ export class ElementGestureService {
       this.store.moveItemsLocal(moves);
    }
 
-   /**
-    * Resize a shape by a corner handle. Shift keeps proportions, Alt resizes about
-    * the center, and grid snap (when on) snaps the dimensions.
-    */
-   resizeElement(ev: PointerEvent): void {
-      const g = this.elementGesture;
-      if (!g?.handle) {
-         return;
-      }
-      const s = g.start;
-      const zoom = this.store.viewport().zoom * this.gesture.gestureScale;
-      const dx = (ev.clientX - this.gesture.startClientX) / zoom;
-      const dy = (ev.clientY - this.gesture.startClientY) / zoom;
-      const left = g.handle === 'nw' || g.handle === 'sw' || g.handle === 'w';
-      const top = g.handle === 'nw' || g.handle === 'ne' || g.handle === 'n';
-      // A side (not a corner) of a shape resizes on that axis only.
-      const onlyX = g.handle === 'e' || g.handle === 'w';
-      const onlyY = g.handle === 'n' || g.handle === 's';
-      const cx = s.x + s.width / 2;
-      const cy = s.y + s.height / 2;
-      const factor = ev.altKey ? 2 : 1;
-
-      const resized = this.store.elements().find((e) => e.id === g.id);
-      if (onlyX && resized?.type === 'text') {
-         // A side handle on text fixes its width: it wraps and the height follows the text.
-         let width = Math.max(24, s.width + (left ? -dx : dx) * factor);
-         if (this.snap.gridSnap()) {
-            width = Math.max(24, snapToGrid(width));
-         }
-         const wrapped: CanvasElementModel = { ...resized, wrap: true };
-         const size = fitTextElement(wrapped, { width });
-         const nx = ev.altKey ? cx - width / 2 : left ? s.x + s.width - width : s.x;
-         this.store.patchElementLocal(g.id, {
-            x: Math.round(nx),
-            width,
-            height: size.height,
-            wrap: true,
-         });
-         return;
-      }
-      // Text has no top/bottom side handles (its height follows its text).
-      if (onlyY && resized?.type === 'text') {
-         return;
-      }
-      // Ctrl (Cmd) + resize scales the object with its content (font included) instead
-      // of adding room around it: proportions are kept, a side drag scales evenly too.
-      if (
-         (ev.ctrlKey || ev.metaKey) &&
-         resized &&
-         CONTENT_SCALE_TYPES.has(resized.type) &&
-         s.width > 0 &&
-         s.height > 0
-      ) {
-         const grow = onlyY ? 0 : (left ? -dx : dx) * factor;
-         const growY = onlyX ? 0 : (top ? -dy : dy) * factor;
-         const raw = onlyX
-            ? 1 + grow / s.width
-            : onlyY
-              ? 1 + growY / s.height
-              : 1 + (grow * s.width + growY * s.height) / (s.width * s.width + s.height * s.height);
-         const startFont = g.snapshot.fontSize ?? (resized.type === 'code' ? CODE_FONT_SIZE : DEFAULT_FONT_SIZE);
-         const clampFont = (f: number): number => Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, f));
-         let fontSize = clampFont(startFont * Math.max(0.05, raw));
-         // 1) Match the scale of another object of the same kind (same font size) when
-         //    the dragged edge is within a few screen pixels of that size.
-         const tol = 6 / this.store.viewport().zoom;
-         const extent = onlyY ? s.height : s.width;
-         let match: number | null = null;
-         for (const e of this.store.elements()) {
-            if (e.id === g.id || e.type !== resized.type || e.fontSize == null) continue;
-            const off = Math.abs((e.fontSize - fontSize) / startFont) * extent * factor;
-            if (off <= tol && (match === null || Math.abs(e.fontSize - fontSize) < Math.abs(match - fontSize))) {
-               match = e.fontSize;
-            }
-         }
-         if (match !== null) {
-            fontSize = match;
-            this.snap.smartSnapState.set(null);
-         } else {
-            // 2) Line the scaled box up with nearby items (smart guides).
-            const k0 = fontSize / startFont;
-            const smart = this.resizeSnap(
-               g.id,
-               s,
-               left,
-               top,
-               s.width * k0,
-               s.height * k0,
-               { x: !onlyY, y: !onlyX },
-               ev.altKey
-            );
-            if (smart?.snappedX || smart?.snappedY) {
-               const w = s.width * k0 + (smart.snappedX ? (left ? -smart.ox : smart.ox) * factor : 0);
-               const h = s.height * k0 + (smart.snappedY ? (top ? -smart.oy : smart.oy) * factor : 0);
-               fontSize = clampFont(startFont * (smart.snappedX ? w / s.width : h / s.height));
-            } else {
-               // 3) Otherwise the font steps in half points.
-               fontSize = Math.round(fontSize * 2) / 2;
-            }
-         }
-         // The box follows the font so content and box stay in step.
-         const k = fontSize / startFont;
-         const width = Math.max(8, s.width * k);
-         const height = Math.max(8, s.height * k);
-         this.store.patchElementLocal(g.id, {
-            x: ev.altKey ? cx - width / 2 : left ? s.x + s.width - width : onlyY ? cx - width / 2 : s.x,
-            y: ev.altKey ? cy - height / 2 : top ? s.y + s.height - height : onlyX ? cy - height / 2 : s.y,
-            width,
-            height,
-            fontSize,
-         });
-         return;
-      }
-      // Pictures keep their proportions by default; Shift frees them (inverse of shapes).
-      // A side drag stretches on its one axis, pictures too.
-      const keepProportions = onlyX || onlyY ? false : resized?.type === 'image' ? !ev.shiftKey : ev.shiftKey;
-
-      const grow = onlyY ? 0 : (left ? -dx : dx) * factor;
-      const growY = onlyX ? 0 : (top ? -dy : dy) * factor;
-      let width: number;
-      let height: number;
-      if (keepProportions && s.width > 0 && s.height > 0) {
-         // Project the drag onto the box's diagonal so the corner tracks the cursor
-         // smoothly instead of jumping between the two axes.
-         const diag = s.width * s.width + s.height * s.height;
-         const frameMinH = this.store.slideFrames().some((f) => f.id === g.id) ? PANEL_MIN_H / s.height : 0;
-         const minScale = Math.max(8 / Math.min(s.width, s.height), frameMinH);
-         let scale = Math.max(minScale, 1 + (grow * s.width + growY * s.height) / diag);
-         const smart =
-            resized?.type === 'text'
-               ? null
-               : this.resizeSnap(g.id, s, left, top, s.width * scale, s.height * scale, undefined, ev.altKey);
-         if (smart?.snappedX || smart?.snappedY) {
-            const w = s.width * scale + (smart.snappedX ? (left ? -smart.ox : smart.ox) * factor : 0);
-            const h = s.height * scale + (smart.snappedY ? (top ? -smart.oy : smart.oy) * factor : 0);
-            // Follow whichever edge snapped (X wins when both did).
-            scale = Math.max(minScale, smart.snappedX ? w / s.width : h / s.height);
-         } else if (this.snap.gridSnap()) {
-            // Snap one dimension and derive the other so the ratio survives snapping.
-            scale = Math.max(minScale, snapToGrid(s.width * scale) / s.width);
-         }
-         width = s.width * scale;
-         height = s.height * scale;
-      } else {
-         // A slide frame is never shorter than the panels pinned to it.
-         const minH = this.store.slideFrames().some((f) => f.id === g.id) ? PANEL_MIN_H : 8;
-         width = Math.max(8, s.width + grow);
-         height = Math.max(minH, s.height + growY);
-         const smart =
-            resized?.type === 'text'
-               ? null
-               : this.resizeSnap(g.id, s, left, top, width, height, { x: !onlyY, y: !onlyX }, ev.altKey);
-         // The axis a side drag leaves alone keeps its size exactly (no grid snapping either).
-         if (!onlyY) {
-            if (smart?.snappedX) width = Math.max(8, width + (left ? -smart.ox : smart.ox) * factor);
-            else if (this.snap.gridSnap()) width = Math.max(8, snapToGrid(width));
-         }
-         if (!onlyX) {
-            if (smart?.snappedY) height = Math.max(minH, height + (top ? -smart.oy : smart.oy) * factor);
-            else if (this.snap.gridSnap()) height = Math.max(minH, snapToGrid(height));
-         }
-      }
-
-      let x: number;
-      let y: number;
-      if (ev.altKey) {
-         x = cx - width / 2;
-         y = cy - height / 2;
-      } else {
-         x = left ? s.x + s.width - width : s.x;
-         y = top ? s.y + s.height - height : s.y;
-      }
-
-      // Resizing a TEXT element scales its font (like Excalidraw): the handles
-      // never change where the text wraps, only how big it is. The dragged corner
-      // projects onto the box diagonal, and the opposite corner stays anchored.
-      const el = this.store.elements().find((e) => e.id === g.id);
-      if (el?.type === 'text') {
-         const startFont = g.snapshot.fontSize ?? DEFAULT_FONT_SIZE;
-         const diag = s.width * s.width + s.height * s.height;
-         const raw = diag > 0 ? 1 + (grow * s.width + growY * s.height) / diag : 1;
-         let fontSize = startFont * Math.max(0.05, raw);
-         fontSize = Math.min(TEXT_MAX_FONT_SIZE, Math.max(TEXT_MIN_FONT_SIZE, fontSize));
-         fontSize = Math.round(fontSize * 2) / 2;
-         // A fixed-width block scales its width with the font so its wrapping is unchanged.
-         const size = fitTextElement(el, {
-            fontSize,
-            width: el.wrap ? s.width * (fontSize / startFont) : undefined,
-         });
-         const tx = ev.altKey ? cx - size.width / 2 : left ? s.x + s.width - size.width : s.x;
-         const ty = ev.altKey ? cy - size.height / 2 : top ? s.y + s.height - size.height : s.y;
-         this.store.patchElementLocal(g.id, {
-            x: Math.round(tx),
-            y: Math.round(ty),
-            width: size.width,
-            height: size.height,
-            fontSize,
-         });
-         return;
-      }
-
-      if (el?.type === 'grid') {
-         // Columns share the new width proportionally; rows scale too but never
-         // shrink below what their text needs, so cell content is never clipped.
-         // Text scales with the table like a text box does: by the drag projected onto
-         // the box diagonal, so a corner drag in any direction grows/shrinks it evenly.
-         const r = this.groupTransform.gridResize(g.snapshot, width, height);
-         const w = r.width;
-         const h = r.height;
-         this.store.patchElementLocal(g.id, {
-            ...r,
-            x: ev.altKey ? cx - w / 2 : left ? s.x + s.width - w : s.x,
-            y: ev.altKey ? cy - h / 2 : top ? s.y + s.height - h : s.y,
-         });
-         return;
-      }
-
-      if (el?.type === 'freedraw') {
-         // Scale the stroke's points from the start box into the new one.
-         const sx = width / s.width;
-         const sy = height / s.height;
-         const pts = absolutePoints(g.snapshot).map((p) => ({ x: x + (p.x - s.x) * sx, y: y + (p.y - s.y) * sy }));
-         const o = pts[0] ?? { x, y };
-         this.store.patchElementLocal(g.id, {
-            x: o.x,
-            y: o.y,
-            width,
-            height,
-            points: pts.map((p) => ({ x: p.x - o.x, y: p.y - o.y })),
-         });
-         return;
-      }
-
-      this.store.patchElementLocal(g.id, { x, y, width, height });
-   }
-
-   /** Smart-guide snap of the dragged corner's edges for a resize to (width, height). */
-   private resizeSnap(
-      id: string,
-      s: { x: number; y: number; width: number; height: number; angle?: number | null },
-      left: boolean,
-      top: boolean,
-      width: number,
-      height: number,
-      /** Which axes are being resized (a side drag moves one edge only). */
-      axes: { x: boolean; y: boolean } = { x: true, y: true },
-      /** Alt: resizing about the centre, so both edges of an axis move (mirrored). */
-      centred = false
-   ): SmartSnap | null {
-      // Rotated boxes have no axis-aligned edges to line up.
-      if (s.angle) return null;
-      const x0 = centred ? s.x + (s.width - width) / 2 : left ? s.x + s.width - width : s.x;
-      const y0 = centred ? s.y + (s.height - height) / 2 : top ? s.y + s.height - height : s.y;
-      const box = { x0, y0, x1: x0 + width, y1: y0 + height };
-      // Dragged edge first; when centred the opposite edge snaps too.
-      const xs = !axes.x ? [] : centred ? [left ? box.x0 : box.x1, left ? box.x1 : box.x0] : [left ? box.x0 : box.x1];
-      const ys = !axes.y ? [] : centred ? [top ? box.y0 : box.y1, top ? box.y1 : box.y0] : [top ? box.y0 : box.y1];
-      const snap = this.snap.smartEdges(id, box, xs, ys);
-      // Express the correction as a move of the dragged edge (the opposite edge mirrors it).
-      if (snap && centred) {
-         if (snap.edgeX === 1) snap.ox = -snap.ox;
-         if (snap.edgeY === 1) snap.oy = -snap.oy;
-      }
-      return snap;
-   }
-
    rotateElement(ev: PointerEvent): void {
       const g = this.elementGesture;
       if (!g) {
@@ -890,140 +483,7 @@ export class ElementGestureService {
       this.store.patchElementLocal(g.id, { angle });
    }
 
-   /** Drag a line/arrow endpoint, binding to a table/element under the cursor. */
-   moveEndpoint(clientX: number, clientY: number): void {
-      const g = this.elementGesture;
-      if (!g?.points || !g.which) {
-         return;
-      }
-      const el = this.store.elements().find((e) => e.id === g.id);
-      if (!el) {
-         return;
-      }
-      let world = this.viewport.toWorld(clientX, clientY);
-      const target = this.gesture.noBindHeld ? null : this.bindingTargetAt(world, g.id);
-      this.bindHighlight.set(target?.box ?? null);
-      const binding = target?.binding ?? null;
-      const pts = g.points.map((p) => ({ ...p }));
-      const idx = g.which === 'start' ? 0 : pts.length - 1;
-      if (!binding) {
-         // The neighbouring point anchors the Shift angle lock.
-         const anchor = pts[g.which === 'start' ? 1 : pts.length - 2] ?? pts[idx];
-         if (this.gesture.shiftHeld) {
-            // Lock to 45° steps around the anchor, keeping the cursor's distance along it.
-            const vx = world.x - anchor.x;
-            const vy = world.y - anchor.y;
-            const step = Math.PI / 4;
-            const ang = Math.round(Math.atan2(vy, vx) / step) * step;
-            const ux = Math.cos(ang);
-            const uy = Math.sin(ang);
-            let len = vx * ux + vy * uy;
-            const px = anchor.x + ux * len;
-            const py = anchor.y + uy * len;
-            const box = {
-               x0: Math.min(px, anchor.x),
-               y0: Math.min(py, anchor.y),
-               x1: Math.max(px, anchor.x),
-               y1: Math.max(py, anchor.y),
-            };
-            // Snap along the locked direction: slide the point until its x or y hits a guide.
-            const smart = this.snap.smartEdges(
-               g.id,
-               box,
-               Math.abs(ux) > 1e-6 ? [px] : [],
-               Math.abs(uy) > 1e-6 ? [py] : []
-            );
-            const lx = smart?.snappedX ? (px + smart.ox - anchor.x) / ux : null;
-            const ly = smart?.snappedY ? (py + smart.oy - anchor.y) / uy : null;
-            const pick = [lx, ly]
-               .filter((v): v is number => v !== null)
-               .sort((a, b) => Math.abs(a - len) - Math.abs(b - len))[0];
-            if (pick !== undefined) {
-               len = pick;
-               if (smart && pick !== lx)
-                  Object.assign(smart, { snappedX: false, guides: smart.guides.filter((q) => q.axis === 'y') });
-               if (smart && pick !== ly)
-                  Object.assign(smart, { snappedY: false, guides: smart.guides.filter((q) => q.axis === 'x') });
-               this.snap.smartSnapState.set(
-                  smart?.guides.length ? { snap: smart, view: this.snap.smartBase?.view } : null
-               );
-            } else if (this.snap.gridSnap()) {
-               len = snapToGrid(len);
-            }
-            world = { x: Math.round(anchor.x + ux * len), y: Math.round(anchor.y + uy * len) };
-         } else {
-            const box = {
-               x0: Math.min(world.x, anchor.x),
-               y0: Math.min(world.y, anchor.y),
-               x1: Math.max(world.x, anchor.x),
-               y1: Math.max(world.y, anchor.y),
-            };
-            const smart = this.snap.smartEdges(g.id, box, [world.x], [world.y]);
-            const grid = this.snap.gridSnap();
-            world = {
-               x: smart?.snappedX ? world.x + smart.ox : grid ? snapToGrid(world.x) : Math.round(world.x),
-               y: smart?.snappedY ? world.y + smart.oy : grid ? snapToGrid(world.y) : Math.round(world.y),
-            };
-         }
-      } else {
-         this.snap.smartSnapState.set(null);
-      }
-      pts[idx] = world;
-      // Points are stored relative to the element origin (its first point).
-      const origin = pts[0];
-      const relative = pts.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
-      this.store.patchElementLocal(g.id, {
-         x: origin.x,
-         y: origin.y,
-         points: relative,
-         ...(g.which === 'start' ? { startBinding: binding } : { endBinding: binding }),
-      });
-   }
-
-   /** The table or element under a world point that a bound endpoint can attach to. */
-   bindingTargetAt(
-      world: { x: number; y: number },
-      excludeElementId: string
-   ): {
-      binding: ElementBinding;
-      box: { x: number; y: number; width: number; height: number };
-   } | null {
-      // Where on the target the end was dropped: it stays there as the target moves.
-      const withFocus = (b: ElementBinding, box: RotatedBox): ElementBinding => {
-         const focus = focusAt(box, world);
-         return focus ? { ...b, focus } : b;
-      };
-      const toRect = (b: Box) => ({ x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 });
-      // Sequence message labels are small and sit on top of everything: check first.
-      for (const [id, box] of this.canvasView.messageBoxes()) {
-         if (this.pointInBox(world, box)) {
-            return { binding: withFocus({ targetKind: 'message', targetId: id }, box), box: toRect(box) };
-         }
-      }
-      for (const table of this.store.tables()) {
-         const box = tableBox(table);
-         if (this.pointInBox(world, box)) {
-            return { binding: withFocus({ targetKind: 'table', targetId: table.id }, box), box: toRect(box) };
-         }
-      }
-      // Topmost element first (elements render in ascending zIndex order).
-      const elements = this.canvasView.shownElements().reverse();
-      for (const el of elements) {
-         if (el.id === excludeElementId || el.type === 'line' || el.type === 'arrow' || el.type === 'frame') {
-            continue;
-         }
-         const box = elementBox(el);
-         if (this.pointInBox(world, box)) {
-            return {
-               binding: withFocus({ targetKind: 'element', targetId: el.id }, { ...box, angle: el.angle }),
-               box: toRect(box),
-            };
-         }
-      }
-      return null;
-   }
-
-   private pointInBox(p: { x: number; y: number }, box: Box): boolean {
+   pointInBox(p: { x: number; y: number }, box: Box): boolean {
       return p.x >= box.x0 && p.x <= box.x1 && p.y >= box.y0 && p.y <= box.y1;
    }
 
@@ -1090,223 +550,37 @@ export class ElementGestureService {
       }
    }
 
-   /**
-    * Switch an in-progress move (element or table drag) into a duplicate-drag: put
-    * the originals back where the drag began, clone the selection in place, and
-    * carry on dragging the copies from the same pointer origin. Works when Alt is
-    * held at pointer-down or pressed part-way through the drag.
-    */
-   async duplicateAndDrag(): Promise<void> {
-      const kind = this.gesture.mode;
-      if (this.gesture.dragCopied || (kind !== 'element' && kind !== 'node') || !this.store.canEdit()) {
-         return;
-      }
-      this.gesture.dragCopied = true;
-      const grabbedElement = this.elementGesture?.id ?? null;
-      const grabbedTable = this.gesture.dragTableId;
-      if (kind === 'element') {
-         const g = this.elementGesture;
-         this.store.moveItemsLocal({
-            elements: g?.others,
-            tables: g?.tables,
-            waypoints: g?.waypoints,
-            sequences: [...(g?.sequences ?? [])].map(([id, seq]) => ({
-               diagramId: id,
-               startXs: seq.xs,
-               dx: 0,
-               startOriginY: seq.originY,
-               dy: 0,
-               startRows: seq.rows,
-            })),
-         });
-      } else {
-         this.store.moveItemsLocal({
-            tables: this.gesture.multiDragStart,
-            waypoints: new Map([...this.gesture.waypointDragStart].map(([relId, start]) => [relId, start.wp])),
-            ...this.nodeExtrasMoves(0, 0),
-         });
-      }
-      this.gesture.mode = 'duplicating';
-      let resume: (() => void) | null = null;
-      let created: string[] = [];
-      const selectedIds = this.store.selectedElementIds();
-      const slideNames =
-         kind === 'element'
-            ? [
-                 ...new Set(
-                    this.store
-                       .slideFrames()
-                       .filter((f) => selectedIds.includes(f.id))
-                       .map((f) => presentationOf(f))
-                 ),
-              ]
-            : [];
-      if (slideNames.length) {
-         // Alt-dragging presentations' slides copies each whole presentation: every slide
-         // with its contents, under a new name, dragged off as one set. Anything else
-         // selected is copied alongside.
-         // The originals were put back above; bring their other (hidden) slides back with
-         // them now, before copies exist that the catch-up could mistake for their own slides.
-         this.host.syncSlideMoves();
-         const copied = new Set<string>();
-         const allCopies = new Map<string, CanvasElementModel>();
-         const tableCopies: string[] = [];
-         const sequenceCopies: string[] = [];
-         const selectedCopies: string[] = [];
-         const names: string[] = [];
-         for (const presentation of slideNames) {
-            const frames = presentationSlides(this.store.slideFrames(), presentation);
-            const frameIds = new Set(frames.map((f) => f.id));
-            const inner = frameContents(
-               frameIds,
-               this.store.elements(),
-               this.store.tables(),
-               this.store.sequenceDiagrams(),
-               this.store.lifelines(),
-               this.store.sequenceMessages(),
-               this.store.shownSlideIds()
-            );
-            const name = this.host.newPresentationName();
-            names.push(name);
-            const sources = this.store.elements().filter((e) => frameIds.has(e.id) || inner.elementIds.has(e.id));
-            sources.forEach((e) => copied.add(e.id));
-            // One optimistic clone per presentation: the copies show at once.
-            const cloned = this.store.cloneItems(inner.tableIds, inner.diagramIds, sources, 0, 0, {
-               presentation: name,
-            });
-            cloned.copies.forEach((c, id) => allCopies.set(id, c));
-            tableCopies.push(...cloned.tables.values());
-            sequenceCopies.push(...cloned.diagrams.values());
-            const shown = frames.find((f) => selectedIds.includes(f.id));
-            const shownCopy = shown && cloned.copies.get(shown.id);
-            if (shownCopy) {
-               this.store.setActiveSlide(shownCopy.id);
-               selectedCopies.push(shownCopy.id);
-            }
-         }
-         // The rest of the selection (not part of a copied presentation) is copied too.
-         const rest = new Set(selectedIds.filter((id) => !copied.has(id)));
-         if (rest.size) {
-            const inner = this.carriedByFrames(rest);
-            const sources = this.store.elements().filter((e) => rest.has(e.id) || inner?.elements.has(e.id));
-            const cloned = this.store.cloneItems(
-               new Set(inner?.tables.keys() ?? []),
-               new Set(inner?.sequences.keys() ?? []),
-               sources,
-               0,
-               0
-            );
-            cloned.copies.forEach((c, id) => allCopies.set(id, c));
-            tableCopies.push(...cloned.tables.values());
-            sequenceCopies.push(...cloned.diagrams.values());
-            for (const id of rest) {
-               const c = cloned.copies.get(id);
-               if (c) selectedCopies.push(c.id);
-            }
-         }
-         created = [...allCopies.values()].map((c) => c.id);
-         const grabbed =
-            (grabbedElement && allCopies.get(grabbedElement)) ||
-            allCopies.get(selectedIds.find((id) => allCopies.has(id)) ?? '');
-         if (grabbed) {
-            resume = () => {
-               this.store.setSelection([], [], selectedCopies);
-               // Record where the copied slides start, so the release catches the hidden ones up
-               // (as in a plain slide drag) instead of moving every slide on each pointer move.
-               for (const c of allCopies.values()) {
-                  if (c.type === 'frame' && c.slide) {
-                     this.host.slideBounds.set(c.id, { x: c.x, y: c.y, w: c.width, h: c.height });
-                  }
-               }
-               this.beginElementDrag(grabbed);
-               // Only what's on the shown slides (and the rest of the selection) rides along.
-               const g = this.elementGesture;
-               const carried = g?.others && this.carriedByFrames(g.others);
-               if (g?.others && carried) {
-                  for (const [id, pos] of carried.elements) g.others.set(id, pos);
-                  g.tables = carried.tables;
-                  g.waypoints = carried.waypoints;
-                  g.sequences = carried.sequences;
-               }
-               this.host.selectedSlideSets.set(names);
-            };
-         }
-      } else if (kind === 'element') {
-         const selected = new Set(this.store.selectedElementIds());
-         // Duplicating a frame duplicates what's inside it too (tables, sequence
-         // diagrams, and elements), and the copies travel with the copied frame.
-         const inner = this.carriedByFrames(selected);
-         // One optimistic clone of selected + inner items: shows at once, one undo step,
-         // bindings between copies remap and a copied slide's contents follow its copy.
-         const sources = this.store.elements().filter((e) => selected.has(e.id) || inner?.elements.has(e.id));
-         const cloned = this.store.cloneItems(
-            new Set(inner?.tables.keys() ?? []),
-            new Set(inner?.sequences.keys() ?? []),
-            sources,
-            0,
-            0
-         );
-         const copies = cloned.copies;
-         const tableCopies = [...cloned.tables.values()];
-         const sequenceCopies = [...cloned.diagrams.values()];
-         created = [...copies.values()].map((c) => c.id);
-         // An Alt-dragged slide becomes the one shown (only one slide is on the canvas).
-         const slideCopy = [...copies.values()].find((c) => c.type === 'frame' && c.slide);
-         if (slideCopy) {
-            this.store.setActiveSlide(slideCopy.id);
-         }
-         const grabbed = (grabbedElement && copies.get(grabbedElement)) || [...copies.values()][0];
-         if (grabbed) {
-            const innerElementCopies = [...(inner?.elements.keys() ?? [])]
-               .map((id) => copies.get(id)?.id)
-               .filter((id): id is string => !!id);
-            resume = () => {
-               // Select only what was selected; the inner copies ride along as carried content.
-               const selectedCopies = [...selected].map((id) => copies.get(id)?.id).filter((id): id is string => !!id);
-               this.store.setSelection([], [], selectedCopies);
-               this.beginElementDrag(grabbed);
-               this.attachCarried(innerElementCopies, tableCopies, sequenceCopies);
-            };
-         }
-      } else {
-         const cloned = this.store.cloneItems(
-            new Set(this.store.selectedTableIds()),
-            new Set(),
-            [],
-            0,
-            0,
-            // Only selected relationships between the copied tables are copied.
-            { relationshipIds: new Set(this.store.selectedRelationshipIds()) }
-         );
-         const ids = cloned.tables;
-         created = [...ids.values()];
-         const relCopies = cloned.relationships;
-         this.store.setSelection(created, relCopies, []);
-         const grabbed = (grabbedTable && ids.get(grabbedTable)) || created[0];
-         if (grabbed) {
-            resume = () => this.host.beginNodeDrag(grabbed);
-         }
-      }
-      if (this.gesture.mode !== 'duplicating' || !resume) {
-         // Nothing was copied (or the gesture was cancelled meanwhile).
-         this.gesture.releasedWhileDuplicating = false;
-         if (this.gesture.mode === 'duplicating') {
-            this.gesture.mode = 'idle';
-            this.gesture.gestureActive.set(false);
-         }
-         return;
-      }
-      // The snap targets were taken with the originals moving: now they stay put and
-      // the copies move, so measure against them afresh.
-      this.snap.smartBase = null;
-      resume();
-      if (this.gesture.lastPointer) {
-         this.host.handlePointerMove(this.gesture.lastPointer);
-      }
-      if (this.gesture.releasedWhileDuplicating) {
-         // The button was let go before the copies existed: land them where it was dropped.
-         this.gesture.releasedWhileDuplicating = false;
-         this.host.onPointerUp();
-      }
+   // ---- delegates to element-resize.ts ----
+   resizeElement(ev: PointerEvent): void {
+      return this.elementResize.resizeElement(ev);
+   }
+   moveEndpoint(clientX: number, clientY: number): void {
+      return this.elementResize.moveEndpoint(clientX, clientY);
+   }
+   bindingTargetAt(
+      world: { x: number; y: number },
+      excludeElementId: string
+   ): {
+      binding: ElementBinding;
+      box: { x: number; y: number; width: number; height: number };
+   } | null {
+      return this.elementResize.bindingTargetAt(world, excludeElementId);
+   }
+
+   // ---- delegates to element-duplicate-drag.ts ----
+   private carriedByFrames(
+      moving: { has(id: string): boolean },
+      extra?: { tableIds: ReadonlySet<string>; diagramIds: ReadonlySet<string> }
+   ): {
+      elements: Map<string, { x: number; y: number }>;
+      tables: Map<string, { x: number; y: number }>;
+      waypoints: Map<string, { x: number; y: number }[]>;
+      sequences: Map<string, SequenceStart>;
+   } | null {
+      return this.elementDuplicateDrag.carriedByFrames(moving, extra);
+   }
+   duplicateAndDrag(): Promise<void> {
+      return this.elementDuplicateDrag.duplicateAndDrag();
    }
 }
+export type { ElementGestureHost, ElementGesture } from './element-gesture.helpers';

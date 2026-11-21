@@ -7,8 +7,8 @@
 .present {
    position: absolute;
    inset: 0;
-   background: #000;
-   color: #fff;
+   background: var(--dd-black);
+   color: var(--dd-white);
    outline: none;
    cursor: default;
    user-select: none;
@@ -125,13 +125,13 @@ frame (for morph entrances/exits) never show in the letterbox bars. */
    padding: 0;
    border: 2px solid transparent;
    border-radius: 6px;
-   background: #fff;
+   background: var(--dd-white);
    cursor: pointer;
    overflow: hidden;
    line-height: 0;
 }
 .sg-item.on {
-   border-color: #6f8bff;
+   border-color: var(--dd-indigo-400);
    box-shadow: 0 0 0 3px rgba(111, 139, 255, 0.35);
 }
 .sg-item img {
@@ -146,7 +146,7 @@ frame (for morph entrances/exits) never show in the letterbox bars. */
    padding: 3px 6px;
    border-radius: 4px;
    background: rgba(20, 24, 32, 0.8);
-   color: #fff;
+   color: var(--dd-white);
    font-size: 12px;
 }
 .follow {

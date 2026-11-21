@@ -14,39 +14,39 @@ export class EmbedFramesService {
    private readonly store = inject(ProjectStore);
 
    /** The live frame whose page currently takes the pointer (double-click to enter). */
-   readonly interactingId = signal<string | null>(null);
+   readonly interactingId$ = signal<string | null>(null);
    /** Bumped per element to reload its page. */
-   readonly nonces = signal<ReadonlyMap<string, number>>(new Map());
+   readonly nonces$ = signal<ReadonlyMap<string, number>>(new Map());
    /** Projects this browser chose not to load live frames for. */
    private readonly optedOut = signal<ReadonlySet<string>>(readOptOut());
    /** Projects whose shared-viewer notice was dismissed this session. */
    private readonly dismissed = signal<ReadonlySet<string>>(new Set());
 
-   readonly embeds = computed(() => this.store.elements().filter((e) => e.type === 'embed' && isEmbedUrl(e.text)));
+   readonly embeds$ = computed(() => this.store.elements().filter((e) => e.type === 'embed' && isEmbedUrl(e.text)));
    /** Opened through someone else's link (not the owner): their URLs may not load here. */
    readonly sharedWithMe = computed(() => this.store.accessMode() !== 'OWNER');
-   readonly blocked = computed(() => {
+   readonly blocked$ = computed(() => {
       const id = this.store.projectId();
       return !!id && this.optedOut().has(id);
    });
-   readonly hasLocal = computed(() => this.embeds().some((e) => isLocalEmbedUrl(e.text)));
+   readonly hasLocal$ = computed(() => this.embeds$().some((e) => isLocalEmbedUrl(e.text)));
    /** Show the "this project has live frames" notice. */
-   readonly noticeShown = computed(() => {
+   readonly noticeShown$ = computed(() => {
       const id = this.store.projectId();
-      return !!id && this.sharedWithMe() && this.embeds().length > 0 && !this.dismissed().has(id);
+      return !!id && this.sharedWithMe() && this.embeds$().length > 0 && !this.dismissed().has(id);
    });
 
    constructor() {
       // Selecting anything else hands the pointer back to the canvas.
       effect(() => {
          const sel = this.store.selectedElementIds();
-         const id = untracked(this.interactingId);
-         if (id && !(sel.length === 1 && sel[0] === id)) this.interactingId.set(null);
+         const id = untracked(this.interactingId$);
+         if (id && !(sel.length === 1 && sel[0] === id)) this.interactingId$.set(null);
       });
    }
 
    nonce(id: string): number {
-      return this.nonces().get(id) ?? 0;
+      return this.nonces$().get(id) ?? 0;
    }
 
    setBlocked(off: boolean): void {
@@ -69,9 +69,9 @@ export class EmbedFramesService {
    }
 
    reload(id: string): void {
-      const next = new Map(this.nonces());
+      const next = new Map(this.nonces$());
       next.set(id, (next.get(id) ?? 0) + 1);
-      this.nonces.set(next);
+      this.nonces$.set(next);
    }
 }
 

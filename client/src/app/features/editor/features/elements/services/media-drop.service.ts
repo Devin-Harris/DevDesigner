@@ -124,8 +124,8 @@ export class MediaDropService {
             const y = Math.round(center.y - height / 2 + shift);
             await this.store.addElement({
                type: 'image',
-               x: this.snap.gridSnap() ? snapToGrid(x) : x,
-               y: this.snap.gridSnap() ? snapToGrid(y) : y,
+               x: this.snap.gridSnap$() ? snapToGrid(x) : x,
+               y: this.snap.gridSnap$() ? snapToGrid(y) : y,
                width,
                height,
                angle: 0,

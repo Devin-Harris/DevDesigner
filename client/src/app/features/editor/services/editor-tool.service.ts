@@ -20,7 +20,7 @@ export class EditorToolService {
    // --- drawing tools / canvas elements ---
 
    /** The active tool. 'select' is the pointer mode; others draw that element. */
-   readonly activeTool = signal<EditorTool>('select');
+   readonly activeTool$ = signal<EditorTool>('select');
 
    /** Aspect-ratio preset new frames are drawn with (see frame-presets). */
    readonly framePresetId = signal<string>(DEFAULT_FRAME_PRESET);
@@ -30,12 +30,12 @@ export class EditorToolService {
 
    /** After placing something: back to Select, unless the toolbar is set to stay on the tool. */
    afterPlace(): void {
-      if (!this.toolbarPrefs.stayOnTool()) this.activeTool.set('select');
+      if (!this.toolbarPrefs.stayOnTool$()) this.activeTool$.set('select');
    }
 
    onToolChange(tool: EditorTool): void {
-      if (tool === 'freedraw') this.penPrefs.eraser.set(false);
-      this.activeTool.set(tool);
+      if (tool === 'freedraw') this.penPrefs.eraser$.set(false);
+      this.activeTool$.set(tool);
    }
 
    /** True while a pan gesture is active (hand tool, middle-mouse, or space-drag). */
@@ -46,34 +46,34 @@ export class EditorToolService {
     * drawing tools (Excalidraw-style), grab/grabbing for the hand/pan tool, and
     * the default pointer for select.
     */
-   readonly canvasCursor = computed(() => {
+   readonly canvasCursor$ = computed(() => {
       if (this.panning()) {
          return 'grabbing';
       }
-      const tool = this.activeTool();
+      const tool = this.activeTool$();
       if (tool === 'hand') {
          return 'grab';
       }
       if (tool === 'select') {
          return 'default';
       }
-      if (tool === 'freedraw' && this.penPrefs.eraser()) {
+      if (tool === 'freedraw' && this.penPrefs.eraser$()) {
          // A ring the size of the eraser's reach (browsers cap cursors at 128px).
-         const d = Math.min(126, Math.max(6, Math.round(this.penPrefs.eraserSize())));
+         const d = Math.min(126, Math.max(6, Math.round(this.penPrefs.eraserSize$())));
          const c = d / 2 + 1;
          return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${d + 2}' height='${d + 2}'%3E%3Ccircle cx='${c}' cy='${c}' r='${d / 2}' fill='rgba(255,255,255,0.35)' stroke='black' stroke-width='1'/%3E%3C/svg%3E") ${c} ${c}, cell`;
       }
       return 'crosshair';
    });
 
-   readonly shapesInteractive = computed(() => this.activeTool() === 'select' && this.store.canEdit());
+   readonly shapesInteractive$ = computed(() => this.activeTool$() === 'select' && this.store.canEdit());
 
    constructor() {
       // `client.laser` on/off as the laser tool is picked or left (however the tool changes).
       const telemetry = inject(TelemetryService);
       let laser = false;
       effect(() => {
-         const on = this.activeTool() === 'laser';
+         const on = this.activeTool$() === 'laser';
          if (on !== laser) telemetry.track('client.laser', { action: on ? 'on' : 'off' });
          laser = on;
       });

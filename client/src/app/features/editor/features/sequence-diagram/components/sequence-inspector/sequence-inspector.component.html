@@ -1,5 +1,5 @@
 <div class="panel">
-   @if (lifeline(); as l) {
+   @if (lifeline$(); as l) {
       <div class="panel-head">
          <span class="dot" [style.background]="l.color || 'var(--dd-connector)'"></span>
          <div class="head-text">
@@ -11,7 +11,7 @@
             type="button"
             title="Delete participant"
             aria-label="Delete participant"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="deleteLifeline()"
          >
             <dd-icon name="delete" />
@@ -19,7 +19,7 @@
       </div>
 
       <div class="field-label">Label</div>
-      <dd-input [ngModel]="l.label" [maxlength]="120" [disabled]="!edits.canEdit()" (commit)="setLabel($event)" />
+      <dd-input [ngModel]="l.label" [maxlength]="120" [disabled]="!edits.canEdit$()" (commit)="setLabel($event)" />
 
       <div class="field-label">Header color</div>
       <dd-color-swatches
@@ -27,7 +27,7 @@
          noneLabel="Default"
          themeValue="surface"
          [value]="l.color"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (pick)="setColor($event)"
       />
 
@@ -37,7 +37,7 @@
          noneLabel="No stroke"
          themeValue="theme"
          [value]="l.strokeColor"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (pick)="setStrokeColor($event)"
       />
 
@@ -47,7 +47,7 @@
          noneLabel="Automatic"
          themeValue="theme"
          [value]="l.textColor"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (pick)="setTextColor($event)"
       />
 
@@ -57,25 +57,25 @@
          noneLabel="Default"
          themeValue="theme"
          [value]="l.lineColor"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (pick)="setLineColor($event)"
       />
 
       <div class="field-label">Width</div>
       <div class="flag-chips">
-         <button class="flag" type="button" title="Narrower" [disabled]="!edits.canEdit()" (click)="nudgeWidth(-20)">
+         <button class="flag" type="button" title="Narrower" [disabled]="!edits.canEdit$()" (click)="nudgeWidth(-20)">
             −
          </button>
          <span class="width-val">{{ l.width }}px</span>
-         <button class="flag" type="button" title="Wider" [disabled]="!edits.canEdit()" (click)="nudgeWidth(20)">
+         <button class="flag" type="button" title="Wider" [disabled]="!edits.canEdit$()" (click)="nudgeWidth(20)">
             +
          </button>
       </div>
 
-      <button class="add-btn full" type="button" [disabled]="!edits.canEdit()" (click)="addParticipant()">
+      <button class="add-btn full" type="button" [disabled]="!edits.canEdit$()" (click)="addParticipant()">
          <dd-icon name="add" />Add participant
       </button>
-   } @else if (message(); as m) {
+   } @else if (message$(); as m) {
       <div class="panel-head">
          <span class="dot" style="background: var(--dd-primary)"></span>
          <div class="head-text">
@@ -87,7 +87,7 @@
             type="button"
             title="Delete message"
             aria-label="Delete message"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="deleteMessage()"
          >
             <dd-icon name="delete" />
@@ -98,22 +98,22 @@
       <dd-input
          [ngModel]="m.label ?? ''"
          [maxlength]="200"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (commit)="setMsgLabel($event)"
       />
 
       <div class="field-label">From</div>
       <dd-select
-         [options]="lifelineOptions()"
+         [options]="lifelineOptions$()"
          [ngModel]="m.fromLifelineId"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (ngModelChange)="setFrom($event)"
       />
       <div class="field-label">To</div>
       <dd-select
-         [options]="lifelineOptions()"
+         [options]="lifelineOptions$()"
          [ngModel]="m.toLifelineId"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (ngModelChange)="setTo($event)"
       />
 
@@ -123,7 +123,7 @@
             class="flag"
             type="button"
             [class.on]="m.style === 'solid'"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="setStyle('solid')"
          >
             Sync
@@ -132,7 +132,7 @@
             class="flag"
             type="button"
             [class.on]="m.style === 'dashed'"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="setStyle('dashed')"
          >
             Return
@@ -141,7 +141,7 @@
             class="flag"
             type="button"
             [class.on]="m.style === 'break'"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="setStyle('break')"
          >
             Break
@@ -154,7 +154,7 @@
          noneLabel="Default"
          themeValue="theme"
          [value]="m.color"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (pick)="setMsgColor($event)"
       />
 
@@ -164,7 +164,7 @@
             class="flag"
             type="button"
             [class.on]="m.wrap !== false"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="toggleWrap()"
          >
             Auto wrap
@@ -172,16 +172,16 @@
       </div>
 
       @if (m.style !== 'break') {
-         <button class="add-btn full" type="button" [disabled]="!edits.canEdit()" (click)="flipDirection()">
+         <button class="add-btn full" type="button" [disabled]="!edits.canEdit$()" (click)="flipDirection()">
             <dd-icon name="swap_horiz" />Flip direction
          </button>
       }
-   } @else if (diagram()) {
+   } @else if (diagram$()) {
       <div class="panel-head">
          <span class="dot" style="background: var(--dd-primary)"></span>
          <div class="head-text">
             <div class="eyebrow">Sequence diagram</div>
-            <div class="tname">{{ participantCount() }} participants · {{ messageCount() }} messages</div>
+            <div class="tname">{{ participantCount$() }} participants · {{ messageCount$() }} messages</div>
          </div>
       </div>
 
@@ -191,8 +191,8 @@
          noneValue="transparent"
          noneLabel="No background"
          themeValue=""
-         [value]="diagram()!.backgroundColor"
-         [disabled]="!edits.canEdit()"
+         [value]="diagram$()!.backgroundColor"
+         [disabled]="!edits.canEdit$()"
          (pick)="setBackground($event)"
       />
 
@@ -202,27 +202,27 @@
          noneValue="transparent"
          noneLabel="No border"
          themeValue=""
-         [value]="diagram()!.borderColor"
-         [disabled]="!edits.canEdit()"
+         [value]="diagram$()!.borderColor"
+         [disabled]="!edits.canEdit$()"
          (pick)="setBorder($event)"
       />
 
       <div class="field-label">Arrange</div>
       <div class="flag-chips">
-         <button class="flag" type="button" [disabled]="!edits.canEdit()" (click)="arrange('back')">
+         <button class="flag" type="button" [disabled]="!edits.canEdit$()" (click)="arrange('back')">
             Send to back
          </button>
-         <button class="flag" type="button" [disabled]="!edits.canEdit()" (click)="arrange('front')">
+         <button class="flag" type="button" [disabled]="!edits.canEdit$()" (click)="arrange('front')">
             Bring to front
          </button>
       </div>
 
       <div class="field-label">Add participant</div>
       <div class="flag-chips">
-         <button class="flag" type="button" [disabled]="!edits.canEdit()" (click)="addParticipant('left')">
+         <button class="flag" type="button" [disabled]="!edits.canEdit$()" (click)="addParticipant('left')">
             ◂ Left
          </button>
-         <button class="flag" type="button" [disabled]="!edits.canEdit()" (click)="addParticipant('right')">
+         <button class="flag" type="button" [disabled]="!edits.canEdit$()" (click)="addParticipant('right')">
             Right ▸
          </button>
       </div>

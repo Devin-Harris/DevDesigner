@@ -39,26 +39,26 @@ export interface SelectOption<T = string> {
 })
 export class SelectComponent<T = string> implements ControlValueAccessor {
    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-   readonly options = input.required<SelectOption<T>[]>();
-   readonly compact = input<boolean>(false);
+   readonly options$ = input.required<SelectOption<T>[]>({ alias: 'options' });
+   readonly compact$ = input<boolean>(false, { alias: 'compact' });
    readonly placeholder = input<string>('Select');
-   readonly disabled = signal(false);
-   protected readonly value = signal<T | null>(null);
+   readonly disabled$ = signal(false);
+   protected readonly value$ = signal<T | null>(null);
    /** A renamable option's new name, after the pencil is used. */
    readonly rename = output<{ value: T; label: string }>();
    /** Renamable options also get a delete button (emits `remove`). */
-   readonly removable = input(false);
+   readonly removable$ = input(false, { alias: 'removable' });
    readonly remove = output<T>();
-   protected readonly editing = signal<T | null>(null);
+   protected readonly editing$ = signal<T | null>(null);
 
    /** Renaming the selected option in the trigger's place (not in the menu). */
-   protected readonly inline = signal(false);
+   protected readonly inline$ = signal(false);
 
    protected startInlineRename(): void {
-      const sel = this.selectedOption();
+      const sel = this.selectedOption$();
       if (!sel) return;
-      this.inline.set(true);
-      this.editing.set(sel.value);
+      this.inline$.set(true);
+      this.editing$.set(sel.value);
       setTimeout(() => {
          const el = this.host.nativeElement.querySelector<HTMLInputElement>('input.rename.inline');
          el?.focus();
@@ -68,8 +68,8 @@ export class SelectComponent<T = string> implements ControlValueAccessor {
 
    protected startRename(v: T, event: Event): void {
       event.stopPropagation();
-      this.inline.set(false);
-      this.editing.set(v);
+      this.inline$.set(false);
+      this.editing$.set(v);
       // Focus the field once it renders.
       setTimeout(() => {
          const el = document.querySelector<HTMLInputElement>('.dd-select-menu input.rename');
@@ -78,39 +78,39 @@ export class SelectComponent<T = string> implements ControlValueAccessor {
       });
    }
    protected finishRename(opt: SelectOption<T>, label: string): void {
-      if (this.editing() !== opt.value) return;
-      this.editing.set(null);
-      this.inline.set(false);
+      if (this.editing$() !== opt.value) return;
+      this.editing$.set(null);
+      this.inline$.set(false);
       const trimmed = label.trim();
       if (trimmed && trimmed !== opt.label) this.rename.emit({ value: opt.value, label: trimmed });
    }
 
-   protected readonly selectedLabel = computed(() => {
-      const v = this.value();
-      return this.options().find((o) => o.value === v)?.label ?? this.placeholder();
+   protected readonly selectedLabel$ = computed(() => {
+      const v = this.value$();
+      return this.options$().find((o) => o.value === v)?.label ?? this.placeholder();
    });
 
-   protected readonly selectedOption = computed(() => {
-      const v = this.value();
-      return this.options().find((o) => o.value === v) ?? null;
+   protected readonly selectedOption$ = computed(() => {
+      const v = this.value$();
+      return this.options$().find((o) => o.value === v) ?? null;
    });
 
-   protected readonly selectedFont = computed(() => {
-      const v = this.value();
-      return this.options().find((o) => o.value === v)?.font ?? null;
+   protected readonly selectedFont$ = computed(() => {
+      const v = this.value$();
+      return this.options$().find((o) => o.value === v)?.font ?? null;
    });
 
    protected onChange: (v: T) => void = () => {};
    protected onTouched: () => void = () => {};
 
    protected pick(v: T): void {
-      this.value.set(v);
+      this.value$.set(v);
       this.onChange(v);
       this.onTouched();
    }
 
    writeValue(v: T | null): void {
-      this.value.set(v);
+      this.value$.set(v);
    }
    registerOnChange(fn: (v: T) => void): void {
       this.onChange = fn;
@@ -119,6 +119,6 @@ export class SelectComponent<T = string> implements ControlValueAccessor {
       this.onTouched = fn;
    }
    setDisabledState(isDisabled: boolean): void {
-      this.disabled.set(isDisabled);
+      this.disabled$.set(isDisabled);
    }
 }

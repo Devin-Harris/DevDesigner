@@ -2,22 +2,22 @@
    <button
       class="sw"
       type="button"
-      [class.on]="c === strokeColor()"
-      [style.background]="css(c)"
+      [class.on]="c === strokeColor$()"
+      [style.background]="(css | call: c)"
       [attr.aria-label]="'Pen color ' + c"
-      (click)="setColor(c); pen.eraser.set(false)"
+      (click)="setColor(c); pen.eraser$.set(false)"
    ></button>
 }
 <span class="sep"></span>
-@if (pen.eraser()) {
+@if (pen.eraser$()) {
    @for (w of erasers; track w.value) {
       <button
          class="ib"
          type="button"
-         [class.on]="w.value === pen.eraserSize()"
+         [class.on]="w.value === pen.eraserSize$()"
          [matTooltip]="w.label"
          [attr.aria-label]="w.label"
-         (click)="pen.eraserSize.set(w.value)"
+         (click)="pen.eraserSize$.set(w.value)"
       >
          <span class="dot ring" [style.width.px]="w.dot" [style.height.px]="w.dot"></span>
       </button>
@@ -30,16 +30,16 @@
       aria-label="Eraser size"
       [min]="eraserMin"
       [max]="eraserMax"
-      [value]="pen.eraserSize()"
-      (input)="pen.eraserSize.set(+$any($event.target).value)"
+      [value]="pen.eraserSize$()"
+      (input)="pen.eraserSize$.set(+$any($event.target).value)"
    />
-   <span class="num">{{ pen.eraserSize() }}</span>
+   <span class="num">{{ pen.eraserSize$() }}</span>
 } @else {
    @for (w of widths; track w.value) {
       <button
          class="ib"
          type="button"
-         [class.on]="w.value === width()"
+         [class.on]="w.value === width$()"
          [matTooltip]="w.label"
          [attr.aria-label]="w.label"
          (click)="setWidth(w.value)"
@@ -55,10 +55,10 @@
       aria-label="Pen size"
       [min]="penMin"
       [max]="penMax"
-      [value]="width()"
+      [value]="width$()"
       (input)="setWidth(+$any($event.target).value)"
    />
-   <span class="num">{{ width() }}</span>
+   <span class="num">{{ width$() }}</span>
 }
 <span class="sep"></span>
 <button
@@ -66,8 +66,8 @@
    type="button"
    matTooltip="Highlighter (wide, 50% opacity)"
    aria-label="Highlighter"
-   [class.on]="pen.highlighter()"
-   (click)="pen.highlighter.set(!pen.highlighter())"
+   [class.on]="pen.highlighter$()"
+   (click)="pen.highlighter$.set(!pen.highlighter$())"
 >
    <dd-icon name="highlight" />
 </button>
@@ -76,8 +76,8 @@
    type="button"
    matTooltip="Eraser (X): drag to rub out parts of strokes"
    aria-label="Eraser"
-   [class.on]="pen.eraser()"
-   (click)="pen.eraser.set(!pen.eraser())"
+   [class.on]="pen.eraser$()"
+   (click)="pen.eraser$.set(!pen.eraser$())"
 >
    <dd-icon name="eraser" />
 </button>

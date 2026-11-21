@@ -1,28 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import {
-   CODE_LANGUAGES,
-   type CanvasElementModel,
-   type CodeLanguage,
-   type CodeDiffView,
-   type FillStyle,
-   type FontFamily,
-   type StrokeStyle,
-   type UpdateElementDto,
-   DEFAULT_THEME,
-   presentationOf,
-   resolveThemeFont,
-   themeToken,
-   type SlideTheme,
-} from '@devdesigner/shared';
-import { SURFACE_FILL } from '../../../../helpers/render';
+import { CODE_LANGUAGES, type CanvasElementModel, type CodeLanguage, type CodeDiffView, type FillStyle, type FontFamily, type StrokeStyle, type UpdateElementDto, DEFAULT_THEME, presentationOf, resolveThemeFont, themeToken, type SlideTheme } from '@devdesigner/shared';
+import { SURFACE_FILL, FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper';
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
-import { FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { withTextFit } from '../../../../helpers/text-metrics';
 import { ElementEdits } from '../../services/element-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
+import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 
 /**
  * The "shape & line styling" side panel — the design's calm, full-width companion
@@ -33,32 +19,32 @@ import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/c
 @Component({
    selector: 'dd-element-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [ColorSwatchesComponent, IconComponent],
+   imports: [CallPipe, ColorSwatchesComponent, IconComponent],
    templateUrl: './element-inspector.component.html',
    styleUrl: './element-inspector.component.scss',
 })
 export class ElementInspectorComponent {
    protected readonly edits = inject(ElementEdits);
    private readonly codeActions = inject(CodeActionsService);
-   readonly element = input.required<CanvasElementModel>();
+   readonly element$ = input.required<CanvasElementModel>({ alias: 'element' });
 
    /** Closed shapes and code cards can drop their outline entirely. */
-   protected readonly strokeCanBeNone = computed(() =>
-      ['rectangle', 'ellipse', 'diamond', 'code'].includes(this.element().type)
+   protected readonly strokeCanBeNone$ = computed(() =>
+      ['rectangle', 'ellipse', 'diamond', 'code'].includes(this.element$().type)
    );
    protected readonly widths = [1, 2, 4];
    protected readonly styles: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
    protected readonly fonts = FONT_OPTIONS as { value: FontFamily; label: string }[];
 
    /** The deck theme of the slide (or layout) this element is on; null off slides. */
-   protected readonly deckTheme = computed<SlideTheme | null>(() => {
-      const el = this.element();
+   protected readonly deckTheme$ = computed<SlideTheme | null>(() => {
+      const el = this.element$();
       const frames = this.edits.slideFrames();
       const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
       return f ? (this.edits.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
    });
-   protected readonly themeFonts = computed(() => {
-      const t = this.deckTheme();
+   protected readonly themeFonts$ = computed(() => {
+      const t = this.deckTheme$();
       return t
          ? [
               { value: themeToken('heading'), label: 'Heading' },
@@ -67,12 +53,18 @@ export class ElementInspectorComponent {
          : [];
    });
    /** CSS font stack for a family key or theme font token. */
+   /** Font stack of a font key under the deck theme. */
+   protected readonly stackOf$ = computed(() => {
+      const theme = this.deckTheme$() ?? DEFAULT_THEME;
+      return (key: string): string => fontStack(resolveThemeFont(key, theme));
+   });
+
    protected stackOf(key: string): string {
-      return fontStack(resolveThemeFont(key, this.deckTheme() ?? DEFAULT_THEME));
+      return fontStack(resolveThemeFont(key, this.deckTheme$() ?? DEFAULT_THEME));
    }
 
-   protected readonly kindLabel = computed(() => {
-      const t = this.element().type;
+   protected readonly kindLabel$ = computed(() => {
+      const t = this.element$().type;
       if (t === 'arrow' || t === 'line') return t === 'arrow' ? 'Arrow' : 'Line';
       if (t === 'freedraw') return 'Pen stroke';
       if (t === 'text') return 'Text';
@@ -80,18 +72,18 @@ export class ElementInspectorComponent {
       return t.charAt(0).toUpperCase() + t.slice(1);
    });
 
-   protected readonly isText = computed(() => this.element().type === 'text');
-   protected readonly isCode = computed(() => this.element().type === 'code');
+   protected readonly isText$ = computed(() => this.element$().type === 'text');
+   protected readonly isCode$ = computed(() => this.element$().type === 'code');
    protected readonly languages = CODE_LANGUAGES.map((id) => ({
       id,
       label: CODE_LANGUAGE_LABELS[id],
    }));
    protected readonly codeSizes = [11, 12, 14, 16, 18, 20, 24];
-   protected readonly isLine = computed(() => this.element().type === 'arrow' || this.element().type === 'line');
-   protected readonly isRect = computed(() => this.element().type === 'rectangle');
-   protected readonly hasFill = computed(() => !this.isText() && !this.isLine() && this.element().type !== 'freedraw');
-   protected readonly canHaveText = computed(() => {
-      const t = this.element().type;
+   protected readonly isLine$ = computed(() => this.element$().type === 'arrow' || this.element$().type === 'line');
+   protected readonly isRect$ = computed(() => this.element$().type === 'rectangle');
+   protected readonly hasFill$ = computed(() => !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw');
+   protected readonly canHaveText$ = computed(() => {
+      const t = this.element$().type;
       return t === 'text' || t === 'rectangle' || t === 'ellipse' || t === 'diamond';
    });
 
@@ -111,7 +103,7 @@ export class ElementInspectorComponent {
 
    private patchAll(patch: UpdateElementDto): void {
       const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element().id];
+      const targets = ids.length ? ids : [this.element$().id];
       for (const id of targets) {
          // Text boxes hug their glyphs: a font/size/weight change refits the box.
          const el = this.edits.elements().find((e) => e.id === id);
@@ -127,7 +119,7 @@ export class ElementInspectorComponent {
    /** Code-block edits go to every selected code block and skip the sticky text style. */
    private patchCode(patch: UpdateElementDto): void {
       const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element().id];
+      const targets = ids.length ? ids : [this.element$().id];
       for (const id of targets) {
          if (this.edits.elements().find((e) => e.id === id)?.type === 'code') {
             void this.edits.updateElement(id, patch);
@@ -135,7 +127,7 @@ export class ElementInspectorComponent {
       }
    }
 
-   protected readonly canFormat = computed(() => canFormatCode(this.element().language));
+   protected readonly canFormat$ = computed(() => canFormatCode(this.element$().language));
 
    protected format(): void {
       void this.codeActions.format(this.edits.selectedElementIds());
@@ -152,7 +144,7 @@ export class ElementInspectorComponent {
    }
 
    protected editDiff(side: 'original' | 'modified'): void {
-      this.codeActions.editDiffSide(this.element().id, side);
+      this.codeActions.editDiffSide(this.element$().id, side);
    }
 
    protected toggleWhitespace(): void {
@@ -160,11 +152,11 @@ export class ElementInspectorComponent {
    }
 
    protected swapDiff(): void {
-      void this.codeActions.swapDiffSides(this.element().id);
+      void this.codeActions.swapDiffSides(this.element$().id);
    }
 
    protected clearDiff(): void {
-      void this.codeActions.clearDiff(this.element().id);
+      void this.codeActions.clearDiff(this.element$().id);
    }
 
    protected fitToContent(): void {
@@ -173,7 +165,7 @@ export class ElementInspectorComponent {
 
    protected setFileName(value: string): void {
       const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element().id]) {
+      for (const id of ids.length ? ids : [this.element$().id]) {
          void this.codeActions.setFileName(id, value);
       }
    }
@@ -223,10 +215,10 @@ export class ElementInspectorComponent {
       this.patchAll({ fontSize: size });
    }
    protected toggleBold(): void {
-      this.patchAll({ bold: !this.element().bold });
+      this.patchAll({ bold: !this.element$().bold });
    }
    protected toggleItalic(): void {
-      this.patchAll({ italic: !this.element().italic });
+      this.patchAll({ italic: !this.element$().italic });
    }
 
    protected bringToFront(): void {

@@ -28,7 +28,7 @@ export class AlignService {
    }
 
    /** The image element being cropped inline (crop overlay), while it still exists. */
-   readonly croppingElement = computed(() => {
+   readonly croppingElement$ = computed(() => {
       const id = this.mediaActions.croppingId();
       return id ? (this.store.elements().find((e) => e.id === id && e.type === 'image') ?? null) : null;
    });
@@ -92,10 +92,10 @@ export class AlignService {
       () => this.store.canEdit() && (this.canvasView.alignUnitCount() >= 2 || !!this.alignContainer())
    );
 
-   readonly canDistribute = computed(() => this.store.canEdit() && this.canvasView.alignUnitCount() >= 3);
+   readonly canDistribute$ = computed(() => this.store.canEdit() && this.canvasView.alignUnitCount() >= 3);
 
    /** True when an align action would target the surrounding container. */
-   readonly alignToContainer = computed(() => this.canvasView.alignUnitCount() === 1 && !!this.alignContainer());
+   readonly alignToContainer$ = computed(() => this.canvasView.alignUnitCount() === 1 && !!this.alignContainer());
 
    // --- alignment ---
 
@@ -104,7 +104,7 @@ export class AlignService {
          return;
       }
       // While cropping, the panel lines the clip shape up within its picture.
-      if (this.croppingElement()) {
+      if (this.croppingElement$()) {
          this.mediaActions.requestCropAlign(action);
          return;
       }

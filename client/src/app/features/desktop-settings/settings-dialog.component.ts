@@ -8,6 +8,7 @@ import { SyncPanelComponent } from '../../shared/features/projects-overlay/compo
 import { UpdateService } from '../../core/desktop/update.service';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { SegmentedComponent } from '../../shared/ui/components/segmented/segmented.component';
+import { CallPipe } from '../../shared/ui/pipes/collection.pipes';
 
 type UpdateMode = 'ask' | 'install-on-quit' | 'off';
 
@@ -33,7 +34,7 @@ type Tab = 'general' | 'sync' | 'data' | 'about';
 @Component({
    selector: 'dd-settings-dialog',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [DatePipe, ReactiveFormsModule, MatDialogModule, IconComponent, SegmentedComponent, SyncPanelComponent],
+   imports: [CallPipe, DatePipe, ReactiveFormsModule, MatDialogModule, IconComponent, SegmentedComponent, SyncPanelComponent],
    templateUrl: './settings-dialog.component.html',
    styleUrl: './settings-dialog.component.scss',
 })
@@ -44,9 +45,9 @@ export class SettingsDialogComponent {
    protected readonly updater = inject(UpdateService);
    private readonly bridge = (globalThis as { devdesigner?: { settings?: SettingsBridge } }).devdesigner?.settings;
 
-   protected readonly tab = signal<Tab>('general');
-   protected readonly state = signal<SettingsState | null>(null);
-   protected readonly busy = signal(false);
+   protected readonly tab$ = signal<Tab>('general');
+   protected readonly state$ = signal<SettingsState | null>(null);
+   protected readonly busy$ = signal(false);
 
    protected readonly tabs: Array<{ id: Tab; label: string; icon: string }> = [
       { id: 'general', label: 'General', icon: 'tune' },
@@ -61,13 +62,13 @@ export class SettingsDialogComponent {
       { value: 'off' as UpdateMode, label: 'Off' },
    ];
    protected readonly updates = new FormControl<UpdateMode>('ask', { nonNullable: true });
-   protected readonly updatesValue = signal<UpdateMode>('ask');
+   protected readonly updatesValue$ = signal<UpdateMode>('ask');
    protected readonly backupsToKeep = new FormControl(5, { nonNullable: true });
 
    constructor() {
       void this.load();
       this.updates.valueChanges.subscribe((updates) => {
-         this.updatesValue.set(updates);
+         this.updatesValue$.set(updates);
          void this.save({ updates });
       });
    }
@@ -78,9 +79,9 @@ export class SettingsDialogComponent {
 
    private apply(state: SettingsState | null | undefined): void {
       if (!state) return;
-      this.state.set(state);
+      this.state$.set(state);
       this.updates.setValue(state.settings.updates, { emitEvent: false });
-      this.updatesValue.set(state.settings.updates);
+      this.updatesValue$.set(state.settings.updates);
       this.backupsToKeep.setValue(state.settings.backupsToKeep, { emitEvent: false });
    }
 
@@ -94,11 +95,11 @@ export class SettingsDialogComponent {
    }
 
    protected async run(type: string, id?: string): Promise<void> {
-      this.busy.set(true);
+      this.busy$.set(true);
       try {
          this.apply(await this.bridge?.action({ type, id }));
       } finally {
-         this.busy.set(false);
+         this.busy$.set(false);
       }
    }
 

@@ -38,7 +38,7 @@ export class LaserLayerComponent {
    /** The project viewport the world-space trails are projected through. */
    readonly viewport = input.required<ViewportModel>();
 
-   protected readonly lasers = computed<LaserDraw[]>(() => {
+   protected readonly lasers$ = computed<LaserDraw[]>(() => {
       const v = this.viewport();
       const project = (p: { x: number; y: number }) => ({
          x: p.x * v.zoom + v.x,

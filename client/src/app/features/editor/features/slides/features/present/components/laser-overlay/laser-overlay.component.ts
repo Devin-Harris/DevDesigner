@@ -23,7 +23,7 @@ export class LaserOverlayComponent {
    /** The element the slide is fitted into. */
    readonly stage = input.required<HTMLElement>();
    /** Dragging draws our laser. */
-   readonly capturing = input(false);
+   readonly capturing$ = input(false, { alias: 'capturing' });
    /** Changes whenever the stage resizes (trails are re-mapped). */
    readonly layoutTick = input<unknown>(0);
 
@@ -32,7 +32,7 @@ export class LaserOverlayComponent {
    private pointer: number | null = null;
    private lastSent = 0;
 
-   protected readonly trails = computed(() => {
+   protected readonly trails$ = computed(() => {
       this.layoutTick();
       const slide = this.slide();
       const views = this.laser.views();

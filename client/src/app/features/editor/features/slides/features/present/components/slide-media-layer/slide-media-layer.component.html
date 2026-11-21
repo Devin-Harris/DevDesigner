@@ -1,9 +1,9 @@
-<div class="frame" [style.--slide-ar]="aspect()">
-   @for (m of items(); track m.id) {
+<div class="frame" [style.--slide-ar]="aspect$()">
+   @for (m of items$(); track m.id) {
       <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- media on a presented slide; the presenter handles keys on the document -->
       <div
          class="item"
-         [class.gif-click]="m.kind === 'gif' && playbackOf(m) === 'click'"
+         [class.gif-click]="m.kind === 'gif' && (playbackOf | call: m) === 'click'"
          [style.left.%]="m.left"
          [style.top.%]="m.top"
          [style.width.%]="m.width"
@@ -18,28 +18,28 @@
          (click)="onClick(m, $event)"
       >
          @if (m.kind === 'embed') {
-            <dd-embed-frame [url]="m.url" [interacting]="true" [nonce]="embeds.nonce(m.id)"></dd-embed-frame>
+            <dd-embed-frame [url]="m.url" [interacting]="true" [nonce]="(embeds.nonces$() | at: m.id) ?? 0"></dd-embed-frame>
          } @else if (m.kind === 'video') {
-            @if (images.url(m.fileId); as src) {
+            @if (m.fileId | imageUrl; as src) {
                <dd-media-video
                   [view]="m.view"
                   [src]="src"
-                  [poster]="images.posterUrl(m.fileId)"
+                  [poster]="m.fileId | imagePoster"
                   [clickToPlay]="true"
                   [autoplay]="m.view.playback === 'auto'"
                ></dd-media-video>
             }
          } @else {
             <div class="clip" [style.clip-path]="m.view.clip?.css ?? null">
-               @if (gifSrc(m); as src) {
+               @if ((gifSrc$() | call: m : (m.fileId | imageUrl) : (m.fileId | imagePoster)); as src) {
                   <img
                      alt=""
                      draggable="false"
                      [src]="src"
-                     [style.left.%]="frame(m).left"
-                     [style.top.%]="frame(m).top"
-                     [style.width.%]="frame(m).width"
-                     [style.height.%]="frame(m).height"
+                     [style.left.%]="(frame | call: m).left"
+                     [style.top.%]="(frame | call: m).top"
+                     [style.width.%]="(frame | call: m).width"
+                     [style.height.%]="(frame | call: m).height"
                   />
                }
             </div>

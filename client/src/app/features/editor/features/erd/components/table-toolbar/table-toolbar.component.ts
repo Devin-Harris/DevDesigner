@@ -24,33 +24,33 @@ export class TableToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
    protected readonly edits = inject(ErdEdits);
    protected readonly actions = inject(EditorActionsService);
-   readonly table = input.required<TableModel>();
+   readonly table$ = input.required<TableModel>({ alias: 'table' });
 
    protected addColumn(): void {
-      if (!this.edits.canEdit()) return;
-      const names = new Set(this.table().columns.map((c) => c.name));
-      let i = this.table().columns.length + 1;
+      if (!this.edits.canEdit$()) return;
+      const names = new Set(this.table$().columns.map((c) => c.name));
+      let i = this.table$().columns.length + 1;
       let name = `column_${i}`;
       while (names.has(name)) {
          i += 1;
          name = `column_${i}`;
       }
-      void this.edits.addColumn(this.table().id, { name, dataType: { name: 'INT' } });
+      void this.edits.addColumn(this.table$().id, { name, dataType: { name: 'INT' } });
    }
 
    protected setColor(color: string): void {
-      void this.edits.updateTable(this.table().id, { color });
+      void this.edits.updateTable(this.table$().id, { color });
    }
 
    protected setNote(note: string): void {
-      void this.edits.updateTable(this.table().id, { note });
+      void this.edits.updateTable(this.table$().id, { note });
    }
 
    protected duplicate(): void {
-      void this.edits.duplicateTable(this.table().id);
+      void this.edits.duplicateTable(this.table$().id);
    }
 
    protected remove(): void {
-      void this.edits.deleteTable(this.table().id);
+      void this.edits.deleteTable(this.table$().id);
    }
 }

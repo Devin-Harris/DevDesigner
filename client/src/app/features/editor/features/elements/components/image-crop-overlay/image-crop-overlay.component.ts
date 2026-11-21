@@ -1,14 +1,4 @@
-import {
-   ChangeDetectionStrategy,
-   Component,
-   DestroyRef,
-   computed,
-   effect,
-   inject,
-   input,
-   signal,
-   untracked,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import { MediaActionsService, cleanMedia } from '../../../../services/media-actions.service';
@@ -45,24 +35,24 @@ export class ImageCropOverlayComponent {
 
    protected readonly edges: readonly Edge[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'];
    /** The box being cropped to and where the whole source lands (world px). */
-   protected readonly draft = signal<{ box: Rect; src: Rect } | null>(null);
+   protected readonly draft$ = signal<{ box: Rect; src: Rect } | null>(null);
    private start: { box: Rect; src: Rect } | null = null;
    /** Align requests already handled (only newer ones apply). */
    private alignSeq = this.media.cropAlign()?.seq ?? 0;
 
    /** The still picture to crop against (a video's first frame, a GIF's first frame). */
-   protected readonly picture = computed(() => {
+   protected readonly picture$ = computed(() => {
       const fileId = this.element().fileId;
       const kind = this.images.kind(fileId);
       return kind === 'image' ? this.images.url(fileId) : (this.images.posterUrl(fileId) ?? this.images.url(fileId));
    });
    /** The clip shape (ellipse, diamond, rounded rect) the kept part is shown through. */
-   protected readonly clipCss = computed(
+   protected readonly clipCss$ = computed(
       () => imageView(this.element(), this.element().fileId ?? '').clip?.css ?? null
    );
    /** Line the clip shape up with an edge or the centre of the picture. */
    protected align(mode: AlignMode): void {
-      const d = this.draft();
+      const d = this.draft$();
       if (!d) {
          return;
       }
@@ -83,16 +73,16 @@ export class ImageCropOverlayComponent {
               : mode === 'vcenter'
                 ? src.y + (src.height - box.height) / 2
                 : box.y;
-      this.draft.set({ box: { ...box, x, y }, src });
+      this.draft$.set({ box: { ...box, x, y }, src });
    }
 
    /** Handles stay ~10 screen px whatever the zoom. */
-   protected readonly handleSize = computed(() => 10 / this.edits.viewport().zoom);
-   protected readonly origin = computed(() => {
+   protected readonly handleSize$ = computed(() => 10 / this.edits.viewport().zoom);
+   protected readonly origin$ = computed(() => {
       const e = this.element();
       return `${e.x + e.width / 2}px ${e.y + e.height / 2}px`;
    });
-   protected readonly rotate = computed(() =>
+   protected readonly rotate$ = computed(() =>
       this.element().angle ? `rotate(${(this.element().angle * 180) / Math.PI}deg)` : null
    );
 
@@ -100,9 +90,9 @@ export class ImageCropOverlayComponent {
       effect(() => {
          const e = this.element();
          untracked(() => {
-            if (!this.draft()) {
+            if (!this.draft$()) {
                const box = { x: e.x, y: e.y, width: e.width, height: e.height };
-               this.draft.set({ box, src: mediaSourceRect(box, e.media?.crop) });
+               this.draft$.set({ box, src: mediaSourceRect(box, e.media?.crop) });
             }
          });
       });
@@ -135,7 +125,7 @@ export class ImageCropOverlayComponent {
       }
       event.stopPropagation();
       event.preventDefault();
-      const d = this.draft();
+      const d = this.draft$();
       if (!d) {
          return;
       }
@@ -150,7 +140,7 @@ export class ImageCropOverlayComponent {
          const sy = (ev.clientY - y0) / zoom;
          const dx = sx * Math.cos(-angle) - sy * Math.sin(-angle);
          const dy = sx * Math.sin(-angle) + sy * Math.cos(-angle);
-         this.draft.set(
+         this.draft$.set(
             edge === 'pan'
                ? this.pan(dx, dy)
                : edge === 'move'
@@ -223,7 +213,7 @@ export class ImageCropOverlayComponent {
    }
 
    private async commit(): Promise<void> {
-      const d = this.draft();
+      const d = this.draft$();
       const e = this.element();
       this.media.stopCrop();
       if (!d) {

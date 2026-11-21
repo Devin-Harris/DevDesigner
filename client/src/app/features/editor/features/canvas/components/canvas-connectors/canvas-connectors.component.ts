@@ -29,12 +29,12 @@ export interface SegmentDownEvent {
    styleUrl: './canvas-connectors.component.scss',
 })
 export class CanvasConnectorsComponent {
-   readonly connectors = input.required<Connector[]>();
-   readonly tempLinkPath = input<string | null>(null);
+   readonly connectors$ = input.required<Connector[]>({ alias: 'connectors' });
+   readonly tempLinkPath$ = input<string | null>(null, { alias: 'tempLinkPath' });
    /** Anchor the in-flight link would snap to, drawn as a ring. */
-   readonly snapAnchor = input<{ x: number; y: number } | null>(null);
-   readonly svgOffset = input.required<number>();
-   readonly dragging = input<boolean>(false);
+   readonly snapAnchor$ = input<{ x: number; y: number } | null>(null, { alias: 'snapAnchor' });
+   readonly svgOffset$ = input.required<number>({ alias: 'svgOffset' });
+   readonly dragging$ = input<boolean>(false, { alias: 'dragging' });
 
    readonly selectConnector = output<{ id: string; event: PointerEvent }>();
    readonly endpointDown = output<EndpointDownEvent>();

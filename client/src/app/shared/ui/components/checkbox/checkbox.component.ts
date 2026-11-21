@@ -12,20 +12,20 @@ import { IconComponent } from '../icon/icon.component';
    styleUrl: './checkbox.component.scss',
 })
 export class CheckboxComponent implements ControlValueAccessor {
-   readonly disabled = signal(false);
-   protected readonly checked = signal(false);
+   readonly disabled$ = signal(false);
+   protected readonly checked$ = signal(false);
    protected onChange: (v: boolean) => void = () => {};
    protected onTouched: () => void = () => {};
 
    protected toggle(): void {
-      const next = !this.checked();
-      this.checked.set(next);
+      const next = !this.checked$();
+      this.checked$.set(next);
       this.onChange(next);
       this.onTouched();
    }
 
    writeValue(v: boolean): void {
-      this.checked.set(!!v);
+      this.checked$.set(!!v);
    }
    registerOnChange(fn: (v: boolean) => void): void {
       this.onChange = fn;
@@ -34,6 +34,6 @@ export class CheckboxComponent implements ControlValueAccessor {
       this.onTouched = fn;
    }
    setDisabledState(isDisabled: boolean): void {
-      this.disabled.set(isDisabled);
+      this.disabled$.set(isDisabled);
    }
 }

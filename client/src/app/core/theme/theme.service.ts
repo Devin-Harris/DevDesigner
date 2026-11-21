@@ -17,8 +17,8 @@ export class ThemeService {
    private readonly media = this.doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
    private readonly systemDark = signal<boolean>(this.media?.matches ?? false);
 
-   readonly mode = signal<ThemeMode>(this.readInitial());
-   readonly dark = computed(() => (this.mode() === 'system' ? this.systemDark() : this.mode() === 'dark'));
+   readonly mode$ = signal<ThemeMode>(this.readInitial());
+   readonly dark$ = computed(() => (this.mode$() === 'system' ? this.systemDark() : this.mode$() === 'dark'));
    /**
     * Fires after the root's `dark` class flips, so computeds that read theme tokens
     * through `getComputedStyle` re-read them (and only then).
@@ -28,8 +28,8 @@ export class ThemeService {
    constructor() {
       this.media?.addEventListener?.('change', (e) => this.systemDark.set(e.matches));
       effect(() => {
-         const mode = this.mode();
-         const isDark = this.dark();
+         const mode = this.mode$();
+         const isDark = this.dark$();
          this.doc.documentElement.classList.toggle('dark', isDark);
          this.themeChanged$.notify();
          try {
@@ -41,11 +41,11 @@ export class ThemeService {
    }
 
    setMode(mode: ThemeMode): void {
-      this.mode.set(mode);
+      this.mode$.set(mode);
    }
 
    toggle(): void {
-      this.mode.set(this.dark() ? 'light' : 'dark');
+      this.mode$.set(this.dark$() ? 'light' : 'dark');
    }
 
    private readInitial(): ThemeMode {

@@ -3,21 +3,21 @@
 </button>
 <div class="title">
    <span class="app">DevDesigner</span>
-   @if (project() && where(); as server) {
+   @if (project$() && where$(); as server) {
       <span class="where"><dd-icon name="cloud" />{{ server }}</span>
    }
 </div>
-@switch (update().state) {
+@switch (update$().state) {
    @case ('downloading') {
-      <span class="update pending" [title]="'Downloading DevDesigner ' + version()">
-         <dd-icon name="sync" class="spin" />Downloading update… {{ percent() }}%
+      <span class="update pending" [title]="'Downloading DevDesigner ' + version$()">
+         <dd-icon name="sync" class="spin" />Downloading update… {{ percent$() }}%
       </span>
    }
    @case ('ready') {
       <button
          class="update ready"
          type="button"
-         [title]="'DevDesigner ' + version() + ' is ready. Restart to install it.'"
+         [title]="'DevDesigner ' + version$() + ' is ready. Restart to install it.'"
          (click)="updates.install()"
       >
          <dd-icon name="sync" />Restart to update

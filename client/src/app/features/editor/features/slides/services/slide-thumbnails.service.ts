@@ -46,7 +46,7 @@ export class SlideThumbnailsService {
       this.store.sequenceDiagrams();
       this.store.lifelines();
       this.store.sequenceMessages();
-      this.theme.dark();
+      this.theme.dark$();
       const timer = setTimeout(() => void untracked(() => this.refresh(frames)), RENDER_DEBOUNCE_MS);
       onCleanup(() => clearTimeout(timer));
    });
@@ -120,7 +120,7 @@ export class SlideThumbnailsService {
       return [
          frame,
          // Thumbnails bake in the theme's colors.
-         this.theme.dark(),
+         this.theme.dark$(),
          deckOrder,
          ...elements.map((e) => rows.get(e.id) ?? e),
          // Empty placeholders are drawn from their layout slot: redraw when either changes.

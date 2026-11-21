@@ -61,14 +61,14 @@
    border: none;
    border-radius: 7px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font: inherit;
    font-weight: 600;
    cursor: pointer;
    white-space: nowrap;
 }
 .f-go:hover:not(:disabled) {
-   background: color-mix(in srgb, var(--dd-primary) 88%, #000);
+   background: color-mix(in srgb, var(--dd-primary) 88%, var(--dd-black));
 }
 .f-go:disabled,
 .f-tb:disabled {
@@ -409,7 +409,7 @@
    padding: 2px;
    border-radius: 4px;
    background: var(--dd-surface);
-   color: var(--dd-warning, #d97706);
+   color: var(--dd-amber-600);
    font-size: 14px;
 }
 .thumb img {

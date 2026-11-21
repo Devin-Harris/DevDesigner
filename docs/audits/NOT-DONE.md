@@ -16,9 +16,6 @@ Waves 0–6 of [00-master-plan.md](00-master-plan.md) are finished. On 2026-11-1
 |---|---|---|
 | **Switch prod to migrations** | The code is ready. A synchronize-created database is adopted on boot (`adoptSynchronizedDatabase`). | An owner step in Railway: follow [docs/database-migrations.md](../database-migrations.md). |
 | **Drop `X-Guest-Id`** (S4.3) | The server already adopts the header into the `dd_guest` cookie. | Drop the header once prod data shows most active guests carry the cookie. Dropping it earlier would cut guests off from their projects. |
-| **`template/no-call-expression`** (C5.2) | 1,808 warnings in 69 templates. The rule already allows the `$` suffix. | Rename the signals that templates read to `name$`, one feature at a time. It's mechanical, but it touches every component and the services they share, so it should be its own change. |
-| **`max-lines`** (C5.2) | 14 files over 600 lines (warning), including `editor.component.ts`, `slides-panel.state.ts`, `deck-compare.component.ts` and `morph-stage.ts`. | The C3.4 editor extraction, plus further splits of the slides store, deck-compare's drag-to-pair code and `MorphStage`'s constructor. |
-| **Boundary exceptions** | 5 imports, listed in `client/eslint.config.mjs`. | `canvas-sequence` composes a sibling sub-feature (needs the C3.4 `canvas.component`). The sandbox measures code blocks with an editor helper (C3.1, move to `@devdesigner/shared`). The projects-overlay thumbnails use the editor renderer (needs a shared renderer). |
 | **P3.5** | Thumbnails are cached per editor and re-render only the frames whose rows changed. | Keying by project revision is still open, but the remaining win is small. |
 | **Home `showTransition`** | Dead code: nothing calls it. It now goes through `EditorComponent.embed` like everything else. | Delete it, or wire it into the Slides showcase. |
 
@@ -50,3 +47,18 @@ Waves 0–6 of [00-master-plan.md](00-master-plan.md) are finished. On 2026-11-1
   - `click-events-have-key-events`, `interactive-supports-focus`, `label-has-associated-control` and `consistent-type-assertions` are now **errors** at 0. Fixes: keyboard support on list rows, a `ddStopClicks` directive for click-stopping containers, wrapping labels, and `satisfies` where it fits. The remaining deliberate partial rows say why inline.
   - `no-input-rename` is **off**, because the `$`-suffix convention aliases inputs on purpose.
   - Two templates had stray Windows-1252 "…" bytes, shown as "�" in the desktop settings and sync panel. They're fixed.
+- **`template/no-call-expression` is an error at 0** (it was 1,808 warnings).
+  - 600 signals that templates read were renamed to `name$` with the TypeScript language service, across components, services and facades. Inputs keep their public names through `alias`. Signal-store state keys were deliberately **not** renamed; the three entry components that read the store directly expose `$` fields for it.
+  - Method calls became computed lookups, or one of the pipes in `shared/ui/pipes/collection.pipes.ts` (`has`, `at`, `join`, and `call` for pure functions or closure computeds).
+  - The lazy image and thumbnail reads use **impure** pipes (`imageUrl`/`imageKind`/`imagePoster`, `thumbState`, `editedAgo`), because reading them starts a load or reads the clock.
+- **`max-lines` is an error at 0** (it was 14 warnings). The over-limit files were split as follows:
+  - Module-level code moved to `*.helpers.ts` files next to its file, with re-exports.
+  - Big data and helper files were split by topic: `guide-*-tools.ts`, `diagram-svg/*.helper.ts`, and the `showcase-*-steps.ts` files.
+  - Big classes moved methods into **part classes** that take the host in their constructor (for example `ElementResize`, `RichTextInput`, `SequenceGestures`, `DeckCompareDrag`, `MorphStageFrame`, `HomeShowcaseScript`). Method bodies are unchanged, with `this.x` rewritten to `this.host.x`. The host keeps delegates for its public and template API.
+  - The `SlidesPanelState` parts (`slideCardDrag`, `slideLayoutEditing`, `slideMorphSettings`, `slideLayoutViews`) are public fields, so templates call `s.slideMorphSettings.setTransition(...)` and so on.
+  - *Tradeoff:* host members that a part reads lost their `private` modifier.
+- **Boundaries: no exceptions left**, so the rule is an error.
+  - `canvas-sequence` now lives in the `sequence-diagram` sub-feature.
+  - The sandbox and the projects overlay depend on abstract classes (`CodeBlockSizer`, `ProjectPictureRenderer`). The editor implementations are bound to them in `app.config.ts`.
+- **Hex colors**: component styles now use CSS variables. Fixed colors come from a `--dd-*` palette in `styles.scss`, the only file allowed to contain hex. Stylelint now reports at **error** severity.
+

@@ -4,6 +4,7 @@ import { PICKER_SWATCHES, themeSwatchCss } from '@devdesigner/shared';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ERASER_MAX, ERASER_MIN, PEN_MAX, PEN_MIN } from '../../../../models/pen-limits.constants';
 import { PenPrefsService } from '../../../../services/pen-prefs.service';
+import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 
 const WIDTHS = [
    { value: 1, label: 'Thin', dot: 4 },
@@ -26,13 +27,13 @@ const ERASERS = [
 @Component({
    selector: 'dd-pen-options-bar',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [IconComponent, MatTooltipModule],
+   imports: [CallPipe, IconComponent, MatTooltipModule],
    templateUrl: './pen-options-bar.component.html',
    styleUrl: './pen-options-bar.component.scss',
 })
 export class PenOptionsBarComponent {
    /** The sticky stroke color new strokes are drawn with. */
-   readonly strokeColor = input<string | undefined>();
+   readonly strokeColor$ = input<string | undefined>(undefined, { alias: 'strokeColor' });
    /** A pen color was picked (the host makes it the sticky stroke color). */
    readonly colorChange = output<string>();
 
@@ -45,7 +46,7 @@ export class PenOptionsBarComponent {
    protected readonly eraserMin = ERASER_MIN;
    protected readonly eraserMax = ERASER_MAX;
 
-   protected readonly width = this.pen.width;
+   protected readonly width$ = this.pen.width;
 
    protected css(c: string): string {
       return themeSwatchCss(c);

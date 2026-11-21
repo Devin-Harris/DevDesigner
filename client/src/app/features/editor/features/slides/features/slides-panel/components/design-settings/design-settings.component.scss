@@ -26,7 +26,7 @@
 .btn.primary {
    background: var(--dd-primary);
    border-color: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
 }
 .btn.wide {
    width: 100%;
@@ -150,7 +150,7 @@
    padding: 2px;
    border-radius: 4px;
    background: var(--dd-surface);
-   color: var(--dd-warning, #d97706);
+   color: var(--dd-amber-600);
    font-size: 14px;
 }
 .design-pick {
@@ -260,8 +260,8 @@
 .tsw.follow {
    display: grid;
    place-items: center;
-   background: linear-gradient(135deg, #ffffff 0 50%, #1e293b 50% 100%);
-   color: #64748b;
+   background: linear-gradient(135deg, var(--dd-white) 0 50%, var(--dd-slate-800) 50% 100%);
+   color: var(--dd-slate-500);
    --dd-icon-size: 14px;
 }
 .tsw.none {

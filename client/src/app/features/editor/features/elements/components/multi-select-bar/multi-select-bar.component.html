@@ -1,4 +1,4 @@
-<span class="count">{{ count() }} selected</span>
+<span class="count">{{ count$() }} selected</span>
 <span class="sep"></span>
 <button class="tb" type="button" placement="below-start" [ddPopoverTrigger]="alignMenu">
    <dd-icon name="align_horizontal_left" />Align<dd-icon name="expand_more" class="chev" />
@@ -64,10 +64,10 @@
       </div>
       <div class="lab gap">Distribute &amp; tidy</div>
       <div class="chips">
-         <button class="chip" type="button" [disabled]="!canDistribute()" (click)="align.emit('dist-h'); close()">
+         <button class="chip" type="button" [disabled]="!canDistribute$()" (click)="align.emit('dist-h'); close()">
             Horizontally
          </button>
-         <button class="chip" type="button" [disabled]="!canDistribute()" (click)="align.emit('dist-v'); close()">
+         <button class="chip" type="button" [disabled]="!canDistribute$()" (click)="align.emit('dist-v'); close()">
             Vertically
          </button>
          <button
@@ -90,7 +90,7 @@
    </div>
 </ng-template>
 
-@if (canStyle()) {
+@if (canStyle$()) {
    <span class="sep"></span>
    <button
       class="ib"
@@ -124,7 +124,7 @@
    </ng-template>
 }
 
-@if (grouped()) {
+@if (grouped$()) {
    <button class="tb" type="button" matTooltip="Ungroup (Ctrl+Shift+G)" (click)="ungroup.emit()">Ungroup</button>
 } @else {
    <button class="tb" type="button" matTooltip="Group (Ctrl+G)" (click)="group.emit()">Group</button>

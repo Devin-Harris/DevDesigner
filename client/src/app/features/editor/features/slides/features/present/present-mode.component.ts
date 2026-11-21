@@ -23,6 +23,7 @@ import { TransitionRunner, transitionAnimates, transitionSetup } from './helpers
 import { LaserOverlayComponent } from './components/laser-overlay/laser-overlay.component';
 import { PresenterControlsComponent } from './components/presenter-controls/presenter-controls.component';
 import { StopClicksDirective } from '../../../../../../shared/ui/directives/stop-clicks.directive';
+import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 
 /**
  * Full-screen slide presenter. Each slide is a pre-rendered SVG (the same image
@@ -35,7 +36,7 @@ import { StopClicksDirective } from '../../../../../../shared/ui/directives/stop
 @Component({
    selector: 'dd-present-mode',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [StopClicksDirective, LaserOverlayComponent, PresenterControlsComponent, SlideMediaLayerComponent],
+   imports: [CallPipe, StopClicksDirective, LaserOverlayComponent, PresenterControlsComponent, SlideMediaLayerComponent],
    templateUrl: './present-mode.component.html',
    styleUrl: './present-mode.component.scss',
    host: {
@@ -45,7 +46,7 @@ import { StopClicksDirective } from '../../../../../../shared/ui/directives/stop
    },
 })
 export class PresentModeComponent {
-   readonly slides = input.required<readonly RenderedSlide[]>();
+   readonly slides$ = input.required<readonly RenderedSlide[]>({ alias: 'slides' });
    readonly startIndex = input<number>(0);
    /** Preview: play one transition into the second slide, then close by itself. */
    readonly autoplay = input<boolean>(false);
@@ -60,79 +61,88 @@ export class PresentModeComponent {
    private readonly overlayRef = viewChild.required<ElementRef<HTMLElement>>('overlay');
    private readonly controls = viewChild(PresenterControlsComponent);
 
-   protected readonly index = signal(0);
+   protected readonly index$ = signal(0);
    /** Build step shown on the current slide (0 = nothing revealed yet). */
-   protected readonly step = signal(0);
-   protected readonly showNotes = signal(false);
+   protected readonly step$ = signal(0);
+   protected readonly showNotes$ = signal(false);
    /** Overview of every slide (G); click one to jump there. */
-   protected readonly showGrid = signal(false);
+   protected readonly showGrid$ = signal(false);
    /** One picture per slide for the overview: the slide with everything shown. */
-   protected readonly gridThumbs = computed(() => this.urlList().map((per) => per[per.length - 1]));
-   protected readonly barVisible = signal(false);
+   protected readonly gridThumbs$ = computed(() => this.urlList$().map((per) => per[per.length - 1]));
+   protected readonly barVisible$ = signal(false);
    /** Cursor shows on any mouse movement and hides after a stretch of stillness. */
-   protected readonly cursorVisible = signal(true);
+   protected readonly cursorVisible$ = signal(true);
    private cursorTimer: ReturnType<typeof setTimeout> | null = null;
-   protected readonly laserOn = signal(false);
+   protected readonly laserOn$ = signal(false);
    protected readonly resized$ = notifySignal();
    private readonly seconds = signal(0);
 
    /** Object URLs per slide per build step (one entry for slides without steps), revoked on destroy. */
-   protected readonly urlList = computed(() =>
-      this.slides().map((s) =>
+   protected readonly urlList$ = computed(() =>
+      this.slides$().map((s) =>
          (s.maxStep > 0 ? s.stepSvgs : [s.svg]).map((svg) =>
             URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }))
          )
       )
    );
+   /** `slide:picture` of the picture on screen (the current slide at its build step). */
+   protected readonly shownKey$ = computed(() => {
+      const i = this.index$();
+      const per = this.urlList$()[i] ?? [];
+      return `${i}:${Math.min(this.step$(), per.length - 1)}`;
+   });
+   /** The first slide's resting step (1 when its first animation group plays by itself). */
+   protected readonly firstStepOfFirst$ = computed(() => (this.slides$()[0]?.plan.groups[0]?.auto ? 1 : 0));
+
    protected isShown(slideIndex: number, k: number): boolean {
-      if (this.index() !== slideIndex) {
+      if (this.index$() !== slideIndex) {
          return false;
       }
-      const per = this.urlList()[slideIndex] ?? [];
-      return Math.min(this.step(), per.length - 1) === k;
+      const per = this.urlList$()[slideIndex] ?? [];
+      return Math.min(this.step$(), per.length - 1) === k;
    }
    /** The current slide's GIFs/videos and what its animation step hides (none while busy). */
-   protected readonly liveMedia = computed(() => {
-      const slide = this.slides()[this.index()];
-      if (!slide?.media?.length || this.busy()) {
+   protected readonly liveMedia$ = computed(() => {
+      const slide = this.slides$()[this.index$()];
+      if (!slide?.media?.length || this.busy$()) {
          return null;
       }
-      const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step(), slide.maxStep)] ?? null) : null;
+      const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step$(), slide.maxStep)] ?? null) : null;
       return { slide, hidden };
    });
    private readonly embedCache = new WeakMap<RenderedSlide, readonly SlideMedia[]>();
    /** A slide's live frames (kept mounted across slides). Cached so the array stays stable. */
-   protected embedsOf(slide: RenderedSlide): readonly SlideMedia[] {
+   protected readonly embedsOf = (slide: RenderedSlide): readonly SlideMedia[] => {
       let v = this.embedCache.get(slide);
       if (!v) this.embedCache.set(slide, (v = (slide.media ?? []).filter((m) => m.kind === 'embed')));
       return v;
-   }
+   };
    private readonly otherCache = new WeakMap<RenderedSlide, readonly SlideMedia[]>();
    /** A slide's GIFs and videos (live frames have their own persistent layer). */
-   protected otherMedia(slide: RenderedSlide): readonly SlideMedia[] {
+   protected readonly otherMedia = (slide: RenderedSlide): readonly SlideMedia[] => {
       let v = this.otherCache.get(slide);
       if (!v) this.otherCache.set(slide, (v = (slide.media ?? []).filter((m) => m.kind !== 'embed')));
       return v;
-   }
-   protected readonly current = computed(() => this.slides()[this.index()] ?? { name: '', notes: '', maxStep: 0 });
+   };
+   protected readonly current$ = computed(() => this.slides$()[this.index$()] ?? { name: '', notes: '', maxStep: 0 });
    /** Steps of the current slide that wait for a click (a leading automatic group is not one). */
-   protected readonly clicks = computed(() => {
-      const i = this.index();
+   protected readonly clicks$ = computed(() => {
+      const i = this.index$();
       return Math.max(0, this.maxStepOf(i) - this.firstStep(i));
    });
-   protected readonly clickStep = computed(() => Math.max(0, this.step() - this.firstStep(this.index())));
-   protected readonly following = computed(() => {
+   protected readonly clickStep$ = computed(() => Math.max(0, this.step$() - this.firstStep(this.index$())));
+   protected readonly following$ = computed(() => {
       const id = this.follow();
-      return id ? (this.realtime.participants().find((p) => p.id === id)?.name ?? 'presenter') : null;
+      return id ? (this.realtime.participants$().find((p) => p.id === id)?.name ?? 'presenter') : null;
    });
-   protected readonly clock = computed(() => {
+   protected readonly clock$ = computed(() => {
       const s = this.seconds();
       return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
    });
 
    /** Plays transitions on the overlay layers. */
    private readonly runner = new TransitionRunner(() => this.overlayRef().nativeElement);
-   protected readonly busy = this.runner.busy;
+   protected readonly busy$ = this.runner.busy;
    private idleTimer: ReturnType<typeof setTimeout> | null = null;
    private fullscreen = false;
    private closing = false;
@@ -140,7 +150,7 @@ export class PresentModeComponent {
    constructor() {
       afterNextRender(() => {
          const root = this.rootRef().nativeElement;
-         this.index.set(Math.min(Math.max(0, this.startIndex()), this.slides().length - 1));
+         this.index$.set(Math.min(Math.max(0, this.startIndex()), this.slides$().length - 1));
          root.focus();
          if (!this.autoplay()) {
             void root
@@ -155,19 +165,19 @@ export class PresentModeComponent {
          }
          if (this.autoplay()) {
             setTimeout(() => {
-               void this.go(this.index() + 1, 0).then(() => setTimeout(() => this.exit(), 900));
+               void this.go(this.index$() + 1, 0).then(() => setTimeout(() => this.exit(), 900));
             }, 600);
          }
       });
 
       // Tell the room where we are (so others can follow), unless we are following or previewing.
       effect(() => {
-         const i = this.index();
-         const s = this.step();
+         const i = this.index$();
+         const s = this.step$();
          if (this.follow() || this.autoplay()) {
             return;
          }
-         const frame = untracked(() => this.slides()[i]);
+         const frame = untracked(() => this.slides$()[i]);
          if (frame) {
             this.realtime.sendPresenting(frame.id, s);
          }
@@ -179,13 +189,13 @@ export class PresentModeComponent {
          if (!id) {
             return;
          }
-         const p = this.realtime.participants().find((x) => x.id === id);
+         const p = this.realtime.participants$().find((x) => x.id === id);
          untracked(() => {
             if (!p?.presenting) {
                this.exit();
                return;
             }
-            const i = this.slides().findIndex((s) => s.id === p.presenting?.frameId);
+            const i = this.slides$().findIndex((s) => s.id === p.presenting?.frameId);
             if (i >= 0) {
                void this.goTo(i, p.presenting.step);
             }
@@ -205,7 +215,7 @@ export class PresentModeComponent {
          if (!this.follow() && !this.autoplay()) {
             this.realtime.sendPresenting(null);
          }
-         for (const per of this.urlList()) {
+         for (const per of this.urlList$()) {
             for (const u of per) {
                URL.revokeObjectURL(u);
             }
@@ -217,12 +227,12 @@ export class PresentModeComponent {
    }
 
    private urlFor(slideIndex: number, step: number): string {
-      const per = this.urlList()[slideIndex] ?? [];
+      const per = this.urlList$()[slideIndex] ?? [];
       return per[Math.min(step, per.length - 1)] ?? '';
    }
 
    private maxStepOf(slideIndex: number): number {
-      return this.slides()[slideIndex]?.maxStep ?? 0;
+      return this.slides$()[slideIndex]?.maxStep ?? 0;
    }
 
    /**
@@ -230,13 +240,13 @@ export class PresentModeComponent {
     * (so stepping back never lands on the not-yet-played state), else 0.
     */
    protected firstStep(slideIndex: number): number {
-      return this.slides()[slideIndex]?.plan.groups[0]?.auto ? 1 : 0;
+      return this.slides$()[slideIndex]?.plan.groups[0]?.auto ? 1 : 0;
    }
 
    // ---- navigation ----
 
    protected next(): void {
-      if (this.follow() || this.laserOn()) {
+      if (this.follow() || this.laserOn$()) {
          return;
       }
       void this.forward();
@@ -251,9 +261,9 @@ export class PresentModeComponent {
 
    private async forward(): Promise<void> {
       this.runner.cancel();
-      const i = this.index();
-      if (this.step() < this.maxStepOf(i)) {
-         await this.goStep(this.step() + 1);
+      const i = this.index$();
+      if (this.step$() < this.maxStepOf(i)) {
+         await this.goStep(this.step$() + 1);
       } else {
          await this.go(i + 1, 0);
       }
@@ -261,9 +271,9 @@ export class PresentModeComponent {
 
    private async backward(): Promise<void> {
       this.runner.cancel();
-      const i = this.index();
-      if (this.step() > this.firstStep(i)) {
-         await this.goStep(this.step() - 1);
+      const i = this.index$();
+      if (this.step$() > this.firstStep(i)) {
+         await this.goStep(this.step$() - 1);
       } else {
          await this.go(i - 1, this.maxStepOf(i - 1));
       }
@@ -271,23 +281,23 @@ export class PresentModeComponent {
 
    protected toggleGrid(): void {
       if (this.follow()) return;
-      this.showGrid.update((v) => !v);
+      this.showGrid$.update((v) => !v);
    }
 
    /** Jump straight to a slide from the overview, at its first step. */
    protected jumpTo(i: number): void {
-      this.showGrid.set(false);
-      if (this.follow() || i === this.index()) return;
+      this.showGrid$.set(false);
+      if (this.follow() || i === this.index$()) return;
       this.runner.cancel();
       void this.go(i, this.firstStep(i), true);
    }
 
    protected toggleNotes(): void {
-      this.showNotes.update((v) => !v);
+      this.showNotes$.update((v) => !v);
    }
 
    protected toggleLaser(): void {
-      this.laserOn.update((v) => !v);
+      this.laserOn$.update((v) => !v);
    }
 
    protected exit(): void {
@@ -295,20 +305,20 @@ export class PresentModeComponent {
          return;
       }
       this.closing = true;
-      this.closed.emit(this.slides()[this.index()]?.id ?? null);
+      this.closed.emit(this.slides$()[this.index$()]?.id ?? null);
    }
 
    /** Show the cursor and restart its stillness countdown (PowerPoint-style). */
    private wakeCursor(): void {
-      this.cursorVisible.set(true);
+      this.cursorVisible$.set(true);
       if (this.cursorTimer) {
          clearTimeout(this.cursorTimer);
       }
       this.cursorTimer = setTimeout(() => {
          this.cursorTimer = null;
          // Keep the cursor while it rests on the visible bar or a drag is underway.
-         if (!this.barVisible() && !this.controls()?.dragging()) {
-            this.cursorVisible.set(false);
+         if (!this.barVisible$() && !this.controls()?.dragging$()) {
+            this.cursorVisible$.set(false);
          }
       }, 2600);
    }
@@ -322,7 +332,7 @@ export class PresentModeComponent {
       const r = bar?.getBoundingClientRect();
       const pad = 12;
       const overBar =
-         !!this.controls()?.dragging() ||
+         !!this.controls()?.dragging$() ||
          (!!r &&
             event.clientX >= r.left - pad &&
             event.clientX <= r.right + pad &&
@@ -333,11 +343,11 @@ export class PresentModeComponent {
             clearTimeout(this.idleTimer);
             this.idleTimer = null;
          }
-         this.barVisible.set(true);
-      } else if (this.barVisible() && !this.idleTimer) {
+         this.barVisible$.set(true);
+      } else if (this.barVisible$() && !this.idleTimer) {
          this.idleTimer = setTimeout(() => {
             this.idleTimer = null;
-            this.barVisible.set(false);
+            this.barVisible$.set(false);
          }, 400);
       }
    }
@@ -388,7 +398,7 @@ export class PresentModeComponent {
             handled();
             if (!this.follow()) {
                this.runner.cancel();
-               const last = this.slides().length - 1;
+               const last = this.slides$().length - 1;
                void this.go(last, this.maxStepOf(last), true);
             }
             break;
@@ -401,13 +411,13 @@ export class PresentModeComponent {
          case 'K':
             handled();
             this.toggleLaser();
-            if (!this.laserOn() && !this.barVisible() && !this.controls()?.dragging()) {
+            if (!this.laserOn$() && !this.barVisible$() && !this.controls()?.dragging$()) {
                // Turning the laser off from the keyboard drops the cursor with it.
                if (this.cursorTimer) {
                   clearTimeout(this.cursorTimer);
                   this.cursorTimer = null;
                }
-               this.cursorVisible.set(false);
+               this.cursorVisible$.set(false);
             }
             break;
          case 'g':
@@ -417,8 +427,8 @@ export class PresentModeComponent {
             break;
          case 'Escape':
             handled();
-            if (this.showGrid()) {
-               this.showGrid.set(false);
+            if (this.showGrid$()) {
+               this.showGrid$.set(false);
                break;
             }
             this.exit();
@@ -434,8 +444,8 @@ export class PresentModeComponent {
    /** Go to a specific slide + step (used when following a presenter). */
    private async goTo(index: number, step: number): Promise<void> {
       this.runner.cancel();
-      if (index === this.index()) {
-         if (step !== this.step()) {
+      if (index === this.index$()) {
+         if (step !== this.step$()) {
             await this.goStep(step);
          }
          return;
@@ -448,12 +458,12 @@ export class PresentModeComponent {
     * animations on the objects; one back undoes it quickly; a longer jump cross-fades.
     */
    private async goStep(target: number): Promise<void> {
-      const i = this.index();
-      const from = this.step();
+      const i = this.index$();
+      const from = this.step$();
       if (target === from) {
          return;
       }
-      const slide = this.slides()[i];
+      const slide = this.slides$()[i];
       if (slide && slide.maxStep > 0 && Math.abs(target - from) === 1) {
          const forward = target > from;
          const k = forward ? target : from;
@@ -466,7 +476,7 @@ export class PresentModeComponent {
                duration: 0,
                easing: 'linear',
                setup: () => undefined,
-               commit: () => this.step.set(target),
+               commit: () => this.step$.set(target),
                live: {
                   markup: mix,
                   width: slide.width,
@@ -483,7 +493,7 @@ export class PresentModeComponent {
          duration: 280,
          easing: 'ease',
          setup: (_out, inc, animate) => animate(inc, [{ opacity: 0 }, { opacity: 1 }]),
-         commit: () => this.step.set(target),
+         commit: () => this.step$.set(target),
       });
    }
 
@@ -495,21 +505,21 @@ export class PresentModeComponent {
    private async go(target: number, toStep: number, instant = false): Promise<void> {
       await this.goSlide(target, toStep, instant);
       // A first animation group that needs no click plays as soon as its slide is up.
-      if (toStep === 0 && this.index() === target) {
+      if (toStep === 0 && this.index$() === target) {
          await this.playAutomatic();
       }
    }
 
    /** Play the current slide's leading click-less animations, if it has them and they have not played. */
    private async playAutomatic(): Promise<void> {
-      if (this.step() === 0 && this.firstStep(this.index()) === 1) {
+      if (this.step$() === 0 && this.firstStep(this.index$()) === 1) {
          await this.goStep(1);
       }
    }
 
    private async goSlide(target: number, toStep: number, instant = false): Promise<void> {
-      const slides = this.slides();
-      const from = this.index();
+      const slides = this.slides$();
+      const from = this.index$();
       if (target < 0 || target >= slides.length || target === from) {
          return;
       }
@@ -517,8 +527,8 @@ export class PresentModeComponent {
       const t = (forward ? slides[target] : slides[from]).transition;
       const adjacent = Math.abs(target - from) === 1;
       const commit = (): void => {
-         this.index.set(target);
-         this.step.set(toStep);
+         this.index$.set(target);
+         this.step$.set(toStep);
       };
       if (instant || !adjacent || !transitionAnimates(t)) {
          commit();
@@ -531,10 +541,10 @@ export class PresentModeComponent {
       // Objects on both slides morph whenever the transition says so; the rest of the
       // slide then moves the transition's own way (fade / slide / zoom / cut).
       const isMorph = transitionMorphs(t) && sameSize;
-      const fromView = slideAtStep(slides[from], this.step());
+      const fromView = slideAtStep(slides[from], this.step$());
       const toView = slideAtStep(slides[target], toStep);
       await this.runner.run({
-         fromUrl: this.urlFor(from, this.step()),
+         fromUrl: this.urlFor(from, this.step$()),
          toUrl: this.urlFor(target, toStep),
          duration: t.duration,
          easing: t.easing,

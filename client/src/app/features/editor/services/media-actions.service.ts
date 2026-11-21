@@ -21,7 +21,7 @@ export class MediaActionsService {
    readonly cropAlign = signal<{ action: AlignAction; seq: number } | null>(null);
 
    /** The selection when it is exactly one picture and one shape to clip it to. */
-   readonly clipPair = computed<{ image: CanvasElementModel; shape: CanvasElementModel } | null>(() => {
+   readonly clipPair$ = computed<{ image: CanvasElementModel; shape: CanvasElementModel } | null>(() => {
       const ids = this.store.selectedElementIds();
       if (ids.length !== 2) {
          return null;
@@ -62,7 +62,7 @@ export class MediaActionsService {
     * it), and the shape itself is removed. One undo step.
     */
    async clipToShape(): Promise<void> {
-      const pair = this.clipPair();
+      const pair = this.clipPair$();
       if (!pair || !this.store.canEdit()) {
          return;
       }

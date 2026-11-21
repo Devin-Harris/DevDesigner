@@ -2,16 +2,16 @@
 <mat-dialog-content class="dlg-body">
    <p class="hint">Page 1 is at the top. Drag a row or use the arrows.</p>
    <ol class="pages">
-      @for (f of items(); track f.id; let i = $index) {
+      @for (f of items$(); track f.id; let i = $index) {
          <li
             class="page"
             draggable="true"
-            [class.over]="overIndex() === i"
+            [class.over]="overIndex$() === i"
             (dragstart)="dragFrom = i"
-            (dragover)="$event.preventDefault(); overIndex.set(i)"
-            (dragleave)="overIndex.set(null)"
+            (dragover)="$event.preventDefault(); overIndex$.set(i)"
+            (dragleave)="overIndex$.set(null)"
             (drop)="drop(i)"
-            (dragend)="overIndex.set(null)"
+            (dragend)="overIndex$.set(null)"
          >
             <dd-icon name="drag_indicator" class="grip" />
             <span class="num">{{ i + 1 }}</span>
@@ -24,7 +24,7 @@
                class="mv"
                type="button"
                aria-label="Move down"
-               [disabled]="i === items().length - 1"
+               [disabled]="i === items$().length - 1"
                (click)="move(i, 1)"
             >
                <dd-icon name="arrow_downward" />

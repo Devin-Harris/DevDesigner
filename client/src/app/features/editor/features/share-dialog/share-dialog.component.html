@@ -8,21 +8,21 @@
 
    <div class="create-row">
       <dd-segmented [options]="levelOptions" [formControl]="newLevel" />
-      <button class="btn primary" type="button" [disabled]="creating()" (click)="create()">
+      <button class="btn primary" type="button" [disabled]="creating$()" (click)="create()">
          <dd-icon name="add_link" />
          Create link
       </button>
    </div>
 
-   @if (loading()) {
+   @if (loading$()) {
       <div class="state">
          <mat-progress-spinner mode="indeterminate" diameter="28"></mat-progress-spinner>
       </div>
-   } @else if (items().length === 0) {
+   } @else if (items$().length === 0) {
       <div class="state muted">No active links yet.</div>
    } @else {
       <ul class="links">
-         @for (link of items(); track link.id) {
+         @for (link of items$(); track link.id) {
             <li class="link">
                <span class="badge" [class.view]="link.accessLevel === 'VIEW'">{{ link.accessLevel }}</span>
                <span class="url" [title]="link.url ?? ''">{{ link.url ?? 'Link can no longer be shown (still works)' }}</span>

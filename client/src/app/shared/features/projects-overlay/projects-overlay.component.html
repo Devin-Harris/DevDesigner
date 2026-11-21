@@ -1,5 +1,5 @@
 <div class="overlay-panel">
-   @if (view() === 'projects') {
+   @if (view$() === 'projects') {
       <header class="panel-head">
          <h2 class="title">Projects</h2>
          <div class="head-actions">
@@ -11,12 +11,12 @@
                (change)="importFile($event)"
             />
             @if (sync.enabled) {
-               <button class="btn" type="button" title="Sync with a DevDesigner server" (click)="view.set('sync')">
+               <button class="btn" type="button" title="Sync with a DevDesigner server" (click)="view$.set('sync')">
                   <dd-icon name="cloud" />
                   Sync
                </button>
             }
-            <button class="btn" type="button" [disabled]="busy()" (click)="importInput.click()">
+            <button class="btn" type="button" [disabled]="busy$()" (click)="importInput.click()">
                <dd-icon name="upload" />
                Import
             </button>
@@ -38,15 +38,15 @@
 
       <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- background click clears the selection; Esc does it from the keyboard (onKey) -->
       <div class="cards-scroll" (click)="onListClick($event)">
-         @if (store.loading()) {
+         @if (loading$()) {
             <div class="state">Loading…</div>
-         } @else if (store.error()) {
+         } @else if (error$()) {
             <div class="state">
-               <p>{{ store.error() }}</p>
+               <p>{{ error$() }}</p>
                <button class="btn" type="button" (click)="store.loadProjects()">Retry</button>
             </div>
-         } @else if (store.visibleProjects().length === 0) {
-            @if (sync.enabled && !store.showArchived() && !store.search()) {
+         } @else if (visibleProjects$().length === 0) {
+            @if (sync.enabled && !showArchived$() && !search$()) {
                <!-- Desktop first run. -->
                <div class="state welcome">
                   <h3>Welcome to DevDesigner</h3>
@@ -59,7 +59,7 @@
             } @else {
                <div class="state">
                   {{
-                     store.showArchived()
+                     showArchived$()
                         ? 'No archived projects.'
                         : 'No projects yet — create one or start from a template.'
                   }}
@@ -67,18 +67,18 @@
             }
          } @else {
             <div class="cards">
-               @for (project of store.visibleProjects(); track project.id) {
+               @for (project of visibleProjects$(); track project.id) {
                   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- the arrow keys move a cursor through the cards and Enter opens one (onKey) -->
                   <div
                      class="card"
                      [attr.data-id]="project.id"
-                     [class.sel]="project.id === store.selectedId()"
-                     [class.checked]="checked().has(project.id)"
-                     [class.cursor]="project.id === cursorId()"
+                     [class.sel]="project.id === selectedId$()"
+                     [class.checked]="(checked$() | has: project.id)"
+                     [class.cursor]="project.id === cursorId$()"
                      (click)="onCardClick(project, $event)"
                   >
-                     @let thumbState = thumbs.state(project);
-                     <div class="thumb project-thumb" [style.--a]="accent(project.id)">
+                     @let thumbState = project | thumbState;
+                     <div class="thumb project-thumb" [style.--a]="(accent | call: project.id)">
                         @switch (thumbState.status) {
                            @case ('ready') {
                               <img alt="" draggable="false" [src]="thumbState.url" />
@@ -118,7 +118,7 @@
 
                      <div class="meta">
                         <div class="name-row" (dblclick)="startRename(project); $event.stopPropagation()">
-                           @if (editingId() === project.id) {
+                           @if (editingId$() === project.id) {
                               <input
                                  class="rename"
                                  ddAutofocus
@@ -132,24 +132,24 @@
                            } @else {
                               <span class="name">{{ project.name }}</span>
                            }
-                           @if (project.id === store.selectedId()) {
+                           @if (project.id === selectedId$()) {
                               <span class="badge current">Open</span>
                            }
                            @if (project.archived) {
                               <span class="badge">Archived</span>
                            }
-                           @if (sync.links().get(project.id); as link) {
+                           @if ((sync.links$() | at: project.id); as link) {
                               <span
                                  class="badge sync"
                                  [class.warn]="link.status === 'error' || link.status === 'conflict'"
-                                 [title]="syncTitle(link)"
+                                 [title]="syncTitle$() | call: link"
                               >
-                                 <dd-icon [name]="syncIcon(link)" />
-                                 {{ syncLabel(link) }}
+                                 <dd-icon [name]="(syncIcon | call: link)" />
+                                 {{ syncLabel$() | call: link }}
                               </span>
                            }
                         </div>
-                        <div class="sub">{{ edited(project.updatedAt) }}</div>
+                        <div class="sub">{{ project.updatedAt | editedAgo }}</div>
                      </div>
 
                      <button
@@ -183,11 +183,11 @@
                               <dd-icon name="download" />Export
                            </button>
                            @if (sync.enabled) {
-                              @if (sync.links().get(project.id); as link) {
+                              @if ((sync.links$() | at: project.id); as link) {
                                  <button class="dd-menu-item" type="button" (click)="syncNow(project); close()">
                                     <dd-icon name="sync" />Sync now
                                  </button>
-                                 @if (sync.webUrlOf(project.id); as webUrl) {
+                                 @if (sync.webUrls$() | at: project.id; as webUrl) {
                                     <a
                                        class="dd-menu-item"
                                        target="_blank"
@@ -196,7 +196,7 @@
                                        [href]="webUrl"
                                        (click)="close()"
                                     >
-                                       <dd-icon name="share" />Open on {{ sync.remoteName(link.remoteId) }}
+                                       <dd-icon name="share" />Open on {{ (sync.remoteNames$() | at: link.remoteId) ?? 'the server' }}
                                     </a>
                                  }
                                  <button
@@ -211,7 +211,7 @@
                                     <dd-icon name="cloud_off" />Stop syncing (keep a local copy)
                                  </button>
                               } @else {
-                                 @for (remote of sync.remotes(); track remote.id) {
+                                 @for (remote of sync.remotes$(); track remote.id) {
                                     <button
                                        class="dd-menu-item"
                                        type="button"
@@ -238,13 +238,13 @@
          }
       </div>
 
-      @if (checked().size > 0) {
+      @if (checked$().size > 0) {
          <div class="bulk-bar">
-            <span>{{ checked().size }} selected</span>
+            <span>{{ checked$().size }} selected</span>
             <button class="btn ghost" type="button" (click)="selectAll()">Select all</button>
             <button class="btn ghost" type="button" (click)="clearChecked()">Clear</button>
             <button class="btn danger" type="button" (click)="removeChecked()">
-               <dd-icon name="delete" />Delete {{ checked().size }}
+               <dd-icon name="delete" />Delete {{ checked$().size }}
             </button>
          </div>
       }
@@ -252,14 +252,14 @@
          <span class="kbd-hint"
             >↑↓ move · Shift+↑↓ / Shift+click range · Alt+click toggle · Del delete · Enter open</span
          >
-         <button class="btn ghost" type="button" (click)="view.set('templates')">
+         <button class="btn ghost" type="button" (click)="view$.set('templates')">
             <dd-icon name="template" />
             Templates
          </button>
       </footer>
-   } @else if (view() === 'sync') {
+   } @else if (view$() === 'sync') {
       <header class="panel-head">
-         <button class="icon-btn" type="button" aria-label="Back" (click)="view.set('projects')">
+         <button class="icon-btn" type="button" aria-label="Back" (click)="view$.set('projects')">
             <dd-icon name="chevron_left" />
          </button>
          <h2 class="title">Sync</h2>
@@ -274,7 +274,7 @@
       </div>
    } @else {
       <header class="panel-head">
-         <button class="icon-btn" type="button" aria-label="Back" (click)="view.set('projects')">
+         <button class="icon-btn" type="button" aria-label="Back" (click)="view$.set('projects')">
             <dd-icon name="chevron_left" />
          </button>
          <h2 class="title">Templates</h2>
@@ -288,7 +288,7 @@
       <div class="cards-scroll">
          <div class="cards templates">
             @for (t of templateDefs; track t.id) {
-               <button class="tcard" type="button" [disabled]="busy()" (click)="useTemplate(t)">
+               <button class="tcard" type="button" [disabled]="busy$()" (click)="useTemplate(t)">
                   <div class="thumb" [style.--a]="t.accent">
                      <svg viewBox="0 0 92 60" aria-hidden="true">
                         <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dd-connector)" stroke-width="1.4" />

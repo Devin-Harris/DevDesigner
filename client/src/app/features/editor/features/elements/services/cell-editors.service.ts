@@ -4,14 +4,7 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { CodeActionsService } from '../../../services/code-actions.service';
 import { GridTableService } from '../../../services/grid-table.service';
 import { GRID_CELL_PAD, edges as gridEdges, gridSizes, mergeAt, parseGrid } from '../../../helpers/grid-table.helper';
-import {
-   CODE_FONT_SIZE,
-   codeDotsWidth,
-   codeHeaderHeight,
-   codeTitleSize,
-   gridFont,
-   SURFACE_FILL,
-} from '../../../helpers/render';
+import { CODE_FONT_SIZE, codeDotsWidth, codeHeaderHeight, codeTitleSize, gridFont, SURFACE_FILL } from '../../../helpers/render';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 /** What the cell editors read from the editor entry; the entry wires it with `connect`. */
 export interface CellEditorsHost {
@@ -33,7 +26,7 @@ export class CellEditorsService {
    }
 
    /** Screen-space placement of the inline editor over a grid table's cell. */
-   readonly gridCellEditor = computed(() => {
+   readonly gridCellEditor$ = computed(() => {
       const cell = this.grids.editingCell();
       const el = cell ? this.store.elements().find((e) => e.id === cell.id && e.type === 'grid') : null;
       if (!cell || !el) {
@@ -81,7 +74,7 @@ export class CellEditorsService {
    private readonly gridCellFocus = effect(() => this.syncGridCellArea());
 
    private syncGridCellArea(): void {
-      const gc = this.gridCellEditor();
+      const gc = this.gridCellEditor$();
       const area = this.host.gridCellArea()?.nativeElement;
       if (!gc || !area) {
          this.gridCellKey = null;
@@ -104,7 +97,7 @@ export class CellEditorsService {
     * Re-run on every keystroke so the text stays where the rendered cell shows it.
     */
    alignGridCellArea(): void {
-      const gc = this.gridCellEditor();
+      const gc = this.gridCellEditor$();
       const area = this.host.gridCellArea()?.nativeElement;
       if (!gc || !area) {
          return;
@@ -153,7 +146,7 @@ export class CellEditorsService {
    }
 
    /** Screen-space placement of the inline file-name input over a code block's title bar. */
-   readonly fileNameEditor = computed(() => {
+   readonly fileNameEditor$ = computed(() => {
       const id = this.codeActions.fileNameEditId();
       const el = id ? this.store.elements().find((e) => e.id === id && e.type === 'code') : null;
       if (!el || !this.store.canEdit()) {

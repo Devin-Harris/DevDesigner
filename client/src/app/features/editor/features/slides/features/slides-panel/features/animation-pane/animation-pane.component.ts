@@ -22,6 +22,7 @@ import {
 } from '../../../../../../../../shared/ui/components/select/select.component';
 import { ProjectStore } from '../../../../../../state/project/project.store';
 import { contentForFrame } from '../../../../../../helpers/frame-contents.helper';
+import { CallPipe, HasPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
 const KIND_OPTIONS: SelectOption<SlideAnimationKind>[] = [
    { value: 'enter', label: 'Entrance' },
@@ -90,7 +91,7 @@ interface Target {
 @Component({
    selector: 'dd-animation-pane',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [FormsModule, IconComponent, SelectComponent],
+   imports: [HasPipe, CallPipe, FormsModule, IconComponent, SelectComponent],
    templateUrl: './animation-pane.component.html',
    styleUrl: './animation-pane.component.scss',
 })
@@ -103,7 +104,7 @@ export class AnimationPaneComponent {
 
    private readonly store = inject(ProjectStore);
 
-   protected readonly canEdit = this.store.canEdit;
+   protected readonly canEdit$ = this.store.canEdit;
    protected readonly kindOptions = KIND_OPTIONS;
    protected readonly triggerOptions = TRIGGER_OPTIONS;
    protected readonly directions = DIRECTION_OPTIONS;
@@ -158,7 +159,7 @@ export class AnimationPaneComponent {
       )
    );
 
-   protected readonly rows = computed(() => {
+   protected readonly rows$ = computed(() => {
       const targets = this.targets();
       let click = 0;
       return this.list().map((animation) => {
@@ -169,11 +170,11 @@ export class AnimationPaneComponent {
       });
    });
 
-   protected readonly selected = computed(() => this.list().find((a) => a.id === this.selectedId_()) ?? null);
-   protected readonly selectedId = computed(() => this.selected()?.id ?? null);
+   protected readonly selected$ = computed(() => this.list().find((a) => a.id === this.selectedId_()) ?? null);
+   protected readonly selectedId$ = computed(() => this.selected$()?.id ?? null);
 
-   protected readonly effectOptions = computed<SelectOption<SlideAnimationEffect>[]>(() => {
-      const a = this.selected();
+   protected readonly effectOptions$ = computed<SelectOption<SlideAnimationEffect>[]>(() => {
+      const a = this.selected$();
       if (!a) {
          return [];
       }
@@ -184,7 +185,7 @@ export class AnimationPaneComponent {
    });
 
    /** Objects selected on the canvas that belong to this slide, in reading order. */
-   protected readonly selectedTargets = computed(() => {
+   protected readonly selectedTargets$ = computed(() => {
       const targets = this.targets();
       const ids = [
          ...this.store.selectedElementIds(),
@@ -198,7 +199,7 @@ export class AnimationPaneComponent {
       });
    });
 
-   protected readonly summary = computed(() => {
+   protected readonly summary$ = computed(() => {
       const plan = planAnimations(this.list(), new Set(this.targets().keys()));
       const clicks = plan.groups.filter((g) => !g.auto).length;
       const auto = plan.groups.some((g) => g.auto);
@@ -240,7 +241,7 @@ export class AnimationPaneComponent {
    }
 
    protected addSelected(): void {
-      const ids = this.selectedTargets();
+      const ids = this.selectedTargets$();
       if (!ids.length) {
          return;
       }
@@ -256,6 +257,10 @@ export class AnimationPaneComponent {
    protected patch(id: string, change: Partial<SlideAnimation>): void {
       void this.commit(this.list().map((a) => (a.id === id ? { ...a, ...change } : a)));
    }
+
+   /** Animations that can move up / down one place. */
+   protected readonly movableUp$ = computed(() => new Set(this.list().slice(1).map((a) => a.id)));
+   protected readonly movableDown$ = computed(() => new Set(this.list().slice(0, -1).map((a) => a.id)));
 
    protected canMove(id: string, by: -1 | 1): boolean {
       const i = this.list().findIndex((a) => a.id === id);

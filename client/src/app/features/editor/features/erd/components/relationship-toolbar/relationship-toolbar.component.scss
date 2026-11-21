@@ -93,7 +93,7 @@
    --dd-icon-size: 17px;
 
    &.del {
-      color: var(--dd-danger, #d64545);
+      color: var(--dd-danger);
    }
 
    &:hover:not(:disabled) {

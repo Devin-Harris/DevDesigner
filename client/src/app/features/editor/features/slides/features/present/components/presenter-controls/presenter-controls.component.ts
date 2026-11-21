@@ -15,22 +15,22 @@ import { StopClicksDirective } from '../../../../../../../../shared/ui/directive
 })
 export class PresenterControlsComponent {
    /** Faded out (the pointer is away from the bar). */
-   readonly hidden = input(false);
+   readonly hidden$ = input(false, { alias: 'hidden' });
    /** "3 / 12". */
-   readonly position = input.required<number>();
-   readonly count = input.required<number>();
+   readonly position$ = input.required<number>({ alias: 'position' });
+   readonly count$ = input.required<number>({ alias: 'count' });
    /** Click steps on this slide and how many have played. */
-   readonly clicks = input(0);
-   readonly clickStep = input(0);
-   readonly name = input('');
-   readonly clock = input('');
-   readonly canPrev = input(true);
-   readonly canNext = input(true);
+   readonly clicks$ = input(0, { alias: 'clicks' });
+   readonly clickStep$ = input(0, { alias: 'clickStep' });
+   readonly name$ = input('', { alias: 'name' });
+   readonly clock$ = input('', { alias: 'clock' });
+   readonly canPrev$ = input(true, { alias: 'canPrev' });
+   readonly canNext$ = input(true, { alias: 'canNext' });
    /** Following someone else's presentation: navigation is theirs. */
-   readonly following = input(false);
-   readonly laserOn = input(false);
-   readonly notesOn = input(false);
-   readonly gridOn = input(false);
+   readonly following$ = input(false, { alias: 'following' });
+   readonly laserOn$ = input(false, { alias: 'laserOn' });
+   readonly notesOn$ = input(false, { alias: 'notesOn' });
+   readonly gridOn$ = input(false, { alias: 'gridOn' });
 
    readonly prev = output();
    readonly next = output();
@@ -41,13 +41,13 @@ export class PresenterControlsComponent {
 
    /** How far the user has dragged the bar from its bottom-centre home. */
    protected readonly offset = signal({ x: 0, y: 0 });
-   protected readonly transform = computed(() => {
+   protected readonly transform$ = computed(() => {
       const o = this.offset();
       return `translate(calc(-50% + ${o.x}px), ${o.y}px)`;
    });
    private readonly drag = signal<{ id: number; sx: number; sy: number; ox: number; oy: number } | null>(null);
    /** The bar is being dragged (the presenter keeps it and the cursor visible meanwhile). */
-   readonly dragging = computed(() => this.drag() !== null);
+   readonly dragging$ = computed(() => this.drag() !== null);
 
    protected onDown(event: PointerEvent): void {
       event.preventDefault();

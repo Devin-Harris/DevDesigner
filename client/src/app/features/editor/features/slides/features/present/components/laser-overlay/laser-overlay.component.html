@@ -1,6 +1,6 @@
-@if (trails().length) {
+@if (trails$().length) {
    <svg class="laser-svg" aria-hidden="true">
-      @for (l of trails(); track l.id) {
+      @for (l of trails$(); track l.id) {
          @for (s of l.segments; track $index) {
             <line
                class="trail"
@@ -20,7 +20,7 @@
    </svg>
 }
 
-@if (capturing()) {
+@if (capturing$()) {
    <div
       class="laser-capture"
       ddStopClicks

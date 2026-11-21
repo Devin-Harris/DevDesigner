@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from '@angular/core';
+import { computed, ChangeDetectionStrategy, Component, HostListener, inject, signal } from '@angular/core';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { DockPosition, DockPreset, DockToolId, ToolbarPrefsService } from '../../../../services/toolbar-prefs.service';
 
@@ -24,16 +24,16 @@ export class ToolbarCustomizePanelComponent {
       { id: 'right', label: 'Right' },
    ];
 
-   protected readonly shown = () => this.prefs.allTools().filter((t) => t.visible);
-   protected readonly hiddenList = () => this.prefs.hiddenTools();
+   protected readonly shown$ = computed(() => this.prefs.allTools().filter((t) => t.visible));
+   protected readonly hiddenList$ = this.prefs.hiddenTools$;
 
    protected dragId: DockToolId | null = null;
-   protected readonly overId = signal<DockToolId | null>(null);
-   protected readonly overHidden = signal(false);
+   protected readonly overId$ = signal<DockToolId | null>(null);
+   protected readonly overHidden$ = signal(false);
 
    @HostListener('document:keydown.escape')
    protected close(): void {
-      this.prefs.panelOpen.set(false);
+      this.prefs.panelOpen$.set(false);
    }
 
    protected pickPreset(id: string): void {
@@ -55,7 +55,7 @@ export class ToolbarCustomizePanelComponent {
       event.stopPropagation();
       const id = this.dragId;
       this.dragId = null;
-      this.overId.set(null);
+      this.overId$.set(null);
       if (!id) return;
       this.prefs.setVisible(id, true);
       this.prefs.moveBefore(id, before);
@@ -65,7 +65,7 @@ export class ToolbarCustomizePanelComponent {
       event.preventDefault();
       const id = this.dragId;
       this.dragId = null;
-      this.overHidden.set(false);
+      this.overHidden$.set(false);
       if (id) this.prefs.setVisible(id, false);
    }
 }

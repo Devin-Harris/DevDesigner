@@ -11,7 +11,7 @@ import { ProjectStore } from '../../../state/project/project.store';
 export class CanvasContent {
    private readonly store = inject(ProjectStore);
 
-   readonly canEdit = storeMember(this.store, 'canEdit');
+   readonly canEdit$ = storeMember(this.store, 'canEdit');
    readonly deleteElement = storeMember(this.store, 'deleteElement');
    readonly elements = storeMember(this.store, 'elements');
    readonly patchElementLocal = storeMember(this.store, 'patchElementLocal');

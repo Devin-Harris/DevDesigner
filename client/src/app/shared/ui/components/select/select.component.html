@@ -1,30 +1,30 @@
-@if (selectedOption(); as sel) {
-   @if (editing() === sel.value && inline()) {
+@if (selectedOption$(); as sel) {
+   @if (editing$() === sel.value && inline$()) {
       <input
          #inl
          class="rename inline"
          aria-label="Name"
          [value]="sel.label"
          (keydown.enter)="finishRename(sel, inl.value)"
-         (keydown.escape)="editing.set(null)"
+         (keydown.escape)="editing$.set(null)"
          (blur)="finishRename(sel, inl.value)"
       />
    }
 }
-@if (!(inline() && editing() !== null)) {
+@if (!(inline$() && editing$() !== null)) {
    <div class="wrap">
       <button
          type="button"
          class="dd-select-trigger"
          placement="below-start"
-         [class.compact]="compact()"
+         [class.compact]="compact$()"
          [ddPopoverTrigger]="menu"
-         [disabled]="disabled()"
+         [disabled]="disabled$()"
       >
-         <span class="val" [style.font-family]="selectedFont()">{{ selectedLabel() }}</span>
+         <span class="val" [style.font-family]="selectedFont$()">{{ selectedLabel$() }}</span>
          <dd-icon name="arrow_drop_down" class="chev" />
       </button>
-      @if (selectedOption()?.renamable && !disabled()) {
+      @if (selectedOption$()?.renamable && !disabled$()) {
          <button type="button" class="pen outer" aria-label="Rename" title="Rename" (click)="startInlineRename()">
             <dd-icon name="edit" />
          </button>
@@ -33,18 +33,18 @@
 }
 <ng-template #menu let-close>
    <div class="dd-menu dd-select-menu">
-      @for (opt of options(); track opt.value; let i = $index) {
-         @if (opt.group && opt.group !== options()[i - 1]?.group) {
+      @for (opt of options$(); track opt.value; let i = $index) {
+         @if (opt.group && opt.group !== options$()[i - 1]?.group) {
             <div class="group">{{ opt.group }}</div>
          }
-         @if (editing() === opt.value) {
+         @if (editing$() === opt.value) {
             <input
                #name
                class="rename"
                aria-label="Name"
                [value]="opt.label"
                (keydown.enter)="finishRename(opt, name.value)"
-               (keydown.escape)="editing.set(null); $event.stopPropagation()"
+               (keydown.escape)="editing$.set(null); $event.stopPropagation()"
                (blur)="finishRename(opt, name.value)"
                (click)="$event.stopPropagation()"
             />
@@ -53,7 +53,7 @@
                <button
                   type="button"
                   class="dd-menu-item"
-                  [class.on]="opt.value === value()"
+                  [class.on]="opt.value === value$()"
                   [style.font-family]="opt.font"
                   (click)="pick(opt.value); close()"
                >
@@ -69,7 +69,7 @@
                   >
                      <dd-icon name="edit" />
                   </button>
-                  @if (removable()) {
+                  @if (removable$()) {
                      <button
                         type="button"
                         class="pen del"

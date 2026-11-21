@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProjectStore } from '../state/project/project.store';
 import { ElementImagesService } from './element-images.service';
@@ -18,7 +18,10 @@ export class EmbedSnapshotsService {
    private readonly snackBar = inject(MatSnackBar);
 
    /** The live frame being captured: its address bar and handles hide meanwhile. */
-   readonly capturingId = signal<string | null>(null);
+   readonly capturingId$ = signal<string | null>(null);
+
+   /** Live frames that have a snapshot picture. */
+   readonly snapshotIds$ = computed(() => new Set(this.store.elements().filter((e) => e.type === 'embed' && e.fileId).map((e) => e.id)));
 
    hasSnapshot(id: string): boolean {
       return !!this.store.elements().find((e) => e.id === id)?.fileId;
@@ -44,7 +47,7 @@ export class EmbedSnapshotsService {
             preferCurrentTab: true,
             selfBrowserSurface: 'include',
          } as DisplayMediaStreamOptions);
-         this.capturingId.set(id);
+         this.capturingId$.set(id);
          const video = document.createElement('video');
          video.muted = true;
          video.srcObject = stream;
@@ -66,7 +69,7 @@ export class EmbedSnapshotsService {
          canvas.getContext('2d')!.drawImage(video, x * sx, y * sy, w * sx, h * sy, 0, 0, canvas.width, canvas.height);
          stream.getTracks().forEach((t) => t.stop());
          stream = null;
-         this.capturingId.set(null);
+         this.capturingId$.set(null);
          const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', 0.88));
          if (!blob) throw new Error('The snapshot could not be encoded.');
          const uploaded = await this.images.upload(projectId, blob);
@@ -76,7 +79,7 @@ export class EmbedSnapshotsService {
          if (!denied) this.toast(err instanceof Error ? err.message : 'The snapshot failed.');
       } finally {
          stream?.getTracks().forEach((t) => t.stop());
-         this.capturingId.set(null);
+         this.capturingId$.set(null);
       }
    }
 

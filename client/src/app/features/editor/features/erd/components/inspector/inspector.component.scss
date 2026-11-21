@@ -313,21 +313,21 @@
    }
 
    &.on {
-      color: #fff;
+      color: var(--dd-white);
       border-color: transparent;
    }
    &.pk.on {
-      background: var(--dd-amber, #f5a623);
-      color: #1a1205;
+      background: var(--dd-amber);
+      color: var(--dd-amber-950);
    }
    &.nn.on {
       background: var(--dd-primary);
    }
    &.uq.on {
-      background: #7c5cff;
+      background: var(--dd-violet-500);
    }
    &.ai.on {
-      background: #12b76a;
+      background: var(--dd-green-500);
    }
 
    &:disabled {

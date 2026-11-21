@@ -128,20 +128,20 @@ export class EditorShortcutsService {
             this.grids.clearCellSelection();
             return;
          }
-         if (this.tools.activeTool() === 'select' && this.escapeSequenceSelection()) {
+         if (this.tools.activeTool$() === 'select' && this.escapeSequenceSelection()) {
             return;
          }
          if (this.host.followingId()) {
             this.host.followingId.set(null);
             return;
          }
-         if (this.tools.activeTool() === 'select' && this.host.focusedDeck()) {
+         if (this.tools.activeTool$() === 'select' && this.host.focusedDeck()) {
             if (this.host.focusScreen() === 'design') this.host.closeFocusDesign(this.host.focusedDeck()!);
             else if (this.host.focusScreen() !== 'main') this.host.leaveFocusScreen();
             else this.host.exitDeckFocus();
             return;
          }
-         this.tools.activeTool.set('select');
+         this.tools.activeTool$.set('select');
          return;
       }
       const mod = event.ctrlKey || event.metaKey;
@@ -241,7 +241,7 @@ export class EditorShortcutsService {
       const cells = this.grids.range();
       if (cells && mod && event.key.toLowerCase() === 'm' && this.store.canEdit()) {
          event.preventDefault();
-         void (this.grids.canMerge() ? this.grids.mergeSelected() : this.grids.unmergeSelected());
+         void (this.grids.canMerge$() ? this.grids.mergeSelected() : this.grids.unmergeSelected());
          return;
       }
       // Ctrl+Alt+arrows insert rows/columns next to the cells, Ctrl+Alt+- deletes the rows (Shift: columns).
@@ -301,13 +301,13 @@ export class EditorShortcutsService {
             return;
          }
       }
-      if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.tools.activeTool() === 'freedraw') {
+      if (!mod && !event.altKey && (event.key === '[' || event.key === ']') && this.tools.activeTool$() === 'freedraw') {
          // [ / ]: shrink / grow the pen or eraser.
          event.preventDefault();
          const up = event.key === ']';
-         if (this.penPrefs.eraser()) {
-            const v = this.penPrefs.eraserSize();
-            this.penPrefs.eraserSize.set(
+         if (this.penPrefs.eraser$()) {
+            const v = this.penPrefs.eraserSize$();
+            this.penPrefs.eraserSize$.set(
                Math.min(ERASER_MAX, Math.max(ERASER_MIN, Math.round(up ? v * 1.25 + 1 : v / 1.25 - 1)))
             );
          } else {
@@ -320,26 +320,26 @@ export class EditorShortcutsService {
       if (!mod && !event.altKey && event.key.toLowerCase() === 'x' && this.store.canEdit()) {
          // X: the pen's eraser (switches to the pen if another tool is active).
          event.preventDefault();
-         if (this.tools.activeTool() !== 'freedraw') {
-            this.tools.activeTool.set('freedraw');
-            this.penPrefs.eraser.set(true);
+         if (this.tools.activeTool$() !== 'freedraw') {
+            this.tools.activeTool$.set('freedraw');
+            this.penPrefs.eraser$.set(true);
          } else {
-            this.penPrefs.eraser.update((v) => !v);
+            this.penPrefs.eraser$.update((v) => !v);
          }
          return;
       }
       const tool = mod || event.altKey ? undefined : EditorShortcutsService.TOOL_SHORTCUTS[event.key.toLowerCase()];
       // P always means the pen itself, so it leaves the eraser.
-      if (tool === 'freedraw') this.penPrefs.eraser.set(false);
+      if (tool === 'freedraw') this.penPrefs.eraser$.set(false);
       // The laser pointer is a presenting tool, so view-only guests may use it too.
       if (tool && (this.store.canEdit() || tool === 'laser')) {
          // Pressing a shape / line key again cycles through its family (R → O → D, A → L).
-         const cur = this.tools.activeTool();
+         const cur = this.tools.activeTool$();
          const family = EditorShortcutsService.TOOL_CYCLES.find((f) => f.includes(tool));
          if (family && family.includes(cur) && !event.repeat) {
-            this.tools.activeTool.set(family[(family.indexOf(cur) + 1) % family.length]);
+            this.tools.activeTool$.set(family[(family.indexOf(cur) + 1) % family.length]);
          } else {
-            this.tools.activeTool.set(tool);
+            this.tools.activeTool$.set(tool);
          }
          return;
       }

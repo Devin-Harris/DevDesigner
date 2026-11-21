@@ -1,15 +1,15 @@
 <div class="panel">
    <div class="panel-head">
       <div class="head-text">
-         <div class="eyebrow">{{ isLine() ? 'Line' : 'Shape' }} & line styling</div>
-         <div class="kname">{{ kindLabel() }}</div>
+         <div class="eyebrow">{{ isLine$() ? 'Line' : 'Shape' }} & line styling</div>
+         <div class="kname">{{ kindLabel$() }}</div>
       </div>
       <button
          class="icon-btn del"
          type="button"
          title="Delete"
          aria-label="Delete"
-         [disabled]="!edits.canEdit()"
+         [disabled]="!edits.canEdit$()"
          (click)="remove()"
       >
          <dd-icon name="delete" />
@@ -22,10 +22,10 @@
       noneValue="transparent"
       noneLabel="No stroke"
       themeValue="theme"
-      [value]="element().strokeColor"
-      [allowNone]="strokeCanBeNone()"
-      [deckTheme]="deckTheme()"
-      [disabled]="!edits.canEdit()"
+      [value]="element$().strokeColor"
+      [allowNone]="strokeCanBeNone$()"
+      [deckTheme]="deckTheme$()"
+      [disabled]="!edits.canEdit$()"
       (pick)="setStroke($event)"
    />
 
@@ -38,8 +38,8 @@
                <button
                   class="seg"
                   type="button"
-                  [class.on]="element().strokeWidth === w"
-                  [disabled]="!edits.canEdit()"
+                  [class.on]="element$().strokeWidth === w"
+                  [disabled]="!edits.canEdit$()"
                   (click)="setWidth(w)"
                >
                   <span class="wline" [style.height.px]="w"></span>
@@ -47,7 +47,7 @@
             }
          </div>
       </div>
-      @if (!isText()) {
+      @if (!isText$()) {
          <div>
             <div class="field-label">Style</div>
             <div class="seg-row">
@@ -55,8 +55,8 @@
                   <button
                      class="seg"
                      type="button"
-                     [class.on]="element().strokeStyle === s"
-                     [disabled]="!edits.canEdit()"
+                     [class.on]="element$().strokeStyle === s"
+                     [disabled]="!edits.canEdit$()"
                      (click)="setStyle(s)"
                   >
                      <span class="wline" [class.dashed]="s === 'dashed'" [class.dotted]="s === 'dotted'"></span>
@@ -68,7 +68,7 @@
    </div>
 
    <!-- Fill -->
-   @if (hasFill()) {
+   @if (hasFill$()) {
       <div class="field-label">Fill</div>
       <div class="swatches">
          <dd-color-swatches
@@ -76,18 +76,18 @@
             noneLabel="No fill"
             themeValue="surface"
             [value]="
-               element().fillStyle === 'none' || !element().backgroundColor ? 'transparent' : element().backgroundColor
+               element$().fillStyle === 'none' || !element$().backgroundColor ? 'transparent' : element$().backgroundColor
             "
-            [deckTheme]="deckTheme()"
-            [disabled]="!edits.canEdit()"
+            [deckTheme]="deckTheme$()"
+            [disabled]="!edits.canEdit$()"
             (pick)="setFill($event)"
          />
          <button
             class="hatch-btn"
             type="button"
             title="Hatch fill"
-            [class.on]="element().fillStyle === 'hachure'"
-            [disabled]="!edits.canEdit() || element().fillStyle === 'none'"
+            [class.on]="element$().fillStyle === 'hachure'"
+            [disabled]="!edits.canEdit$() || element$().fillStyle === 'none'"
             (click)="setFillStyle('hachure')"
          >
             hatch
@@ -96,7 +96,7 @@
    }
 
    <!-- Corner radius -->
-   @if (isRect()) {
+   @if (isRect$()) {
       <div class="field-label">Corner radius</div>
       <div class="slider-row">
          <input
@@ -104,19 +104,19 @@
             min="0"
             max="48"
             step="2"
-            [value]="element().cornerRadius ?? 12"
-            [style.--fill]="((element().cornerRadius ?? 12) / 48) * 100 + '%'"
-            [disabled]="!edits.canEdit()"
+            [value]="element$().cornerRadius ?? 12"
+            [style.--fill]="((element$().cornerRadius ?? 12) / 48) * 100 + '%'"
+            [disabled]="!edits.canEdit$()"
             (input)="setCornerRadius(+$any($event.target).value)"
          />
-         <span class="val">{{ (element().cornerRadius ?? 12) + 'px' }}</span>
+         <span class="val">{{ (element$().cornerRadius ?? 12) + 'px' }}</span>
       </div>
       <div class="seg-row">
          <button
             class="seg text"
             type="button"
-            [class.on]="!element().ellipticCorners"
-            [disabled]="!edits.canEdit()"
+            [class.on]="!element$().ellipticCorners"
+            [disabled]="!edits.canEdit$()"
             (click)="setEllipticCorners(false)"
          >
             Pill
@@ -124,8 +124,8 @@
          <button
             class="seg text"
             type="button"
-            [class.on]="!!element().ellipticCorners"
-            [disabled]="!edits.canEdit()"
+            [class.on]="!!element$().ellipticCorners"
+            [disabled]="!edits.canEdit$()"
             (click)="setEllipticCorners(true)"
          >
             Oval
@@ -134,33 +134,33 @@
    }
 
    <!-- Text -->
-   @if (canHaveText()) {
+   @if (canHaveText$()) {
       <div class="field-label">Text</div>
       <select
          class="font-select"
-         [disabled]="!edits.canEdit()"
-         [style.font-family]="stackOf(element().fontFamily ?? 'normal')"
+         [disabled]="!edits.canEdit$()"
+         [style.font-family]="(stackOf$() | call: element$().fontFamily ?? 'normal')"
          (change)="setFont($any($event.target).value)"
       >
-         @if (themeFonts().length) {
+         @if (themeFonts$().length) {
             <optgroup label="Theme fonts">
-               @for (f of themeFonts(); track f.value) {
+               @for (f of themeFonts$(); track f.value) {
                   <option
                      [value]="f.value"
-                     [selected]="element().fontFamily === f.value"
-                     [style.font-family]="stackOf(f.value)"
+                     [selected]="element$().fontFamily === f.value"
+                     [style.font-family]="(stackOf$() | call: f.value)"
                   >
                      {{ f.label }}
                   </option>
                }
             </optgroup>
          }
-         <optgroup [label]="themeFonts().length ? 'Fonts' : ''">
+         <optgroup [label]="themeFonts$().length ? 'Fonts' : ''">
             @for (f of fonts; track f.value) {
                <option
                   [value]="f.value"
-                  [selected]="(element().fontFamily ?? 'normal') === f.value"
-                  [style.font-family]="stackOf(f.value)"
+                  [selected]="(element$().fontFamily ?? 'normal') === f.value"
+                  [style.font-family]="(stackOf$() | call: f.value)"
                >
                   {{ f.label }}
                </option>
@@ -172,8 +172,8 @@
             class="seg"
             aria-label="Bold"
             type="button"
-            [class.on]="element().bold"
-            [disabled]="!edits.canEdit()"
+            [class.on]="element$().bold"
+            [disabled]="!edits.canEdit$()"
             (click)="toggleBold()"
          >
             <dd-icon name="format_bold" />
@@ -182,8 +182,8 @@
             class="seg"
             aria-label="Italic"
             type="button"
-            [class.on]="element().italic"
-            [disabled]="!edits.canEdit()"
+            [class.on]="element$().italic"
+            [disabled]="!edits.canEdit$()"
             (click)="toggleItalic()"
          >
             <dd-icon name="format_italic" />
@@ -192,15 +192,15 @@
    }
 
    <!-- Code block: highlight language + text size -->
-   @if (isCode()) {
+   @if (isCode$()) {
       <div class="field-label">Language</div>
       <div class="seg-row wrap">
          @for (l of languages; track l.id) {
             <button
                class="seg text"
                type="button"
-               [class.on]="(element().language ?? 'typescript') === l.id"
-               [disabled]="!edits.canEdit()"
+               [class.on]="(element$().language ?? 'typescript') === l.id"
+               [disabled]="!edits.canEdit$()"
                (click)="setLanguage(l.id)"
             >
                {{ l.label }}
@@ -212,7 +212,7 @@
             class="seg text"
             type="button"
             title="Format with Prettier (Shift+Alt+F)"
-            [disabled]="!edits.canEdit() || !canFormat()"
+            [disabled]="!edits.canEdit$() || !canFormat$()"
             (click)="format()"
          >
             Format code
@@ -221,7 +221,7 @@
             class="seg text"
             type="button"
             title="Resize the block to fit its code (Shift+Alt+S)"
-            [disabled]="!edits.canEdit()"
+            [disabled]="!edits.canEdit$()"
             (click)="fitToContent()"
          >
             Fit to content
@@ -233,8 +233,8 @@
             <button
                class="seg text"
                type="button"
-               [class.on]="(element().diffView ?? 'off') === v.id"
-               [disabled]="!edits.canEdit()"
+               [class.on]="(element$().diffView ?? 'off') === v.id"
+               [disabled]="!edits.canEdit$()"
                [title]="v.title"
                (click)="setDiffView(v.id)"
             >
@@ -247,20 +247,20 @@
             class="seg text"
             type="button"
             title="Treat lines that differ only in spaces or indentation as unchanged"
-            [class.on]="!element().diffShowWhitespace"
-            [disabled]="!edits.canEdit()"
+            [class.on]="!element$().diffShowWhitespace"
+            [disabled]="!edits.canEdit$()"
             (click)="toggleWhitespace()"
          >
             Ignore whitespace
          </button>
       </div>
-      @if (element().diffText != null) {
+      @if (element$().diffText != null) {
          <div class="seg-row wrap code-actions">
             <button
                class="seg text"
                type="button"
                title="Edit the original (left) side"
-               [disabled]="!edits.canEdit()"
+               [disabled]="!edits.canEdit$()"
                (click)="editDiff('original')"
             >
                Edit original
@@ -269,7 +269,7 @@
                class="seg text"
                type="button"
                title="Edit the changed (right) side"
-               [disabled]="!edits.canEdit() || (element().diffView ?? 'off') === 'off'"
+               [disabled]="!edits.canEdit$() || (element$().diffView ?? 'off') === 'off'"
                (click)="editDiff('modified')"
             >
                Edit changed
@@ -278,7 +278,7 @@
                class="seg text"
                type="button"
                title="Swap the original and changed sides"
-               [disabled]="!edits.canEdit()"
+               [disabled]="!edits.canEdit$()"
                (click)="swapDiff()"
             >
                Swap
@@ -287,7 +287,7 @@
                class="seg text"
                type="button"
                title="Delete the changed side and keep the original"
-               [disabled]="!edits.canEdit()"
+               [disabled]="!edits.canEdit$()"
                (click)="clearDiff()"
             >
                Remove diff
@@ -301,8 +301,8 @@
             type="text"
             maxlength="120"
             placeholder="e.g. user.service.ts"
-            [value]="element().fileName ?? ''"
-            [disabled]="!edits.canEdit()"
+            [value]="element$().fileName ?? ''"
+            [disabled]="!edits.canEdit$()"
             (change)="setFileName($any($event.target).value)"
             (keydown.enter)="$any($event.target).blur()"
          />
@@ -313,8 +313,8 @@
             <button
                class="seg text"
                type="button"
-               [class.on]="(element().fontSize ?? 14) === s"
-               [disabled]="!edits.canEdit()"
+               [class.on]="(element$().fontSize ?? 14) === s"
+               [disabled]="!edits.canEdit$()"
                (click)="setCodeSize(s)"
             >
                {{ s }}
@@ -331,21 +331,21 @@
          min="10"
          max="100"
          step="10"
-         [value]="element().opacity"
-         [style.--fill]="((element().opacity - 10) / 90) * 100 + '%'"
-         [disabled]="!edits.canEdit()"
+         [value]="element$().opacity"
+         [style.--fill]="((element$().opacity - 10) / 90) * 100 + '%'"
+         [disabled]="!edits.canEdit$()"
          (input)="setOpacity(+$any($event.target).value)"
       />
-      <span class="val">{{ element().opacity }}%</span>
+      <span class="val">{{ element$().opacity }}%</span>
    </div>
 
    <!-- Arrange -->
    <div class="field-label">Arrange</div>
    <div class="arrange">
-      <button class="arr-btn" type="button" [disabled]="!edits.canEdit()" (click)="bringToFront()">
+      <button class="arr-btn" type="button" [disabled]="!edits.canEdit$()" (click)="bringToFront()">
          <dd-icon name="flip_to_front" />Front
       </button>
-      <button class="arr-btn" type="button" [disabled]="!edits.canEdit()" (click)="sendToBack()">
+      <button class="arr-btn" type="button" [disabled]="!edits.canEdit$()" (click)="sendToBack()">
          <dd-icon name="flip_to_back" />Back
       </button>
    </div>

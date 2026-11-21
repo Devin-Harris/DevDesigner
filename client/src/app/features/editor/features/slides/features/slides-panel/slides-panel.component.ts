@@ -21,16 +21,7 @@ import { SlidesPanelState } from './state/slides-panel.state';
 @Component({
    selector: 'dd-slides-panel',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [
-      DeckMenusComponent,
-      FocusSettingsComponent,
-      FocusSlideListComponent,
-      FocusTransitionComponent,
-      LayoutTabComponent,
-      SlideListComponent,
-      SlideSettingsComponent,
-      ThemePickerComponent,
-   ],
+   imports: [DeckMenusComponent, FocusSettingsComponent, FocusSlideListComponent, FocusTransitionComponent, LayoutTabComponent, SlideListComponent, SlideSettingsComponent, ThemePickerComponent],
    providers: [SlidesPanelState],
    templateUrl: './slides-panel.component.html',
    styleUrl: './slides-panel.component.scss',
@@ -39,7 +30,7 @@ export class SlidesPanelComponent {
    // eslint-disable-next-line @angular-eslint/no-output-native -- component output, unrelated to the invoker `command` event
    readonly command = output<SlidesCommand>();
    /** `list`: the slide cards (left of the frame); `settings`: transition/size/notes (right); the rest: focus screens and menus. */
-   readonly part = input<SlidesPanelPart>('list');
+   readonly part$ = input<SlidesPanelPart>('list', { alias: 'part' });
    /** Settings panel only: folded sideways to a narrow strip. */
    readonly folded = input<boolean>(false);
    /** The slide of this presentation currently shown on the canvas (the only one visible). */

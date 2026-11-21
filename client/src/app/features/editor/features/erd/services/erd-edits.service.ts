@@ -15,7 +15,7 @@ export class ErdEdits {
 
    readonly addColumn = storeMember(this.store, 'addColumn');
    readonly addIndex = storeMember(this.store, 'addIndex');
-   readonly canEdit = storeMember(this.store, 'canEdit');
+   readonly canEdit$ = storeMember(this.store, 'canEdit');
    readonly deleteColumn = storeMember(this.store, 'deleteColumn');
    readonly deleteIndex = storeMember(this.store, 'deleteIndex');
    readonly deleteRelationship = storeMember(this.store, 'deleteRelationship');

@@ -3,37 +3,37 @@
    #root
    class="present"
    tabindex="-1"
-   [class.idle]="!cursorVisible()"
+   [class.idle]="!cursorVisible$()"
    (click)="next()"
    (pointermove)="onPresentMove($event)"
 >
    <div #stage class="stage">
       <!-- Every slide image stays in the DOM (decoded), so switching is a visibility
        flip with no load or decode gap. -->
-      @for (per of urlList(); track $index; let si = $index) {
+      @for (per of urlList$(); track $index; let si = $index) {
          @for (u of per; track $index; let k = $index) {
-            <img class="slide" alt="" draggable="false" [class.hidden]="busy() || !isShown(si, k)" [src]="u" />
+            <img class="slide" alt="" draggable="false" [class.hidden]="busy$() || shownKey$() !== si + ':' + k" [src]="u" />
          }
       }
       <div #overlay class="overlay"></div>
       <!-- Live frames load when their slide is reached: the frame shows its loading
            spinner, then fades to the live page (no stale snapshot in between). -->
-      @for (sl of slides(); track $index; let si = $index) {
-         @if (embedsOf(sl).length && si === index()) {
+      @for (sl of slides$(); track $index; let si = $index) {
+         @if ((embedsOf | call: sl).length && si === index$()) {
             <dd-slide-media-layer
                class="embed-layer"
-               [class.off]="si !== index()"
-               [media]="embedsOf(sl)"
-               [hidden]="si === index() ? (liveMedia()?.hidden ?? null) : null"
+               [class.off]="si !== index$()"
+               [media]="embedsOf | call: sl"
+               [hidden]="si === index$() ? (liveMedia$()?.hidden ?? null) : null"
                [slideWidth]="sl.width"
                [slideHeight]="sl.height"
             ></dd-slide-media-layer>
          }
       }
       <!-- GIFs and videos play live over the settled slide (not during transitions). -->
-      @if (liveMedia(); as lm) {
+      @if (liveMedia$(); as lm) {
          <dd-slide-media-layer
-            [media]="otherMedia(lm.slide)"
+            [media]="otherMedia | call: lm.slide"
             [hidden]="lm.hidden"
             [slideWidth]="lm.slide.width"
             [slideHeight]="lm.slide.height"
@@ -42,26 +42,26 @@
    </div>
 
    <dd-laser-overlay
-      [slide]="slides()[index()]"
+      [slide]="slides$()[index$()]"
       [stage]="stage"
-      [capturing]="laserOn()"
+      [capturing]="laserOn$()"
       [layoutTick]="resized$()"
    ></dd-laser-overlay>
 
-   @if (following(); as who) {
+   @if (following$(); as who) {
       <div class="follow" ddStopClicks>Following {{ who }} · Esc to leave</div>
    }
 
-   @if (showGrid()) {
+   @if (showGrid$()) {
       <div
       class="slide-grid"
       tabindex="-1"
-      (click)="$event.stopPropagation(); showGrid.set(false)"
-      (keydown.escape)="showGrid.set(false)"
+      (click)="$event.stopPropagation(); showGrid$.set(false)"
+      (keydown.escape)="showGrid$.set(false)"
    >
          <div class="sg-list" ddStopClicks>
-            @for (u of gridThumbs(); track $index) {
-               <button class="sg-item" type="button" [class.on]="$index === index()" (click)="jumpTo($index)">
+            @for (u of gridThumbs$(); track $index) {
+               <button class="sg-item" type="button" [class.on]="$index === index$()" (click)="jumpTo($index)">
                   <img alt="" draggable="false" [src]="u" />
                   <span class="sg-n">{{ $index + 1 }}</span>
                </button>
@@ -70,11 +70,11 @@
       </div>
    }
 
-   @if (showNotes()) {
+   @if (showNotes$()) {
       <aside class="notes" ddStopClicks>
          <h3>Speaker notes</h3>
-         @if (current().notes) {
-            <p>{{ current().notes }}</p>
+         @if (current$().notes) {
+            <p>{{ current$().notes }}</p>
          } @else {
             <p class="none">No notes for this slide.</p>
          }
@@ -83,19 +83,19 @@
 
    <dd-presenter-controls
       #controls
-      [hidden]="!barVisible()"
-      [position]="index() + 1"
-      [count]="slides().length"
-      [clicks]="clicks()"
-      [clickStep]="clickStep()"
-      [name]="current().name"
-      [clock]="clock()"
-      [canPrev]="!(index() === 0 && step() <= firstStep(0))"
-      [canNext]="!(index() === slides().length - 1 && step() >= current().maxStep)"
-      [following]="!!following()"
-      [laserOn]="laserOn()"
-      [notesOn]="showNotes()"
-      [gridOn]="showGrid()"
+      [hidden]="!barVisible$()"
+      [position]="index$() + 1"
+      [count]="slides$().length"
+      [clicks]="clicks$()"
+      [clickStep]="clickStep$()"
+      [name]="current$().name"
+      [clock]="clock$()"
+      [canPrev]="!(index$() === 0 && step$() <= firstStepOfFirst$())"
+      [canNext]="!(index$() === slides$().length - 1 && step$() >= current$().maxStep)"
+      [following]="!!following$()"
+      [laserOn]="laserOn$()"
+      [notesOn]="showNotes$()"
+      [gridOn]="showGrid$()"
       (prev)="prev()"
       (next)="next()"
       (toggleLaser)="toggleLaser()"

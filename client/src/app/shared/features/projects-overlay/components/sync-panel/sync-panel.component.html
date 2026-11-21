@@ -6,11 +6,11 @@
       meantime, you choose which version to keep.
    </p>
 
-   @if (error()) {
-      <p class="err">{{ error() }}</p>
+   @if (error$()) {
+      <p class="err">{{ error$() }}</p>
    }
 
-   @if (sync.defaultRemote(); as cloud) {
+   @if (sync.defaultRemote$(); as cloud) {
       @if (!cloud.connected) {
          <form class="cloud" [formGroup]="cloudForm" (ngSubmit)="connectCloud()">
             <div class="cloud-head">
@@ -25,8 +25,8 @@
             </div>
             <div class="cloud-row">
                <dd-input class="cloud-token" type="password" placeholder="dd_..." formControlName="token" />
-               <button class="btn primary" type="submit" [disabled]="cloudForm.invalid || busy()">
-                  {{ busy() ? 'Connecting…' : 'Connect' }}
+               <button class="btn primary" type="submit" [disabled]="cloudForm.invalid || busy$()">
+                  {{ busy$() ? 'Connecting…' : 'Connect' }}
                </button>
             </div>
          </form>
@@ -34,7 +34,7 @@
    }
 
    <div class="remotes">
-      @for (remote of sync.remotes(); track remote.id) {
+      @for (remote of sync.remotes$(); track remote.id) {
          <div class="remote">
             <div class="remote-row">
                <dd-icon name="cloud" />
@@ -42,16 +42,16 @@
                   <span class="remote-name">{{ remote.name }}</span>
                   <span class="remote-sub">{{ remote.url }}{{ remote.account ? ' · ' + remote.account : '' }}</span>
                </div>
-               <button class="btn ghost" type="button" [disabled]="busy()" (click)="browse(remote)">
-                  {{ browsing() === remote.id ? 'Hide projects' : 'Projects' }}
+               <button class="btn ghost" type="button" [disabled]="busy$()" (click)="browse(remote)">
+                  {{ browsing$() === remote.id ? 'Hide projects' : 'Projects' }}
                </button>
                <button
                   class="icon-btn"
                   type="button"
                   title="Edit name, URL or token"
                   aria-label="Edit server"
-                  [disabled]="busy()"
-                  (click)="editingId() === remote.id ? editingId.set(null) : startEdit(remote)"
+                  [disabled]="busy$()"
+                  (click)="editingId$() === remote.id ? editingId$.set(null) : startEdit(remote)"
                >
                   <dd-icon name="edit" />
                </button>
@@ -60,13 +60,13 @@
                   type="button"
                   title="Remove this server (synced projects stay, they just stop syncing)"
                   aria-label="Remove server"
-                  [disabled]="busy()"
+                  [disabled]="busy$()"
                   (click)="removeRemote(remote)"
                >
                   <dd-icon name="delete" />
                </button>
             </div>
-            @if (editingId() === remote.id) {
+            @if (editingId$() === remote.id) {
                <form class="form" [formGroup]="editForm" (ngSubmit)="saveEdit(remote)">
                   <label class="field">
                      <span class="field-label">Name</span>
@@ -81,26 +81,26 @@
                      <dd-input type="password" formControlName="token" placeholder="dd_…" />
                   </label>
                   <div class="form-actions">
-                     <button class="btn ghost" type="button" (click)="editingId.set(null)">Cancel</button>
-                     <button class="btn primary" type="submit" [disabled]="editForm.invalid || busy()">
-                        {{ busy() ? 'Checking…' : 'Save' }}
+                     <button class="btn ghost" type="button" (click)="editingId$.set(null)">Cancel</button>
+                     <button class="btn primary" type="submit" [disabled]="editForm.invalid || busy$()">
+                        {{ busy$() ? 'Checking…' : 'Save' }}
                      </button>
                   </div>
                </form>
             }
-            @if (browsing() === remote.id) {
+            @if (browsing$() === remote.id) {
                <div class="remote-projects">
-                  @if (remoteProjects(); as projects) {
+                  @if (remoteProjects$(); as projects) {
                      @for (p of projects; track p.id) {
                         <div class="rp">
                            <span class="rp-name">{{ p.name }}</span>
-                           @if (isLinked(remote.id, p.id)) {
+                           @if ((sync.links$() | at: p.id)?.remoteId === remote.id) {
                               <span class="badge">Synced</span>
                            } @else {
                               <button
                                  class="btn ghost"
                                  type="button"
-                                 [disabled]="busy()"
+                                 [disabled]="busy$()"
                                  (click)="download(remote.id, p)"
                               >
                                  <dd-icon name="download" />Download
@@ -121,7 +121,7 @@
       }
    </div>
 
-   @if (adding()) {
+   @if (adding$()) {
       <form class="form" [formGroup]="form" (ngSubmit)="addRemote()">
          <label class="field">
             <span class="field-label">Name (optional)</span>
@@ -136,13 +136,13 @@
             <dd-input type="password" formControlName="token" placeholder="dd_..." />
          </label>
          <div class="form-actions">
-            <button class="btn ghost" type="button" (click)="adding.set(false)">Cancel</button>
-            <button class="btn primary" type="submit" [disabled]="form.invalid || busy()">
-               {{ busy() ? 'Checking…' : 'Add server' }}
+            <button class="btn ghost" type="button" (click)="adding$.set(false)">Cancel</button>
+            <button class="btn primary" type="submit" [disabled]="form.invalid || busy$()">
+               {{ busy$() ? 'Checking…' : 'Add server' }}
             </button>
          </div>
       </form>
    } @else {
-      <button class="btn" type="button" (click)="adding.set(true)"><dd-icon name="add" />Add server</button>
+      <button class="btn" type="button" (click)="adding$.set(true)"><dd-icon name="add" />Add server</button>
    }
 </div>

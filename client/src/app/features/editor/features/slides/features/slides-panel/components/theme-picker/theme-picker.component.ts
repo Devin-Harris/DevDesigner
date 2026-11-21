@@ -7,12 +7,13 @@ import { PopoverTriggerDirective } from '../../../../../../../../shared/ui/direc
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SelectComponent } from '../../../../../../../../shared/ui/components/select/select.component';
 import { SlidesPanelState } from '../../state/slides-panel.state';
+import { CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
 /** Design screen: the deck's themes, colors and fonts. */
 @Component({
    selector: 'dd-theme-picker',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [AutofocusDirective, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent],
+   imports: [CallPipe, AutofocusDirective, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent],
    templateUrl: './theme-picker.component.html',
    styleUrl: './theme-picker.component.scss',
 })

@@ -12,21 +12,21 @@ import { EmbedFramesService } from '../../../services/embed-frames.service';
    changeDetection: ChangeDetectionStrategy.OnPush,
    host: { '(pointerdown)': '$event.stopPropagation()' },
    template: `
-      @if (embeds.noticeShown()) {
+      @if (embeds.noticeShown$()) {
          <div class="notice" role="status">
             <span class="dot" aria-hidden="true"></span>
             <span class="msg">
-               This project has {{ embeds.embeds().length === 1 ? 'a live frame' : embeds.embeds().length + ' live frames' }}
-               that load other web pages{{ embeds.hasLocal() ? ' — localhost ones only work on the owner’s machine' : '' }}.
+               This project has {{ embeds.embeds$().length === 1 ? 'a live frame' : embeds.embeds$().length + ' live frames' }}
+               that load other web pages{{ embeds.hasLocal$() ? ' — localhost ones only work on the owner’s machine' : '' }}.
             </span>
-            @if (embeds.blocked()) {
+            @if (embeds.blocked$()) {
                <button type="button" (click)="embeds.setBlocked(false)">Load them</button>
             } @else {
                <button type="button" (click)="embeds.setBlocked(true)">Show placeholders</button>
             }
             <button type="button" class="ghost" aria-label="Dismiss" (click)="embeds.dismissNotice()">OK</button>
          </div>
-      } @else if (embeds.blocked() && embeds.embeds().length) {
+      } @else if (embeds.blocked$() && embeds.embeds$().length) {
          <button type="button" class="pill" (click)="embeds.setBlocked(false)">Live frames off · Load them</button>
       }
    `,

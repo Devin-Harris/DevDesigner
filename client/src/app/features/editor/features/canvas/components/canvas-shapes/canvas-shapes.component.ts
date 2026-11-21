@@ -12,6 +12,9 @@ import { EmbedFramesService } from '../../../../services/embed-frames.service';
 import { EmbedUrlBarComponent } from '../../../../shared/components/embed-frame/embed-url-bar.component';
 import { EmbedFrameComponent } from '../../../../shared/components/embed-frame/embed-frame.component';
 import { FRAME_TITLE_H, FRAME_TITLE_W } from '../../../../helpers/element-geometry.helper';
+import { CallPipe, AtPipe, HasPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
+import { ImageKindPipe, ImagePosterPipe, ImageUrlPipe } from '../../../../../../features/editor/shared/pipes/element-image.pipes';
+import type { MediaKind } from '../../../../../../features/editor/services/element-images.service';
 
 /** Corner used to resize a shape's bounding box. */
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
@@ -49,9 +52,9 @@ export interface ShapeEndpointEvent {
    // 10..299 (set by the editor), table nodes are 400, diagrams brought above every
    // element 401+, and lines/arrows clear them all.
    host: {
-      '[style.z-index]': "layer() === 'lines' ? 1000 : layer() === 'content' ? (hostZ() ?? 10) : null",
+      '[style.z-index]': "layer$() === 'lines' ? 1000 : layer$() === 'content' ? (hostZ$() ?? 10) : null",
    },
-   imports: [MediaVideoComponent, EmbedFrameComponent, EmbedUrlBarComponent],
+   imports: [AtPipe, HasPipe, ImageKindPipe, ImagePosterPipe, ImageUrlPipe, CallPipe, MediaVideoComponent, EmbedFrameComponent, EmbedUrlBarComponent],
    templateUrl: './canvas-shapes.component.html',
    styleUrl: './canvas-shapes.component.scss',
 })
@@ -62,13 +65,13 @@ export class CanvasShapesComponent {
     * above everything (tables and sequence diagrams, so they can anchor to message
     * labels), and the rest sits between.
     */
-   readonly layer = input<'all' | 'frames' | 'content' | 'lines'>('all');
+   readonly layer$ = input<'all' | 'frames' | 'content' | 'lines'>('all', { alias: 'layer' });
    /** Content layer only: this instance's z-index (slots between sequence diagrams). */
-   readonly hostZ = input<number | null>(null);
+   readonly hostZ$ = input<number | null>(null, { alias: 'hostZ' });
    /** Content layer only: which elements this instance draws (a slice between diagrams). */
    readonly accept = input<((id: string) => boolean) | null>(null);
-   readonly visible = computed(() => {
-      const layer = this.layer();
+   readonly visible$ = computed(() => {
+      const layer = this.layer$();
       const all = this.shapes();
       if (layer === 'all') {
          return all;
@@ -79,14 +82,14 @@ export class CanvasShapesComponent {
       const accept = this.accept();
       return accept ? inLayer.filter((s) => accept(s.id)) : inLayer;
    });
-   readonly svgOffset = input.required<number>();
-   readonly dragging = input<boolean>(false);
-   readonly interactive = input<boolean>(true);
+   readonly svgOffset$ = input.required<number>({ alias: 'svgOffset' });
+   readonly dragging$ = input<boolean>(false, { alias: 'dragging' });
+   readonly interactive$ = input<boolean>(true, { alias: 'interactive' });
    /** Id of the text element being edited inline, so its SVG text + selection box are hidden (the textarea owns it). */
-   readonly editingId = input<string | null>(null);
+   readonly editingId$ = input<string | null>(null, { alias: 'editingId' });
 
    /** World-space bounding box of a shape/table being hovered as a binding target. */
-   readonly bindHighlight = input<{ x: number; y: number; width: number; height: number } | null>(null);
+   readonly bindHighlight$ = input<{ x: number; y: number; width: number; height: number } | null>(null, { alias: 'bindHighlight' });
 
    protected readonly images = inject(ElementImagesService);
    private readonly codeActions = inject(CodeActionsService);
@@ -97,7 +100,7 @@ export class CanvasShapesComponent {
    /** The picture under the pointer (GIFs set to play on hover animate while hovered). */
    protected readonly hoveredId = signal<string | null>(null);
    /** The picture being cropped inline (the crop overlay draws it instead). */
-   protected readonly croppingId = inject(MediaActionsService).croppingId;
+   protected readonly croppingId$ = inject(MediaActionsService).croppingId;
 
    /** A live frame's address was typed in: save it (the page loads from the new value). */
    protected readonly snapshots = inject(EmbedSnapshotsService);
@@ -120,15 +123,23 @@ export class CanvasShapesComponent {
     * until its playback says go (auto = always; hover = while hovered; click = while
     * selected, the canvas stand-in for a click).
     */
-   protected pictureHref(id: string, img: ImageView, selected: boolean): string | null {
-      const url = this.images.url(img.fileId);
-      if (this.images.kind(img.fileId) !== 'gif') {
-         return url;
-      }
-      const playback = img.playback ?? 'click';
-      const playing = playback === 'auto' || (playback === 'hover' ? this.hoveredId() === id : selected);
-      return playing ? url : (this.images.posterUrl(img.fileId) ?? null);
-   }
+   /** Picture to show: a GIF plays (or shows its first frame) by its playback setting. */
+   protected readonly pictureSrc$ = computed(() => {
+      const hovered = this.hoveredId();
+      return (
+         id: string,
+         img: ImageView,
+         selected: boolean,
+         kind: MediaKind | null,
+         url: string | null,
+         poster: string | null
+      ): string | null => {
+         if (kind !== 'gif') return url;
+         const playback = img.playback ?? 'click';
+         const playing = playback === 'auto' || (playback === 'hover' ? hovered === id : selected);
+         return playing ? url : poster;
+      };
+   });
 
    /** SVG marker url for an arrowhead type, or null for 'none'. */
    protected markerUrl(type: ArrowheadType): string | null {
@@ -144,7 +155,7 @@ export class CanvasShapesComponent {
       event.preventDefault();
       const el = this.content.elements().find((e) => e.id === id);
       const ctm = (event.target as SVGGraphicsElement).getScreenCTM()?.inverse();
-      if (!el || !ctm || !this.content.canEdit()) {
+      if (!el || !ctm || !this.content.canEdit$()) {
          return;
       }
       const start = el.diffSplit;
@@ -172,7 +183,7 @@ export class CanvasShapesComponent {
       }
       event.stopPropagation();
       event.preventDefault();
-      if (!this.content.canEdit()) {
+      if (!this.content.canEdit$()) {
          return;
       }
       switch (action) {
@@ -189,23 +200,24 @@ export class CanvasShapesComponent {
    }
 
    /** World box of the selected cell block, when it belongs to this (selected) grid. */
-   protected cellRangeRect(
-      id: string,
-      g: GridTableView
-   ): { x: number; y: number; width: number; height: number } | null {
+   /** The selected cell range of a grid table, in its own coordinates (null when none). */
+   protected readonly cellRangeRect$ = computed(() => {
       const r = this.grids.range();
-      if (!r || r.id !== id || !this.interactive()) {
-         return null;
-      }
-      const x0 = g.colEdges[r.c0];
-      const x1 = g.colEdges[r.c1 + 1];
-      const y0 = g.rowEdges[r.r0];
-      const y1 = g.rowEdges[r.r1 + 1];
-      if (x1 === undefined || y1 === undefined) {
-         return null;
-      }
-      return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-   }
+      const interactive = this.interactive$();
+      return (id: string, g: GridTableView): { x: number; y: number; width: number; height: number } | null => {
+         if (!r || r.id !== id || !interactive) {
+            return null;
+         }
+         const x0 = g.colEdges[r.c0];
+         const x1 = g.colEdges[r.c1 + 1];
+         const y0 = g.rowEdges[r.r0];
+         const y1 = g.rowEdges[r.r1 + 1];
+         if (x1 === undefined || y1 === undefined) {
+            return null;
+         }
+         return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+      };
+   });
 
    protected onGridBorder(id: string, axis: 'col' | 'row', index: number, event: PointerEvent): void {
       if (event.button !== 0) {

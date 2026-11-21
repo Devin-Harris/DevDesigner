@@ -1,72 +1,26 @@
 import { InspectorPanelService } from '../../../../services/inspector-panel.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GridTableService, type GridSelectionCommand } from '../../../../services/grid-table.service';
+import { type GridSelectionCommand, GridTableService } from '../../../../services/grid-table.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
 import { MediaActionsService } from '../../../../services/media-actions.service';
 import { parseGrid } from '../../../../helpers/grid-table.helper';
-import type { GridBorders } from '@devdesigner/shared';
+import { type ArrowheadType, CODE_LANGUAGES, type CanvasElementModel, type CodeDiffView, type CodeLanguage, DEFAULT_THEME, type FillStyle, type FontFamily, type GridBorders, type MediaPlayback, SLIDE_FIELDS, SLIDE_FIELD_LABELS, type SlideTheme, type StrokeStyle, THEME_STROKE, type TextAlign, type UpdateElementDto, type VerticalAlign, fieldToken, presentationOf, resolveThemeColor, resolveThemeFont, themeSwatchCss, themeToken } from '@devdesigner/shared';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
-import {
-   CODE_LANGUAGES,
-   type ArrowheadType,
-   type CanvasElementModel,
-   type CodeLanguage,
-   type CodeDiffView,
-   type FillStyle,
-   type FontFamily,
-   type MediaPlayback,
-   type StrokeStyle,
-   type TextAlign,
-   type UpdateElementDto,
-   type VerticalAlign,
-   THEME_STROKE,
-   DEFAULT_THEME,
-   presentationOf,
-   resolveThemeColor,
-   themeSwatchCss,
-   SLIDE_FIELDS,
-   SLIDE_FIELD_LABELS,
-   fieldToken,
-   resolveThemeFont,
-   themeToken,
-   type SlideTheme,
-} from '@devdesigner/shared';
 import { EditorActionsService } from '../../../../../../core/editor-bridge/editor-actions.service';
-import { FONT_OPTIONS, fontStack, SURFACE_FILL } from '../../../../helpers/render';
+import { FONT_OPTIONS, SURFACE_FILL, fontStack } from '../../../../helpers/render';
 import { RichTextSessionService } from '../../services/rich-text-session.service';
 import { clearRunKeys, isPlainRuns, patchRuns, plainOf, runsOrPlain } from '../../../../helpers/rich-text.helper';
-import { listKindOver, toggleList as toggleListRuns, type ListKind } from '../../helpers/rich-list.helper';
+import { type ListKind, listKindOver, toggleList as toggleListRuns } from '../../helpers/rich-list.helper';
 import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper';
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
-import { DEFAULT_LINE_HEIGHT, ensureFontLoaded, LINE_HEIGHTS, withTextFit } from '../../../../helpers/text-metrics';
+import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, ensureFontLoaded, withTextFit } from '../../../../helpers/text-metrics';
 import { ElementEdits } from '../../services/element-edits.service';
-
-const STROKE_WIDTHS: { value: number; label: string }[] = [
-   { value: 1, label: 'Thin' },
-   { value: 2, label: 'Bold' },
-   { value: 4, label: 'Extra bold' },
-];
-const STROKE_STYLE_ICONS: { value: StrokeStyle; icon: string }[] = [
-   { value: 'solid', icon: 'remove' },
-   { value: 'dashed', icon: 'more_horiz' },
-   { value: 'dotted', icon: 'drag_handle' },
-];
-const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 44, 48, 60, 72, 96];
-/** Element types that carry text (their own, or a label) and take font styling. */
-const TEXT_TYPES = new Set(['text', 'rectangle', 'ellipse', 'diamond', 'grid']);
-const TEXT_SIZE_DEFAULT = 20;
-const CODE_FONT_SIZES = [11, 12, 14, 16, 18, 20, 24];
-const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
-   { value: 'none', icon: 'horizontal_rule', label: 'None' },
-   { value: 'arrow', icon: 'east', label: 'Arrow' },
-   { value: 'triangle', icon: 'play_arrow', label: 'Triangle' },
-   { value: 'dot', icon: 'circle', label: 'Dot' },
-   { value: 'bar', icon: 'menu', label: 'Bar' },
-];
+import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
+import { ARROWHEADS, CODE_FONT_SIZES, FONT_SIZES, STROKE_STYLE_ICONS, STROKE_WIDTHS, TEXT_SIZE_DEFAULT, TEXT_TYPES } from './element-floating-toolbar.helpers';
 
 /**
  * Compact floating toolbar shown above the selected element(s) for quick styling
@@ -77,7 +31,7 @@ const ARROWHEADS: { value: ArrowheadType; icon: string; label: string }[] = [
 @Component({
    selector: 'dd-element-floating-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
+   imports: [CallPipe, MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
    templateUrl: './element-floating-toolbar.component.html',
    styleUrl: './element-floating-toolbar.component.scss',
 })
@@ -99,72 +53,72 @@ export class ElementFloatingToolbarComponent {
    protected readonly arrowheads = ARROWHEADS;
 
    /** The representative element whose values the toolbar displays. */
-   readonly element = input.required<CanvasElementModel>();
+   readonly element$ = input.required<CanvasElementModel>({ alias: 'element' });
 
    /** A text box, or a shape whose label is open in the rich editor (its text controls show). */
-   protected readonly isText = computed(() => this.element().type === 'text' || this.editingRich());
+   protected readonly isText$ = computed(() => this.element$().type === 'text' || this.editingRich$());
 
    /** True while this text element is open in the inline rich-text editor. */
-   protected readonly editingRich = computed(() => this.rich.editingId() === this.element().id);
+   protected readonly editingRich$ = computed(() => this.rich.editingId() === this.element$().id);
    /** The anchor cell's style while a cell block of this table is selected. */
    private readonly cellStyle = computed(() => {
       const r = this.grids.range();
-      return r && r.id === this.element().id ? this.grids.anchorStyle() : null;
+      return r && r.id === this.element$().id ? this.grids.anchorStyle() : null;
    });
    /** Alignment shown in the align menu (the anchor cell's while cells are selected). */
-   protected readonly alignOn = computed(() => this.cellStyle()?.align ?? this.element().textAlign);
-   protected readonly vAlignOn = computed(() => this.cellStyle()?.vAlign ?? this.element().verticalAlign);
+   protected readonly alignOn$ = computed(() => this.cellStyle()?.align ?? this.element$().textAlign);
+   protected readonly vAlignOn$ = computed(() => this.cellStyle()?.vAlign ?? this.element$().verticalAlign);
    /** Styling state shown by the toolbar: the selected cells, or the selected characters while editing. */
-   protected readonly boldOn = computed(() =>
+   protected readonly boldOn$ = computed(() =>
       this.cellStyle()
-         ? (this.cellStyle()!.bold ?? !!this.element().bold)
-         : this.editingRich()
+         ? (this.cellStyle()!.bold ?? !!this.element$().bold)
+         : this.editingRich$()
            ? !!this.rich.selection()?.bold
-           : !!this.element().bold
+           : !!this.element$().bold
    );
-   protected readonly italicOn = computed(() =>
+   protected readonly italicOn$ = computed(() =>
       this.cellStyle()
-         ? (this.cellStyle()!.italic ?? !!this.element().italic)
-         : this.editingRich()
+         ? (this.cellStyle()!.italic ?? !!this.element$().italic)
+         : this.editingRich$()
            ? !!this.rich.selection()?.italic
-           : !!this.element().italic
+           : !!this.element$().italic
    );
-   protected readonly underlineOn = computed(() => {
-      if (this.editingRich()) {
+   protected readonly underlineOn$ = computed(() => {
+      if (this.editingRich$()) {
          return !!this.rich.selection()?.underline;
       }
-      const el = this.element();
+      const el = this.element$();
       const runs = runsOrPlain(el.text ?? '', el.runs);
       return runs.length > 0 && runs.every((r) => r.underline);
    });
    /** The morph tag of the words selected in the rich editor ('' = none). */
-   protected readonly runMorphTag = computed(() => this.rich.selection()?.morph ?? '');
+   protected readonly runMorphTag$ = computed(() => this.rich.selection()?.morph ?? '');
    /** The fill the toolbar shows: the anchor cell's while cells are selected, else the element's. */
-   protected readonly fillShown = computed<{ none: boolean; color: string | undefined }>(() => {
+   protected readonly fillShown$ = computed<{ none: boolean; color: string | undefined }>(() => {
       const cell = this.cellStyle();
       if (cell) {
          return cell.fill ? { none: false, color: cell.fill } : { none: true, color: undefined };
       }
-      const el = this.element();
+      const el = this.element$();
       return { none: el.fillStyle === 'none' || !el.backgroundColor, color: el.backgroundColor };
    });
-   protected readonly strokeSwatch = computed(
+   protected readonly strokeSwatch$ = computed(
       () =>
          this.cellStyle()?.color ??
-         (this.editingRich() ? this.rich.selection()?.color : null) ??
-         this.element().strokeColor
+         (this.editingRich$() ? this.rich.selection()?.color : null) ??
+         this.element$().strokeColor
    );
-   protected readonly currentLineHeight = computed(() => this.element().lineHeight ?? DEFAULT_LINE_HEIGHT);
+   protected readonly currentLineHeight$ = computed(() => this.element$().lineHeight ?? DEFAULT_LINE_HEIGHT);
    /** Elements whose stroke is an outline/line (text colour is not an outline). */
-   protected readonly strokeOpacityShown = computed(() =>
+   protected readonly strokeOpacityShown$ = computed(() =>
       ['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw', 'frame', 'code', 'grid'].includes(
-         this.element().type
+         this.element$().type
       )
    );
    /** Pictures have no stroke/fill styling, only opacity and layering. */
-   protected readonly isImage = computed(() => this.element().type === 'image');
+   protected readonly isImage$ = computed(() => this.element$().type === 'image');
    /** A frame that is not a slide (slides are sized by their presentation). */
-   protected readonly isPlainFrame = computed(() => this.element().type === 'frame' && !this.element().slide);
+   protected readonly isPlainFrame$ = computed(() => this.element$().type === 'frame' && !this.element$().slide);
    protected readonly actions = inject(EditorActionsService);
    protected readonly frameRatios = [
       { id: '16-9', label: '16:9', ratio: 16 / 9, w: 32, h: 18 },
@@ -173,29 +127,29 @@ export class ElementFloatingToolbarComponent {
       { id: 'a4', label: 'A4', ratio: 794 / 1123, w: 17, h: 24 },
       { id: '9-16', label: '9:16', ratio: 9 / 16, w: 15, h: 27 },
    ];
-   protected readonly frameRatioLabel = computed(() => {
-      const e = this.element();
+   protected readonly frameRatioLabel$ = computed(() => {
+      const e = this.element$();
       const r = e.width / (e.height || 1);
       return this.frameRatios.find((x) => Math.abs(x.ratio - r) < 0.02)?.label ?? 'Custom';
    });
    /** Reshape the frame to an aspect ratio, keeping its width and top-left corner. */
    protected setFrameRatio(ratio: number): void {
-      const e = this.element();
+      const e = this.element$();
       void this.edits.updateElement(e.id, { height: Math.round(e.width / ratio) });
    }
    /** GIFs and videos: what the picture is (null for stills or while loading). */
-   protected readonly mediaKind = computed(() => {
-      const kind = this.isImage() ? this.images.kind(this.element().fileId) : null;
+   protected readonly mediaKind$ = computed(() => {
+      const kind = this.isImage$() ? this.images.kind(this.element$().fileId) : null;
       return kind === 'gif' || kind === 'video' ? kind : null;
    });
-   protected readonly playback = computed<MediaPlayback>(() => this.element().media?.playback ?? 'click');
+   protected readonly playback$ = computed<MediaPlayback>(() => this.element$().media?.playback ?? 'click');
    protected readonly playbackModes: ReadonlyArray<{ value: MediaPlayback; label: string; hint: string }> = [
       { value: 'click', label: 'On click', hint: 'Still until clicked while presenting' },
       { value: 'hover', label: 'On hover', hint: 'Plays while the pointer is over it' },
       { value: 'auto', label: 'Automatically', hint: 'Plays as soon as it is shown' },
    ];
-   protected readonly isCode = computed(() => this.element().type === 'code');
-   protected readonly diffOn = computed(() => (this.element().diffView ?? 'off') !== 'off');
+   protected readonly isCode$ = computed(() => this.element$().type === 'code');
+   protected readonly diffOn$ = computed(() => (this.element$().diffView ?? 'off') !== 'off');
    protected readonly diffViews: { id: CodeDiffView; label: string }[] = [
       { id: 'off', label: 'Off (original only)' },
       { id: 'inline', label: 'Inline' },
@@ -211,15 +165,15 @@ export class ElementFloatingToolbarComponent {
    }
 
    protected swapDiff(): void {
-      void this.codeActions.swapDiffSides(this.element().id);
+      void this.codeActions.swapDiffSides(this.element$().id);
    }
 
    protected clearDiff(): void {
-      void this.codeActions.clearDiff(this.element().id);
+      void this.codeActions.clearDiff(this.element$().id);
    }
-   protected readonly isGrid = computed(() => this.element().type === 'grid');
+   protected readonly isGrid$ = computed(() => this.element$().type === 'grid');
    /** Cells of this table are selected (row/column deletes need them). */
-   protected readonly hasCells = computed(() => this.grids.range()?.id === this.element().id);
+   protected readonly hasCells$ = computed(() => this.grids.range()?.id === this.element$().id);
    protected readonly gridCommands: { id: GridSelectionCommand; label: string; keys: string; needsCells: boolean }[] = [
       { id: 'rowAbove', label: 'Insert row above', keys: 'Ctrl+Alt+↑', needsCells: false },
       { id: 'rowBelow', label: 'Insert row below', keys: 'Ctrl+Alt+↓', needsCells: false },
@@ -228,66 +182,66 @@ export class ElementFloatingToolbarComponent {
       { id: 'delRows', label: 'Delete rows', keys: 'Ctrl+Alt+-', needsCells: true },
       { id: 'delCols', label: 'Delete columns', keys: 'Ctrl+Alt+Shift+-', needsCells: true },
    ];
-   protected readonly gridHeaderOn = computed(() => this.isGrid() && parseGrid(this.element().text).header);
+   protected readonly gridHeaderOn$ = computed(() => this.isGrid$() && parseGrid(this.element$().text).header);
    protected readonly languages = CODE_LANGUAGES.map((id) => ({
       id,
       label: CODE_LANGUAGE_LABELS[id],
    }));
    protected readonly codeSizes = CODE_FONT_SIZES;
-   protected readonly languageLabel = computed(() => CODE_LANGUAGE_LABELS[this.element().language ?? 'typescript']);
-   protected readonly isLine = computed(() => this.element().type === 'arrow' || this.element().type === 'line');
+   protected readonly languageLabel$ = computed(() => CODE_LANGUAGE_LABELS[this.element$().language ?? 'typescript']);
+   protected readonly isLine$ = computed(() => this.element$().type === 'arrow' || this.element$().type === 'line');
    /** Text/label controls apply to text elements and to shapes (which have labels). */
-   protected readonly canHaveText = computed(() => this.textTargets().length > 0);
+   protected readonly canHaveText$ = computed(() => this.textTargets().length > 0);
 
    /** Every selected element that takes font styling (the shown element when nothing else is). */
    private readonly textTargets = computed(() => {
       const ids = new Set(this.edits.selectedElementIds());
-      const els = ids.size ? this.edits.elements().filter((e) => ids.has(e.id)) : [this.element()];
+      const els = ids.size ? this.edits.elements().filter((e) => ids.has(e.id)) : [this.element$()];
       return els.filter((e) => TEXT_TYPES.has(e.type));
    });
    /** The font shared by the text in the selection, or null when they differ. */
-   protected readonly sharedFont = computed<string | null>(() => {
+   protected readonly sharedFont$ = computed<string | null>(() => {
       const fonts = new Set(this.textTargets().map((e) => e.fontFamily ?? 'normal'));
       return fonts.size === 1 ? [...fonts][0] : null;
    });
    /** The font size shared by the text in the selection, or null when they differ. */
-   protected readonly sharedSize = computed<number | null>(() => {
+   protected readonly sharedSize$ = computed<number | null>(() => {
       const sizes = new Set(this.textTargets().map((e) => e.fontSize ?? TEXT_SIZE_DEFAULT));
       return sizes.size === 1 ? [...sizes][0] : null;
    });
    /** Name shown on the font button. */
-   protected readonly fontLabel = computed(() => {
-      const f = this.sharedFont();
+   protected readonly fontLabel$ = computed(() => {
+      const f = this.sharedFont$();
       if (f === null) return 'Mixed';
-      return this.themeFonts().find((t) => t.value === f)?.label ?? this.fonts.find((o) => o.value === f)?.label ?? f;
+      return this.themeFonts$().find((t) => t.value === f)?.label ?? this.fonts.find((o) => o.value === f)?.label ?? f;
    });
-   protected readonly fontLabelStack = computed(() => {
-      const f = this.sharedFont();
+   protected readonly fontLabelStack$ = computed(() => {
+      const f = this.sharedFont$();
       if (f === null) return null;
-      return this.themeFonts().find((t) => t.value === f)?.stack ?? fontStack(f as FontFamily);
+      return this.themeFonts$().find((t) => t.value === f)?.stack ?? fontStack(f as FontFamily);
    });
-   protected readonly multiText = computed(() => this.textTargets().length > 1);
-   protected readonly hasFill = computed(
-      () => !this.isText() && !this.isLine() && this.element().type !== 'freedraw' && this.element().type !== 'image'
+   protected readonly multiText$ = computed(() => this.textTargets().length > 1);
+   protected readonly hasFill$ = computed(
+      () => !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw' && this.element$().type !== 'image'
    );
    /** Closed shapes and code cards can drop their outline entirely ("no stroke"). */
-   protected readonly strokeCanBeNone = computed(() => {
-      const t = this.element().type;
+   protected readonly strokeCanBeNone$ = computed(() => {
+      const t = this.element$().type;
       return t === 'rectangle' || t === 'ellipse' || t === 'diamond' || t === 'code';
    });
    /** The theme stroke swatch applies to whole elements, not to cell or rich-text styling. */
-   protected readonly strokeThemeValue = computed(() => (this.cellsOn() || this.editingRich() ? null : THEME_STROKE));
+   protected readonly strokeThemeValue$ = computed(() => (this.cellsOn() || this.editingRich$() ? null : THEME_STROKE));
    protected readonly surfaceFill = SURFACE_FILL;
 
    /** The deck theme of the slide (or layout) this element is on; null off slides. */
    protected readonly deckTheme = computed<SlideTheme | null>(() => {
-      const el = this.element();
+      const el = this.element$();
       const frames = this.edits.slideFrames();
       const f = el.type === 'frame' ? frames.find((x) => x.id === el.id) : frames.find((x) => x.id === el.slideId);
       return f ? (this.edits.presentationThemes().get(presentationOf(f)) ?? DEFAULT_THEME) : null;
    });
    /** On a slide, layout or master: fields can be inserted. */
-   protected readonly onSlide = computed(() => this.deckTheme() !== null);
+   protected readonly onSlide$ = computed(() => this.deckTheme() !== null);
    protected readonly slideFields = SLIDE_FIELDS;
    protected readonly fieldLabels = SLIDE_FIELD_LABELS;
    protected readonly fieldToken = fieldToken;
@@ -295,15 +249,15 @@ export class ElementFloatingToolbarComponent {
    /** Insert a field token at the caret while typing, else append it ("{{slide}}") to the text; it fills in when slides are drawn. */
    protected insertField(token: string): void {
       // While typing into the text: at the caret, like any typed text.
-      if (this.editingRich() && this.rich.insert(token)) return;
-      const el = this.element();
+      if (this.editingRich$() && this.rich.insert(token)) return;
+      const el = this.element$();
       const sep = el.text && !/\s$/.test(el.text) ? ' ' : '';
       const runs = el.runs?.length ? [...el.runs, { text: sep + token }] : el.runs;
       void this.edits.updateElement(el.id, withTextFit(el, { text: (el.text ?? '') + sep + token, runs }));
    }
 
    /** Grid cell styles are stored inside the grid's JSON, which tokens do not reach. */
-   protected readonly swatchTheme = computed(() => (this.cellsOn() ? null : this.deckTheme()));
+   protected readonly swatchTheme$ = computed(() => (this.cellsOn() ? null : this.deckTheme()));
 
    /** A stored color as CSS (theme tokens as their concrete color). */
    protected colorCss(color: string | undefined): string | undefined {
@@ -311,7 +265,7 @@ export class ElementFloatingToolbarComponent {
       return c && themeSwatchCss(c);
    }
 
-   protected readonly themeFonts = computed(() => {
+   protected readonly themeFonts$ = computed(() => {
       const t = this.deckTheme();
       return t
          ? [
@@ -321,7 +275,7 @@ export class ElementFloatingToolbarComponent {
          : [];
    });
    /** Corner radius applies to rectangles only. */
-   protected readonly isRect = computed(() => this.element().type === 'rectangle');
+   protected readonly isRect$ = computed(() => this.element$().type === 'rectangle');
 
    /** Style keys that are remembered for subsequently drawn elements. */
    private static readonly STYLE_KEYS = [
@@ -345,7 +299,7 @@ export class ElementFloatingToolbarComponent {
    /** Apply a patch to every selected element and remember its style for new draws. */
    private patchAll(patch: UpdateElementDto): void {
       const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element().id];
+      const targets = ids.length ? ids : [this.element$().id];
       for (const id of targets) {
          // Text boxes hug their glyphs: a font/size/weight change refits the box.
          const el = this.edits.elements().find((e) => e.id === id);
@@ -383,7 +337,7 @@ export class ElementFloatingToolbarComponent {
    /** Code-block edits apply to every selected code block and never touch the sticky text style. */
    private patchCode(patch: UpdateElementDto): void {
       const ids = this.edits.selectedElementIds();
-      const targets = ids.length ? ids : [this.element().id];
+      const targets = ids.length ? ids : [this.element$().id];
       for (const id of targets) {
          if (this.edits.elements().find((e) => e.id === id)?.type === 'code') {
             void this.edits.updateElement(id, patch);
@@ -391,14 +345,14 @@ export class ElementFloatingToolbarComponent {
       }
    }
 
-   protected readonly canFormat = computed(() => canFormatCode(this.element().language));
+   protected readonly canFormat$ = computed(() => canFormatCode(this.element$().language));
 
    protected format(): void {
       void this.codeActions.format(this.edits.selectedElementIds());
    }
 
    protected editFileName(): void {
-      this.codeActions.editFileName(this.element().id);
+      this.codeActions.editFileName(this.element$().id);
    }
 
    protected fitToContent(): void {
@@ -412,7 +366,7 @@ export class ElementFloatingToolbarComponent {
       { id: 'rows', label: 'Rows only' },
       { id: 'none', label: 'No borders' },
    ];
-   protected readonly gridBorders = computed<GridBorders>(() => parseGrid(this.element().text).borders ?? 'all');
+   protected readonly gridBorders$ = computed<GridBorders>(() => parseGrid(this.element$().text).borders ?? 'all');
    protected setGridBorders(mode: GridBorders): void {
       void this.grids.setBorders(this.edits.selectedElementIds(), mode);
    }
@@ -424,7 +378,7 @@ export class ElementFloatingToolbarComponent {
    /** Selected cells of this table, when styling should target them instead of the whole table. */
    private cellsOn(): boolean {
       const r = this.grids.range();
-      return !!r && r.id === this.element().id;
+      return !!r && r.id === this.element$().id;
    }
 
    protected setLanguage(language: CodeLanguage): void {
@@ -440,13 +394,27 @@ export class ElementFloatingToolbarComponent {
          void this.grids.styleSelected({ color });
          return;
       }
-      if (this.editingRich() && this.rich.apply({ color })) {
+      if (this.editingRich$() && this.rich.apply({ color })) {
          return;
       }
       this.patchAll({ strokeColor: color });
    }
 
    /** CSS color for a fill swatch/value; the surface fill tracks the theme. */
+   /** Swatch colors resolved against the deck theme (a new function when the theme changes). */
+   protected readonly colorCss$ = computed(() => {
+      const theme = this.deckTheme() ?? DEFAULT_THEME;
+      return (color: string | undefined): string | undefined => {
+         const c = resolveThemeColor(color, theme);
+         return c && themeSwatchCss(c);
+      };
+   });
+   protected readonly fillCss$ = computed(() => {
+      const css = this.colorCss$();
+      return (color: string | undefined): string =>
+         color === SURFACE_FILL ? 'var(--dd-surface)' : css(color) || '#ffffff';
+   });
+
    protected fillCss(color: string | undefined): string {
       return color === SURFACE_FILL ? 'var(--dd-surface)' : this.colorCss(color) || '#ffffff';
    }
@@ -517,20 +485,20 @@ export class ElementFloatingToolbarComponent {
 
    protected toggleBold(): void {
       if (this.cellsOn()) {
-         void this.grids.styleSelected({ bold: !this.boldOn() });
+         void this.grids.styleSelected({ bold: !this.boldOn$() });
          return;
       }
-      if (this.editingRich() && this.rich.apply({ bold: !this.boldOn() })) {
+      if (this.editingRich$() && this.rich.apply({ bold: !this.boldOn$() })) {
          return;
       }
-      this.patchAll({ bold: !this.element().bold });
+      this.patchAll({ bold: !this.element$().bold });
    }
 
    /** Switch a text block between auto-size and fixed-width (wrapping) mode. */
    protected toggleWrap(): void {
-      const on = !this.element().wrap;
+      const on = !this.element$().wrap;
       const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element().id]) {
+      for (const id of ids.length ? ids : [this.element$().id]) {
          const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type === 'text') {
             void this.edits.updateElement(id, withTextFit(el, { wrap: on }));
@@ -540,12 +508,12 @@ export class ElementFloatingToolbarComponent {
 
    /** Underline has no element-level flag: it is applied to every run of the block. */
    protected toggleUnderline(): void {
-      const on = !this.underlineOn();
-      if (this.editingRich() && this.rich.apply({ underline: on })) {
+      const on = !this.underlineOn$();
+      if (this.editingRich$() && this.rich.apply({ underline: on })) {
          return;
       }
       const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element().id]) {
+      for (const id of ids.length ? ids : [this.element$().id]) {
          const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type !== 'text') {
             continue;
@@ -557,21 +525,21 @@ export class ElementFloatingToolbarComponent {
    }
 
    /** The list kind of the selected lines (editing) or of the whole block. */
-   protected readonly listKind = computed<ListKind | null>(() => {
-      if (this.editingRich()) {
+   protected readonly listKind$ = computed<ListKind | null>(() => {
+      if (this.editingRich$()) {
          return this.rich.selection()?.list ?? null;
       }
-      const text = this.element().text ?? '';
+      const text = this.element$().text ?? '';
       return listKindOver(text, 0, text.length);
    });
 
    /** Make the selected lines (or every line of the selected text blocks) a list, or undo it. */
    protected toggleList(kind: ListKind): void {
-      if (this.editingRich() && this.rich.toggleList(kind)) {
+      if (this.editingRich$() && this.rich.toggleList(kind)) {
          return;
       }
       const ids = this.edits.selectedElementIds();
-      for (const id of ids.length ? ids : [this.element().id]) {
+      for (const id of ids.length ? ids : [this.element$().id]) {
          const el = this.edits.elements().find((e) => e.id === id);
          if (el?.type !== 'text') {
             continue;
@@ -592,13 +560,13 @@ export class ElementFloatingToolbarComponent {
 
    protected toggleItalic(): void {
       if (this.cellsOn()) {
-         void this.grids.styleSelected({ italic: !this.italicOn() });
+         void this.grids.styleSelected({ italic: !this.italicOn$() });
          return;
       }
-      if (this.editingRich() && this.rich.apply({ italic: !this.italicOn() })) {
+      if (this.editingRich$() && this.rich.apply({ italic: !this.italicOn$() })) {
          return;
       }
-      this.patchAll({ italic: !this.element().italic });
+      this.patchAll({ italic: !this.element$().italic });
    }
 
    protected setCornerRadius(value: number): void {
@@ -635,30 +603,30 @@ export class ElementFloatingToolbarComponent {
 
    /** Toggle between a straight line and a curve (drag the midpoint handle to fine-tune). */
    /** How the selected line/arrow is routed. */
-   protected readonly route = computed<'straight' | 'curved' | 'elbow'>(() => {
-      const e = this.element();
+   protected readonly route$ = computed<'straight' | 'curved' | 'elbow'>(() => {
+      const e = this.element$();
       return e.elbow ? 'elbow' : e.curvature ? 'curved' : 'straight';
    });
 
    protected setRoute(mode: 'straight' | 'curved' | 'elbow'): void {
-      if (mode === this.route()) return;
+      if (mode === this.route$()) return;
       if (mode === 'elbow') {
          this.patchAll({ elbow: true, curvature: 0 });
       } else if (mode === 'straight') {
          this.patchAll({ elbow: false, curvature: 0 });
       } else {
-         if (this.element().elbow) this.patchAll({ elbow: false });
+         if (this.element$().elbow) this.patchAll({ elbow: false });
          this.toggleCurve();
       }
    }
 
    protected toggleClipContent(): void {
-      const e = this.element();
+      const e = this.element$();
       void this.edits.updateElement(e.id, { clipContent: !e.clipContent });
    }
 
    protected toggleCurve(): void {
-      const el = this.element();
+      const el = this.element$();
       if (el.curvature) {
          this.patchAll({ curvature: 0 });
          return;
@@ -679,8 +647,8 @@ export class ElementFloatingToolbarComponent {
    /** Swap the start and end arrowheads so the line points the other way. */
    protected reverseArrowheads(): void {
       this.patchAll({
-         startArrowhead: this.element().endArrowhead ?? 'none',
-         endArrowhead: this.element().startArrowhead ?? 'none',
+         startArrowhead: this.element$().endArrowhead ?? 'none',
+         endArrowhead: this.element$().startArrowhead ?? 'none',
       });
    }
 
@@ -697,34 +665,34 @@ export class ElementFloatingToolbarComponent {
    }
 
    protected setPlayback(value: MediaPlayback): void {
-      void this.media.setMedia(this.element().id, { playback: value === 'click' ? undefined : value });
+      void this.media.setMedia(this.element$().id, { playback: value === 'click' ? undefined : value });
    }
 
    protected toggleMediaFlag(key: 'loop' | 'muted'): void {
-      const el = this.element();
+      const el = this.element$();
       const on = key === 'loop' ? (el.media?.loop ?? false) : (el.media?.muted ?? false);
       void this.media.setMedia(el.id, { [key]: !on });
    }
 
-   protected readonly copied = signal(false);
+   protected readonly copied$ = signal(false);
    /** Copy a code block's text to the clipboard. */
    protected copyCode(): void {
-      const text = this.element().text ?? '';
+      const text = this.element$().text ?? '';
       void navigator.clipboard?.writeText(text).then(() => {
-         this.copied.set(true);
-         setTimeout(() => this.copied.set(false), 1200);
+         this.copied$.set(true);
+         setTimeout(() => this.copied$.set(false), 1200);
       });
    }
 
    protected setAlt(value: string): void {
       const alt = value.trim();
-      void this.media.setMedia(this.element().id, { alt: alt || undefined });
+      void this.media.setMedia(this.element$().id, { alt: alt || undefined });
    }
 
    /** Video trim, in seconds (empty clears it). */
    protected setTrim(key: 'start' | 'end', raw: string): void {
       const n = raw === '' ? undefined : Math.max(0, Number(raw));
-      void this.media.setMedia(this.element().id, { [key]: n === undefined || Number.isNaN(n) ? undefined : n });
+      void this.media.setMedia(this.element$().id, { [key]: n === undefined || Number.isNaN(n) ? undefined : n });
    }
 
    protected bringToFront(): void {
@@ -736,7 +704,7 @@ export class ElementFloatingToolbarComponent {
    }
 
    /** Selected items changed from their slide's layout (or master) that can go back. */
-   protected readonly revert = computed(() => {
+   protected readonly revert$ = computed(() => {
       const ids = new Set(this.edits.selectedElementIds());
       return this.edits.revertable(
          this.edits.elements().filter((e) => ids.has(e.id))
@@ -744,7 +712,7 @@ export class ElementFloatingToolbarComponent {
    });
 
    protected revertToLayout(): void {
-      const items = this.revert().items;
+      const items = this.revert$().items;
       void this.edits.batchHistory(() => this.edits.revertItems(items));
    }
 

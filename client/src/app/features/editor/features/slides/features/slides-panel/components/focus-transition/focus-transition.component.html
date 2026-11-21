@@ -1,12 +1,12 @@
 <div class="f-tabs" role="tablist">
-   <button class="f-tab" type="button" (click)="s.ftab.set('slide'); s.command.emit({ kind: 'screen', screen: 'main' })">
+   <button class="f-tab" type="button" (click)="s.ftab$.set('slide'); s.command.emit({ kind: 'screen', screen: 'main' })">
       Slide
    </button>
    <button class="f-tab on" type="button">Transition</button>
    <button
       class="f-tab"
       type="button"
-      (click)="s.ftab.set('animations'); s.command.emit({ kind: 'screen', screen: 'main' })"
+      (click)="s.ftab$.set('animations'); s.command.emit({ kind: 'screen', screen: 'main' })"
    >
       Animations
    </button>

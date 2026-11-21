@@ -10,20 +10,20 @@ import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
    styleUrl: './toggle.component.scss',
 })
 export class ToggleComponent implements ControlValueAccessor {
-   readonly disabled = signal(false);
-   protected readonly on = signal(false);
+   readonly disabled$ = signal(false);
+   protected readonly on$ = signal(false);
    protected onChange: (v: boolean) => void = () => {};
    protected onTouched: () => void = () => {};
 
    protected toggle(): void {
-      const next = !this.on();
-      this.on.set(next);
+      const next = !this.on$();
+      this.on$.set(next);
       this.onChange(next);
       this.onTouched();
    }
 
    writeValue(v: boolean): void {
-      this.on.set(!!v);
+      this.on$.set(!!v);
    }
    registerOnChange(fn: (v: boolean) => void): void {
       this.onChange = fn;
@@ -32,6 +32,6 @@ export class ToggleComponent implements ControlValueAccessor {
       this.onTouched = fn;
    }
    setDisabledState(isDisabled: boolean): void {
-      this.disabled.set(isDisabled);
+      this.disabled$.set(isDisabled);
    }
 }

@@ -1,5 +1,5 @@
-<div class="below" [class.folded]="s.folded()">
-   @if (s.folded()) {
+<div class="below" [class.folded]="s.folded$()">
+   @if (s.folded$()) {
       <button
          class="strip"
          type="button"
@@ -12,14 +12,14 @@
       </button>
    } @else {
       <div class="tabs" role="tablist">
-         <button class="tab" type="button" [class.on]="s.tab() === 'transition'" (click)="s.pick('transition')">
+         <button class="tab" type="button" [class.on]="s.tab$() === 'transition'" (click)="s.pick('transition')">
             Transition
          </button>
-         <button class="tab" type="button" [class.on]="s.tab() === 'size'" (click)="s.pick('size')">Size</button>
-         <button class="tab" type="button" [class.on]="s.tab() === 'design'" (click)="s.pick('design')">Design</button>
-         <button class="tab" type="button" [class.on]="s.tab() === 'notes'" (click)="s.pick('notes')">Notes</button>
-         @if (s.active()) {
-            <button class="tab" type="button" [class.on]="s.tab() === 'animations'" (click)="s.pick('animations')">
+         <button class="tab" type="button" [class.on]="s.tab$() === 'size'" (click)="s.pick('size')">Size</button>
+         <button class="tab" type="button" [class.on]="s.tab$() === 'design'" (click)="s.pick('design')">Design</button>
+         <button class="tab" type="button" [class.on]="s.tab$() === 'notes'" (click)="s.pick('notes')">Notes</button>
+         @if (s.active$()) {
+            <button class="tab" type="button" [class.on]="s.tab$() === 'animations'" (click)="s.pick('animations')">
                Animations
             </button>
          }
@@ -34,9 +34,9 @@
          </button>
       </div>
 
-      @if (s.tab()) {
+      @if (s.tab$()) {
          <div class="tabbody">
-            @switch (s.tab()) {
+            @switch (s.tab$()) {
                @case ('transition') {
                   <dd-transition-settings></dd-transition-settings>
                }
@@ -44,33 +44,33 @@
                   <dd-design-settings></dd-design-settings>
                }
                @case ('size') {
-                  @if (s.canEdit()) {
+                  @if (s.canEdit$()) {
                      <label class="field">
                         <span>Size of every slide</span>
                         <dd-select
-                           [options]="s.sizeOptions()"
-                           [ngModel]="s.sizeValue()"
-                           (ngModelChange)="s.setSize($event)"
+                           [options]="s.sizeOptions$()"
+                           [ngModel]="s.sizeValue$()"
+                           (ngModelChange)="s.slideCardDrag.setSize($event)"
                         />
                      </label>
                   } @else {
                      <p class="hint">
                         Slides are
-                        {{ s.sizeValue() === 'custom' ? 'a custom size' : 'sized by preset' }}.
+                        {{ s.sizeValue$() === 'custom' ? 'a custom size' : 'sized by preset' }}.
                      </p>
                   }
                }
                @case ('notes') {
-                  @if (s.active(); as a) {
-                     @if (s.activeSlides().length <= 1) {
+                  @if (s.active$(); as a) {
+                     @if (s.activeSlides$().length <= 1) {
                         <label class="field">
-                           <span>Speaker notes for slide {{ s.activeNumber() }}</span>
+                           <span>Speaker notes for slide {{ s.activeNumber$() }}</span>
                            <textarea
                               rows="4"
                               placeholder="Shown to the presenter (press N while presenting)"
                               [ngModel]="a.slide?.notes ?? ''"
-                              [disabled]="!s.canEdit()"
-                              (blur)="s.setNotes($any($event.target).value)"
+                              [disabled]="!s.canEdit$()"
+                              (blur)="s.slideMorphSettings.setNotes($any($event.target).value)"
                            ></textarea>
                         </label>
                      } @else {
@@ -81,8 +81,8 @@
                   }
                }
                @case ('animations') {
-                  @if (s.active(); as a) {
-                     @if (s.activeSlides().length <= 1) {
+                  @if (s.active$(); as a) {
+                     @if (s.activeSlides$().length <= 1) {
                         <dd-animation-pane [slide]="a" (play)="s.command.emit({ kind: 'present', from: 'current' })" />
                      } @else {
                         <p class="hint">Select a single slide to edit its animations.</p>

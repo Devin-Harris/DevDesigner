@@ -170,7 +170,7 @@
 .pairview.focusing .cut-line.rel {
    opacity: 1;
    background: var(--c);
-   color: #fff;
+   color: var(--dd-white);
 }
 .hit.locked {
    cursor: default;
@@ -185,7 +185,7 @@
    box-sizing: border-box;
    border-radius: 9px;
    background: var(--c);
-   color: #fff;
+   color: var(--dd-white);
    font:
       700 11px/18px system-ui,
       sans-serif;
@@ -283,9 +283,9 @@
    display: block;
 }
 .cut-line:hover {
-   background: #ef6b6b;
-   border-color: #ef6b6b;
-   color: #fff;
+   background: var(--dd-red-400);
+   border-color: var(--dd-red-400);
+   color: var(--dd-white);
    opacity: 1;
 }
 .lines {
@@ -383,7 +383,7 @@
    aspect-ratio: var(--ratio);
    border-radius: 4px;
    overflow: hidden;
-   background: #000;
+   background: var(--dd-black);
    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
 }
 .player.gone {
@@ -438,7 +438,7 @@
    flex: none;
    border-radius: 4px;
    overflow: hidden;
-   background: #000;
+   background: var(--dd-black);
 }
 .stage-host {
    position: absolute;
@@ -456,7 +456,7 @@
    border: none;
    border-radius: 7px;
    background: var(--dd-primary);
-   color: #fff;
+   color: var(--dd-white);
    font: inherit;
    font-weight: 600;
    cursor: pointer;
@@ -541,7 +541,7 @@
    box-sizing: border-box;
    border-radius: 9px;
    background: var(--c);
-   color: #fff;
+   color: var(--dd-white);
    font:
       700 11px/18px system-ui,
       sans-serif;
@@ -581,7 +581,7 @@
 }
 .tag.tg {
    background: rgba(112, 72, 232, 0.15);
-   color: #9b7bff;
+   color: var(--dd-violet-400);
 }
 .tag.forced {
    background: var(--dd-primary-weak);
@@ -650,7 +650,7 @@
    font-size: 10px;
    line-height: 14px;
    white-space: nowrap;
-   color: #fff;
+   color: var(--dd-white);
    background: var(--c);
 }
 .lines path.part {

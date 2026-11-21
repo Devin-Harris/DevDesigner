@@ -5,6 +5,7 @@ import { SequenceEdits } from '../../services/sequence-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
+import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 
 /**
  * On-canvas contextual bar that floats above the selected sequence participant
@@ -14,35 +15,35 @@ import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/
 @Component({
    selector: 'dd-sequence-participant-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [ColorSwatchesComponent, IconComponent, PopoverTriggerDirective],
+   imports: [CallPipe, ColorSwatchesComponent, IconComponent, PopoverTriggerDirective],
    templateUrl: './sequence-participant-toolbar.component.html',
    styleUrl: './sequence-participant-toolbar.component.scss',
 })
 export class SequenceParticipantToolbarComponent {
    protected readonly inspector = inject(InspectorPanelService);
    protected readonly edits = inject(SequenceEdits);
-   protected readonly lifeline = computed(() => this.edits.selectedLifeline());
-   protected readonly canEdit = computed(() => this.edits.canEdit());
+   protected readonly lifeline$ = computed(() => this.edits.selectedLifeline());
+   protected readonly canEdit$ = computed(() => this.edits.canEdit$());
    protected readonly css = themeColorCss;
 
    protected setColor(color: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { color });
    }
    protected setStroke(strokeColor: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { strokeColor });
    }
    protected setText(textColor: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { textColor });
    }
    protected edit(): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) this.edits.requestLifelineEdit(l.id);
    }
    protected remove(): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.deleteLifeline(l.id);
    }
 }

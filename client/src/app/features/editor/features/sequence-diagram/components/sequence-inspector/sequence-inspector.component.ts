@@ -23,25 +23,25 @@ import { SelectComponent, type SelectOption } from '../../../../../../shared/ui/
 export class SequenceInspectorComponent {
    protected readonly edits = inject(SequenceEdits);
 
-   protected readonly lifeline = computed(() => this.edits.selectedLifeline());
-   protected readonly message = computed(() => this.edits.selectedMessage());
+   protected readonly lifeline$ = computed(() => this.edits.selectedLifeline());
+   protected readonly message$ = computed(() => this.edits.selectedMessage());
    /** The diagram the current selection belongs to (box, or the selected part's). */
    protected readonly activeDiagram = computed(() => {
       const direct = this.edits.selectedDiagram();
       if (direct) return direct;
-      const diagramId = this.lifeline()?.diagramId ?? this.message()?.diagramId;
+      const diagramId = this.lifeline$()?.diagramId ?? this.message$()?.diagramId;
       return diagramId ? (this.edits.sequenceDiagrams().find((d) => d.id === diagramId) ?? null) : null;
    });
    /** The whole diagram box is selected (no single lifeline/message). */
-   protected readonly diagram = computed(() => this.edits.selectedDiagram());
-   protected readonly participantCount = computed(
+   protected readonly diagram$ = computed(() => this.edits.selectedDiagram());
+   protected readonly participantCount$ = computed(
       () => this.edits.lifelines().filter((l) => l.diagramId === this.activeDiagram()?.id).length
    );
-   protected readonly messageCount = computed(
+   protected readonly messageCount$ = computed(
       () => this.edits.sequenceMessages().filter((m) => m.diagramId === this.activeDiagram()?.id).length
    );
 
-   protected readonly lifelineOptions = computed<SelectOption[]>(() =>
+   protected readonly lifelineOptions$ = computed<SelectOption[]>(() =>
       this.edits
          .lifelines()
          .filter((l) => l.diagramId === this.activeDiagram()?.id)
@@ -50,11 +50,11 @@ export class SequenceInspectorComponent {
 
    // ---- Lifeline ----
    protected setLabel(label: string | number): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { label: String(label) });
    }
    protected setColor(color: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { color });
    }
    protected setBackground(backgroundColor: string): void {
@@ -66,30 +66,30 @@ export class SequenceInspectorComponent {
       if (d) void this.edits.updateSequenceConfig(d.id, { borderColor });
    }
    protected setStrokeColor(strokeColor: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { strokeColor });
    }
    protected setTextColor(textColor: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { textColor });
    }
    protected setLineColor(lineColor: string): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.updateLifeline(l.id, { lineColor });
    }
    protected setWidth(width: string | number): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       const w = Math.round(Number(width));
       if (l && Number.isFinite(w)) {
          void this.edits.updateLifeline(l.id, { width: Math.min(600, Math.max(60, w)) });
       }
    }
    protected nudgeWidth(delta: number): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) this.setWidth(l.width + delta);
    }
    protected deleteLifeline(): void {
-      const l = this.lifeline();
+      const l = this.lifeline$();
       if (l) void this.edits.deleteLifeline(l.id);
    }
    protected addParticipant(side: 'left' | 'right' = 'right'): void {
@@ -99,31 +99,31 @@ export class SequenceInspectorComponent {
 
    // ---- Message ----
    protected setFrom(id: string): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { fromLifelineId: id });
    }
    protected setTo(id: string): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { toLifelineId: id });
    }
    protected setMsgLabel(label: string | number): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { label: String(label) });
    }
    protected setMsgColor(color: string): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { color });
    }
    protected setStyle(style: SequenceMessageModel['style']): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { style });
    }
    protected toggleWrap(): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.updateMessage(m.id, { wrap: m.wrap === false });
    }
    protected flipDirection(): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) {
          void this.edits.updateMessage(m.id, {
             direction: m.direction === 'forward' ? 'reverse' : 'forward',
@@ -131,7 +131,7 @@ export class SequenceInspectorComponent {
       }
    }
    protected deleteMessage(): void {
-      const m = this.message();
+      const m = this.message$();
       if (m) void this.edits.deleteMessage(m.id);
    }
 

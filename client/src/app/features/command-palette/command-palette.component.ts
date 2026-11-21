@@ -1,15 +1,5 @@
 import { runtimeConfig } from '../../core/config/runtime-config';
-import {
-   ChangeDetectionStrategy,
-   Component,
-   ElementRef,
-   afterNextRender,
-   computed,
-   inject,
-   output,
-   signal,
-   viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, computed, inject, output, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/ui/components/icon/icon.component';
 import { ThemeService } from '../../core/theme/theme.service';
 import { EditorActionsService, type CanvasItemRef } from '../../core/editor-bridge/editor-actions.service';
@@ -75,15 +65,15 @@ export class CommandPaletteComponent {
    private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('search');
    private readonly list = viewChild<ElementRef<HTMLElement>>('list');
 
-   protected readonly query = signal('');
-   protected readonly active = signal(0);
+   protected readonly query$ = signal('');
+   protected readonly active$ = signal(0);
 
    /** Canvas items are read once when the palette opens (cheap snapshot). */
-   private readonly canvasItems = this.actions.active() ? this.actions.canvasItems() : [];
+   private readonly canvasItems = this.actions.active$() ? this.actions.canvasItems() : [];
 
    private readonly entries = computed<PaletteEntry[]>(() => {
       const out: PaletteEntry[] = [];
-      const inEditor = this.actions.active();
+      const inEditor = this.actions.active$();
       const openId = this.projects.selectedId();
 
       for (const p of this.projects.projects()) {
@@ -97,7 +87,7 @@ export class CommandPaletteComponent {
       }
 
       if (inEditor) {
-         for (const d of this.actions.decks()) {
+         for (const d of this.actions.decks$()) {
             out.push({
                group: 'Presentations',
                icon: 'slideshow',
@@ -122,12 +112,12 @@ export class CommandPaletteComponent {
       };
       cmd('table_chart', 'All projects & templates…', () => this.overlay.open());
       cmd(
-         this.theme.dark() ? 'light_mode' : 'dark_mode',
-         this.theme.dark() ? 'Switch to light theme' : 'Switch to dark theme',
+         this.theme.dark$() ? 'light_mode' : 'dark_mode',
+         this.theme.dark$() ? 'Switch to light theme' : 'Switch to dark theme',
          () => this.theme.toggle()
       );
       if (inEditor) {
-         const canEdit = this.actions.canEdit();
+         const canEdit = this.actions.canEdit$();
          cmd('home', 'Go to home view', () => this.actions.resetView(), 'Home');
          if (canEdit) {
             cmd('center_focus_strong', 'Set current view as home', () => this.actions.setHome());
@@ -140,7 +130,7 @@ export class CommandPaletteComponent {
          cmd('photo', 'Export image (PNG)', () => this.actions.exportImage('png'));
          cmd('image', 'Export image (SVG)', () => this.actions.exportImage('svg'));
          cmd('picture_as_pdf', 'Export image (PDF)', () => this.actions.exportImage('pdf'));
-         if (this.actions.accessMode() === 'OWNER' && !runtimeConfig.desktop)
+         if (this.actions.accessMode$() === 'OWNER' && !runtimeConfig.desktop)
             cmd('share', 'Share…', () => this.actions.share());
          cmd('home', 'Back to the home page', () => this.projects.select(null));
       }
@@ -148,8 +138,8 @@ export class CommandPaletteComponent {
    });
 
    /** Matching entries, grouped in display order. Empty query: no canvas items (too noisy). */
-   protected readonly results = computed(() => {
-      const q = this.query().trim().toLowerCase();
+   protected readonly results$ = computed(() => {
+      const q = this.query$().trim().toLowerCase();
       const words = q.split(/\s+/).filter(Boolean);
       const match = (e: PaletteEntry) => {
          const hay = `${e.label} ${e.sub ?? ''}`.toLowerCase();
@@ -164,30 +154,30 @@ export class CommandPaletteComponent {
       return groups.map((g) => ({ ...g, items: g.items.map((e) => ({ entry: e, index: i++ })) }));
    });
 
-   private readonly flat = computed(() => this.results().flatMap((g) => g.items.map((x) => x.entry)));
+   private readonly flat = computed(() => this.results$().flatMap((g) => g.items.map((x) => x.entry)));
 
    constructor() {
       afterNextRender(() => this.input().nativeElement.focus());
    }
 
    protected onInput(value: string): void {
-      this.query.set(value);
-      this.active.set(0);
+      this.query$.set(value);
+      this.active$.set(0);
    }
 
    protected onKey(event: KeyboardEvent): void {
       const n = this.flat().length;
       if (event.key === 'ArrowDown' && n) {
          event.preventDefault();
-         this.active.set((this.active() + 1) % n);
+         this.active$.set((this.active$() + 1) % n);
          this.scrollActive();
       } else if (event.key === 'ArrowUp' && n) {
          event.preventDefault();
-         this.active.set((this.active() - 1 + n) % n);
+         this.active$.set((this.active$() - 1 + n) % n);
          this.scrollActive();
       } else if (event.key === 'Enter') {
          event.preventDefault();
-         const e = this.flat()[this.active()];
+         const e = this.flat()[this.active$()];
          if (e) this.run(e);
       } else if (event.key === 'Escape') {
          event.preventDefault();

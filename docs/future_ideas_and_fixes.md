@@ -2,9 +2,27 @@
 
 ## Bugs
 
-- i want to keep spacing between messages on a sequence diagram consistent but i want to be able to scale the diagram bigger than the message inside like other objects (code blocks for example). Maybe we can tie into the drag on space between messages to get the spacing behaviors im looking for? It may also be nice to maintain the existing functionality on alt+ resize so the messages add/remove spacing on a resize while alt is hold like they do currently, but normally the diagram just grows its bounds without alt. Would also be nice to have a space evenly button to space the messages in the available space evenly and a fit to content button to shrink the bounds of the diagram to line up to the last message (possible double clicking the sides of the diagram could do this as well like grid tables)
+- i should be able to change spacing between bullets when wrapping is on
+- i should be able to double click the spacing lines between bullets and reset the spacing back to default
 
-- it would be nice if when the update for desktop app fires it doesnt popup a window, just adds the button to the UI.
+- when editing text, especially placeholder on slides, the bounds dont line up. for example double clicking on some text start a new text block because i needed to click the first line of text
+  i also see pressing enter puts the cursor on the next line but doesnt update the bounds right away
+
+- when dragging the overflow handles for text, they should particpate in the smart guidelines with other elements, and with the spacing of slide edges
+
+- when installing the desktop app, the electron icon is in the taskbar, windows menu, and task manager, we should be using the same branding everywhere which eventually i will change
+
+- alt dragging text from one slide to another, does not keep its heading/body text, it forces it to its font
+
+- code diffs are all messed up. Both in the highlighting and in the editing while inline and side by side. Things like shift end, left and right arrows, etc... get messed up and i end up editing the wrong thing.
+  also mcp struggles to use this feature
+  - highlighting two code blocks, then holding ctrl and resizing should scale both at the same time. This should work for other multi selected objects as well, but i just noticed it with code blocks
+  - formatting with a code diff side by side doesnt try to format the code into the bounds like it does without a diff. I want this so i can set the width size, format to try to fit the code in that size, and resize the height if necessary
+    it seems this may be related to top level imports of ts files can be broken onto multiple lines? that may be nice to allow (maybe a wrapping feature like text blocks have). in general the errors for failed formatting is hard to understand especially with diffs, maybe some red squiggles to help illustrate it better
+  - turning diff off multiple code blocks at once duplicates some codeblocks
+  - diff highlighting doesnt morph right, it should move and fade in with the text, not fade in from its final position as text is moving to it
+
+- slide selected, hold shift, select another slide 3 slides away, slides in between should be selected so all can be edited together. Currently behaves like ctrl click by selected both slides not the range of slides
 
 - undo/redo does not work in a lot of situations. we need a full audit so that we can properly undo and redo sets and individual changes for all different types of objects with moving, resizing, editing, deleteing and etc...
   - moving multiple sequence diagrams at once
@@ -12,6 +30,8 @@
   - many others
 
 ## Features
+
+- ctrl + shift + e should export selection
 
 <!-- - Improved code editing. I want to mimic some of my vscode shortcuts
   - holding alt and arrow down/up to duplicate line(s)
