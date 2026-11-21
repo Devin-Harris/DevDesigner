@@ -6,6 +6,8 @@ node_modules/
 dist/
 **/dist/
 build/
+# desktop/build holds electron-builder resources (app icons), not build output
+!desktop/build/
 .angular/
 tmp/
 out-tsc/
