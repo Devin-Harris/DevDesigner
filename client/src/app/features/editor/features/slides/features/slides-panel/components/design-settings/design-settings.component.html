@@ -124,6 +124,50 @@
             </label>
          }
       }
+      @if (s.canEdit$() && s.tagCount$() > 0) {
+         <div class="field">
+            <span class="tagline">
+               Morph tag
+               @if (s.splitTarget$(); as st) {
+                  <button
+                     class="link"
+                     type="button"
+                     [title]="
+                        st.split ? 'Use one tag both ways again' : 'Use a different tag into this slide than out of it'
+                     "
+                     (click)="s.slideMorphSettings.toggleSplit(st)"
+                  >
+                     {{ st.split ? 'Join in / out' : 'Split in / out' }}
+                  </button>
+               }
+            </span>
+            @if (s.splitTarget$()?.split) {
+               <span class="sublab">In · from the slide before</span>
+               <dd-tag-input
+                  placeholder="type a tag…"
+                  [value]="s.tagText | call: s.splitTarget$()!.in"
+                  [maxlength]="80"
+                  (commit)="s.slideMorphSettings.setSplitTag('in', $event)"
+               />
+               <span class="sublab">Out · to the slide after</span>
+               <dd-tag-input
+                  placeholder="type a tag…"
+                  [value]="s.tagText | call: s.splitTarget$()!.out"
+                  [maxlength]="80"
+                  (commit)="s.slideMorphSettings.setSplitTag('out', $event)"
+               />
+            } @else {
+               <dd-tag-input
+                  [value]="s.morphTag$()"
+                  [taken]="s.takenTags$()"
+                  [maxlength]="80"
+                  [disabled]="s.tagCount$() > 1"
+                  [placeholder]="s.tagCount$() > 1 ? 'Select a single object to tag it' : 'Name it to morph it between slides'"
+                  (commit)="s.slideMorphSettings.setMorphTag($event)"
+               />
+            }
+         </div>
+      }
       <div class="row">
          <button class="btn" type="button" (click)="s.slideLayoutEditing.backToSlide()">
             <dd-icon name="chevron_left" />Back to slides

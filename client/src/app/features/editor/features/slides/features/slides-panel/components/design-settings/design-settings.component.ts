@@ -7,6 +7,7 @@ import { PopoverTriggerDirective } from '../../../../../../../../shared/ui/direc
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SelectComponent } from '../../../../../../../../shared/ui/components/select/select.component';
 import { SegmentedComponent } from '../../../../../../../../shared/ui/components/segmented/segmented.component';
+import { TagInputComponent } from '../../../../../../../../shared/ui/components/tag-input/tag-input.component';
 import { SlidesPanelState } from '../../state/slides-panel.state';
 import { AtPipe, CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pipes';
 
@@ -14,7 +15,7 @@ import { AtPipe, CallPipe } from '../../../../../../../../shared/ui/pipes/collec
 @Component({
    selector: 'dd-design-settings',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, AtPipe, CheckboxComponent, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent, SegmentedComponent],
+   imports: [CallPipe, AtPipe, CheckboxComponent, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent, SegmentedComponent, TagInputComponent],
    templateUrl: './design-settings.component.html',
    styleUrl: './design-settings.component.scss',
 })

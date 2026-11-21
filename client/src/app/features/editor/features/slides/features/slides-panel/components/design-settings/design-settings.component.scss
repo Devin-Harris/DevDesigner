@@ -321,3 +321,14 @@ input[type='number'],
 .text-input {
    height: 34px;
 }
+
+.tagline {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 8px;
+}
+.sublab {
+   font-size: 11px;
+   color: var(--dd-text-muted);
+}
