@@ -8,6 +8,8 @@ import {
    resolveThemeFont,
    themeLayoutItems,
    themeToken,
+   layoutItemMorphTags,
+   morphIdForTag,
    type CanvasElementModel,
    type CreateElementDto,
    type LayoutKind,
@@ -110,8 +112,12 @@ async function addLayoutFrame(
       },
    });
    if (!frame) return null;
-   for (const item of spec.items) {
-      await add(itemDto(item, frame.id, x, y, fw, k, theme));
+   // Shared default tags: titles and shapes morph across layouts and designs.
+   const tags = layoutItemMorphTags(spec.items);
+   for (const [i, item] of spec.items.entries()) {
+      const dto = itemDto(item, frame.id, x, y, fw, k, theme);
+      const tag = tags[i];
+      await add(tag ? { ...dto, morphId: morphIdForTag(tag) ?? undefined } : dto);
    }
    return frame.id;
 }

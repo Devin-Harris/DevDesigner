@@ -1,3 +1,4 @@
+import { FocusMorphTagComponent } from '../focus-morph-tag/focus-morph-tag.component';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AutofocusDirective } from '../../../../../../../../shared/ui/directives/autofocus.directive';
 import { ColorSwatchesComponent } from '../../../../../../../../shared/ui/components/color-swatches/color-swatches.component';
@@ -13,7 +14,7 @@ import { CallPipe } from '../../../../../../../../shared/ui/pipes/collection.pip
 @Component({
    selector: 'dd-theme-picker',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, AutofocusDirective, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent],
+   imports: [CallPipe, FocusMorphTagComponent, AutofocusDirective, ColorSwatchesComponent, FormsModule, IconComponent, PopoverTriggerDirective, MatTooltipModule, SelectComponent],
    templateUrl: './theme-picker.component.html',
    styleUrl: './theme-picker.component.scss',
 })

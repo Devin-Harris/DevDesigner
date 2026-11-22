@@ -732,3 +732,43 @@ export const FRAME_LAYOUTS: LayoutVariant = (() => {
     ],
   };
 })();
+
+/**
+ * Default morph tags for a layout's items, so slides on different layouts (and in
+ * different built-in designs) morph into each other: every heading-font title-like
+ * placeholder (title, statement, quote) shares `layout-title`, other placeholders pair
+ * by role and order, and decorations pair by shape class and order (the 1st accent bar
+ * of one layout morphs into the 1st accent bar of another). `undefined` = leave untagged
+ * (e.g. a captured element that already carries its own tag).
+ */
+export function layoutItemMorphTags(items: readonly LayoutSpecItem[]): (string | undefined)[] {
+  const seen = new Map<string, number>();
+  const next = (key: string): string => {
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    return n === 1 ? key : `${key}-${n}`;
+  };
+  // Number in reading order, so "the 2nd bar" means the same thing on every layout.
+  const order = items
+    .map((it, i) => ({ it, i }))
+    .sort((a, b) => a.it.y - b.it.y || a.it.x - b.it.x);
+  const out: (string | undefined)[] = new Array(items.length).fill(undefined);
+  for (const { it, i } of order) {
+    if (it.kind === 'text') {
+      const titleLike = it.role === 'title' || (it.role === 'emphasis' && it.font === 'heading');
+      out[i] = next(titleLike ? 'layout-title' : `layout-${it.role}`);
+      continue;
+    }
+    if (it.kind === 'element' && it.el.morphId) continue;
+    const pw = it.w * 1280;
+    const ph = it.kind === 'bar' ? it.h : it.h * 720;
+    const type = it.kind === 'bar' ? 'rectangle' : it.el.type;
+    if (type === 'text') {
+      out[i] = next('layout-mark');
+      continue;
+    }
+    const cls = ph <= 12 && pw >= ph * 3 ? 'bar' : pw <= 12 && ph >= pw * 3 ? 'vbar' : 'box';
+    out[i] = next(`layout-${type === 'ellipse' ? 'ellipse' : 'shape'}-${cls}`);
+  }
+  return out;
+}

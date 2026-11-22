@@ -2,6 +2,8 @@ import { CompareUiState } from '../../deck-compare/services/compare-ui-state.ser
 import { DestroyRef, ElementRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
    BUILT_IN_THEMES,
+   DEFAULT_LAYOUT_SET,
+   DEFAULT_THEME,
    type CanvasElementModel,
    LAYOUT_KINDS,
    LAYOUT_KIND_LABELS,
@@ -37,6 +39,7 @@ import type { SelectOption } from '../../../../../../../shared/ui/components/sel
 import { ProjectStore } from '../../../../../state/project/project.store';
 import { FRAME_PRESETS } from '../../../../../shared/constants/frame-presets';
 import { FONT_OPTIONS, fontStack } from '../../../../../helpers/render';
+import { layoutThumb, type LayoutThumb } from '../../../helpers/layout-thumb';
 import { type PlaceholderDrift, placeholderDrift } from '../../../../../helpers/layout-placeholders';
 import { MorphTagSuggestions } from '../services/morph-tag-suggestions.service';
 import { SlideRenderService } from '../../../services/slide-render.service';
@@ -420,6 +423,7 @@ export class SlidesPanelState {
          custom,
          on: t.id === cur,
          theme: t,
+         thumb: null as LayoutThumb | null,
       });
       const custom = this.library().filter((r) => recordKind(r) === 'theme' && r.id);
       return [
@@ -432,12 +436,20 @@ export class SlidesPanelState {
       const cur = this.design$().id;
       const groups = new Map<
          string,
-         { id: string; name: string; custom: boolean; on: boolean; theme: SlideTheme | null }[]
+         { id: string; name: string; custom: boolean; on: boolean; theme: SlideTheme | null; thumb: LayoutThumb | null }[]
       >();
       for (const o of this.designOptions$()) {
          const g = o.group ?? 'Designs';
          const list = groups.get(g) ?? [];
-         list.push({ id: o.value, name: o.label, custom: !isBuiltInRecord(o.value), on: o.value === cur, theme: null });
+         // A picture of the design's Title layout in its own theme.
+         const rec = this.decks.record(o.value);
+         const thumb = rec
+            ? layoutThumb(
+                 this.decks.record(rec.layoutsId) ?? DEFAULT_LAYOUT_SET,
+                 this.decks.record(rec.themeId) ?? DEFAULT_THEME
+              )
+            : null;
+         list.push({ id: o.value, name: o.label, custom: !isBuiltInRecord(o.value), on: o.value === cur, theme: null, thumb });
          groups.set(g, list);
       }
       return [...groups.entries()].map(([name, items]) => ({ name, items }));

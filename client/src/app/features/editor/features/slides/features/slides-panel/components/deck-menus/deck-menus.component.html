@@ -31,6 +31,56 @@
                            }
                         </span>
                      }
+                     @if (!isTheme && o.thumb; as t) {
+                        <svg class="rec-thumb" viewBox="0 0 1280 720" aria-hidden="true">
+                           <rect width="1280" height="720" [attr.fill]="t.background" />
+                           @for (m of t.marks; track $index) {
+                              @switch (m.kind) {
+                                 @case ('rect') {
+                                    <rect
+                                       [attr.x]="m.x"
+                                       [attr.y]="m.y"
+                                       [attr.width]="m.w"
+                                       [attr.height]="m.h"
+                                       [attr.rx]="m.rx"
+                                       [attr.fill]="m.fill"
+                                       [attr.stroke]="m.stroke"
+                                       [attr.stroke-width]="m.strokeWidth"
+                                       [attr.opacity]="m.opacity"
+                                       [attr.transform]="m.rotate"
+                                    />
+                                 }
+                                 @case ('ellipse') {
+                                    <ellipse
+                                       [attr.cx]="m.cx"
+                                       [attr.cy]="m.cy"
+                                       [attr.rx]="m.rx"
+                                       [attr.ry]="m.ry"
+                                       [attr.fill]="m.fill"
+                                       [attr.stroke]="m.stroke"
+                                       [attr.stroke-width]="m.strokeWidth"
+                                       [attr.opacity]="m.opacity"
+                                    />
+                                 }
+                                 @case ('text') {
+                                    <text
+                                       [attr.x]="m.x"
+                                       [attr.y]="m.y"
+                                       [attr.font-size]="m.size"
+                                       [attr.font-family]="m.font"
+                                       [attr.font-weight]="m.weight"
+                                       [attr.font-style]="m.italic ? 'italic' : null"
+                                       [attr.text-anchor]="m.anchor"
+                                       [attr.fill]="m.fill"
+                                       [attr.opacity]="m.opacity"
+                                    >
+                                       {{ m.text }}
+                                    </text>
+                                 }
+                              }
+                           }
+                        </svg>
+                     }
                      {{ o.name }}
                   </button>
                   @if (o.custom && s.canEdit$()) {

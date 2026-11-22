@@ -1,5 +1,9 @@
 <input #themeFileInput type="file" accept=".json,application/json" hidden (change)="s.importDesign(themeFileInput)" />
 <div class="f-body gap14 fill">
+   @if (s.shownLayout$() && s.canEdit$() && s.tagCount$() === 1) {
+      <!-- An object on the layout / master being edited: its morph tag. -->
+      <dd-focus-morph-tag />
+   }
    <div class="f-design top">
       <div class="f-lab">
          Design = layouts + theme

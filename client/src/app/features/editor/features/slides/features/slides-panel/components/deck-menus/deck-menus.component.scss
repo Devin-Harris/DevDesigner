@@ -23,6 +23,18 @@
    flex: 1;
    min-width: 0;
 }
+.rec-thumb {
+   flex: none;
+   width: 64px;
+   height: 36px;
+   margin-right: 10px;
+   border-radius: 4px;
+   box-shadow: 0 0 0 1px var(--dd-border);
+   vertical-align: middle;
+}
+.rec-row.on .rec-thumb {
+   box-shadow: 0 0 0 2px var(--dd-primary);
+}
 .rec-sw {
    display: inline-flex;
    margin-right: 8px;

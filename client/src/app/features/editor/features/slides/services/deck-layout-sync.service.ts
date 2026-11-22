@@ -108,6 +108,17 @@ export class DeckDesign {
    private baseline: { key: string; sig: string } | null = null;
    /** Panels of this deck currently mounted (the deck is watched while > 0). */
    refs = 0;
+   /** Deck-wide design/theme operations run one at a time (a second one waits its turn). */
+   private chain: Promise<unknown> = Promise.resolve();
+   /** The design last asked for while a pick was running: only the latest one is applied. */
+   private wantedDesign: string | null = null;
+   private picking = false;
+
+   private serial<T>(fn: () => Promise<T>): Promise<T> {
+      const run = this.chain.then(fn, fn);
+      this.chain = run.catch(() => undefined);
+      return run;
+   }
 
    constructor(
       readonly name: string,
@@ -156,7 +167,29 @@ export class DeckDesign {
       return focus;
    }
 
+   /**
+    * Switch to design `id`. Picks made while a switch is running (focus mode's menu stays
+    * open) wait for it, and only the latest of them is applied: two switches interleaving
+    * would add layout items to frames the other one deletes.
+    */
    async pickDesign(id: string, editing: string | null): Promise<string | null> {
+      this.wantedDesign = id;
+      if (this.picking) return null;
+      this.picking = true;
+      let focus: string | null = null;
+      try {
+         while (this.wantedDesign) {
+            const next = this.wantedDesign;
+            this.wantedDesign = null;
+            focus = (await this.serial(() => this.pickDesignNow(next, editing))) ?? focus;
+         }
+      } finally {
+         this.picking = false;
+      }
+      return focus;
+   }
+
+   private async pickDesignNow(id: string, editing: string | null): Promise<string | null> {
       if (id === this.design().id) return null;
       const target = this.sync.record(id);
       if (!target) return null;
@@ -168,7 +201,11 @@ export class DeckDesign {
    }
 
    /** New design: a copy of this one (its layouts and theme) to change freely. */
-   async newDesign(): Promise<void> {
+   newDesign(): Promise<void> {
+      return this.serial(() => this.newDesignNow());
+   }
+
+   private async newDesignNow(): Promise<void> {
       if (!this.canEdit) return;
       await this.flushLayouts();
       const d = this.design();
@@ -191,7 +228,11 @@ export class DeckDesign {
    }
 
    /** Delete the deck's custom design; the deck moves to the design above it in the list (or below). */
-   async deleteDesign(editing: string | null): Promise<string | null> {
+   deleteDesign(editing: string | null): Promise<string | null> {
+      return this.serial(() => this.deleteDesignNow(editing));
+   }
+
+   private async deleteDesignNow(editing: string | null): Promise<string | null> {
       const d = this.design();
       if (!this.designIsCustom() || !this.canEdit) return null;
       this.sync.cancelPendingSave();
@@ -212,7 +253,11 @@ export class DeckDesign {
    }
 
    /** Delete any custom design (and its layout set when nothing else uses it). */
-   async deleteDesignById(id: string, editing: string | null): Promise<string | null> {
+   deleteDesignById(id: string, editing: string | null): Promise<string | null> {
+      return this.serial(() => this.deleteDesignByIdNow(id, editing));
+   }
+
+   private async deleteDesignByIdNow(id: string, editing: string | null): Promise<string | null> {
       if (!this.canEdit || isBuiltInRecord(id)) return null;
       if (id === this.design().id) return this.deleteDesign(editing);
       const rec = this.sync.record(id);
@@ -224,7 +269,11 @@ export class DeckDesign {
    }
 
    /** Select a theme for the design (a custom design remembers it). */
-   async pickTheme(id: string): Promise<void> {
+   pickTheme(id: string): Promise<void> {
+      return this.serial(() => this.pickThemeNow(id));
+   }
+
+   private async pickThemeNow(id: string): Promise<void> {
       if (id === this.deckTheme().id) return;
       const rec = this.sync.record(id);
       if (!rec) return;
