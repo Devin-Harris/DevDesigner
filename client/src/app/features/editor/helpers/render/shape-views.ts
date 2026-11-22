@@ -14,6 +14,7 @@ import {
 } from '../element-geometry.helper';
 import { curvedPath, freehandFillPath, polylinePath } from '../freedraw-path.helper';
 import { textInkInsets } from '../text-metrics';
+import { elbowLineRoute } from '../route.helper';
 import { fontWeightFor } from './fonts';
 import { SURFACE_FILL, contrastSafe, type ThemeColors } from './theme-colors';
 import { DEFAULT_FONT_SIZE, LINE_HEIGHT, layoutTextBlock } from './text-layout';
@@ -289,15 +290,26 @@ export function buildShapeViews(
             const curvature = ends.length >= 2 && !element.elbow ? (element.curvature ?? 0) : 0;
             let labelAt: Point | undefined;
             if (element.elbow && ends.length >= 2) {
-               // Right-angle route: out along the longer axis, across at the midpoint, then in.
+               // Right-angle route through the stored bends (interior points), or a
+               // default midpoint elbow. Each segment gets a drag handle (ERD-style).
                const s = ends[0];
                const t = ends[ends.length - 1];
-               const across = Math.abs(t.x - s.x) >= Math.abs(t.y - s.y);
-               const mx = (s.x + t.x) / 2;
-               const my = (s.y + t.y) / 2;
-               base.path = across ? `M${s.x} ${s.y} H${mx} V${t.y} H${t.x}` : `M${s.x} ${s.y} V${my} H${t.x} V${t.y}`;
-               base.bend = { x: mx, y: my };
-               labelAt = { x: mx, y: my };
+               const route = elbowLineRoute(s, t, absolutePoints(element).slice(1, -1));
+               base.path = polylinePath(route);
+               base.elbowRoute = route;
+               base.elbowSegments = [];
+               for (let i = 0; i < route.length - 1; i += 1) {
+                  const p = route[i];
+                  const q = route[i + 1];
+                  if (p.x === q.x && p.y === q.y) continue;
+                  base.elbowSegments.push({
+                     index: i,
+                     mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 },
+                     orient: Math.abs(p.y - q.y) < 0.5 ? 'h' : 'v',
+                  });
+               }
+               const midSeg = base.elbowSegments[Math.floor(base.elbowSegments.length / 2)];
+               labelAt = midSeg?.mid ?? { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
             } else if (Math.abs(curvature) > 0.5) {
                const curve = curvedPath(ends[0], ends[ends.length - 1], curvature);
                base.path = curve.path;
@@ -323,8 +335,9 @@ export function buildShapeViews(
             }
             // Recompute bbox from resolved ends so the selection box tracks bindings.
             if (ends.length) {
-               const xs = ends.map((p) => p.x);
-               const ys = ends.map((p) => p.y);
+               const pts = base.elbowRoute ?? ends;
+               const xs = pts.map((p) => p.x);
+               const ys = pts.map((p) => p.y);
                base.bbox = {
                   x: Math.min(...xs),
                   y: Math.min(...ys),

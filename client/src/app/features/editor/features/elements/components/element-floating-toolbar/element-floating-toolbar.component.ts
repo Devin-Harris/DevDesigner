@@ -602,6 +602,13 @@ export class ElementFloatingToolbarComponent {
 
    protected setRoute(mode: 'straight' | 'curved' | 'elbow'): void {
       if (mode === this.route$()) return;
+      if (this.element$().elbow) {
+         // Elbow bends live in the interior points: drop them so the line goes back to two ends.
+         for (const id of this.edits.selectedElementIds()) {
+            const pts = this.edits.elements().find((e) => e.id === id)?.points;
+            if (pts && pts.length > 2) void this.edits.updateElement(id, { points: [pts[0], pts[pts.length - 1]] });
+         }
+      }
       if (mode === 'elbow') {
          this.patchAll({ elbow: true, curvature: 0 });
       } else if (mode === 'straight') {

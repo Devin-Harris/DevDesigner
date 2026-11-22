@@ -24,11 +24,13 @@ export class HomeShowcaseScript {
       if (abort.aborted) return;
       if (this.host.showcase[this.host.active$()].id === 'more') {
          await this.playLanes(abort);
-         for (let held = 0; held < 3000 || this.host.paused(); held += 100) {
+         await this.playFinale(abort);
+         for (let held = 0; held < 4200 || this.host.paused(); held += 100) {
             if (abort.aborted) return;
             await sleep(100);
          }
          this.host.laneAt.set([]);
+         this.host.finale$.set(null);
          if (!abort.aborted) this.host.active$.update((i) => (i + 1) % this.host.showcase.length);
          return;
       }
@@ -579,6 +581,20 @@ export class HomeShowcaseScript {
       await playBuild(this.host.store, abort, () => undefined, {}, { source, pick: () => false });
       this.host.prepping$.set(false);
       await Promise.all([camera, ...runs]);
+   }
+
+   /** Board done: the rest dims while the title lifts to the centre and the logo draws in beside it. */
+   async playFinale(abort: AbortSignal): Promise<void> {
+      await sleep(900);
+      const r = this.host.titleRect('DevDesigner v1');
+      if (abort.aborted || !r) return;
+      this.host.finale$.set({ dx: 0, dy: 0, s: 1, ready: false, on: false, logo: false });
+      await sleep(40);
+      if (abort.aborted || !this.host.finaleFrom(r)) return;
+      await sleep(40);
+      if (!abort.aborted) this.host.finale$.update((f) => f && { ...f, on: true });
+      await sleep(1000);
+      if (!abort.aborted) this.host.finale$.update((f) => f && { ...f, logo: true });
    }
 
    /** World bounds of everything the editor has rendered in the showcase. */

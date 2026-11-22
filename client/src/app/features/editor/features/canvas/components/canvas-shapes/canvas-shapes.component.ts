@@ -32,6 +32,8 @@ export interface ResizeDownEvent {
 export interface ShapeBendEvent {
    id: string;
    event: PointerEvent;
+   /** Elbow lines: which route segment was grabbed. */
+   segment?: number;
 }
 export interface ShapeEndpointEvent {
    id: string;
@@ -156,6 +158,7 @@ export class CanvasShapesComponent {
    readonly rotateDown = output<ShapePointerEvent>();
    readonly endpointDown = output<ShapeEndpointEvent>();
    readonly bendDown = output<ShapeBendEvent>();
+   readonly bendReset = output<string>();
 
    /**
     * What an image element draws: the file, except a GIF stays on its first frame
@@ -304,10 +307,17 @@ export class CanvasShapesComponent {
       this.rotateDown.emit({ id, event });
    }
 
-   protected onBend(id: string, event: PointerEvent): void {
+   protected onBend(id: string, event: PointerEvent, segment?: number): void {
       event.stopPropagation();
       event.preventDefault();
-      this.bendDown.emit({ id, event });
+      this.bendDown.emit({ id, event, segment });
+   }
+
+   /** Double-click an elbow handle: drop the hand-placed bends. */
+   protected onBendReset(id: string, event: MouseEvent): void {
+      event.stopPropagation();
+      event.preventDefault();
+      this.bendReset.emit(id);
    }
 
    protected onEndpoint(id: string, which: 'start' | 'end', event: PointerEvent): void {

@@ -19,6 +19,7 @@ import type {
 import { absolutePoints, elementBox, hitTestElement } from '../../../helpers/element-geometry.helper';
 import { chordNormal } from '../../../helpers/freedraw-path.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
+import { segmentDrag } from '../../../helpers/connectors.helper';
 import type { Box } from '../../../models/geometry.model';
 import { type ElementGesture, type ElementGestureHost } from './element-gesture.helpers';
 import { ElementResize } from './element-resize';
@@ -282,16 +283,54 @@ export class ElementGestureService {
       }
       this.gesture.mode = 'arrow-bend';
       this.gesture.gestureActive.set(true);
+      const route =
+         el.elbow && payload.segment !== undefined
+            ? this.canvasView.shapeViews().find((s) => s.id === el.id)?.elbowRoute
+            : undefined;
       this.elementGesture = {
          id: el.id,
          start: { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle },
          snapshot: el,
+         ...(route ? { elbow: { route: route.map((p) => ({ ...p })), segIndex: payload.segment ?? 0 } } : {}),
       };
+   }
+
+   /** Double-clicking an elbow handle drops its hand-placed bends (back to the default route). */
+   onElementBendReset(id: string): void {
+      const el = this.store.elements().find((e) => e.id === id);
+      const pts = el?.points;
+      if (!el || !pts || pts.length <= 2 || !this.store.canEdit()) {
+         return;
+      }
+      void this.store.commitElementGeometry(id, { points: pts }, { points: [pts[0], pts[pts.length - 1]] });
+   }
+
+   /** Slide one elbow segment perpendicular to itself; its bends become the line's interior points. */
+   private moveElbowSegment(g: ElementGesture, clientX: number, clientY: number): void {
+      const el = this.store.elements().find((e) => e.id === g.id);
+      const pts = el?.points;
+      if (!el || !pts || pts.length < 2 || !g.elbow) {
+         return;
+      }
+      const { route, segIndex } = g.elbow;
+      const a = route[0];
+      const b = route[route.length - 1];
+      const world = this.viewport.toWorld(clientX, clientY);
+      const cursor = this.snap.gridSnap$()
+         ? { x: snapToGrid(world.x), y: snapToGrid(world.y) }
+         : { x: Math.round(world.x), y: Math.round(world.y) };
+      const bends = segmentDrag(a, b, route, segIndex, cursor, 20);
+      const points = [pts[0], ...bends.map((p) => ({ x: p.x - el.x, y: p.y - el.y })), pts[pts.length - 1]];
+      this.store.patchElementLocal(g.id, { points });
    }
 
    /** Drag the bend handle: curvature is the pointer's signed distance from the chord. */
    moveBend(clientX: number, clientY: number): void {
       const g = this.elementGesture;
+      if (g?.elbow) {
+         this.moveElbowSegment(g, clientX, clientY);
+         return;
+      }
       const ends = g ? this.canvasView.shapeViews().find((s) => s.id === g.id)?.ends : undefined;
       if (!g || !ends) {
          return;
@@ -518,6 +557,8 @@ export class ElementGestureService {
          );
       } else if (this.gesture.mode === 'element-rotate') {
          void this.store.commitElementGeometry(g.id, { angle: snap.angle }, { angle: el.angle });
+      } else if (this.gesture.mode === 'arrow-bend' && g.elbow) {
+         void this.store.commitElementGeometry(g.id, { points: snap.points }, { points: el.points });
       } else if (this.gesture.mode === 'arrow-bend') {
          void this.store.commitElementGeometry(
             g.id,

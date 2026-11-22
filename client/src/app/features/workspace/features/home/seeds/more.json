@@ -385,7 +385,10 @@
                   "name": "access",
                   "dataType": {
                      "name": "ENUM",
-                     "args": ["view", "edit"]
+                     "args": [
+                        "view",
+                        "edit"
+                     ]
                   },
                   "isPrimaryKey": false,
                   "isNullable": true,
@@ -1147,7 +1150,7 @@
             "zIndex": 24,
             "text": "DevDesigner v1",
             "fontSize": 56,
-            "fontFamily": "normal",
+            "fontFamily": "grotesk",
             "textAlign": "left"
          },
          {
@@ -2379,191 +2382,6 @@
             ]
          },
          {
-            "id": "8caaa412-e3ff-4684-b5cd-f2b4db1c5868",
-            "type": "freedraw",
-            "x": -330,
-            "y": -2,
-            "width": 654.1463953538829,
-            "height": 12.640000000000002,
-            "angle": 0,
-            "strokeColor": "#7c5cff",
-            "fillStyle": "none",
-            "strokeWidth": 3,
-            "strokeStyle": "solid",
-            "opacity": 100,
-            "zIndex": 74,
-            "points": [
-               {
-                  "x": 1.3776874061001925,
-                  "y": 7.0
-               },
-               {
-                  "x": 14.537456976449604,
-                  "y": 9.819999999999999
-               },
-               {
-                  "x": 33.824137087557,
-                  "y": 11.64
-               },
-               {
-                  "x": 46.951858508367565,
-                  "y": 12.16
-               },
-               {
-                  "x": 62.944192358949735,
-                  "y": 11.48
-               },
-               {
-                  "x": 80.49160677955881,
-                  "y": 10.299999999999999
-               },
-               {
-                  "x": 97.17336033504665,
-                  "y": 9.42
-               },
-               {
-                  "x": 111.29533105933265,
-                  "y": 9.34
-               },
-               {
-                  "x": 126.9068234375242,
-                  "y": 9.86
-               },
-               {
-                  "x": 143.8520294312601,
-                  "y": 10.18
-               },
-               {
-                  "x": 160.28561037875966,
-                  "y": 9.799999999999999
-               },
-               {
-                  "x": 175.8095182140393,
-                  "y": 8.42
-               },
-               {
-                  "x": 191.8982827147542,
-                  "y": 6.140000000000001
-               },
-               {
-                  "x": 207.0360339668619,
-                  "y": 3.9600000000000004
-               },
-               {
-                  "x": 222.4273141508066,
-                  "y": 2.7799999999999994
-               },
-               {
-                  "x": 241.8609685662085,
-                  "y": 3.0999999999999996
-               },
-               {
-                  "x": 255.44609109965631,
-                  "y": 4.82
-               },
-               {
-                  "x": 272.08793563884996,
-                  "y": 7.14
-               },
-               {
-                  "x": 286.7250594533329,
-                  "y": 9.26
-               },
-               {
-                  "x": 304.70850330720106,
-                  "y": 10.479999999999999
-               },
-               {
-                  "x": 321.62255870469806,
-                  "y": 10.700000000000001
-               },
-               {
-                  "x": 334.6597979193328,
-                  "y": 10.52
-               },
-               {
-                  "x": 353.8328375192691,
-                  "y": 10.64
-               },
-               {
-                  "x": 369.6994610065038,
-                  "y": 11.56
-               },
-               {
-                  "x": 384.84937195130766,
-                  "y": 13.079999999999998
-               },
-               {
-                  "x": 399.5078492095615,
-                  "y": 14.7
-               },
-               {
-                  "x": 416.98916506489314,
-                  "y": 15.420000000000002
-               },
-               {
-                  "x": 432.5939888799155,
-                  "y": 14.74
-               },
-               {
-                  "x": 446.45182868070464,
-                  "y": 12.76
-               },
-               {
-                  "x": 464.1924762152468,
-                  "y": 10.18
-               },
-               {
-                  "x": 480.15632625842323,
-                  "y": 7.8
-               },
-               {
-                  "x": 494.0491129895919,
-                  "y": 6.62
-               },
-               {
-                  "x": 510.30968713541324,
-                  "y": 6.74
-               },
-               {
-                  "x": 528.2813136925475,
-                  "y": 7.66
-               },
-               {
-                  "x": 544.1157415317616,
-                  "y": 8.780000000000001
-               },
-               {
-                  "x": 560.1947784225753,
-                  "y": 9.3
-               },
-               {
-                  "x": 575.3148020821324,
-                  "y": 9.120000000000001
-               },
-               {
-                  "x": 592.7280182423519,
-                  "y": 8.739999999999998
-               },
-               {
-                  "x": 608.5578947788813,
-                  "y": 8.76
-               },
-               {
-                  "x": 622.839404978146,
-                  "y": 9.78
-               },
-               {
-                  "x": 639.8344268375482,
-                  "y": 11.899999999999999
-               },
-               {
-                  "x": 655.5240827599831,
-                  "y": 14.62
-               }
-            ]
-         },
-         {
             "id": "6245d512-0809-4195-bdc3-4177ff022aac",
             "type": "freedraw",
             "x": -319.5469296756622,
@@ -3659,7 +3477,7 @@
       {
          "id": "143c3bc5-f554-4f29-bae3-bfc4188c60fc",
          "mimeType": "image/svg+xml",
-         "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgcng9IjI4IiBmaWxsPSIjN2M1Y2ZmIi8+PGNpcmNsZSBjeD0iNjAiIGN5PSI1MiIgcj0iMjQiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjUyIiByPSIxMCIgZmlsbD0iIzdjNWNmZiIvPjxwYXRoIGQ9Ik02MCA3NiBMNDggOTggSDcyIFoiIGZpbGw9IiNmZmYiLz48L3N2Zz4="
+         "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4OTYgODk2Ij4KICA8IS0tIERldkRlc2lnbmVyIGxvZ286IFRIRSBzaW5nbGUgc291cmNlIGZvciB0aGUgaW4tYXBwIGxvZ28sIGZhdmljb24gYW5kIGRlc2t0b3AgaWNvbi4KICAgICAgIFN3YXAgdGhpcyBmaWxlLCB0aGVuIHJ1biBgbm9kZSBkZXNrdG9wL3NjcmlwdHMvcmVuZGVyLWljb24ubWpzYCB0byByZWdlbmVyYXRlIHRoZSBQTkdzLgogICAgICAgRHJhdyBpdCBlZGdlIHRvIGVkZ2UgKG5vIG91dGVyIHBhZGRpbmcpOyB0aGUgZGVza3RvcCBpY29uIGFkZHMgaXRzIG93biBtYXJnaW4uCiAgICAgICBUaWxlIHVzZXMgdGhlIGFwcCBwcmltYXJ5IChkZC1wcmltYXJ5LCBsaWdodCArIGRhcmspOyB0aGUgbWFyayBpcyB0aGUgd2hpdGUgRGV2RGVzaWduZXIgbWFyay4gLS0+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzZmOGJmZiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMzYjViZGIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IHdpZHRoPSI4OTYiIGhlaWdodD0iODk2IiByeD0iMjAwIiBmaWxsPSJ1cmwoI2JnKSIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE0OCAyMzguNSkgc2NhbGUoMS4yODk2KSI+CiAgICA8cGF0aCBkPSJNMTQ5LjEwIDI4LjM4IEwxOS41MCAyMjUuMzggTDEyLjQwIDIzNC44OCBDMS44OSAyNDguMzUgMTIuMjkgMjYxLjgzIDE4LjgwIDI2Ni44OCBDNDMuNDQgMjgyLjA4IDU3LjIwIDI2Ny4yMiA2MS4wMCAyNTcuODggQzk5LjQ2IDE5OS4zOCAxNzguOTAgNzguMzggMTg4LjkwIDYyLjM4IEMxOTguOTAgNDYuMzggMjE4LjgwIDQxLjA1IDIyNy41MCA0MC4zOCBMMjk4LjEwIDQwLjM4IEMyOTguMTAgNDAuMzggMzQwLjEwIDM4LjQ4IDM2MS42MCA0OC44OCBDMzc5LjEwIDU3LjM1IDQxNS4xMCA4OC4zOCA0MjEuNjAgMTQ0Ljg4IEM0MjguMTAgMjAxLjM4IDQwNC40MiAyMzguMjIgMzc0LjEwIDI2Ni44OCBDMzQ2LjYwIDI5Mi44OCAyODUuNjAgMjkwLjg4IDMwOS42MCAyODguMzggQzMzMy42MCAyODUuODggMzUzLjYwIDI3Mi44OCAzNzEuNjAgMjU0LjM4IEMzODkuNjAgMjM1Ljg4IDQyNS42MCAxNzIuODggMzk4LjYwIDExNC44OCBDMzc3LjAwIDY4LjQ4IDMzNy45MyA1OC4yMiAzMjEuMTAgNTguODggTDIzNi4yMCA1OC44OCBDMjE1LjgwIDU4Ljg4IDIwNS42MyA3MC4yMiAyMDMuMTAgNzUuODggTDczLjAwIDI3MC4zOCBDNjkuMzMgMjc2LjIyIDU3LjUyIDI4Ny45OCAzOS42MCAyODguMzggQzIxLjY4IDI4OC43OCA1LjczIDI3Ni41NSAwLjAwIDI3MC4zOCBMMC4wMCAzMjQuODggTDk5LjkwIDMyNC44OCBDMTQzLjc2IDI1OC4zOCAyMzMuNTAgMTIyLjM4IDI0MS41MCAxMTAuMzggQzI0OS41MCA5OC4zOCAyNjEuMzYgOTYuMzggMjY2LjMwIDk2Ljg4IEwzMDkuNjAgOTYuODggQzMxOS4xMCA5Ni4wNSAzNDEuOTAgMTAxLjI4IDM1Ny4xMCAxMjguODggQzM3Ni4xMCAxNjMuMzggMzY0LjEwIDIwNS44OCAzMzguMTAgMjM0Ljg4IEMzMTcuMzAgMjU4LjA4IDI5NC40MyAyNjUuODggMjg1LjYwIDI2Ni44OCBMMTYyLjgwIDI2Ni44OCBMMTI1LjQwIDMyNC44OCBMMzM4LjEwIDMyNC44OCBDMzY3LjEwIDMyNC44OCA0MDUuNjAgMzA5LjA4IDQzMS42MCAyNjkuODggQzQ2NC4xMCAyMjAuODggNDgwLjYwIDE0OC44OCA0NDYuMTAgNzUuODggQzQxOC41MCAxNy40OCAzNjMuOTMgMS41NSAzNDAuMTAgMC44OCBDMjk3LjQzIDAuMjIgMjA3LjMwIC0wLjcyIDE4OC4xMCAwLjg4IEMxNjkuMjIgMi40OCAxNTQuMjMgMTkuODggMTQ5LjEwIDI4LjM4WiIgZmlsbD0iI2ZmZmZmZiIvPgogIDwvZz4KPC9zdmc+Cg=="
       }
    ]
 }

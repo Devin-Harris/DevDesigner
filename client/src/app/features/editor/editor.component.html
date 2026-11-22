@@ -37,6 +37,7 @@
             (rotateDown)="elementGestures.onElementRotateDown($event)"
             (endpointDown)="elementGestures.onElementEndpointDown($event)"
             (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
          ></dd-canvas-shapes>
 
          <!-- Slides zoomed out inside their block (Ctrl + scroll): the slide's frame and
@@ -64,6 +65,7 @@
                      (rotateDown)="elementGestures.onElementRotateDown($event)"
                      (endpointDown)="elementGestures.onElementEndpointDown($event)"
                      (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
                   ></dd-canvas-shapes>
                   <dd-canvas-connectors
                      [connectors]="z.connectors"
@@ -91,6 +93,7 @@
                         (rotateDown)="elementGestures.onElementRotateDown($event)"
                         (endpointDown)="elementGestures.onElementEndpointDown($event)"
                         (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
                      ></dd-canvas-shapes>
                   }
                   @for (table of z.tables; track table.id) {
@@ -130,6 +133,7 @@
                      (rotateDown)="elementGestures.onElementRotateDown($event)"
                      (endpointDown)="elementGestures.onElementEndpointDown($event)"
                      (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
                   ></dd-canvas-shapes>
                </div>
             </div>
@@ -166,6 +170,7 @@
                (rotateDown)="elementGestures.onElementRotateDown($event)"
                (endpointDown)="elementGestures.onElementEndpointDown($event)"
                (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
             ></dd-canvas-shapes>
          }
 
@@ -211,6 +216,7 @@
             (rotateDown)="elementGestures.onElementRotateDown($event)"
             (endpointDown)="elementGestures.onElementEndpointDown($event)"
             (bendDown)="elementGestures.onElementBendDown($event)"
+               (bendReset)="elementGestures.onElementBendReset($event)"
          ></dd-canvas-shapes>
 
          @for (g of canvasView.groupOutlines$(); track g.id) {

@@ -31,6 +31,7 @@ import { type Box } from './helpers/showcase-player';
 import { RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
+import { LogoDrawComponent } from '../../../../shared/ui/components/logo/logo-draw.component';
 import { LogoComponent } from '../../../../shared/ui/components/logo/logo.component';
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ThemeService } from '../../../../core/theme/theme.service';
@@ -60,6 +61,7 @@ import { HomeShowcaseScript } from './home-showcase-script';
    imports: [
       IconComponent,
       LogoComponent,
+      LogoDrawComponent,
       PopoverTriggerDirective,
       DatePipe,
       RouterLink,
@@ -275,6 +277,7 @@ export class HomeComponent {
          this.swatches$.set(null);
          this.canvasBadge$.set(null);
          this.laneAt.set([]);
+         this.finale$.set(null);
          prepareSandbox(this.sandboxes, `home-v${SHOWCASE_VERSION}-${seed}`, SHOWCASE_SEEDS[seed], true)
             .then((id) => {
                if (this.showcase[this.active$()].seed === seed) this.sandboxId$.set(id);
@@ -358,6 +361,10 @@ export class HomeComponent {
 
    /** Short label over the canvas (e.g. "Slide 2 · copy of slide 1"). */
    readonly canvasBadge$ = signal<string | null>(null);
+   /** "And more" ending: the board dims, its title lifts to the centre and the logo pops in. */
+   readonly finale$ = signal<{ dx: number; dy: number; s: number; ready: boolean; on: boolean; logo: boolean } | null>(
+      null
+   );
 
    /** Data model: the SQL export of the schema just built, from the app's own generator. */
    protected readonly sqlPanel$ = signal<{ text: string; shown: number } | null>(null);
@@ -388,6 +395,30 @@ export class HomeComponent {
          await sleep(36);
       }
       await sleep(800);
+   }
+
+   /** Box (relative to the demo) of the rendered text with exactly this content. */
+   titleRect(text: string): { left: number; top: number; width: number; height: number } | null {
+      const host = this.demo()?.nativeElement;
+      const t = Array.from(host?.querySelectorAll('.world svg text') ?? []).find(
+         (el) => (el.textContent ?? '').trim() === text
+      );
+      if (!host || !t) return null;
+      const h = host.getBoundingClientRect();
+      const r = t.getBoundingClientRect();
+      return { left: r.left - h.left, top: r.top - h.top, width: r.width, height: r.height };
+   }
+
+   /** Start the (hidden, final-size) finale word scaled down over the canvas title box `r`. */
+   finaleFrom(r: { left: number; top: number; width: number; height: number }): boolean {
+      const host = this.demo()?.nativeElement;
+      const word = host?.querySelector('.fi-word')?.getBoundingClientRect();
+      if (!host || !word) return false;
+      const h = host.getBoundingClientRect();
+      const dx = r.left + r.width / 2 - (word.left - h.left + word.width / 2);
+      const dy = r.top + r.height / 2 - (word.top - h.top + word.height / 2);
+      this.finale$.set({ dx, dy, s: r.width / word.width, ready: true, on: false, logo: false });
+      return true;
    }
 
    /** World centre of the rendered text with exactly this content. */

@@ -533,6 +533,7 @@ nav {
 
 .foot {
    display: flex;
+   align-items: center;
    justify-content: space-between;
    gap: 16px;
    padding-top: 24px;
@@ -1927,7 +1928,6 @@ $loop: 16s;
    }
 }
 
-
 // Slides tab: the editor's real transition components in a trimmed-down frame.
 .sc-morph {
    position: absolute;
@@ -2132,6 +2132,77 @@ $loop: 16s;
 }
 
 // "Slide 2 · copy of slide 1" over the canvas after Duplicate slide.
+.sc-finale {
+   position: absolute;
+   inset: 0;
+   z-index: 8;
+   pointer-events: none;
+   background: rgb(8 10 16 / 0%);
+   transition: background 1s ease;
+
+   &.on {
+      background: rgb(8 10 16 / 88%);
+   }
+}
+.fi-lockup {
+   position: absolute;
+   left: 50%;
+   top: 50%;
+   display: flex;
+   align-items: center;
+   font-size: 64px;
+   line-height: 1;
+   color: var(--dd-text);
+   opacity: 0;
+   transform: translate(-50%, -50%) translate(var(--fi-dx), var(--fi-dy)) scale(var(--fi-s));
+   will-change: transform;
+
+   .ready & {
+      opacity: 1;
+   }
+
+   // Transform only (no layout), so the word grows smoothly about its own centre.
+   .on & {
+      color: var(--dd-white);
+      transform: translate(-50%, -50%);
+      transition:
+         transform 1.1s cubic-bezier(0.65, 0, 0.35, 1),
+         color 1s ease;
+   }
+}
+.fi-word {
+   font-weight: 600;
+   white-space: nowrap;
+}
+.fi-ver {
+   display: inline-block;
+   max-width: 2em;
+   overflow: hidden;
+   vertical-align: bottom;
+   white-space: pre;
+   transition:
+      opacity 0.5s ease,
+      max-width 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.2s;
+
+   .on & {
+      max-width: 0;
+      opacity: 0;
+   }
+}
+.fi-logo {
+   display: inline-flex;
+   width: 0;
+   margin-right: 0;
+   transition:
+      width 0.7s cubic-bezier(0.65, 0, 0.35, 1),
+      margin-right 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+
+   &.in {
+      width: 88px;
+      margin-right: 22px;
+   }
+}
+
 .sc-badge {
    position: absolute;
    z-index: 6;

@@ -172,6 +172,13 @@ export interface ShapeView {
    /** Line/arrow: the curve's midpoint, where the draggable bend handle sits. */
    bend?: { x: number; y: number };
 
+   /**
+    * Elbow line/arrow: its orthogonal route (endpoints included) and one draggable
+    * handle per segment, like ERD connectors. Dragging a segment slides it sideways.
+    */
+   elbowRoute?: { x: number; y: number }[];
+   elbowSegments?: { index: number; mid: { x: number; y: number }; orient: 'h' | 'v' }[];
+
    /** Selection bounding box (world coords) for the outline and resize handles. */
    bbox: { x: number; y: number; width: number; height: number };
 }

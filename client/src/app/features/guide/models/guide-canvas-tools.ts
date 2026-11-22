@@ -229,7 +229,7 @@ export const CANVAS_TOOLS: GuideTool[] = [
          },
          {
             title: 'Fonts',
-            body: 'Every font in the sandbox is available from the font menu: Inter, Poppins, Serif, Display, Condensed, Hand, Caveat, Marker and Code. Inside a presentation you can also pick the theme’s Heading or Body font so the text restyles when the theme changes.',
+            body: 'Every font in the sandbox is available from the font menu: Inter, Poppins, Serif, Display, Space Grotesk, Condensed, Hand, Caveat, Marker and Code. Inside a presentation you can also pick the theme’s Heading or Body font so the text restyles when the theme changes.',
          },
          {
             title: 'Lists',

@@ -333,7 +333,7 @@ export function offsetAt(value: string, line: number, col: number): number {
    return Math.min(ls + Math.max(0, col), lineEnd(value, ls));
 }
 
-/** Alt+Shift drag: one selection per line between the two points (same columns). */
+/** Alt+Shift or Ctrl+Shift drag: one selection per line between the two points (same columns). */
 export function columnSelection(
    value: string,
    a: { line: number; col: number },

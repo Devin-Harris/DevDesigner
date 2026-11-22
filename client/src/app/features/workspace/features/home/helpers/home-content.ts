@@ -3,7 +3,7 @@ import { runtimeConfig } from '../../../../../core/config/runtime-config';
 // Static copy and seed loaders of the home page (C3.8): data only, no Angular.
 
 /** Bump when the showcase seeds change, so a browser session drops its old copies. */
-export const SHOWCASE_VERSION = 25;
+export const SHOWCASE_VERSION = 27;
 
 /** Showcase examples: small real projects made for the home page (see seeds/). */
 export const SHOWCASE_SEEDS: Record<string, () => Promise<{ default: unknown }>> = {

@@ -458,7 +458,7 @@ export class TextEditingService {
       return mc;
    }
 
-   /** Code panes: Ctrl+click adds a cursor, Alt+Shift drag selects a column. */
+   /** Code panes: Ctrl+click adds a cursor, Alt+Shift or Ctrl+Shift drag selects a column. */
    onCodePointerDown(event: PointerEvent): void {
       event.stopPropagation();
       const area = event.target as HTMLTextAreaElement;

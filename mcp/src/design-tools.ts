@@ -59,7 +59,7 @@ const colorsSchema = z
   );
 const fontsSchema = z
   .object({ heading: z.string().optional(), body: z.string().optional() })
-  .describe('Font family keys: inter, normal, poppins, serif, display, condensed, hand, caveat, marker, code');
+  .describe('Font family keys: inter, normal, poppins, serif, display, grotesk, condensed, hand, caveat, marker, code');
 
 const STARTER_KINDS = LAYOUT_KINDS.filter((k) => k !== 'blank');
 

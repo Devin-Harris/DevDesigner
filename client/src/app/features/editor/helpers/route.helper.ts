@@ -71,6 +71,24 @@ export function bendCount(points: readonly Point[]): number {
 }
 
 /**
+ * Route of an elbow line/arrow element: through its stored bends when it has any,
+ * else out along the longer axis, across at the midpoint, then in.
+ */
+export function elbowLineRoute(s: Point, t: Point, bends: readonly Point[]): Point[] {
+   if (bends.length) {
+      return simplifyRoute(manhattanRoute(s, t, bends));
+   }
+   const mx = (s.x + t.x) / 2;
+   const my = (s.y + t.y) / 2;
+   const across = Math.abs(t.x - s.x) >= Math.abs(t.y - s.y);
+   const raw = across
+      ? [s, { x: mx, y: s.y }, { x: mx, y: t.y }, t]
+      : [s, { x: s.x, y: my }, { x: t.x, y: my }, t];
+   const out = dedupe(raw);
+   return out.length >= 2 ? out : [s, t];
+}
+
+/**
  * Orthogonal (manhattan) route from a to b through the given guide points.
  * Every segment is horizontal or vertical; the line exits the source and enters
  * the target horizontally to match the side connect points.

@@ -157,13 +157,15 @@ export type FontFamily =
   | 'display'
   | 'condensed'
   | 'caveat'
-  | 'marker';
+  | 'marker'
+  | 'grotesk';
 export const FONT_FAMILIES: readonly FontFamily[] = [
   'normal',
   'inter',
   'poppins',
   'serif',
   'display',
+  'grotesk',
   'condensed',
   'hand',
   'caveat',

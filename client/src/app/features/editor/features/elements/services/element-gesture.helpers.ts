@@ -35,6 +35,8 @@ export interface ElementGesture {
    which?: 'start' | 'end';
    /** Original points (absolute) for an endpoint drag. */
    points?: { x: number; y: number }[];
+   /** Elbow segment drag: the route at gesture start and the grabbed segment. */
+   elbow?: { route: { x: number; y: number }[]; segIndex: number };
 }
 
 /** Elements that Ctrl + resize scales with their content (font size included). */

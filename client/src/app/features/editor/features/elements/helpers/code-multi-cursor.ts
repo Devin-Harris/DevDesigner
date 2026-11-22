@@ -18,7 +18,7 @@ import {
 
 /**
  * VS Code-style editing for a code card's textarea: line duplicate / move, smart
- * Home, Ctrl+D, and multiple cursors (Ctrl+click, Alt+Shift drag, Ctrl+D). A
+ * Home, Ctrl+D, and multiple cursors (Ctrl+click, Alt+Shift or Ctrl+Shift drag, Ctrl+D). A
  * textarea holds one selection, so while there are several the extra cursors live
  * here and are drawn in an overlay beside the textarea; the textarea keeps the
  * primary (last added) one. Edits go through `insertText`, so each stays one native
@@ -233,28 +233,45 @@ export class CodeMultiCursor {
       }
    }
 
-   /** Ctrl+click adds a cursor; Alt+Shift drag makes a column selection; a plain click resets. */
+   /** Ctrl+click adds a cursor; Alt+Shift or Ctrl+Shift drag makes a column selection; a plain click resets. */
    handlePointerDown(e: PointerEvent): void {
       if (e.button !== 0) {
          return;
       }
       const ctrl = e.ctrlKey || e.metaKey;
-      if (e.altKey && e.shiftKey) {
+      // Column selection: Alt+Shift or Ctrl+Shift drag (VS Code default) or Ctrl+Shift drag.
+      if (e.shiftKey && (e.altKey || ctrl)) {
          e.preventDefault();
          this.area.focus();
          const start = this.pointToLineCol(e);
          this.drag = start;
-         this.select(columnSelection(this.area.value, start, start));
+         let last = columnSelection(this.area.value, start, start);
+         this.select(last);
+         // preventDefault on pointerdown does not stop the browser's own mousedown text
+         // selection (Shift+click extends, then drag-select), which would replace the column
+         // selection with one plain range. Block it for the whole gesture.
+         const block = (ev: Event): void => ev.preventDefault();
          const onMove = (ev: PointerEvent): void => {
-            if (this.drag) this.select(columnSelection(this.area.value, this.drag, this.pointToLineCol(ev)));
+            if (!this.drag) return;
+            ev.preventDefault();
+            last = columnSelection(this.area.value, this.drag, this.pointToLineCol(ev));
+            this.select(last);
          };
          const onUp = (): void => {
             this.drag = null;
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointermove', onMove, true);
+            window.removeEventListener('pointerup', onUp, true);
+            window.removeEventListener('pointercancel', onUp, true);
+            this.area.removeEventListener('mousedown', block, true);
+            document.removeEventListener('selectstart', block, true);
+            // Re-assert after any late native selection change from the release.
+            requestAnimationFrame(() => this.select(last));
          };
-         window.addEventListener('pointermove', onMove);
-         window.addEventListener('pointerup', onUp);
+         this.area.addEventListener('mousedown', block, true);
+         document.addEventListener('selectstart', block, true);
+         window.addEventListener('pointermove', onMove, true);
+         window.addEventListener('pointerup', onUp, true);
+         window.addEventListener('pointercancel', onUp, true);
          return;
       }
       if (ctrl) {

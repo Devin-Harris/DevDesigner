@@ -701,7 +701,21 @@
                      [attr.cy]="s.ends.end.y"
                      (pointerdown)="onEndpoint(s.id, 'end', $event)"
                   ></circle>
-                  @if (s.bend; as b) {
+                  @if (s.elbowSegments) {
+                     <!-- Elbow: drag a segment sideways; dragging an end segment adds bends. -->
+                     @for (seg of s.elbowSegments; track seg.index) {
+                        <circle
+                           class="bend"
+                           r="5"
+                           [class.seg-h]="seg.orient === 'h'"
+                           [class.seg-v]="seg.orient === 'v'"
+                           [attr.cx]="seg.mid.x"
+                           [attr.cy]="seg.mid.y"
+                           (pointerdown)="onBend(s.id, $event, seg.index)"
+                           (dblclick)="onBendReset(s.id, $event)"
+                        ></circle>
+                     }
+                  } @else if (s.bend; as b) {
                      <!-- Drag to bend the line into a curve (drag back to the chord to straighten). -->
                      <circle
                         class="bend"

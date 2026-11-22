@@ -1,7 +1,7 @@
 <div class="home">
    <header class="wrap top">
       <span class="logo">
-         <dd-logo [size]="32" />
+         <dd-logo-draw replayOnHover [size]="32" />
          <span class="disp">DevDesigner</span>
       </span>
       <nav aria-label="Main">
@@ -211,6 +211,18 @@
                            <dd-deck-compare class="mo-pairs" mode="pairs" [slide]="tr.to" [previous]="tr.from" />
                         }
                      </div>
+                  </div>
+               </div>
+            }
+            @if (finale$(); as f) {
+               <div class="sc-finale" [class.on]="f.on" [class.ready]="f.ready">
+                  <div class="fi-lockup" [style.--fi-dx.px]="f.dx" [style.--fi-dy.px]="f.dy" [style.--fi-s]="f.s">
+                     <span class="fi-logo" [class.in]="f.logo">
+                        @if (f.logo) {
+                           <dd-logo-draw [size]="88" />
+                        }
+                     </span>
+                     <span class="fi-word disp">DevDesigner<span class="fi-ver"> v1</span></span>
                   </div>
                </div>
             }
@@ -451,7 +463,7 @@
    </section>
 
    <footer class="wrap foot">
-      <span class="disp">DevDesigner</span>
+      <span class="logo"><dd-logo [size]="24" /><span class="disp">DevDesigner</span></span>
       <span class="muted">Light and dark themes · real-time collaboration</span>
    </footer>
 </div>

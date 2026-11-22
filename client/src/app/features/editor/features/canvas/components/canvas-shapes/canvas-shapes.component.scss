@@ -148,6 +148,14 @@
    cursor: grab;
    fill: var(--dd-connector-selected);
    fill-opacity: 0.35;
+
+   &.seg-h {
+      cursor: ns-resize;
+   }
+
+   &.seg-v {
+      cursor: ew-resize;
+   }
 }
 
 .rotate {
