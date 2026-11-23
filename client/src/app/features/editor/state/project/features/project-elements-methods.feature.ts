@@ -37,7 +37,7 @@ function createElementOps(store: ElementOpsHost) {
       }
       // New content drawn on a presentation's shown slide joins that slide.
       const withSlide: CreateElementDto =
-         dto.slideId || dto.type === 'frame'
+         dto.slideId || (dto.type === 'frame' && dto.slide)
             ? dto
             : {
                  ...dto,

@@ -25,7 +25,8 @@ export class DrawCommit {
          return;
       }
       const dto = this.draftToDto(draft);
-      if (drawSlide && draft.type !== 'frame') {
+      // Plain frames join the slide too (a scrollable or clipping frame and its content live on it).
+      if (drawSlide) {
          dto.slideId = drawSlide;
       }
       // Auto-bind an arrow/line whose endpoint was drawn on top of a shape or table,
@@ -70,6 +71,7 @@ export class DrawCommit {
       const { x, y, points } = draft;
       let { width, height } = draft;
       let text = draft.text;
+      let scrollable: boolean | undefined;
       if (draft.type === 'rectangle' || draft.type === 'ellipse' || draft.type === 'diamond' || draft.type === 'triangle') {
          if (width < 4 && height < 4) {
             width = 120;
@@ -100,16 +102,18 @@ export class DrawCommit {
          height = 160;
       }
       if (draft.type === 'frame') {
-         const preset = framePreset(this.host.tools.framePresetId());
+         const preset = framePreset(this.host.tools.drawFramePreset());
          if (width < 40 || height < 40) {
             width = preset.width;
             height = preset.height;
          }
          const count = this.host.store.elements().filter((e) => e.type === 'frame').length;
-         text = text || `Frame ${count + 1}`;
+         scrollable = this.host.tools.scrollFrame() || undefined;
+         text = text || `${scrollable ? 'Scrollable' : 'Frame'} ${count + 1}`;
       }
       return {
          type: draft.type,
+         scrollable,
          x,
          y,
          width,

@@ -20,6 +20,7 @@ import { SURFACE_FILL, contrastSafe, type ThemeColors } from './theme-colors';
 import { DEFAULT_FONT_SIZE, LINE_HEIGHT, layoutTextBlock } from './text-layout';
 import { codeBlockView } from './code-block.render';
 import { gridTableView } from './grid-table.render';
+import { clipFramesOf, holdingFrame } from './frame-scroll.helper';
 import {
    arrowLabel,
    boxToBbox,
@@ -228,6 +229,12 @@ export function buildShapeViews(
             // with its name sitting above the top-left corner (outside the frame, so
             // it never lands in an export crop).
             base.rect = { x: element.x, y: element.y, width: element.width, height: element.height, rx: 0 };
+            // A scrollable area is a viewport, not a page: a faint dashed outline, no name.
+            if (element.scrollable) {
+               base.dash = '4 4';
+               base.strokeOpacity = Math.min(base.strokeOpacity, 0.6);
+               break;
+            }
             // A slide's name is drawn on the slide outline instead (editor overlay).
             if (element.text && !element.slide) {
                base.label = layoutTextBlock(
@@ -393,26 +400,21 @@ export function buildShapeViews(
       return base;
    }
    // Frames are page backdrops: draw them beneath everything else (stable sort).
-   // Frames set to clip their content: shapes whose centre lies inside the (smallest)
-   // such frame are cut to its box. Slides keep their own clipping.
-   const clipFrames = elements
-      .filter((e) => e.type === 'frame' && e.clipContent && !e.slide)
-      .sort((a, b) => a.width * a.height - b.width * b.height);
+   // Frames set to clip their content (or scroll it): shapes whose centre lies inside the
+   // (smallest) such frame on the same slide are cut to its box. Slides keep their own clipping.
+   const clipFrames = clipFramesOf(elements);
    // Views can be shared through the memo, so a clipped one is a copy (itself memoized).
    const out = clipFrames.length
       ? views.map((v) => {
            const el = elementById.get(v.id);
-           if (!el || el.type === 'frame' || el.slideId) return v;
-           const c = elementCenter(el);
-           const f = clipFrames.find(
-              (fr) => c.x >= fr.x && c.x <= fr.x + fr.width && c.y >= fr.y && c.y <= fr.y + fr.height
-           );
+           const f = el ? holdingFrame(el, clipFrames) : undefined;
            if (!f) return v;
            const frameClip = { x: f.x, y: f.y, width: f.width, height: f.height };
+           const frameScroll = f.scrollable ? f.id : undefined;
            const entry = seen?.get(v.id);
-           const key = `${f.x},${f.y},${f.width},${f.height}`;
+           const key = `${f.x},${f.y},${f.width},${f.height},${frameScroll ?? ''}`;
            if (entry?.clip && entry.clip.key === key && entry.clip.base === v) return entry.clip.view;
-           const clipped = { ...v, frameClip };
+           const clipped = frameScroll ? { ...v, frameClip, frameScroll } : { ...v, frameClip };
            if (entry) entry.clip = { key, view: clipped, base: v };
            return clipped;
         })

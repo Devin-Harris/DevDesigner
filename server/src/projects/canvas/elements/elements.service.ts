@@ -93,6 +93,8 @@ export class ElementsService {
       ellipticCorners: dto.ellipticCorners ?? null,
       elbow: dto.elbow ?? null,
       clipContent: dto.clipContent ?? null,
+      scrollable: dto.scrollable ?? null,
+      scrollPadding: dto.scrollPadding ?? null,
       pointsJson: dto.points ? JSON.stringify(dto.points) : null,
       text: dto.text ?? null,
       fontSize: dto.fontSize ?? null,
@@ -130,7 +132,8 @@ export class ElementsService {
       placeholderJson: dto.placeholder ? JSON.stringify(dto.placeholder) : null,
       overrides: dto.overrides ?? null,
       step: dto.step ?? null,
-      slideId: dto.type === 'frame' ? null : (dto.slideId ?? null),
+      // A slide frame is never itself on a slide; a plain frame (clipping, scrollable) can be.
+      slideId: dto.type === 'frame' && dto.slide ? null : (dto.slideId ?? null),
     });
     const saved = await this.elements.save(element);
     const model = toElementModel(saved);
@@ -276,6 +279,8 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
     'ellipticCorners',
     'elbow',
     'clipContent',
+    'scrollable',
+    'scrollPadding',
     'fontSize',
     'fontFamily',
     'bold',

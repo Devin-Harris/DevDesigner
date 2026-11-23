@@ -1,4 +1,5 @@
 import { GroupTransformService } from './group-transform.service';
+import { FrameScrollService } from '../../../services/frame-scroll.service';
 import { CanvasSnapService } from '../../../services/canvas-snap.service';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 import { EditorToolService } from '../../../services/editor-tool.service';
@@ -16,7 +17,7 @@ import type {
    ShapeEndpointEvent,
    ShapePointerEvent,
 } from '../../canvas/components/canvas-shapes/canvas-shapes.component';
-import { absolutePoints, elementBox, hitTestElement } from '../../../helpers/element-geometry.helper';
+import { absolutePoints, elementBox } from '../../../helpers/element-geometry.helper';
 import { chordNormal } from '../../../helpers/freedraw-path.helper';
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 import { segmentDrag } from '../../../helpers/connectors.helper';
@@ -42,6 +43,7 @@ export class ElementGestureService {
    readonly canvasView = inject(CanvasViewService);
    readonly snap = inject(CanvasSnapService);
    readonly viewport = inject(EditorViewportService);
+   private readonly frameScroll = inject(FrameScrollService);
    private readonly tools = inject(EditorToolService);
    private readonly grids = inject(GridTableService);
    readonly groupTransform = inject(GroupTransformService);
@@ -73,7 +75,7 @@ export class ElementGestureService {
       const world = this.viewport.toWorld(event.clientX, event.clientY);
       const hits = this.canvasView
          .shownElements()
-         .filter((e) => e.type !== 'frame' && hitTestElement(e, world))
+         .filter((e) => e.type !== 'frame' && this.frameScroll.hits(e, world))
          .reverse();
       let best = clicked;
       let bestArea = Infinity;

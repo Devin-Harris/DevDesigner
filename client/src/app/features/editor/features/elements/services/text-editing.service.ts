@@ -1,5 +1,6 @@
 import { DEFAULT_FONT_SIZE } from '../../../helpers/render/text-layout';
 import { applySplitDiffInput } from '../helpers/split-diff-input';
+import { codeEditKey } from '../helpers/auto-pair.helper';
 import { DIFF_SPACER, diffEditValue, stripDiffSpacers } from '../../../helpers/code-diff-edit.helper';
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
@@ -564,14 +565,7 @@ export class TextEditingService {
          area.setSelectionRange(from, from + changed.length);
          return;
       }
-      if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-         event.preventDefault();
-         const { value, selectionStart: start } = area;
-         const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-         const lead = /^[ \t]*/.exec(value.slice(lineStart, start))?.[0] ?? '';
-         const opens = /[{[(]$/.test(value.slice(lineStart, start).trimEnd());
-         insert(`\n${lead}${opens ? indent : ''}`);
-      }
+      codeEditKey(event, area, indent, insert);
    }
 
    readonly richSession = inject(RichTextSessionService);
@@ -681,6 +675,12 @@ export class TextEditingService {
    clampRichCaret(root: HTMLElement): void {
       return this.richTextRender.clampRichCaret(root);
    }
+   clampRichRange(root: HTMLElement): void {
+      return this.richTextRender.clampRichRange(root);
+   }
+   richAnchorFocus(root: HTMLElement): { anchor: number; focus: number } | null {
+      return this.richTextRender.richAnchorFocus(root);
+   }
    captureRichSelection(root: HTMLElement): void {
       return this.richTextRender.captureRichSelection(root);
    }
@@ -700,6 +700,9 @@ export class TextEditingService {
    }
    onRichPaste(event: ClipboardEvent): void {
       return this.richTextInput.onRichPaste(event);
+   }
+   onRichCopy(event: ClipboardEvent, cut = false): void {
+      return this.richTextInput.onRichCopy(event, cut);
    }
    onRichBlur(): void {
       return this.richTextInput.onRichBlur();

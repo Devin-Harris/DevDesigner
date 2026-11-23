@@ -128,6 +128,7 @@
             </clipPath>
          }
          <g [attr.clip-path]="s.frameClip ? 'url(#fclip-' + s.id + ')' : null">
+            <g [attr.transform]="scrollTransformOf$() | call: s.frameScroll">
             <g [attr.transform]="s.transform" [style.opacity]="s.opacity" [class.locked]="s.locked">
                <!-- Invisible hit target so the element is grabbable over its whole box. -->
                @if (s.rect) {
@@ -681,9 +682,11 @@
                   }
                }
             </g>
+            </g>
          </g>
 
          @if (s.selected && s.id !== editingId$() && s.id !== croppingId$() && s.id !== snapshots.capturingId$()) {
+            <g [attr.transform]="scrollTransformOf$() | call: s.frameScroll">
             <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {
                   <!-- Line/arrow: draggable endpoint handles. -->
@@ -840,6 +843,41 @@
                   }
                }
             </g>
+            </g>
+         }
+      }
+      <!-- Padding grips of the selected scrollable frame (all sides move together), with a
+           devtools-style green band showing the padding while adjusting. -->
+      @if (paddingHandles$(); as ph) {
+         @if (ph.active) {
+            <path class="frame-padding-band" fill-rule="evenodd" [attr.d]="ph.band"></path>
+         }
+         @for (g of ph.handles; track g.side) {
+            <rect
+               class="frame-padding-grip"
+               [class.ns]="g.side === 'n' || g.side === 's'"
+               [attr.x]="g.x"
+               [attr.y]="g.y"
+               [attr.width]="g.width"
+               [attr.height]="g.height"
+               [attr.rx]="(g.width < g.height ? g.width : g.height) / 2"
+               (pointerenter)="gripHover(true)"
+               (pointerleave)="gripHover(false)"
+               (pointerdown)="dragPadding(g.side, $event)"
+            >
+               <title>Padding {{ ph.padding }}px (drag)</title>
+            </rect>
+         }
+      }
+      <!-- Scrollbars of a hovered scrollable frame, drawn by the layer holding its topmost item. -->
+      @if (scrollBars$(); as sb) {
+         @if (visibleIds$() | has: sb.top) {
+            @if (sb.v; as b) {
+               <rect class="frame-scrollbar" [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.width" [attr.height]="b.height" [attr.rx]="b.width / 2" (pointerdown)="dragScrollThumb('v', $event)"></rect>
+            }
+            @if (sb.h; as b) {
+               <rect class="frame-scrollbar" [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.width" [attr.height]="b.height" [attr.rx]="b.height / 2" (pointerdown)="dragScrollThumb('h', $event)"></rect>
+            }
          }
       }
       @for (fe of formatErrorMarks$(); track $index) {

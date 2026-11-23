@@ -18,6 +18,7 @@ import { RealtimeService } from '../../../../../../core/realtime/realtime.servic
 import { notifySignal } from '../../../../../../shared/helpers/signals';
 import { slideAtStep, type RenderedSlide, type SlideMedia } from '../../services/slide-render.service';
 import { SlideMediaLayerComponent } from './components/slide-media-layer/slide-media-layer.component';
+import { SlideScrollLayerComponent } from './components/slide-scroll-layer/slide-scroll-layer.component';
 import { playSlideStep } from './helpers/step-player';
 import { TransitionRunner, transitionAnimates, transitionSetup } from './helpers/transition-runner';
 import { LaserOverlayComponent } from './components/laser-overlay/laser-overlay.component';
@@ -36,7 +37,7 @@ import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 @Component({
    selector: 'dd-present-mode',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, StopClicksDirective, LaserOverlayComponent, PresenterControlsComponent, SlideMediaLayerComponent],
+   imports: [CallPipe, StopClicksDirective, LaserOverlayComponent, PresenterControlsComponent, SlideMediaLayerComponent, SlideScrollLayerComponent],
    templateUrl: './present-mode.component.html',
    styleUrl: './present-mode.component.scss',
    host: {
@@ -105,6 +106,15 @@ export class PresentModeComponent {
    protected readonly liveMedia$ = computed(() => {
       const slide = this.slides$()[this.index$()];
       if (!slide?.media?.length || this.busy$()) {
+         return null;
+      }
+      const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step$(), slide.maxStep)] ?? null) : null;
+      return { slide, hidden };
+   });
+   /** The current slide's scrollable frames and what its animation step hides (none while busy). */
+   protected readonly liveScrolls$ = computed(() => {
+      const slide = this.slides$()[this.index$()];
+      if (!slide?.scrolls?.length || this.busy$()) {
          return null;
       }
       const hidden = slide.maxStep > 0 ? (slide.hiddenByStep[Math.min(this.step$(), slide.maxStep)] ?? null) : null;

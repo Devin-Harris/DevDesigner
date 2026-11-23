@@ -17,6 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { IconComponent } from '../../../../shared/ui/components/icon/icon.component';
 import { PopoverTriggerDirective } from '../../../../shared/ui/directives/popover-trigger.directive';
 import { ProjectStore } from '../../state/project/project.store';
+import { EditorToolService } from '../../services/editor-tool.service';
 import type { EditorTool } from '../../models/editor-tool.model';
 import { DockToolId, ToolbarPrefsService } from '../../services/toolbar-prefs.service';
 import type { AlignAction, ExportImageFormat } from '../../models/toolbar-actions';
@@ -176,6 +177,8 @@ export class ShapeToolbarComponent {
    protected readonly shapeIcon$ = computed(() => SHAPE_ICONS[this.lastShape()] ?? 'crop_square');
 
    private readonly store = inject(ProjectStore);
+   private readonly tools = inject(EditorToolService);
+   protected readonly scrollFrame$ = this.tools.scrollFrame;
 
    /** Dock customization (which tools show, in what order). */
    protected readonly prefs = inject(ToolbarPrefsService);
@@ -220,7 +223,14 @@ export class ShapeToolbarComponent {
 
    /** Pick the frame tool with a specific page ratio. */
    protected pickFrame(presetId: string): void {
+      this.tools.scrollFrame.set(false);
       this.framePreset$.set(presetId);
+      this.onChange('frame');
+   }
+
+   /** Pick the frame tool drawing scrollable frames (current page ratio). */
+   protected pickScrollFrame(): void {
+      this.tools.scrollFrame.set(true);
       this.onChange('frame');
    }
 

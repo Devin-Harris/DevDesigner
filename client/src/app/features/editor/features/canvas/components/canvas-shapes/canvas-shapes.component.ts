@@ -1,5 +1,7 @@
 import { EmbedSnapshotsService } from '../../../../services/embed-snapshots.service';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
+import { EditorViewportService } from '../../../../services/editor-viewport.service';
+import { FrameScrollService } from '../../../../services/frame-scroll.service';
 import { CanvasContent } from '../../services/canvas-content.service';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
@@ -99,6 +101,32 @@ export class CanvasShapesComponent {
    private readonly grids = inject(GridTableService);
    protected readonly content = inject(CanvasContent);
    protected readonly embeds = inject(EmbedFramesService);
+   private readonly frameScroll = inject(FrameScrollService);
+   private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
+   private readonly viewport = inject(EditorViewportService, { optional: true });
+   /** Shift for an item held by a scrollable frame (its frame's scroll). */
+   protected readonly scrollTransformOf$ = this.frameScroll.transformOf$;
+   protected readonly scrollBars$ = this.frameScroll.bars$;
+   protected readonly paddingHandles$ = computed(() => {
+      const h = this.frameScroll.paddingHandles$();
+      if (!h || !this.interactive$()) return null;
+      const layer = this.layer$();
+      // Drawn above the frame's content by the top layer of whichever view holds the frame
+      // (the canvas, or a shown slide's block).
+      if (layer !== 'lines' && layer !== 'all') return null;
+      return this.shapes().some((s) => s.id === h.id) ? h : null;
+   });
+   protected dragPadding(side: 'n' | 's' | 'e' | 'w', event: PointerEvent): void {
+      if (event.button !== 0) return;
+      this.frameScroll.dragPadding(side, event);
+   }
+   protected gripHover(on: boolean): void {
+      this.frameScroll.gripHover$.set(on);
+   }
+   protected dragScrollThumb(axis: 'v' | 'h', event: PointerEvent): void {
+      this.frameScroll.dragThumb(axis, event);
+   }
+   protected readonly visibleIds$ = computed(() => new Set(this.visible$().map((s) => s.id)));
 
    /**
     * Red squiggles under every line the last Format could not handle (each until that
@@ -286,8 +314,28 @@ export class CanvasShapesComponent {
       if (event.button !== 0) {
          return;
       }
+      // Outside the frame clipping it the item is not drawn, so it is not there to grab:
+      // let the press fall through to the canvas (or whatever lies beneath).
+      if (this.outsideClip(id, event)) return;
       event.stopPropagation();
+      this.frameScroll.pin();
       this.elementPointerDown.emit({ id, event });
+   }
+
+   /** The pointer lies outside the clip of the frame holding this item. */
+   private outsideClip(id: string, event: PointerEvent): boolean {
+      const view = this.visible$().find((s) => s.id === id);
+      if (!view?.frameClip) return false;
+      // The editor's own screen -> world mapping (follows zoom, pan and zoomed slides).
+      if (this.viewport) {
+         return this.frameScroll.clippedAt(id, this.viewport.toWorld(event.clientX, event.clientY));
+      }
+      const svg = this.hostRef.nativeElement.querySelector<SVGSVGElement>(':scope > svg');
+      const ctm = svg?.getScreenCTM();
+      if (!ctm) return false;
+      const pt = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+      const off = this.svgOffset$();
+      return this.frameScroll.clippedAt(id, { x: pt.x - off, y: pt.y - off });
    }
 
    /** Length of a side's grab strip: the side minus room for the corner handles. */
@@ -298,6 +346,7 @@ export class CanvasShapesComponent {
    protected onResize(id: string, handle: ResizeHandle, event: PointerEvent): void {
       event.stopPropagation();
       event.preventDefault();
+      this.frameScroll.pin();
       this.resizeDown.emit({ id, handle, event });
    }
 

@@ -1,4 +1,5 @@
 import { CanvasDblClickService } from './features/elements/services/canvas-dblclick.service';
+import { FrameScrollService } from './services/frame-scroll.service';
 import { DeckPanelsService } from './features/slides/services/deck-panels.service';
 import { DrawToolService } from './features/elements/services/draw-tool.service';
 import { ElementGestureService } from './features/elements/services/element-gesture.service';
@@ -29,6 +30,7 @@ import type { Rect } from './models/geometry.model';
  */
 @Injectable()
 export class EditorPointerService {
+   private readonly frameScroll = inject(FrameScrollService);
    private readonly store = inject(ProjectStore);
    private readonly gesture = inject(PointerGestureService);
    private readonly canvasView = inject(CanvasViewService);
@@ -456,7 +458,8 @@ export class EditorPointerService {
       const elementIds = this.canvasView
          .shownElements()
          .filter((e) => {
-            const r = rectIn(e.id);
+            const through = rectIn(e.id);
+            const r = through && this.frameScroll.clipRect(e.id, through);
             return !!r && elementIntersectsRect(e, r);
          })
          .map((e) => e.id);

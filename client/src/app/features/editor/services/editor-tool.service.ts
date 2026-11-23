@@ -24,6 +24,10 @@ export class EditorToolService {
 
    /** Aspect-ratio preset new frames are drawn with (see frame-presets). */
    readonly framePresetId = signal<string>(DEFAULT_FRAME_PRESET);
+   /** The frame tool draws scrollable frames (content past their edges scrolls on hover). */
+   readonly scrollFrame = signal(false);
+   /** The page preset new frames are drawn with: scrollable frames are always free-form. */
+   readonly drawFramePreset = computed(() => (this.scrollFrame() ? 'free' : this.framePresetId()));
 
    /** The element currently being drawn (local only until committed on pointer-up). */
    readonly draft = signal<CanvasElementModel | null>(null);

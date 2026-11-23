@@ -1,0 +1,36 @@
+<div class="frame" [style.--slide-ar]="aspect$()">
+   @for (s of items$(); track s.id) {
+      <div
+         class="item"
+         [style.left.%]="s.left"
+         [style.top.%]="s.top"
+         [style.width.%]="s.width"
+         [style.height.%]="s.height"
+         [style.background-color]="underCss$() ? null : s.background"
+         [style.background-image]="underCss$()"
+         [style.background-size]="(underPlacement | call: s).size"
+         [style.background-position]="(underPlacement | call: s).position"
+      >
+         <!-- Wheel stays here: the editor canvas underneath cancels wheels it receives. -->
+         <div #sc class="scroller" (scroll)="onScroll(s.id, $event)" (wheel)="$event.stopPropagation()">
+            <img
+               alt=""
+               draggable="false"
+               [src]="s.url"
+               [style.width.%]="s.contentRatioX * 100"
+               [style.height.%]="s.contentRatio * 100"
+            />
+         </div>
+         @if ((barsOf$() | call: s); as b) {
+            @if (b.v; as v) {
+               <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- pointer-only scrollbar thumb; keys stay with the presenter -->
+               <div class="bar v" [style.top.%]="v.start" [style.height.%]="v.size" (pointerdown)="dragBar(sc, 'v', $event)" (click)="$event.stopPropagation()"></div>
+            }
+            @if (b.h; as h) {
+               <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- pointer-only scrollbar thumb; keys stay with the presenter -->
+               <div class="bar h" [style.left.%]="h.start" [style.width.%]="h.size" (pointerdown)="dragBar(sc, 'h', $event)" (click)="$event.stopPropagation()"></div>
+            }
+         }
+      </div>
+   }
+</div>

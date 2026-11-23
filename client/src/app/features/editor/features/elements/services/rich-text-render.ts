@@ -7,7 +7,7 @@ import {
    themeSwatchCss,
 } from '@devdesigner/shared';
 import { type RunBase, normalizeRuns, plainOf, runLines, styleOver } from '../../../helpers/rich-text.helper';
-import { LIST_LINE, LIST_LINE_PREFIX, listKindOver } from '../helpers/rich-list.helper';
+import { LIST_LINE, LIST_LINE_PREFIX, listKindOver, outsideMarker } from '../helpers/rich-list.helper';
 import type { TextEditingService } from './text-editing.service';
 
 /** Rich text rendering, reading and selection for the text editor. */
@@ -258,14 +258,33 @@ export class RichTextRender {
          };
          return visit(root) ?? last;
       };
+      // `start` is the anchor and `end` the focus, so a backward selection keeps its direction.
       const a = locate(start);
       const b = locate(end);
-      const range = document.createRange();
-      range.setStart(a.node, a.offset);
-      range.setEnd(b.node, b.offset);
+      window.getSelection()?.setBaseAndExtent(a.node, a.offset, b.node, b.offset);
+   }
+
+   /** The selection's anchor and focus as plain-text offsets (null when it is not in the editor). */
+   richAnchorFocus(root: HTMLElement): { anchor: number; focus: number } | null {
       const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+      if (!sel?.rangeCount || !sel.anchorNode || !sel.focusNode) return null;
+      if (!root.contains(sel.anchorNode) || !root.contains(sel.focusNode)) return null;
+      return {
+         anchor: this.richOffset(root, sel.anchorNode, sel.anchorOffset),
+         focus: this.richOffset(root, sel.focusNode, sel.focusOffset),
+      };
+   }
+
+   /** Move a range selection's ends out of list markers, so bullets/numbers are never selected. */
+   clampRichRange(root: HTMLElement): void {
+      const sel = window.getSelection();
+      if (!sel?.rangeCount || sel.isCollapsed) return;
+      const at = this.richAnchorFocus(root);
+      if (!at) return;
+      const text = plainOf(this.readRichRuns(root));
+      const anchor = outsideMarker(text, at.anchor);
+      const focus = outsideMarker(text, at.focus);
+      if (anchor !== at.anchor || focus !== at.focus) this.setRichSelection(root, anchor, focus);
    }
 
    richBase(el: CanvasElementModel): RunBase {

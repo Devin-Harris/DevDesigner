@@ -103,6 +103,14 @@ export class ElementEntity {
   @Column({ type: 'boolean', nullable: true })
   clipContent!: boolean | null;
 
+  // Plain frame scrolls content taller than itself (implies clipping).
+  @Column({ type: 'boolean', nullable: true })
+  scrollable!: boolean | null;
+
+  // Scrollable frame: room past the content at the end of each scroll axis.
+  @Column({ type: 'float', nullable: true })
+  scrollPadding!: number | null;
+
   // JSON-encoded PointModel[] for line/arrow/freedraw vertices, relative to x/y.
   @Column({ type: 'text', nullable: true })
   pointsJson!: string | null;

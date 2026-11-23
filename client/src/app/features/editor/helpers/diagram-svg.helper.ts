@@ -2,7 +2,7 @@ import type { CanvasElementModel, RelationshipModel, TableModel } from '@devdesi
 import { tableBox } from './node-metrics.helper';
 import { computeConnectors } from './connectors.helper';
 import { messageLabelBoxes } from './message-box.helper';
-import { buildShapeViews } from './render';
+import { buildShapeViews, frameScrollExtents } from './render';
 import { elementBox } from './element-geometry.helper';
 import { PADDING, attr, esc, readTheme } from './diagram-svg/diagram-svg-base.helper';
 import { renderTable } from './diagram-svg/diagram-svg-table.helper';
@@ -43,7 +43,9 @@ export function buildDiagramSvg(
    sequences: SequenceExportData = { diagrams: [], lifelines: [], messages: [] },
    crop?: { x: number; y: number; width: number; height: number; frameId?: string; pageColor?: string },
    /** fileId -> `data:` URI for each image element (see ElementImagesService.dataUrl). */
-   imageData: ReadonlyMap<string, string> = new Map()
+   imageData: ReadonlyMap<string, string> = new Map(),
+   /** No canvas background or grid (a layer laid over another picture). */
+   transparent = false
 ): DiagramSvg {
    const { theme, dispose } = readTheme();
    try {
@@ -58,7 +60,10 @@ export function buildDiagramSvg(
       if (crop) {
          // A frame export shows exactly the frame's area; the frames themselves
          // (their outlines and names) are page furniture, not content.
-         elements = elements.filter((e) => e.type !== 'frame');
+         // Plain frames placed on a slide (clipping / scrollable) are slide content and stay.
+         elements = elements.filter(
+            (e) => e.type !== 'frame' || (!!e.slideId && !e.slide && e.id !== pageFrame?.id)
+         );
       }
       const pageView = pageFrame
          ? buildShapeViews([pageFrame], [], new Set<string>(), {
@@ -159,13 +164,24 @@ export function buildDiagramSvg(
       // every element, and finally lines/arrows.
       const elementZ = new Map(elements.map((e) => [e.id, e.zIndex]));
       const maxZ = elements.reduce((m, e) => (e.type === 'frame' ? m : Math.max(m, e.zIndex)), -Infinity);
+      // A scrollable frame's content is drawn where scrolling starts (its top-left, padding
+      // included), matching the live view so nothing jumps when it takes over.
+      const scrollStart = frameScrollExtents(elements);
+      const startShift = (v: (typeof shapeViews)[number]): string => {
+         const ext = v.frameScroll ? scrollStart.get(v.frameScroll) : undefined;
+         return ext && (ext.minScrollX || ext.minScroll)
+            ? ` transform="translate(${attr(-ext.minScrollX)},${attr(-ext.minScroll)})"`
+            : '';
+      };
       const shapeSvg = (v: (typeof shapeViews)[number]): string =>
          v.frameClip
             ? `<clipPath id="fclip-${esc(v.id)}"><rect x="${attr(v.frameClip.x)}" y="${attr(v.frameClip.y)}" width="${attr(v.frameClip.width)}" height="${attr(v.frameClip.height)}" /></clipPath>` +
-              `<g data-eid="${esc(v.id)}" clip-path="url(#fclip-${esc(v.id)})">${renderShape(v, imageData)}</g>`
+              `<g data-eid="${esc(v.id)}" clip-path="url(#fclip-${esc(v.id)})"><g${startShift(v)}>${renderShape(v, imageData)}</g></g>`
             : `<g data-eid="${esc(v.id)}">${renderShape(v, imageData)}</g>`;
       const isLine = (v: (typeof shapeViews)[number]): boolean => v.type === 'line' || v.type === 'arrow';
-      const frameShapes = shapeViews.filter((v) => v.type === 'frame').map(shapeSvg);
+      // A scrollable area on a slide only clips and scrolls: nothing of it is drawn.
+      const invisible = new Set(crop ? elements.filter((e) => e.type === 'frame' && e.scrollable).map((e) => e.id) : []);
+      const frameShapes = shapeViews.filter((v) => v.type === 'frame' && !invisible.has(v.id)).map(shapeSvg);
       const lineShapes = shapeViews.filter(isLine).map(shapeSvg);
       const stacked: Array<{ z: number; svg: string }> = [
          ...shapeViews
@@ -211,8 +227,12 @@ export function buildDiagramSvg(
   )}
   ${hatchDefs}
 </defs>
-<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="${attr(theme.canvasBg)}" />
-<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="url(#dd-export-grid)" />
+${
+   transparent
+      ? ''
+      : `<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="${attr(theme.canvasBg)}" />
+<rect x="0" y="0" width="${attr(width)}" height="${attr(height)}" fill="url(#dd-export-grid)" />`
+}
 <g transform="translate(${attr(shiftX)}, ${attr(shiftY)})">
 ${stack}
 </g>

@@ -1,5 +1,8 @@
 import type { TextRun } from '@devdesigner/shared';
 import {
+   focusAcrossMarker,
+   outsideMarker,
+   stripListMarkers,
    listAutoformat,
    listBackspace,
    listEnter,
@@ -197,5 +200,22 @@ describe('listAutoformat', () => {
 
    it('ignores lines that are already list items', () => {
       expect(listAutoformat(runs('• -'), 3)).toBeNull();
+   });
+});
+
+describe('list marker selection helpers', () => {
+   const text = 'a\n• one\n• two';
+   it('moves offsets out of a marker', () => {
+      expect(outsideMarker(text, 2)).toBe(4);
+      expect(outsideMarker(text, 3)).toBe(4);
+      expect(outsideMarker(text, 5)).toBe(5);
+   });
+   it('steps a focus over a marker', () => {
+      expect(focusAcrossMarker(text, 4, -1)).toBe(1);
+      expect(focusAcrossMarker(text, 1, 1)).toBe(4);
+      expect(focusAcrossMarker(text, 5, -1)).toBeNull();
+   });
+   it('strips markers when copying', () => {
+      expect(stripListMarkers('one\n• two\n    1. three')).toBe('one\ntwo\nthree');
    });
 });

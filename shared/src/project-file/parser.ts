@@ -486,6 +486,11 @@ function parseElement(raw: unknown, path: string, opts: ParseProjectExportOption
     ellipticCorners: e['ellipticCorners'] === true ? true : undefined,
     elbow: e['elbow'] === true ? true : undefined,
     clipContent: e['clipContent'] === true ? true : undefined,
+    scrollable: e['scrollable'] === true ? true : undefined,
+    scrollPadding:
+      typeof e['scrollPadding'] === 'number' && Number.isFinite(e['scrollPadding']) && e['scrollPadding'] >= 0
+        ? e['scrollPadding']
+        : undefined,
     points: points(e['points'], `${path}.points`),
     // A live frame keeps only a plain http(s) URL (never javascript:/data: frames).
     text: type === 'embed' ? (text && isEmbedUrl(text) ? text.trim() : undefined) : text,

@@ -35,3 +35,4 @@ export {
 } from './shape-primitives';
 export { layoutTextBlock } from './text-layout';
 export { ShapeViewCache, buildShapeViews } from './shape-views';
+export { FRAME_SCROLL_PAD, frameScrollExtents, overflows, type FrameScrollExtent } from './frame-scroll.helper';

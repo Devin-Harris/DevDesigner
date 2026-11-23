@@ -1,0 +1,59 @@
+:host {
+   position: absolute;
+   inset: 0;
+   pointer-events: none;
+   container-type: size;
+}
+.frame {
+   position: absolute;
+   inset: 0;
+   margin: auto;
+   width: min(100cqw, calc(100cqh * var(--slide-ar)));
+   height: min(100cqh, calc(100cqw / var(--slide-ar)));
+   overflow: hidden;
+}
+.item {
+   position: absolute;
+   pointer-events: auto;
+   overflow: hidden;
+}
+.scroller {
+   position: absolute;
+   inset: 0;
+   overflow: auto;
+   overscroll-behavior: contain;
+   // Native bars would narrow the picture off the slide copy beneath; ours float over it.
+   scrollbar-width: none;
+}
+.scroller::-webkit-scrollbar {
+   display: none;
+}
+img {
+   display: block;
+   max-width: none;
+   user-select: none;
+}
+.bar {
+   position: absolute;
+   border-radius: 999px;
+   background: rgb(128 128 128 / 0.6);
+   opacity: 0;
+   transition: opacity 150ms ease;
+   pointer-events: auto;
+}
+.item:hover .bar,
+.bar.dragging {
+   opacity: 1;
+}
+.bar:hover,
+.bar.dragging {
+   background: rgb(128 128 128 / 0.85);
+}
+.bar.v {
+   right: 3px;
+   width: 8px;
+}
+.bar.h {
+   bottom: 3px;
+   height: 8px;
+}

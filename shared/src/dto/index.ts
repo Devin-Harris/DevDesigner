@@ -343,6 +343,8 @@ export interface CreateElementDto {
   ellipticCorners?: boolean;
   elbow?: boolean;
   clipContent?: boolean;
+  scrollable?: boolean;
+  scrollPadding?: number;
   points?: PointModel[];
   text?: string;
   fontSize?: number;
@@ -409,6 +411,8 @@ export interface UpdateElementDto {
   ellipticCorners?: boolean;
   elbow?: boolean;
   clipContent?: boolean;
+  scrollable?: boolean;
+  scrollPadding?: number;
   points?: PointModel[];
   text?: string;
   fontSize?: number;

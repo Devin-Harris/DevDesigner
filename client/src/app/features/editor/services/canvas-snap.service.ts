@@ -4,10 +4,14 @@ import { computed, inject, signal, Injectable, effect, untracked } from '@angula
 import { type SlideView, isPlainView, toInner, toOuter } from '../helpers/slide-zoom.helper';
 import { ProjectStore } from '../state/project/project.store';
 import { sequenceDiagramBox } from '../helpers/frame-contents.helper';
+import { FrameScrollService } from './frame-scroll.service';
 import { elementBox, isPathElement, tableBox } from '../helpers/element-geometry.helper';
 import { snapToGrid } from '../helpers/node-metrics.helper';
 import { smartSnap, smartSnapEdges, snapTargets, type SmartSnap } from '../helpers/smart-guides.helper';
 import type { Box } from '../models/geometry.model';
+import { lineEnds } from '../helpers/render/shape-primitives';
+import type { RotatedBox } from '../helpers/element-geometry.helper';
+import type { CanvasElementModel, ElementBinding } from '@devdesigner/shared';
 import { EditorViewportService } from './editor-viewport.service';
 import { UserPrefsService } from '../../../core/auth/user-prefs.service';
 
@@ -25,6 +29,7 @@ export class CanvasSnapService {
    private readonly canvasView = inject(CanvasViewService);
    private readonly viewport = inject(EditorViewportService);
    private readonly userPrefs = inject(UserPrefsService);
+   private readonly frameScroll = inject(FrameScrollService);
    private host!: CanvasSnapHost;
 
    constructor() {
@@ -50,18 +55,23 @@ export class CanvasSnapService {
    readonly smartGuides$ = signal(inject(UserPrefsService).get('smartGuides'));
 
    /** What the moving selection snaps against, captured when a drag starts. */
-   smartBase: { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null = null;
+   smartBase: { box: Box; parts: Box[]; targets: Box[]; view?: SlideView; shift?: { x: number; y: number } } | null = null;
 
    /** Guides for the current drag, in world (or slide-inner) coordinates. */
-   readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView } | null>(null);
+   readonly smartSnapState = signal<{ snap: SmartSnap; view?: SlideView; shift?: { x: number; y: number } } | null>(
+      null
+   );
 
    /** The current drag's guides in canvas-screen px, for the overlay. */
    readonly smartGuideMarks$ = computed(() => {
       const st = this.smartSnapState();
       if (!st) return null;
       const v = this.store.viewport();
+      // Snapping runs in the grabbed item's own (scrolled) space; guides are drawn where it shows.
+      const sh = st.shift ?? { x: 0, y: 0 };
       const sp = (x: number, y: number) => {
-         const p = st.view ? toOuter(st.view, { x, y }) : { x, y };
+         const at = { x: x - sh.x, y: y - sh.y };
+         const p = st.view ? toOuter(st.view, at) : at;
          return { x: p.x * v.zoom + v.x, y: p.y * v.zoom + v.y };
       };
       const seg = (axis: 'x' | 'y', pos: number, a: number, b: number) => {
@@ -168,7 +178,7 @@ export class CanvasSnapService {
       // Shift constrains the drag to one axis; don't let a snap pull it off.
       if (this.gesture.shiftHeld && dx === 0) Object.assign(snap, { ox: 0, snappedX: false });
       if (this.gesture.shiftHeld && dy === 0) Object.assign(snap, { oy: 0, snappedY: false });
-      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view, shift: base.shift } : null);
       return snap;
    }
 
@@ -191,7 +201,7 @@ export class CanvasSnapService {
       if (!base) return null;
       const scale = draft ? (draft.view?.scale ?? 1) : this.canvasView.itemScale(id);
       const snap = smartSnapEdges(box, xs, ys, base.targets, this.store.viewport().zoom * scale);
-      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view, shift: base.shift } : null);
       return snap;
    }
 
@@ -232,7 +242,7 @@ export class CanvasSnapService {
          guides: best.snap.guides.filter((g) => g.axis === axis),
          gaps: best.snap.gaps.filter((g) => g.axis === axis),
       };
-      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view } : null);
+      this.smartSnapState.set(snap.guides.length || snap.gaps.length ? { snap, view: base.view, shift: base.shift } : null);
       return d + best.corr;
    }
 
@@ -243,7 +253,7 @@ export class CanvasSnapService {
       tableIds: Iterable<string>,
       diagramIds: Iterable<string> = [],
       draft?: { box: Box; ctx: string | null; view?: SlideView }
-   ): { box: Box; parts: Box[]; targets: Box[]; view?: SlideView } | null {
+   ): { box: Box; parts: Box[]; targets: Box[]; view?: SlideView; shift?: { x: number; y: number } } | null {
       if (!this.smartBase) {
          const moving = new Set([...elementIds, ...tableIds, ...diagramIds]);
          const els = this.store.elements();
@@ -258,7 +268,12 @@ export class CanvasSnapService {
          // A shape being drawn isn't in the store yet: it brings its own box and space.
          const ctx = draft ? draft.ctx : (grabbed?.slideId ?? null);
          const boxes: Box[] = draft ? [draft.box] : [];
-         for (const e of els) if (moving.has(e.id)) boxes.push(elementBox(e));
+         const elById = new Map(els.map((e) => [e.id, e]));
+         const tabById = new Map(tables.map((t) => [t.id, t]));
+         for (const e of els) {
+            if (!moving.has(e.id)) continue;
+            boxes.push(e.startBinding || e.endBinding ? boundLineBox(e, elById, tabById) : elementBox(e));
+         }
          for (const t of tables) if (moving.has(t.id)) boxes.push(tableBox(t));
          const diagramBoxes = new Map<string, Box>();
          for (const d of diagrams) {
@@ -278,20 +293,51 @@ export class CanvasSnapService {
             x1: Math.max(...boxes.map((b) => b.x1)),
             y1: Math.max(...boxes.map((b) => b.y1)),
          };
+         // An item in a scrollable frame is drawn shifted by the frame's scroll. Targets are put
+         // in the grabbed item's own space: what shows beside it, moved by its shift.
+         const shift = draft ? { x: 0, y: 0 } : this.frameScroll.scrollShiftOf(grabbedId);
+         const rel = (id: string | null, b: Box): Box => {
+            const t = id ? this.frameScroll.scrollShiftOf(id) : { x: 0, y: 0 };
+            const dx = shift.x - t.x;
+            const dy = shift.y - t.y;
+            return dx || dy ? { x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy } : b;
+         };
          const all: Box[] = [];
          for (const e of els) {
             // Lines/arrows count (their box edges are their ends); freehand strokes don't.
             if (moving.has(e.id) || (isPathElement(e.type) && e.type !== 'line' && e.type !== 'arrow')) continue;
+            // A connector riding on a moving item moves with it: its start position is no target.
+            if (
+               (e.startBinding && moving.has(e.startBinding.targetId)) ||
+               (e.endBinding && moving.has(e.endBinding.targetId))
+            ) {
+               continue;
+            }
+            if (e.startBinding || e.endBinding) {
+               // A bound connector is drawn between its targets, not at its stored points.
+               if ((e.slideId ?? null) === ctx) all.push(rel(e.id, boundLineBox(e, elById, tabById)));
+               continue;
+            }
             // A deck's other slides are hidden behind its shown one; they're not visible targets.
-            if (e.type === 'frame' && e.id !== ctx && !shownFrames.has(e.id)) continue;
-            if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(elementBox(e));
+            if (e.type === 'frame' && e.slide && e.id !== ctx && !shownFrames.has(e.id)) continue;
+            if ((e.slideId ?? null) === ctx || e.id === ctx) all.push(rel(e.id, elementBox(e)));
+            // A scrollable frame's padding edges: its content lines up inside the padding.
+            // (They stay put on screen; `rel` moves them into the grabbed item's space.)
+            if (e.type === 'frame' && e.scrollable && (e.slideId ?? null) === ctx) {
+               const pad = Math.max(0, e.scrollPadding ?? 0);
+               if (pad > 0 && pad * 2 < Math.min(e.width, e.height)) {
+                  all.push(
+                     rel(null, { x0: e.x + pad, y0: e.y + pad, x1: e.x + e.width - pad, y1: e.y + e.height - pad })
+                  );
+               }
+            }
          }
          for (const t of tables) {
-            if (!moving.has(t.id) && (t.slideId ?? null) === ctx) all.push(tableBox(t));
+            if (!moving.has(t.id) && (t.slideId ?? null) === ctx) all.push(rel(null, tableBox(t)));
          }
          for (const d of diagrams) {
             const b = diagramBoxes.get(d.id);
-            if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(b);
+            if (b && !moving.has(d.id) && (d.slideId ?? null) === ctx) all.push(rel(null, b));
          }
          const own = draft ? undefined : this.canvasView.viewOf(grabbedId);
          const view = draft
@@ -307,20 +353,52 @@ export class CanvasSnapService {
             if (ctx !== null && p.frameId !== ctx) continue;
             if (moving.has(p.frameId)) continue;
             if (!view) {
-               all.push(p.box);
+               all.push(rel(null, p.box));
                continue;
             }
             const a = toInner(view, { x: p.box.x0, y: p.box.y0 });
             const b = toInner(view, { x: p.box.x1, y: p.box.y1 });
-            all.push({ x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+            all.push(rel(null, { x0: a.x, y0: a.y, x1: b.x, y1: b.y }));
          }
          this.smartBase = {
             box,
             parts: boxes,
             targets: snapTargets(box, all, ctx ? null : this.viewport.minimapView$()),
             view,
+            shift,
          };
       }
       return this.smartBase;
    }
+}
+
+/** The box of a bound line/arrow as drawn (its ends attached to their targets). */
+function boundLineBox(
+   e: CanvasElementModel,
+   els: ReadonlyMap<string, CanvasElementModel>,
+   tables: ReadonlyMap<string, Parameters<typeof tableBox>[0]>
+): Box {
+   const pts = lineEnds(e, bindingBoxResolver(els, tables)).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+   if (!pts.length) return elementBox(e);
+   return {
+      x0: Math.min(...pts.map((p) => p.x)),
+      y0: Math.min(...pts.map((p) => p.y)),
+      x1: Math.max(...pts.map((p) => p.x)),
+      y1: Math.max(...pts.map((p) => p.y)),
+   };
+}
+
+/** Resolves a binding to its target's box (tables and elements; null otherwise). */
+export function bindingBoxResolver(
+   els: ReadonlyMap<string, CanvasElementModel>,
+   tables: ReadonlyMap<string, Parameters<typeof tableBox>[0]>
+): (b: ElementBinding) => RotatedBox | null {
+   return (b) => {
+      if (b.targetKind === 'table') {
+         const t = tables.get(b.targetId);
+         return t ? tableBox(t) : null;
+      }
+      const t = b.targetKind === 'element' ? els.get(b.targetId) : undefined;
+      return t ? { ...elementBox(t), angle: t.angle } : null;
+   };
 }

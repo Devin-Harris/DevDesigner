@@ -309,3 +309,35 @@ export function listAutoformat(runs: readonly TextRun[], caret: number): ListRes
 /** A list item's leading indent + marker, and a test for any list line. */
 export const LIST_LINE_PREFIX = /^ *(?:[•◦▪]|\d+\.) /;
 export const LIST_LINE = /(?:^|\n) *(?:[•◦▪]|\d+\.) /;
+
+/**
+ * An offset moved out of a list marker (and its indent): anywhere from the line's
+ * start up to the marker's end snaps to the marker's end, so selections never
+ * include a bullet or number.
+ */
+export function outsideMarker(text: string, offset: number): number {
+   const line = parseLines(text).find((l) => offset >= l.start && offset <= l.end);
+   return line?.kind && offset < line.markerEnd ? line.markerEnd : offset;
+}
+
+/**
+ * Where Shift+ArrowLeft/Right moves a selection's focus when it would step into a
+ * marker: from an item's first character back to the previous line's end, or from
+ * a line's end forward past the next item's marker. Null when the native move is fine.
+ */
+export function focusAcrossMarker(text: string, focus: number, dir: -1 | 1): number | null {
+   const lines = parseLines(text);
+   const i = lines.findIndex((l) => focus >= l.start && focus <= l.end);
+   if (i < 0) return null;
+   if (dir < 0 && lines[i].kind && focus === lines[i].markerEnd) return i > 0 ? lines[i - 1].end : focus;
+   if (dir > 0 && focus === lines[i].end && lines[i + 1]?.kind) return lines[i + 1].markerEnd;
+   return null;
+}
+
+/** Plain text with each list line's marker (and indent) removed, for copying. */
+export function stripListMarkers(text: string): string {
+   return text
+      .split('\n')
+      .map((raw) => raw.replace(MARKER, ''))
+      .join('\n');
+}

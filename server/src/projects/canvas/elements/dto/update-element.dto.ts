@@ -120,6 +120,15 @@ export class UpdateElementDto implements IUpdateElementDto {
   clipContent?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  scrollable?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  scrollPadding?: number;
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(MAX_ELEMENT_POINTS)
   @ValidateNested({ each: true })

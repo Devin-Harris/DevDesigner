@@ -203,13 +203,23 @@
                      <button
                         class="dd-menu-item"
                         type="button"
-                        [class.on]="framePreset$() === p.id"
+                        [class.on]="framePreset$() === p.id && !scrollFrame$()"
                         (click)="pickFrame(p.id); close()"
                      >
                         {{ p.label }}
                      </button>
                   }
                   <div class="dd-menu-sep" role="separator"></div>
+                  <button
+                     class="dd-menu-item"
+                     type="button"
+                     matTooltip="A frame whose content scrolls on hover when it runs past the edges"
+                     matTooltipPosition="right"
+                     [class.on]="tool$() === 'frame' && scrollFrame$()"
+                     (click)="pickScrollFrame(); close()"
+                  >
+                     Scrollable frame
+                  </button>
                   <button
                      class="dd-menu-item"
                      type="button"

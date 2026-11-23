@@ -2,6 +2,10 @@
 
 ## Bugs
 
+- lets lose the templates piece of the projects dialog. we dont need this anymore
+
+- lets get rid of the snapshot on live frames, it doesnt work as good as id want so lets just remove that aspect entirely
+
 ## Features
 
 - ability to add icons to canvas (might need to curate lists of icons)
@@ -9,6 +13,12 @@
 - interactive tour
   - multiple tours would be nice around each individual tool (maybe triggered from our guide or something, id want a full canvas instead but maybe the trigger is from the guides)
   - specifically presentations should be explained fully around design layouts, themes, animations, morphing, etc...
+
+- it would be nice to have a `scrollable` frame option. This way i could add content that may be too tall for things like a slide inside a scrollable frame set to bounds that fit in to a slide or some other area, and when i hover over that scrollable frame, the content that otherwise would be cutoff can become scrollable inside the canvas and presentation slides
+
+- i need more language support for code blocks
+
+- if i drag and drop an image onto a shape in the canvas, it should auto clip to the shape if possible. similar ui to the arrow anhcoriing with the blue overlay would be nice on drop areas
 
 ## Large Features
 
@@ -23,3 +33,8 @@
 
 - Licensing
   - we need to figure out how we will license this. A tiered subscription model where higher tiers have more access to tooling, collaboration, size of projects and what not may be nice.
+
+- Different database support
+  - currently we use sqlite. I think this is exceptional correct for desktop app running locally. I would like to be able to swap out the db for mysql or postgres in the future. Especially for people who want to host there own remote servers.
+  - we should make a plan for bringing your own db as well as your own server if possible
+  - similarly bringing your own file hosting would be nice

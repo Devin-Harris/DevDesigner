@@ -108,8 +108,9 @@ export class SlideStacking {
          }
       }
       const elements = this.host.store.elements();
-      // A frame is never the content of a slide; undo an earlier mistaken claim.
-      const claimedFrames = elements.filter((e) => e.type === 'frame' && e.slideId);
+      // A slide is never the content of another slide; undo an earlier mistaken claim.
+      // (Plain frames - clipping or scrollable - may sit on a slide like any item.)
+      const claimedFrames = elements.filter((e) => e.type === 'frame' && !!e.slide && e.slideId);
       const tables = this.host.store.tables();
       const diagrams = this.host.store.sequenceDiagrams();
       const owns = (id: string): boolean =>

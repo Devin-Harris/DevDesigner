@@ -54,6 +54,8 @@ export async function writeElements(ctx: WriteContext, elements: readonly Canvas
       ellipticCorners: e.ellipticCorners ?? null,
       elbow: e.elbow ?? null,
       clipContent: e.clipContent ?? null,
+      scrollable: e.scrollable ?? null,
+      scrollPadding: e.scrollPadding ?? null,
       pointsJson: e.points?.length ? JSON.stringify(e.points) : null,
       text: e.text ?? null,
       fontSize: e.fontSize ?? null,

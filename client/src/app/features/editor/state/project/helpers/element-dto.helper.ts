@@ -22,6 +22,8 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
       ellipticCorners: e.ellipticCorners,
       elbow: e.elbow,
       clipContent: e.clipContent,
+      scrollable: e.scrollable,
+      scrollPadding: e.scrollPadding,
       points: e.points,
       text: e.text,
       fontSize: e.fontSize,

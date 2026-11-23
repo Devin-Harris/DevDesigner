@@ -9,9 +9,13 @@ import {
    listEnter,
    normalizeLists,
    parseLines,
+   focusAcrossMarker,
+   outsideMarker,
    shiftListIndent,
+   stripListMarkers,
    toggleList,
 } from '../helpers/rich-list.helper';
+import { PAIRS, type PairEdit, autoPairKey, inEmptyPair } from '../helpers/auto-pair.helper';
 import type { TextEditingService } from './text-editing.service';
 
 /** Rich text input, keys, lists and editor setup for the text editor. */
@@ -174,6 +178,7 @@ export class RichTextInput {
       const onSelection = (): void => {
          if (document.activeElement === root) {
             this.host.clampRichCaret(root);
+            this.host.clampRichRange(root);
             this.host.captureRichSelection(root);
             this.host.publishRichSelection();
          }
@@ -243,12 +248,21 @@ export class RichTextInput {
       }
       const root = this.host.host.richEditorRef()?.nativeElement;
       if (root && !event.isComposing) this.host.clampRichCaret(root);
+      if (root && !event.isComposing && this.onRichHome(event, root)) {
+         return;
+      }
       if (root && !event.isComposing && this.onRichArrowAcrossMarker(event, root)) {
+         return;
+      }
+      if (root && !event.isComposing && this.onRichShiftArrowAcrossMarker(event, root)) {
          return;
       }
       // The caret moves after this event; the selectionchange that follows reads the flag.
       this.host.arrowLeftHeld = event.key === 'ArrowLeft' && !event.shiftKey;
       if (this.host.arrowLeftHeld) setTimeout(() => (this.host.arrowLeftHeld = false), 50);
+      if (root && !event.isComposing && this.onRichPairKey(event, root)) {
+         return;
+      }
       if (root && !event.isComposing && this.onRichListKey(event, root)) {
          return;
       }
@@ -282,12 +296,11 @@ export class RichTextInput {
       if (
          (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') ||
          event.shiftKey ||
-         event.ctrlKey ||
-         event.metaKey ||
          event.altKey
       ) {
          return false;
       }
+      if (event.ctrlKey || event.metaKey) return this.onRichWordArrow(event, root);
       this.host.captureRichSelection(root);
       const { start, end } = this.host.richSel;
       if (start !== end) return false;
@@ -308,6 +321,119 @@ export class RichTextInput {
          const s = window.getSelection();
          return s?.anchorNode ? { node: s.anchorNode, offset: s.anchorOffset } : null;
       })();
+      return true;
+   }
+
+   /** Bracket/quote auto-pairing (and Backspace in an empty pair). True when handled. */
+   onRichPairKey(event: KeyboardEvent, root: HTMLElement): boolean {
+      if (event.ctrlKey || event.metaKey || event.altKey) return false;
+      const isBackspace = event.key === 'Backspace';
+      if (!isBackspace && event.key.length !== 1) return false;
+      this.host.captureRichSelection(root);
+      const start = Math.min(this.host.richSel.start, this.host.richSel.end);
+      const end = Math.max(this.host.richSel.start, this.host.richSel.end);
+      const text = plainOf(this.host.readRichRuns(root));
+      const edit: PairEdit | null = isBackspace
+         ? start === end && inEmptyPair(text, start)
+            ? { from: start - 1, to: start + 1, insert: '', selStart: start - 1, selEnd: start - 1 }
+            : null
+         : autoPairKey(text, start, end, event.key);
+      if (!edit) return false;
+      event.preventDefault();
+      const type = (from: number, to: number, value: string): void => {
+         this.host.setRichSelection(root, from, to);
+         document.execCommand(value ? 'insertText' : 'delete', false, value);
+      };
+      if (start !== end && !isBackspace) {
+         // Wrap: closer first, then opener, so the selected text keeps its styling.
+         type(end, end, PAIRS[event.key]);
+         type(start, start, event.key);
+      } else if (edit.insert || edit.from !== edit.to) {
+         type(edit.from, edit.to, edit.insert);
+      }
+      this.host.setRichSelection(root, edit.selStart, edit.selEnd);
+      this.host.captureRichSelection(root);
+      this.host.publishRichSelection();
+      return true;
+   }
+
+   /**
+    * Shift+Arrow/Home/End: extend the selection ourselves (Selection.modify) and keep
+    * its ends out of list markers before the browser paints, so the selection never
+    * flashes inside a bullet. True when handled.
+    */
+   onRichShiftArrowAcrossMarker(event: KeyboardEvent, root: HTMLElement): boolean {
+      if (!event.shiftKey || event.altKey) return false;
+      const mod = event.ctrlKey || event.metaKey;
+      const moves: Record<string, [-1 | 1, string]> = {
+         ArrowLeft: [-1, mod ? 'word' : 'character'],
+         ArrowRight: [1, mod ? 'word' : 'character'],
+         ArrowUp: [-1, 'line'],
+         ArrowDown: [1, 'line'],
+         Home: [-1, mod ? 'documentboundary' : 'lineboundary'],
+         End: [1, mod ? 'documentboundary' : 'lineboundary'],
+      };
+      const move = moves[event.key];
+      const sel = window.getSelection() as (Selection & { modify?: (a: string, d: string, g: string) => void }) | null;
+      if (!move || !sel?.modify) return false;
+      const at = this.host.richAnchorFocus(root);
+      if (!at) return false;
+      const [dir, unit] = move;
+      const text = plainOf(this.host.readRichRuns(root));
+      event.preventDefault();
+      let focus = unit === 'character' ? focusAcrossMarker(text, at.focus, dir) : null;
+      if (focus === null) {
+         sel.modify('extend', dir < 0 ? 'backward' : 'forward', unit);
+         focus = this.host.richAnchorFocus(root)?.focus ?? at.focus;
+      }
+      this.host.setRichSelection(root, outsideMarker(text, at.anchor), outsideMarker(text, focus));
+      this.host.captureRichSelection(root);
+      this.host.publishRichSelection();
+      return true;
+   }
+
+   /**
+    * Ctrl+ArrowLeft/Right: move by word ourselves and keep the caret out of list markers
+    * before the browser paints (from an item's start, Ctrl+Left goes to the line above).
+    */
+   onRichWordArrow(event: KeyboardEvent, root: HTMLElement): boolean {
+      const sel = window.getSelection() as (Selection & { modify?: (a: string, d: string, g: string) => void }) | null;
+      const at = this.host.richAnchorFocus(root);
+      if (!sel?.modify || !at) return false;
+      const dir = event.key === 'ArrowLeft' ? -1 : 1;
+      const text = plainOf(this.host.readRichRuns(root));
+      event.preventDefault();
+      let target = sel.isCollapsed ? focusAcrossMarker(text, at.focus, dir) : null;
+      if (target === null) {
+         sel.modify('move', dir < 0 ? 'backward' : 'forward', 'word');
+         const moved = this.host.richAnchorFocus(root)?.focus ?? at.focus;
+         const clamped = outsideMarker(text, moved);
+         // Landing in a marker going left means the item's start was passed: stop there.
+         target = clamped;
+      }
+      this.host.setRichSelection(root, target, target);
+      this.host.richSel = { start: target, end: target };
+      const s = window.getSelection();
+      this.host.lastCaret = s?.anchorNode ? { node: s.anchorNode, offset: s.anchorOffset } : null;
+      this.host.publishRichSelection();
+      return true;
+   }
+
+   /** Home on a list item: straight to the item's first character, never past the bullet. */
+   onRichHome(event: KeyboardEvent, root: HTMLElement): boolean {
+      if (event.key !== 'Home' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false;
+      const at = this.host.richAnchorFocus(root);
+      if (!at) return false;
+      const lines = parseLines(plainOf(this.host.readRichRuns(root)));
+      const line = lines.find((l) => at.focus >= l.start && at.focus <= l.end);
+      if (!line?.kind) return false;
+      event.preventDefault();
+      const target = line.markerEnd;
+      this.host.setRichSelection(root, target, target);
+      this.host.richSel = { start: target, end: target };
+      const s = window.getSelection();
+      this.host.lastCaret = s?.anchorNode ? { node: s.anchorNode, offset: s.anchorOffset } : null;
+      this.host.publishRichSelection();
       return true;
    }
 
@@ -381,6 +507,19 @@ export class RichTextInput {
       if (text) {
          document.execCommand('insertText', false, text);
       }
+   }
+
+   /** Copy/cut the selection as plain text without list markers (they belong to the line, not the content). */
+   onRichCopy(event: ClipboardEvent, cut: boolean): void {
+      const root = this.host.host.richEditorRef()?.nativeElement;
+      const sel = window.getSelection();
+      if (!root || !sel?.rangeCount || sel.isCollapsed || !event.clipboardData) return;
+      this.host.captureRichSelection(root);
+      const { start, end } = this.host.richSel;
+      const text = plainOf(this.host.readRichRuns(root)).slice(Math.min(start, end), Math.max(start, end));
+      event.preventDefault();
+      event.clipboardData.setData('text/plain', stripListMarkers(text));
+      if (cut) document.execCommand('delete');
    }
 
    onRichBlur(): void {

@@ -30,6 +30,16 @@
             ></dd-slide-media-layer>
          }
       }
+      <!-- Scrollable frames scroll live over the settled slide (not during transitions). -->
+      @if (liveScrolls$(); as ls) {
+         <dd-slide-scroll-layer
+            [scrolls]="ls.slide.scrolls"
+            [under]="ls.slide.scrollUnder ?? null"
+            [hidden]="ls.hidden"
+            [slideWidth]="ls.slide.width"
+            [slideHeight]="ls.slide.height"
+         ></dd-slide-scroll-layer>
+      }
       <!-- GIFs and videos play live over the settled slide (not during transitions). -->
       @if (liveMedia$(); as lm) {
          <dd-slide-media-layer

@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { FrameScrollService } from './frame-scroll.service';
 import type { CanvasElementModel } from '@devdesigner/shared';
 import { EditorActionsService, type ExportImageFormat } from '../../../core/editor-bridge/editor-actions.service';
 import { ProjectFileService } from '../../../shared/services/project-file.service';
@@ -9,7 +10,7 @@ import { EditorViewportService } from './editor-viewport.service';
 import { CodeActionsService } from './code-actions.service';
 import { MediaActionsService } from './media-actions.service';
 import { GridTableService } from './grid-table.service';
-import { hitTestElement, tableBox } from '../helpers/element-geometry.helper';
+import { tableBox } from '../helpers/element-geometry.helper';
 import { sequenceDiagramBox } from '../helpers/frame-contents.helper';
 import type { CanvasContextMenu, ContextMenuEntry } from '../models/context-menu.model';
 
@@ -33,6 +34,7 @@ const inBox = (b: { x0: number; y0: number; x1: number; y1: number } | null, p: 
  */
 @Injectable()
 export class CanvasContextMenuService {
+   private readonly frameScroll = inject(FrameScrollService);
    private readonly store = inject(ProjectStore);
    private readonly canvasView = inject(CanvasViewService);
    private readonly viewport = inject(EditorViewportService);
@@ -95,7 +97,7 @@ export class CanvasContextMenuService {
       const elements = this.canvasView.shownElements();
       for (let i = elements.length - 1; i >= 0; i--) {
          const e = elements[i];
-         if (e.type !== 'frame' && hitTestElement(e, world)) return { kind: 'element', el: e };
+         if (e.type !== 'frame' && this.frameScroll.hits(e, world)) return { kind: 'element', el: e };
       }
       const tables = this.store.tables();
       for (let i = tables.length - 1; i >= 0; i--) {
@@ -108,7 +110,7 @@ export class CanvasContextMenuService {
       }
       for (let i = elements.length - 1; i >= 0; i--) {
          const e = elements[i];
-         if (e.type === 'frame' && hitTestElement(e, world)) return { kind: 'element', el: e };
+         if (e.type === 'frame' && this.frameScroll.hits(e, world)) return { kind: 'element', el: e };
       }
       return null;
    }

@@ -170,9 +170,11 @@ export function withProjectSlidesDerived() {
                   const under = layoutsUnderShown();
                   const elementIds = new Set<string>();
                   for (const e of elements) {
+                     // Slide frames hide by themselves; anything else on a slide (plain frames
+                     // included) hides with its slide.
                      if (
-                        e.type === 'frame'
-                           ? !!e.slide && !shown.has(e.id)
+                        e.type === 'frame' && e.slide
+                           ? !shown.has(e.id)
                            : !!e.slideId && !shown.has(e.slideId) && !(under.has(e.slideId) && !e.placeholder)
                      ) {
                         elementIds.add(e.id);

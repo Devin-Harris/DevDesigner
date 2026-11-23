@@ -37,6 +37,7 @@ import { ProjectStore } from '../../../state/project/project.store';
 import { elementBox, tableBox } from '../../../helpers/element-geometry.helper';
 import { contentForFrame, sequenceDiagramBox } from '../../../helpers/frame-contents.helper';
 import { buildDiagramSvg } from '../../../helpers/diagram-svg.helper';
+import { frameScrollExtents, overflows } from '../../../helpers/render';
 import { imageView } from '../../../helpers/render';
 import type { ImageView } from '../../../models/shape-view.model';
 import { embedFonts } from '../../../helpers/font-embed.helper';
@@ -149,6 +150,10 @@ export interface RenderedSlide {
    transition: SlideTransition;
    /** GIFs and videos on the slide, played live over the slide picture while presenting. */
    media: SlideMedia[];
+   /** Scrollable frames whose content overflows, scrolled live over the slide picture while presenting. */
+   scrolls: SlideScroll[];
+   /** The slide without those frames' content: the fixed backdrop each scroll box shows behind its content. */
+   scrollUnder?: string;
    items: SlideItem[];
    /** Relationships and image data the slide draws with (for live morph rendering). */
    relationships: RelationshipModel[];
@@ -159,6 +164,23 @@ export interface RenderedSlide {
       messages: SequenceMessageModel[];
    };
    imageData: ReadonlyMap<string, string>;
+}
+
+/** A scrollable frame on a slide: its whole content as one picture, placed in percent of the slide. */
+export interface SlideScroll {
+   id: string;
+   /** Elements the frame holds (the layer hides while an animation step hides any of them). */
+   members: string[];
+   left: number;
+   top: number;
+   width: number;
+   height: number;
+   /** The content's size as a multiple of the frame's (>= 1 each). */
+   contentRatio: number;
+   contentRatioX: number;
+   /** Behind the picture: the frame's own fill is in it, this covers the clipped slide copy. */
+   background: string;
+   svg: string;
 }
 
 /** A GIF or video on a slide, placed in percent of the slide (so it scales with it). */
@@ -342,6 +364,9 @@ export class SlideRenderService {
             sequences: this.sequencesWithin(frame, sequences),
             imageData,
             media: this.mediaWithin(frame, elements),
+            ...(await this.scrollsWithin(frame, elements, built.pageColor ?? built.background, imageData, options.fonts, (hidden) =>
+               buildDiagramSvg(tables, relationships, elements.filter((e) => !hidden.has(e.id)), sequences, crop, imageData).svg
+            )),
          });
       }
       return out;
@@ -466,6 +491,57 @@ export class SlideRenderService {
          });
       }
       return items;
+   }
+
+   /** Scrollable frames on a slide whose content runs past their bottom edge. */
+   private async scrollsWithin(
+      slide: CanvasElementModel,
+      elements: readonly CanvasElementModel[],
+      background: string,
+      imageData: ReadonlyMap<string, string>,
+      fonts: boolean,
+      /** The slide drawn with the given items left out. */
+      without: (hidden: ReadonlySet<string>) => string
+   ): Promise<{ scrolls: SlideScroll[]; scrollUnder?: string }> {
+      const out: SlideScroll[] = [];
+      const sw = slide.width || 1;
+      const sh = slide.height || 1;
+      for (const ext of frameScrollExtents(elements).values()) {
+         if (!overflows(ext)) continue;
+         const f = ext.frame;
+         // The picture spans every reachable position: from the most negative scroll to the end.
+         const x0 = f.x + ext.minScrollX;
+         const y0 = f.y + ext.minScroll;
+         const w = f.width + ext.maxScrollX - ext.minScrollX;
+         const h = f.height + ext.maxScroll - ext.minScroll;
+         const members = new Set(ext.members);
+         // The frame stretched over that span, no longer clipping, as the page of its own picture.
+         const page = { ...f, x: x0, y: y0, width: w, height: h, scrollable: false, clipContent: false };
+         const built = buildDiagramSvg(
+            [],
+            [],
+            [page, ...elements.filter((e) => members.has(e.id))],
+            { diagrams: [], lifelines: [], messages: [] },
+            { x: x0, y: y0, width: w, height: h, frameId: f.id, pageColor: background },
+            imageData,
+            true
+         );
+         out.push({
+            id: f.id,
+            members: ext.members,
+            left: ((f.x - slide.x) / sw) * 100,
+            top: ((f.y - slide.y) / sh) * 100,
+            width: (f.width / sw) * 100,
+            height: (f.height / sh) * 100,
+            contentRatio: h / (f.height || 1),
+            contentRatioX: w / (f.width || 1),
+            background,
+            svg: fonts ? await embedFonts(built.svg) : built.svg,
+         });
+      }
+      if (!out.length) return { scrolls: out };
+      const under = without(new Set(out.flatMap((o) => o.members)));
+      return { scrolls: out, scrollUnder: fonts ? await embedFonts(under) : under };
    }
 
    /** The GIFs and videos among a slide's elements (files are loaded by `imageData` first). */

@@ -3,6 +3,7 @@ import { presentationOf, type CanvasElementModel, type SequenceDiagramModel } fr
 import { clampSlidePan, inBlock, slideZoomFloor, type SlideView, toInner } from '../helpers/slide-zoom.helper';
 import { notifySignal } from '../../../shared/helpers/signals';
 import { ProjectStore } from '../state/project/project.store';
+import { FrameScrollService } from './frame-scroll.service';
 import { MAX_ZOOM, MIN_ZOOM } from '../shared/constants/canvas.constants';
 import { elementBox, tableBox } from '../helpers/element-geometry.helper';
 import type { Box, Rect } from '../models/geometry.model';
@@ -27,6 +28,7 @@ export interface ViewportHost {
 @Injectable()
 export class EditorViewportService {
    private readonly store = inject(ProjectStore);
+   private readonly frameScroll = inject(FrameScrollService);
    private readonly destroyRef = inject(DestroyRef);
    private host!: ViewportHost;
 
@@ -104,8 +106,36 @@ export class EditorViewportService {
       return { x: clientX - rect.left, y: clientY - rect.top };
    }
 
+   /** Pointer over the canvas: a hovered scrollable frame shows its scrollbars. */
+   onHoverMove(event: PointerEvent | null): void {
+      if (!event || !this.frameScroll.extents$().size) {
+         this.frameScroll.hover(null);
+         return;
+      }
+      const rect = this.canvasRect();
+      const v = this.store.viewport();
+      const p = { x: (event.clientX - rect.left - v.x) / v.zoom, y: (event.clientY - rect.top - v.y) / v.zoom };
+      const view = this.host.slideViews().find((sv) => inBlock(sv, p));
+      this.frameScroll.hover(view ? toInner(view, p) : p);
+   }
+
    onWheel(event: WheelEvent): void {
       event.preventDefault();
+      // Over a scrollable frame whose content overflows, a plain wheel scrolls the frame.
+      if (!event.ctrlKey && !event.altKey) {
+         const at = this.toWorld(event.clientX, event.clientY);
+         const frameId = this.frameScroll.frameAt(at);
+         if (frameId) {
+            const unit = event.deltaMode === 1 ? 16 : 1;
+            const zoom = this.store.viewport().zoom;
+            // Shift turns a vertical wheel sideways (mice without a horizontal wheel).
+            const dx = (event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX) * unit;
+            const dy = (event.shiftKey ? 0 : event.deltaY) * unit;
+            this.frameScroll.scrollBy(frameId, dx / zoom, dy / zoom);
+            this.frameScroll.hover(at);
+            return;
+         }
+      }
       // Focus mode locks the view to the presentation (leave it to move around).
       if (this.host.focusedDeck() && !event.ctrlKey) return;
       const rect = this.canvasRect();

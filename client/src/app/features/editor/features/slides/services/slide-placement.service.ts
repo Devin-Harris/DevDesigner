@@ -197,7 +197,7 @@ export class SlidePlacementService {
       const messages = this.store.sequenceMessages();
       const diagramBox = (d: SequenceDiagramModel): Box | null => sequenceDiagramBox(d, lifelines, messages);
       const adopt = {
-         elements: this.store.elements().filter((e) => e.type !== 'frame' && !e.slideId && inside(elementBox(e))),
+         elements: this.store.elements().filter((e) => !e.slide && !e.slideId && inside(elementBox(e))),
          tables: this.store.tables().filter((t) => !t.slideId && inside(tableBox(t))),
          diagrams: this.store.sequenceDiagrams().filter((d) => {
             const b = !d.slideId && diagramBox(d);
@@ -238,7 +238,7 @@ export class SlidePlacementService {
       const free = {
          elements: this.store
             .elements()
-            .filter((e) => e.type !== 'frame' && e.slideId === active.id && apart(elementBox(e)))
+            .filter((e) => !e.slide && e.slideId === active.id && apart(elementBox(e)))
             .map((e) => e.id),
          tables: this.store
             .tables()
@@ -461,7 +461,7 @@ export class SlidePlacementService {
       const items = {
          elements: this.store
             .elements()
-            .filter((e) => e.id !== frame.id && e.type !== 'frame' && !e.slideId && inside(elementBox(e)))
+            .filter((e) => e.id !== frame.id && !e.slide && !e.slideId && inside(elementBox(e)))
             .map((e) => e.id),
          tables: this.store
             .tables()

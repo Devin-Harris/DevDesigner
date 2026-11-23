@@ -99,6 +99,8 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     ellipticCorners: entity.ellipticCorners ?? undefined,
     elbow: entity.elbow ?? undefined,
     clipContent: entity.clipContent ?? undefined,
+    scrollable: entity.scrollable ?? undefined,
+    scrollPadding: entity.scrollPadding ?? undefined,
     points: entity.pointsJson ? (JSON.parse(entity.pointsJson) as PointModel[]) : undefined,
     text: entity.text ?? undefined,
     fontSize: entity.fontSize ?? undefined,

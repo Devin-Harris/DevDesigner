@@ -8,6 +8,8 @@
       (dblclick)="dblClick.onCanvasDblClick($event)"
       (contextmenu)="contextMenu.onContextMenu($event)"
       (wheel)="viewport.onWheel($event)"
+      (pointermove)="viewport.onHoverMove($event)"
+      (pointerleave)="viewport.onHoverMove(null)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
    >
@@ -893,6 +895,8 @@
                (keydown)="textEditing.onRichKeydown($event)"
                (input)="textEditing.onRichInput($event)"
                (paste)="textEditing.onRichPaste($event)"
+               (copy)="textEditing.onRichCopy($event)"
+               (cut)="textEditing.onRichCopy($event, true)"
                (drop)="$event.preventDefault()"
                (blur)="textEditing.onRichBlur()"
             ></div>

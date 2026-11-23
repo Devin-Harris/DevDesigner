@@ -122,6 +122,8 @@ export interface GridTableView {
 export interface ShapeView {
    /** Set when a clip-content frame holds this shape: the frame's box (world coords). */
    frameClip?: { x: number; y: number; width: number; height: number };
+   /** Set when that frame scrolls: its id (the layer shifts the shape by the frame's scroll). */
+   frameScroll?: string;
    id: string;
    type: ElementType;
    selected: boolean;

@@ -11,7 +11,9 @@ import {
 import { snapToGrid } from '../../../helpers/node-metrics.helper';
 import { TEXT_MAX_FONT_SIZE, TEXT_MIN_FONT_SIZE, fitTextElement } from '../../../helpers/text-metrics';
 import type { SmartSnap } from '../../../helpers/smart-guides.helper';
-import type { Box } from '../../../models/geometry.model';
+import type { Box, Point } from '../../../models/geometry.model';
+import { lineEnds } from '../../../helpers/render/shape-primitives';
+import { bindingBoxResolver } from '../../../services/canvas-snap.service';
 import { PANEL_MIN_H } from '../../../shared/constants/slide-panels.constants';
 import { CONTENT_SCALE_TYPES } from './element-gesture.helpers';
 import type { ElementGestureService } from './element-gesture.service';
@@ -303,7 +305,7 @@ export class ElementResize {
       let world = this.host.viewport.toWorld(clientX, clientY);
       const target = this.host.gesture.noBindHeld ? null : this.bindingTargetAt(world, g.id);
       this.host.bindHighlight$.set(target ? [target.box] : []);
-      const binding = target?.binding ?? null;
+      let binding = target?.binding ?? null;
       const pts = g.points.map((p) => ({ ...p }));
       const idx = g.which === 'start' ? 0 : pts.length - 1;
       if (!binding) {
@@ -366,7 +368,62 @@ export class ElementResize {
             };
          }
       } else {
-         this.host.snap.smartSnapState.set(null);
+         // Bound: the drawn end sits on the target's edge, aimed at the other end. Snap
+         // that point (not the cursor) to the guides by nudging where it is dropped.
+         const resolve = bindingBoxResolver(
+            new Map(this.host.store.elements().map((e) => [e.id, e])),
+            new Map(this.host.store.tables().map((t) => [t.id, t]))
+         );
+         const targetId = binding.targetId;
+         const drawnAt = (w: { x: number; y: number }): { end: Point; other: Point; binding: ElementBinding } | null => {
+            const t = this.bindingTargetAt(w, g.id);
+            if (!t || t.binding.targetId !== targetId) return null;
+            const cand = pts.map((p) => ({ ...p }));
+            cand[idx] = w;
+            const o = cand[0];
+            const ends = lineEnds(
+               {
+                  ...el,
+                  x: o.x,
+                  y: o.y,
+                  points: cand.map((p) => ({ x: p.x - o.x, y: p.y - o.y })),
+                  ...(g.which === 'start' ? { startBinding: t.binding } : { endBinding: t.binding }),
+               },
+               resolve
+            );
+            const end = ends[g.which === 'start' ? 0 : ends.length - 1];
+            const other = ends[g.which === 'start' ? ends.length - 1 : 0];
+            return end && other ? { end, other, binding: t.binding } : null;
+         };
+         const snapAt = (d: { end: Point; other: Point }): SmartSnap | null =>
+            this.host.snap.smartEdges(
+               g.id,
+               {
+                  x0: Math.min(d.end.x, d.other.x),
+                  y0: Math.min(d.end.y, d.other.y),
+                  x1: Math.max(d.end.x, d.other.x),
+                  y1: Math.max(d.end.y, d.other.y),
+               },
+               [d.end.x],
+               [d.end.y]
+            );
+         let cur = drawnAt(world);
+         for (let n = 0; cur && n < 4; n++) {
+            const smart = snapAt(cur);
+            if (!smart || (!smart.snappedX && !smart.snappedY)) break;
+            const next = {
+               x: world.x + (smart.snappedX ? smart.ox : 0),
+               y: world.y + (smart.snappedY ? smart.oy : 0),
+            };
+            const moved = drawnAt(next);
+            if (!moved) break;
+            world = next;
+            cur = moved;
+            binding = moved.binding;
+         }
+         // Guides for where the drawn end finally sits.
+         if (cur) snapAt(cur);
+         else this.host.snap.smartSnapState.set(null);
       }
       pts[idx] = world;
       // Points are stored relative to the element origin (its first point).

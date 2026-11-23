@@ -1,4 +1,5 @@
 import { DrawToolService } from './draw-tool.service';
+import { FrameScrollService } from '../../../services/frame-scroll.service';
 import { ElementGestureService } from './element-gesture.service';
 import { CanvasViewService } from '../../../services/canvas-view.service';
 import { EditorToolService } from '../../../services/editor-tool.service';
@@ -15,7 +16,6 @@ import { CodeActionsService } from '../../../services/code-actions.service';
 import { GridTableService } from '../../../services/grid-table.service';
 import { gridCellAt } from '../../../helpers/grid-table.helper';
 import { standInFor } from '../../../helpers/layout-placeholders';
-import { hitTestElement } from '../../../helpers/element-geometry.helper';
 import { EmbedFramesService } from '../../../services/embed-frames.service';
 import { CODE_FONT_SIZE, codeDiffActive, codeDiffSplit, codeDotsWidth, codeHeaderHeight } from '../../../helpers/render';
 /**
@@ -24,6 +24,7 @@ import { CODE_FONT_SIZE, codeDiffActive, codeDiffSplit, codeDotsWidth, codeHeade
  */
 @Injectable()
 export class CanvasDblClickService {
+   private readonly frameScroll = inject(FrameScrollService);
    private readonly destroyRef = inject(DestroyRef);
    private readonly store = inject(ProjectStore);
    private readonly embeds = inject(EmbedFramesService);
@@ -85,7 +86,7 @@ export class CanvasDblClickService {
       const hits = this.canvasView
          .shownElements()
          .reverse()
-         .filter((e) => hitTestElement(e, world));
+         .filter((e) => this.frameScroll.hits(e, world));
       // What is under the pointer, in order of intent: the item just clicked (selected),
       // then text (slide text often sits over a card or picture), then the topmost item.
       const selected = new Set(this.store.selectedElementIds());
@@ -216,7 +217,7 @@ export class CanvasDblClickService {
          .sort((a, b) => (masters.has(a.id) ? 0 : 1) - (masters.has(b.id) ? 0 : 1) || a.zIndex - b.zIndex)
          .reverse();
       for (const item of items) {
-         if (!hitTestElement(item, world)) continue;
+         if (!this.frameScroll.hits(item, world)) continue;
          const frame = shown.find(
             (f) => masterOf(f, frames)?.id === item.slideId || layoutOf(f, frames)?.id === item.slideId
          );

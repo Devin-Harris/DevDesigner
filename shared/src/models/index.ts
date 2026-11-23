@@ -369,6 +369,10 @@ export interface CanvasElementModel {
   elbow?: boolean;
   /** Plain frame: hide the parts of shapes inside it that stick out past its edges. */
   clipContent?: boolean;
+  /** Plain frame: clips like `clipContent`, and content taller than the frame scrolls (wheel while hovering). */
+  scrollable?: boolean;
+  /** Scrollable frame: room kept past the content at the end of each scroll axis (world px; default 16). */
+  scrollPadding?: number;
   /** Vertices for line/arrow/freedraw, relative to `x`/`y`. */
   points?: PointModel[];
   /** A layout placeholder, or a slide's copy of one (text boxes only). */

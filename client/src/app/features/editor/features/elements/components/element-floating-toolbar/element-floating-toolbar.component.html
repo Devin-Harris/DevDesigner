@@ -181,21 +181,23 @@
             }
          </div>
       </ng-template>
-      <button
-         class="tb"
-         type="button"
-         [class.on]="!!element$().clipContent"
-         [matTooltip]="
-            element$().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
-         "
-         [attr.aria-label]="
-            element$().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
-         "
-         [disabled]="!edits.canEdit$()"
-         (click)="toggleClipContent()"
-      >
-         <dd-icon name="crop" />
-      </button>
+      @if (!element$().scrollable) {
+         <button
+            class="tb"
+            type="button"
+            [class.on]="!!element$().clipContent"
+            [matTooltip]="
+               element$().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
+            "
+            [attr.aria-label]="
+               element$().clipContent ? 'Clipping content (click to show overflow)' : 'Clip content to the frame'
+            "
+            [disabled]="!edits.canEdit$()"
+            (click)="toggleClipContent()"
+         >
+            <dd-icon name="crop" />
+         </button>
+      }
       <button
          class="tb wide"
          type="button"
@@ -219,39 +221,6 @@
             </button>
          </div>
       </ng-template>
-      @if (edits.canEdit$()) {
-         <button
-            class="tb wide add-deck"
-            type="button"
-            placement="below-start"
-            matTooltip="Make this frame a slide"
-            [ddPopoverTrigger]="addDeckMenu"
-         >
-            <dd-icon name="add" />Add to presentation<dd-icon name="expand_more" />
-         </button>
-         <ng-template #addDeckMenu let-close>
-            <div class="dd-menu">
-               <div class="head-label menu-head">Add as a slide to</div>
-               @for (d of actions.decks$(); track d.name) {
-                  <button
-                     class="dd-menu-item"
-                     type="button"
-                     (click)="actions.addFrameToPresentation(element$().id, d.name); close()"
-                  >
-                     <dd-icon name="slideshow" />{{ d.name }}<span class="menu-sub">{{ d.slides }} slides</span>
-                  </button>
-               }
-               <button
-                  class="dd-menu-item"
-                  type="button"
-                  (click)="actions.addFrameToPresentation(element$().id, null); close()"
-               >
-                  <dd-icon name="add" />New presentation from this frame
-               </button>
-            </div>
-         </ng-template>
-      }
-      <span class="sep"></span>
    }
 
    <!-- Corner radius (rectangles only) -->

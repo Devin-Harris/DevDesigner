@@ -571,7 +571,7 @@ export class DrawToolService {
       // square (circle for an ellipse); Alt makes the anchor the center.
       const { x: ax, y: ay } = this.drawAnchor;
       // The dragged corner lines up with nearby items too (not with Alt: the box grows about its center).
-      const ratioLocked = draft.type === 'frame' && !!framePreset(this.tools.framePresetId()).ratio;
+      const ratioLocked = draft.type === 'frame' && !!framePreset(this.tools.drawFramePreset()).ratio;
       const smart =
          alt || draft.type === 'text'
             ? null
@@ -593,7 +593,7 @@ export class DrawToolService {
       let dy = ey - ay;
       if (draft.type === 'frame') {
          // A preset frame is locked to its page ratio: width follows the pointer, height follows width.
-         const ratio = framePreset(this.tools.framePresetId()).ratio;
+         const ratio = framePreset(this.tools.drawFramePreset()).ratio;
          if (ratio) {
             dy = (dy < 0 ? -1 : 1) * (Math.abs(dx) / ratio);
          }
