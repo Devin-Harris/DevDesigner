@@ -137,6 +137,8 @@ const EXPECTED: Record<string, string> = {
   'GET /projects/:projectId/share': 'owner:project(projectId)',
   'DELETE /projects/:projectId/share/:linkId': 'owner:project(projectId)',
   'GET /shared/:token': 'public',
+  'GET /shared-with-me': 'caller',
+  'DELETE /shared-with-me/:projectId': 'caller',
   // user themes
   'GET /me/themes': 'caller',
   'POST /me/themes': 'caller',

@@ -4,6 +4,9 @@ import { GraphLoaderModule } from '../../projects/common/graph-loader.module';
 import { ShareLink } from './share-link.entity';
 import { SharingController } from './sharing.controller';
 import { SharingService } from './sharing.service';
+import { SharedWithMeService } from './shared-with-me.service';
+import { SharedProjectVisit } from './shared-project-visit.entity';
+import { Project } from '../../projects/projects/project.entity';
 
 /**
  * Sharing: owner share-link CRUD and the account-free GET /shared/:token entry.
@@ -14,8 +17,8 @@ import { SharingService } from './sharing.service';
  * the shared entry route; AccessService comes from the global AccessModule.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([ShareLink]), GraphLoaderModule],
+  imports: [TypeOrmModule.forFeature([ShareLink, SharedProjectVisit, Project]), GraphLoaderModule],
   controllers: [SharingController],
-  providers: [SharingService],
+  providers: [SharingService, SharedWithMeService],
 })
 export class SharingModule {}

@@ -89,6 +89,8 @@ writeFileSync(
       // Shown as the exe's file description (Task Manager, Start menu).
       description: 'DevDesigner',
       author: 'DevDesigner',
+      // Required by the Linux .deb target (electron-builder fails without it).
+      homepage: 'https://github.com/Devin-Harris/DevDesigner',
       main: 'desktop/dist/main.js',
       // Built-in sync remote (Sync > DevDesigner Cloud); empty when the build doesn't set it.
       devdesigner: { hostedUrl: process.env.DEVDESIGNER_HOSTED_URL?.trim() ?? '' },

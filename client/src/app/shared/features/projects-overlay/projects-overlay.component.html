@@ -45,6 +45,8 @@
                <p>{{ error$() }}</p>
                <button class="btn" type="button" (click)="store.loadProjects()">Retry</button>
             </div>
+         } @else if (visibleProjects$().length === 0 && visibleShared$().length > 0) {
+            <!-- Only shared projects match: the section below lists them. -->
          } @else if (visibleProjects$().length === 0) {
             @if (sync.enabled && !showArchived$() && !search$()) {
                <!-- Desktop first run. -->
@@ -232,6 +234,37 @@
                            </button>
                         </div>
                      </ng-template>
+                  </div>
+               }
+            </div>
+         }
+         @if (!loading$() && !error$() && visibleShared$().length > 0) {
+            <h3 class="section-title">Shared with me</h3>
+            <div class="cards shared">
+               @for (entry of visibleShared$(); track entry.projectId) {
+                  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -- the Open button inside is the keyboard path -->
+                  <div class="card" [attr.data-shared-id]="entry.projectId" (click)="openShared(entry)">
+                     <div class="thumb project-thumb" [style.--a]="(accent | call: entry.projectId)">
+                        <div class="thumb-empty">
+                           <dd-icon name="share" />
+                        </div>
+                     </div>
+                     <div class="meta">
+                        <div class="name-row">
+                           <span class="name">{{ entry.name }}</span>
+                           <span class="badge">{{ entry.accessLevel === 'EDIT' ? 'Can edit' : 'View only' }}</span>
+                        </div>
+                        <div class="sub">{{ entry.updatedAt | editedAgo }}</div>
+                     </div>
+                     <button
+                        class="icon-btn quick-delete"
+                        type="button"
+                        title="Remove from Shared with me (the link keeps working)"
+                        aria-label="Remove from Shared with me"
+                        (click)="forgetShared(entry); $event.stopPropagation()"
+                     >
+                        <dd-icon name="close" />
+                     </button>
                   </div>
                }
             </div>

@@ -5,7 +5,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { ProjectSummary, SyncLinkResponse } from '@devdesigner/shared';
+import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import type { ProjectSummary, SharedProjectEntry, SyncLinkResponse } from '@devdesigner/shared';
+import { AuthService } from '../../../core/auth/auth.service';
+import { SharedWithMeApiService } from './services/shared-with-me-api.service';
 import { ProjectFileService } from '../../services/project-file.service';
 import { AutofocusDirective } from '../../ui/directives/autofocus.directive';
 import { IconComponent } from '../../ui/components/icon/icon.component';
@@ -55,6 +59,18 @@ export class ProjectsOverlayComponent {
    protected readonly search$ = this.store.search;
    protected readonly selectedId$ = this.store.selectedId;
 
+   private readonly router = inject(Router);
+   private readonly auth = inject(AuthService);
+   private readonly sharedApi = inject(SharedWithMeApiService);
+   /** Projects opened through other people's share links (signed-in users only). */
+   private readonly shared$ = signal<SharedProjectEntry[]>([]);
+   protected readonly visibleShared$ = computed(() => {
+      if (this.showArchived$()) return [];
+      const q = this.search$().trim().toLowerCase();
+      const list = this.shared$();
+      return q ? list.filter((p) => p.name.toLowerCase().includes(q)) : list;
+   });
+
    protected readonly view$ = signal<OverlayView>('projects');
    protected readonly editingId$ = signal<string | null>(null);
    protected readonly editName = new FormControl('', { nonNullable: true });
@@ -75,6 +91,7 @@ export class ProjectsOverlayComponent {
       // (the cached pictures keep showing until the fresh ones arrive).
       this.thumbs.invalidate();
       void this.sync.refresh().catch(() => undefined);
+      void this.loadShared();
       // Arrow keys start from the project that's open in the editor.
       this.cursorId$.set(this.store.selectedId());
       this.resetAnchor(this.store.selectedId());
@@ -137,6 +154,39 @@ export class ProjectsOverlayComponent {
       if (this.editingId$() === project.id) return;
       this.store.select(project.id);
       this.dialogRef.close();
+   }
+
+   // ---- shared with me ---------------------------------------------------
+
+   /** Fetch on every open: the server leaves out links revoked or expired since. */
+   private async loadShared(): Promise<void> {
+      if (!this.auth.isAuthenticated() || this.sync.enabled) return;
+      try {
+         this.shared$.set(await firstValueFrom(this.sharedApi.list()));
+      } catch {
+         this.shared$.set([]);
+      }
+   }
+
+   protected openShared(entry: SharedProjectEntry): void {
+      this.dialogRef.close();
+      const url = `/shared/${encodeURIComponent(entry.token)}`;
+      // The share page reads its token once, so switching between two shared
+      // projects needs a fresh load rather than a reused component.
+      if (this.router.url.startsWith('/shared/')) window.location.assign(url);
+      else void this.router.navigateByUrl(url);
+   }
+
+   protected async forgetShared(entry: SharedProjectEntry): Promise<void> {
+      const before = this.shared$();
+      this.shared$.set(before.filter((p) => p.projectId !== entry.projectId));
+      try {
+         await firstValueFrom(this.sharedApi.forget(entry.projectId));
+         this.notify(`Removed "${entry.name}" from Shared with me`);
+      } catch (err) {
+         this.shared$.set(before);
+         this.notifyError('Could not remove shared project', err);
+      }
    }
 
    /** Create a blank project (the server assigns the default type). */

@@ -618,6 +618,21 @@ export interface ShareLinkResponse {
   revokedAt: string | null;
 }
 
+/**
+ * A project the signed-in user opened through someone else's share link
+ * (GET /shared-with-me). Listed until the link is revoked or expires.
+ */
+export interface SharedProjectEntry {
+  linkId: string;
+  projectId: string;
+  name: string;
+  accessLevel: ShareAccessLevel;
+  /** Token to reopen the project at /shared/:token. */
+  token: string;
+  updatedAt: string;
+  lastOpenedAt: string;
+}
+
 // --- Batch (PATCH /projects/:projectId/batch) ---
 /**
  * Many granular edits applied atomically in one transaction (all or nothing), then

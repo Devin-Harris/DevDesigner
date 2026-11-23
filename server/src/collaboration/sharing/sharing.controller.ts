@@ -12,10 +12,12 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ShareLinkResponse } from '@devdesigner/shared';
+import type { ShareLinkResponse, SharedProjectEntry } from '@devdesigner/shared';
 import { SharingService } from './sharing.service';
+import { SharedWithMeService } from './shared-with-me.service';
+import { Caller } from '../../platform/http/caller';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
-import { ProjectAccess, Public, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
+import { CallerScoped, ProjectAccess, Public, RequiresAccess, type ResolvedProjectAccess } from '../access/access-policy';
 import { RateLimit } from '../../platform/throttle/rate-limit';
 import { GraphCache } from '../../platform/graph-cache/graph-cache';
 
@@ -30,6 +32,7 @@ export class SharingController {
   constructor(
     private readonly sharing: SharingService,
     private readonly graphs: GraphCache,
+    private readonly sharedWithMe: SharedWithMeService,
   ) {}
 
   @Post('projects/:projectId/share')
@@ -66,10 +69,29 @@ export class SharingController {
   @Public()
   async getShared(
     @Param('token') token: string,
+    @Caller() caller: Caller,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile | undefined> {
     const { projectId, accessLevel } = await this.sharing.sharedAccess(token);
+    // Signed in (cookie session): remember the link for the projects dialog.
+    if (caller.userId && !caller.viaToken) void this.sharedWithMe.recordVisit(caller.userId, projectId, token);
     return this.graphs.respond(projectId, accessLevel, req, res, () => this.sharing.graphFor(projectId, accessLevel));
+  }
+
+  /** Projects the signed-in user opened through share links that are still valid. */
+  @Get('shared-with-me')
+  @CallerScoped()
+  async listSharedWithMe(@Caller() caller: Caller): Promise<SharedProjectEntry[]> {
+    if (!caller.userId || caller.viaToken) return [];
+    return this.sharedWithMe.list(caller.userId);
+  }
+
+  /** Remove a project from the user's "Shared with me" list (the link itself is untouched). */
+  @Delete('shared-with-me/:projectId')
+  @CallerScoped()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async forgetSharedWithMe(@Caller() caller: Caller, @Param('projectId') projectId: string): Promise<void> {
+    if (caller.userId && !caller.viaToken) await this.sharedWithMe.forget(caller.userId, projectId);
   }
 }
