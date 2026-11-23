@@ -18,7 +18,12 @@ import {
 import {
   MEDIA_CLIP_SHAPES,
   MEDIA_PLAYBACK_MODES,
+  FILL_STYLES,
+  STROKE_STYLES,
+  type FillStyle,
+  type StrokeStyle,
   type MediaClipShape,
+  type MediaClipStyle,
   type MediaConfig,
   type MediaPlayback,
   MAX_ANIMATION_DELAY,
@@ -176,6 +181,62 @@ class MediaCropDto {
   height!: number;
 }
 
+/** The look of the shape a picture was clipped to (restored when the clip is released). */
+export class MediaClipStyleDto implements MediaClipStyle {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  strokeColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  backgroundColor?: string;
+
+  @IsOptional()
+  @IsIn(FILL_STYLES)
+  fillStyle?: FillStyle;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  strokeWidth?: number;
+
+  @IsOptional()
+  @IsIn(STROKE_STYLES)
+  strokeStyle?: StrokeStyle;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  opacity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  strokeOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  fillOpacity?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  cornerRadius?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  text?: string;
+}
+
 /** An image element's crop, clip shape and playback. */
 export class MediaDto implements MediaConfig {
   @IsOptional()
@@ -221,6 +282,11 @@ export class MediaDto implements MediaConfig {
   @IsString()
   @MaxLength(1000)
   alt?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MediaClipStyleDto)
+  clipShape?: MediaClipStyle;
 }
 
 /** A frame's place in the slide sequence plus its transition and notes. */

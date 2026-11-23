@@ -39,6 +39,19 @@ function toPlaceholder(json: string | null): PlaceholderConfig | undefined {
   }
 }
 
+/** Decode stored per-corner radii; anything malformed means "uniform". */
+function toCornerRadii(json: string | null): number[] | undefined {
+  if (!json) return undefined;
+  try {
+    const v: unknown = JSON.parse(json);
+    return Array.isArray(v) && (v.length === 3 || v.length === 4) && v.every((n) => typeof n === 'number' && Number.isFinite(n))
+      ? (v as number[])
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Decode a stored media config; a corrupt value just means "defaults". */
 function toMedia(json: string | null): MediaConfig | undefined {
   if (!json) return undefined;
@@ -96,6 +109,7 @@ export function toElementModel(entity: ElementEntity): CanvasElementModel {
     fillOpacity: entity.fillOpacity ?? 100,
     zIndex: entity.zIndex,
     cornerRadius: entity.cornerRadius ?? undefined,
+    cornerRadii: toCornerRadii(entity.cornerRadiiJson),
     ellipticCorners: entity.ellipticCorners ?? undefined,
     elbow: entity.elbow ?? undefined,
     clipContent: entity.clipContent ?? undefined,

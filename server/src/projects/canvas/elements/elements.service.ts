@@ -90,6 +90,7 @@ export class ElementsService {
       fillOpacity: dto.fillOpacity ?? 100,
       zIndex: dto.zIndex ?? (await this.nextZIndex(projectId)),
       cornerRadius: dto.cornerRadius ?? null,
+      cornerRadiiJson: dto.cornerRadii ? JSON.stringify(dto.cornerRadii) : null,
       ellipticCorners: dto.ellipticCorners ?? null,
       elbow: dto.elbow ?? null,
       clipContent: dto.clipContent ?? null,
@@ -327,6 +328,9 @@ export function applyElementPatch(element: ElementEntity, dto: UpdateElementDto)
   }
   if (dto.points !== undefined) {
     element.pointsJson = JSON.stringify(dto.points);
+  }
+  if (dto.cornerRadii !== undefined) {
+    element.cornerRadiiJson = dto.cornerRadii ? JSON.stringify(dto.cornerRadii) : null;
   }
   if (dto.runs !== undefined) {
     element.runsJson = dto.runs?.length ? JSON.stringify(dto.runs) : null;

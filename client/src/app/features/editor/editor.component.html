@@ -11,6 +11,7 @@
       (pointermove)="viewport.onHoverMove($event)"
       (pointerleave)="viewport.onHoverMove(null)"
       (dragover)="mediaDrop.onCanvasDragOver($event)"
+      (dragleave)="mediaDrop.onCanvasDragLeave($event)"
       (drop)="mediaDrop.onCanvasDrop($event)"
    >
       <div class="world" [style.transform]="viewport.worldTransform$()">

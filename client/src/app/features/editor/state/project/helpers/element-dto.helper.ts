@@ -19,6 +19,7 @@ export function elementToCreateDto(e: CanvasElementModel): CreateElementDto {
       fillOpacity: e.fillOpacity,
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius,
+      cornerRadii: e.cornerRadii,
       ellipticCorners: e.ellipticCorners,
       elbow: e.elbow,
       clipContent: e.clipContent,
@@ -74,7 +75,8 @@ export function captureBefore(element: CanvasElementModel, patch: UpdateElementD
          key === 'slideId' ||
          key === 'expandedHeight' ||
          key === 'diffText' ||
-         key === 'media'
+         key === 'media' ||
+         key === 'cornerRadii'
       ) {
          before[key] = element[key] ?? null;
       } else if (key === 'fileName') {

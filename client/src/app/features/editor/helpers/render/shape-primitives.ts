@@ -16,13 +16,138 @@ import { LINE_HEIGHT, layoutTextBlock } from './text-layout';
 import { usableRuns } from '../rich-text.helper';
 
 /**
- * Rectangle corner radius. By default it clamps to half the shorter side, so a big
- * radius gives a pill; with `ellipticCorners` the raw radius is left to SVG, which
- * clamps each axis separately and stretches the corners into an oval.
+ * Rectangle corner radius, clamped to half the shorter side (a big radius gives a pill).
  */
 export function rectCornerRadius(element: CanvasElementModel): number {
+   if (element.cornerRadii?.length === 4 && !hasMixedCorners(element)) {
+      const r = element.cornerRadii[0];
+      return Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+   }
    const r = element.cornerRadius ?? Math.min(12, Math.min(element.width, element.height) * 0.15);
-   return element.ellipticCorners ? r : Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+   return Math.min(r, Math.abs(element.width) / 2, Math.abs(element.height) / 2);
+}
+
+/**
+ * Each corner's radius [top-left, top-right, bottom-right, bottom-left], each clamped
+ * to half the shorter side. Uniform unless the element has per-corner `cornerRadii`.
+ */
+export function rectCornerRadii(element: CanvasElementModel): [number, number, number, number] {
+   const max = Math.min(Math.abs(element.width), Math.abs(element.height)) / 2;
+   const c = element.cornerRadii;
+   if (c?.length === 4) return c.map((r) => Math.max(0, Math.min(max, r))) as [number, number, number, number];
+   const r = Math.min(max, rectCornerRadius(element));
+   return [r, r, r, r];
+}
+
+/** Whether the element rounds its corners unevenly (drawn as a path, not a <rect rx>). */
+export function hasMixedCorners(element: CanvasElementModel): boolean {
+   const c = element.cornerRadii;
+   return c?.length === 4 && !c.every((r) => r === c[0]);
+}
+
+/** Path of a box with its own radius per corner [tl, tr, br, bl]. */
+export function roundedRectPath(x: number, y: number, w: number, h: number, r: readonly number[]): string {
+   const [tl, tr, br, bl] = r;
+   return (
+      `M${x + tl},${y}H${x + w - tr}` +
+      (tr ? `A${tr},${tr} 0 0 1 ${x + w},${y + tr}` : '') +
+      `V${y + h - br}` +
+      (br ? `A${br},${br} 0 0 1 ${x + w - br},${y + h}` : '') +
+      `H${x + bl}` +
+      (bl ? `A${bl},${bl} 0 0 1 ${x},${y + h - bl}` : '') +
+      `V${y + tl}` +
+      (tl ? `A${tl},${tl} 0 0 1 ${x + tl},${y}` : '') +
+      'Z'
+   );
+}
+
+/** Shapes whose corners can be rounded with the live-corner grips. */
+export function hasLiveCorners(element: CanvasElementModel): boolean {
+   return element.type === 'rectangle' || element.type === 'diamond' || element.type === 'triangle';
+}
+
+/** A rectangle/diamond/triangle's corner points (unrotated, clockwise on screen). */
+export function shapeVertices(element: CanvasElementModel): Array<{ x: number; y: number }> {
+   const { x, y, width: w, height: h } = element;
+   if (element.type === 'diamond') {
+      return [
+         { x: x + w / 2, y },
+         { x: x + w, y: y + h / 2 },
+         { x: x + w / 2, y: y + h },
+         { x, y: y + h / 2 },
+      ];
+   }
+   if (element.type === 'triangle') {
+      return [
+         { x: x + w / 2, y },
+         { x: x + w, y: y + h },
+         { x, y: y + h },
+      ];
+   }
+   const x0 = Math.min(x, x + w);
+   const y0 = Math.min(y, y + h);
+   const aw = Math.abs(w);
+   const ah = Math.abs(h);
+   return [
+      { x: x0, y: y0 },
+      { x: x0 + aw, y: y0 },
+      { x: x0 + aw, y: y0 + ah },
+      { x: x0, y: y0 + ah },
+   ];
+}
+
+/** Each corner's requested radius (rectangles: as drawn; diamonds/triangles default sharp). */
+export function shapeCornerRadii(element: CanvasElementModel): number[] {
+   if (element.type === 'rectangle') return rectCornerRadii(element);
+   const n = element.type === 'triangle' ? 3 : 4;
+   const c = element.cornerRadii;
+   if (c?.length === n) return c.map((r) => Math.max(0, r));
+   return new Array<number>(n).fill(Math.max(0, element.cornerRadius ?? 0));
+}
+
+/** Geometry of corner `i`: unit bisector pointing inward, half the interior angle, and the largest radius that fits. */
+export function cornerGeometry(
+   pts: ReadonlyArray<{ x: number; y: number }>,
+   i: number
+): { bx: number; by: number; half: number; max: number } {
+   const n = pts.length;
+   const p = pts[i];
+   const a = pts[(i + n - 1) % n];
+   const b = pts[(i + 1) % n];
+   const la = Math.hypot(a.x - p.x, a.y - p.y) || 1;
+   const lb = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+   const ua = { x: (a.x - p.x) / la, y: (a.y - p.y) / la };
+   const ub = { x: (b.x - p.x) / lb, y: (b.y - p.y) / lb };
+   const half = Math.acos(Math.max(-1, Math.min(1, ua.x * ub.x + ua.y * ub.y))) / 2;
+   const bl = Math.hypot(ua.x + ub.x, ua.y + ub.y) || 1;
+   // Tangent points may use at most half of each adjacent edge.
+   const max = Math.min(la, lb) / 2 * Math.tan(half);
+   return { bx: (ua.x + ub.x) / bl, by: (ua.y + ub.y) / bl, half, max };
+}
+
+/** Path of a polygon with each corner rounded by its own radius (clamped to fit). */
+export function roundedPolygonPath(pts: ReadonlyArray<{ x: number; y: number }>, radii: readonly number[]): string {
+   const n = pts.length;
+   let d = '';
+   for (let i = 0; i < n; i++) {
+      const p = pts[i];
+      const g = cornerGeometry(pts, i);
+      const r = Math.min(radii[i] ?? 0, g.max);
+      const a = pts[(i + n - 1) % n];
+      const b = pts[(i + 1) % n];
+      const t = r > 0 ? r / Math.tan(g.half) : 0;
+      const la = Math.hypot(a.x - p.x, a.y - p.y) || 1;
+      const lb = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+      const inX = p.x + ((a.x - p.x) / la) * t;
+      const inY = p.y + ((a.y - p.y) / la) * t;
+      d += `${i ? 'L' : 'M'}${inX},${inY}`;
+      if (t > 0) {
+         const outX = p.x + ((b.x - p.x) / lb) * t;
+         const outY = p.y + ((b.y - p.y) / lb) * t;
+         d += `A${r},${r} 0 0 1 ${outX},${outY}`;
+      }
+   }
+   return d + 'Z';
 }
 
 /** An image element's picture: its crop resolved to where the source lands, and its clip. */

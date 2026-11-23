@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { CODE_LANGUAGES, type CanvasElementModel, type CodeLanguage, type CodeDiffView, type FillStyle, type FontFamily, type StrokeStyle, type UpdateElementDto, DEFAULT_THEME, presentationOf, resolveThemeFont, themeToken, type SlideTheme } from '@devdesigner/shared';
+import { type CanvasElementModel, type CodeLanguage, type CodeDiffView, type FillStyle, type FontFamily, type StrokeStyle, type UpdateElementDto, DEFAULT_THEME, presentationOf, resolveThemeFont, themeToken, type SlideTheme } from '@devdesigner/shared';
 import { SURFACE_FILL, FONT_OPTIONS, fontStack } from '../../../../helpers/render';
 import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper';
+import { LanguageMenuComponent } from '../language-menu/language-menu.component';
+import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { withTextFit } from '../../../../helpers/text-metrics';
@@ -9,6 +11,7 @@ import { ElementEdits } from '../../services/element-edits.service';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
+import { hasLiveCorners } from '../../../../helpers/render/shape-primitives';
 
 /**
  * The "shape & line styling" side panel — the design's calm, full-width companion
@@ -19,7 +22,7 @@ import { CallPipe } from '../../../../../../shared/ui/pipes/collection.pipes';
 @Component({
    selector: 'dd-element-inspector',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, ColorSwatchesComponent, IconComponent],
+   imports: [CallPipe, ColorSwatchesComponent, IconComponent, LanguageMenuComponent, PopoverTriggerDirective],
    templateUrl: './element-inspector.component.html',
    styleUrl: './element-inspector.component.scss',
 })
@@ -74,13 +77,22 @@ export class ElementInspectorComponent {
 
    protected readonly isText$ = computed(() => this.element$().type === 'text');
    protected readonly isCode$ = computed(() => this.element$().type === 'code');
-   protected readonly languages = CODE_LANGUAGES.map((id) => ({
-      id,
-      label: CODE_LANGUAGE_LABELS[id],
-   }));
+   protected readonly languageLabel$ = computed(() => CODE_LANGUAGE_LABELS[this.element$().language ?? 'typescript']);
    protected readonly codeSizes = [11, 12, 14, 16, 18, 20, 24];
    protected readonly isLine$ = computed(() => this.element$().type === 'arrow' || this.element$().type === 'line');
    protected readonly isRect$ = computed(() => this.element$().type === 'rectangle');
+   /** Shapes whose corners round (rectangle, diamond, triangle). */
+   protected readonly hasCorners$ = computed(() => hasLiveCorners(this.element$()));
+   /** The uniform radius shown on the slider (diamonds/triangles start sharp). */
+   protected readonly radius$ = computed(() => {
+      const e = this.element$();
+      return e.cornerRadius ?? (e.type === 'rectangle' ? 12 : 0);
+   });
+   /** Slider range: up to a full pill on this shape. */
+   protected readonly radiusMax$ = computed(() => {
+      const e = this.element$();
+      return Math.max(48, Math.ceil(Math.min(Math.abs(e.width), Math.abs(e.height)) / 2));
+   });
    protected readonly hasFill$ = computed(() => !this.isText$() && !this.isLine$() && this.element$().type !== 'freedraw');
    protected readonly canHaveText$ = computed(() => {
       const t = this.element$().type;
@@ -199,12 +211,9 @@ export class ElementInspectorComponent {
       this.patchAll({ strokeStyle: style });
    }
    protected setCornerRadius(value: number): void {
-      this.patchAll({ cornerRadius: value });
+      this.patchAll({ cornerRadius: value, cornerRadii: null });
    }
 
-   protected setEllipticCorners(on: boolean): void {
-      this.patchAll({ ellipticCorners: on });
-   }
    protected setOpacity(value: number): void {
       this.patchAll({ opacity: value });
    }

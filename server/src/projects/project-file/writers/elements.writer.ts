@@ -51,6 +51,7 @@ export async function writeElements(ctx: WriteContext, elements: readonly Canvas
       fillOpacity: e.fillOpacity,
       zIndex: e.zIndex,
       cornerRadius: e.cornerRadius ?? null,
+      cornerRadiiJson: e.cornerRadii ? JSON.stringify(e.cornerRadii) : null,
       ellipticCorners: e.ellipticCorners ?? null,
       elbow: e.elbow ?? null,
       clipContent: e.clipContent ?? null,

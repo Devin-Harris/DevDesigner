@@ -36,6 +36,7 @@ import type {
   IndexModel,
   LifelineModel,
   MediaConfig,
+  MediaClipStyle,
   PlaceholderConfig,
   PointModel,
   RelationshipModel,
@@ -366,6 +367,24 @@ function media(value: unknown, path: string): MediaConfig | undefined {
     start: optNum(m, 'start', path),
     end: optNum(m, 'end', path),
     alt: typeof m['alt'] === 'string' ? (m['alt'] as string).slice(0, 1000) : undefined,
+    clipShape: clipStyle(m['clipShape'], `${path}.clipShape`),
+  };
+}
+
+function clipStyle(value: unknown, path: string): MediaClipStyle | undefined {
+  if (value === undefined || value === null) return undefined;
+  const c = obj(value, path);
+  return {
+    strokeColor: optStr(c, 'strokeColor', path, 100),
+    backgroundColor: optStr(c, 'backgroundColor', path, 100),
+    fillStyle: optOneOf(c, 'fillStyle', path, FILL_STYLES),
+    strokeWidth: optNum(c, 'strokeWidth', path),
+    strokeStyle: optOneOf(c, 'strokeStyle', path, STROKE_STYLES),
+    opacity: optNum(c, 'opacity', path),
+    strokeOpacity: optNum(c, 'strokeOpacity', path),
+    fillOpacity: optNum(c, 'fillOpacity', path),
+    cornerRadius: optNum(c, 'cornerRadius', path),
+    text: optStr(c, 'text', path, 50000),
   };
 }
 
@@ -483,6 +502,12 @@ function parseElement(raw: unknown, path: string, opts: ParseProjectExportOption
     fillOpacity: num(e, 'fillOpacity', path, 100),
     zIndex: num(e, 'zIndex', path, 0),
     cornerRadius: optNum(e, 'cornerRadius', path),
+    cornerRadii:
+      Array.isArray(e['cornerRadii']) &&
+      (e['cornerRadii'].length === 3 || e['cornerRadii'].length === 4) &&
+      e['cornerRadii'].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)
+        ? (e['cornerRadii'] as number[])
+        : undefined,
     ellipticCorners: e['ellipticCorners'] === true ? true : undefined,
     elbow: e['elbow'] === true ? true : undefined,
     clipContent: e['clipContent'] === true ? true : undefined,
@@ -514,7 +539,7 @@ function parseElement(raw: unknown, path: string, opts: ParseProjectExportOption
     media: media(e['media'], `${path}.media`),
     // 'javascript' was removed; older exports map to TypeScript.
     language: optOneOf(
-      e['language'] === 'javascript' ? { ...e, language: 'typescript' } : e,
+      e,
       'language',
       path,
       CODE_LANGUAGES,

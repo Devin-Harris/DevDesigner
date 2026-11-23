@@ -340,6 +340,7 @@ export interface CreateElementDto {
   fillOpacity?: number;
   zIndex?: number;
   cornerRadius?: number;
+  cornerRadii?: number[] | null;
   ellipticCorners?: boolean;
   elbow?: boolean;
   clipContent?: boolean;
@@ -408,6 +409,7 @@ export interface UpdateElementDto {
   fillOpacity?: number;
   zIndex?: number;
   cornerRadius?: number;
+  cornerRadii?: number[] | null;
   ellipticCorners?: boolean;
   elbow?: boolean;
   clipContent?: boolean;

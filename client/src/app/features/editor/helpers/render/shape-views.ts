@@ -27,7 +27,13 @@ import {
    dashArray,
    fillOf,
    imageView,
+   hasMixedCorners,
+   rectCornerRadii,
    rectCornerRadius,
+   roundedRectPath,
+   roundedPolygonPath,
+   shapeCornerRadii,
+   shapeVertices,
    rotation,
    lineEnds,
    shapeLabel,
@@ -176,6 +182,9 @@ export function buildShapeViews(
                width: element.width,
                height: element.height,
                rx: rectCornerRadius(element),
+               d: hasMixedCorners(element)
+                  ? roundedRectPath(element.x, element.y, element.width, element.height, rectCornerRadii(element))
+                  : undefined,
             };
             base.label = shapeLabel(element, base.bbox, theme);
             break;
@@ -262,6 +271,7 @@ export function buildShapeViews(
                `${midX},${element.y + element.height}`,
                `${element.x},${midY}`,
             ].join(' ');
+            base.roundedPath = roundedCorners(element);
             base.label = shapeLabel(element, base.bbox, theme);
             break;
          }
@@ -271,6 +281,7 @@ export function buildShapeViews(
                `${element.x + element.width},${element.y + element.height}`,
                `${element.x},${element.y + element.height}`,
             ].join(' ');
+            base.roundedPath = roundedCorners(element);
             base.label = shapeLabel(element, base.bbox, theme);
             break;
          case 'freedraw':
@@ -410,4 +421,10 @@ export function buildShapeViews(
         })
       : views;
    return out.sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
+}
+
+/** A diamond/triangle's outline with rounded corners, or undefined while every corner is sharp. */
+function roundedCorners(element: CanvasElementModel): string | undefined {
+   const radii = shapeCornerRadii(element);
+   return radii.some((r) => r > 0) ? roundedPolygonPath(shapeVertices(element), radii) : undefined;
 }

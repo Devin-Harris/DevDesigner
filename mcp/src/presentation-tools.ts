@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 import {
+  CODE_LANGUAGES,
+  type CodeLanguage,
   MORPH_BY_OPTIONS,
   SLIDE_ANIMATION_EFFECTS,
   SLIDE_ANIMATION_KINDS,
@@ -237,7 +239,7 @@ const slideItem = z.discriminatedUnion('type', [
     type: z.literal('code'),
     code: z.string(),
     language: z
-      .enum(['plaintext', 'typescript', 'sql', 'json', 'python', 'csharp', 'java', 'html', 'css', 'scss', 'bash'])
+      .enum(CODE_LANGUAGES as [CodeLanguage, ...CodeLanguage[]])
       .optional(),
     fileName: z
       .string()

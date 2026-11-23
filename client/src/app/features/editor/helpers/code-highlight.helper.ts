@@ -9,226 +9,15 @@ import type { CodeLanguage } from '@devdesigner/shared';
  * language key are ever persisted.
  */
 
-export type TokenKind =
-   | 'plain'
-   | 'keyword'
-   | 'string'
-   | 'comment'
-   | 'number'
-   | 'type'
-   | 'function'
-   | 'operator'
-   | 'punct'
-   | 'tag'
-   | 'attr'
-   | 'property'
-   | 'constant'
-   | 'variable'
-   /** A `...` placeholder standing in for code that is deliberately not shown. */
-   | 'elision';
+export type { TokenKind } from './code-languages';
+import type { TokenKind } from './code-languages';
 
 export interface CodeToken {
    text: string;
    kind: TokenKind;
 }
 
-type Rule = readonly [TokenKind, RegExp];
-
-/** Compile a keyword list into one sticky, word-bounded alternation. */
-function words(list: string, flags = ''): RegExp {
-   return new RegExp(`\\b(?:${list.split(/\s+/).join('|')})\\b`, `y${flags}`);
-}
-
-const sticky = (source: string, flags = ''): RegExp => new RegExp(source, `y${flags}`);
-
-const JS_KEYWORDS =
-   'abstract as async await break case catch class const continue debugger declare default delete do else enum export extends finally for from function get if implements import in instanceof interface is keyof let namespace new of override private protected public readonly return satisfies set static super switch this throw try type typeof var void while with yield';
-
-const C_STRINGS: Rule[] = [
-   ['string', sticky('"(?:\\\\.|[^"\\\\\\n])*(?:"|$)', 'm')],
-   ['string', sticky("'(?:\\\\.|[^'\\\\\\n])*(?:'|$)", 'm')],
-];
-
-const C_COMMENTS: Rule[] = [
-   ['comment', sticky('//[^\\n]*')],
-   ['comment', sticky('/\\*[\\s\\S]*?(?:\\*/|$)')],
-];
-
-const COMMON_TAIL: Rule[] = [
-   ['function', sticky('[A-Za-z_$][\\w$]*(?=\\s*\\()')],
-   ['type', sticky('\\b[A-Z][\\w$]*\\b')],
-   ['plain', sticky('[A-Za-z_$][\\w$]*')],
-   ['operator', sticky('[+\\-*/%=<>!&|^~?:]+')],
-   ['punct', sticky('[{}()[\\];,.]')],
-];
-
-const NUMBER: Rule = [
-   'number',
-   sticky('\\b(?:0[xX][\\da-fA-F_]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)[nlLfFdDmM]?\\b'),
-];
-
-const LANGUAGES: Record<CodeLanguage, readonly Rule[]> = {
-   plaintext: [],
-
-   typescript: [
-      ...C_COMMENTS,
-      ['string', sticky('`(?:\\\\[\\s\\S]|[^`\\\\])*(?:`|$)')],
-      ...C_STRINGS,
-      NUMBER,
-      ['constant', words('true false null undefined NaN Infinity')],
-      ['type', words('string number boolean any unknown never object symbol bigint void')],
-      ['keyword', words(JS_KEYWORDS)],
-      ['function', sticky('@[A-Za-z_]\\w*')],
-      ...COMMON_TAIL,
-   ],
-
-   java: [
-      ...C_COMMENTS,
-      ...C_STRINGS,
-      NUMBER,
-      ['constant', words('true false null')],
-      [
-         'keyword',
-         words(
-            'abstract assert break case catch class const continue default do else enum extends final finally for goto if implements import instanceof interface native new package private protected public return static strictfp super switch synchronized this throw throws transient try void volatile while var record sealed permits'
-         ),
-      ],
-      ['type', words('int long short byte char float double boolean String Integer Long Double Object List Map Set')],
-      ['function', sticky('@[A-Za-z_]\\w*')],
-      ...COMMON_TAIL,
-   ],
-
-   csharp: [
-      ...C_COMMENTS,
-      ['string', sticky('@?"(?:""|\\\\.|[^"\\\\])*(?:"|$)')],
-      ['string', sticky("'(?:\\\\.|[^'\\\\\\n])*(?:'|$)", 'm')],
-      NUMBER,
-      ['constant', words('true false null')],
-      [
-         'keyword',
-         words(
-            'abstract as async await base break case catch checked class const continue default delegate do else enum event explicit extern finally fixed for foreach goto if implicit in interface internal is lock namespace new operator out override params private protected public readonly ref return sealed sizeof stackalloc static struct switch this throw try typeof unchecked unsafe using var virtual void volatile while yield record init get set where'
-         ),
-      ],
-      [
-         'type',
-         words('int uint long ulong short ushort byte sbyte char float double decimal bool string object dynamic'),
-      ],
-      ...COMMON_TAIL,
-   ],
-
-   python: [
-      ['comment', sticky('#[^\\n]*')],
-      ['string', sticky('[rRbBfFuU]{0,2}"""[\\s\\S]*?(?:"""|$)')],
-      ['string', sticky("[rRbBfFuU]{0,2}'''[\\s\\S]*?(?:'''|$)")],
-      ['string', sticky('[rRbBfFuU]{0,2}"(?:\\\\.|[^"\\\\\\n])*(?:"|$)', 'm')],
-      ['string', sticky("[rRbBfFuU]{0,2}'(?:\\\\.|[^'\\\\\\n])*(?:'|$)", 'm')],
-      NUMBER,
-      ['constant', words('True False None')],
-      [
-         'keyword',
-         words(
-            'and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case self cls'
-         ),
-      ],
-      ['function', sticky('@[A-Za-z_][\\w.]*')],
-      ...COMMON_TAIL,
-   ],
-
-   sql: [
-      ['comment', sticky('--[^\\n]*')],
-      ['comment', sticky('/\\*[\\s\\S]*?(?:\\*/|$)')],
-      ['string', sticky("'(?:''|[^'])*(?:'|$)")],
-      ['property', sticky('`[^`\\n]*`')],
-      ['property', sticky('"[^"\\n]*"')],
-      NUMBER,
-      ['constant', words('true false null', 'i')],
-      [
-         'type',
-         words(
-            'int integer bigint smallint tinyint serial varchar char text boolean bool date datetime timestamp time decimal numeric float double real json jsonb uuid blob enum',
-            'i'
-         ),
-      ],
-      [
-         'keyword',
-         words(
-            'select from where and or not in is like between exists insert into values update set delete create alter drop table index view database schema primary foreign key references unique default check constraint add column cascade restrict join inner left right outer full cross on group by order having limit offset distinct as union all case when then else end asc desc with begin commit rollback truncate auto_increment if returning',
-            'i'
-         ),
-      ],
-      ['function', sticky('[A-Za-z_][\\w]*(?=\\s*\\()')],
-      ['plain', sticky('[A-Za-z_][\\w]*')],
-      ['operator', sticky('[+\\-*/%=<>!|&^~:]+')],
-      ['punct', sticky('[()[\\];,.]')],
-   ],
-
-   json: [
-      ['property', sticky('"(?:\\\\.|[^"\\\\\\n])*"(?=\\s*:)')],
-      ['string', sticky('"(?:\\\\.|[^"\\\\\\n])*(?:"|$)', 'm')],
-      ['number', sticky('-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?')],
-      ['constant', words('true false null')],
-      ['punct', sticky('[{}[\\],:]')],
-   ],
-
-   html: [
-      ['comment', sticky('<!--[\\s\\S]*?(?:-->|$)')],
-      ['tag', sticky('</?[A-Za-z][\\w:-]*')],
-      ['tag', sticky('/?>')],
-      ['string', sticky('"[^"]*(?:"|$)')],
-      ['string', sticky("'[^']*(?:'|$)")],
-      ['attr', sticky('[A-Za-z_:@][\\w:.-]*(?=\\s*=)')],
-      ['operator', sticky('=')],
-      ['constant', sticky('&[#\\w]+;')],
-   ],
-
-   css: [
-      ['comment', sticky('/\\*[\\s\\S]*?(?:\\*/|$)')],
-      ['string', sticky('"(?:\\\\.|[^"\\\\\\n])*(?:"|$)', 'm')],
-      ['string', sticky("'(?:\\\\.|[^'\\\\\\n])*(?:'|$)", 'm')],
-      ['keyword', sticky('@[\\w-]+')],
-      ['number', sticky('#[0-9a-fA-F]{3,8}\\b')],
-      ['number', sticky('-?(?:\\d+\\.?\\d*|\\.\\d+)(?:px|em|rem|%|vh|vw|vmin|vmax|ch|s|ms|deg|fr)?\\b')],
-      ['property', sticky('-{0,2}[a-zA-Z][\\w-]*(?=\\s*:(?!:)[^{};]*[;}])')],
-      ['function', sticky('[\\w-]+(?=\\()')],
-      ['type', sticky('[.#][\\w-]+')],
-      ['plain', sticky('[\\w-]+')],
-      ['punct', sticky('[{}()[\\];,:>+~*]')],
-   ],
-
-   // SCSS adds $variables and // line comments to CSS.
-   scss: [
-      ['comment', sticky('//[^\\n]*')],
-      ['constant', sticky('\\$[\\w-]+')],
-      ['keyword', sticky('&')],
-      // ...then everything CSS has (added below the table).
-   ],
-
-   bash: [
-      ['comment', sticky('#[^\\n]*')],
-      ['string', sticky('"(?:\\\\.|[^"\\\\])*(?:"|$)')],
-      ['string', sticky("'[^']*(?:'|$)")],
-      ['variable', sticky('\\$(?:\\{[^}\\n]*\\}|[A-Za-z_]\\w*|[0-9@#?*$!-])')],
-      NUMBER,
-      [
-         'keyword',
-         words(
-            'if then else elif fi for while until do done case esac in function select time return exit break continue local export readonly declare unset'
-         ),
-      ],
-      [
-         'function',
-         words(
-            'echo cd ls cat grep sed awk find mkdir rm cp mv chmod chown curl wget git npm npx node docker kubectl sudo apt yarn pip python make touch tar ssh scp source printf read test'
-         ),
-      ],
-      ['attr', sticky('--?[A-Za-z][\\w-]*')],
-      ['plain', sticky('[\\w./~-]+')],
-      ['operator', sticky('[|&;<>=!]+')],
-      ['punct', sticky('[(){}[\\]]')],
-   ],
-};
-LANGUAGES.scss = [...LANGUAGES.scss, ...LANGUAGES.css];
+import { LANGUAGES } from './code-languages';
 
 /**
  * A line that is nothing but an ellipsis (optionally inside a comment) is an
@@ -256,6 +45,23 @@ export const CODE_LANGUAGE_LABELS: Record<CodeLanguage, string> = {
    css: 'CSS',
    scss: 'SCSS',
    bash: 'Bash',
+   javascript: 'JavaScript',
+   go: 'Go',
+   rust: 'Rust',
+   c: 'C',
+   cpp: 'C++',
+   php: 'PHP',
+   ruby: 'Ruby',
+   kotlin: 'Kotlin',
+   swift: 'Swift',
+   dart: 'Dart',
+   lua: 'Lua',
+   powershell: 'PowerShell',
+   yaml: 'YAML',
+   xml: 'XML',
+   markdown: 'Markdown',
+   dockerfile: 'Dockerfile',
+   graphql: 'GraphQL',
 };
 
 /** File extension (no dot) a language's code would live under. */
@@ -271,22 +77,50 @@ export const CODE_LANGUAGE_EXTENSIONS: Record<CodeLanguage, string> = {
    css: 'css',
    scss: 'scss',
    bash: 'sh',
+   javascript: 'js',
+   go: 'go',
+   rust: 'rs',
+   c: 'c',
+   cpp: 'cpp',
+   php: 'php',
+   ruby: 'rb',
+   kotlin: 'kt',
+   swift: 'swift',
+   dart: 'dart',
+   lua: 'lua',
+   powershell: 'ps1',
+   yaml: 'yaml',
+   xml: 'xml',
+   markdown: 'md',
+   dockerfile: 'dockerfile',
+   graphql: 'graphql',
 };
 
 /** The language a file name's extension says its code is in (null when unknown). */
 export function languageForFileName(fileName: string): CodeLanguage | null {
+   if (/^(?:.*[\\/])?dockerfile(?:\..*)?$/i.test(fileName.trim())) return 'dockerfile';
    const ext = /.([A-Za-z0-9]+)$/.exec(fileName.trim())?.[1]?.toLowerCase();
    if (!ext) return null;
    const extra: Record<string, CodeLanguage> = {
       tsx: 'typescript',
-      js: 'typescript',
-      jsx: 'typescript',
-      mjs: 'typescript',
-      cjs: 'typescript',
+      jsx: 'javascript',
+      mjs: 'javascript',
+      cjs: 'javascript',
+      h: 'c',
+      hpp: 'cpp',
+      cc: 'cpp',
+      cxx: 'cpp',
+      hh: 'cpp',
+      kts: 'kotlin',
+      yml: 'yaml',
+      svg: 'xml',
+      csproj: 'xml',
+      gql: 'graphql',
+      psm1: 'powershell',
+      rake: 'ruby',
       htm: 'html',
       bash: 'bash',
       zsh: 'bash',
-      md: 'plaintext',
    };
    const own = (Object.keys(CODE_LANGUAGE_EXTENSIONS) as CodeLanguage[]).find(
       (l) => CODE_LANGUAGE_EXTENSIONS[l] === ext

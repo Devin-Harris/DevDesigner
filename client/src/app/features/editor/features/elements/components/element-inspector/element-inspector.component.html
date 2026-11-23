@@ -96,40 +96,20 @@
    }
 
    <!-- Corner radius -->
-   @if (isRect$()) {
+   @if (hasCorners$()) {
       <div class="field-label">Corner radius</div>
       <div class="slider-row">
          <input
             type="range"
             min="0"
-            max="48"
             step="2"
-            [value]="element$().cornerRadius ?? 12"
-            [style.--fill]="((element$().cornerRadius ?? 12) / 48) * 100 + '%'"
+            [max]="radiusMax$()"
+            [value]="radius$()"
+            [style.--fill]="(radius$() / radiusMax$()) * 100 + '%'"
             [disabled]="!edits.canEdit$()"
             (input)="setCornerRadius(+$any($event.target).value)"
          />
-         <span class="val">{{ (element$().cornerRadius ?? 12) + 'px' }}</span>
-      </div>
-      <div class="seg-row">
-         <button
-            class="seg text"
-            type="button"
-            [class.on]="!element$().ellipticCorners"
-            [disabled]="!edits.canEdit$()"
-            (click)="setEllipticCorners(false)"
-         >
-            Pill
-         </button>
-         <button
-            class="seg text"
-            type="button"
-            [class.on]="!!element$().ellipticCorners"
-            [disabled]="!edits.canEdit$()"
-            (click)="setEllipticCorners(true)"
-         >
-            Oval
-         </button>
+         <span class="val">{{ radius$() + 'px' }}</span>
       </div>
    }
 
@@ -194,19 +174,20 @@
    <!-- Code block: highlight language + text size -->
    @if (isCode$()) {
       <div class="field-label">Language</div>
-      <div class="seg-row wrap">
-         @for (l of languages; track l.id) {
-            <button
-               class="seg text"
-               type="button"
-               [class.on]="(element$().language ?? 'typescript') === l.id"
-               [disabled]="!edits.canEdit$()"
-               (click)="setLanguage(l.id)"
-            >
-               {{ l.label }}
-            </button>
-         }
-      </div>
+      <button
+         class="lang-trigger"
+         type="button"
+         placement="below-start"
+         [ddPopoverTrigger]="languageMenu"
+         [disabled]="!edits.canEdit$()"
+      >
+         <dd-icon name="code" />
+         <span>{{ languageLabel$() }}</span>
+         <dd-icon name="expand_more" />
+      </button>
+      <ng-template #languageMenu let-close>
+         <dd-language-menu [value]="element$().language ?? 'typescript'" (picked)="setLanguage($event); close()" />
+      </ng-template>
       <div class="seg-row wrap code-actions">
          <button
             class="seg text"

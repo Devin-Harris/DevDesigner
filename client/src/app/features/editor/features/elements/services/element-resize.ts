@@ -303,7 +303,7 @@ export class ElementResize {
          return;
       }
       let world = this.host.viewport.toWorld(clientX, clientY);
-      const target = this.host.gesture.noBindHeld ? null : this.bindingTargetAt(world, g.id);
+      const target = this.host.gesture.noBindHeld ? null : this.stickyBindingTargetAt(world, g.id, el, g.which);
       this.host.bindHighlight$.set(target ? [target.box] : []);
       let binding = target?.binding ?? null;
       const pts = g.points.map((p) => ({ ...p }));
@@ -408,6 +408,7 @@ export class ElementResize {
                [d.end.y]
             );
          let cur = drawnAt(world);
+         const unsnapped = { world, cur, binding };
          for (let n = 0; cur && n < 4; n++) {
             const smart = snapAt(cur);
             if (!smart || (!smart.snappedX && !smart.snappedY)) break;
@@ -421,9 +422,15 @@ export class ElementResize {
             cur = moved;
             binding = moved.binding;
          }
-         // Guides for where the drawn end finally sits.
-         if (cur) snapAt(cur);
-         else this.host.snap.smartSnapState.set(null);
+         // Keep a snap only when the drawn end really lands on its guide; a nudge that
+         // only got closer just makes the end jump around, so fall back to the cursor.
+         const left = cur ? snapAt(cur) : null;
+         const missed = !!left && ((left.snappedX && Math.abs(left.ox) > 0.5) || (left.snappedY && Math.abs(left.oy) > 0.5));
+         if (cur !== unsnapped.cur && missed) {
+            ({ world, cur, binding } = unsnapped);
+            if (cur) snapAt(cur);
+         }
+         if (!cur) this.host.snap.smartSnapState.set(null);
       }
       pts[idx] = world;
       // Points are stored relative to the element origin (its first point).
@@ -435,6 +442,37 @@ export class ElementResize {
          points: relative,
          ...(g.which === 'start' ? { startBinding: binding } : { endBinding: binding }),
       });
+   }
+
+   /**
+    * `bindingTargetAt`, but an end already bound to something stays bound while the
+    * pointer is within a few screen pixels outside it, so it doesn't flicker on the edge.
+    */
+   private stickyBindingTargetAt(
+      world: { x: number; y: number },
+      lineId: string,
+      line: CanvasElementModel,
+      which: 'start' | 'end'
+   ): ReturnType<ElementResize['bindingTargetAt']> {
+      const hit = this.bindingTargetAt(world, lineId);
+      const current = which === 'start' ? line.startBinding : line.endBinding;
+      if (hit || !current) {
+         return hit;
+      }
+      const margin = 8 / (this.host.store.viewport().zoom || 1);
+      const offsets = [
+         [margin, 0],
+         [-margin, 0],
+         [0, margin],
+         [0, -margin],
+      ];
+      for (const [dx, dy] of offsets) {
+         const t = this.bindingTargetAt({ x: world.x + dx, y: world.y + dy }, lineId);
+         if (t?.binding.targetId === current.targetId) {
+            return t;
+         }
+      }
+      return null;
    }
 
    /** The table or element under a world point that a bound endpoint can attach to. */

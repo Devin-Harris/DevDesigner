@@ -144,9 +144,12 @@ export interface ShapeView {
    transform: string | null;
 
    // Exactly one geometry field is set per element type.
-   rect?: { x: number; y: number; width: number; height: number; rx: number };
+   /** `d` is set when the corners differ (drawn as that path instead of a <rect>). */
+   rect?: { x: number; y: number; width: number; height: number; rx: number; d?: string };
    ellipse?: { cx: number; cy: number; rx: number; ry: number };
    polygon?: string;
+   /** Diamond/triangle with rounded corners: drawn as this path instead of `polygon` (which stays the hit area). */
+   roundedPath?: string;
    /** An uploaded picture or video (image element), shown in this box. */
    image?: ImageView;
    /** A syntax-highlighted code block (code element). */

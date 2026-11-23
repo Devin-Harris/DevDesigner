@@ -224,7 +224,7 @@
    }
 
    <!-- Corner radius (rectangles only) -->
-   @if (isRect$()) {
+   @if (hasCorners$()) {
       <button
          class="tb"
          type="button"
@@ -243,32 +243,12 @@
                <input
                   type="range"
                   min="0"
-                  max="48"
                   step="2"
-                  [value]="element$().cornerRadius ?? 12"
-                  [style.--fill]="((element$().cornerRadius ?? 12) / 48) * 100 + '%'"
+                  [max]="radiusMax$()"
+                  [value]="radius$()"
+                  [style.--fill]="(radius$() / radiusMax$()) * 100 + '%'"
                   (input)="setCornerRadius(+$any($event.target).value)"
                />
-            </div>
-            <div class="head-row">
-               <button
-                  class="tb"
-                  type="button"
-                  matTooltip="Large radius rounds into a pill"
-                  [class.on]="!element$().ellipticCorners"
-                  (click)="setEllipticCorners(false)"
-               >
-                  Pill
-               </button>
-               <button
-                  class="tb"
-                  type="button"
-                  matTooltip="Large radius stretches into an oval"
-                  [class.on]="!!element$().ellipticCorners"
-                  (click)="setEllipticCorners(true)"
-               >
-                  Oval
-               </button>
             </div>
          </div>
       </ng-template>
@@ -288,18 +268,7 @@
          <span class="lang">{{ languageLabel$() }}</span>
       </button>
       <ng-template #languageMenu let-close>
-         <div class="dd-menu">
-            @for (l of languages; track l.id) {
-               <button
-                  class="dd-menu-item"
-                  type="button"
-                  [class.on]="l.id === (element$().language ?? 'typescript')"
-                  (click)="setLanguage(l.id); close()"
-               >
-                  {{ l.label }}
-               </button>
-            }
-         </div>
+         <dd-language-menu [value]="element$().language ?? 'typescript'" (picked)="setLanguage($event); close()" />
       </ng-template>
 
       <button

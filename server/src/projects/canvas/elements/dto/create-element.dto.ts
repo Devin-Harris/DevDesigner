@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -107,6 +108,14 @@ export class CreateElementDto implements ICreateElementDto {
   @IsOptional()
   @IsNumber()
   cornerRadius?: number;
+
+  /** Per-corner radii (3 for triangles, else 4); null clears back to the uniform radius. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(3)
+  @ArrayMaxSize(4)
+  @IsNumber({}, { each: true })
+  cornerRadii?: number[] | null;
 
   @IsOptional()
   @IsBoolean()

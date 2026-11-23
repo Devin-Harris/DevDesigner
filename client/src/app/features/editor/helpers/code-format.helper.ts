@@ -13,7 +13,7 @@ import { isElisionLine } from './code-highlight.helper';
  *    wrapped in a class and unwrapped again.
  */
 
-const PRETTIER: readonly CodeLanguage[] = ['typescript', 'json', 'html', 'css', 'scss'];
+const PRETTIER: readonly CodeLanguage[] = ['typescript', 'javascript', 'json', 'html', 'css', 'scss', 'yaml', 'markdown', 'graphql'];
 
 /** Every language can be formatted: Prettier/sql-formatter where they exist, a reindenter otherwise. */
 export function canFormatCode(_language: CodeLanguage | undefined): boolean {
@@ -37,7 +37,11 @@ function lineMarker(language: CodeLanguage): string {
       case 'scss':
          return `/* ${LINE_MARK} */`;
       case 'html':
+      case 'markdown':
          return `<!-- ${LINE_MARK} -->`;
+      case 'yaml':
+      case 'graphql':
+         return `# ${LINE_MARK}`;
       case 'sql':
          return `-- ${LINE_MARK}`;
       default:
@@ -46,7 +50,7 @@ function lineMarker(language: CodeLanguage): string {
 }
 
 const RESTORE_LINE = new RegExp(
-   `^([ \\t]*)(?:// ${LINE_MARK}|/\\* ${LINE_MARK} \\*/|<!-- ${LINE_MARK} -->|-- ${LINE_MARK})[ \\t]*$`,
+   `^([ \\t]*)(?:// ${LINE_MARK}|/\\* ${LINE_MARK} \\*/|<!-- ${LINE_MARK} -->|-- ${LINE_MARK}|# ${LINE_MARK})[ \\t]*$`,
    'gm'
 );
 
@@ -56,7 +60,7 @@ function protect(text: string, language: CodeLanguage): string {
       if (isElisionLine(line)) {
          return `${/^\s*/.exec(line)?.[0] ?? ''}${marker}`;
       }
-      return language === 'typescript' ? line.replace(INLINE_ELISION, INLINE_MARK) : line;
+      return language === 'typescript' || language === 'javascript' ? line.replace(INLINE_ELISION, INLINE_MARK) : line;
    });
    return lines.join('\n');
 }
@@ -79,6 +83,7 @@ async function optionsFor(language: CodeLanguage): Promise<PrettierOptions> {
          ]);
          return { parser: 'typescript', plugins: [plugin(ts), plugin(estree)] };
       }
+      case 'javascript':
       case 'json': {
          const [babel, estree] = await Promise.all([
             import('prettier/plugins/babel'),
@@ -86,6 +91,12 @@ async function optionsFor(language: CodeLanguage): Promise<PrettierOptions> {
          ]);
          return { parser: language === 'json' ? 'json' : 'babel', plugins: [plugin(babel), plugin(estree)] };
       }
+      case 'yaml':
+         return { parser: 'yaml', plugins: [plugin(await import('prettier/plugins/yaml'))] };
+      case 'markdown':
+         return { parser: 'markdown', plugins: [plugin(await import('prettier/plugins/markdown'))] };
+      case 'graphql':
+         return { parser: 'graphql', plugins: [plugin(await import('prettier/plugins/graphql'))] };
       case 'css':
       case 'scss': {
          const postcss = await import('prettier/plugins/postcss');
@@ -277,13 +288,17 @@ function cleanError(err: unknown): CodeFormatError {
  * (strings and comments are skipped when counting braces). Python/bash keep their own
  * indentation, only normalized to 2-space steps.
  */
+const BRACE_LANGUAGES = new Set<CodeLanguage>([
+   'csharp', 'java', 'go', 'rust', 'c', 'cpp', 'php', 'kotlin', 'swift', 'dart', 'graphql', 'powershell',
+]);
+
 export function reindent(text: string, language: CodeLanguage): string {
    const lines = text
       .replace(/\r\n?/g, '\n')
       .split('\n')
       .map((l) => l.replace(/\t/g, '  ').replace(/\s+$/, ''));
    const out: string[] = [];
-   const braces = language === 'csharp' || language === 'java';
+   const braces = BRACE_LANGUAGES.has(language);
    if (braces) {
       let depth = 0;
       let inBlock = false;
@@ -298,7 +313,7 @@ export function reindent(text: string, language: CodeLanguage): string {
          out.push(line ? '  '.repeat(at) + line : '');
          depth = Math.max(0, depth + opens - closes);
       }
-   } else if (language === 'python' || language === 'bash') {
+   } else if (language === 'python' || language === 'bash' || language === 'ruby' || language === 'lua' || language === 'dockerfile' || language === 'xml') {
       // Map the existing indent widths onto 2-space levels.
       const widths = [...new Set(lines.filter((l) => l.trim()).map((l) => /^ */.exec(l)![0].length))].sort(
          (a, b) => a - b

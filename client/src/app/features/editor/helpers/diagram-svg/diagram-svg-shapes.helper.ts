@@ -43,6 +43,8 @@ export function renderShape(view: ShapeView, imageData: ReadonlyMap<string, stri
                `width="${attr(img.src.width)}" height="${attr(img.src.height)}" preserveAspectRatio="none"${clip} />`
          );
       }
+   } else if (view.rect?.d) {
+      body.push(`<path d="${attr(view.rect.d)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} />`);
    } else if (view.rect) {
       body.push(
          `<rect x="${attr(view.rect.x)}" y="${attr(view.rect.y)}" width="${attr(view.rect.width)}" height="${attr(view.rect.height)}" ` +
@@ -53,6 +55,8 @@ export function renderShape(view: ShapeView, imageData: ReadonlyMap<string, stri
          `<ellipse cx="${attr(view.ellipse.cx)}" cy="${attr(view.ellipse.cy)}" rx="${attr(view.ellipse.rx)}" ry="${attr(view.ellipse.ry)}" ` +
             `fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} />`
       );
+   } else if (view.roundedPath) {
+      body.push(`<path d="${attr(view.roundedPath)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} />`);
    } else if (view.polygon) {
       body.push(
          `<polygon points="${attr(view.polygon)}" fill="${attr(view.fill)}" fill-opacity="${attr(view.fillOpacity)}" ${stroke} stroke-linejoin="round" />`

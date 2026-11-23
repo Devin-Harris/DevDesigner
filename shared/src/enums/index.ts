@@ -110,7 +110,24 @@ export type CodeLanguage =
   | 'html'
   | 'css'
   | 'scss'
-  | 'bash';
+  | 'bash'
+  | 'javascript'
+  | 'go'
+  | 'rust'
+  | 'c'
+  | 'cpp'
+  | 'php'
+  | 'ruby'
+  | 'kotlin'
+  | 'swift'
+  | 'dart'
+  | 'lua'
+  | 'powershell'
+  | 'yaml'
+  | 'xml'
+  | 'markdown'
+  | 'dockerfile'
+  | 'graphql';
 
 export const CODE_LANGUAGES: readonly CodeLanguage[] = [
   'plaintext',
@@ -124,6 +141,23 @@ export const CODE_LANGUAGES: readonly CodeLanguage[] = [
   'css',
   'scss',
   'bash',
+  'javascript',
+  'go',
+  'rust',
+  'c',
+  'cpp',
+  'php',
+  'ruby',
+  'kotlin',
+  'swift',
+  'dart',
+  'lua',
+  'powershell',
+  'yaml',
+  'xml',
+  'markdown',
+  'dockerfile',
+  'graphql',
 ] as const;
 
 /** How a code block shows its diff: side by side, interleaved, or just the original. */

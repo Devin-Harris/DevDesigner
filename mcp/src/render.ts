@@ -183,7 +183,7 @@ function drawElement(
       return `<rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" fill="${bg}" stroke="#94a3b8" stroke-dasharray="6 4"/>`;
     }
     case 'rectangle': {
-      const rx = e.ellipticCorners ? (e.cornerRadius ?? 0) : Math.min(e.cornerRadius ?? 0, e.width / 2, e.height / 2);
+      const rx = Math.min(e.cornerRadius ?? 0, e.width / 2, e.height / 2);
       return `<g${op}><rect x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${ds}/>${label()}</g>`;
     }
     case 'ellipse':

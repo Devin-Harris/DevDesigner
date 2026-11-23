@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { EditorViewportService } from '../../../../services/editor-viewport.service';
 import { FrameScrollService } from '../../../../services/frame-scroll.service';
+import { CornerRadiusService, type CornerIndex } from '../../../../services/corner-radius.service';
 import { CanvasContent } from '../../services/canvas-content.service';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { ElementImagesService } from '../../../../services/element-images.service';
@@ -101,6 +102,7 @@ export class CanvasShapesComponent {
    protected readonly content = inject(CanvasContent);
    protected readonly embeds = inject(EmbedFramesService);
    private readonly frameScroll = inject(FrameScrollService);
+   private readonly corners = inject(CornerRadiusService);
    private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
    private readonly viewport = inject(EditorViewportService, { optional: true });
    /** Shift for an item held by a scrollable frame (its frame's scroll). */
@@ -115,6 +117,17 @@ export class CanvasShapesComponent {
       if (layer !== 'lines' && layer !== 'all') return null;
       return this.shapes().some((s) => s.id === h.id) ? h : null;
    });
+   protected readonly cornerHandles$ = computed(() => {
+      const h = this.corners.handles$();
+      if (!h || !this.interactive$()) return null;
+      const layer = this.layer$();
+      if (layer !== 'lines' && layer !== 'all') return null;
+      return this.shapes().some((s) => s.id === h.id) ? h : null;
+   });
+   protected dragCorner(corner: CornerIndex, event: PointerEvent): void {
+      if (event.button !== 0) return;
+      this.corners.drag(corner, event);
+   }
    protected dragPadding(side: 'n' | 's' | 'e' | 'w', event: PointerEvent): void {
       if (event.button !== 0) return;
       this.frameScroll.dragPadding(side, event);

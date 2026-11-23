@@ -247,6 +247,22 @@ export interface MediaConfig {
   end?: number;
   /** Description of the picture for screen readers and exports. */
   alt?: string;
+  /** The look of the shape the picture was clipped to, so releasing the clip can bring it back. */
+  clipShape?: MediaClipStyle;
+}
+
+/** Style of a shape that clips a picture (its geometry follows the picture). */
+export interface MediaClipStyle {
+  strokeColor?: string;
+  backgroundColor?: string;
+  fillStyle?: FillStyle;
+  strokeWidth?: number;
+  strokeStyle?: StrokeStyle;
+  opacity?: number;
+  strokeOpacity?: number;
+  fillOpacity?: number;
+  cornerRadius?: number;
+  text?: string;
 }
 
 /** Optional style type of a placeholder (for theming); a slide's copy keeps it. */
@@ -363,6 +379,8 @@ export interface CanvasElementModel {
   aboveTables?: boolean;
   /** Corner radius (px) for rectangles. Undefined = auto (min(12, 15% of side)). */
   cornerRadius?: number;
+  /** Per-corner radii (px), clockwise from top-left (rectangle) / top (diamond, triangle); overrides `cornerRadius`. */
+  cornerRadii?: number[] | null;
   /** Corners stretch independently per axis (oval-ish) instead of clamping to a pill. */
   ellipticCorners?: boolean;
   /** Line/arrow: route with right-angle bends (elbow) instead of straight/curved. */

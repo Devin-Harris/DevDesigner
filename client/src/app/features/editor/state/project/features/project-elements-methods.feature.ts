@@ -15,6 +15,8 @@ import { clearBindingsTo, reorderElementsIn } from '../helpers/schema-mutation.h
 import { applyItemMoves } from '../helpers/item-moves.helper';
 import { elementToCreateDto, captureBefore, resolveElementRefs } from '../helpers/element-dto.helper';
 import type { SlidePlacement } from './project-slides-methods.feature';
+import { bindingBoxResolver, freezeLinePatch, linesBoundTo } from '../../../helpers/bound-lines.helper';
+export { linesBoundTo };
 import type { ProjectInternalsStore, ProjectInternalsWith } from './project-internals';
 
 type ElementOpsHost = ProjectInternalsStore<{ _placement: SlidePlacement }>;
@@ -120,6 +122,32 @@ function createElementOps(store: ElementOpsHost) {
 export type ElementOps = ReturnType<typeof createElementOps>;
 
 /**
+ * Pin every line/arrow bound to `targetId` where it is drawn now (undoable), so removing or
+ * replacing the target leaves it in place. With `rebindTo`, those ends bind to that element.
+ */
+export async function freezeBoundLines(
+   store: ProjectInternalsStore<{ _elementOps: ElementOps }>,
+   targetId: string,
+   rebindTo?: string
+): Promise<void> {
+   const elements = store.schema()?.elements ?? [];
+   const lines = linesBoundTo(elements, targetId);
+   if (!lines.length) return;
+   const resolve = bindingBoxResolver(elements, store.tables());
+   const { push, rid } = store._history;
+   for (const line of lines) {
+      const patch = freezeLinePatch(line, targetId, resolve, rebindTo);
+      if (!Object.keys(patch).length) continue;
+      const before = captureBefore(line, patch);
+      await store._elementOps.updateElementRaw(line.id, patch);
+      push({
+         undo: () => store._elementOps.updateElementRaw(rid(line.id), before),
+         redo: () => store._elementOps.updateElementRaw(rid(line.id), patch),
+      });
+   }
+}
+
+/**
  * Canvas elements (the excalidraw-style drawing layer): add/update/delete with undo, live
  * local patches and moves, the sticky style, slide assignment and stacking/arrange.
  */
@@ -136,7 +164,7 @@ export function withProjectElementsMethods() {
          const { sequenceApi } = store._api;
          const { createElementRaw, updateElementRaw, deleteElementRaw } = store._elementOps;
 
-         return {
+         const methods = {
             // --- Canvas elements (excalidraw-style drawing layer) ---
 
             /** Update the sticky style applied to subsequently drawn elements. */
@@ -234,6 +262,11 @@ export function withProjectElementsMethods() {
             /** Persist a change that is not the user's own edit (no undo step), e.g. an automatic snapshot. */
             async updateElementSilently(elementId: string, patch: UpdateElementDto): Promise<void> {
                await updateElementRaw(elementId, patch);
+            },
+
+            /** Pin lines bound to `targetId` where they are drawn (optionally rebinding them). */
+            freezeBoundLines(targetId: string, rebindTo?: string): Promise<void> {
+               return freezeBoundLines(store, targetId, rebindTo);
             },
 
             async updateElement(elementId: string, patch: UpdateElementDto): Promise<void> {
@@ -361,6 +394,14 @@ export function withProjectElementsMethods() {
 
             async deleteElement(elementId: string): Promise<void> {
                const snapshot = store.schema()?.elements.find((e) => e.id === elementId);
+               if (snapshot && linesBoundTo(store.schema()?.elements ?? [], elementId).length) {
+                  // Pin bound lines first, in the same undo step as the delete.
+                  await store._history.batchHistory(async () => {
+                     await freezeBoundLines(store, elementId);
+                     await methods.deleteElement(elementId);
+                  });
+                  return;
+               }
                if ((await deleteElementRaw(elementId)) && snapshot) {
                   // Undo re-creates it under the same id, so whatever points at it (a slide's
                   // layout, items on a frame, placeholder copies) still does; redo deletes it.
@@ -517,6 +558,7 @@ export function withProjectElementsMethods() {
                }
             },
          };
+         return methods;
       })
    );
 }

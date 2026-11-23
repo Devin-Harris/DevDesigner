@@ -5,7 +5,7 @@ import { type GridSelectionCommand, GridTableService } from '../../../../service
 import { ElementImagesService } from '../../../../services/element-images.service';
 import { MediaActionsService } from '../../../../services/media-actions.service';
 import { parseGrid } from '../../../../helpers/grid-table.helper';
-import { type ArrowheadType, CODE_LANGUAGES, type CanvasElementModel, type CodeDiffView, type CodeLanguage, DEFAULT_THEME, type FillStyle, type FontFamily, type GridBorders, type MediaPlayback, SLIDE_FIELDS, SLIDE_FIELD_LABELS, type SlideTheme, type StrokeStyle, THEME_STROKE, type TextAlign, type UpdateElementDto, type VerticalAlign, fieldToken, presentationOf, resolveThemeColor, resolveThemeFont, themeSwatchCss, themeToken } from '@devdesigner/shared';
+import { type ArrowheadType, type CanvasElementModel, type CodeDiffView, type CodeLanguage, DEFAULT_THEME, type FillStyle, type FontFamily, type GridBorders, type MediaPlayback, SLIDE_FIELDS, SLIDE_FIELD_LABELS, type SlideTheme, type StrokeStyle, THEME_STROKE, type TextAlign, type UpdateElementDto, type VerticalAlign, fieldToken, presentationOf, resolveThemeColor, resolveThemeFont, themeSwatchCss, themeToken } from '@devdesigner/shared';
 import { IconComponent } from '../../../../../../shared/ui/components/icon/icon.component';
 import { ColorSwatchesComponent } from '../../../../../../shared/ui/components/color-swatches/color-swatches.component';
 import { PopoverTriggerDirective } from '../../../../../../shared/ui/directives/popover-trigger.directive';
@@ -13,8 +13,10 @@ import { EditorActionsService } from '../../../../../../core/editor-bridge/edito
 import { FONT_OPTIONS, SURFACE_FILL, fontStack } from '../../../../helpers/render';
 import { RichTextSessionService } from '../../services/rich-text-session.service';
 import { clearRunKeys, isPlainRuns, patchRuns, plainOf, runsOrPlain } from '../../../../helpers/rich-text.helper';
+import { hasLiveCorners } from '../../../../helpers/render/shape-primitives';
 import { type ListKind, listKindOver, toggleList as toggleListRuns } from '../../helpers/rich-list.helper';
 import { CODE_LANGUAGE_LABELS } from '../../../../helpers/code-highlight.helper';
+import { LanguageMenuComponent } from '../language-menu/language-menu.component';
 import { canFormatCode } from '../../../../helpers/code-format.helper';
 import { CodeActionsService } from '../../../../services/code-actions.service';
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, ensureFontLoaded, withTextFit } from '../../../../helpers/text-metrics';
@@ -31,7 +33,7 @@ import { ARROWHEADS, CODE_FONT_SIZES, FONT_SIZES, STROKE_STYLE_ICONS, STROKE_WID
 @Component({
    selector: 'dd-element-floating-toolbar',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [CallPipe, MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent],
+   imports: [CallPipe, MatTooltipModule, IconComponent, PopoverTriggerDirective, ColorSwatchesComponent, LanguageMenuComponent],
    templateUrl: './element-floating-toolbar.component.html',
    styleUrl: './element-floating-toolbar.component.scss',
 })
@@ -183,10 +185,6 @@ export class ElementFloatingToolbarComponent {
       { id: 'delCols', label: 'Delete columns', keys: 'Ctrl+Alt+Shift+-', needsCells: true },
    ];
    protected readonly gridHeaderOn$ = computed(() => this.isGrid$() && parseGrid(this.element$().text).header);
-   protected readonly languages = CODE_LANGUAGES.map((id) => ({
-      id,
-      label: CODE_LANGUAGE_LABELS[id],
-   }));
    protected readonly codeSizes = CODE_FONT_SIZES;
    protected readonly languageLabel$ = computed(() => CODE_LANGUAGE_LABELS[this.element$().language ?? 'typescript']);
    protected readonly isLine$ = computed(() => this.element$().type === 'arrow' || this.element$().type === 'line');
@@ -277,6 +275,18 @@ export class ElementFloatingToolbarComponent {
    });
    /** Corner radius applies to rectangles only. */
    protected readonly isRect$ = computed(() => this.element$().type === 'rectangle');
+   /** Shapes whose corners round (rectangle, diamond, triangle). */
+   protected readonly hasCorners$ = computed(() => hasLiveCorners(this.element$()));
+   /** The uniform radius shown on the slider (diamonds/triangles start sharp). */
+   protected readonly radius$ = computed(() => {
+      const e = this.element$();
+      return e.cornerRadius ?? (e.type === 'rectangle' ? 12 : 0);
+   });
+   /** Slider range: up to a full pill on this shape. */
+   protected readonly radiusMax$ = computed(() => {
+      const e = this.element$();
+      return Math.max(48, Math.ceil(Math.min(Math.abs(e.width), Math.abs(e.height)) / 2));
+   });
 
    /** Style keys that are remembered for subsequently drawn elements. */
    private static readonly STYLE_KEYS = [
@@ -562,12 +572,9 @@ export class ElementFloatingToolbarComponent {
    }
 
    protected setCornerRadius(value: number): void {
-      this.patchAll({ cornerRadius: value });
+      this.patchAll({ cornerRadius: value, cornerRadii: null });
    }
 
-   protected setEllipticCorners(on: boolean): void {
-      this.patchAll({ ellipticCorners: on });
-   }
 
    protected setTextAlign(align: TextAlign): void {
       if (this.cellsOn()) {

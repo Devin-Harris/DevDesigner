@@ -18,6 +18,7 @@ import { TABLE_PALETTE, uniqueTableName } from '../helpers/table-defaults.helper
 import { applyItemMoves } from '../helpers/item-moves.helper';
 import type { SlidePlacement } from './project-slides-methods.feature';
 import type { ProjectInternalsWith } from './project-internals';
+import { freezeBoundLines, linesBoundTo, type ElementOps } from './project-elements-methods.feature';
 
 /** A deleted table with what goes with it, for undo. */
 interface TableSnapshot {
@@ -35,7 +36,7 @@ function fieldsBefore<T extends object>(row: T, patch: object): Partial<T> {
 /** ERD tables, their columns and indexes, with undo (re-created rows keep their ids; see `rid`). */
 export function withProjectTablesMethods() {
    return signalStoreFeature(
-      type<ProjectInternalsWith<{ _placement: SlidePlacement }>>(),
+      type<ProjectInternalsWith<{ _placement: SlidePlacement; _elementOps: ElementOps }>>(),
       withMethods((store) => {
          const { setSchema, mapTable } = store._schema;
          const { debounce, flushTimers, runSave, optimistic, createOptimistic, stage, patchTableLocal } = store._queue;
@@ -271,7 +272,7 @@ export function withProjectTablesMethods() {
             return ix ? { ...ix, columnIds: [...ix.columnIds] } : null;
          }
 
-         return {
+         const methods = {
             async addTable(x: number, y: number): Promise<void> {
                const projectId = store.projectId();
                if (!projectId) {
@@ -357,6 +358,13 @@ export function withProjectTablesMethods() {
             },
 
             async deleteTable(tableId: string): Promise<void> {
+               if (linesBoundTo(store.schema()?.elements ?? [], tableId).length) {
+                  await store._history.batchHistory(async () => {
+                     await freezeBoundLines(store, tableId);
+                     await methods.deleteTable(tableId);
+                  });
+                  return;
+               }
                const snap = captureTable(tableId);
                await removeTableRaw(tableId);
                if (!snap || store.tables().some((t) => t.id === tableId)) return; // rolled back
@@ -649,6 +657,7 @@ export function withProjectTablesMethods() {
                );
             },
          };
+         return methods;
       })
    );
 }

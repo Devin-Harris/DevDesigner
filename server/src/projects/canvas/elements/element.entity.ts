@@ -92,6 +92,10 @@ export class ElementEntity {
   cornerRadius!: number | null;
 
   // Rectangle corners stretch per axis (oval-ish) instead of clamping to a pill.
+  // Per-corner radii [tl, tr, br, bl] as JSON; null = every corner uses cornerRadius.
+  @Column({ type: 'text', nullable: true })
+  cornerRadiiJson!: string | null;
+
   @Column({ type: 'boolean', nullable: true })
   ellipticCorners!: boolean | null;
 
