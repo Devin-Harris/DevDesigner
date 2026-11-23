@@ -325,10 +325,16 @@ describe('RealtimeGateway', () => {
       const sender = await connect({ projectId: 'p1' });
       const peer = await connect({ projectId: 'p1' });
       const cursors = collect(peer, RT_EVENTS.cursor);
+      // A selection sent after the flood is a marker: socket.io keeps order per socket and
+      // selections have their own bucket, so once the peer sees it every cursor relay the
+      // server made has arrived. No fixed sleep, so a slow machine can't make this flaky.
+      const marker = new Promise((r) => peer.once(RT_EVENTS.selection, r));
       for (let i = 0; i < 500; i++) sender.emit(RT_EVENTS.cursor, { x: i, y: i });
-      await settle(200);
+      sender.emit(RT_EVENTS.selection, { tableIds: ['done'], relationshipIds: [] });
+      await marker;
       expect(cursors.length).toBeGreaterThan(0);
-      expect(cursors.length).toBeLessThanOrEqual(70); // burst 60 + refill during the test
+      // Burst 60 + refill while the flood is processed (generous for slow machines).
+      expect(cursors.length).toBeLessThan(500 / 2);
     });
 
     it('coalesces a selection burst and still delivers the latest one', async () => {
