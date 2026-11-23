@@ -31,7 +31,9 @@ export function desktopClientMiddleware(clientDir: string): RequestHandler {
         next();
         return;
       }
-      res.sendFile(index);
+      // dotfiles: 'allow' — sendFile checks the whole absolute path, and the Linux AppImage
+      // runs from a hidden mount (/tmp/.mount_*), which would otherwise 404 every page.
+      res.sendFile(index, { dotfiles: 'allow' });
     });
   };
 }

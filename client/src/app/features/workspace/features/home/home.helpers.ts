@@ -11,8 +11,9 @@ export const DESKTOP_DOWNLOADS = [
    { id: 'windows', label: 'Windows', file: 'DevDesigner-Setup.exe', url: latest('DevDesigner-Setup.exe') },
    // Built on Apple-silicon CI runners only (native modules match the build machine).
    { id: 'mac-arm', label: 'macOS (Apple silicon)', file: 'DevDesigner-arm64.dmg', url: latest('DevDesigner-arm64.dmg') },
-   { id: 'linux', label: 'Linux (.deb)', file: 'DevDesigner-amd64.deb', url: latest('DevDesigner-amd64.deb') },
-   { id: 'linux-appimage', label: 'Linux (AppImage)', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
+   // AppImage runs on any distro (Arch, Fedora, ...); the .deb is Debian/Ubuntu only.
+   { id: 'linux', label: 'Linux (AppImage)', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
+   { id: 'linux-deb', label: 'Linux (.deb)', file: 'DevDesigner-amd64.deb', url: latest('DevDesigner-amd64.deb') },
 ] as const;
 
 /** OS of the visitor. Prefers User-Agent Client Hints (Chromium), falls back to the UA string. */

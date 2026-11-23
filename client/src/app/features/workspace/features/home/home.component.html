@@ -460,9 +460,9 @@
       </div>
       <p class="dl-note">
          Builds are not code-signed yet: Windows may show “Windows protected your PC” (choose More info → Run anyway),
-         and on macOS right-click the app and choose Open the first time. On Linux, the AppImage must be made executable
-         first (<code>chmod +x DevDesigner.AppImage</code>, or Properties → Allow executing as program); the .deb
-         installs directly. Updates install automatically.
+         and on macOS right-click the app and choose Open the first time. On Linux, make the AppImage executable first
+         (<code>chmod +x DevDesigner.AppImage</code>); on Debian/Ubuntu you can instead install the .deb with
+         <code>sudo apt install ./DevDesigner-amd64.deb</code>. Updates install automatically.
          <a rel="noopener" [href]="releasesUrl">All releases →</a>
       </p>
    </section>
