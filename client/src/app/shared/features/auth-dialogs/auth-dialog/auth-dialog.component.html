@@ -1,6 +1,16 @@
 <h2 mat-dialog-title class="dlg-title">{{ title$() }}</h2>
 
 <mat-dialog-content class="dlg-body">
+   @if (providers$().length > 0) {
+      <div class="oauth">
+         @for (p of providers$(); track p.id) {
+            <button class="btn oauth-btn" type="button" [disabled]="busy$()" (click)="signInWith(p.id)">
+               Continue with {{ p.name }}
+            </button>
+         }
+         <div class="divider"><span>or use email</span></div>
+      </div>
+   }
    <form class="form" [formGroup]="form" (keydown.enter)="submit()">
       @if (isRegister$()) {
          <label class="field">

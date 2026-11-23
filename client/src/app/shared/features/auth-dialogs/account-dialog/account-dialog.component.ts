@@ -31,8 +31,10 @@ export class AccountDialogComponent {
    protected readonly confirmingDelete$ = signal(false);
    protected readonly password = new FormControl('', { nonNullable: true });
    private readonly password$ = formSignal(this.password);
+   /** OAuth-only accounts have no password to confirm with; the second click is the confirmation. */
+   protected readonly needsPassword$ = computed(() => this.auth.currentUser$()?.hasPassword !== false);
    protected readonly canDelete$ = computed(
-      () => (this.password$.value() ?? '').length > 0 && this.busy$() === null
+      () => (!this.needsPassword$() || (this.password$.value() ?? '').length > 0) && this.busy$() === null
    );
 
    protected async logoutAll(): Promise<void> {

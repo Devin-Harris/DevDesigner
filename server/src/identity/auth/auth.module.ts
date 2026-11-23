@@ -10,6 +10,8 @@ import { OptionalAuthGuard } from './optional-auth.guard';
 import { ApiToken } from './api-token.entity';
 import { ApiTokenService } from './api-token.service';
 import { AdminModule } from '../admin/admin.module';
+import { OAuthController } from './oauth/oauth.controller';
+import { OAuthService } from './oauth/oauth.service';
 
 /**
  * Owner authentication (BUILD_INSTRUCTIONS.md sections 5 and 6).
@@ -34,8 +36,8 @@ import { AdminModule } from '../admin/admin.module';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, ApiTokenService, { provide: APP_GUARD, useClass: OptionalAuthGuard }],
+  controllers: [AuthController, OAuthController],
+  providers: [AuthService, ApiTokenService, OAuthService,{ provide: APP_GUARD, useClass: OptionalAuthGuard }],
   exports: [AuthService, ApiTokenService],
 })
 export class AuthModule {}

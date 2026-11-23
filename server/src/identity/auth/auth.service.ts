@@ -251,6 +251,53 @@ export class AuthService implements OnModuleInit {
     track(this.events, 'auth.account_deleted', {}, { principal: {} });
   }
 
+  /**
+   * Sign in with a verified third-party identity. Matches, in order: the same
+   * provider account; an account with the same (provider-verified) email, which
+   * gets linked when it has no provider yet; otherwise a new password-less account.
+   */
+  async oauthSession(
+    provider: 'google' | 'github',
+    profile: { id: string; email: string | null; emailVerified: boolean; name: string | null },
+  ): Promise<User> {
+    let user = await this.users.findOne({ where: { provider, providerId: profile.id } });
+    const email = profile.email && profile.emailVerified ? normalizeEmail(profile.email) : null;
+    if (!user && email) {
+      user = await this.users.findOne({ where: { email } });
+      if (user && !user.provider) {
+        user.provider = provider;
+        user.providerId = profile.id;
+        await this.users.update({ id: user.id }, { provider, providerId: profile.id });
+      }
+    }
+    if (!user) {
+      user = await this.users.save(
+        this.users.create({
+          email,
+          passwordHash: null,
+          displayName: profile.name?.trim().slice(0, 100) || null,
+          provider,
+          providerId: profile.id,
+          role: await this.adminBootstrap.roleForNewAccount(email),
+          lastLoginAt: new Date(),
+        }),
+      );
+      track(this.events, 'auth.signup', { method: provider }, { principal: { userId: user.id } });
+      return user;
+    }
+    await this.adminBootstrap.promoteIfAllowlisted(user);
+    user.lastLoginAt = new Date();
+    await this.users.update({ id: user.id }, { lastLoginAt: user.lastLoginAt });
+    track(this.events, 'auth.login', { method: provider }, { principal: { userId: user.id } });
+    return user;
+  }
+
+  /** A session for an already-authenticated user id (OAuth code exchange). */
+  async sessionFor(userId: string): Promise<{ user: CurrentUserResponse; token: string } | null> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    return user ? { user: toResponse(user), token: this.sign(user) } : null;
+  }
+
   private sign(user: User): string {
     const payload: JwtPayload = { sub: user.id, email: user.email, tv: user.tokenVersion ?? 0 };
     return this.jwt.sign(payload);
@@ -272,6 +319,9 @@ function toResponse(user: User): CurrentUserResponse {
   }
   if (user.preferences) {
     response.preferences = user.preferences;
+  }
+  if (!user.passwordHash) {
+    response.hasPassword = false;
   }
   return response;
 }

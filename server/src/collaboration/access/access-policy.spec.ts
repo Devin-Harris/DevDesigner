@@ -46,6 +46,11 @@ const EXPECTED: Record<string, string> = {
   'POST /auth/login': 'public',
   'POST /auth/logout': 'public',
   'GET /auth/me': 'public',
+  // OAuth sign-in (state cookie + PKCE; the callback hands out a one-time code).
+  'GET /auth/oauth/providers': 'public',
+  'GET /auth/oauth/:provider': 'public',
+  'GET /auth/oauth/:provider/callback': 'public',
+  'POST /auth/oauth/exchange': 'public',
   'GET /auth/api-tokens': 'caller',
   'POST /auth/api-tokens': 'caller',
   'DELETE /auth/api-tokens/:tokenId': 'caller',

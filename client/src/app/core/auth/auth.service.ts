@@ -1,6 +1,6 @@
 import { computed, Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { CurrentUserResponse, LoginDto, RegisterDto } from '@devdesigner/shared';
+import type { CurrentUserResponse, LoginDto, OAuthProviderId, OAuthProviderInfo, RegisterDto } from '@devdesigner/shared';
 import { ApiClientService } from '../http/api-client.service';
 import { runtimeConfig } from '../config/runtime-config';
 
@@ -48,8 +48,14 @@ export class AuthService {
       return this.loading ?? this.loadMe();
    }
 
+   /** Set when an OAuth round trip came back with an error (read once by the UI). */
+   readonly oauthError$ = signal<string | null>(null);
+
    private async fetchMe(): Promise<void> {
       try {
+         if (!runtimeConfig.desktop && (await this.finishOAuthRedirect())) {
+            return;
+         }
          // Desktop: always the one local account; the loopback server signs it in without credentials.
          const user = runtimeConfig.desktop
             ? await firstValueFrom(this.api.post<CurrentUserResponse>('/auth/desktop', {}))
@@ -59,6 +65,54 @@ export class AuthService {
          this._currentUser.set(null);
       } finally {
          this._ready.set(true);
+      }
+   }
+
+   /** Third-party sign-in providers this server is configured for (empty on errors and in desktop). */
+   async oauthProviders(): Promise<OAuthProviderInfo[]> {
+      if (runtimeConfig.desktop) return [];
+      try {
+         return await firstValueFrom(this.api.get<OAuthProviderInfo[]>('/auth/oauth/providers'));
+      } catch {
+         return [];
+      }
+   }
+
+   /** Leave the app for the provider; it comes back to `/?oauth_code=` (see finishOAuthRedirect). */
+   startOAuth(provider: OAuthProviderId): void {
+      globalThis.location.assign(`${runtimeConfig.apiBaseUrl}/auth/oauth/${provider}`);
+   }
+
+   /**
+    * The OAuth callback sends the browser to `/?oauth_code=…` (or `oauth_error=…`).
+    * Trade the one-time code for the session cookie and strip the params from the URL.
+    * Returns true when it signed the user in.
+    */
+   private async finishOAuthRedirect(): Promise<boolean> {
+      const loc = globalThis.location;
+      if (!loc) return false;
+      const url = new URL(loc.href);
+      const code = url.searchParams.get('oauth_code');
+      const error = url.searchParams.get('oauth_error');
+      if (!code && !error) return false;
+      url.searchParams.delete('oauth_code');
+      url.searchParams.delete('oauth_error');
+      globalThis.history?.replaceState(globalThis.history.state, '', url.pathname + url.search + url.hash);
+      if (error) {
+         this.oauthError$.set(
+            error === 'cancelled' ? 'Sign-in was cancelled.' : 'Sign-in failed. Please try again.'
+         );
+         return false;
+      }
+      try {
+         const user = await firstValueFrom(
+            this.api.post<CurrentUserResponse>('/auth/oauth/exchange', { code })
+         );
+         this._currentUser.set(user);
+         return true;
+      } catch {
+         this.oauthError$.set('Sign-in link expired. Please try again.');
+         return false;
       }
    }
 

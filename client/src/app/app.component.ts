@@ -93,7 +93,10 @@ export class AppComponent {
    protected readonly renaming$ = signal(false);
 
    constructor() {
-      void this.auth.loadMe();
+      void this.auth.loadMe().then(() => {
+         // An OAuth round trip that failed: reopen sign-in, which shows the error.
+         if (this.auth.oauthError$()) void this.openAuth();
+      });
       // Desktop File > Settings (Ctrl+,).
       const shell = inject(DesktopShellService);
       effect(() => {

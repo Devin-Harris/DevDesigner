@@ -10,10 +10,6 @@
   - multiple tours would be nice around each individual tool (maybe triggered from our guide or something, id want a full canvas instead but maybe the trigger is from the guides)
   - specifically presentations should be explained fully around design layouts, themes, animations, morphing, etc...
 
-- i need more language support for code blocks
-
-- if i drag and drop an image onto a shape in the canvas, it should auto clip to the shape if possible. similar ui to the arrow anhcoriing with the blue overlay would be nice on drop areas
-
 ## Large Features
 
 - OAuth

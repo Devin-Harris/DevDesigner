@@ -62,6 +62,17 @@ export interface CurrentUserResponse {
   isAdmin?: boolean;
   /** Editor view preferences, synced across devices. */
   preferences?: UserPreferences;
+  /** False for accounts created through OAuth that never set a password. */
+  hasPassword?: boolean;
+}
+
+/** Third-party sign-in providers the server can be configured with. */
+export type OAuthProviderId = 'google' | 'github';
+
+/** GET /auth/oauth/providers: the providers this server has credentials for. */
+export interface OAuthProviderInfo {
+  id: OAuthProviderId;
+  name: string;
 }
 
 /** Per-account editor view settings (persisted so clearing browser storage does not lose them). */

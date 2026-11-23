@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { formSignal } from 'ngx-form-signal';
+import type { OAuthProviderId, OAuthProviderInfo } from '@devdesigner/shared';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../../core/auth/auth.service';
@@ -33,7 +34,8 @@ export class AuthDialogComponent {
    });
    private readonly form$ = formSignal(this.form);
    protected readonly busy$ = signal(false);
-   protected readonly error$ = signal<string | null>(null);
+   protected readonly error$ = signal<string | null>(this.auth.oauthError$());
+   protected readonly providers$ = signal<OAuthProviderInfo[]>([]);
 
    protected readonly isRegister$ = computed(() => this.mode() === 'register');
    protected readonly title$ = computed(() => (this.isRegister$() ? 'Create account' : 'Sign in'));
@@ -45,6 +47,16 @@ export class AuthDialogComponent {
       const passOk = this.isRegister$() ? password.length >= 8 : password.length > 0;
       return emailOk && passOk && !this.busy$();
    });
+
+   constructor() {
+      this.auth.oauthError$.set(null);
+      void this.auth.oauthProviders().then((list) => this.providers$.set(list));
+   }
+
+   protected signInWith(provider: OAuthProviderId): void {
+      this.busy$.set(true);
+      this.auth.startOAuth(provider);
+   }
 
    protected toggleMode(): void {
       this.mode.update((m) => (m === 'login' ? 'register' : 'login'));

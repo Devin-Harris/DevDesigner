@@ -82,6 +82,13 @@ export interface EnvConfig {
   ANALYTICS_RAW_RETENTION_DAYS: number;
   /** Seals share tokens for the owner's share dialog; empty = derived from JWT_SECRET. */
   SHARE_TOKEN_SECRET: string;
+  /** Public URL of the API including the /api prefix; OAuth callbacks are built from it. */
+  PUBLIC_API_URL: string;
+  /** OAuth app credentials; a provider is offered only when both are set (never in desktop mode). */
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
   [key: string]: unknown;
 }
 
@@ -211,6 +218,11 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     SLOW_REQUEST_MS: int('SLOW_REQUEST_MS', 1000, 0, 600_000),
     ANALYTICS_RAW_RETENTION_DAYS: int('ANALYTICS_RAW_RETENTION_DAYS', 90, 0, 36_500),
     SHARE_TOKEN_SECRET: str('SHARE_TOKEN_SECRET', ''),
+    PUBLIC_API_URL: str('PUBLIC_API_URL', 'http://localhost:3000/api').replace(/\/$/, ''),
+    GOOGLE_CLIENT_ID: desktop ? '' : str('GOOGLE_CLIENT_ID', ''),
+    GOOGLE_CLIENT_SECRET: desktop ? '' : str('GOOGLE_CLIENT_SECRET', ''),
+    GITHUB_CLIENT_ID: desktop ? '' : str('GITHUB_CLIENT_ID', ''),
+    GITHUB_CLIENT_SECRET: desktop ? '' : str('GITHUB_CLIENT_SECRET', ''),
   };
 
   if (errors.length > 0) {

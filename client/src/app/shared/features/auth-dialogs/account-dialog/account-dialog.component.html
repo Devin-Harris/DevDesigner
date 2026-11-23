@@ -27,16 +27,20 @@
             </button>
          </div>
       } @else {
-         <label class="field-label" for="dd-delete-password">Confirm with your password</label>
+         @if (needsPassword$()) {
+            <label class="field-label" for="dd-delete-password">Confirm with your password</label>
+         }
          <div class="row">
-            <dd-input
-               id="dd-delete-password"
-               class="grow"
-               type="password"
-               placeholder="Password"
-               [formControl]="password"
-               (keydown.enter)="deleteAccount()"
-            />
+            @if (needsPassword$()) {
+               <dd-input
+                  id="dd-delete-password"
+                  class="grow"
+                  type="password"
+                  placeholder="Password"
+                  [formControl]="password"
+                  (keydown.enter)="deleteAccount()"
+               />
+            }
             <button class="btn danger" type="button" [disabled]="!canDelete$()" (click)="deleteAccount()">
                {{ busy$() === 'delete' ? 'Deleting…' : 'Delete permanently' }}
             </button>

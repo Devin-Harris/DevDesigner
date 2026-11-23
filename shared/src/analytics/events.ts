@@ -71,8 +71,8 @@ export const ANALYTICS_EVENTS = {
   'entity.write': { props: { kind: oneOf(MUTATION_KINDS), elementType: oneOf(ANALYTICS_ELEMENT_TYPES) } },
 
   // --- Auth ---
-  'auth.signup': { props: { method: oneOf(['password']) } },
-  'auth.login': { props: { method: oneOf(['password']) } },
+  'auth.signup': { props: { method: oneOf(['password', 'google', 'github']) } },
+  'auth.login': { props: { method: oneOf(['password', 'google', 'github']) } },
   'auth.login_failed': { props: { reason: oneOf(['credentials', 'locked']) } },
   'auth.logout': { props: {} },
   'auth.logout_all': { props: {} },
