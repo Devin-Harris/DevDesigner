@@ -450,14 +450,19 @@
                <dd-icon name="download" />
                <span class="dl-text">
                   <strong>{{ d.label }}</strong>
-                  <span class="dl-sub">{{ d.id === platform ? 'Your system · ' : '' }}{{ d.file }}</span>
+                  <span class="dl-sub">{{ d.file }}</span>
+                  @if (d.id === platform) {
+                     <span class="dl-badge">Recommended for your system</span>
+                  }
                </span>
             </a>
          }
       </div>
       <p class="dl-note">
          Builds are not code-signed yet: Windows may show “Windows protected your PC” (choose More info → Run anyway),
-         and on macOS right-click the app and choose Open the first time. Updates install automatically.
+         and on macOS right-click the app and choose Open the first time. On Linux, the AppImage must be made executable
+         first (<code>chmod +x DevDesigner.AppImage</code>, or Properties → Allow executing as program); the .deb
+         installs directly. Updates install automatically.
          <a rel="noopener" [href]="releasesUrl">All releases →</a>
       </p>
    </section>

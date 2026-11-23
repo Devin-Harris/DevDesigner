@@ -2268,10 +2268,22 @@ $loop: 16s;
    color: var(--dd-text);
    text-decoration: none;
 
-   &:hover,
-   &.mine {
+   &:hover {
       border-color: var(--dd-primary);
    }
+
+   &.mine {
+      border-color: var(--dd-primary);
+      box-shadow: 0 0 0 1px var(--dd-primary);
+      background: color-mix(in srgb, var(--dd-primary) 10%, transparent);
+   }
+}
+
+.dl-badge {
+   margin-top: 4px;
+   color: var(--dd-primary);
+   font-size: 11px;
+   font-weight: 600;
 }
 
 .dl-text {

@@ -11,10 +11,16 @@ export const DESKTOP_DOWNLOADS = [
    { id: 'windows', label: 'Windows', file: 'DevDesigner-Setup.exe', url: latest('DevDesigner-Setup.exe') },
    // Built on Apple-silicon CI runners only (native modules match the build machine).
    { id: 'mac-arm', label: 'macOS (Apple silicon)', file: 'DevDesigner-arm64.dmg', url: latest('DevDesigner-arm64.dmg') },
-   { id: 'linux', label: 'Linux', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
+   { id: 'linux', label: 'Linux (.deb)', file: 'DevDesigner-amd64.deb', url: latest('DevDesigner-amd64.deb') },
+   { id: 'linux-appimage', label: 'Linux (AppImage)', file: 'DevDesigner.AppImage', url: latest('DevDesigner.AppImage') },
 ] as const;
 
-export function detectPlatform(ua: string): string | null {
+/** OS of the visitor. Prefers User-Agent Client Hints (Chromium), falls back to the UA string. */
+export function detectPlatform(ua: string, hintPlatform?: string): string | null {
+   const hint = (hintPlatform ?? '').toLowerCase();
+   if (hint.includes('windows')) return 'windows';
+   if (hint.includes('mac')) return 'mac-arm';
+   if (hint.includes('linux')) return 'linux';
    if (/Windows/i.test(ua)) return 'windows';
    // Browsers report Intel on Apple silicon too; Apple silicon is the common case now.
    if (/Mac OS X|Macintosh/i.test(ua)) return 'mac-arm';

@@ -139,7 +139,22 @@ export class EditorViewportService {
       // Focus mode locks the view to the presentation (leave it to move around).
       if (this.host.focusedDeck() && !event.ctrlKey) return;
       const rect = this.canvasRect();
-      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      // Trackpads: two-finger scroll pans, pinch (ctrlKey wheel) zooms smoothly by its delta.
+      // Mouse wheels keep zooming in 10% notches.
+      const trackpad = !event.ctrlKey && !event.altKey && this.isTrackpadScroll(event);
+      if (trackpad) {
+         const v = this.store.viewport();
+         const dx = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
+         const dy = event.shiftKey && !event.deltaX ? 0 : event.deltaY;
+         this.store.setViewport(v.x - dx, v.y - dy, v.zoom);
+         return;
+      }
+      const factor =
+         event.ctrlKey && event.deltaMode === 0
+            ? Math.exp(-Math.max(-50, Math.min(50, event.deltaY)) * 0.01)
+            : event.deltaY < 0
+              ? 1.1
+              : 1 / 1.1;
       // Alt + scroll over a shown slide pans it inside its block (Shift swaps the axes),
       // to reach items staged off the slide. "Back to slide" undoes it.
       if (event.altKey && !event.ctrlKey && !this.host.presentation()) {
@@ -176,6 +191,26 @@ export class EditorViewportService {
          }
       }
       this.applyZoom(factor, event.clientX - rect.left, event.clientY - rect.top);
+   }
+
+   /** Until this time, wheel events belong to an ongoing trackpad scroll. */
+   private trackpadUntil = 0;
+
+   /**
+    * Trackpad two-finger scroll vs. mouse wheel. Trackpads send pixel deltas, often
+    * fractional or with a horizontal part; mouse notches are line-mode or large whole steps.
+    * Once a gesture looks like a trackpad, the rest of it (until a short pause) is too.
+    */
+   private isTrackpadScroll(event: WheelEvent): boolean {
+      const now = performance.now();
+      if (event.deltaMode !== 0) return false;
+      const looksPad =
+         event.deltaX !== 0 || !Number.isInteger(event.deltaY) || Math.abs(event.deltaY) < 40;
+      if (looksPad || now < this.trackpadUntil) {
+         this.trackpadUntil = now + 200;
+         return true;
+      }
+      return false;
    }
 
    /** The shown slide whose block covers canvas point `p`. */

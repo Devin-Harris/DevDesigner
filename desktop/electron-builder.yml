@@ -10,6 +10,10 @@ directories:
 # Native modules are installed for Electron by scripts/stage.mjs (not rebuilt here).
 electronVersion: 42.11.18
 npmRebuild: false
+# Newer AppImage runtime (static, bundles its own FUSE): runs on Ubuntu 22.04+/24.04 without
+# users installing libfuse2. The legacy 0.0.0 toolset fails there with "libfuse.so.2" errors.
+toolsets:
+  appimage: '1.0.3'
 # One archive instead of ~11k loose files: much faster first launch (and antivirus scans)
 # and a faster installer. Native modules must stay real files on disk.
 asar: true
@@ -64,6 +68,13 @@ mac:
   artifactName: DevDesigner-${arch}.${ext}
 linux:
   icon: build/icon.png
-  target: AppImage
+  # AppImage: portable, self-updating, but needs `chmod +x` after a browser download (otherwise
+  # file managers say "no app installed for AppImage application bundle"). The .deb installs
+  # with a double-click on Debian/Ubuntu and adds a menu entry.
+  target: [AppImage, deb]
   category: Development
+  maintainer: DevDesigner
+  executableName: devdesigner
   artifactName: DevDesigner.${ext}
+deb:
+  artifactName: DevDesigner-${arch}.${ext}

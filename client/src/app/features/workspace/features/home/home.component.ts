@@ -93,10 +93,16 @@ export class HomeComponent {
    readonly showcase = HOME_SHOWCASE;
    protected readonly mcpConfig = MCP_CONFIG;
    protected readonly mcpCommand = MCP_COMMAND;
-   protected readonly downloads = DESKTOP_DOWNLOADS;
    protected readonly releasesUrl = DESKTOP_RELEASES_URL;
    /** The visitor's OS, to highlight its download. */
-   protected readonly platform = detectPlatform(globalThis.navigator?.userAgent ?? '');
+   protected readonly platform = detectPlatform(
+      globalThis.navigator?.userAgent ?? '',
+      (globalThis.navigator as { userAgentData?: { platform?: string } } | undefined)?.userAgentData?.platform,
+   );
+   /** The visitor's download first, then the rest. */
+   protected readonly downloads = [...DESKTOP_DOWNLOADS].sort(
+      (a, b) => Number(b.id === this.platform) - Number(a.id === this.platform),
+   );
    protected readonly mcpCopied$ = signal<'config' | 'command' | null>(null);
 
    protected async copyMcp(which: 'config' | 'command'): Promise<void> {
