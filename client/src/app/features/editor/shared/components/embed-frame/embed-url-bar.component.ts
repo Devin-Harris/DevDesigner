@@ -23,18 +23,6 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
             (input)="invalid$.set(false)"
             (blur)="save(null, field)"
          />
-         @if (editable$()) {
-            <!-- Opt in to a snapshot of this frame for thumbnails, transitions and PDF export. -->
-            <label class="snap" title="Use a snapshot of this page in thumbnails, slide transitions and PDF exports (asks to share this tab for a moment)">
-               <input type="checkbox" [checked]="snapshot$()" (change)="snapshotToggle.emit($any($event.target).checked)" />
-               Snapshot
-            </label>
-            @if (snapshot$()) {
-               <button type="button" title="Retake the snapshot" aria-label="Retake snapshot" (click)="retake.emit()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" /><circle cx="12" cy="13" r="3.2" /></svg>
-               </button>
-            }
-         }
          <button type="button" title="Reload" aria-label="Reload page" (click)="reload.emit()">⟳</button>
          <a title="Open in a new tab" aria-label="Open in a new tab" target="_blank" rel="noopener noreferrer" [href]="url$()">↗</a>
       </form>
@@ -78,21 +66,6 @@ import { normalizeEmbedUrl } from '@devdesigner/shared';
       input:focus {
          background: var(--dd-chip-bg);
       }
-      .snap {
-         flex: none;
-         display: flex;
-         align-items: center;
-         gap: 4px;
-         padding: 0 6px;
-         color: var(--dd-text-muted, #555);
-         font-size: 11.5px;
-         white-space: nowrap;
-         cursor: pointer;
-      }
-      .snap input {
-         margin: 0;
-         accent-color: var(--dd-primary);
-      }
       button,
       a {
          flex: none;
@@ -130,10 +103,6 @@ export class EmbedUrlBarComponent {
    readonly editable$ = input(true, { alias: 'editable' });
    readonly urlCommit = output<string>();
    readonly reload = output<void>();
-   /** This frame has a snapshot (it shows in thumbnails and exports). */
-   readonly snapshot$ = input(false, { alias: 'snapshot' });
-   readonly snapshotToggle = output<boolean>();
-   readonly retake = output<void>();
    protected readonly invalid$ = signal(false);
 
    protected onKey(event: KeyboardEvent, field: HTMLInputElement): void {

@@ -1,3 +1,4 @@
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -17,33 +18,29 @@ import {
    type ConfirmDialogData,
 } from '../../ui/components/confirm-dialog/confirm-dialog.component';
 import { ProjectThumbnailService } from './services/project-thumbnail.service';
-import { PROJECT_TEMPLATES, type ProjectTemplate } from './models/project-templates';
-import { TemplatesService } from './services/templates.service';
 import { SyncService } from '../../../core/sync/sync.service';
 import { SyncPanelComponent } from './components/sync-panel/sync-panel.component';
 import { AtPipe, HasPipe, CallPipe } from '../../../shared/ui/pipes/collection.pipes';
 import { EditedAgoPipe, ThumbStatePipe } from './projects-overlay.pipes';
 
-type OverlayView = 'projects' | 'templates' | 'sync';
+type OverlayView = 'projects' | 'sync';
 
 /**
  * The full-screen projects browser, opened from the breadcrumb (or the empty
  * state) as a Material dialog. Replaces the old left sidebar panel. Hosts two
- * views: the project grid (search / new / cards / show-archived) and the
- * templates gallery. Selecting or creating a project closes the overlay so the
+ * views: the project grid (search / new / cards / show-archived) and sync. Selecting or creating a project closes the overlay so the
  * editor takes over. No type-filter pills (removed by request).
  */
 @Component({
    selector: 'dd-projects-overlay',
    changeDetection: ChangeDetectionStrategy.OnPush,
-   imports: [EditedAgoPipe, ThumbStatePipe, CallPipe, AtPipe, HasPipe, ReactiveFormsModule, AutofocusDirective, IconComponent, InputComponent, ToggleComponent, PopoverTriggerDirective, SyncPanelComponent],
+   imports: [MatTooltipModule, EditedAgoPipe, ThumbStatePipe, CallPipe, AtPipe, HasPipe, ReactiveFormsModule, AutofocusDirective, IconComponent, InputComponent, ToggleComponent, PopoverTriggerDirective, SyncPanelComponent],
    templateUrl: './projects-overlay.component.html',
    styleUrl: './projects-overlay.component.scss',
 })
 export class ProjectsOverlayComponent {
    protected readonly store = inject(ProjectsStore);
    protected readonly thumbs = inject(ProjectThumbnailService);
-   private readonly templates = inject(TemplatesService);
    private readonly dialog = inject(MatDialog);
    private readonly dialogRef = inject(MatDialogRef<ProjectsOverlayComponent>);
    private readonly snackBar = inject(MatSnackBar);
@@ -67,7 +64,6 @@ export class ProjectsOverlayComponent {
       showArchived: new FormControl(this.store.showArchived(), { nonNullable: true }),
    });
    protected readonly busy$ = signal(false);
-   protected readonly templateDefs: ProjectTemplate[] = PROJECT_TEMPLATES;
    /** Projects ticked for a bulk action. */
    protected readonly checked$ = signal<ReadonlySet<string>>(new Set());
    /** Keyboard cursor (arrow keys move it; Delete/Enter act on it). */
@@ -151,19 +147,6 @@ export class ProjectsOverlayComponent {
          this.dialogRef.close();
       } catch (err) {
          this.notifyError('Could not add project', err);
-      }
-   }
-
-   protected async useTemplate(template: ProjectTemplate): Promise<void> {
-      if (this.busy$()) return;
-      this.busy$.set(true);
-      try {
-         await this.templates.createFromTemplate(template);
-         this.dialogRef.close();
-      } catch (err) {
-         this.notifyError('Could not create from template', err);
-      } finally {
-         this.busy$.set(false);
       }
    }
 

@@ -1,4 +1,3 @@
-import { EmbedSnapshotsService } from '../../../../services/embed-snapshots.service';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { EditorViewportService } from '../../../../services/editor-viewport.service';
 import { FrameScrollService } from '../../../../services/frame-scroll.service';
@@ -172,7 +171,6 @@ export class CanvasShapesComponent {
    protected readonly croppingId$ = inject(MediaActionsService).croppingId;
 
    /** A live frame's address was typed in: save it (the page loads from the new value). */
-   protected readonly snapshots = inject(EmbedSnapshotsService);
 
    protected commitEmbedUrl(id: string, url: string): void {
       void this.content.updateElement(id, { text: url });

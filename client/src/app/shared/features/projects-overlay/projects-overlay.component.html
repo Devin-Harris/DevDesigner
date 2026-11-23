@@ -52,7 +52,7 @@
                   <h3>Welcome to DevDesigner</h3>
                   <p>
                      Everything you make here is stored on this computer and works offline. Create a project with
-                     <strong>New</strong>, pick a <strong>Template</strong>, open a <code>.devdesigner</code> file
+                     <strong>New</strong>, open a <code>.devdesigner</code> file
                      (Ctrl+O), or connect a server under <strong>Sync</strong> to pick up projects from another device.
                   </p>
                </div>
@@ -61,7 +61,7 @@
                   {{
                      showArchived$()
                         ? 'No archived projects.'
-                        : 'No projects yet — create one or start from a template.'
+                        : 'No projects yet — create one to get started.'
                   }}
                </div>
             }
@@ -249,13 +249,13 @@
          </div>
       }
       <footer class="panel-foot">
-         <span class="kbd-hint"
-            >↑↓ move · Shift+↑↓ / Shift+click range · Alt+click toggle · Del delete · Enter open</span
-         >
-         <button class="btn ghost" type="button" (click)="view$.set('templates')">
-            <dd-icon name="template" />
-            Templates
-         </button>
+         <dd-icon
+            name="info"
+            class="kbd-hint"
+            tabindex="0"
+            aria-label="Keyboard shortcuts"
+            matTooltip="↑↓ move · Shift+↑↓ / Shift+click range · Alt+click toggle · Del delete · Enter open"
+         />
       </footer>
    } @else if (view$() === 'sync') {
       <header class="panel-head">
@@ -271,58 +271,6 @@
       </header>
       <div class="cards-scroll">
          <dd-sync-panel (opened)="openSynced($event)" />
-      </div>
-   } @else {
-      <header class="panel-head">
-         <button class="icon-btn" type="button" aria-label="Back" (click)="view$.set('projects')">
-            <dd-icon name="chevron_left" />
-         </button>
-         <h2 class="title">Templates</h2>
-         <div class="head-actions">
-            <button class="icon-btn" type="button" aria-label="Close" (click)="close()">
-               <dd-icon name="close" />
-            </button>
-         </div>
-      </header>
-
-      <div class="cards-scroll">
-         <div class="cards templates">
-            @for (t of templateDefs; track t.id) {
-               <button class="tcard" type="button" [disabled]="busy$()" (click)="useTemplate(t)">
-                  <div class="thumb" [style.--a]="t.accent">
-                     <svg viewBox="0 0 92 60" aria-hidden="true">
-                        <line x1="34" y1="20" x2="56" y2="40" stroke="var(--dd-connector)" stroke-width="1.4" />
-                        <rect
-                           x="9"
-                           y="11"
-                           width="26"
-                           height="20"
-                           rx="3"
-                           fill="var(--dd-node-surface)"
-                           stroke="var(--dd-border-strong)"
-                        />
-                        <rect x="9" y="11" width="26" height="6" rx="3" fill="var(--a)" />
-                        <rect
-                           x="52"
-                           y="30"
-                           width="30"
-                           height="20"
-                           rx="3"
-                           fill="var(--dd-node-surface)"
-                           stroke="var(--dd-border-strong)"
-                        />
-                        <rect x="52" y="30" width="30" height="6" rx="3" fill="var(--a)" />
-                     </svg>
-                  </div>
-                  <div class="meta">
-                     <div class="name-row">
-                        <span class="name">{{ t.name }}</span>
-                     </div>
-                     <div class="sub">{{ t.description }}</div>
-                  </div>
-               </button>
-            }
-         </div>
       </div>
    }
 </div>

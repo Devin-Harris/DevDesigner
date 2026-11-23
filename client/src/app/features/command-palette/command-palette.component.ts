@@ -111,7 +111,7 @@ export class CommandPaletteComponent {
       const cmd = (icon: string, label: string, run: () => void, key?: string): void => {
          out.push({ group: 'Commands', icon, label, run, key });
       };
-      cmd('table_chart', 'All projects & templates…', () => this.overlay.open());
+      cmd('table_chart', 'All projects…', () => this.overlay.open());
       cmd(
          this.theme.dark$() ? 'light_mode' : 'dark_mode',
          this.theme.dark$() ? 'Switch to light theme' : 'Switch to dark theme',

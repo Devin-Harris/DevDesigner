@@ -660,7 +660,7 @@
                         ></dd-embed-frame>
                      </foreignObject>
                   }
-                  @if (em.url && s.selected && interactive$() && snapshots.capturingId$() !== s.id) {
+                  @if (em.url && s.selected && interactive$()) {
                      <!-- Address bar floating inside the selected frame's bottom edge (inside, so a slide's
                           clip never cuts it off): edit the URL, reload, open. -->
                      <foreignObject
@@ -672,11 +672,8 @@
                         <dd-embed-url-bar
                            [url]="em.url"
                            [editable]="content.canEdit$()"
-                           [snapshot]="snapshots.snapshotIds$() | has: s.id"
                            (urlCommit)="commitEmbedUrl(s.id, $event)"
                            (reload)="embeds.reload(s.id)"
-                           (snapshotToggle)="snapshots.setEnabled(s.id, $event)"
-                           (retake)="snapshots.capture(s.id)"
                         ></dd-embed-url-bar>
                      </foreignObject>
                   }
@@ -685,7 +682,7 @@
             </g>
          </g>
 
-         @if (s.selected && s.id !== editingId$() && s.id !== croppingId$() && s.id !== snapshots.capturingId$()) {
+         @if (s.selected && s.id !== editingId$() && s.id !== croppingId$()) {
             <g [attr.transform]="scrollTransformOf$() | call: s.frameScroll">
             <g class="selection" [attr.transform]="s.transform">
                @if (s.ends) {

@@ -193,16 +193,6 @@ export function buildShapeViews(
             base.rect = { x: element.x, y: element.y, width: element.width, height: element.height, rx };
             const url = isEmbedUrl(element.text) ? element.text!.trim() : null;
             base.embed = { x: element.x, y: element.y, width: element.width, height: element.height, rx, url };
-            if (element.fileId) {
-               // A captured snapshot stands in for the page in thumbnails, transitions and exports.
-               base.image = imageView({ ...element, media: undefined }, element.fileId);
-               base.image.clip = {
-                  id: `embed-snap-${element.id}`,
-                  rect: { x: element.x, y: element.y, width: element.width, height: element.height, rx },
-                  css: `inset(0 round ${rx}px)`,
-               };
-               break;
-            }
             base.label = layoutTextBlock(
                url ? embedLabel(url) : 'Live frame',
                { x: element.x, y: element.y, width: element.width, height: element.height },
